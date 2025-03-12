@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Layout from "@/components/Layout";
-import { Truck, Package, CalendarCheck, ChevronRight } from "lucide-react";
+import { Truck, Package, CalendarCheck, ChevronRight, LogIn } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   {
@@ -25,6 +26,8 @@ const features = [
 ];
 
 const Index = () => {
+  const { user } = useAuth();
+
   return (
     <Layout>
       <section className="py-12 md:py-24">
@@ -39,12 +42,23 @@ const Index = () => {
               </p>
             </div>
             <div className="space-x-4">
-              <Link to="/create-order">
-                <Button className="bg-courier-600 hover:bg-courier-700">Create Order</Button>
-              </Link>
-              <Link to="/dashboard">
-                <Button variant="outline">View Dashboard</Button>
-              </Link>
+              {user ? (
+                <>
+                  <Link to="/create-order">
+                    <Button className="bg-courier-600 hover:bg-courier-700">Create Order</Button>
+                  </Link>
+                  <Link to="/dashboard">
+                    <Button variant="outline">View Dashboard</Button>
+                  </Link>
+                </>
+              ) : (
+                <Link to="/auth">
+                  <Button className="bg-courier-600 hover:bg-courier-700">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Sign In / Sign Up
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -111,12 +125,21 @@ const Index = () => {
                 Start managing your courier orders more efficiently today.
               </p>
             </div>
-            <Link to="/create-order">
-              <Button className="bg-white text-courier-800 hover:bg-gray-100">
-                Create Your First Order
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            {user ? (
+              <Link to="/create-order">
+                <Button className="bg-white text-courier-800 hover:bg-gray-100">
+                  Create Your First Order
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button className="bg-white text-courier-800 hover:bg-gray-100">
+                  Sign Up Now
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </section>

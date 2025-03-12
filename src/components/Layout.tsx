@@ -1,13 +1,23 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { Truck } from "lucide-react";
+import { Truck, LogOut, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { user, signOut } = useAuth();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200">
@@ -20,13 +30,40 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Link to="/" className="text-gray-600 hover:text-courier-600 transition-colors">
               Home
             </Link>
-            <Link to="/create-order" className="text-gray-600 hover:text-courier-600 transition-colors">
-              Create Order
-            </Link>
-            <Link to="/dashboard" className="text-gray-600 hover:text-courier-600 transition-colors">
-              Dashboard
-            </Link>
+            {user ? (
+              <>
+                <Link to="/create-order" className="text-gray-600 hover:text-courier-600 transition-colors">
+                  Create Order
+                </Link>
+                <Link to="/dashboard" className="text-gray-600 hover:text-courier-600 transition-colors">
+                  Dashboard
+                </Link>
+              </>
+            ) : (
+              <Link to="/auth" className="text-gray-600 hover:text-courier-600 transition-colors">
+                Sign In
+              </Link>
+            )}
           </nav>
+          
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem disabled>
+                  <span className="text-sm">{user.email}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </header>
       <main className="container mx-auto px-4 py-8">

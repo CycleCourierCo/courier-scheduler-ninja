@@ -1,35 +1,54 @@
 
 import { Order, CreateOrderFormData, OrderStatus } from "@/types/order";
 import { toast } from "sonner";
-
-// Mock database
-let orders: Order[] = [];
-
-// Generate a unique ID
-const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
+import { supabase } from "@/integrations/supabase/client";
 
 // Create a new order
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const newOrder: Order = {
-      id: generateId(),
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const newOrder = {
+      user_id: user.id,
       sender: data.sender,
       receiver: data.receiver,
-      status: 'sender_availability_pending',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: 'sender_availability_pending' as OrderStatus,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
     
-    // Store the order
-    orders.push(newOrder);
+    // Store the order in Supabase
+    const { data: order, error } = await supabase
+      .from('orders')
+      .insert(newOrder)
+      .select()
+      .single();
+    
+    if (error) {
+      throw error;
+    }
     
     // Simulate sending email to sender
-    console.log(`Email sent to sender ${data.sender.email} for order ${newOrder.id}`);
+    console.log(`Email sent to sender ${data.sender.email} for order ${order.id}`);
     toast.info(`Email sent to sender: ${data.sender.email}`);
     
-    return newOrder;
+    return {
+      id: order.id,
+      sender: order.sender,
+      receiver: order.receiver,
+      status: order.status,
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
+      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      trackingNumber: order.tracking_number
+    };
   } catch (error) {
     console.error("Error creating order:", error);
     throw new Error("Failed to create order");
@@ -38,121 +57,217 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
 // Get all orders
 export const getOrders = async (): Promise<Order[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return orders;
+  try {
+    const { data: ordersData, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return ordersData.map(order => ({
+      id: order.id,
+      sender: order.sender,
+      receiver: order.receiver,
+      status: order.status,
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
+      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      trackingNumber: order.tracking_number
+    }));
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    throw new Error("Failed to fetch orders");
+  }
 };
 
 // Get order by ID
 export const getOrderById = async (id: string): Promise<Order | undefined> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return orders.find(order => order.id === id);
+  try {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return undefined; // Order not found
+      }
+      throw error;
+    }
+    
+    return order ? {
+      id: order.id,
+      sender: order.sender,
+      receiver: order.receiver,
+      status: order.status,
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
+      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      trackingNumber: order.tracking_number
+    } : undefined;
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    throw new Error("Failed to fetch order");
+  }
 };
 
 // Update order status
 export const updateOrderStatus = async (id: string, status: OrderStatus): Promise<Order | undefined> => {
-  const orderIndex = orders.findIndex(order => order.id === id);
-  
-  if (orderIndex !== -1) {
-    orders[orderIndex] = {
-      ...orders[orderIndex],
-      status,
-      updatedAt: new Date()
-    };
-    return orders[orderIndex];
+  try {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update({ 
+        status, 
+        updated_at: new Date() 
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      throw error;
+    }
+    
+    return order ? {
+      id: order.id,
+      sender: order.sender,
+      receiver: order.receiver,
+      status: order.status,
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
+      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      trackingNumber: order.tracking_number
+    } : undefined;
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    throw new Error("Failed to update order status");
   }
-  
-  return undefined;
 };
 
 // Update sender availability
 export const updateSenderAvailability = async (id: string, pickupDate: Date): Promise<Order | undefined> => {
-  const orderIndex = orders.findIndex(order => order.id === id);
-  
-  if (orderIndex !== -1) {
-    orders[orderIndex] = {
-      ...orders[orderIndex],
-      pickupDate,
-      status: 'receiver_availability_pending',
-      updatedAt: new Date()
-    };
+  try {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update({ 
+        pickup_date: pickupDate.toISOString(),
+        status: 'receiver_availability_pending',
+        updated_at: new Date()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      throw error;
+    }
     
     // Simulate sending email to receiver
-    console.log(`Email sent to receiver ${orders[orderIndex].receiver.email} for order ${id}`);
-    toast.info(`Email sent to receiver: ${orders[orderIndex].receiver.email}`);
+    console.log(`Email sent to receiver ${order.receiver.email} for order ${id}`);
+    toast.info(`Email sent to receiver: ${order.receiver.email}`);
     
-    return orders[orderIndex];
+    return order ? {
+      id: order.id,
+      sender: order.sender,
+      receiver: order.receiver,
+      status: order.status,
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
+      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      trackingNumber: order.tracking_number
+    } : undefined;
+  } catch (error) {
+    console.error("Error updating sender availability:", error);
+    throw new Error("Failed to update sender availability");
   }
-  
-  return undefined;
 };
 
 // Update receiver availability
 export const updateReceiverAvailability = async (id: string, deliveryDate: Date): Promise<Order | undefined> => {
-  const orderIndex = orders.findIndex(order => order.id === id);
-  
-  if (orderIndex !== -1) {
-    orders[orderIndex] = {
-      ...orders[orderIndex],
-      deliveryDate,
-      status: 'scheduled',
-      updatedAt: new Date()
-    };
+  try {
+    // First update the order with delivery date and scheduled status
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from('orders')
+      .update({ 
+        delivery_date: deliveryDate.toISOString(),
+        status: 'scheduled',
+        updated_at: new Date()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (updateError) {
+      throw updateError;
+    }
     
     // Simulate creating Shipday order
     try {
-      const trackingNumber = await createShipdayOrder(orders[orderIndex]);
+      const trackingNumber = await createShipdayOrder(updatedOrder);
       
-      orders[orderIndex] = {
-        ...orders[orderIndex],
-        trackingNumber,
-        status: 'shipped',
-        updatedAt: new Date()
-      };
+      // Update the order with tracking number and shipped status
+      const { data: shippedOrder, error: shippedError } = await supabase
+        .from('orders')
+        .update({
+          tracking_number: trackingNumber,
+          status: 'shipped',
+          updated_at: new Date()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (shippedError) {
+        throw shippedError;
+      }
       
       toast.success(`Order has been shipped with tracking number: ${trackingNumber}`);
-      return orders[orderIndex];
+      
+      return shippedOrder ? {
+        id: shippedOrder.id,
+        sender: shippedOrder.sender,
+        receiver: shippedOrder.receiver,
+        status: shippedOrder.status,
+        createdAt: new Date(shippedOrder.created_at),
+        updatedAt: new Date(shippedOrder.updated_at),
+        pickupDate: shippedOrder.pickup_date ? new Date(shippedOrder.pickup_date) : undefined,
+        deliveryDate: shippedOrder.delivery_date ? new Date(shippedOrder.delivery_date) : undefined,
+        trackingNumber: shippedOrder.tracking_number
+      } : undefined;
     } catch (error) {
       console.error("Error creating Shipday order:", error);
       toast.error("Failed to create Shipday order");
-      return orders[orderIndex];
+      
+      return updatedOrder ? {
+        id: updatedOrder.id,
+        sender: updatedOrder.sender,
+        receiver: updatedOrder.receiver,
+        status: updatedOrder.status,
+        createdAt: new Date(updatedOrder.created_at),
+        updatedAt: new Date(updatedOrder.updated_at),
+        pickupDate: updatedOrder.pickup_date ? new Date(updatedOrder.pickup_date) : undefined,
+        deliveryDate: updatedOrder.delivery_date ? new Date(updatedOrder.delivery_date) : undefined,
+        trackingNumber: updatedOrder.tracking_number
+      } : undefined;
     }
+  } catch (error) {
+    console.error("Error updating receiver availability:", error);
+    throw new Error("Failed to update receiver availability");
   }
-  
-  return undefined;
 };
 
 // Create Shipday order
-const createShipdayOrder = async (order: Order): Promise<string> => {
+const createShipdayOrder = async (order: any): Promise<string> => {
   // Simulating Shipday API call
   console.log("Creating Shipday order with data:", order);
-  
-  // In a real implementation, you would make an API call to Shipday here
-  // For example:
-  /*
-  const response = await fetch('https://api.shipday.com/orders', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SHIPDAY_API_KEY}`
-    },
-    body: JSON.stringify({
-      orderNumber: order.id,
-      customerName: order.receiver.name,
-      customerEmail: order.receiver.email,
-      customerPhone: order.receiver.phone,
-      pickupAddress: `${order.sender.address.street}, ${order.sender.address.city}, ${order.sender.address.state}, ${order.sender.address.zipCode}`,
-      pickupBusinessName: order.sender.name,
-      deliveryAddress: `${order.receiver.address.street}, ${order.receiver.address.city}, ${order.receiver.address.state}, ${order.receiver.address.zipCode}`,
-      expectedPickupTime: order.pickupDate?.toISOString(),
-      expectedDeliveryDate: order.deliveryDate?.toISOString()
-    })
-  });
-  
-  const data = await response.json();
-  return data.trackingNumber;
-  */
   
   // For now, we'll just return a mock tracking number
   return `SD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
