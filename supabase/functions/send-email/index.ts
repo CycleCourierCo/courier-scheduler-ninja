@@ -1,80 +1,71 @@
 
-import { serve } from "https://deno.land/std@0.182.0/http/server.ts";
-import { Resend } from "npm:resend@1.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.1";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface EmailParams {
-  to: string;
-  name: string;
-  orderId: string;
-  baseUrl: string;
-}
-
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Log request for debugging
-    console.log("Received request:", req.method);
-    
-    const payload = await req.json();
-    console.log("Request payload:", payload);
-    
-    const { to, name, orderId, baseUrl } = payload as EmailParams;
-    const availabilityUrl = `${baseUrl}/sender-availability/${orderId}`;
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not set");
+    }
 
-    console.log("Sending email to:", to);
-    console.log("Using Resend API Key:", Deno.env.get("RESEND_API_KEY") ? "Set" : "Not set");
+    const resend = new Resend(RESEND_API_KEY);
 
-    const { data, error } = await resend.emails.send({
-      from: "Cycle Courier Co <Ccc@notification.cyclecourierco.com>",
+    // Parse request body
+    const { to, name, orderId, baseUrl } = await req.json();
+
+    if (!to || !name || !orderId || !baseUrl) {
+      throw new Error("Missing required fields: to, name, orderId, or baseUrl");
+    }
+
+    console.log(`Sending email to ${to} for order ${orderId}`);
+
+    // Generate the availability link
+    const availabilityLink = `${baseUrl}/sender-availability/${orderId}`;
+
+    // Set up the email
+    const data = await resend.emails.send({
+      from: "Ccc@notification.cyclecourierco.com",
       to: [to],
-      subject: "Please Confirm Your Availability for Package Pickup",
+      subject: "Confirm Your Availability - Cycle Courier Co",
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb; margin-top: 40px; margin-bottom: 20px;">Hello ${name},</h1>
-          <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;">Thank you for creating an order with our courier service. We need you to confirm when you will be available for package pickup.</p>
-          <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;"><strong>You can now select multiple dates that work for you!</strong> This gives us more flexibility to schedule your pickup.</p>
-          <div style="margin: 30px 0;">
-            <a href="${availabilityUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirm Your Availability</a>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #374151;">Please Confirm Your Availability</h1>
+          <p>Hello ${name},</p>
+          <p>Thank you for using Cycle Courier Co for your delivery needs. To schedule a pickup for your package, please confirm your availability by clicking the button below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${availabilityLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirm Availability</a>
           </div>
-          <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;">If the button doesn't work, copy and paste this link into your browser:</p>
-          <p style="font-size: 14px; line-height: 20px; word-break: break-all; color: #6b7280; margin-bottom: 30px;">${availabilityUrl}</p>
-          <p style="font-size: 16px; line-height: 24px; margin-bottom: 40px;">Thank you,<br>The Cycle Courier Team</p>
+          <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+          <p>${availabilityLink}</p>
+          <p>Thank you,<br>The Cycle Courier Co Team</p>
         </div>
       `,
     });
 
-    if (error) {
-      console.error("Error sending email:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    console.log("Email sent successfully:", data);
 
-    console.log("Email sent successfully to:", to);
-    
-    return new Response(JSON.stringify({ success: true, data }), {
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error) {
-    console.error("Error in send-email function:", error);
+    console.error("Error sending email:", error);
+    
     return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
-};
-
-serve(handler);
+});
