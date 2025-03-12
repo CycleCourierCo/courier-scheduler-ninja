@@ -28,8 +28,8 @@ export type Order = {
   id: string;
   sender: ContactInfo & { address: Address };
   receiver: ContactInfo & { address: Address };
-  pickupDate?: Date;
-  deliveryDate?: Date;
+  pickupDate?: Date | Date[];
+  deliveryDate?: Date | Date[];
   status: OrderStatus;
   createdAt: Date;
   updatedAt: Date;

@@ -1,3 +1,4 @@
+
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -231,8 +232,14 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
-      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      pickupDate: order.pickup_date ? Array.isArray(order.pickup_date) 
+        ? order.pickup_date.map((d: string) => new Date(d))
+        : new Date(order.pickup_date) 
+        : undefined,
+      deliveryDate: order.delivery_date ? Array.isArray(order.delivery_date)
+        ? order.delivery_date.map((d: string) => new Date(d))
+        : new Date(order.delivery_date)
+        : undefined,
       trackingNumber: order.tracking_number
     };
   } catch (error) {
@@ -276,12 +283,18 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
 };
 
 // Update sender availability
-export const updateSenderAvailability = async (id: string, pickupDate: Date): Promise<Order | undefined> => {
+export const updateSenderAvailability = async (id: string, pickupDates: Date | Date[]): Promise<Order | undefined> => {
   try {
+    // Make sure we have an array of dates
+    const datesArray = Array.isArray(pickupDates) ? pickupDates : [pickupDates];
+    
+    // Convert all dates to ISO strings
+    const pickupDatesISO = datesArray.map(date => date.toISOString());
+    
     const { data: order, error } = await supabase
       .from('orders')
       .update({ 
-        pickup_date: pickupDate.toISOString(),
+        pickup_date: pickupDatesISO,
         status: 'receiver_availability_pending',
         updated_at: new Date().toISOString()
       })
@@ -306,8 +319,14 @@ export const updateSenderAvailability = async (id: string, pickupDate: Date): Pr
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
-      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      pickupDate: order.pickup_date ? Array.isArray(order.pickup_date)
+        ? order.pickup_date.map((d: string) => new Date(d))
+        : new Date(order.pickup_date)
+        : undefined,
+      deliveryDate: order.delivery_date ? Array.isArray(order.delivery_date)
+        ? order.delivery_date.map((d: string) => new Date(d))
+        : new Date(order.delivery_date)
+        : undefined,
       trackingNumber: order.tracking_number
     } : undefined;
   } catch (error) {
@@ -317,13 +336,19 @@ export const updateSenderAvailability = async (id: string, pickupDate: Date): Pr
 };
 
 // Update receiver availability
-export const updateReceiverAvailability = async (id: string, deliveryDate: Date): Promise<Order | undefined> => {
+export const updateReceiverAvailability = async (id: string, deliveryDates: Date | Date[]): Promise<Order | undefined> => {
   try {
+    // Make sure we have an array of dates
+    const datesArray = Array.isArray(deliveryDates) ? deliveryDates : [deliveryDates];
+    
+    // Convert all dates to ISO strings
+    const deliveryDatesISO = datesArray.map(date => date.toISOString());
+    
     // First update the order with delivery date and scheduled status
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update({ 
-        delivery_date: deliveryDate.toISOString(),
+        delivery_date: deliveryDatesISO,
         status: 'scheduled',
         updated_at: new Date().toISOString()
       })
@@ -364,8 +389,14 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
         status: shippedOrder.status as OrderStatus,
         createdAt: new Date(shippedOrder.created_at),
         updatedAt: new Date(shippedOrder.updated_at),
-        pickupDate: shippedOrder.pickup_date ? new Date(shippedOrder.pickup_date) : undefined,
-        deliveryDate: shippedOrder.delivery_date ? new Date(shippedOrder.delivery_date) : undefined,
+        pickupDate: shippedOrder.pickup_date ? Array.isArray(shippedOrder.pickup_date)
+          ? shippedOrder.pickup_date.map((d: string) => new Date(d))
+          : new Date(shippedOrder.pickup_date)
+          : undefined,
+        deliveryDate: shippedOrder.delivery_date ? Array.isArray(shippedOrder.delivery_date)
+          ? shippedOrder.delivery_date.map((d: string) => new Date(d))
+          : new Date(shippedOrder.delivery_date)
+          : undefined,
         trackingNumber: shippedOrder.tracking_number
       } : undefined;
     } catch (error) {
@@ -379,8 +410,14 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
         status: updatedOrder.status as OrderStatus,
         createdAt: new Date(updatedOrder.created_at),
         updatedAt: new Date(updatedOrder.updated_at),
-        pickupDate: updatedOrder.pickup_date ? new Date(updatedOrder.pickup_date) : undefined,
-        deliveryDate: updatedOrder.delivery_date ? new Date(updatedOrder.delivery_date) : undefined,
+        pickupDate: updatedOrder.pickup_date ? Array.isArray(updatedOrder.pickup_date)
+          ? updatedOrder.pickup_date.map((d: string) => new Date(d))
+          : new Date(updatedOrder.pickup_date)
+          : undefined,
+        deliveryDate: updatedOrder.delivery_date ? Array.isArray(updatedOrder.delivery_date)
+          ? updatedOrder.delivery_date.map((d: string) => new Date(d))
+          : new Date(updatedOrder.delivery_date)
+          : undefined,
         trackingNumber: updatedOrder.tracking_number
       } : undefined;
     }

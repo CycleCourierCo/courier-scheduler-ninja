@@ -7,17 +7,21 @@ import { getOrderById, updateSenderAvailability } from '@/services/orderService'
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { format, addDays, isBefore } from "date-fns";
 
 export default function SenderAvailability() {
   const { orderId } = useParams<{ orderId: string }>();
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [dates, setDates] = useState<Date[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  
+  // Define minimum date (2 days from now)
+  const minDate = addDays(new Date(), 2);
 
   useEffect(() => {
     async function fetchOrder() {
@@ -88,8 +92,8 @@ export default function SenderAvailability() {
   }, [orderId]);
 
   const handleSubmit = async () => {
-    if (!date) {
-      toast.error("Please select a date for pickup");
+    if (dates.length === 0) {
+      toast.error("Please select at least one date for pickup");
       return;
     }
 
@@ -100,7 +104,9 @@ export default function SenderAvailability() {
 
     try {
       setIsSubmitting(true);
-      await updateSenderAvailability(orderId, date);
+      // Sort dates chronologically
+      const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
+      await updateSenderAvailability(orderId, sortedDates);
       toast.success("Your availability has been confirmed");
       // Redirect to a confirmation page or display a success message
       navigate("/");
@@ -158,27 +164,39 @@ export default function SenderAvailability() {
         <CardHeader>
           <CardTitle>Confirm Your Availability</CardTitle>
           <CardDescription>
-            Select a date when you will be available for package pickup
+            Select dates when you will be available for package pickup (minimum 2 days from now)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center">
             <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="rounded-md border"
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+              mode="multiple"
+              selected={dates}
+              onSelect={setDates}
+              className="rounded-md border pointer-events-auto"
+              disabled={(date) => isBefore(date, minDate)}
             />
-            <p className="mt-2 text-sm text-gray-500">
-              {date ? `Selected date: ${date.toLocaleDateString()}` : "No date selected"}
-            </p>
+            <div className="mt-4 w-full">
+              <h3 className="font-medium mb-2">Selected dates:</h3>
+              {dates.length > 0 ? (
+                <ul className="space-y-1">
+                  {dates.sort((a, b) => a.getTime() - b.getTime()).map((date, index) => (
+                    <li key={index} className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <span>{format(date, "EEEE, MMMM do, yyyy")}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">No dates selected</p>
+              )}
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
           <Button 
             onClick={handleSubmit} 
-            disabled={!date || isSubmitting}
+            disabled={dates.length === 0 || isSubmitting}
             className="w-full"
           >
             {isSubmitting ? (
