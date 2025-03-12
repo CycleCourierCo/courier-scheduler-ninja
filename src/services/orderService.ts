@@ -362,6 +362,10 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
     // Convert all dates to ISO strings
     const pickupDatesISO = datesArray.map(date => date.toISOString());
     
+    console.log(`Updating order ${id} with pickup dates:`, pickupDatesISO);
+    
+    // Use maybeSingle to avoid the "more than one row" error
+    // The error appears when using .single() and there's ambiguity in the result
     const { data: order, error } = await supabase
       .from('orders')
       .update({ 
@@ -371,9 +375,10 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       })
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     
     if (error) {
+      console.error(`Error updating sender availability: ${error.message}`, error);
       throw error;
     }
     
