@@ -84,12 +84,20 @@ export default function ReceiverAvailability() {
         // Calculate minimum date based on pickup date
         if (formattedOrder.pickupDate) {
           if (Array.isArray(formattedOrder.pickupDate) && formattedOrder.pickupDate.length > 0) {
-            // Find the earliest pickup date
+            // Find the earliest pickup date and add one day to it
             const earliestDate = new Date(Math.min(...formattedOrder.pickupDate.map(d => d.getTime())));
-            setMinDate(earliestDate);
+            setMinDate(addDays(earliestDate, 1)); // Add one day to the earliest pickup date
+            console.log("Setting min date to day after earliest pickup:", addDays(earliestDate, 1));
           } else if (!Array.isArray(formattedOrder.pickupDate)) {
-            setMinDate(formattedOrder.pickupDate);
+            // Add one day to the pickup date
+            setMinDate(addDays(formattedOrder.pickupDate, 1));
+            console.log("Setting min date to day after pickup:", addDays(formattedOrder.pickupDate, 1));
           }
+        } else {
+          // Default to 2 days from now if no pickup date is set
+          const defaultDate = addDays(new Date(), 2);
+          setMinDate(defaultDate);
+          console.log("No pickup date found, setting default min date:", defaultDate);
         }
         
         // If the order already has a delivery date or status is beyond receiver_availability_pending,
@@ -211,7 +219,7 @@ export default function ReceiverAvailability() {
         <CardHeader>
           <CardTitle>Confirm Your Availability</CardTitle>
           <CardDescription>
-            Select dates when you will be available for package delivery (must be after the sender's availability)
+            Select dates when you will be available for package delivery (must be at least one day after the sender's availability)
           </CardDescription>
         </CardHeader>
         <CardContent>
