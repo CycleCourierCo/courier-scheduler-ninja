@@ -1,4 +1,3 @@
-
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -272,8 +271,14 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
-      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      pickupDate: order.pickup_date ? Array.isArray(order.pickup_date)
+        ? order.pickup_date.map((d: string) => new Date(d))
+        : new Date(order.pickup_date)
+        : undefined,
+      deliveryDate: order.delivery_date ? Array.isArray(order.delivery_date)
+        ? order.delivery_date.map((d: string) => new Date(d))
+        : new Date(order.delivery_date)
+        : undefined,
       trackingNumber: order.tracking_number
     } : undefined;
   } catch (error) {
