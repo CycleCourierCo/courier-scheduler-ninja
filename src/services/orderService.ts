@@ -197,20 +197,33 @@ export const getOrders = async (): Promise<Order[]> => {
 // Get order by ID
 export const getOrderById = async (id: string): Promise<Order | undefined> => {
   try {
+    console.log(`Fetching order with ID: ${id}`);
+    
+    // Check if the ID is in the correct format
+    if (!id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      console.error(`Invalid UUID format: ${id}`);
+      return undefined;
+    }
+    
     const { data: order, error } = await supabase
       .from('orders')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle(); // Using maybeSingle instead of single to handle not found case
     
     if (error) {
-      if (error.code === 'PGRST116') {
-        return undefined; // Order not found
-      }
+      console.error(`Error fetching order: ${error.message}`, error);
       throw error;
     }
     
-    return order ? {
+    console.log("Order data received:", order);
+    
+    if (!order) {
+      console.log(`No order found with ID: ${id}`);
+      return undefined;
+    }
+    
+    return {
       id: order.id,
       sender: convertJsonToContact(order.sender),
       receiver: convertJsonToContact(order.receiver),
@@ -220,7 +233,7 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
       deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
       trackingNumber: order.tracking_number
-    } : undefined;
+    };
   } catch (error) {
     console.error("Error fetching order:", error);
     throw new Error("Failed to fetch order");

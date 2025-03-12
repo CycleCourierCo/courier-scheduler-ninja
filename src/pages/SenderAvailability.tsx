@@ -7,7 +7,7 @@ import { getOrderById, updateSenderAvailability } from '@/services/orderService'
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function SenderAvailability() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -27,13 +27,17 @@ export default function SenderAvailability() {
           return;
         }
 
+        console.log(`Fetching order with ID: ${orderId}`);
         const orderData = await getOrderById(orderId);
+        
         if (!orderData) {
-          setError("Order not found");
+          console.error(`Order not found with ID: ${orderId}`);
+          setError("Order not found. The link might be invalid or the order has been deleted.");
           setIsLoading(false);
           return;
         }
 
+        console.log("Order data:", orderData);
         setOrder(orderData);
         
         // If the order already has a pickup date or status is beyond sender_availability_pending,
@@ -47,7 +51,7 @@ export default function SenderAvailability() {
         setIsLoading(false);
       } catch (err) {
         console.error("Error fetching order:", err);
-        setError("Failed to load order details");
+        setError("Failed to load order details. Please try again later.");
         setIsLoading(false);
       }
     }
@@ -96,10 +100,13 @@ export default function SenderAvailability() {
       <Layout>
         <Card className="max-w-md mx-auto">
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center">
               {error === "already_confirmed" 
                 ? "Availability Already Confirmed" 
                 : "Error"}
+              {error !== "already_confirmed" && (
+                <AlertCircle className="ml-2 h-5 w-5 text-destructive" />
+              )}
             </CardTitle>
             <CardDescription>
               {error === "already_confirmed"
@@ -107,13 +114,11 @@ export default function SenderAvailability() {
                 : error}
             </CardDescription>
           </CardHeader>
-          {error === "already_confirmed" && (
-            <CardFooter>
-              <Button onClick={() => navigate("/")} className="w-full">
-                Return to Home
-              </Button>
-            </CardFooter>
-          )}
+          <CardFooter>
+            <Button onClick={() => navigate("/")} className="w-full">
+              Return to Home
+            </Button>
+          </CardFooter>
         </Card>
       </Layout>
     );
