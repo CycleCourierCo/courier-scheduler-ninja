@@ -23,8 +23,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, name, orderId, baseUrl } = await req.json() as EmailParams;
+    // Log request for debugging
+    console.log("Received request:", req.method);
+    
+    const payload = await req.json();
+    console.log("Request payload:", payload);
+    
+    const { to, name, orderId, baseUrl } = payload as EmailParams;
     const availabilityUrl = `${baseUrl}/sender-availability/${orderId}`;
+
+    console.log("Sending email to:", to);
+    console.log("Using Resend API Key:", Deno.env.get("RESEND_API_KEY") ? "Set" : "Not set");
 
     const { data, error } = await resend.emails.send({
       from: "Courier <onboarding@resend.dev>",
@@ -52,6 +61,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    console.log("Email sent successfully to:", to);
+    
     return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },

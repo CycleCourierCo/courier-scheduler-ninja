@@ -26,11 +26,13 @@ const Dashboard = () => {
   const handleResendEmail = async (orderId: string) => {
     setResendingEmail(orderId);
     try {
-      await resendSenderAvailabilityEmail(orderId);
-      await refetch();
+      const success = await resendSenderAvailabilityEmail(orderId);
+      if (success) {
+        await refetch();
+      }
     } catch (error) {
       console.error("Error in handleResendEmail:", error);
-      // Error is already handled in resendSenderAvailabilityEmail function
+      toast.error("There was a problem resending the email. Please try again.");
     } finally {
       setResendingEmail(null);
     }
