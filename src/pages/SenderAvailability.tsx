@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, AlertCircle, CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, isBefore } from "date-fns";
+import { updateSenderAvailability } from '@/services/orderService';
 
 export default function SenderAvailability() {
   const { id } = useParams<{ id: string }>();
@@ -25,22 +26,20 @@ export default function SenderAvailability() {
   useEffect(() => {
     async function fetchOrder() {
       try {
-        const orderId = id;
-        
-        if (!orderId) {
+        if (!id) {
           console.error("Order ID is missing from URL params");
           setError("Order ID is missing");
           setIsLoading(false);
           return;
         }
 
-        console.log(`Fetching order with ID: ${orderId}`);
+        console.log(`Fetching order with ID: ${id}`);
         
         // With the public access policy, we can directly fetch the order
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .select('*')
-          .eq('id', orderId)
+          .eq('id', id)
           .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no rows are returned
         
         if (orderError) {
@@ -51,7 +50,7 @@ export default function SenderAvailability() {
         }
         
         if (!orderData) {
-          console.error(`Order not found with ID: ${orderId}`);
+          console.error(`Order not found with ID: ${id}`);
           setError("Order not found. The link might be invalid or the order has been deleted.");
           setIsLoading(false);
           return;
@@ -115,55 +114,13 @@ export default function SenderAvailability() {
     try {
       setIsSubmitting(true);
       
-      // Sort dates chronologically
-      const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
+      // Use the existing service function to update sender availability
+      const updatedOrder = await updateSenderAvailability(id, dates);
       
-      // Convert dates to ISO strings for storing in Supabase
-      const datesAsISOStrings = sortedDates.map(date => date.toISOString());
-      
-      // Directly update the order in Supabase without authentication
-      // This is safe because we're only allowing updates to specific fields based on order ID
-      const { data, error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          pickup_date: datesAsISOStrings,
-          status: 'receiver_availability_pending',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .maybeSingle();
-      
-      if (updateError) {
-        console.error("Error updating sender availability:", updateError);
+      if (!updatedOrder) {
         toast.error("Failed to confirm your availability. Please try again.");
         setIsSubmitting(false);
         return;
-      }
-      
-      // Send email to receiver
-      try {
-        // Get the base URL for the frontend
-        const baseUrl = window.location.origin;
-        
-        // Call the edge function to send email to receiver
-        const { error: emailError } = await supabase.functions.invoke("send-email", {
-          body: {
-            to: order.receiver.email,
-            name: order.receiver.name,
-            orderId: id,
-            baseUrl,
-            emailType: "receiver"
-          }
-        });
-        
-        if (emailError) {
-          console.error("Error sending email to receiver:", emailError);
-        } else {
-          console.log("Email sent to receiver successfully");
-        }
-      } catch (emailErr) {
-        console.error("Failed to send email to receiver:", emailErr);
       }
       
       toast.success("Your availability has been confirmed");
