@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar } from "@/components/ui/calendar";
@@ -98,6 +97,38 @@ export default function SenderAvailability() {
     fetchOrder();
   }, [orderId]);
 
+  // Function to send email to receiver
+  const sendReceiverEmail = async (orderData: any) => {
+    try {
+      // Get the base URL for the frontend
+      const baseUrl = window.location.origin;
+      
+      // Only send if we have receiver data
+      if (orderData && orderData.receiver && orderData.receiver.email) {
+        const { data, error } = await supabase.functions.invoke("send-receiver-email", {
+          body: {
+            to: orderData.receiver.email,
+            name: orderData.receiver.name,
+            orderId: orderData.id,
+            baseUrl
+          }
+        });
+        
+        if (error) {
+          console.error("Error sending email to receiver:", error);
+          throw new Error(`Failed to send email: ${error.message}`);
+        }
+        
+        console.log("Email sent to receiver:", data);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error in sendReceiverEmail:", err);
+      return false;
+    }
+  };
+
   const handleSubmit = async () => {
     if (dates.length === 0) {
       toast.error("Please select at least one date for pickup");
@@ -136,6 +167,18 @@ export default function SenderAvailability() {
         toast.error("Failed to confirm your availability. Please try again.");
         setIsSubmitting(false);
         return;
+      }
+      
+      // Send email to receiver after successfully updating the order
+      if (data) {
+        const emailSent = await sendReceiverEmail(data);
+        if (emailSent) {
+          console.log("Email sent to receiver successfully");
+          toast.success("Receiver has been notified to confirm their availability");
+        } else {
+          console.warn("Failed to send email to receiver");
+          toast.warning("Your availability was confirmed, but we couldn't notify the receiver. Our team will handle this.");
+        }
       }
       
       toast.success("Your availability has been confirmed");

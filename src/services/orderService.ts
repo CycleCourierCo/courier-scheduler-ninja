@@ -1,4 +1,3 @@
-
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,6 +95,40 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
   }
 };
 
+// Send email to receiver for availability confirmation
+const sendReceiverAvailabilityEmail = async (order: Order): Promise<void> => {
+  try {
+    // Get the base URL for the frontend
+    const baseUrl = window.location.origin;
+    
+    // Add better error handling for the Edge Function call
+    try {
+      const { data, error } = await supabase.functions.invoke("send-receiver-email", {
+        body: {
+          to: order.receiver.email,
+          name: order.receiver.name,
+          orderId: order.id,
+          baseUrl
+        }
+      });
+      
+      if (error) {
+        throw new Error(`Edge Function error: ${error.message}`);
+      }
+      
+      console.log("Email sent to receiver for availability confirmation");
+    } catch (functionError) {
+      // Handle specific edge function errors
+      console.error("Failed to call Edge Function:", functionError);
+      throw new Error("Failed to send a request to the Edge Function");
+    }
+  } catch (error) {
+    console.error("Error sending email to receiver:", error);
+    // Re-throw the error so it can be handled by the calling function
+    throw error;
+  }
+};
+
 // Resend sender availability email for a specific order
 export const resendSenderAvailabilityEmail = async (orderId: string): Promise<boolean> => {
   try {
@@ -114,6 +147,29 @@ export const resendSenderAvailabilityEmail = async (orderId: string): Promise<bo
     return true;
   } catch (error) {
     console.error("Error resending email:", error);
+    toast.error(`Failed to resend email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return false;
+  }
+};
+
+// Resend receiver availability email for a specific order
+export const resendReceiverAvailabilityEmail = async (orderId: string): Promise<boolean> => {
+  try {
+    const order = await getOrderById(orderId);
+    
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found`);
+    }
+    
+    if (order.status !== 'receiver_availability_pending') {
+      throw new Error(`Cannot resend email for order with status ${order.status}`);
+    }
+    
+    await sendReceiverAvailabilityEmail(order);
+    toast.success(`Email resent to ${order.receiver.email} successfully`);
+    return true;
+  } catch (error) {
+    console.error("Error resending email to receiver:", error);
     toast.error(`Failed to resend email: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return false;
   }
@@ -318,10 +374,28 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       throw error;
     }
     
-    // Simulate sending email to receiver
-    if (order && order.receiver && typeof order.receiver === 'object' && 'email' in order.receiver) {
-      console.log(`Email sent to receiver ${order.receiver.email} for order ${id}`);
-      toast.info(`Email sent to receiver: ${order.receiver.email}`);
+    // Send email to receiver after successfully updating the order
+    if (order) {
+      try {
+        const formattedOrder = {
+          id: order.id,
+          sender: convertJsonToContact(order.sender),
+          receiver: convertJsonToContact(order.receiver),
+          status: order.status as OrderStatus,
+          createdAt: new Date(order.created_at),
+          updatedAt: new Date(order.updated_at),
+          pickupDate: convertJsonToDateOrDates(order.pickup_date),
+          deliveryDate: convertJsonToDateOrDates(order.delivery_date),
+          trackingNumber: order.tracking_number
+        };
+        
+        await sendReceiverAvailabilityEmail(formattedOrder);
+        console.log(`Email sent to receiver ${formattedOrder.receiver.email} for order ${id}`);
+        toast.success(`Email sent to receiver: ${formattedOrder.receiver.email}`);
+      } catch (emailError) {
+        console.error("Error sending email to receiver:", emailError);
+        toast.error("Failed to send email to receiver, but availability was updated");
+      }
     }
     
     return order ? {
