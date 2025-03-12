@@ -36,7 +36,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Using Resend API Key:", Deno.env.get("RESEND_API_KEY") ? "Set" : "Not set");
 
     const { data, error } = await resend.emails.send({
-      from: "Courier <onboarding@resend.dev>",
+      from: "Cycle Courier Co <notification@cyclecourierco.com>",
       to: [to],
       subject: "Please Confirm Your Availability for Package Pickup",
       html: `
