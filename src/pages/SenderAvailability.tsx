@@ -40,7 +40,7 @@ export default function SenderAvailability() {
           .from('orders')
           .select('*')
           .eq('id', id)
-          .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no rows are returned
+          .maybeSingle(); // Use maybeSingle instead of single
         
         if (orderError) {
           console.error("Error fetching order directly:", orderError);
@@ -131,7 +131,21 @@ export default function SenderAvailability() {
       setIsSubmitting(false);
     } catch (err) {
       console.error("Error updating sender availability:", err);
-      toast.error(`Failed to confirm your availability: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // More detailed error message
+      let errorMessage = "Failed to confirm your availability";
+      if (err instanceof Error) {
+        errorMessage += `: ${err.message}`;
+      } else if (typeof err === 'object' && err !== null) {
+        const errorObj = err as any;
+        if (errorObj.message) {
+          errorMessage += `: ${errorObj.message}`;
+        }
+        // If it's a database error with a code
+        if (errorObj.code) {
+          errorMessage += ` (Error code: ${errorObj.code})`;
+        }
+      }
+      toast.error(errorMessage);
       setIsSubmitting(false);
     }
   };

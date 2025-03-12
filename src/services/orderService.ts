@@ -363,7 +363,7 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
     
     console.log(`Updating order ${id} with pickup dates:`, pickupDatesISO);
     
-    // First, verify the order exists
+    // First, verify the order exists - in a separate query
     const { data: existingOrder, error: existingError } = await supabase
       .from('orders')
       .select('*')
@@ -380,27 +380,38 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       throw new Error(`Order not found with ID: ${id}`);
     }
     
-    // Now update the order with the new pickup dates
-    const { data: order, error } = await supabase
-      .from('orders')
-      .update({ 
-        pickup_date: pickupDatesISO,
-        status: 'receiver_availability_pending',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .maybeSingle();
+    // Now update the order with the new pickup dates - completely separate from the check above
+    // This prevents Supabase from creating a subquery
+    console.log("Existing order found, proceeding with update");
     
-    if (error) {
-      console.error(`Error updating sender availability: ${error.message}`, error);
-      throw error;
+    const updateData = { 
+      pickup_date: pickupDatesISO,
+      status: 'receiver_availability_pending',
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log("Update data:", updateData);
+    
+    const { data: updateResult, error: updateError } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+    
+    if (updateError) {
+      console.error(`Error updating sender availability: ${updateError.message}`, updateError);
+      throw updateError;
     }
     
-    if (!order) {
+    if (!updateResult || updateResult.length === 0) {
       console.error(`No order returned after update for ID: ${id}`);
       throw new Error("Order not found after update");
     }
+    
+    console.log("Update successful:", updateResult);
+    
+    // Get the first result since we're updating by ID which should be unique
+    const order = updateResult[0];
     
     // Convert the order to our expected format
     const updatedOrder = {
