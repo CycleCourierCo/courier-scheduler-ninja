@@ -1,7 +1,48 @@
 
-import { Order, CreateOrderFormData, OrderStatus } from "@/types/order";
+import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
+
+// Type guard to check if a value is a ContactInfo with address
+function isContactWithAddress(value: any): value is ContactInfo & { address: Address } {
+  return (
+    value &&
+    typeof value === 'object' &&
+    'name' in value &&
+    'email' in value &&
+    'phone' in value &&
+    'address' in value &&
+    typeof value.address === 'object' &&
+    'street' in value.address &&
+    'city' in value.address &&
+    'state' in value.address &&
+    'zipCode' in value.address &&
+    'country' in value.address
+  );
+}
+
+// Convert Json to ContactInfo & { address: Address }
+function convertJsonToContact(json: Json): ContactInfo & { address: Address } {
+  if (isContactWithAddress(json)) {
+    return json;
+  }
+  
+  // This should not happen in practice, but we need to handle it for TypeScript
+  console.error("Invalid contact info format:", json);
+  return {
+    name: "",
+    email: "",
+    phone: "",
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: ""
+    }
+  };
+}
 
 // Create a new order
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
@@ -40,8 +81,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     
     return {
       id: order.id,
-      sender: order.sender,
-      receiver: order.receiver,
+      sender: convertJsonToContact(order.sender),
+      receiver: convertJsonToContact(order.receiver),
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
@@ -76,8 +117,8 @@ export const getOrders = async (): Promise<Order[]> => {
     
     return ordersData.map(order => ({
       id: order.id,
-      sender: order.sender,
-      receiver: order.receiver,
+      sender: convertJsonToContact(order.sender),
+      receiver: convertJsonToContact(order.receiver),
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
@@ -109,8 +150,8 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
     
     return order ? {
       id: order.id,
-      sender: order.sender,
-      receiver: order.receiver,
+      sender: convertJsonToContact(order.sender),
+      receiver: convertJsonToContact(order.receiver),
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
@@ -143,8 +184,8 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
     
     return order ? {
       id: order.id,
-      sender: order.sender,
-      receiver: order.receiver,
+      sender: convertJsonToContact(order.sender),
+      receiver: convertJsonToContact(order.receiver),
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
@@ -184,8 +225,8 @@ export const updateSenderAvailability = async (id: string, pickupDate: Date): Pr
     
     return order ? {
       id: order.id,
-      sender: order.sender,
-      receiver: order.receiver,
+      sender: convertJsonToContact(order.sender),
+      receiver: convertJsonToContact(order.receiver),
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
@@ -242,8 +283,8 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
       
       return shippedOrder ? {
         id: shippedOrder.id,
-        sender: shippedOrder.sender,
-        receiver: shippedOrder.receiver,
+        sender: convertJsonToContact(shippedOrder.sender),
+        receiver: convertJsonToContact(shippedOrder.receiver),
         status: shippedOrder.status as OrderStatus,
         createdAt: new Date(shippedOrder.created_at),
         updatedAt: new Date(shippedOrder.updated_at),
@@ -257,8 +298,8 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
       
       return updatedOrder ? {
         id: updatedOrder.id,
-        sender: updatedOrder.sender,
-        receiver: updatedOrder.receiver,
+        sender: convertJsonToContact(updatedOrder.sender),
+        receiver: convertJsonToContact(updatedOrder.receiver),
         status: updatedOrder.status as OrderStatus,
         createdAt: new Date(updatedOrder.created_at),
         updatedAt: new Date(updatedOrder.updated_at),
