@@ -12,9 +12,9 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
-          delivery_date: string | null
+          delivery_date: Json | null
           id: string
-          pickup_date: string | null
+          pickup_date: Json | null
           receiver: Json
           sender: Json
           status: string
@@ -24,9 +24,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          delivery_date?: string | null
+          delivery_date?: Json | null
           id?: string
-          pickup_date?: string | null
+          pickup_date?: Json | null
           receiver: Json
           sender: Json
           status: string
@@ -36,9 +36,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          delivery_date?: string | null
+          delivery_date?: Json | null
           id?: string
-          pickup_date?: string | null
+          pickup_date?: Json | null
           receiver?: Json
           sender?: Json
           status?: string
