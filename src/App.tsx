@@ -36,11 +36,7 @@ const App = () => (
                 <CreateOrder />
               </ProtectedRoute>
             } />
-            <Route path="/sender-availability/:orderId" element={
-              <ProtectedRoute>
-                <SenderAvailability />
-              </ProtectedRoute>
-            } />
+            <Route path="/sender-availability/:orderId" element={<SenderAvailability />} />
             <Route path="/receiver-availability/:orderId" element={
               <ProtectedRoute>
                 <ReceiverAvailability />

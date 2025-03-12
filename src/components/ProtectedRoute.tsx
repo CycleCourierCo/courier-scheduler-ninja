@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
@@ -9,6 +9,15 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+  
+  // Check if the current path is the sender availability page
+  const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
+  
+  // Skip authentication for sender availability page
+  if (isSenderAvailabilityPage) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
