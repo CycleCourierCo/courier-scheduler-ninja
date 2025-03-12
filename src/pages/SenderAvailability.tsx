@@ -138,6 +138,31 @@ export default function SenderAvailability() {
         return;
       }
       
+      // Send email to receiver
+      try {
+        // Get the base URL for the frontend
+        const baseUrl = window.location.origin;
+        
+        // Call the edge function to send email to receiver
+        const { error: emailError } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: order.receiver.email,
+            name: order.receiver.name,
+            orderId: orderId,
+            baseUrl,
+            emailType: "receiver"
+          }
+        });
+        
+        if (emailError) {
+          console.error("Error sending email to receiver:", emailError);
+        } else {
+          console.log("Email sent to receiver successfully");
+        }
+      } catch (emailErr) {
+        console.error("Failed to send email to receiver:", emailErr);
+      }
+      
       toast.success("Your availability has been confirmed");
       // Show confirmation page
       setError("availability_confirmed");

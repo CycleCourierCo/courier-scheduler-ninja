@@ -75,7 +75,8 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
           to: order.sender.email,
           name: order.sender.name,
           orderId: order.id,
-          baseUrl
+          baseUrl,
+          emailType: "sender"
         }
       });
       
@@ -84,6 +85,41 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
       }
       
       console.log("Email sent to sender for availability confirmation");
+    } catch (functionError) {
+      // Handle specific edge function errors
+      console.error("Failed to call Edge Function:", functionError);
+      throw new Error("Failed to send a request to the Edge Function");
+    }
+  } catch (error) {
+    console.error("Error sending email:", error);
+    // Re-throw the error so it can be handled by the calling function
+    throw error;
+  }
+};
+
+// Send email to receiver for availability confirmation
+const sendReceiverAvailabilityEmail = async (order: Order): Promise<void> => {
+  try {
+    // Get the base URL for the frontend
+    const baseUrl = window.location.origin;
+    
+    // Add better error handling for the Edge Function call
+    try {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: order.receiver.email,
+          name: order.receiver.name,
+          orderId: order.id,
+          baseUrl,
+          emailType: "receiver"
+        }
+      });
+      
+      if (error) {
+        throw new Error(`Edge Function error: ${error.message}`);
+      }
+      
+      console.log("Email sent to receiver for availability confirmation");
     } catch (functionError) {
       // Handle specific edge function errors
       console.error("Failed to call Edge Function:", functionError);
@@ -111,6 +147,29 @@ export const resendSenderAvailabilityEmail = async (orderId: string): Promise<bo
     
     await sendSenderAvailabilityEmail(order);
     toast.success(`Email resent to ${order.sender.email} successfully`);
+    return true;
+  } catch (error) {
+    console.error("Error resending email:", error);
+    toast.error(`Failed to resend email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return false;
+  }
+};
+
+// Resend receiver availability email for a specific order
+export const resendReceiverAvailabilityEmail = async (orderId: string): Promise<boolean> => {
+  try {
+    const order = await getOrderById(orderId);
+    
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found`);
+    }
+    
+    if (order.status !== 'receiver_availability_pending') {
+      throw new Error(`Cannot resend email for order with status ${order.status}`);
+    }
+    
+    await sendReceiverAvailabilityEmail(order);
+    toast.success(`Email resent to ${order.receiver.email} successfully`);
     return true;
   } catch (error) {
     console.error("Error resending email:", error);
@@ -318,13 +377,8 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       throw error;
     }
     
-    // Simulate sending email to receiver
-    if (order && order.receiver && typeof order.receiver === 'object' && 'email' in order.receiver) {
-      console.log(`Email sent to receiver ${order.receiver.email} for order ${id}`);
-      toast.info(`Email sent to receiver: ${order.receiver.email}`);
-    }
-    
-    return order ? {
+    // Convert the order to our expected format
+    const updatedOrder = order ? {
       id: order.id,
       sender: convertJsonToContact(order.sender),
       receiver: convertJsonToContact(order.receiver),
@@ -335,6 +389,20 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
     } : undefined;
+    
+    // Send email to receiver if order was updated successfully
+    if (updatedOrder) {
+      try {
+        await sendReceiverAvailabilityEmail(updatedOrder);
+        console.log(`Email sent to receiver ${updatedOrder.receiver.email} for order ${id}`);
+        toast.info(`Email sent to receiver: ${updatedOrder.receiver.email}`);
+      } catch (emailError) {
+        console.error("Error sending email to receiver:", emailError);
+        toast.error("Failed to send email to receiver. They will need to be notified manually.");
+      }
+    }
+    
+    return updatedOrder;
   } catch (error) {
     console.error("Error updating sender availability:", error);
     throw new Error("Failed to update sender availability");

@@ -23,43 +23,80 @@ serve(async (req) => {
     const resend = new Resend(RESEND_API_KEY);
 
     // Parse request body
-    const { to, name, orderId, baseUrl } = await req.json();
+    const { to, name, orderId, baseUrl, emailType = "sender" } = await req.json();
 
     if (!to || !name || !orderId || !baseUrl) {
       throw new Error("Missing required fields: to, name, orderId, or baseUrl");
     }
 
-    console.log(`Sending email to ${to} for order ${orderId}`);
+    // Determine which email to send based on emailType
+    if (emailType === "sender") {
+      console.log(`Sending email to sender ${to} for order ${orderId}`);
+      
+      // Generate the sender availability link
+      const availabilityLink = `${baseUrl}/sender-availability/${orderId}`;
 
-    // Generate the availability link
-    const availabilityLink = `${baseUrl}/sender-availability/${orderId}`;
-
-    // Set up the email
-    const data = await resend.emails.send({
-      from: "Ccc@notification.cyclecourierco.com",
-      to: [to],
-      subject: "Confirm Your Availability - Cycle Courier Co",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #374151;">Please Confirm Your Availability</h1>
-          <p>Hello ${name},</p>
-          <p>Thank you for using Cycle Courier Co for your delivery needs. To schedule a pickup for your package, please confirm your availability by clicking the button below:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${availabilityLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirm Availability</a>
+      // Set up the email
+      const data = await resend.emails.send({
+        from: "Ccc@notification.cyclecourierco.com",
+        to: [to],
+        subject: "Confirm Your Availability - Cycle Courier Co",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #374151;">Please Confirm Your Availability</h1>
+            <p>Hello ${name},</p>
+            <p>Thank you for using Cycle Courier Co for your delivery needs. To schedule a pickup for your package, please confirm your availability by clicking the button below:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${availabilityLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirm Availability</a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p>${availabilityLink}</p>
+            <p>Thank you,<br>The Cycle Courier Co Team</p>
           </div>
-          <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <p>${availabilityLink}</p>
-          <p>Thank you,<br>The Cycle Courier Co Team</p>
-        </div>
-      `,
-    });
+        `,
+      });
 
-    console.log("Email sent successfully:", data);
+      console.log("Sender email sent successfully:", data);
+      
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } else if (emailType === "receiver") {
+      console.log(`Sending email to receiver ${to} for order ${orderId}`);
+      
+      // Generate the receiver availability link
+      const availabilityLink = `${baseUrl}/receiver-availability/${orderId}`;
 
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+      // Set up the email
+      const data = await resend.emails.send({
+        from: "Ccc@notification.cyclecourierco.com",
+        to: [to],
+        subject: "Confirm Your Delivery Availability - Cycle Courier Co",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #374151;">Please Confirm Your Delivery Availability</h1>
+            <p>Hello ${name},</p>
+            <p>A package is ready to be delivered to you by Cycle Courier Co. To schedule the delivery, please confirm when you'll be available by clicking the button below:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${availabilityLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirm Availability</a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p>${availabilityLink}</p>
+            <p>Thank you,<br>The Cycle Courier Co Team</p>
+          </div>
+        `,
+      });
+
+      console.log("Receiver email sent successfully:", data);
+      
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } else {
+      throw new Error(`Invalid emailType: ${emailType}`);
+    }
   } catch (error) {
     console.error("Error sending email:", error);
     
