@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar } from "@/components/ui/calendar";
@@ -29,32 +30,19 @@ export default function SenderAvailability() {
 
         console.log(`Fetching order with ID: ${orderId}`);
         
-        // Make a direct database query using the Supabase client instead of the REST API
-        try {
-          const { data: directCheckData, error: directCheckError } = await supabase
-            .from('orders')
-            .select('id')
-            .eq('id', orderId);
-          
-          if (directCheckError) {
-            console.error('Error with direct check:', directCheckError);
-            throw directCheckError;
-          }
-          
-          console.log('Direct Supabase client check result:', directCheckData);
-          
-          if (!directCheckData || directCheckData.length === 0) {
-            console.error(`Order not found with ID: ${orderId} in direct check`);
-            setError("Order not found. The link might be invalid or the order has been deleted.");
-            setIsLoading(false);
-            return;
-          }
-        } catch (directCheckError) {
-          console.error('Error with direct check:', directCheckError);
-        }
+        // With the new public access policy, we can directly fetch the order
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
         
-        // Now try to get the full order data using our service function
-        const orderData = await getOrderById(orderId);
+        if (orderError) {
+          console.error("Error fetching order directly:", orderError);
+          setError("Failed to load order details. Please try again later.");
+          setIsLoading(false);
+          return;
+        }
         
         if (!orderData) {
           console.error(`Order not found with ID: ${orderId}`);
@@ -64,11 +52,25 @@ export default function SenderAvailability() {
         }
 
         console.log("Order data:", orderData);
-        setOrder(orderData);
+        
+        // Convert the order data to our expected format
+        const formattedOrder = {
+          id: orderData.id,
+          sender: orderData.sender,
+          receiver: orderData.receiver,
+          status: orderData.status,
+          createdAt: new Date(orderData.created_at),
+          updatedAt: new Date(orderData.updated_at),
+          pickupDate: orderData.pickup_date ? new Date(orderData.pickup_date) : undefined,
+          deliveryDate: orderData.delivery_date ? new Date(orderData.delivery_date) : undefined,
+          trackingNumber: orderData.tracking_number
+        };
+        
+        setOrder(formattedOrder);
         
         // If the order already has a pickup date or status is beyond sender_availability_pending,
         // it means the sender has already confirmed their availability
-        if (orderData.pickupDate || 
+        if (orderData.pickup_date || 
             (orderData.status !== 'sender_availability_pending' && 
              orderData.status !== 'created')) {
           setError("already_confirmed");
