@@ -3,14 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { getOrderById, updateSenderAvailability } from '@/services/orderService';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, AlertCircle, CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, isBefore } from "date-fns";
-import { Json } from '@/integrations/supabase/types';
 
 export default function SenderAvailability() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -35,12 +33,12 @@ export default function SenderAvailability() {
 
         console.log(`Fetching order with ID: ${orderId}`);
         
-        // With the new public access policy, we can directly fetch the order
+        // With the public access policy, we can directly fetch the order
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .select('*')
           .eq('id', orderId)
-          .single();
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no rows are returned
         
         if (orderError) {
           console.error("Error fetching order directly:", orderError);
@@ -113,16 +111,40 @@ export default function SenderAvailability() {
 
     try {
       setIsSubmitting(true);
+      
       // Sort dates chronologically
       const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
-      await updateSenderAvailability(orderId, sortedDates);
+      
+      // Convert dates to ISO strings for storing in Supabase
+      const datesAsISOStrings = sortedDates.map(date => date.toISOString());
+      
+      // Directly update the order in Supabase without authentication
+      // This is safe because we're only allowing updates to specific fields based on order ID
+      const { data, error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          pickup_date: datesAsISOStrings,
+          status: 'receiver_availability_pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .maybeSingle();
+      
+      if (updateError) {
+        console.error("Error updating sender availability:", updateError);
+        toast.error("Failed to confirm your availability. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+      
       toast.success("Your availability has been confirmed");
-      // Redirect to a confirmation page or display a success message
-      navigate("/");
+      // Show confirmation page
+      setError("availability_confirmed");
+      setIsSubmitting(false);
     } catch (err) {
       console.error("Error updating sender availability:", err);
       toast.error("Failed to confirm your availability");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -146,14 +168,18 @@ export default function SenderAvailability() {
             <CardTitle className="flex items-center">
               {error === "already_confirmed" 
                 ? "Availability Already Confirmed" 
+                : error === "availability_confirmed"
+                ? "Availability Confirmed Successfully"
                 : "Error"}
-              {error !== "already_confirmed" && (
+              {error !== "already_confirmed" && error !== "availability_confirmed" && (
                 <AlertCircle className="ml-2 h-5 w-5 text-destructive" />
               )}
             </CardTitle>
             <CardDescription>
               {error === "already_confirmed"
                 ? "Thank you for confirming your availability. We have already received your time preference."
+                : error === "availability_confirmed"
+                ? "Thank you for confirming your availability. We will contact the recipient to arrange delivery."
                 : error}
             </CardDescription>
           </CardHeader>
