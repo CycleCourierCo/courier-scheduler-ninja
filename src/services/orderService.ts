@@ -27,6 +27,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     
     // Simulate sending email to sender
     console.log(`Email sent to sender ${data.sender.email} for order ${newOrder.id}`);
+    toast.info(`Email sent to sender: ${data.sender.email}`);
     
     return newOrder;
   } catch (error) {
@@ -79,6 +80,7 @@ export const updateSenderAvailability = async (id: string, pickupDate: Date): Pr
     
     // Simulate sending email to receiver
     console.log(`Email sent to receiver ${orders[orderIndex].receiver.email} for order ${id}`);
+    toast.info(`Email sent to receiver: ${orders[orderIndex].receiver.email}`);
     
     return orders[orderIndex];
   }
@@ -109,6 +111,7 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
         updatedAt: new Date()
       };
       
+      toast.success(`Order has been shipped with tracking number: ${trackingNumber}`);
       return orders[orderIndex];
     } catch (error) {
       console.error("Error creating Shipday order:", error);
