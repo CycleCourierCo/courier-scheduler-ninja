@@ -28,6 +28,9 @@ const Dashboard = () => {
     try {
       await resendSenderAvailabilityEmail(orderId);
       await refetch();
+    } catch (error) {
+      console.error("Error in handleResendEmail:", error);
+      // Error is already handled in resendSenderAvailabilityEmail function
     } finally {
       setResendingEmail(null);
     }

@@ -51,7 +51,7 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
     const baseUrl = window.location.origin;
     
     // Use the existing send-email edge function with the Resend integration
-    const response = await supabase.functions.invoke("send-email", {
+    const { data, error } = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
         name: order.sender.name,
@@ -60,15 +60,15 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
       }
     });
     
-    if (response.error) {
-      throw new Error(response.error.message);
+    if (error) {
+      throw new Error(error.message);
     }
     
     console.log("Email sent to sender for availability confirmation");
   } catch (error) {
     console.error("Error sending email:", error);
-    // Don't throw here to prevent breaking the order creation flow
-    // Just log the error and continue
+    // Re-throw the error so it can be handled by the calling function
+    throw error;
   }
 };
 
