@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
@@ -39,12 +38,10 @@ const OrderDetail = () => {
         if (fetchedOrder) {
           setOrder(fetchedOrder);
           
-          // If the order has a scheduled pickup date (single date, not array), preselect it
           if (fetchedOrder.scheduledPickupDate) {
             setSelectedPickupDate(new Date(fetchedOrder.scheduledPickupDate).toISOString());
           }
           
-          // If the order has a scheduled delivery date (single date, not array), preselect it
           if (fetchedOrder.scheduledDeliveryDate) {
             setSelectedDeliveryDate(new Date(fetchedOrder.scheduledDeliveryDate).toISOString());
           }
@@ -131,10 +128,9 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  // Check if order is in pending_approval status or if both dates are already set
   const canSchedule = order.status === 'pending_approval' && 
-                     (order.pickupDate || []).length > 0 && 
-                     (order.deliveryDate || []).length > 0;
+                     Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
+                     Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
   const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
 
@@ -299,7 +295,6 @@ const OrderDetail = () => {
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Sender Information */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <User className="text-courier-600" />
@@ -328,7 +323,6 @@ const OrderDetail = () => {
                 </div>
               </div>
               
-              {/* Receiver Information */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <User className="text-courier-600" />
