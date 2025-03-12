@@ -1,158 +1,143 @@
 
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { Truck, Search, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import Layout from "@/components/Layout";
-import StatusBadge from "@/components/StatusBadge";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderService";
 import { Order } from "@/types/order";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { Eye, RefreshCcw } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import StatusBadge from "@/components/StatusBadge";
+import Layout from "@/components/Layout";
 
-const Dashboard = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
-  
-  const { data: orders = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["orders"],
-    queryFn: getOrders,
-  });
+const Dashboard: React.FC = () => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleResendEmail = async (orderId: string) => {
-    setResendingEmail(orderId);
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const data = await getOrders();
+        setOrders(data);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to fetch orders");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     try {
       const success = await resendSenderAvailabilityEmail(orderId);
       if (success) {
-        await refetch();
+        toast.success("Email resent successfully");
       }
     } catch (error) {
-      console.error("Error in handleResendEmail:", error);
-      toast.error("There was a problem resending the email. Please try again.");
-    } finally {
-      setResendingEmail(null);
+      console.error("Error resending email:", error);
+      toast.error("Failed to resend email");
     }
   };
 
-  const filteredOrders = orders.filter((order: Order) => {
-    const searchLower = searchTerm.toLowerCase();
+  if (loading) {
     return (
-      order.id.toLowerCase().includes(searchLower) ||
-      order.sender.name.toLowerCase().includes(searchLower) ||
-      order.receiver.name.toLowerCase().includes(searchLower) ||
-      order.status.toLowerCase().includes(searchLower)
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        </div>
+      </Layout>
     );
-  });
+  }
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-3xl font-bold text-courier-800">Order Dashboard</h1>
-          <Link to="/create-order">
-            <Button className="bg-courier-600 hover:bg-courier-700">
-              <Truck className="mr-2 h-4 w-4" />
-              Create New Order
-            </Button>
-          </Link>
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Your Orders</h1>
+          <Button asChild>
+            <Link to="/create-order">Create New Order</Link>
+          </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Orders</CardTitle>
-            <CardDescription>
-              Manage and monitor all your courier orders from a single dashboard.
-            </CardDescription>
-            <div className="relative mt-4">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search orders..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center p-4">
-                <p>Loading orders...</p>
-              </div>
-            ) : error ? (
-              <div className="flex justify-center p-4 text-red-500">
-                <p>Error loading orders. Please try again.</p>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <Truck className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium">No orders found</h3>
-                <p className="mt-2 text-gray-500">
-                  {searchTerm
-                    ? "No orders match your search criteria"
-                    : "Create your first order to get started"}
-                </p>
-                {!searchTerm && (
-                  <Link to="/create-order">
-                    <Button className="mt-4 bg-courier-600 hover:bg-courier-700">
-                      Create New Order
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Sender</TableHead>
-                      <TableHead>Receiver</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Tracking</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.map((order: Order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
-                        <TableCell>{order.sender.name}</TableCell>
-                        <TableCell>{order.receiver.name}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={order.status} />
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(order.createdAt), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          {order.trackingNumber ? order.trackingNumber : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {order.status === 'sender_availability_pending' && (
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleResendEmail(order.id)}
-                              disabled={resendingEmail === order.id}
-                            >
-                              <Send className="mr-1 h-3 w-3" />
-                              {resendingEmail === order.id ? 'Sending...' : 'Resend Email'}
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {orders.length === 0 ? (
+          <div className="bg-gray-50 rounded-lg p-8 text-center">
+            <h2 className="text-xl font-semibold mb-4">No Orders Yet</h2>
+            <p className="text-gray-600 mb-6">
+              You haven't created any orders yet. Start by creating your first order.
+            </p>
+            <Button asChild>
+              <Link to="/create-order">Create Your First Order</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sender</TableHead>
+                  <TableHead>Receiver</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id} className="hover:bg-gray-50">
+                    <TableCell className="font-medium">
+                      <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
+                        {order.id.substring(0, 8)}...
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={order.status} />
+                    </TableCell>
+                    <TableCell>{order.sender.name}</TableCell>
+                    <TableCell>{order.receiver.name}</TableCell>
+                    <TableCell>{format(new Date(order.createdAt), "PP")}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/orders/${order.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Link>
+                        </Button>
+                        
+                        {order.status === "sender_availability_pending" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => handleResendEmail(order.id, e)}
+                          >
+                            <RefreshCcw className="h-4 w-4 mr-1" />
+                            Resend
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </Layout>
   );

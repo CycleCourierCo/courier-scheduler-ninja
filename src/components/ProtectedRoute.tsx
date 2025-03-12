@@ -13,9 +13,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
+  const isReceiverAvailabilityPage = location.pathname.includes('/receiver-availability/');
   
-  // Skip authentication for sender availability page
-  if (isSenderAvailabilityPage) {
+  // Skip authentication for public pages
+  if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {
     return <>{children}</>;
   }
 
