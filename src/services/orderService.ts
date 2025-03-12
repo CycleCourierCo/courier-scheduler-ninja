@@ -1,3 +1,4 @@
+
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +42,24 @@ function convertJsonToContact(json: Json): ContactInfo & { address: Address } {
       country: ""
     }
   };
+}
+
+// Helper function to safely convert JSON pickup/delivery dates to Date objects
+function convertJsonToDateOrDates(json: Json | null): Date | Date[] | undefined {
+  if (!json) return undefined;
+  
+  if (Array.isArray(json)) {
+    // Filter out any non-string values and convert to Date objects
+    return json
+      .filter(item => typeof item === 'string')
+      .map(dateStr => new Date(dateStr as string));
+  }
+  
+  if (typeof json === 'string') {
+    return new Date(json);
+  }
+  
+  return undefined;
 }
 
 // Send email to sender for availability confirmation
@@ -142,8 +161,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
-      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      pickupDate: convertJsonToDateOrDates(order.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
     };
     
@@ -183,8 +202,8 @@ export const getOrders = async (): Promise<Order[]> => {
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
-      deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
+      pickupDate: convertJsonToDateOrDates(order.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
     }));
   } catch (error) {
@@ -231,14 +250,8 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? Array.isArray(order.pickup_date) 
-        ? order.pickup_date.map((d: string) => new Date(d))
-        : new Date(order.pickup_date) 
-        : undefined,
-      deliveryDate: order.delivery_date ? Array.isArray(order.delivery_date)
-        ? order.delivery_date.map((d: string) => new Date(d))
-        : new Date(order.delivery_date)
-        : undefined,
+      pickupDate: convertJsonToDateOrDates(order.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
     };
   } catch (error) {
@@ -271,14 +284,8 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? Array.isArray(order.pickup_date)
-        ? order.pickup_date.map((d: string) => new Date(d))
-        : new Date(order.pickup_date)
-        : undefined,
-      deliveryDate: order.delivery_date ? Array.isArray(order.delivery_date)
-        ? order.delivery_date.map((d: string) => new Date(d))
-        : new Date(order.delivery_date)
-        : undefined,
+      pickupDate: convertJsonToDateOrDates(order.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
     } : undefined;
   } catch (error) {
@@ -324,14 +331,8 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
-      pickupDate: order.pickup_date ? Array.isArray(order.pickup_date)
-        ? order.pickup_date.map((d: string) => new Date(d))
-        : new Date(order.pickup_date)
-        : undefined,
-      deliveryDate: order.delivery_date ? Array.isArray(order.delivery_date)
-        ? order.delivery_date.map((d: string) => new Date(d))
-        : new Date(order.delivery_date)
-        : undefined,
+      pickupDate: convertJsonToDateOrDates(order.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
     } : undefined;
   } catch (error) {
@@ -394,14 +395,8 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
         status: shippedOrder.status as OrderStatus,
         createdAt: new Date(shippedOrder.created_at),
         updatedAt: new Date(shippedOrder.updated_at),
-        pickupDate: shippedOrder.pickup_date ? Array.isArray(shippedOrder.pickup_date)
-          ? shippedOrder.pickup_date.map((d: string) => new Date(d))
-          : new Date(shippedOrder.pickup_date)
-          : undefined,
-        deliveryDate: shippedOrder.delivery_date ? Array.isArray(shippedOrder.delivery_date)
-          ? shippedOrder.delivery_date.map((d: string) => new Date(d))
-          : new Date(shippedOrder.delivery_date)
-          : undefined,
+        pickupDate: convertJsonToDateOrDates(shippedOrder.pickup_date),
+        deliveryDate: convertJsonToDateOrDates(shippedOrder.delivery_date),
         trackingNumber: shippedOrder.tracking_number
       } : undefined;
     } catch (error) {
@@ -415,14 +410,8 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
         status: updatedOrder.status as OrderStatus,
         createdAt: new Date(updatedOrder.created_at),
         updatedAt: new Date(updatedOrder.updated_at),
-        pickupDate: updatedOrder.pickup_date ? Array.isArray(updatedOrder.pickup_date)
-          ? updatedOrder.pickup_date.map((d: string) => new Date(d))
-          : new Date(updatedOrder.pickup_date)
-          : undefined,
-        deliveryDate: updatedOrder.delivery_date ? Array.isArray(updatedOrder.delivery_date)
-          ? updatedOrder.delivery_date.map((d: string) => new Date(d))
-          : new Date(updatedOrder.delivery_date)
-          : undefined,
+        pickupDate: convertJsonToDateOrDates(updatedOrder.pickup_date),
+        deliveryDate: convertJsonToDateOrDates(updatedOrder.delivery_date),
         trackingNumber: updatedOrder.tracking_number
       } : undefined;
     }

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Loader2, AlertCircle, CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, isBefore } from "date-fns";
+import { Json } from '@/integrations/supabase/types';
 
 export default function SenderAvailability() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -65,8 +66,16 @@ export default function SenderAvailability() {
           status: orderData.status,
           createdAt: new Date(orderData.created_at),
           updatedAt: new Date(orderData.updated_at),
-          pickupDate: orderData.pickup_date ? new Date(orderData.pickup_date) : undefined,
-          deliveryDate: orderData.delivery_date ? new Date(orderData.delivery_date) : undefined,
+          pickupDate: orderData.pickup_date ? 
+            Array.isArray(orderData.pickup_date) ?
+              orderData.pickup_date.map((d: string) => new Date(d)) :
+              new Date(orderData.pickup_date as string)
+            : undefined,
+          deliveryDate: orderData.delivery_date ?
+            Array.isArray(orderData.delivery_date) ?
+              orderData.delivery_date.map((d: string) => new Date(d)) :
+              new Date(orderData.delivery_date as string)
+            : undefined,
           trackingNumber: orderData.tracking_number
         };
         

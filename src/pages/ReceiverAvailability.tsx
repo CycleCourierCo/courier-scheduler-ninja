@@ -91,7 +91,9 @@ const ReceiverAvailability = () => {
   // Get the earliest pickup date if there are multiple
   const earliestPickupDate = Array.isArray(order.pickupDate) && order.pickupDate.length > 0
     ? new Date(Math.min(...order.pickupDate.map(d => d instanceof Date ? d.getTime() : new Date(d).getTime())))
-    : new Date(order.pickupDate);
+    : order.pickupDate instanceof Date 
+      ? order.pickupDate 
+      : new Date();
 
   return (
     <div className="flex min-h-screen bg-gray-50 items-center justify-center p-4">
