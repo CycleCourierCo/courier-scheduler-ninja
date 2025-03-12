@@ -2,6 +2,45 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
+// Define interfaces for the request body structure
+interface OrderItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  addOns?: string[];
+  detail?: string;
+}
+
+interface PickupDetails {
+  name: string;
+  phone: string;
+  address: string;
+  formattedAddress?: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface DeliveryDetails {
+  name: string;
+  phone: string;
+  email?: string;
+  address: string;
+  formattedAddress?: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface OrderRequest {
+  orderItem: OrderItem[];
+  pickup: PickupDetails;
+  delivery: DeliveryDetails;
+  paymentMethod: 'CASH' | 'CARD';
+  deliveryInstruction?: string;
+  dispatcherNote?: string;
+  requestedPickupTime?: string;
+  requestedDeliveryTime?: string;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -85,71 +124,63 @@ serve(async (req) => {
 
     const sender = order.sender;
     const receiver = order.receiver;
-    const scheduledPickupDate = order.scheduled_pickup_date;
+    const scheduledPickupDate = order.scheduled_pickup_date; 
     const scheduledDeliveryDate = order.scheduled_delivery_date;
 
-    // Validate required fields
-    if (!scheduledPickupDate || !scheduledDeliveryDate) {
-      return new Response(
-        JSON.stringify({ error: "Scheduled pickup and delivery dates are required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
+    // Build sender address
+    const senderAddress = `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`;
+    
+    // Build receiver address
+    const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
     // Format dates for Shipday API
     const pickupDate = new Date(scheduledPickupDate);
     const deliveryDate = new Date(scheduledDeliveryDate);
-    
-    // Format date to YYYY-MM-DD
-    const formatDate = (date) => {
-      return date.toISOString().split('T')[0];
-    };
-    
-    // Format time to HH:MM:SS
-    const formatTime = (date) => {
-      return date.toTimeString().split(' ')[0];
-    };
 
-    // Create payload according to Shipday API documentation
-    const payload = {
-      orderNumber: order.id,
-      customerName: receiver.name,
-      customerAddress: `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`,
-      customerEmail: receiver.email || "",
-      customerPhoneNumber: receiver.phone,
-      
-      restaurantName: sender.name,
-      restaurantAddress: `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`,
-      restaurantPhoneNumber: sender.phone,
-      
-      expectedDeliveryDate: formatDate(deliveryDate),
-      expectedPickupTime: formatTime(pickupDate),
-      expectedDeliveryTime: formatTime(deliveryDate),
-      
-      deliveryFee: 0,
-      tips: 0,
-      tax: 0,
-      totalOrderCost: 0,
-      
-      pickupInstruction: `Pickup from: ${sender.name}`,
+    // Create a single order item (for package delivery)
+    const orderItem: OrderItem[] = [
+      {
+        name: `Package delivery from ${sender.name} to ${receiver.name}`,
+        quantity: 1,
+        unitPrice: 0,
+        detail: `Order ID: ${orderId}`
+      }
+    ];
+
+    // Create the request payload
+    const orderData: OrderRequest = {
+      orderItem: orderItem,
+      pickup: {
+        name: sender.name,
+        phone: sender.phone,
+        address: senderAddress,
+        formattedAddress: senderAddress,
+      },
+      delivery: {
+        name: receiver.name,
+        phone: receiver.phone,
+        email: receiver.email || "",
+        address: receiverAddress,
+        formattedAddress: receiverAddress,
+      },
+      paymentMethod: "CASH", // Default to cash payment
       deliveryInstruction: `Deliver to: ${receiver.name}`,
-      
-      orderSource: "Courier App",
-      
-      paymentMethod: "cash"
+      dispatcherNote: `Pickup from: ${sender.name}`,
+      requestedPickupTime: pickupDate.toISOString(),
+      requestedDeliveryTime: deliveryDate.toISOString()
     };
 
-    console.log("Creating Shipday order with payload:", JSON.stringify(payload, null, 2));
+    console.log("Creating Shipday order with payload:", JSON.stringify(orderData, null, 2));
 
     try {
       // Make the API call to Shipday
-      const response = await fetch("https://api.shipday.com/orders", {
+      const response = await fetch("https://api.shipday.com/orders/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Basic ${btoa(`${shipdayApiKey}:`)}`
+          "Authorization": `Bearer ${shipdayApiKey}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(orderData)
       });
       
       const responseText = await response.text();
@@ -214,7 +245,7 @@ serve(async (req) => {
       }
       
       // Extract tracking number from the Shipday response
-      const trackingNumber = responseData.id || responseData.orderId || responseData.trackingNumber;
+      const trackingNumber = responseData.orderId || `SD-${responseData.id}` || responseData.trackingNumber;
       
       if (!trackingNumber) {
         return new Response(
