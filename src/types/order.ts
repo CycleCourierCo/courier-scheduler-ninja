@@ -19,6 +19,7 @@ export type OrderStatus =
   | 'sender_availability_confirmed'
   | 'receiver_availability_pending'
   | 'receiver_availability_confirmed'
+  | 'pending_approval'
   | 'scheduled'
   | 'shipped'
   | 'delivered'
@@ -30,6 +31,8 @@ export type Order = {
   receiver: ContactInfo & { address: Address };
   pickupDate?: Date | Date[];
   deliveryDate?: Date | Date[];
+  scheduledPickupDate?: Date;
+  scheduledDeliveryDate?: Date;
   status: OrderStatus;
   createdAt: Date;
   updatedAt: Date;

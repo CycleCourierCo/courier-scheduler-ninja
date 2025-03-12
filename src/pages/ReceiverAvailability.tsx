@@ -134,7 +134,7 @@ export default function ReceiverAvailability() {
       console.log("Starting submission with dates:", dates);
       setIsSubmitting(true);
       
-      // Use the service function to update receiver availability
+      // Use the service function to update receiver availability with the new pending_approval status
       const result = await updateReceiverAvailability(id, dates);
       console.log("Update result:", result);
       

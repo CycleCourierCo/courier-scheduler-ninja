@@ -262,6 +262,8 @@ export const getOrders = async (): Promise<Order[]> => {
       updatedAt: new Date(order.updated_at),
       pickupDate: convertJsonToDateOrDates(order.pickup_date),
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
+      scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
+      scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
       trackingNumber: order.tracking_number
     }));
   } catch (error) {
@@ -310,6 +312,8 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       updatedAt: new Date(order.updated_at),
       pickupDate: convertJsonToDateOrDates(order.pickup_date),
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
+      scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
+      scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
       trackingNumber: order.tracking_number
     };
   } catch (error) {
@@ -344,6 +348,8 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       updatedAt: new Date(order.updated_at),
       pickupDate: convertJsonToDateOrDates(order.pickup_date),
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
+      scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
+      scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
       trackingNumber: order.tracking_number
     } : undefined;
   } catch (error) {
@@ -419,6 +425,8 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       updatedAt: new Date(order.updated_at),
       pickupDate: convertJsonToDateOrDates(order.pickup_date),
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
+      scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
+      scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
       trackingNumber: order.tracking_number
     };
     
@@ -440,7 +448,7 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
   }
 };
 
-// Update receiver availability
+// Update receiver availability - now sets status to pending_approval
 export const updateReceiverAvailability = async (id: string, deliveryDates: Date | Date[]): Promise<Order | undefined> => {
   try {
     // Make sure we have an array of dates
@@ -449,12 +457,12 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
     // Convert all dates to ISO strings
     const deliveryDatesISO = datesArray.map(date => date.toISOString());
     
-    // First update the order with delivery date and scheduled status
+    // First update the order with delivery date and pending_approval status (changed from scheduled)
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update({ 
         delivery_date: deliveryDatesISO,
-        status: 'scheduled',
+        status: 'pending_approval', // Changed from 'scheduled' to 'pending_approval'
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -465,9 +473,72 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
       throw updateError;
     }
     
-    // Simulate creating Shipday order
+    return updatedOrder ? {
+      id: updatedOrder.id,
+      sender: convertJsonToContact(updatedOrder.sender),
+      receiver: convertJsonToContact(updatedOrder.receiver),
+      status: updatedOrder.status as OrderStatus,
+      createdAt: new Date(updatedOrder.created_at),
+      updatedAt: new Date(updatedOrder.updated_at),
+      pickupDate: convertJsonToDateOrDates(updatedOrder.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(updatedOrder.delivery_date),
+      scheduledPickupDate: updatedOrder.scheduled_pickup_date ? new Date(updatedOrder.scheduled_pickup_date as string) : undefined,
+      scheduledDeliveryDate: updatedOrder.scheduled_delivery_date ? new Date(updatedOrder.scheduled_delivery_date as string) : undefined,
+      trackingNumber: updatedOrder.tracking_number
+    } : undefined;
+  } catch (error) {
+    console.error("Error updating receiver availability:", error);
+    throw new Error("Failed to update receiver availability");
+  }
+};
+
+// Update order schedule and create Shipday order
+export const updateOrderSchedule = async (id: string, pickupDate: Date, deliveryDate: Date): Promise<Order | undefined> => {
+  try {
+    console.log(`Scheduling order ${id} with pickup date: ${pickupDate.toISOString()} and delivery date: ${deliveryDate.toISOString()}`);
+    
+    // First update the order with the scheduled dates and set status to scheduled
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from('orders')
+      .update({ 
+        scheduled_pickup_date: pickupDate.toISOString(),
+        scheduled_delivery_date: deliveryDate.toISOString(),
+        status: 'scheduled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error(`Error updating order schedule: ${updateError.message}`, updateError);
+      throw updateError;
+    }
+    
+    if (!updatedOrder) {
+      console.error(`No order returned after update for ID: ${id}`);
+      throw new Error("Order not found after update");
+    }
+    
+    console.log("Order scheduled successfully:", updatedOrder);
+    
+    // Create Shipday order with the scheduled dates
     try {
-      const trackingNumber = await createShipdayOrder(updatedOrder);
+      const formattedOrder = {
+        id: updatedOrder.id,
+        sender: convertJsonToContact(updatedOrder.sender),
+        receiver: convertJsonToContact(updatedOrder.receiver),
+        status: updatedOrder.status as OrderStatus,
+        createdAt: new Date(updatedOrder.created_at),
+        updatedAt: new Date(updatedOrder.updated_at),
+        pickupDate: convertJsonToDateOrDates(updatedOrder.pickup_date),
+        deliveryDate: convertJsonToDateOrDates(updatedOrder.delivery_date),
+        scheduledPickupDate: updatedOrder.scheduled_pickup_date ? new Date(updatedOrder.scheduled_pickup_date as string) : undefined,
+        scheduledDeliveryDate: updatedOrder.scheduled_delivery_date ? new Date(updatedOrder.scheduled_delivery_date as string) : undefined,
+        trackingNumber: updatedOrder.tracking_number
+      };
+      
+      const trackingNumber = await createShipdayOrder(formattedOrder);
       
       // Update the order with tracking number and shipped status
       const { data: shippedOrder, error: shippedError } = await supabase
@@ -482,6 +553,7 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
         .single();
         
       if (shippedError) {
+        console.error(`Error updating order with tracking number: ${shippedError.message}`, shippedError);
         throw shippedError;
       }
       
@@ -496,13 +568,16 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
         updatedAt: new Date(shippedOrder.updated_at),
         pickupDate: convertJsonToDateOrDates(shippedOrder.pickup_date),
         deliveryDate: convertJsonToDateOrDates(shippedOrder.delivery_date),
+        scheduledPickupDate: shippedOrder.scheduled_pickup_date ? new Date(shippedOrder.scheduled_pickup_date as string) : undefined,
+        scheduledDeliveryDate: shippedOrder.scheduled_delivery_date ? new Date(shippedOrder.scheduled_delivery_date as string) : undefined,
         trackingNumber: shippedOrder.tracking_number
       } : undefined;
-    } catch (error) {
-      console.error("Error creating Shipday order:", error);
-      toast.error("Failed to create Shipday order");
+    } catch (shipdayError) {
+      console.error("Error creating Shipday order:", shipdayError);
+      toast.error("Failed to create shipping order in Shipday");
       
-      return updatedOrder ? {
+      // Return the updated order even if Shipday creation fails
+      return {
         id: updatedOrder.id,
         sender: convertJsonToContact(updatedOrder.sender),
         receiver: convertJsonToContact(updatedOrder.receiver),
@@ -511,20 +586,76 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
         updatedAt: new Date(updatedOrder.updated_at),
         pickupDate: convertJsonToDateOrDates(updatedOrder.pickup_date),
         deliveryDate: convertJsonToDateOrDates(updatedOrder.delivery_date),
+        scheduledPickupDate: updatedOrder.scheduled_pickup_date ? new Date(updatedOrder.scheduled_pickup_date as string) : undefined,
+        scheduledDeliveryDate: updatedOrder.scheduled_delivery_date ? new Date(updatedOrder.scheduled_delivery_date as string) : undefined,
         trackingNumber: updatedOrder.tracking_number
-      } : undefined;
+      };
     }
   } catch (error) {
-    console.error("Error updating receiver availability:", error);
-    throw new Error("Failed to update receiver availability");
+    console.error("Error scheduling order:", error);
+    throw error;
   }
 };
 
-// Create Shipday order
-const createShipdayOrder = async (order: any): Promise<string> => {
-  // Simulating Shipday API call
-  console.log("Creating Shipday order with data:", order);
-  
-  // For now, we'll just return a mock tracking number
-  return `SD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
+// Create Shipday order using the Shipday API
+const createShipdayOrder = async (order: Order): Promise<string> => {
+  try {
+    // Get sender and receiver information
+    const { sender, receiver, scheduledPickupDate, scheduledDeliveryDate, id } = order;
+    
+    if (!scheduledPickupDate || !scheduledDeliveryDate) {
+      throw new Error("Scheduled pickup and delivery dates are required");
+    }
+    
+    console.log("Creating Shipday order for:", order);
+    
+    // For demo purposes, we're simulating the API call
+    // In production, you would make an actual API call to Shipday
+    console.log("Would call Shipday API with:", {
+      orderNumber: id,
+      customerName: receiver.name,
+      customerEmail: receiver.email,
+      customerPhone: receiver.phone,
+      customerAddress: `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`,
+      pickupName: sender.name,
+      pickupAddress: `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`,
+      pickupPhone: sender.phone,
+      pickupEmail: sender.email,
+      pickupTime: scheduledPickupDate.toISOString(),
+      deliveryTime: scheduledDeliveryDate.toISOString()
+    });
+    
+    // In reality, you would make an API call like this:
+    /*
+    const response = await fetch('https://api.shipday.com/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + btoa('your-shipday-api-key:')
+      },
+      body: JSON.stringify({
+        orderNumber: id,
+        customerName: receiver.name,
+        customerEmail: receiver.email,
+        customerPhone: receiver.phone,
+        customerAddress: `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`,
+        pickupName: sender.name,
+        pickupAddress: `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`,
+        pickupPhone: sender.phone,
+        pickupEmail: sender.email,
+        pickupTime: scheduledPickupDate.toISOString(),
+        deliveryTime: scheduledDeliveryDate.toISOString()
+      })
+    });
+    
+    const data = await response.json();
+    return data.orderId;
+    */
+    
+    // For now, return a mock tracking number
+    return `SD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
+  } catch (error) {
+    console.error("Error in Shipday API call:", error);
+    throw new Error("Failed to create order in Shipday");
+  }
 };
