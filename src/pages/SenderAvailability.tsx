@@ -13,7 +13,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, For
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CheckCircle2 } from "lucide-react";
 import { getOrderById, updateSenderAvailability } from "@/services/orderService";
 
 const schema = z.object({
@@ -62,6 +62,9 @@ const SenderAvailability = () => {
   };
 
   const minDate = addDays(new Date(), 2);
+  
+  // Check if the availability has already been confirmed (status is no longer sender_availability_pending)
+  const isAlreadyConfirmed = order && order.status !== 'sender_availability_pending';
 
   if (isLoading) {
     return (
@@ -83,6 +86,38 @@ const SenderAvailability = () => {
           </CardHeader>
           <CardFooter>
             <Button onClick={() => navigate("/dashboard")} className="w-full">
+              Return to Dashboard
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  // If already confirmed, show thank you message
+  if (isAlreadyConfirmed) {
+    return (
+      <div className="flex min-h-screen bg-gray-50 items-center justify-center p-4">
+        <Card className="max-w-lg w-full">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <CheckCircle2 className="h-16 w-16 text-green-500" />
+            </div>
+            <CardTitle className="text-2xl text-courier-800">Thank You!</CardTitle>
+            <CardDescription className="text-lg mt-4">
+              You have already confirmed your availability for this order.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-gray-600 mb-4">
+              The pickup date you selected is: {order.pickupDate ? format(order.pickupDate, "PPP") : "Not specified"}
+            </p>
+            <p className="text-gray-600">
+              The receiver will be notified to schedule their availability. You will receive a confirmation once the delivery is scheduled.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => navigate("/dashboard")} className="w-full bg-courier-600 hover:bg-courier-700">
               Return to Dashboard
             </Button>
           </CardFooter>

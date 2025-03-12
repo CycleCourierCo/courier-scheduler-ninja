@@ -44,6 +44,33 @@ function convertJsonToContact(json: Json): ContactInfo & { address: Address } {
   };
 }
 
+// Send email to sender for availability confirmation
+const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
+  try {
+    // Get the base URL for the frontend
+    const baseUrl = window.location.origin;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.sender.email,
+        name: order.sender.name,
+        orderId: order.id,
+        baseUrl
+      }
+    });
+    
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+    
+    console.log("Email sent to sender for availability confirmation");
+  } catch (error) {
+    console.error("Error sending email:", error);
+    // Don't throw here to prevent breaking the order creation flow
+    // Just log the error and continue
+  }
+};
+
 // Create a new order
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
@@ -79,7 +106,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     console.log(`Email sent to sender ${data.sender.email} for order ${order.id}`);
     toast.info(`Email sent to sender: ${data.sender.email}`);
     
-    return {
+    const createdOrder = {
       id: order.id,
       sender: convertJsonToContact(order.sender),
       receiver: convertJsonToContact(order.receiver),
@@ -90,6 +117,11 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       deliveryDate: order.delivery_date ? new Date(order.delivery_date) : undefined,
       trackingNumber: order.tracking_number
     };
+    
+    // Send email to sender for availability confirmation
+    await sendSenderAvailabilityEmail(createdOrder);
+    
+    return createdOrder;
   } catch (error) {
     console.error("Error creating order:", error);
     throw new Error("Failed to create order");
