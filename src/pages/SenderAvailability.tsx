@@ -28,6 +28,24 @@ export default function SenderAvailability() {
         }
 
         console.log(`Fetching order with ID: ${orderId}`);
+        
+        // Make a direct check to Supabase to see if the order exists
+        // This can help us debug if there's an issue with the database query
+        try {
+          const response = await fetch(
+            `https://axigtrmaxhetyfzjjdve.supabase.co/rest/v1/orders?id=eq.${orderId}&select=id`, 
+            {
+              headers: {
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4aWd0cm1heGhldHlmempqZHZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3NDA4MDMsImV4cCI6MjA1NzMxNjgwM30.POm5myoyMwKjkMfYMw2gRFs-cgD7GDznv338qiadugg'
+              }
+            }
+          );
+          const data = await response.json();
+          console.log('Direct Supabase REST API check result:', data);
+        } catch (directCheckError) {
+          console.error('Error with direct check:', directCheckError);
+        }
+        
         const orderData = await getOrderById(orderId);
         
         if (!orderData) {

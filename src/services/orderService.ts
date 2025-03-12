@@ -205,21 +205,41 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       return undefined;
     }
     
+    // Make a more direct query first to see if the order exists
+    const { data: checkOrder, error: checkError } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('id', id);
+    
+    if (checkError) {
+      console.error(`Error checking if order exists: ${checkError.message}`, checkError);
+      throw checkError;
+    }
+    
+    // Log the direct check result
+    console.log(`Direct check for order ID ${id} returned:`, checkOrder);
+    
+    if (!checkOrder || checkOrder.length === 0) {
+      console.log(`No order found with ID: ${id} in direct check`);
+      return undefined;
+    }
+    
+    // Then get the full order data
     const { data: order, error } = await supabase
       .from('orders')
       .select('*')
       .eq('id', id)
-      .maybeSingle(); // Using maybeSingle instead of single to handle not found case
+      .maybeSingle();
     
     if (error) {
-      console.error(`Error fetching order: ${error.message}`, error);
+      console.error(`Error fetching full order data: ${error.message}`, error);
       throw error;
     }
     
-    console.log("Order data received:", order);
+    console.log("Full order data received:", order);
     
     if (!order) {
-      console.log(`No order found with ID: ${id}`);
+      console.log(`No order found with ID: ${id} in full data fetch`);
       return undefined;
     }
     
