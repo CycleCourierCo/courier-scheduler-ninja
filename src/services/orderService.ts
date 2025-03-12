@@ -1,3 +1,4 @@
+
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +69,29 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
     console.error("Error sending email:", error);
     // Don't throw here to prevent breaking the order creation flow
     // Just log the error and continue
+  }
+};
+
+// Resend sender availability email for a specific order
+export const resendSenderAvailabilityEmail = async (orderId: string): Promise<boolean> => {
+  try {
+    const order = await getOrderById(orderId);
+    
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found`);
+    }
+    
+    if (order.status !== 'sender_availability_pending') {
+      throw new Error(`Cannot resend email for order with status ${order.status}`);
+    }
+    
+    await sendSenderAvailabilityEmail(order);
+    toast.success(`Email resent to ${order.sender.email} successfully`);
+    return true;
+  } catch (error) {
+    console.error("Error resending email:", error);
+    toast.error(`Failed to resend email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return false;
   }
 };
 

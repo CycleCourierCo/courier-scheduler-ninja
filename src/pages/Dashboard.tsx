@@ -1,25 +1,37 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Truck, Search } from "lucide-react";
+import { Truck, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import Layout from "@/components/Layout";
 import StatusBadge from "@/components/StatusBadge";
-import { getOrders } from "@/services/orderService";
+import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const Dashboard = () => {
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
   
-  const { data: orders = [], isLoading, error } = useQuery({
+  const { data: orders = [], isLoading, error, refetch } = useQuery({
     queryKey: ["orders"],
     queryFn: getOrders,
   });
+
+  const handleResendEmail = async (orderId: string) => {
+    setResendingEmail(orderId);
+    try {
+      await resendSenderAvailabilityEmail(orderId);
+      await refetch();
+    } finally {
+      setResendingEmail(null);
+    }
+  };
 
   const filteredOrders = orders.filter((order: Order) => {
     const searchLower = searchTerm.toLowerCase();
@@ -97,6 +109,7 @@ const Dashboard = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Tracking</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -113,6 +126,19 @@ const Dashboard = () => {
                         </TableCell>
                         <TableCell>
                           {order.trackingNumber ? order.trackingNumber : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {order.status === 'sender_availability_pending' && (
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleResendEmail(order.id)}
+                              disabled={resendingEmail === order.id}
+                            >
+                              <Send className="mr-1 h-3 w-3" />
+                              {resendingEmail === order.id ? 'Sending...' : 'Resend Email'}
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
