@@ -1,4 +1,3 @@
-
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +49,7 @@ const sendSenderAvailabilityEmail = async (order: Order): Promise<void> => {
     // Get the base URL for the frontend
     const baseUrl = window.location.origin;
     
+    // Use the existing send-email edge function with the Resend integration
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
