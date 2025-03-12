@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, isBefore } from "date-fns";
 
 export default function SenderAvailability() {
-  const { orderId } = useParams<{ orderId: string }>();
+  const { id } = useParams<{ id: string }>();
   const [dates, setDates] = useState<Date[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,7 +25,10 @@ export default function SenderAvailability() {
   useEffect(() => {
     async function fetchOrder() {
       try {
+        const orderId = id;
+        
         if (!orderId) {
+          console.error("Order ID is missing from URL params");
           setError("Order ID is missing");
           setIsLoading(false);
           return;
@@ -96,7 +99,7 @@ export default function SenderAvailability() {
     }
 
     fetchOrder();
-  }, [orderId]);
+  }, [id]);
 
   const handleSubmit = async () => {
     if (dates.length === 0) {
@@ -104,7 +107,7 @@ export default function SenderAvailability() {
       return;
     }
 
-    if (!orderId) {
+    if (!id) {
       toast.error("Order ID is missing");
       return;
     }
@@ -127,7 +130,7 @@ export default function SenderAvailability() {
           status: 'receiver_availability_pending',
           updated_at: new Date().toISOString()
         })
-        .eq('id', orderId)
+        .eq('id', id)
         .select()
         .maybeSingle();
       
@@ -148,7 +151,7 @@ export default function SenderAvailability() {
           body: {
             to: order.receiver.email,
             name: order.receiver.name,
-            orderId: orderId,
+            orderId: id,
             baseUrl,
             emailType: "receiver"
           }
