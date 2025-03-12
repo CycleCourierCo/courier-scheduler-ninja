@@ -13,6 +13,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
 import OrderDetail from "./pages/OrderDetail";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -27,44 +28,46 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-order"
-            element={
-              <ProtectedRoute>
-                <CreateOrder />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id"
-            element={
-              <ProtectedRoute>
-                <OrderDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/sender-availability/:id" 
-            element={<SenderAvailability />} 
-          />
-          <Route 
-            path="/receiver-availability/:id" 
-            element={<ReceiverAvailability />} 
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster position="top-right" />
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/create-order"
+              element={
+                <ProtectedRoute>
+                  <CreateOrder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/sender-availability/:id" 
+              element={<SenderAvailability />} 
+            />
+            <Route 
+              path="/receiver-availability/:id" 
+              element={<ReceiverAvailability />} 
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster position="top-right" />
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
