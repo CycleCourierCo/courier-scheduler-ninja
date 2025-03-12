@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar } from "@/components/ui/calendar";
@@ -8,6 +7,7 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function SenderAvailability() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -29,23 +29,31 @@ export default function SenderAvailability() {
 
         console.log(`Fetching order with ID: ${orderId}`);
         
-        // Make a direct check to Supabase to see if the order exists
-        // This can help us debug if there's an issue with the database query
+        // Make a direct database query using the Supabase client instead of the REST API
         try {
-          const response = await fetch(
-            `https://axigtrmaxhetyfzjjdve.supabase.co/rest/v1/orders?id=eq.${orderId}&select=id`, 
-            {
-              headers: {
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4aWd0cm1heGhldHlmempqZHZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3NDA4MDMsImV4cCI6MjA1NzMxNjgwM30.POm5myoyMwKjkMfYMw2gRFs-cgD7GDznv338qiadugg'
-              }
-            }
-          );
-          const data = await response.json();
-          console.log('Direct Supabase REST API check result:', data);
+          const { data: directCheckData, error: directCheckError } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('id', orderId);
+          
+          if (directCheckError) {
+            console.error('Error with direct check:', directCheckError);
+            throw directCheckError;
+          }
+          
+          console.log('Direct Supabase client check result:', directCheckData);
+          
+          if (!directCheckData || directCheckData.length === 0) {
+            console.error(`Order not found with ID: ${orderId} in direct check`);
+            setError("Order not found. The link might be invalid or the order has been deleted.");
+            setIsLoading(false);
+            return;
+          }
         } catch (directCheckError) {
           console.error('Error with direct check:', directCheckError);
         }
         
+        // Now try to get the full order data using our service function
         const orderData = await getOrderById(orderId);
         
         if (!orderData) {

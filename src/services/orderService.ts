@@ -1,4 +1,3 @@
-
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -205,26 +204,8 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       return undefined;
     }
     
-    // Make a more direct query first to see if the order exists
-    const { data: checkOrder, error: checkError } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('id', id);
-    
-    if (checkError) {
-      console.error(`Error checking if order exists: ${checkError.message}`, checkError);
-      throw checkError;
-    }
-    
-    // Log the direct check result
-    console.log(`Direct check for order ID ${id} returned:`, checkOrder);
-    
-    if (!checkOrder || checkOrder.length === 0) {
-      console.log(`No order found with ID: ${id} in direct check`);
-      return undefined;
-    }
-    
-    // Then get the full order data
+    // Simplified approach: Just fetch the full order in one query 
+    // without doing a separate existence check first
     const { data: order, error } = await supabase
       .from('orders')
       .select('*')
@@ -232,14 +213,14 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       .maybeSingle();
     
     if (error) {
-      console.error(`Error fetching full order data: ${error.message}`, error);
+      console.error(`Error fetching order data: ${error.message}`, error);
       throw error;
     }
     
-    console.log("Full order data received:", order);
+    console.log("Order data received:", order);
     
     if (!order) {
-      console.log(`No order found with ID: ${id} in full data fetch`);
+      console.log(`No order found with ID: ${id}`);
       return undefined;
     }
     
