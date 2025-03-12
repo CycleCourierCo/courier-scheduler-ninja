@@ -43,7 +43,16 @@ serve(async (req) => {
       );
     }
 
-    // Extract order details
+    // Get Shipday API key from env
+    const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
+    
+    if (!shipdayApiKey) {
+      return new Response(
+        JSON.stringify({ error: "Shipday API key is not configured" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
     const sender = order.sender;
     const receiver = order.receiver;
     const scheduledPickupDate = order.scheduled_pickup_date;
@@ -61,32 +70,33 @@ serve(async (req) => {
     const pickupDate = new Date(scheduledPickupDate);
     const deliveryDate = new Date(scheduledDeliveryDate);
     
-    // Format date in YYYY-MM-DD format
-    const formatDateForShipday = (date) => {
-      return date.toISOString().split('T')[0]; // YYYY-MM-DD
+    // Format date to YYYY-MM-DD
+    const formatDate = (date) => {
+      return date.toISOString().split('T')[0];
     };
     
-    // Format time in HH:MM:SS format
-    const formatTimeForShipday = (date) => {
-      return date.toTimeString().slice(0, 8); // HH:MM:SS
+    // Format time to HH:MM:SS
+    const formatTime = (date) => {
+      return date.toTimeString().split(' ')[0];
     };
 
-    // Create Shipday order payload
-    const shipdayPayload = {
+    // Create payload according to Shipday API documentation
+    const payload = {
       orderNumber: order.id,
       customerName: receiver.name,
+      customerAddress: `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`,
       customerEmail: receiver.email || "",
       customerPhoneNumber: receiver.phone,
-      customerAddress: `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`,
       
       restaurantName: sender.name,
       restaurantAddress: `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`,
       restaurantPhoneNumber: sender.phone,
       
-      expectedDeliveryDate: formatDateForShipday(deliveryDate),
-      expectedPickupTime: formatTimeForShipday(pickupDate),
-      expectedDeliveryTime: formatTimeForShipday(deliveryDate),
+      expectedDeliveryDate: formatDate(deliveryDate),
+      expectedPickupTime: formatTime(pickupDate),
+      expectedDeliveryTime: formatTime(deliveryDate),
       
+      // Optional fields
       deliveryFee: 0,
       tips: 0,
       tax: 0,
@@ -100,53 +110,37 @@ serve(async (req) => {
       paymentMethod: "cash"
     };
 
-    console.log("Creating Shipday order with payload:", JSON.stringify(shipdayPayload, null, 2));
+    console.log("Creating Shipday order with payload:", JSON.stringify(payload, null, 2));
 
-    // Get Shipday API key from env
-    const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
-    
-    if (!shipdayApiKey) {
-      console.error("ERROR: Shipday API key is not set in environment variables");
-      return new Response(
-        JSON.stringify({ 
-          error: "Shipday API key is not configured. Please set the SHIPDAY_API_KEY in Supabase environment variables." 
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-    
     // Make the API call to Shipday
-    console.log("Making request to Shipday API...");
-    
     const response = await fetch("https://api.shipday.com/orders", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Basic ${btoa(`${shipdayApiKey}:`)}`
       },
-      body: JSON.stringify(shipdayPayload)
+      body: JSON.stringify(payload)
     });
     
     const responseText = await response.text();
     console.log(`Shipday API response status: ${response.status}`);
     console.log(`Shipday API response body: ${responseText}`);
     
-    let shipdayResponse;
+    let responseData;
     try {
-      shipdayResponse = JSON.parse(responseText);
+      responseData = JSON.parse(responseText);
     } catch (e) {
-      shipdayResponse = { rawResponse: responseText };
+      responseData = { rawResponse: responseText };
     }
     
     // Check for API call success
     if (!response.ok) {
-      console.error("Shipday API error:", response.status, responseText);
       return new Response(
         JSON.stringify({ 
           error: "Failed to create order in Shipday", 
           shipday_error: {
             status: response.status,
-            details: shipdayResponse
+            details: responseData
           }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
@@ -154,9 +148,17 @@ serve(async (req) => {
     }
     
     // Extract tracking number from the Shipday response
-    const trackingNumber = shipdayResponse.id || 
-                           shipdayResponse.trackingNumber || 
-                           `SD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
+    const trackingNumber = responseData.id || responseData.orderId || responseData.trackingNumber;
+    
+    if (!trackingNumber) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Shipday API did not return a tracking number", 
+          shipday_response: responseData 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
 
     console.log("Successfully created order in Shipday with tracking number:", trackingNumber);
 
@@ -182,7 +184,7 @@ serve(async (req) => {
         success: true, 
         message: "Order created in Shipday successfully", 
         trackingNumber,
-        shipdayResponse 
+        shipday_response: responseData 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
