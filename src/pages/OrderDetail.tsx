@@ -78,7 +78,7 @@ const OrderDetail = () => {
       
       if (updatedOrder) {
         setOrder(updatedOrder);
-        toast.success("Order has been scheduled successfully");
+        toast.success("Order has been scheduled and sent to Shipday successfully");
       } else {
         toast.error("Failed to schedule order");
       }

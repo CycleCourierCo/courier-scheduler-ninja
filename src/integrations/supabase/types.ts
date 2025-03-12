@@ -16,6 +16,8 @@ export type Database = {
           id: string
           pickup_date: Json | null
           receiver: Json
+          scheduled_delivery_date: string | null
+          scheduled_pickup_date: string | null
           sender: Json
           status: string
           tracking_number: string | null
@@ -28,6 +30,8 @@ export type Database = {
           id?: string
           pickup_date?: Json | null
           receiver: Json
+          scheduled_delivery_date?: string | null
+          scheduled_pickup_date?: string | null
           sender: Json
           status: string
           tracking_number?: string | null
@@ -40,6 +44,8 @@ export type Database = {
           id?: string
           pickup_date?: Json | null
           receiver?: Json
+          scheduled_delivery_date?: string | null
+          scheduled_pickup_date?: string | null
           sender?: Json
           status?: string
           tracking_number?: string | null
