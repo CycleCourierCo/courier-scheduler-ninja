@@ -74,11 +74,18 @@ serve(async (req) => {
 
     console.log("Creating Shipday order with payload:", shipdayPayload);
 
-    // In a real implementation, we would call the Shipday API here
-    // For demo purposes, we're simulating the API call
-    
-    /*
+    // Get the Shipday API key from environment variables
     const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
+    
+    if (!shipdayApiKey) {
+      console.error("Shipday API key is not set in environment variables");
+      return new Response(
+        JSON.stringify({ error: "Shipday API key is not configured" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+    
+    // Make the actual API call to Shipday
     const response = await fetch("https://api.shipday.com/orders", {
       method: "POST",
       headers: {
@@ -88,11 +95,28 @@ serve(async (req) => {
       body: JSON.stringify(shipdayPayload)
     });
     
+    // Check for API call success
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Shipday API error:", response.status, errorText);
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to create order in Shipday", 
+          details: errorText,
+          status: response.status 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+    
     const shipdayResponse = await response.json();
-    */
-
-    // Generate a mock tracking number
-    const trackingNumber = `SD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
+    console.log("Shipday API response:", shipdayResponse);
+    
+    // Extract tracking number from the Shipday response
+    // Note: Adjust the property name based on what Shipday actually returns
+    const trackingNumber = shipdayResponse.trackingNumber || 
+                          shipdayResponse.tracking || 
+                          `SD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
 
     // Update the order with the tracking number and change status to shipped
     const { error: updateError } = await supabase
@@ -115,7 +139,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Order created in Shipday", 
-        trackingNumber 
+        trackingNumber,
+        shipdayResponse 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
