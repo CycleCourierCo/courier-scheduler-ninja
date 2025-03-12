@@ -363,55 +363,51 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
     
     console.log(`Updating order ${id} with pickup dates:`, pickupDatesISO);
     
-    // First, verify the order exists - in a separate query
-    const { data: existingOrder, error: existingError } = await supabase
+    // First query to check if the order exists
+    const checkResult = await supabase
       .from('orders')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+      .select('id')
+      .eq('id', id);
       
-    if (existingError) {
-      console.error(`Error checking if order exists: ${existingError.message}`, existingError);
-      throw existingError;
+    if (checkResult.error) {
+      console.error(`Error checking order existence: ${checkResult.error.message}`, checkResult.error);
+      throw checkResult.error;
     }
     
-    if (!existingOrder) {
+    if (!checkResult.data || checkResult.data.length === 0) {
       console.error(`Order with ID ${id} does not exist`);
       throw new Error(`Order not found with ID: ${id}`);
     }
     
-    // Now update the order with the new pickup dates - completely separate from the check above
-    // This prevents Supabase from creating a subquery
-    console.log("Existing order found, proceeding with update");
+    console.log("Order exists, proceeding with update");
     
+    // Second completely separate query to update the order
     const updateData = { 
       pickup_date: pickupDatesISO,
       status: 'receiver_availability_pending',
       updated_at: new Date().toISOString()
     };
     
-    console.log("Update data:", updateData);
-    
-    const { data: updateResult, error: updateError } = await supabase
+    const updateResult = await supabase
       .from('orders')
       .update(updateData)
       .eq('id', id)
       .select();
     
-    if (updateError) {
-      console.error(`Error updating sender availability: ${updateError.message}`, updateError);
-      throw updateError;
+    if (updateResult.error) {
+      console.error(`Error updating order: ${updateResult.error.message}`, updateResult.error);
+      throw updateResult.error;
     }
     
-    if (!updateResult || updateResult.length === 0) {
+    if (!updateResult.data || updateResult.data.length === 0) {
       console.error(`No order returned after update for ID: ${id}`);
       throw new Error("Order not found after update");
     }
     
-    console.log("Update successful:", updateResult);
+    console.log("Update successful:", updateResult.data);
     
-    // Get the first result since we're updating by ID which should be unique
-    const order = updateResult[0];
+    // Get the order data from the update result
+    const order = updateResult.data[0];
     
     // Convert the order to our expected format
     const updatedOrder = {
