@@ -112,12 +112,14 @@ export default function SenderAvailability() {
     }
 
     try {
+      console.log("Starting submission with dates:", dates);
       setIsSubmitting(true);
       
       // Use the existing service function to update sender availability
-      const updatedOrder = await updateSenderAvailability(id, dates);
+      const result = await updateSenderAvailability(id, dates);
+      console.log("Update result:", result);
       
-      if (!updatedOrder) {
+      if (!result) {
         toast.error("Failed to confirm your availability. Please try again.");
         setIsSubmitting(false);
         return;
@@ -129,7 +131,7 @@ export default function SenderAvailability() {
       setIsSubmitting(false);
     } catch (err) {
       console.error("Error updating sender availability:", err);
-      toast.error("Failed to confirm your availability");
+      toast.error(`Failed to confirm your availability: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsSubmitting(false);
     }
   };

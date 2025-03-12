@@ -1,4 +1,3 @@
-
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -382,8 +381,13 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       throw error;
     }
     
+    if (!order) {
+      console.error(`No order returned after update for ID: ${id}`);
+      throw new Error("Order not found after update");
+    }
+    
     // Convert the order to our expected format
-    const updatedOrder = order ? {
+    const updatedOrder = {
       id: order.id,
       sender: convertJsonToContact(order.sender),
       receiver: convertJsonToContact(order.receiver),
@@ -393,24 +397,23 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       pickupDate: convertJsonToDateOrDates(order.pickup_date),
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       trackingNumber: order.tracking_number
-    } : undefined;
+    };
     
     // Send email to receiver if order was updated successfully
-    if (updatedOrder) {
-      try {
-        await sendReceiverAvailabilityEmail(updatedOrder);
-        console.log(`Email sent to receiver ${updatedOrder.receiver.email} for order ${id}`);
-        toast.info(`Email sent to receiver: ${updatedOrder.receiver.email}`);
-      } catch (emailError) {
-        console.error("Error sending email to receiver:", emailError);
-        toast.error("Failed to send email to receiver. They will need to be notified manually.");
-      }
+    try {
+      await sendReceiverAvailabilityEmail(updatedOrder);
+      console.log(`Email sent to receiver ${updatedOrder.receiver.email} for order ${id}`);
+      toast.info(`Email sent to receiver: ${updatedOrder.receiver.email}`);
+    } catch (emailError) {
+      console.error("Error sending email to receiver:", emailError);
+      toast.error("Failed to send email to receiver. They will need to be notified manually.");
+      // Don't throw here - we still want to return the updated order even if email fails
     }
     
     return updatedOrder;
   } catch (error) {
     console.error("Error updating sender availability:", error);
-    throw new Error("Failed to update sender availability");
+    throw error; // Propagate the error to be handled by the caller
   }
 };
 
