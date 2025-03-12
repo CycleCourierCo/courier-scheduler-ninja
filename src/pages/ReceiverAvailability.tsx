@@ -26,16 +26,6 @@ const ReceiverAvailability = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
 
-  if (!orderId) {
-    navigate("/dashboard");
-    return null;
-  }
-
-  const { data: order, isLoading, error } = useQuery({
-    queryKey: ["order", orderId],
-    queryFn: () => getOrderById(orderId),
-  });
-
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -43,8 +33,26 @@ const ReceiverAvailability = () => {
     },
   });
 
+  const { data: order, isLoading, error } = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: () => {
+      if (!orderId) {
+        throw new Error("Order ID is required");
+      }
+      console.log("Fetching order with ID:", orderId);
+      return getOrderById(orderId);
+    },
+    enabled: !!orderId,
+  });
+
   const onSubmit = async (data: FormValues) => {
     try {
+      if (!orderId) {
+        toast.error("Order ID is missing");
+        return;
+      }
+      
+      console.log("Submitting availability for order:", orderId, data.deliveryDates);
       await updateReceiverAvailability(orderId, data.deliveryDates);
       toast.success("Availability confirmed successfully!");
       navigate("/confirmation", { 
@@ -59,18 +67,44 @@ const ReceiverAvailability = () => {
     }
   };
 
-  if (isLoading) {
+  // Handle case when orderId is not available
+  if (!orderId) {
+    console.log("No order ID provided");
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+            <CardDescription>
+              No order ID was provided. Please check the URL and try again.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => navigate("/")} className="w-full">
+              Go Home
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    console.log("Loading order data...");
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !order || !order.pickupDate) {
+    console.error("Error loading order:", error);
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader>
             <CardTitle className="text-red-500">Error</CardTitle>
@@ -79,14 +113,16 @@ const ReceiverAvailability = () => {
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button onClick={() => navigate("/dashboard")} className="w-full">
-              Return to Dashboard
+            <Button onClick={() => navigate("/")} className="w-full">
+              Return Home
             </Button>
           </CardFooter>
         </Card>
       </div>
     );
   }
+
+  console.log("Order data loaded:", order);
 
   // Get the earliest pickup date if there are multiple
   const earliestPickupDate = Array.isArray(order.pickupDate) && order.pickupDate.length > 0
@@ -101,7 +137,7 @@ const ReceiverAvailability = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl text-courier-800">Confirm Delivery Availability</CardTitle>
           <CardDescription>
-            Hi {order.receiver.name}, please select dates when you'll be available to receive the package.
+            Hi {order.receiver?.name || "Receiver"}, please select dates when you'll be available to receive the package.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,8 +146,8 @@ const ReceiverAvailability = () => {
               <div className="space-y-2">
                 <div className="font-medium">Order Details:</div>
                 <div className="text-sm text-gray-500">
-                  <div><span className="font-semibold">From:</span> {order.sender.address.city}, {order.sender.address.state}</div>
-                  <div><span className="font-semibold">To:</span> {order.receiver.address.city}, {order.receiver.address.state}</div>
+                  <div><span className="font-semibold">From:</span> {order.sender?.address?.city || "N/A"}, {order.sender?.address?.state || "N/A"}</div>
+                  <div><span className="font-semibold">To:</span> {order.receiver?.address?.city || "N/A"}, {order.receiver?.address?.state || "N/A"}</div>
                   <div><span className="font-semibold">Sender's Availability:</span> {Array.isArray(order.pickupDate) 
                     ? order.pickupDate.map(d => format(new Date(d), "PPP")).join(", ")
                     : format(new Date(order.pickupDate), "PPP")
