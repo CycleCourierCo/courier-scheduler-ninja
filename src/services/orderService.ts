@@ -19,8 +19,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       sender: data.sender,
       receiver: data.receiver,
       status: 'sender_availability_pending' as OrderStatus,
-      created_at: new Date(),
-      updated_at: new Date(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     
     // Store the order in Supabase
@@ -42,7 +42,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       id: order.id,
       sender: order.sender,
       receiver: order.receiver,
-      status: order.status,
+      status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
       pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
@@ -58,9 +58,16 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 // Get all orders
 export const getOrders = async (): Promise<Order[]> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+    
     const { data: ordersData, error } = await supabase
       .from('orders')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -71,7 +78,7 @@ export const getOrders = async (): Promise<Order[]> => {
       id: order.id,
       sender: order.sender,
       receiver: order.receiver,
-      status: order.status,
+      status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
       pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
@@ -104,7 +111,7 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       id: order.id,
       sender: order.sender,
       receiver: order.receiver,
-      status: order.status,
+      status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
       pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
@@ -124,7 +131,7 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       .from('orders')
       .update({ 
         status, 
-        updated_at: new Date() 
+        updated_at: new Date().toISOString() 
       })
       .eq('id', id)
       .select()
@@ -138,7 +145,7 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       id: order.id,
       sender: order.sender,
       receiver: order.receiver,
-      status: order.status,
+      status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
       pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
@@ -159,7 +166,7 @@ export const updateSenderAvailability = async (id: string, pickupDate: Date): Pr
       .update({ 
         pickup_date: pickupDate.toISOString(),
         status: 'receiver_availability_pending',
-        updated_at: new Date()
+        updated_at: new Date().toISOString()
       })
       .eq('id', id)
       .select()
@@ -170,14 +177,16 @@ export const updateSenderAvailability = async (id: string, pickupDate: Date): Pr
     }
     
     // Simulate sending email to receiver
-    console.log(`Email sent to receiver ${order.receiver.email} for order ${id}`);
-    toast.info(`Email sent to receiver: ${order.receiver.email}`);
+    if (order && order.receiver && typeof order.receiver === 'object' && 'email' in order.receiver) {
+      console.log(`Email sent to receiver ${order.receiver.email} for order ${id}`);
+      toast.info(`Email sent to receiver: ${order.receiver.email}`);
+    }
     
     return order ? {
       id: order.id,
       sender: order.sender,
       receiver: order.receiver,
-      status: order.status,
+      status: order.status as OrderStatus,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
       pickupDate: order.pickup_date ? new Date(order.pickup_date) : undefined,
@@ -199,7 +208,7 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
       .update({ 
         delivery_date: deliveryDate.toISOString(),
         status: 'scheduled',
-        updated_at: new Date()
+        updated_at: new Date().toISOString()
       })
       .eq('id', id)
       .select()
@@ -219,7 +228,7 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
         .update({
           tracking_number: trackingNumber,
           status: 'shipped',
-          updated_at: new Date()
+          updated_at: new Date().toISOString()
         })
         .eq('id', id)
         .select()
@@ -235,7 +244,7 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
         id: shippedOrder.id,
         sender: shippedOrder.sender,
         receiver: shippedOrder.receiver,
-        status: shippedOrder.status,
+        status: shippedOrder.status as OrderStatus,
         createdAt: new Date(shippedOrder.created_at),
         updatedAt: new Date(shippedOrder.updated_at),
         pickupDate: shippedOrder.pickup_date ? new Date(shippedOrder.pickup_date) : undefined,
@@ -250,7 +259,7 @@ export const updateReceiverAvailability = async (id: string, deliveryDate: Date)
         id: updatedOrder.id,
         sender: updatedOrder.sender,
         receiver: updatedOrder.receiver,
-        status: updatedOrder.status,
+        status: updatedOrder.status as OrderStatus,
         createdAt: new Date(updatedOrder.created_at),
         updatedAt: new Date(updatedOrder.updated_at),
         pickupDate: updatedOrder.pickup_date ? new Date(updatedOrder.pickup_date) : undefined,
