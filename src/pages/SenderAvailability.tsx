@@ -115,7 +115,7 @@ export default function SenderAvailability() {
       console.log("Starting submission with dates:", dates);
       setIsSubmitting(true);
       
-      // Use the existing service function to update sender availability
+      // Use the service function to update sender availability
       const result = await updateSenderAvailability(id, dates);
       console.log("Update result:", result);
       

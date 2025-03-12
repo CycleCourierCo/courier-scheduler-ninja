@@ -363,8 +363,24 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
     
     console.log(`Updating order ${id} with pickup dates:`, pickupDatesISO);
     
-    // Use maybeSingle to avoid the "more than one row" error
-    // The error appears when using .single() and there's ambiguity in the result
+    // First, verify the order exists
+    const { data: existingOrder, error: existingError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+      
+    if (existingError) {
+      console.error(`Error checking if order exists: ${existingError.message}`, existingError);
+      throw existingError;
+    }
+    
+    if (!existingOrder) {
+      console.error(`Order with ID ${id} does not exist`);
+      throw new Error(`Order not found with ID: ${id}`);
+    }
+    
+    // Now update the order with the new pickup dates
     const { data: order, error } = await supabase
       .from('orders')
       .update({ 
