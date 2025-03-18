@@ -39,8 +39,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setLoading(true);
     try {
+      // Added filter=countrycode:gb to limit results to the United Kingdom
       const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&apiKey=06b0c657cdcb466889f61736b5bb56c3`,
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=06b0c657cdcb466889f61736b5bb56c3`,
         { method: 'GET' }
       );
       
@@ -117,7 +118,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
         <div className="relative">
           <div className="relative">
             <Input
-              placeholder="Search for an address..."
+              placeholder="Search for an address in the UK..."
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);
