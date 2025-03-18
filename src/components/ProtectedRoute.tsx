@@ -2,6 +2,7 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -23,8 +24,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600 mb-4"></div>
+        <Skeleton className="h-4 w-48 mb-2" />
+        <Skeleton className="h-4 w-32" />
       </div>
     );
   }

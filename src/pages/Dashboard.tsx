@@ -18,20 +18,29 @@ import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const { userRole } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const { userRole, user } = useAuth();
 
   useEffect(() => {
     const fetchOrders = async () => {
+      if (!user) {
+        // Don't fetch orders if user is not authenticated
+        return;
+      }
+      
       try {
         setLoading(true);
+        setError(null);
         const data = await getOrders();
         setOrders(data);
       } catch (error) {
         console.error("Error fetching orders:", error);
+        setError("Failed to load orders. Please try refreshing the page.");
         toast.error("Failed to fetch orders");
       } finally {
         setLoading(false);
@@ -39,7 +48,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchOrders();
-  }, []);
+  }, [user]);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,11 +65,14 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (error) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        <div className="p-8 text-center">
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">
+            <p>{error}</p>
+          </div>
+          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
         </div>
       </Layout>
     );
@@ -86,7 +98,17 @@ const Dashboard: React.FC = () => {
           </Button>
         </div>
 
-        {orders.length === 0 ? (
+        {loading ? (
+          // Skeleton loader
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-4 space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          </div>
+        ) : orders.length === 0 ? (
           <div className="bg-gray-50 rounded-lg p-8 text-center">
             <h2 className="text-xl font-semibold mb-4">No Orders Yet</h2>
             <p className="text-gray-600 mb-6">
