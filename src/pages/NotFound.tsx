@@ -1,5 +1,9 @@
-import { useLocation } from "react-router-dom";
+
+import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const NotFound = () => {
   const location = useLocation();
@@ -12,13 +16,33 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md space-y-6 text-center">
+        <h1 className="text-6xl font-bold text-gray-900">404</h1>
+        <h2 className="text-2xl font-semibold text-gray-800">Page Not Found</h2>
+        
+        <p className="text-gray-600 mt-2">
+          We couldn't find the page you're looking for.
+        </p>
+        
+        <Alert variant="destructive" className="mt-6 text-left">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            The requested resource could not be found. If you were accessing an order or 
+            function, it may have been deleted or may not exist.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="mt-8 space-y-3">
+          <Button className="w-full" asChild>
+            <Link to="/dashboard">Go to Dashboard</Link>
+          </Button>
+          
+          <Button variant="outline" className="w-full" asChild>
+            <Link to="/">Return to Home</Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { useAuth } from "@/contexts/AuthContext";
@@ -236,14 +237,22 @@ export const updateSenderAvailability = async (
     // After sender confirms availability, send email to the receiver
     const baseUrl = window.location.origin;
     
-    // Properly type-cast the receiver object to ensure TypeScript recognizes its structure
+    // Ensure receiver data is properly typed and accessible
     const receiverData = data.receiver as unknown as ContactInfo & { address: Address };
     
-    // Send email to receiver
+    // Validate receiver email before sending
+    if (!receiverData?.email) {
+      console.error("Receiver email not found in order data:", data.receiver);
+      throw new Error("Receiver email not found");
+    }
+    
+    console.log("Sending email to receiver:", receiverData.email);
+    
+    // Send email to receiver with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: receiverData.email,
-        name: receiverData.name,
+        name: receiverData.name || "Recipient",
         orderId: id,
         baseUrl,
         emailType: "receiver" 
@@ -252,11 +261,16 @@ export const updateSenderAvailability = async (
     
     if (response.error) {
       console.error("Error sending email to receiver:", response.error);
+      // Log detailed error information for debugging
+      if (response.error.message) {
+        console.error("Error message:", response.error.message);
+      }
     } else {
       console.log("Email sent successfully to receiver:", receiverData.email);
     }
   } catch (emailError) {
     console.error("Failed to send email to receiver:", emailError);
+    console.error("Error details:", emailError instanceof Error ? emailError.message : emailError);
     // Don't throw here - we don't want to fail the order update if email fails
   }
 
@@ -290,8 +304,39 @@ export const updateReceiverAvailability = async (
 };
 
 export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
-  // Implementation for resend email function
-  
-  // Return true to indicate success
-  return true;
+  try {
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found");
+      return false;
+    }
+    
+    const baseUrl = window.location.origin;
+    
+    // Send email to sender with improved error handling
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.sender.email,
+        name: order.sender.name || "Sender",
+        orderId: id,
+        baseUrl,
+        emailType: "sender" 
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error resending email to sender:", response.error);
+      return false;
+    }
+    
+    console.log("Email resent successfully to sender:", order.sender.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to resend email:", error);
+    return false;
+  }
 };
+
