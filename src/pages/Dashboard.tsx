@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderService";
@@ -55,10 +56,14 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         const data = await getOrders();
         
+        // Only show all orders if the user is specifically an "admin"
         if (userRole === "admin") {
+          console.log("User is admin, showing all orders");
           setOrders(data);
         } else {
+          console.log("User is not admin, filtering orders for user ID:", user.id);
           const filteredOrders = data.filter(order => order.user_id === user.id);
+          console.log("Filtered orders:", filteredOrders.length);
           setOrders(filteredOrders);
         }
       } catch (error) {

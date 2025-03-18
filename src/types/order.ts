@@ -1,3 +1,4 @@
+
 export type ContactInfo = {
   name: string;
   email: string;
@@ -26,6 +27,7 @@ export type OrderStatus =
 
 export type Order = {
   id: string;
+  user_id: string;  // Make sure to include this property in the type
   sender: ContactInfo & { address: Address };
   receiver: ContactInfo & { address: Address };
   pickupDate?: Date | Date[];
