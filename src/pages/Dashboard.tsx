@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, Plus, Loader } from "lucide-react";
+import { Eye, RefreshCcw, Plus, Loader, AlertCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,7 +23,9 @@ import { useAuth } from "@/contexts/AuthContext";
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
   const { user, isLoading: authLoading } = useAuth();
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   useEffect(() => {
     // Only fetch orders if authentication is complete and user is logged in
@@ -32,13 +34,27 @@ const Dashboard: React.FC = () => {
       const fetchOrders = async () => {
         try {
           setIsOrdersLoading(true);
+          setOrderError(null);
+          
+          // Set a timeout to detect if orders are taking too long to load
+          const timeoutId = setTimeout(() => {
+            console.log("Orders fetch timeout reached");
+            setLoadingTimedOut(true);
+          }, 10000); // 10 second timeout
+          
           const data = await getOrders();
-          console.log("Dashboard - Orders fetched:", data.length);
-          setOrders(data);
+          
+          // Clear timeout since we got data
+          clearTimeout(timeoutId);
+          
+          console.log("Dashboard - Orders fetched:", data ? data.length : 0);
+          setOrders(data || []);
+          setIsOrdersLoading(false);
+          setLoadingTimedOut(false);
         } catch (error) {
           console.error("Error fetching orders:", error);
+          setOrderError("Failed to fetch orders. Please try again.");
           toast.error("Failed to fetch orders");
-        } finally {
           setIsOrdersLoading(false);
         }
       };
@@ -64,20 +80,95 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleRetryFetch = () => {
+    if (user) {
+      setLoadingTimedOut(false);
+      setOrderError(null);
+      setIsOrdersLoading(true);
+      
+      getOrders()
+        .then((data) => {
+          console.log("Retry fetched orders:", data ? data.length : 0);
+          setOrders(data || []);
+          setIsOrdersLoading(false);
+        })
+        .catch((error) => {
+          console.error("Error on retry fetch:", error);
+          setOrderError("Failed to fetch orders. Please try again.");
+          toast.error("Failed to fetch orders");
+          setIsOrdersLoading(false);
+        });
+    }
+  };
+
+  // If authentication is still loading, show nothing yet
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Your Orders</h1>
+            <Button disabled>
+              <Plus className="h-4 w-4 mr-1" />
+              Create New Order
+            </Button>
+          </div>
+          <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
+            <Loader className="h-8 w-8 text-courier-600 animate-spin mb-4" />
+            <p className="text-gray-600">Loading your account...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   // User authenticated but orders still loading
-  if (!authLoading && user && isOrdersLoading) {
+  if (!authLoading && user && isOrdersLoading && !loadingTimedOut) {
     return (
       <Layout>
         <div className="space-y-8">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Your Orders</h1>
             <Button asChild>
-              <Link to="/create-order">Create New Order</Link>
+              <Link to="/create-order">
+                <Plus className="h-4 w-4 mr-1" />
+                Create New Order
+              </Link>
             </Button>
           </div>
           <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
             <Loader className="h-8 w-8 text-courier-600 animate-spin mb-4" />
             <p className="text-gray-600">Loading your orders...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // If loading timed out or there's an error, show retry option
+  if ((loadingTimedOut || orderError) && !isOrdersLoading) {
+    return (
+      <Layout>
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Your Orders</h1>
+            <Button asChild>
+              <Link to="/create-order">
+                <Plus className="h-4 w-4 mr-1" />
+                Create New Order
+              </Link>
+            </Button>
+          </div>
+          <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
+            <AlertCircle className="h-8 w-8 text-red-600 mb-4" />
+            <p className="text-gray-800 font-medium mb-2">
+              {orderError || "Orders are taking longer than expected to load"}
+            </p>
+            <p className="text-gray-600 mb-4">This could be due to a network issue or server problem.</p>
+            <Button onClick={handleRetryFetch}>
+              <RefreshCcw className="h-4 w-4 mr-1" />
+              Retry
+            </Button>
           </div>
         </div>
       </Layout>
