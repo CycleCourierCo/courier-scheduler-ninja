@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderService";
@@ -17,17 +16,51 @@ import {
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        setUserRole(data?.role || null);
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+        toast.error("Failed to fetch user role");
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   useEffect(() => {
     const fetchOrders = async () => {
+      if (!user) return;
+      
       try {
         setLoading(true);
         const data = await getOrders();
-        setOrders(data);
+        
+        if (userRole === "admin") {
+          setOrders(data);
+        } else {
+          const filteredOrders = data.filter(order => order.user_id === user.id);
+          setOrders(filteredOrders);
+        }
       } catch (error) {
         console.error("Error fetching orders:", error);
         toast.error("Failed to fetch orders");
@@ -36,8 +69,10 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    fetchOrders();
-  }, []);
+    if (userRole !== null) {
+      fetchOrders();
+    }
+  }, [user, userRole]);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();

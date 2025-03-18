@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const mapDbOrderToOrderType = (dbOrder: any): Order => {
   return {
     id: dbOrder.id,
+    user_id: dbOrder.user_id, // Include user_id in the returned object
     sender: dbOrder.sender,
     receiver: dbOrder.receiver,
     pickupDate: dbOrder.pickup_date ? JSON.parse(JSON.stringify(dbOrder.pickup_date)) : undefined,
