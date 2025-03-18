@@ -17,14 +17,18 @@ import {
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
+        if (!user) return;
+        
         setLoading(true);
         const data = await getOrders();
         setOrders(data);
@@ -36,8 +40,10 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    fetchOrders();
-  }, []);
+    if (user) {
+      fetchOrders();
+    }
+  }, [user]);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();

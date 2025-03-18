@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isLoading, userRole } = useAuth();
+  const { user, isLoading } = useAuth();
   const location = useLocation();
   
   // Check if the current path is a public page that skips authentication
