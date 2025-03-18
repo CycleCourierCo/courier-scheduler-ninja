@@ -29,7 +29,25 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [addressSelected, setAddressSelected] = useState(false);
+  const [addressSelected, setAddressSelected] = useState(true); // Start with true to show the form fields initially
+
+  // Function to check if address field values exist
+  const checkForExistingValues = () => {
+    const streetValue = control._formValues[`${prefix}.street`];
+    const cityValue = control._formValues[`${prefix}.city`];
+    const stateValue = control._formValues[`${prefix}.state`];
+    const zipCodeValue = control._formValues[`${prefix}.zipCode`];
+    
+    // If any of the main address fields have values, ensure the address form is displayed
+    if (streetValue || cityValue || stateValue || zipCodeValue) {
+      setAddressSelected(true);
+    }
+  };
+
+  // Check for existing values on component mount
+  useEffect(() => {
+    checkForExistingValues();
+  }, []);
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
@@ -82,7 +100,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
     setValue(`${prefix}.state`, suggestion.properties.state || "");
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
-    setValue(`${prefix}.country`, suggestion.properties.country || "");
+    setValue(`${prefix}.country`, suggestion.properties.country || "United Kingdom");
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
@@ -95,17 +113,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   };
 
   const handleSearchClick = () => {
-    // Clear form fields
-    setValue(`${prefix}.street`, "");
-    setValue(`${prefix}.city`, "");
-    setValue(`${prefix}.state`, "");
-    setValue(`${prefix}.zipCode`, "");
-    setValue(`${prefix}.country`, "");
-    
-    // Hide address fields
+    // Only clear address fields when explicitly searching for a new address
     setAddressSelected(false);
-    
-    // Focus on search
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
@@ -130,7 +139,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 }
               }}
               onFocus={() => {
-                handleSearchClick(); // Clear and hide address fields when focusing on search
+                // Don't clear existing address when focusing, only when explicitly searching
                 if (searchValue.length >= 3 && suggestions.length > 0) {
                   setShowSuggestions(true);
                 }
@@ -179,6 +188,18 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
             </div>
           )}
         </div>
+        
+        {addressSelected && (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={handleSearchClick}
+            className="mt-2 text-xs"
+          >
+            Clear and search for a different address
+          </Button>
+        )}
       </div>
 
       {addressSelected && (
@@ -190,7 +211,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               <FormItem>
                 <FormLabel>Street Address *</FormLabel>
                 <FormControl>
-                  <Input placeholder="123 Main St" {...field} />
+                  <Input placeholder="123 High Street" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -205,7 +226,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>City *</FormLabel>
                   <FormControl>
-                    <Input placeholder="New York" {...field} />
+                    <Input placeholder="London" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -219,7 +240,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>State/Province *</FormLabel>
                   <FormControl>
-                    <Input placeholder="NY" {...field} />
+                    <Input placeholder="Greater London" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -235,7 +256,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>Zip/Postal Code *</FormLabel>
                   <FormControl>
-                    <Input placeholder="10001" {...field} />
+                    <Input placeholder="SW1A 1AA" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -249,7 +270,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>Country *</FormLabel>
                   <FormControl>
-                    <Input placeholder="United States" {...field} />
+                    <Input placeholder="United Kingdom" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
