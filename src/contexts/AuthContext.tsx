@@ -50,7 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const setData = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        if (error) {
+          console.error("Error getting session:", error);
+          setIsLoading(false);
+          return;
+        }
         
         setSession(session);
         setUser(session?.user || null);
@@ -97,9 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast.error(error.message || "Error signing in");
-      throw error;
-    } finally {
       setIsLoading(false);
+      throw error;
     }
   };
 

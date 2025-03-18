@@ -14,6 +14,7 @@ import ContactForm from "@/components/ContactForm";
 import AddressForm from "@/components/AddressForm";
 import { createOrder } from "@/services/orderService";
 import { CreateOrderFormData } from "@/types/order";
+import { useAuth } from "@/contexts/AuthContext";
 
 const orderSchema = z.object({
   sender: z.object({
@@ -46,6 +47,7 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("sender");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { user } = useAuth();
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -78,6 +80,12 @@ const CreateOrder = () => {
   });
 
   const onSubmit = async (data: CreateOrderFormData) => {
+    if (!user) {
+      toast.error("You must be logged in to create an order");
+      navigate("/auth");
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       const order = await createOrder(data);
