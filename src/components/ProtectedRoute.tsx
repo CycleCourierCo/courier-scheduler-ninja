@@ -22,12 +22,36 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles
     return <>{children}</>;
   }
 
+  // Add a timeout after 5 seconds to prevent infinite loading
+  const [showTimeout, setShowTimeout] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setShowTimeout(true);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600 mb-4"></div>
         <Skeleton className="h-4 w-48 mb-2" />
         <Skeleton className="h-4 w-32" />
+        {showTimeout && (
+          <div className="mt-6 text-center">
+            <p className="text-red-600 mb-2">Loading is taking longer than expected.</p>
+            <button 
+              className="px-4 py-2 bg-courier-600 text-white rounded hover:bg-courier-700"
+              onClick={() => window.location.reload()}
+            >
+              Refresh page
+            </button>
+          </div>
+        )}
       </div>
     );
   }

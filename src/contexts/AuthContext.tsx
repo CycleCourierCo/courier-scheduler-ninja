@@ -28,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserRole = async (userId: string) => {
     try {
+      console.log("Fetching user role for:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
       
+      console.log("User role data:", data);
       return data?.role as UserRole;
     } catch (error) {
       console.error("Error in fetchUserRole:", error);
@@ -50,21 +52,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const setData = async () => {
       try {
         setIsLoading(true);
+        console.log("Initializing auth session");
         
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
+        console.log("Auth session:", session ? "Found session" : "No session");
         setSession(session);
         setUser(session?.user || null);
         
         if (session?.user) {
+          console.log("Fetching role for user:", session.user.id);
           const role = await fetchUserRole(session.user.id);
+          console.log("User role:", role);
           setUserRole(role);
+        } else {
+          setUserRole(null);
         }
       } catch (error) {
         console.error("Error loading user:", error);
         toast.error("Error loading user session");
       } finally {
+        console.log("Auth initialization complete");
         setIsLoading(false);
       }
     };
@@ -72,13 +81,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setData();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("Auth state changed:", _event);
       setIsLoading(true);
       
       setSession(session);
       setUser(session?.user || null);
       
       if (session?.user) {
+        console.log("Auth change: fetching role for user:", session.user.id);
         const role = await fetchUserRole(session.user.id);
+        console.log("Updated user role:", role);
         setUserRole(role);
       } else {
         setUserRole(null);
@@ -87,12 +99,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("Cleaning up auth subscription");
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log("Signing in user:", email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
@@ -110,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
+      console.log("Signing up user:", email);
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -133,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       setIsLoading(true);
+      console.log("Signing out user");
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
