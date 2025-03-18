@@ -102,7 +102,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setValue(`${prefix}.street`, fullStreetAddress);
     setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
-    setValue(`${prefix}.state`, suggestion.properties.state || "");
+    setValue(`${prefix}.state`, suggestion.properties.county || ""); // Changed to use county instead of state
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
     setSearchValue("");
@@ -212,7 +212,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               <FormItem>
                 <FormLabel>Street Address *</FormLabel>
                 <FormControl>
-                  <Input placeholder="123 Main St" {...field} />
+                  <Input placeholder="10 Downing Street" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -227,7 +227,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>City *</FormLabel>
                   <FormControl>
-                    <Input placeholder="New York" {...field} />
+                    <Input placeholder="London" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -239,9 +239,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               name={`${prefix}.state`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>State/Province *</FormLabel>
+                  <FormLabel>County *</FormLabel>
                   <FormControl>
-                    <Input placeholder="NY" {...field} />
+                    <Input placeholder="Greater London" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -255,9 +255,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               name={`${prefix}.zipCode`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Zip/Postal Code *</FormLabel>
+                  <FormLabel>Postcode *</FormLabel>
                   <FormControl>
-                    <Input placeholder="10001" {...field} />
+                    <Input placeholder="SW1A 2AA" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -271,7 +271,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>Country *</FormLabel>
                   <FormControl>
-                    <Input placeholder="United States" {...field} />
+                    <Input placeholder="United Kingdom" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
