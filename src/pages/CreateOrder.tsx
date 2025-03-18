@@ -18,11 +18,15 @@ import AddressForm from "@/components/AddressForm";
 import { createOrder } from "@/services/orderService";
 import { CreateOrderFormData } from "@/types/order";
 
+// Define regex patterns for validation
+const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 const orderSchema = z.object({
   sender: z.object({
     name: z.string().min(2, "Name is required"),
-    email: z.string().email("Invalid email address"),
-    phone: z.string().min(5, "Phone number is required"),
+    email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
+    phone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX"),
     address: z.object({
       street: z.string().min(2, "Street address is required"),
       city: z.string().min(2, "City is required"),
@@ -33,8 +37,8 @@ const orderSchema = z.object({
   }),
   receiver: z.object({
     name: z.string().min(2, "Name is required"),
-    email: z.string().email("Invalid email address"),
-    phone: z.string().min(5, "Phone number is required"),
+    email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
+    phone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX"),
     address: z.object({
       street: z.string().min(2, "Street address is required"),
       city: z.string().min(2, "City is required"),
@@ -53,7 +57,7 @@ const orderSchema = z.object({
 
 const CreateOrder = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = React.useState("sender");
+  const [activeTab, setActiveTab] = React.useState("details"); // Changed default tab to details
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<CreateOrderFormData>({
@@ -62,7 +66,7 @@ const CreateOrder = () => {
       sender: {
         name: "",
         email: "",
-        phone: "",
+        phone: "+44", // Pre-populate with +44 prefix
         address: {
           street: "",
           city: "",
@@ -74,7 +78,7 @@ const CreateOrder = () => {
       receiver: {
         name: "",
         email: "",
-        phone: "",
+        phone: "+44", // Pre-populate with +44 prefix
         address: {
           street: "",
           city: "",
@@ -114,7 +118,7 @@ const CreateOrder = () => {
           <CardHeader>
             <CardTitle>Order Details</CardTitle>
             <CardDescription>
-              Enter the sender and receiver information to create a new courier order.
+              Enter the order information to create a new courier order.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -122,61 +126,10 @@ const CreateOrder = () => {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="grid w-full grid-cols-3 mb-6">
-                    <TabsTrigger value="sender">Sender Information</TabsTrigger>
-                    <TabsTrigger value="receiver">Receiver Information</TabsTrigger>
                     <TabsTrigger value="details">Order Details</TabsTrigger>
+                    <TabsTrigger value="sender">Collection Information</TabsTrigger>
+                    <TabsTrigger value="receiver">Delivery Information</TabsTrigger>
                   </TabsList>
-
-                  <TabsContent value="sender" className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Contact Information</h3>
-                      <ContactForm control={form.control} prefix="sender" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Pickup Address</h3>
-                      <AddressForm control={form.control} prefix="sender.address" />
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button 
-                        type="button" 
-                        onClick={() => setActiveTab("receiver")}
-                        className="bg-courier-600 hover:bg-courier-700"
-                      >
-                        Next: Receiver Information
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="receiver" className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Contact Information</h3>
-                      <ContactForm control={form.control} prefix="receiver" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
-                      <AddressForm control={form.control} prefix="receiver.address" />
-                    </div>
-
-                    <div className="flex justify-between">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setActiveTab("sender")}
-                      >
-                        Back to Sender Information
-                      </Button>
-                      <Button 
-                        type="button" 
-                        onClick={() => setActiveTab("details")}
-                        className="bg-courier-600 hover:bg-courier-700"
-                      >
-                        Next: Order Details
-                      </Button>
-                    </div>
-                  </TabsContent>
 
                   <TabsContent value="details" className="space-y-6">
                     <div>
@@ -302,13 +255,64 @@ const CreateOrder = () => {
                       />
                     </div>
 
+                    <div className="flex justify-end">
+                      <Button 
+                        type="button" 
+                        onClick={() => setActiveTab("sender")}
+                        className="bg-courier-600 hover:bg-courier-700"
+                      >
+                        Next: Collection Information
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="sender" className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
+                      <ContactForm control={form.control} prefix="sender" />
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Collection Address</h3>
+                      <AddressForm control={form.control} prefix="sender.address" />
+                    </div>
+
                     <div className="flex justify-between">
                       <Button 
                         type="button" 
                         variant="outline" 
-                        onClick={() => setActiveTab("receiver")}
+                        onClick={() => setActiveTab("details")}
                       >
-                        Back to Receiver Information
+                        Back to Order Details
+                      </Button>
+                      <Button 
+                        type="button" 
+                        onClick={() => setActiveTab("receiver")}
+                        className="bg-courier-600 hover:bg-courier-700"
+                      >
+                        Next: Delivery Information
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="receiver" className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
+                      <ContactForm control={form.control} prefix="receiver" />
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
+                      <AddressForm control={form.control} prefix="receiver.address" />
+                    </div>
+
+                    <div className="flex justify-between">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setActiveTab("sender")}
+                      >
+                        Back to Collection Information
                       </Button>
                       <Button 
                         type="submit" 

@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Control } from "react-hook-form";
 
 interface ContactFormProps {
@@ -17,7 +17,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
         name={`${prefix}.name`}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Full Name</FormLabel>
+            <FormLabel>Full Name *</FormLabel>
             <FormControl>
               <Input placeholder="John Doe" {...field} />
             </FormControl>
@@ -32,7 +32,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
           name={`${prefix}.email`}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Email *</FormLabel>
               <FormControl>
                 <Input placeholder="john.doe@example.com" type="email" {...field} />
               </FormControl>
@@ -46,10 +46,13 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
           name={`${prefix}.phone`}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone</FormLabel>
+              <FormLabel>Phone *</FormLabel>
               <FormControl>
-                <Input placeholder="(123) 456-7890" type="tel" {...field} />
+                <Input placeholder="+441234567890" type="tel" {...field} />
               </FormControl>
+              <FormDescription>
+                Must start with +44 for UK numbers
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
