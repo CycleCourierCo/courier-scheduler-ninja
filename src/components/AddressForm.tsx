@@ -16,6 +16,7 @@ interface AddressSuggestion {
   properties: {
     formatted: string;
     street: string;
+    housenumber?: string;
     city: string;
     county: string;
     state: string;
@@ -30,6 +31,20 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
+
+  // Check if address fields have values to determine if they should be shown
+  useEffect(() => {
+    const checkFormValues = () => {
+      const streetValue = control._formValues[`${prefix}.street`];
+      if (streetValue && streetValue.length > 0) {
+        setAddressSelected(true);
+      }
+    };
+    
+    // Add a small delay to ensure form values are updated after tab changes
+    const timeoutId = setTimeout(checkFormValues, 100);
+    return () => clearTimeout(timeoutId);
+  }, [control, prefix]);
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
@@ -78,7 +93,14 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   }, [searchValue]);
 
   const handleSuggestionClick = (suggestion: AddressSuggestion) => {
-    setValue(`${prefix}.street`, suggestion.properties.street || "");
+    // Create a complete street address with house number if available
+    const houseNumber = suggestion.properties.housenumber || "";
+    const street = suggestion.properties.street || "";
+    const fullStreetAddress = houseNumber 
+      ? `${houseNumber} ${street}`.trim() 
+      : street.trim();
+    
+    setValue(`${prefix}.street`, fullStreetAddress);
     setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
     setValue(`${prefix}.state`, suggestion.properties.state || "");
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
