@@ -27,7 +27,7 @@ export type OrderStatus =
 
 export type Order = {
   id: string;
-  user_id: string;  // Make sure to include this property in the type
+  user_id: string;  // This property is needed for user filtering
   sender: ContactInfo & { address: Address };
   receiver: ContactInfo & { address: Address };
   pickupDate?: Date | Date[];
