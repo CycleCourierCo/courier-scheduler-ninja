@@ -55,12 +55,14 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       );
       
       const data = await response.json();
-      // Make sure data.features exists and is an array before setting it
+      
+      // Initialize with an empty array to prevent undefined is not iterable error
+      setSuggestions([]);
+      
+      // Only if we have valid features, update the suggestions
       if (data && data.features && Array.isArray(data.features)) {
         setSuggestions(data.features);
       } else {
-        // If features doesn't exist or isn't an array, set an empty array
-        setSuggestions([]);
         console.warn("Geoapify API response doesn't contain the expected features array:", data);
       }
     } catch (error) {
@@ -72,11 +74,12 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   };
 
   useEffect(() => {
+    // Clear any previous timeout to prevent race conditions
     const timeoutId = setTimeout(() => {
-      if (searchValue) {
+      if (searchValue && searchValue.length >= 3) {
         fetchAddressSuggestions(searchValue);
       } else {
-        // Clear suggestions when search value is empty
+        // Always ensure suggestions is a valid array
         setSuggestions([]);
       }
     }, 300);
@@ -108,7 +111,13 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                   <CommandInput 
                     placeholder="Search address..." 
                     value={searchValue}
-                    onValueChange={setSearchValue}
+                    onValueChange={(value) => {
+                      setSearchValue(value);
+                      // Ensure we don't have undefined suggestions
+                      if (!value || value.length < 3) {
+                        setSuggestions([]);
+                      }
+                    }}
                   />
                   {loading && (
                     <div className="flex items-center justify-center p-4">
@@ -117,7 +126,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                   )}
                   <CommandEmpty>No address found.</CommandEmpty>
                   <CommandGroup className="max-h-[300px] overflow-auto">
-                    {suggestions.map((suggestion, index) => (
+                    {Array.isArray(suggestions) && suggestions.map((suggestion, index) => (
                       <CommandItem
                         key={index}
                         onSelect={() => {
@@ -129,6 +138,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                           setValue(`${prefix}.country`, suggestion.properties.country || "");
                           setOpen(false);
                           setSearchValue("");
+                          // Clear suggestions after selection
+                          setSuggestions([]);
                         }}
                         className="cursor-pointer"
                       >
