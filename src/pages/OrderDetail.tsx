@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
@@ -11,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -28,9 +26,6 @@ const OrderDetail = () => {
   const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { userRole } = useAuth();
-
-  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -133,8 +128,7 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  // Admin users can schedule orders in any status, other users cannot schedule
-  const canSchedule = isAdmin && 
+  const canSchedule = order.status === 'pending_approval' && 
                      Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
                      Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
@@ -180,8 +174,7 @@ const OrderDetail = () => {
                   <h3 className="font-semibold">Pickup Dates</h3>
                 </div>
                 
-                {/* For admin users */}
-                {isAdmin && canSchedule && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
+                {canSchedule && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
                   <div className="space-y-2">
                     <p className="text-sm text-gray-500">Available dates:</p>
                     <p>{formatDates(order.pickupDate)}</p>
@@ -218,7 +211,7 @@ const OrderDetail = () => {
                         </div>
                       </div>
                     ) : (
-                      <p>{isAdmin ? formatDates(order.pickupDate) : "Not scheduled yet"}</p>
+                      <p>{formatDates(order.pickupDate)}</p>
                     )}
                   </>
                 )}
@@ -228,8 +221,7 @@ const OrderDetail = () => {
                   <h3 className="font-semibold">Delivery Dates</h3>
                 </div>
                 
-                {/* For admin users */}
-                {isAdmin && canSchedule && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
+                {canSchedule && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
                   <div className="space-y-2">
                     <p className="text-sm text-gray-500">Available dates:</p>
                     <p>{formatDates(order.deliveryDate)}</p>
@@ -266,7 +258,7 @@ const OrderDetail = () => {
                         </div>
                       </div>
                     ) : (
-                      <p>{isAdmin ? formatDates(order.deliveryDate) : "Not scheduled yet"}</p>
+                      <p>{formatDates(order.deliveryDate)}</p>
                     )}
                   </>
                 )}
@@ -279,7 +271,7 @@ const OrderDetail = () => {
                 </div>
                 <p>{format(new Date(order.updatedAt), "PPP 'at' p")}</p>
                 
-                {isAdmin && canSchedule && (
+                {canSchedule && (
                   <div className="mt-6">
                     <Button 
                       onClick={handleScheduleOrder} 

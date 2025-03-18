@@ -5,13 +5,10 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer';
-
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  userRole: UserRole | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -23,114 +20,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const navigate = useNavigate();
 
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("Error fetching user role:", error);
-        return null;
-      }
-      
-      return data?.role as UserRole || 'b2c_customer';
-    } catch (error) {
-      console.error("Error in fetchUserRole:", error);
-      return null;
-    }
-  };
-
   useEffect(() => {
-    let mounted = true;
-    console.log("Auth context initializing");
-    
-    const initAuth = async () => {
+    const setData = async () => {
       try {
-        if (!mounted) return;
-        
-        console.log("Getting initial session");
-        setIsLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
         
-        if (error) {
-          console.error("Error getting session:", error);
-          if (mounted) {
-            setIsLoading(false);
-          }
-          return;
-        }
-        
-        if (mounted) {
-          console.log("Setting initial session:", !!session);
-          setSession(session);
-          setUser(session?.user || null);
-          
-          if (session?.user) {
-            console.log("Fetching user role for:", session.user.id);
-            const role = await fetchUserRole(session.user.id);
-            if (mounted) {
-              setUserRole(role);
-              console.log("User role set to:", role);
-            }
-          } else {
-            if (mounted) {
-              setUserRole(null);
-              console.log("No user, setting role to null");
-            }
-          }
-          
-          setIsLoading(false);
-          console.log("Initial auth loading complete");
-        }
+        setSession(session);
+        setUser(session?.user || null);
       } catch (error) {
         console.error("Error loading user:", error);
-        if (mounted) {
-          setIsLoading(false);
-          console.log("Auth loading failed, setting isLoading to false");
-        }
+        toast.error("Error loading user session");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    initAuth();
+    setData();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session?.user?.id);
-      
-      if (!mounted) return;
-      
-      console.log("Setting session from auth change event");
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user || null);
-      
-      if (session?.user) {
-        console.log("Fetching user role after auth change for:", session.user.id);
-        const role = await fetchUserRole(session.user.id);
-        if (mounted) {
-          setUserRole(role);
-          console.log("Updated user role to:", role);
-        }
-      } else {
-        if (mounted) {
-          setUserRole(null);
-          console.log("No user after auth change, setting role to null");
-        }
-      }
-      
       setIsLoading(false);
-      console.log("Auth state change handling complete");
     });
 
-    return () => {
-      console.log("Auth context cleanup");
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -144,8 +60,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast.error(error.message || "Error signing in");
-      setIsLoading(false);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -178,10 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      setUser(null);
-      setSession(null);
-      setUserRole(null);
-      
       navigate("/auth");
       toast.success("Signed out successfully");
     } catch (error: any) {
@@ -193,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, userRole, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

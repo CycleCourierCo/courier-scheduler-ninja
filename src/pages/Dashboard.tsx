@@ -17,17 +17,12 @@ import {
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
-import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { user, isLoading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only fetch orders if authentication is complete and user exists
-    if (authLoading || !user) return;
-    
     const fetchOrders = async () => {
       try {
         setLoading(true);
@@ -42,7 +37,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchOrders();
-  }, [user, authLoading]);
+  }, []);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -59,7 +54,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Show loader only during orders fetch, not during auth loading
   if (loading) {
     return (
       <Layout>
