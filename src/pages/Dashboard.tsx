@@ -164,12 +164,14 @@ const Dashboard: React.FC = () => {
                     <TableCell>{format(new Date(order.createdAt), "PP")}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/orders/${order.id}`}>
-                            <Eye className="h-4 w-4 mr-1" />
-                            Admin
-                          </Link>
-                        </Button>
+                        {userRole === "admin" && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/orders/${order.id}`}>
+                              <Eye className="h-4 w-4 mr-1" />
+                              Admin
+                            </Link>
+                          </Button>
+                        )}
                         
                         <Button variant="outline" size="sm" asChild>
                           <Link to={`/customer-orders/${order.id}`}>
