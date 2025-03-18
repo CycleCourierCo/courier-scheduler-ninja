@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Order, CreateOrderFormData, OrderStatus } from "@/types/order";
+import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Helper function to map database schema to our Order type
 const mapDbOrderToOrderType = (dbOrder: any): Order => {
   return {
     id: dbOrder.id,
-    user_id: dbOrder.user_id, // Include user_id in the returned object
+    user_id: dbOrder.user_id,
     sender: dbOrder.sender,
     receiver: dbOrder.receiver,
     pickupDate: dbOrder.pickup_date ? JSON.parse(JSON.stringify(dbOrder.pickup_date)) : undefined,
@@ -218,7 +218,7 @@ export const updateSenderAvailability = async (
     .from("orders")
     .update({
       pickup_date: formattedDates,
-      status: "receiver_availability_pending" as OrderStatus, // Change to receiver_availability_pending
+      status: "receiver_availability_pending" as OrderStatus,
       updated_at: new Date().toISOString(),
       sender_confirmed_at: new Date().toISOString()
     })
@@ -236,8 +236,8 @@ export const updateSenderAvailability = async (
     // After sender confirms availability, send email to the receiver
     const baseUrl = window.location.origin;
     
-    // Make sure we're accessing the receiver object properties correctly
-    const receiverData = data.receiver as { email: string; name: string };
+    // Properly type-cast the receiver object to ensure TypeScript recognizes its structure
+    const receiverData = data.receiver as unknown as ContactInfo & { address: Address };
     
     // Send email to receiver
     const response = await supabase.functions.invoke("send-email", {
@@ -273,7 +273,7 @@ export const updateReceiverAvailability = async (
     .from("orders")
     .update({
       delivery_date: formattedDates,
-      status: "receiver_availability_confirmed" as OrderStatus, // Updated to receiver_availability_confirmed
+      status: "receiver_availability_confirmed" as OrderStatus,
       updated_at: new Date().toISOString(),
       receiver_confirmed_at: new Date().toISOString()
     })
