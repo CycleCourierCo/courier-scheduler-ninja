@@ -65,6 +65,29 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     throw new Error(error.message);
   }
 
+  // Send email to sender after order creation
+  try {
+    const baseUrl = window.location.origin;
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: data.sender.email,
+        name: data.sender.name,
+        orderId: order.id,
+        baseUrl,
+        emailType: "sender" 
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending email:", response.error);
+    } else {
+      console.log("Email sent successfully to sender:", data.sender.email);
+    }
+  } catch (emailError) {
+    console.error("Failed to send email:", emailError);
+    // Don't throw here - we don't want to fail the order creation if email fails
+  }
+
   return mapDbOrderToOrderType(order);
 };
 
