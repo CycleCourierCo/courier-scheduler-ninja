@@ -14,6 +14,7 @@ import ContactForm from "@/components/ContactForm";
 import AddressForm from "@/components/AddressForm";
 import { createOrder } from "@/services/orderService";
 import { CreateOrderFormData } from "@/types/order";
+import { useAuth } from "@/contexts/AuthContext";
 
 const orderSchema = z.object({
   sender: z.object({
@@ -46,6 +47,7 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("sender");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { isLoading: authLoading } = useAuth();
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -90,6 +92,17 @@ const CreateOrder = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading state while authentication is loading
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

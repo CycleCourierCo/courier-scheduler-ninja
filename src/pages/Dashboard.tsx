@@ -17,27 +17,32 @@ import {
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const { isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        const data = await getOrders();
-        setOrders(data);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        toast.error("Failed to fetch orders");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Only fetch orders if authentication is complete
+    if (!authLoading) {
+      const fetchOrders = async () => {
+        try {
+          setLoading(true);
+          const data = await getOrders();
+          setOrders(data);
+        } catch (error) {
+          console.error("Error fetching orders:", error);
+          toast.error("Failed to fetch orders");
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchOrders();
-  }, []);
+      fetchOrders();
+    }
+  }, [authLoading]);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -54,7 +59,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
+  // Show loading state while fetching orders
+  if (loading || authLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
