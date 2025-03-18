@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,7 +11,6 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
   
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
@@ -21,29 +21,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Effect to ensure we've checked authentication at least once
-  useEffect(() => {
-    if (!isLoading) {
-      setIsAuthChecked(true);
-    }
-  }, [isLoading]);
+  console.log("ProtectedRoute - auth state:", { isLoading, user: !!user, path: location.pathname });
 
-  // Only show loading when still authenticating and not yet checked
-  if (isLoading && !isAuthChecked) {
+  // Show loading state while checking authentication
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        <div className="space-y-4 w-full max-w-md">
+          <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+          <Skeleton className="h-4 w-3/4 mx-auto" />
+          <Skeleton className="h-4 w-1/2 mx-auto" />
+        </div>
       </div>
     );
   }
 
-  // Redirect to auth page if user is not authenticated but we've checked auth
-  if (!user && isAuthChecked) {
+  // Redirect to auth page if user is not authenticated
+  if (!user) {
     console.log("User not authenticated, redirecting to /auth");
     return <Navigate to="/auth" replace />;
   }
 
-  // Only render children when user is authenticated or we're still loading
+  // User is authenticated, render children
+  console.log("User authenticated, rendering children");
   return <>{children}</>;
 };
 

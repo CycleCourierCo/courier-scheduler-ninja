@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw } from "lucide-react";
+import { Eye, RefreshCcw, Plus } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,33 +15,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     // Only fetch orders if authentication is complete and user is logged in
     if (!authLoading && user) {
-      console.log("Fetching orders for user:", user.id);
+      console.log("Dashboard - Fetching orders for user:", user.id);
       const fetchOrders = async () => {
         try {
-          setLoading(true);
+          setIsOrdersLoading(true);
           const data = await getOrders();
+          console.log("Dashboard - Orders fetched:", data.length);
           setOrders(data);
         } catch (error) {
           console.error("Error fetching orders:", error);
           toast.error("Failed to fetch orders");
         } finally {
-          setLoading(false);
+          setIsOrdersLoading(false);
         }
       };
 
       fetchOrders();
+    } else {
+      console.log("Dashboard - Waiting for auth to complete:", { authLoading, user: !!user });
     }
   }, [authLoading, user]);
 
@@ -60,12 +64,62 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Show loading state while fetching orders or checking authentication
-  if (loading || authLoading) {
+  // Improved loading state with skeleton UI
+  if (authLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Orders loading state with better UX
+  if (isOrdersLoading) {
+    return (
+      <Layout>
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Your Orders</h1>
+            <Button asChild>
+              <Link to="/create-order">Create New Order</Link>
+            </Button>
+          </div>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sender</TableHead>
+                  <TableHead>Receiver</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[1, 2, 3].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-20" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </Layout>
     );
@@ -77,7 +131,10 @@ const Dashboard: React.FC = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Your Orders</h1>
           <Button asChild>
-            <Link to="/create-order">Create New Order</Link>
+            <Link to="/create-order">
+              <Plus className="h-4 w-4 mr-1" />
+              Create New Order
+            </Link>
           </Button>
         </div>
 
@@ -88,7 +145,10 @@ const Dashboard: React.FC = () => {
               You haven't created any orders yet. Start by creating your first order.
             </p>
             <Button asChild>
-              <Link to="/create-order">Create Your First Order</Link>
+              <Link to="/create-order">
+                <Plus className="h-4 w-4 mr-1" />
+                Create Your First Order
+              </Link>
             </Button>
           </div>
         ) : (
