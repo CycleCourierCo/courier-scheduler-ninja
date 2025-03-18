@@ -5,10 +5,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredRoles?: ('admin' | 'b2b_customer' | 'b2c_customer')[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isLoading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles }) => {
+  const { user, isLoading, userRole } = useAuth();
   const location = useLocation();
   
   // Check if the current path is a public page that skips authentication
@@ -30,6 +31,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // If requiredRoles are specified, check if the user has one of them
+  if (requiredRoles && requiredRoles.length > 0 && userRole) {
+    if (!requiredRoles.includes(userRole)) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;
