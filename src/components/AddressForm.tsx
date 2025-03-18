@@ -93,6 +93,23 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setShowSuggestions(false);
   };
 
+  const handleSearchClick = () => {
+    // Clear form fields
+    setValue(`${prefix}.street`, "");
+    setValue(`${prefix}.city`, "");
+    setValue(`${prefix}.state`, "");
+    setValue(`${prefix}.zipCode`, "");
+    setValue(`${prefix}.country`, "");
+    
+    // Hide address fields
+    setAddressSelected(false);
+    
+    // Focus on search
+    setSearchValue("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="relative mb-4">
@@ -112,6 +129,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 }
               }}
               onFocus={() => {
+                handleSearchClick(); // Clear and hide address fields when focusing on search
                 if (searchValue.length >= 3 && suggestions.length > 0) {
                   setShowSuggestions(true);
                 }
