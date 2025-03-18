@@ -29,7 +29,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [addressSelected, setAddressSelected] = useState(false);
+  const [addressSelected, setAddressSelected] = useState(true); // Start with address fields visible
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
@@ -130,7 +130,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 }
               }}
               onFocus={() => {
-                handleSearchClick(); // Clear and hide address fields when focusing on search
                 if (searchValue.length >= 3 && suggestions.length > 0) {
                   setShowSuggestions(true);
                 }
@@ -138,6 +137,15 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               className="pl-8"
             />
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Button 
+              type="button" 
+              size="sm" 
+              variant="ghost" 
+              className="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-1 text-xs"
+              onClick={handleSearchClick}
+            >
+              Clear
+            </Button>
           </div>
           
           {showSuggestions && (
@@ -249,7 +257,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 <FormItem>
                   <FormLabel>Country *</FormLabel>
                   <FormControl>
-                    <Input placeholder="United States" {...field} />
+                    <Input placeholder="United Kingdom" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
