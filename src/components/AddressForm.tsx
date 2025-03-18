@@ -94,7 +94,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
           formValues[`${prefix}.country`]
         );
         
-        if (hasData && !showAddressFields) {
+        if (hasData) {
           setShowAddressFields(true);
         }
       } catch (err) {
@@ -104,8 +104,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     checkFormValues();
     
-    return () => {};
-  }, [control, prefix, showAddressFields]);
+    const timer = setTimeout(checkFormValues, 100);
+    return () => clearTimeout(timer);
+  }, [control, prefix]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
