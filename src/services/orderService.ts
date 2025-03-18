@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, CreateOrderFormData, OrderStatus } from "@/types/order";
 import { useAuth } from "@/contexts/AuthContext";
@@ -219,7 +218,7 @@ export const updateSenderAvailability = async (
     .from("orders")
     .update({
       pickup_date: formattedDates,
-      status: "sender_availability_confirmed" as OrderStatus,
+      status: "receiver_availability_pending" as OrderStatus, // Change to receiver_availability_pending
       updated_at: new Date().toISOString(),
       sender_confirmed_at: new Date().toISOString()
     })
@@ -237,11 +236,14 @@ export const updateSenderAvailability = async (
     // After sender confirms availability, send email to the receiver
     const baseUrl = window.location.origin;
     
+    // Make sure we're accessing the receiver object properties correctly
+    const receiverData = data.receiver as { email: string; name: string };
+    
     // Send email to receiver
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: data.receiver.email,
-        name: data.receiver.name,
+        to: receiverData.email,
+        name: receiverData.name,
         orderId: id,
         baseUrl,
         emailType: "receiver" 
@@ -251,7 +253,7 @@ export const updateSenderAvailability = async (
     if (response.error) {
       console.error("Error sending email to receiver:", response.error);
     } else {
-      console.log("Email sent successfully to receiver:", data.receiver.email);
+      console.log("Email sent successfully to receiver:", receiverData.email);
     }
   } catch (emailError) {
     console.error("Failed to send email to receiver:", emailError);
@@ -271,7 +273,7 @@ export const updateReceiverAvailability = async (
     .from("orders")
     .update({
       delivery_date: formattedDates,
-      status: "pending_approval" as OrderStatus, // Set to pending_approval when receiver confirms
+      status: "receiver_availability_confirmed" as OrderStatus, // Updated to receiver_availability_confirmed
       updated_at: new Date().toISOString(),
       receiver_confirmed_at: new Date().toISOString()
     })

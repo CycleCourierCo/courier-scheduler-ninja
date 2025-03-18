@@ -100,11 +100,12 @@ export default function ReceiverAvailability() {
           console.log("No pickup date found, setting default min date:", defaultDate);
         }
         
-        // If the order already has a delivery date or status is beyond receiver_availability_pending,
-        // it means the receiver has already confirmed their availability
-        if (orderData.delivery_date || 
-            (orderData.status !== 'receiver_availability_pending' && 
-             orderData.status !== 'created')) {
+        // Check if receiver has already confirmed availability
+        if (orderData.status === 'receiver_availability_confirmed' || 
+            orderData.status === 'pending_approval' ||
+            orderData.status === 'scheduled' ||
+            orderData.status === 'shipped' ||
+            orderData.status === 'delivered') {
           setError("already_confirmed");
         }
         
