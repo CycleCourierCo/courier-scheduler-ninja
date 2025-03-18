@@ -1,14 +1,17 @@
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type UserRole = 'admin' | 'regular' | null;
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  userRole: UserRole;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -20,7 +23,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const navigate = useNavigate();
+  const isMounted = useRef(true);
+
+  // Fetch user role
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching user role:", error);
+        return null;
+      }
+      
+      console.log("User role data:", data);
+      // Check if the role is 'admin' and set accordingly
+      if (data?.role === 'admin') {
+        return 'admin';
+      }
+      return 'regular';
+    } catch (error) {
+      console.error("Error in fetchUserRole:", error);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const setData = async () => {
@@ -28,22 +65,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
-        setSession(session);
-        setUser(session?.user || null);
+        if (isMounted.current) {
+          setSession(session);
+          setUser(session?.user || null);
+          
+          // Get user role if user exists
+          if (session?.user) {
+            const role = await fetchUserRole(session.user.id);
+            if (isMounted.current) {
+              setUserRole(role);
+            }
+          }
+        }
       } catch (error) {
         console.error("Error loading user:", error);
         toast.error("Error loading user session");
       } finally {
-        setIsLoading(false);
+        if (isMounted.current) {
+          setIsLoading(false);
+        }
       }
     };
 
     setData();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user || null);
-      setIsLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (isMounted.current) {
+        setSession(session);
+        setUser(session?.user || null);
+        
+        // Get user role if user exists
+        if (session?.user) {
+          const role = await fetchUserRole(session.user.id);
+          if (isMounted.current) {
+            setUserRole(role);
+          }
+        } else {
+          setUserRole(null);
+        }
+        
+        setIsLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -62,7 +124,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error(error.message || "Error signing in");
       throw error;
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -85,7 +149,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error(error.message || "Error signing up");
       throw error;
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -101,12 +167,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Error signing out:", error);
       toast.error(error.message || "Error signing out");
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setIsLoading(false);
+        setUserRole(null);
+      }
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, userRole, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
