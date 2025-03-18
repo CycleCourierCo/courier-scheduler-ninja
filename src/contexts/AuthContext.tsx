@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<UserRole>(null);
   const navigate = useNavigate();
   const isMounted = useRef(true);
+  const authCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch user role
   const fetchUserRole = async (userId: string) => {
@@ -56,11 +57,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     return () => {
       isMounted.current = false;
+      if (authCheckTimeoutRef.current) {
+        clearTimeout(authCheckTimeoutRef.current);
+      }
     };
   }, []);
 
   useEffect(() => {
     console.log("AuthContext initializing");
+    
+    // Set a timeout to prevent infinite loading
+    authCheckTimeoutRef.current = setTimeout(() => {
+      if (isLoading && isMounted.current) {
+        console.log("Auth check timeout reached, forcing loading to false");
+        setIsLoading(false);
+      }
+    }, 5000); // 5 second timeout
+    
     const setData = async () => {
       try {
         setIsLoading(true);
@@ -91,6 +104,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (isMounted.current) {
           console.log("Initial auth loading complete");
           setIsLoading(false);
+          
+          // Clear the timeout since we've finished loading
+          if (authCheckTimeoutRef.current) {
+            clearTimeout(authCheckTimeoutRef.current);
+          }
         }
       }
     };

@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, Plus } from "lucide-react";
+import { Eye, RefreshCcw, Plus, Loader } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -64,27 +64,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Improved loading state with skeleton UI
-  if (authLoading) {
-    return (
-      <Layout>
-        <div className="space-y-8">
-          <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-10 w-40" />
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 space-y-4">
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-full" />
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Orders loading state with better UX
-  if (isOrdersLoading) {
+  // User authenticated but orders still loading
+  if (!authLoading && user && isOrdersLoading) {
     return (
       <Layout>
         <div className="space-y-8">
@@ -94,31 +75,9 @@ const Dashboard: React.FC = () => {
               <Link to="/create-order">Create New Order</Link>
             </Button>
           </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sender</TableHead>
-                  <TableHead>Receiver</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[1, 2, 3].map((i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-20" /></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
+            <Loader className="h-8 w-8 text-courier-600 animate-spin mb-4" />
+            <p className="text-gray-600">Loading your orders...</p>
           </div>
         </div>
       </Layout>

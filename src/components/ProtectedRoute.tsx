@@ -1,8 +1,9 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Loader } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -23,15 +24,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   console.log("ProtectedRoute - auth state:", { isLoading, user: !!user, path: location.pathname });
 
-  // Show loading state while checking authentication
+  // Show loading state while checking authentication - with a timeout to prevent infinite loading
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="space-y-4 w-full max-w-md">
-          <Skeleton className="h-12 w-12 rounded-full mx-auto" />
-          <Skeleton className="h-4 w-3/4 mx-auto" />
-          <Skeleton className="h-4 w-1/2 mx-auto" />
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader className="h-12 w-12 text-courier-600 animate-spin mb-4" />
+        <p className="text-gray-600">Loading your account...</p>
       </div>
     );
   }
