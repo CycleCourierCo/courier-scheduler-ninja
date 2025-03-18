@@ -24,31 +24,31 @@ const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { userRole, user } = useAuth();
+  const { userRole, user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      if (!user) {
-        // Don't fetch orders if user is not authenticated
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getOrders();
-        setOrders(data);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        setError("Failed to load orders. Please try refreshing the page.");
-        toast.error("Failed to fetch orders");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Only fetch orders if auth is not loading and user is authenticated
+    if (!authLoading && user) {
+      fetchOrders();
+    }
+  }, [user, authLoading]);
 
-    fetchOrders();
-  }, [user]);
+  const fetchOrders = async () => {
+    try {
+      console.log("Fetching orders...");
+      setLoading(true);
+      setError(null);
+      const data = await getOrders();
+      console.log("Orders fetched:", data.length);
+      setOrders(data);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      setError("Failed to load orders. Please try refreshing the page.");
+      toast.error("Failed to fetch orders");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -65,6 +65,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Don't render the main content until auth is complete
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="p-8">
+          <Skeleton className="h-10 w-64 mb-8" />
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (error) {
     return (
       <Layout>
@@ -72,7 +88,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">
             <p>{error}</p>
           </div>
-          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+          <Button onClick={() => fetchOrders()}>Refresh Orders</Button>
         </div>
       </Layout>
     );

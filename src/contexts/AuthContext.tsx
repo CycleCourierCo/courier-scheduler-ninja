@@ -24,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const navigate = useNavigate();
 
   const fetchUserRole = async (userId: string) => {
@@ -49,13 +50,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const setData = async () => {
+    const initializeAuth = async () => {
       try {
-        setIsLoading(true);
         console.log("Initializing auth session");
+        setIsLoading(true);
         
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        if (error) {
+          console.error("Error getting session:", error);
+          throw error;
+        }
         
         console.log("Auth session:", session ? "Found session" : "No session");
         setSession(session);
@@ -75,14 +79,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } finally {
         console.log("Auth initialization complete");
         setIsLoading(false);
+        setAuthInitialized(true);
       }
     };
 
-    setData();
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("Auth state changed:", _event);
-      setIsLoading(true);
+      
+      // Don't set loading to true if we're just getting an initial SIGNED_IN event
+      // as it will cause a loading flash
+      if (_event !== 'INITIAL_SESSION' && _event !== 'SIGNED_IN') {
+        setIsLoading(true);
+      }
       
       setSession(session);
       setUser(session?.user || null);
@@ -96,7 +106,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserRole(null);
       }
       
-      setIsLoading(false);
+      if (_event !== 'INITIAL_SESSION' && _event !== 'SIGNED_IN') {
+        setIsLoading(false);
+      }
     });
 
     return () => {
