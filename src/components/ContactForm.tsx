@@ -61,16 +61,13 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
               <FormLabel>Phone *</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="+441234567890" 
+                  placeholder="1234567890" 
                   type="tel" 
                   value={field.value} 
                   onChange={(e) => handlePhoneInput(e, field.onChange)}
                   onBlur={field.onBlur}
                 />
               </FormControl>
-              <FormDescription>
-                Must start with +44 for UK numbers
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
