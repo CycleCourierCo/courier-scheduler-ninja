@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('role')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error("Error fetching user role:", error);
@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const setData = async () => {
       try {
+        setIsLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -91,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (isMounted.current) {
+        setIsLoading(true); // Set loading to true when auth state changes
         setSession(session);
         setUser(session?.user || null);
         

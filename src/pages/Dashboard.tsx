@@ -22,11 +22,11 @@ import { useAuth } from "@/contexts/AuthContext";
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
-  const { isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Only fetch orders if authentication is complete
-    if (!authLoading) {
+    // Only fetch orders if authentication is complete and user is logged in
+    if (!authLoading && user) {
       const fetchOrders = async () => {
         try {
           setLoading(true);
@@ -42,7 +42,7 @@ const Dashboard: React.FC = () => {
 
       fetchOrders();
     }
-  }, [authLoading]);
+  }, [authLoading, user]);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -59,7 +59,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Show loading state while fetching orders
+  // Show loading state while fetching orders or checking authentication
   if (loading || authLoading) {
     return (
       <Layout>
