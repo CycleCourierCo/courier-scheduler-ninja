@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,6 @@ import ContactForm from "@/components/ContactForm";
 import AddressForm from "@/components/AddressForm";
 import { createOrder } from "@/services/orderService";
 import { CreateOrderFormData } from "@/types/order";
-import { useAuth } from "@/contexts/AuthContext";
 
 const orderSchema = z.object({
   sender: z.object({
@@ -47,15 +46,6 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("sender");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { user, isLoading: authLoading } = useAuth();
-
-  // Redirect to auth if not authenticated and we've checked auth
-  useEffect(() => {
-    if (!authLoading && !user) {
-      console.log("User not authenticated on create order page, redirecting to /auth");
-      navigate("/auth");
-    }
-  }, [authLoading, user, navigate]);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -100,22 +90,6 @@ const CreateOrder = () => {
       setIsSubmitting(false);
     }
   };
-
-  // Show loading state while authentication is loading
-  if (authLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Only render the form if the user is authenticated
-  if (!user) {
-    return null; // The useEffect will handle redirecting
-  }
 
   return (
     <Layout>

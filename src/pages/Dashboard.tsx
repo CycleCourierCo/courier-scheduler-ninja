@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, Plus, Loader, AlertCircle } from "lucide-react";
+import { Eye, RefreshCcw } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,88 +15,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
-  const [orderError, setOrderError] = useState<string | null>(null);
-  const { user, isLoading: authLoading } = useAuth();
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-
-  // Direct check for user orders to debug the issue
-  const checkOrdersDirectly = async () => {
-    if (user) {
-      try {
-        console.log("Directly checking orders in database for user:", user.id);
-        const { data, error } = await supabase
-          .from('orders')
-          .select('id')
-          .eq('user_id', user.id);
-          
-        if (error) {
-          console.error("Direct DB check error:", error);
-        } else {
-          console.log("Direct DB check found orders:", data ? data.length : 0);
-        }
-      } catch (e) {
-        console.error("Error in direct orders check:", e);
-      }
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only fetch orders if authentication is complete and user is logged in
-    if (!authLoading && user) {
-      console.log("Dashboard - Fetching orders for user:", user.id);
-      
-      // Do a direct check for debugging purposes
-      checkOrdersDirectly();
-      
-      const fetchOrders = async () => {
-        try {
-          setIsOrdersLoading(true);
-          setOrderError(null);
-          
-          // Set a timeout to detect if orders are taking too long to load (reduced from 10s to 5s)
-          const timeoutId = setTimeout(() => {
-            console.log("Orders fetch timeout reached");
-            setLoadingTimedOut(true);
-          }, 5000); // 5 second timeout (reduced from 10s)
-          
-          const data = await getOrders();
-          
-          // Clear timeout since we got data
-          clearTimeout(timeoutId);
-          
-          console.log("Dashboard - Orders fetched successfully:", data ? data.length : 0, data);
-          setOrders(data || []);
-          setIsOrdersLoading(false);
-          setLoadingTimedOut(false);
-        } catch (error) {
-          console.error("Error fetching orders:", error);
-          setOrderError("Failed to fetch orders. Please try again.");
-          toast.error("Failed to fetch orders");
-          setIsOrdersLoading(false);
-        }
-      };
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const data = await getOrders();
+        setOrders(data);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to fetch orders");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchOrders();
-    } else {
-      console.log("Dashboard - Waiting for auth to complete:", { authLoading, user: !!user });
-    }
-  }, [authLoading, user]);
+    fetchOrders();
+  }, []);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     try {
-      toast.info("Resending email...");
       const success = await resendSenderAvailabilityEmail(orderId);
       if (success) {
         toast.success("Email resent successfully");
@@ -107,103 +54,11 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleRetryFetch = () => {
-    if (user) {
-      setLoadingTimedOut(false);
-      setOrderError(null);
-      setIsOrdersLoading(true);
-      toast.info("Retrying to fetch orders...");
-      
-      getOrders()
-        .then((data) => {
-          console.log("Retry fetched orders:", data ? data.length : 0);
-          setOrders(data || []);
-          setIsOrdersLoading(false);
-          if (data && data.length > 0) {
-            toast.success(`Successfully loaded ${data.length} orders`);
-          } else {
-            toast.info("No orders found");
-          }
-        })
-        .catch((error) => {
-          console.error("Error on retry fetch:", error);
-          setOrderError("Failed to fetch orders. Please try again.");
-          toast.error("Failed to fetch orders");
-          setIsOrdersLoading(false);
-        });
-    }
-  };
-
-  // If authentication is still loading, show nothing yet
-  if (authLoading) {
+  if (loading) {
     return (
       <Layout>
-        <div className="space-y-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Your Orders</h1>
-            <Button disabled>
-              <Plus className="h-4 w-4 mr-1" />
-              Create New Order
-            </Button>
-          </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
-            <Loader className="h-8 w-8 text-courier-600 animate-spin mb-4" />
-            <p className="text-gray-600">Loading your account...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // User authenticated but orders still loading
-  if (!authLoading && user && isOrdersLoading && !loadingTimedOut) {
-    return (
-      <Layout>
-        <div className="space-y-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Your Orders</h1>
-            <Button asChild>
-              <Link to="/create-order">
-                <Plus className="h-4 w-4 mr-1" />
-                Create New Order
-              </Link>
-            </Button>
-          </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
-            <Loader className="h-8 w-8 text-courier-600 animate-spin mb-4" />
-            <p className="text-gray-600">Loading your orders...</p>
-            <p className="text-sm text-gray-500 mt-2">This might take a moment...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // If loading timed out or there's an error, show retry option
-  if ((loadingTimedOut || orderError) && !isOrdersLoading) {
-    return (
-      <Layout>
-        <div className="space-y-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Your Orders</h1>
-            <Button asChild>
-              <Link to="/create-order">
-                <Plus className="h-4 w-4 mr-1" />
-                Create New Order
-              </Link>
-            </Button>
-          </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden p-8 flex flex-col items-center justify-center">
-            <AlertCircle className="h-8 w-8 text-amber-600 mb-4" />
-            <p className="text-gray-800 font-medium mb-2">
-              {orderError || "Orders are taking longer than expected to load"}
-            </p>
-            <p className="text-gray-600 mb-4">This could be due to a network issue or server problem.</p>
-            <Button onClick={handleRetryFetch}>
-              <RefreshCcw className="h-4 w-4 mr-1" />
-              Retry
-            </Button>
-          </div>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
         </div>
       </Layout>
     );
@@ -215,10 +70,7 @@ const Dashboard: React.FC = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Your Orders</h1>
           <Button asChild>
-            <Link to="/create-order">
-              <Plus className="h-4 w-4 mr-1" />
-              Create New Order
-            </Link>
+            <Link to="/create-order">Create New Order</Link>
           </Button>
         </div>
 
@@ -229,10 +81,7 @@ const Dashboard: React.FC = () => {
               You haven't created any orders yet. Start by creating your first order.
             </p>
             <Button asChild>
-              <Link to="/create-order">
-                <Plus className="h-4 w-4 mr-1" />
-                Create Your First Order
-              </Link>
+              <Link to="/create-order">Create Your First Order</Link>
             </Button>
           </div>
         ) : (

@@ -234,20 +234,15 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   }
 };
 
-// Get all orders - OPTIMIZED VERSION
+// Get all orders
 export const getOrders = async (): Promise<Order[]> => {
   try {
-    console.log("Starting to fetch orders");
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.error("User not authenticated when fetching orders");
       throw new Error("User not authenticated");
     }
     
-    console.log(`Fetching orders for user: ${user.id}`);
-    
-    // Using a more direct approach with better error handling
     const { data: ordersData, error } = await supabase
       .from('orders')
       .select('*')
@@ -255,71 +250,25 @@ export const getOrders = async (): Promise<Order[]> => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error("Database error when fetching orders:", error);
       throw error;
     }
     
-    if (!ordersData) {
-      console.log("No orders data returned");
-      return [];
-    }
-    
-    console.log(`Successfully fetched ${ordersData.length} orders`);
-    
-    // Map the orders with better error handling
-    return ordersData.map(order => {
-      try {
-        return {
-          id: order.id,
-          sender: convertJsonToContact(order.sender),
-          receiver: convertJsonToContact(order.receiver),
-          status: order.status as OrderStatus,
-          createdAt: new Date(order.created_at),
-          updatedAt: new Date(order.updated_at),
-          pickupDate: convertJsonToDateOrDates(order.pickup_date),
-          deliveryDate: convertJsonToDateOrDates(order.delivery_date),
-          scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
-          scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
-          trackingNumber: order.tracking_number
-        };
-      } catch (mapError) {
-        console.error(`Error mapping order ${order.id}:`, mapError);
-        // Return a minimal valid order to avoid breaking the UI
-        return {
-          id: order.id,
-          sender: {
-            name: "Error loading sender",
-            email: "",
-            phone: "",
-            address: {
-              street: "",
-              city: "",
-              state: "",
-              zipCode: "",
-              country: ""
-            }
-          },
-          receiver: {
-            name: "Error loading receiver",
-            email: "",
-            phone: "",
-            address: {
-              street: "",
-              city: "",
-              state: "",
-              zipCode: "",
-              country: ""
-            }
-          },
-          status: "error" as OrderStatus,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-      }
-    });
+    return ordersData.map(order => ({
+      id: order.id,
+      sender: convertJsonToContact(order.sender),
+      receiver: convertJsonToContact(order.receiver),
+      status: order.status as OrderStatus,
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+      pickupDate: convertJsonToDateOrDates(order.pickup_date),
+      deliveryDate: convertJsonToDateOrDates(order.delivery_date),
+      scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
+      scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
+      trackingNumber: order.tracking_number
+    }));
   } catch (error) {
     console.error("Error fetching orders:", error);
-    throw new Error("Failed to fetch orders: " + (error instanceof Error ? error.message : "Unknown error"));
+    throw new Error("Failed to fetch orders");
   }
 };
 

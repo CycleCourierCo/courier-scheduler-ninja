@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/contexts/AuthContext";
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,9 +26,6 @@ const OrderDetail = () => {
   const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { userRole } = useAuth();
-  
-  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -132,10 +128,9 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  const canSchedule = isAdmin && 
-                    order.status === 'pending_approval' && 
-                    Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
-                    Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
+  const canSchedule = order.status === 'pending_approval' && 
+                     Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
+                     Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
   const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
 
