@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Control } from "react-hook-form";
+import { Control, UseFormSetValue } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { 
   Command,
@@ -20,6 +20,7 @@ import {
 interface AddressFormProps {
   control: Control<any>;
   prefix: string;
+  setValue: UseFormSetValue<any>;
 }
 
 interface AddressSuggestion {
@@ -34,7 +35,7 @@ interface AddressSuggestion {
   };
 }
 
-const AddressForm: React.FC<AddressFormProps> = ({ control, prefix }) => {
+const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) => {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -93,7 +94,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix }) => {
             )}
           />
         </PopoverTrigger>
-        <PopoverContent className="p-0" align="start" side="bottom" width="target">
+        <PopoverContent className="p-0" align="start" side="bottom">
           <Command>
             <CommandInput 
               placeholder="Search address..." 
@@ -112,11 +113,11 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix }) => {
                   key={index}
                   onSelect={() => {
                     // Update all the relevant form fields with the selected address
-                    control.setValue(`${prefix}.street`, suggestion.properties.street || "");
-                    control.setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
-                    control.setValue(`${prefix}.state`, suggestion.properties.state || "");
-                    control.setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
-                    control.setValue(`${prefix}.country`, suggestion.properties.country || "");
+                    setValue(`${prefix}.street`, suggestion.properties.street || "");
+                    setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
+                    setValue(`${prefix}.state`, suggestion.properties.state || "");
+                    setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
+                    setValue(`${prefix}.country`, suggestion.properties.country || "");
                     setOpen(false);
                   }}
                   className="cursor-pointer"

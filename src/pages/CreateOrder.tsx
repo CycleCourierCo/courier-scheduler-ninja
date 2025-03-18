@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -273,7 +274,11 @@ const CreateOrder = () => {
 
                     <div>
                       <h3 className="text-lg font-medium mb-4">Collection Address</h3>
-                      <AddressForm control={form.control} prefix="sender.address" />
+                      <AddressForm 
+                        control={form.control} 
+                        prefix="sender.address" 
+                        setValue={form.setValue}
+                      />
                     </div>
 
                     <div className="flex justify-between">
@@ -302,7 +307,11 @@ const CreateOrder = () => {
 
                     <div>
                       <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
-                      <AddressForm control={form.control} prefix="receiver.address" />
+                      <AddressForm 
+                        control={form.control} 
+                        prefix="receiver.address" 
+                        setValue={form.setValue}
+                      />
                     </div>
 
                     <div className="flex justify-between">
