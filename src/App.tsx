@@ -13,6 +13,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
 import OrderDetail from "./pages/OrderDetail";
+import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import { AuthProvider } from "./contexts/AuthContext";
 
 // Create a client
@@ -53,6 +54,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer-orders/:id"
+              element={
+                <ProtectedRoute>
+                  <CustomerOrderDetail />
                 </ProtectedRoute>
               }
             />

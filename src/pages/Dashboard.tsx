@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw } from "lucide-react";
+import { Eye, RefreshCcw, Bicycle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -93,6 +93,7 @@ const Dashboard: React.FC = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Sender</TableHead>
                   <TableHead>Receiver</TableHead>
+                  <TableHead>Bike</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -110,13 +111,30 @@ const Dashboard: React.FC = () => {
                     </TableCell>
                     <TableCell>{order.sender.name}</TableCell>
                     <TableCell>{order.receiver.name}</TableCell>
+                    <TableCell>
+                      {order.bikeBrand && order.bikeModel ? (
+                        <div className="flex items-center">
+                          <Bicycle className="h-4 w-4 mr-1 text-gray-500" />
+                          <span>{order.bikeBrand} {order.bikeModel}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Not specified</span>
+                      )}
+                    </TableCell>
                     <TableCell>{format(new Date(order.createdAt), "PP")}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Button variant="outline" size="sm" asChild>
                           <Link to={`/orders/${order.id}`}>
                             <Eye className="h-4 w-4 mr-1" />
-                            View
+                            Admin
+                          </Link>
+                        </Button>
+                        
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/customer-orders/${order.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            Customer
                           </Link>
                         </Button>
                         

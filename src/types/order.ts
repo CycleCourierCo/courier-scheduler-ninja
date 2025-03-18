@@ -37,6 +37,12 @@ export type Order = {
   createdAt: Date;
   updatedAt: Date;
   trackingNumber?: string;
+  bikeBrand?: string;
+  bikeModel?: string;
+  customerOrderNumber?: string;
+  needsPaymentOnCollection?: boolean;
+  isBikeSwap?: boolean;
+  deliveryInstructions?: string;
 };
 
 export type CreateOrderFormData = {
@@ -64,4 +70,10 @@ export type CreateOrderFormData = {
       country: string;
     };
   };
+  bikeBrand: string;
+  bikeModel: string;
+  customerOrderNumber?: string;
+  needsPaymentOnCollection: boolean;
+  isBikeSwap: boolean;
+  deliveryInstructions: string;
 };

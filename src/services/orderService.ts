@@ -195,6 +195,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       status: 'sender_availability_pending' as OrderStatus,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      bike_brand: data.bikeBrand,
+      bike_model: data.bikeModel,
+      customer_order_number: data.customerOrderNumber || null,
+      needs_payment_on_collection: data.needsPaymentOnCollection,
+      is_bike_swap: data.isBikeSwap,
+      delivery_instructions: data.deliveryInstructions,
     };
     
     // Store the order in Supabase
@@ -221,7 +227,13 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       updatedAt: new Date(order.updated_at),
       pickupDate: convertJsonToDateOrDates(order.pickup_date),
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
-      trackingNumber: order.tracking_number
+      trackingNumber: order.tracking_number,
+      bikeBrand: order.bike_brand,
+      bikeModel: order.bike_model,
+      customerOrderNumber: order.customer_order_number,
+      needsPaymentOnCollection: order.needs_payment_on_collection,
+      isBikeSwap: order.is_bike_swap,
+      deliveryInstructions: order.delivery_instructions,
     };
     
     // Send email to sender for availability confirmation
@@ -264,7 +276,13 @@ export const getOrders = async (): Promise<Order[]> => {
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
       scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
-      trackingNumber: order.tracking_number
+      trackingNumber: order.tracking_number,
+      bikeBrand: order.bike_brand,
+      bikeModel: order.bike_model,
+      customerOrderNumber: order.customer_order_number,
+      needsPaymentOnCollection: order.needs_payment_on_collection,
+      isBikeSwap: order.is_bike_swap,
+      deliveryInstructions: order.delivery_instructions,
     }));
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -314,7 +332,13 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
       scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
-      trackingNumber: order.tracking_number
+      trackingNumber: order.tracking_number,
+      bikeBrand: order.bike_brand,
+      bikeModel: order.bike_model,
+      customerOrderNumber: order.customer_order_number,
+      needsPaymentOnCollection: order.needs_payment_on_collection,
+      isBikeSwap: order.is_bike_swap,
+      deliveryInstructions: order.delivery_instructions,
     };
   } catch (error) {
     console.error("Error fetching order:", error);
@@ -350,7 +374,13 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
       scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
-      trackingNumber: order.tracking_number
+      trackingNumber: order.tracking_number,
+      bikeBrand: order.bike_brand,
+      bikeModel: order.bike_model,
+      customerOrderNumber: order.customer_order_number,
+      needsPaymentOnCollection: order.needs_payment_on_collection,
+      isBikeSwap: order.is_bike_swap,
+      deliveryInstructions: order.delivery_instructions,
     } : undefined;
   } catch (error) {
     console.error("Error updating order status:", error);
@@ -427,7 +457,13 @@ export const updateSenderAvailability = async (id: string, pickupDates: Date | D
       deliveryDate: convertJsonToDateOrDates(order.delivery_date),
       scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date as string) : undefined,
       scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date as string) : undefined,
-      trackingNumber: order.tracking_number
+      trackingNumber: order.tracking_number,
+      bikeBrand: order.bike_brand,
+      bikeModel: order.bike_model,
+      customerOrderNumber: order.customer_order_number,
+      needsPaymentOnCollection: order.needs_payment_on_collection,
+      isBikeSwap: order.is_bike_swap,
+      deliveryInstructions: order.delivery_instructions,
     };
     
     // Send email to receiver if order was updated successfully
@@ -484,7 +520,13 @@ export const updateReceiverAvailability = async (id: string, deliveryDates: Date
       deliveryDate: convertJsonToDateOrDates(updatedOrder.delivery_date),
       scheduledPickupDate: updatedOrder.scheduled_pickup_date ? new Date(updatedOrder.scheduled_pickup_date as string) : undefined,
       scheduledDeliveryDate: updatedOrder.scheduled_delivery_date ? new Date(updatedOrder.scheduled_delivery_date as string) : undefined,
-      trackingNumber: updatedOrder.tracking_number
+      trackingNumber: updatedOrder.tracking_number,
+      bikeBrand: updatedOrder.bike_brand,
+      bikeModel: updatedOrder.bike_model,
+      customerOrderNumber: updatedOrder.customer_order_number,
+      needsPaymentOnCollection: updatedOrder.needs_payment_on_collection,
+      isBikeSwap: updatedOrder.is_bike_swap,
+      deliveryInstructions: updatedOrder.delivery_instructions,
     } : undefined;
   } catch (error) {
     console.error("Error updating receiver availability:", error);
@@ -568,7 +610,13 @@ export const updateOrderSchedule = async (id: string, pickupDate: Date, delivery
         deliveryDate: convertJsonToDateOrDates(orderWithTracking.delivery_date),
         scheduledPickupDate: orderWithTracking.scheduled_pickup_date ? new Date(orderWithTracking.scheduled_pickup_date as string) : undefined,
         scheduledDeliveryDate: orderWithTracking.scheduled_delivery_date ? new Date(orderWithTracking.scheduled_delivery_date as string) : undefined,
-        trackingNumber: orderWithTracking.tracking_number
+        trackingNumber: orderWithTracking.tracking_number,
+        bikeBrand: orderWithTracking.bike_brand,
+        bikeModel: orderWithTracking.bike_model,
+        customerOrderNumber: orderWithTracking.customer_order_number,
+        needsPaymentOnCollection: orderWithTracking.needs_payment_on_collection,
+        isBikeSwap: orderWithTracking.is_bike_swap,
+        deliveryInstructions: orderWithTracking.delivery_instructions,
       } : undefined;
     } catch (shipdayError) {
       console.error("Error creating Shipday order:", shipdayError);
@@ -586,7 +634,13 @@ export const updateOrderSchedule = async (id: string, pickupDate: Date, delivery
         deliveryDate: convertJsonToDateOrDates(updatedOrder.delivery_date),
         scheduledPickupDate: updatedOrder.scheduled_pickup_date ? new Date(updatedOrder.scheduled_pickup_date as string) : undefined,
         scheduledDeliveryDate: updatedOrder.scheduled_delivery_date ? new Date(updatedOrder.scheduled_delivery_date as string) : undefined,
-        trackingNumber: updatedOrder.tracking_number
+        trackingNumber: updatedOrder.tracking_number,
+        bikeBrand: updatedOrder.bike_brand,
+        bikeModel: updatedOrder.bike_model,
+        customerOrderNumber: updatedOrder.customer_order_number,
+        needsPaymentOnCollection: updatedOrder.needs_payment_on_collection,
+        isBikeSwap: updatedOrder.is_bike_swap,
+        deliveryInstructions: updatedOrder.delivery_instructions,
       };
     }
   } catch (error) {
