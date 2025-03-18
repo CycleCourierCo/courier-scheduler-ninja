@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, Bicycle } from "lucide-react";
+import { Eye, RefreshCcw, Bike } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -114,7 +114,7 @@ const Dashboard: React.FC = () => {
                     <TableCell>
                       {order.bikeBrand && order.bikeModel ? (
                         <div className="flex items-center">
-                          <Bicycle className="h-4 w-4 mr-1 text-gray-500" />
+                          <Bike className="h-4 w-4 mr-1 text-gray-500" />
                           <span>{order.bikeBrand} {order.bikeModel}</span>
                         </div>
                       ) : (

@@ -11,9 +11,15 @@ export type Database = {
     Tables: {
       orders: {
         Row: {
+          bike_brand: string | null
+          bike_model: string | null
           created_at: string
+          customer_order_number: string | null
           delivery_date: Json | null
+          delivery_instructions: string | null
           id: string
+          is_bike_swap: boolean | null
+          needs_payment_on_collection: boolean | null
           pickup_date: Json | null
           receiver: Json
           scheduled_delivery_date: string | null
@@ -25,9 +31,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bike_brand?: string | null
+          bike_model?: string | null
           created_at?: string
+          customer_order_number?: string | null
           delivery_date?: Json | null
+          delivery_instructions?: string | null
           id?: string
+          is_bike_swap?: boolean | null
+          needs_payment_on_collection?: boolean | null
           pickup_date?: Json | null
           receiver: Json
           scheduled_delivery_date?: string | null
@@ -39,9 +51,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bike_brand?: string | null
+          bike_model?: string | null
           created_at?: string
+          customer_order_number?: string | null
           delivery_date?: Json | null
+          delivery_instructions?: string | null
           id?: string
+          is_bike_swap?: boolean | null
+          needs_payment_on_collection?: boolean | null
           pickup_date?: Json | null
           receiver?: Json
           scheduled_delivery_date?: string | null
