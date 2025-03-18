@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,6 +10,15 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading, userRole } = useAuth();
   const location = useLocation();
+  
+  useEffect(() => {
+    console.log("ProtectedRoute - Auth state:", { 
+      isAuthenticated: !!user, 
+      isLoading, 
+      userRole,
+      path: location.pathname
+    });
+  }, [user, isLoading, userRole, location]);
   
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
