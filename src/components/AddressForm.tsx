@@ -29,38 +29,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [addressSelected, setAddressSelected] = useState(false);
-  const initialCheckRef = useRef(false);
+  // Instead of using state for addressSelected, we'll compute it in real-time
   
-  // Check if address fields have values on component mount
-  useEffect(() => {
-    if (!initialCheckRef.current) {
-      checkForExistingAddress();
-      initialCheckRef.current = true;
-    }
-  }, []);
-
-  // Also check whenever form values might have changed
-  useEffect(() => {
-    checkForExistingAddress();
-  }, [control._formValues]);
-
-  // Function to check if address fields already have values
-  const checkForExistingAddress = () => {
-    try {
-      // Get the current form values using the control
-      const street = control._formValues[`${prefix}.street`];
-      const city = control._formValues[`${prefix}.city`];
-      
-      // If any of the main address fields have values, show the address form
-      if (street || city) {
-        setAddressSelected(true);
-      }
-    } catch (err) {
-      console.error("Error checking for existing address:", err);
-    }
-  };
-
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
       setSuggestions([]);
@@ -116,11 +86,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
-    setAddressSelected(true);
   };
 
   const handleManualEntry = () => {
-    setAddressSelected(true);
+    // Just hide the suggestions when choosing manual entry
     setShowSuggestions(false);
   };
 
@@ -128,6 +97,23 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     // Only show search suggestions if needed
     if (searchValue.length >= 3 && suggestions.length > 0) {
       setShowSuggestions(true);
+    }
+  };
+
+  // Helper function to check if address is filled
+  const hasAddressData = () => {
+    try {
+      const formValues = control._formValues;
+      return !!(
+        formValues[`${prefix}.street`] || 
+        formValues[`${prefix}.city`] || 
+        formValues[`${prefix}.state`] || 
+        formValues[`${prefix}.zipCode`] || 
+        formValues[`${prefix}.country`]
+      );
+    } catch (err) {
+      console.error("Error checking address data:", err);
+      return false;
     }
   };
 
@@ -196,83 +182,82 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
         </div>
       </div>
 
-      {addressSelected && (
-        <>
+      {/* Always show address fields - this is the key change */}
+      <>
+        <FormField
+          control={control}
+          name={`${prefix}.street`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Street Address *</FormLabel>
+              <FormControl>
+                <Input placeholder="123 High Street" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={control}
-            name={`${prefix}.street`}
+            name={`${prefix}.city`}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Street Address *</FormLabel>
+                <FormLabel>City *</FormLabel>
                 <FormControl>
-                  <Input placeholder="123 High Street" {...field} />
+                  <Input placeholder="London" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={control}
-              name={`${prefix}.city`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>City *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="London" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={control}
+            name={`${prefix}.state`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>State/Province *</FormLabel>
+                <FormControl>
+                  <Input placeholder="Greater London" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-            <FormField
-              control={control}
-              name={`${prefix}.state`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State/Province *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Greater London" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name={`${prefix}.zipCode`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Zip/Postal Code *</FormLabel>
+                <FormControl>
+                  <Input placeholder="EC1A 1BB" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={control}
-              name={`${prefix}.zipCode`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Zip/Postal Code *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="EC1A 1BB" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={control}
-              name={`${prefix}.country`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Country *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="United Kingdom" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </>
-      )}
+          <FormField
+            control={control}
+            name={`${prefix}.country`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Country *</FormLabel>
+                <FormControl>
+                  <Input placeholder="United Kingdom" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </>
     </div>
   );
 };
