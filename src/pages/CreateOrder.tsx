@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -18,7 +17,6 @@ import AddressForm from "@/components/AddressForm";
 import { createOrder } from "@/services/orderService";
 import { CreateOrderFormData } from "@/types/order";
 
-// Define regex patterns for validation
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -94,7 +92,58 @@ const CreateOrder = () => {
       isBikeSwap: false,
       deliveryInstructions: "",
     },
+    mode: "onChange",
   });
+
+  const detailsFields = form.watch(["bikeBrand", "bikeModel"]);
+  const senderFields = form.watch([
+    "sender.name", 
+    "sender.email", 
+    "sender.phone", 
+    "sender.address.street",
+    "sender.address.city",
+    "sender.address.state",
+    "sender.address.zipCode",
+    "sender.address.country"
+  ]);
+  const receiverFields = form.watch([
+    "receiver.name", 
+    "receiver.email", 
+    "receiver.phone", 
+    "receiver.address.street",
+    "receiver.address.city",
+    "receiver.address.state",
+    "receiver.address.zipCode",
+    "receiver.address.country"
+  ]);
+
+  const isDetailsValid = React.useMemo(() => {
+    return detailsFields.every(field => field && String(field).trim() !== '');
+  }, [detailsFields]);
+
+  const isSenderValid = React.useMemo(() => {
+    const allFieldsFilled = senderFields.every(field => field && String(field).trim() !== '');
+    
+    const senderEmail = form.getValues("sender.email");
+    const senderPhone = form.getValues("sender.phone");
+    
+    const isEmailValid = EMAIL_REGEX.test(senderEmail);
+    const isPhoneValid = UK_PHONE_REGEX.test(senderPhone);
+    
+    return allFieldsFilled && isEmailValid && isPhoneValid;
+  }, [senderFields, form]);
+
+  const isReceiverValid = React.useMemo(() => {
+    const allFieldsFilled = receiverFields.every(field => field && String(field).trim() !== '');
+    
+    const receiverEmail = form.getValues("receiver.email");
+    const receiverPhone = form.getValues("receiver.phone");
+    
+    const isEmailValid = EMAIL_REGEX.test(receiverEmail);
+    const isPhoneValid = UK_PHONE_REGEX.test(receiverPhone);
+    
+    return allFieldsFilled && isEmailValid && isPhoneValid;
+  }, [receiverFields, form]);
 
   const onSubmit = async (data: CreateOrderFormData) => {
     setIsSubmitting(true);
@@ -107,6 +156,34 @@ const CreateOrder = () => {
       toast.error("Failed to create order. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleNextToSender = () => {
+    form.trigger(["bikeBrand", "bikeModel"]);
+    if (isDetailsValid) {
+      setActiveTab("sender");
+    } else {
+      toast.error("Please fill in all required fields in Order Details.");
+    }
+  };
+
+  const handleNextToReceiver = () => {
+    form.trigger([
+      "sender.name", 
+      "sender.email", 
+      "sender.phone", 
+      "sender.address.street",
+      "sender.address.city",
+      "sender.address.state",
+      "sender.address.zipCode",
+      "sender.address.country"
+    ]);
+    
+    if (isSenderValid) {
+      setActiveTab("receiver");
+    } else {
+      toast.error("Please fill in all required fields in Collection Information.");
     }
   };
 
@@ -258,8 +335,9 @@ const CreateOrder = () => {
                     <div className="flex justify-end">
                       <Button 
                         type="button" 
-                        onClick={() => setActiveTab("sender")}
+                        onClick={handleNextToSender}
                         className="bg-courier-600 hover:bg-courier-700"
+                        disabled={!isDetailsValid}
                       >
                         Next: Collection Information
                       </Button>
@@ -291,8 +369,9 @@ const CreateOrder = () => {
                       </Button>
                       <Button 
                         type="button" 
-                        onClick={() => setActiveTab("receiver")}
+                        onClick={handleNextToReceiver}
                         className="bg-courier-600 hover:bg-courier-700"
+                        disabled={!isSenderValid}
                       >
                         Next: Delivery Information
                       </Button>
@@ -325,7 +404,7 @@ const CreateOrder = () => {
                       <Button 
                         type="submit" 
                         className="bg-courier-600 hover:bg-courier-700"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !isReceiverValid}
                       >
                         {isSubmitting ? "Creating Order..." : "Create Order"}
                       </Button>
