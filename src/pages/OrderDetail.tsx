@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
 import { format } from "date-fns";
 import { getOrderById, updateOrderSchedule } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -11,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -28,9 +26,6 @@ const OrderDetail = () => {
   const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { userRole } = useAuth();
-
-  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -133,7 +128,7 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  const canSchedule = isAdmin && order.status === 'pending_approval' && 
+  const canSchedule = order.status === 'pending_approval' && 
                      Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
                      Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
@@ -151,13 +146,6 @@ const OrderDetail = () => {
               </Link>
             </Button>
             <h1 className="text-2xl font-bold">Order Details</h1>
-            
-            {isAdmin && (
-              <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full flex items-center">
-                <ShieldAlert className="h-4 w-4 mr-1" />
-                Admin
-              </div>
-            )}
           </div>
           <StatusBadge status={order.status} />
         </div>

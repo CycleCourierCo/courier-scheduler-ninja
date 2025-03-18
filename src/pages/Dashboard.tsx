@@ -5,7 +5,7 @@ import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderServic
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, ShieldAlert } from "lucide-react";
+import { Eye, RefreshCcw } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -17,38 +17,27 @@ import {
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
-import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { userRole, user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Only fetch orders if auth is not loading and user is authenticated
-    if (!authLoading && user) {
-      fetchOrders();
-    }
-  }, [user, authLoading]);
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const data = await getOrders();
+        setOrders(data);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to fetch orders");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchOrders = async () => {
-    try {
-      console.log("Fetching orders...");
-      setLoading(true);
-      setError(null);
-      const data = await getOrders();
-      console.log("Orders fetched:", data.length);
-      setOrders(data);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      setError("Failed to load orders. Please try refreshing the page.");
-      toast.error("Failed to fetch orders");
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchOrders();
+  }, []);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -65,66 +54,27 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Don't render the main content until auth is complete
-  if (authLoading) {
+  if (loading) {
     return (
       <Layout>
-        <div className="p-8">
-          <Skeleton className="h-10 w-64 mb-8" />
-          <div className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
         </div>
       </Layout>
     );
   }
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="p-8 text-center">
-          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">
-            <p>{error}</p>
-          </div>
-          <Button onClick={() => fetchOrders()}>Refresh Orders</Button>
-        </div>
-      </Layout>
-    );
-  }
-
-  const isAdmin = userRole === 'admin';
 
   return (
     <Layout>
       <div className="space-y-8">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold">Your Orders</h1>
-            {isAdmin && (
-              <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full flex items-center">
-                <ShieldAlert className="h-4 w-4 mr-1" />
-                Admin
-              </div>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold">Your Orders</h1>
           <Button asChild>
             <Link to="/create-order">Create New Order</Link>
           </Button>
         </div>
 
-        {loading ? (
-          // Skeleton loader
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-4 space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          </div>
-        ) : orders.length === 0 ? (
+        {orders.length === 0 ? (
           <div className="bg-gray-50 rounded-lg p-8 text-center">
             <h2 className="text-xl font-semibold mb-4">No Orders Yet</h2>
             <p className="text-gray-600 mb-6">
@@ -170,7 +120,7 @@ const Dashboard: React.FC = () => {
                           </Link>
                         </Button>
                         
-                        {isAdmin && order.status === "sender_availability_pending" && (
+                        {order.status === "sender_availability_pending" && (
                           <Button
                             variant="outline"
                             size="sm"
