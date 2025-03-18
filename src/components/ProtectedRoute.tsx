@@ -22,40 +22,47 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles
     return <>{children}</>;
   }
 
-  // Add a timeout after 5 seconds to prevent infinite loading
+  // Timeout and error states
   const [showTimeout, setShowTimeout] = React.useState(false);
   const [showError, setShowError] = React.useState(false);
   
   React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    let errorTimer: NodeJS.Timeout;
+    
     if (isLoading) {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setShowTimeout(true);
-      }, 5000);
+      }, 3000); // Show first message sooner
       
-      const errorTimer = setTimeout(() => {
+      errorTimer = setTimeout(() => {
         setShowError(true);
-      }, 10000);
-      
-      return () => {
-        clearTimeout(timer);
-        clearTimeout(errorTimer);
-      };
+      }, 6000); // Show error message sooner
     } else {
       setShowTimeout(false);
       setShowError(false);
     }
+    
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(errorTimer);
+    };
   }, [isLoading]);
 
+  // Redirect to auth if no user and no loading
+  if (!isLoading && !user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Special case: if we're stuck loading for too long, offer a way out
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600 mb-4"></div>
         <p className="text-gray-700 mb-2">Loading your session...</p>
-        <Skeleton className="h-4 w-48 mb-2" />
-        <Skeleton className="h-4 w-32" />
         
         {showTimeout && (
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <p className="text-amber-600 mb-2">Loading is taking longer than expected.</p>
             {!showError && (
               <p className="text-gray-600 text-sm mb-4">Please wait a few more moments...</p>
@@ -75,7 +82,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles
               </button>
               <button
                 className="px-4 py-2 border border-courier-600 text-courier-600 rounded hover:bg-courier-50"
-                onClick={() => window.location.href = "/auth"}
+                onClick={() => {
+                  localStorage.removeItem('supabase.auth.token');
+                  window.location.href = "/auth";
+                }}
               >
                 Go to login
               </button>
@@ -84,10 +94,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles
         )}
       </div>
     );
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
   }
 
   // If requiredRoles are specified, check if the user has one of them
