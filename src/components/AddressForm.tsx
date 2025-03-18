@@ -29,6 +29,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addressSelected, setAddressSelected] = useState(false);
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
@@ -83,6 +84,12 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.country`, suggestion.properties.country || "");
     setSearchValue("");
     setSuggestions([]);
+    setShowSuggestions(false);
+    setAddressSelected(true);
+  };
+
+  const handleManualEntry = () => {
+    setAddressSelected(true);
     setShowSuggestions(false);
   };
 
@@ -139,84 +146,99 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                   ))}
                 </ul>
               )}
+              
+              <div className="p-2 border-t border-gray-200">
+                <Button 
+                  variant="link" 
+                  type="button" 
+                  onClick={handleManualEntry}
+                  className="w-full text-sm"
+                >
+                  Enter address manually
+                </Button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <FormField
-        control={control}
-        name={`${prefix}.street`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Street Address *</FormLabel>
-            <FormControl>
-              <Input placeholder="123 Main St" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {addressSelected && (
+        <>
+          <FormField
+            control={control}
+            name={`${prefix}.street`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Street Address *</FormLabel>
+                <FormControl>
+                  <Input placeholder="123 Main St" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField
-          control={control}
-          name={`${prefix}.city`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City *</FormLabel>
-              <FormControl>
-                <Input placeholder="New York" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={control}
+              name={`${prefix}.city`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="New York" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={control}
-          name={`${prefix}.state`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>State/Province *</FormLabel>
-              <FormControl>
-                <Input placeholder="NY" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+            <FormField
+              control={control}
+              name={`${prefix}.state`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State/Province *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="NY" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField
-          control={control}
-          name={`${prefix}.zipCode`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Zip/Postal Code *</FormLabel>
-              <FormControl>
-                <Input placeholder="10001" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={control}
+              name={`${prefix}.zipCode`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Zip/Postal Code *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="10001" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={control}
-          name={`${prefix}.country`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Country *</FormLabel>
-              <FormControl>
-                <Input placeholder="United States" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+            <FormField
+              control={control}
+              name={`${prefix}.country`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="United States" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 };
