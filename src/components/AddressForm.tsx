@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -30,8 +31,13 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
   
-  // Check if address fields have values on mount AND when tabs change
+  // Check if address fields have values on component mount or when tabs change
   useEffect(() => {
+    checkForExistingAddress();
+  }, []);
+
+  // Function to check if address fields already have values
+  const checkForExistingAddress = () => {
     // Get the current form values using the control
     const street = control._formValues[`${prefix}.street`];
     const city = control._formValues[`${prefix}.city`];
@@ -40,7 +46,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     if (street || city) {
       setAddressSelected(true);
     }
-  }, [control, prefix, control._formValues]);
+  };
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
