@@ -48,11 +48,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    console.log("Auth context initializing");
     
-    const setData = async () => {
+    const initAuth = async () => {
       try {
         if (!mounted) return;
         
+        console.log("Getting initial session");
         setIsLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -65,56 +67,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (mounted) {
+          console.log("Setting initial session:", !!session);
           setSession(session);
           setUser(session?.user || null);
           
           if (session?.user) {
+            console.log("Fetching user role for:", session.user.id);
             const role = await fetchUserRole(session.user.id);
             if (mounted) {
               setUserRole(role);
+              console.log("User role set to:", role);
             }
           } else {
             if (mounted) {
               setUserRole(null);
+              console.log("No user, setting role to null");
             }
           }
           
           setIsLoading(false);
+          console.log("Initial auth loading complete");
         }
       } catch (error) {
         console.error("Error loading user:", error);
-        toast.error("Error loading user session");
         if (mounted) {
           setIsLoading(false);
+          console.log("Auth loading failed, setting isLoading to false");
         }
       }
     };
 
-    setData();
+    initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Auth state changed:", _event, session?.user?.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.id);
       
       if (!mounted) return;
       
+      console.log("Setting session from auth change event");
       setSession(session);
       setUser(session?.user || null);
       
       if (session?.user) {
+        console.log("Fetching user role after auth change for:", session.user.id);
         const role = await fetchUserRole(session.user.id);
         if (mounted) {
           setUserRole(role);
+          console.log("Updated user role to:", role);
         }
       } else {
         if (mounted) {
           setUserRole(null);
+          console.log("No user after auth change, setting role to null");
         }
       }
       
       setIsLoading(false);
+      console.log("Auth state change handling complete");
     });
 
     return () => {
+      console.log("Auth context cleanup");
       mounted = false;
       subscription.unsubscribe();
     };

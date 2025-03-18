@@ -25,10 +25,10 @@ const Dashboard: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
+    // Only fetch orders if authentication is complete and user exists
+    if (authLoading || !user) return;
+    
     const fetchOrders = async () => {
-      // Don't fetch orders if user authentication is still loading or if there's no user
-      if (authLoading || !user) return;
-      
       try {
         setLoading(true);
         const data = await getOrders();
@@ -59,7 +59,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (authLoading || loading) {
+  // Show loader only during orders fetch, not during auth loading
+  if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">

@@ -29,6 +29,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <>{children}</>;
   }
 
+  // Show loading spinner only during initial auth loading
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -37,10 +38,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
+  // Redirect to auth page if not authenticated
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // If authenticated and not loading, render the protected content
   return <>{children}</>;
 };
 
