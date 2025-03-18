@@ -1,5 +1,3 @@
-
-
 export type ContactInfo = {
   name: string;
   email: string;
@@ -76,6 +74,5 @@ export type CreateOrderFormData = {
   customerOrderNumber?: string;
   needsPaymentOnCollection: boolean;
   isBikeSwap: boolean;
-  deliveryInstructions: string;
+  deliveryInstructions?: string;
 };
-

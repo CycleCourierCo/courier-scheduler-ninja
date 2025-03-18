@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -52,12 +51,12 @@ const orderSchema = z.object({
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
   isBikeSwap: z.boolean().default(false),
-  deliveryInstructions: z.string().min(1, "Delivery instructions are required"),
+  deliveryInstructions: z.string().optional(),
 });
 
 const CreateOrder = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = React.useState("details"); // Changed default tab to details
+  const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<CreateOrderFormData>({
@@ -66,7 +65,7 @@ const CreateOrder = () => {
       sender: {
         name: "",
         email: "",
-        phone: "+44", // Pre-populate with +44 prefix
+        phone: "+44",
         address: {
           street: "",
           city: "",
@@ -78,7 +77,7 @@ const CreateOrder = () => {
       receiver: {
         name: "",
         email: "",
-        phone: "+44", // Pre-populate with +44 prefix
+        phone: "+44",
         address: {
           street: "",
           city: "",
@@ -241,7 +240,7 @@ const CreateOrder = () => {
                         name="deliveryInstructions"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Special Instructions *</FormLabel>
+                            <FormLabel>Special Instructions</FormLabel>
                             <FormControl>
                               <Textarea 
                                 placeholder="Please provide any special instructions for pickup or delivery"
