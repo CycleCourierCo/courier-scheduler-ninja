@@ -1,4 +1,5 @@
 
+
 export type ContactInfo = {
   name: string;
   email: string;
@@ -77,3 +78,4 @@ export type CreateOrderFormData = {
   isBikeSwap: boolean;
   deliveryInstructions: string;
 };
+
