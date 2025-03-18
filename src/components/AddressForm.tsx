@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Control, UseFormSetValue } from "react-hook-form";
@@ -30,21 +30,34 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
+  const initialCheckRef = useRef(false);
   
-  // Check if address fields have values on component mount or when tabs change
+  // Check if address fields have values on component mount
+  useEffect(() => {
+    if (!initialCheckRef.current) {
+      checkForExistingAddress();
+      initialCheckRef.current = true;
+    }
+  }, []);
+
+  // Also check whenever form values might have changed
   useEffect(() => {
     checkForExistingAddress();
-  }, []);
+  }, [control._formValues]);
 
   // Function to check if address fields already have values
   const checkForExistingAddress = () => {
-    // Get the current form values using the control
-    const street = control._formValues[`${prefix}.street`];
-    const city = control._formValues[`${prefix}.city`];
-    
-    // If any of the main address fields have values, show the address form
-    if (street || city) {
-      setAddressSelected(true);
+    try {
+      // Get the current form values using the control
+      const street = control._formValues[`${prefix}.street`];
+      const city = control._formValues[`${prefix}.city`];
+      
+      // If any of the main address fields have values, show the address form
+      if (street || city) {
+        setAddressSelected(true);
+      }
+    } catch (err) {
+      console.error("Error checking for existing address:", err);
     }
   };
 
@@ -112,7 +125,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   };
 
   const handleSearchFocus = () => {
-    // Do NOT reset address fields when focusing on search
     // Only show search suggestions if needed
     if (searchValue.length >= 3 && suggestions.length > 0) {
       setShowSuggestions(true);
