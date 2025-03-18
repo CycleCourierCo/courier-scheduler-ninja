@@ -27,6 +27,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     // Only fetch orders if authentication is complete and user is logged in
     if (!authLoading && user) {
+      console.log("Fetching orders for user:", user.id);
       const fetchOrders = async () => {
         try {
           setLoading(true);

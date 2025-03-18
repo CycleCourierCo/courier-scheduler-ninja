@@ -60,18 +60,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    console.log("AuthContext initializing");
     const setData = async () => {
       try {
         setIsLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        if (error) {
+          console.error("Error getting session:", error);
+          throw error;
+        }
         
         if (isMounted.current) {
+          console.log("Initial session:", session ? "exists" : "null");
           setSession(session);
           setUser(session?.user || null);
           
           // Get user role if user exists
           if (session?.user) {
+            console.log("Fetching role for user:", session.user.id);
             const role = await fetchUserRole(session.user.id);
             if (isMounted.current) {
               setUserRole(role);
@@ -83,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.error("Error loading user session");
       } finally {
         if (isMounted.current) {
+          console.log("Initial auth loading complete");
           setIsLoading(false);
         }
       }
@@ -91,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setData();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("Auth state changed:", _event, session ? "session exists" : "no session");
       if (isMounted.current) {
         setIsLoading(true); // Set loading to true when auth state changes
         setSession(session);
@@ -98,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Get user role if user exists
         if (session?.user) {
+          console.log("Auth state change: fetching role for", session.user.id);
           const role = await fetchUserRole(session.user.id);
           if (isMounted.current) {
             setUserRole(role);
@@ -106,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserRole(null);
         }
         
+        console.log("Auth state change: loading complete");
         setIsLoading(false);
       }
     });
@@ -116,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log("Signing in with email:", email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
@@ -135,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
+      console.log("Signing up with email:", email);
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -160,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       setIsLoading(true);
+      console.log("Signing out");
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       

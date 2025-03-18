@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,7 +47,15 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("sender");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+
+  // Redirect to auth if not authenticated and we've checked auth
+  useEffect(() => {
+    if (!authLoading && !user) {
+      console.log("User not authenticated on create order page, redirecting to /auth");
+      navigate("/auth");
+    }
+  }, [authLoading, user, navigate]);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -102,6 +110,11 @@ const CreateOrder = () => {
         </div>
       </Layout>
     );
+  }
+
+  // Only render the form if the user is authenticated
+  if (!user) {
+    return null; // The useEffect will handle redirecting
   }
 
   return (

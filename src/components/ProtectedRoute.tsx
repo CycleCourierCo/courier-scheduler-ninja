@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
   
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
@@ -20,8 +21,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Show loading spinner while authentication state is being determined
-  if (isLoading) {
+  // Effect to ensure we've checked authentication at least once
+  useEffect(() => {
+    if (!isLoading) {
+      setIsAuthChecked(true);
+    }
+  }, [isLoading]);
+
+  // Only show loading when still authenticating and not yet checked
+  if (isLoading && !isAuthChecked) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
@@ -29,12 +37,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // Redirect to auth page if user is not authenticated
-  if (!user) {
+  // Redirect to auth page if user is not authenticated but we've checked auth
+  if (!user && isAuthChecked) {
+    console.log("User not authenticated, redirecting to /auth");
     return <Navigate to="/auth" replace />;
   }
 
-  // User is authenticated, render the protected content
+  // Only render children when user is authenticated or we're still loading
   return <>{children}</>;
 };
 
