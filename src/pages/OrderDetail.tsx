@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
@@ -67,6 +68,22 @@ const OrderDetail = () => {
 
     try {
       setIsSubmitting(true);
+      
+      // Call the shipday function to create the shipment
+      const shipdayResponse = await fetch(`${window.location.origin}/api/create-shipday-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId: id }),
+      });
+      
+      if (!shipdayResponse.ok) {
+        const errorData = await shipdayResponse.json();
+        throw new Error(errorData.error || "Failed to create shipment");
+      }
+      
+      // Update the order with the scheduled dates
       const updatedOrder = await updateOrderSchedule(
         id, 
         new Date(selectedPickupDate), 
@@ -75,7 +92,7 @@ const OrderDetail = () => {
       
       if (updatedOrder) {
         setOrder(updatedOrder);
-        toast.success("Order has been scheduled and sent to Shipday successfully");
+        toast.success("Order has been scheduled successfully");
       } else {
         toast.error("Failed to schedule order");
       }
@@ -128,7 +145,8 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  const canSchedule = order.status === 'pending_approval' && 
+  // Modified to show date pickers for "receiver_availability_confirmed" status too
+  const canSchedule = (order.status === 'pending_approval' || order.status === 'receiver_availability_confirmed') && 
                      Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
                      Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
@@ -174,7 +192,7 @@ const OrderDetail = () => {
                   <h3 className="font-semibold">Pickup Dates</h3>
                 </div>
                 
-                {canSchedule && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
+                {canSchedule ? (
                   <div className="space-y-2">
                     <p className="text-sm text-gray-500">Available dates:</p>
                     <p>{formatDates(order.pickupDate)}</p>
@@ -221,7 +239,7 @@ const OrderDetail = () => {
                   <h3 className="font-semibold">Delivery Dates</h3>
                 </div>
                 
-                {canSchedule && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
+                {canSchedule ? (
                   <div className="space-y-2">
                     <p className="text-sm text-gray-500">Available dates:</p>
                     <p>{formatDates(order.deliveryDate)}</p>
@@ -271,6 +289,7 @@ const OrderDetail = () => {
                 </div>
                 <p>{format(new Date(order.updatedAt), "PPP 'at' p")}</p>
                 
+                {/* Always show schedule button when dates are available and not already scheduled */}
                 {canSchedule && (
                   <div className="mt-6">
                     <Button 
