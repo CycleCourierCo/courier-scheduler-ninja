@@ -2,43 +2,15 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
-// Define interfaces for the request body structure
-interface OrderItem {
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  addOns?: string[];
-  detail?: string;
-}
-
-interface LocationDetails {
-  name: string;
-  phone: string;
-  email?: string;
-  address: string;
-  formattedAddress?: string;
-  lat?: number;
-  lng?: number;
-}
-
+// Simplified interface for the required order fields
 interface OrderRequest {
-  orderNumber?: string;
-  orderSource?: string;
-  orderItem: OrderItem[];
+  orderNumber: string;
   customerName: string;
-  customerPhone: string;
-  customerEmail?: string;
   customerAddress: string;
-  deliveryAddress?: string;
-  pickupAddress?: string;
-  pickup?: LocationDetails;
-  delivery?: LocationDetails;
-  pickupTime?: string;
-  deliveryTime?: string;
-  paymentMethod: 'CASH' | 'CARD';
-  deliveryInstruction?: string;
-  orderType?: "DELIVERY" | "PICKUP" | "PICKUP_AND_DELIVERY";
-  orderStatus?: "ACTIVE" | "READY_FOR_PICKUP" | "ACCEPTED" | "PICKED_UP";
+  customerEmail?: string;
+  customerPhoneNumber: string;
+  restaurantName: string;
+  restaurantAddress: string;
 }
 
 const corsHeaders = {
@@ -124,8 +96,6 @@ serve(async (req) => {
 
     const sender = order.sender;
     const receiver = order.receiver;
-    const scheduledPickupDate = order.scheduled_pickup_date; 
-    const scheduledDeliveryDate = order.scheduled_delivery_date;
 
     // Build sender address
     const senderAddress = `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`;
@@ -133,56 +103,26 @@ serve(async (req) => {
     // Build receiver address
     const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
-    // Format dates for Shipday API
-    const pickupDate = new Date(scheduledPickupDate);
-    const deliveryDate = new Date(scheduledDeliveryDate);
-
-    // Create the first order for pickup
+    // Create the pickup order with only required fields
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
-      orderSource: "Bicycle Courier App",
       customerName: sender.name,
-      customerPhone: sender.phone,
-      customerEmail: sender.email || "",
+      customerPhoneNumber: sender.phone,
+      customerEmail: sender.email || undefined,
       customerAddress: senderAddress,
-      pickupAddress: senderAddress,
-      orderItem: [
-        {
-          name: `Bicycle pickup from ${sender.name}`,
-          quantity: 1,
-          unitPrice: 0,
-          detail: `Order ID: ${orderId} (Pickup)`
-        }
-      ],
-      orderType: "PICKUP",
-      orderStatus: "ACTIVE",
-      pickupTime: pickupDate.toISOString(),
-      paymentMethod: "CASH",
-      deliveryInstruction: `Pickup bicycle from: ${sender.name}. ${order.delivery_instructions || ''}`,
+      restaurantName: "Cycle Courier Co.",
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
     };
 
-    // Create the second order for delivery
+    // Create the delivery order with only required fields
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-DELIVERY`,
-      orderSource: "Bicycle Courier App",
       customerName: receiver.name,
-      customerPhone: receiver.phone,
-      customerEmail: receiver.email || "",
+      customerPhoneNumber: receiver.phone,
+      customerEmail: receiver.email || undefined,
       customerAddress: receiverAddress,
-      deliveryAddress: receiverAddress,
-      orderItem: [
-        {
-          name: `Bicycle delivery to ${receiver.name}`,
-          quantity: 1,
-          unitPrice: 0,
-          detail: `Order ID: ${orderId} (Delivery)`
-        }
-      ],
-      orderType: "DELIVERY",
-      orderStatus: "ACTIVE",
-      deliveryTime: deliveryDate.toISOString(),
-      paymentMethod: "CASH",
-      deliveryInstruction: `Deliver bicycle to: ${receiver.name}. ${order.delivery_instructions || ''}`,
+      restaurantName: "Cycle Courier Co.",
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
