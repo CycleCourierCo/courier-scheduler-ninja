@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, Clock } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, Clock, ClipboardEdit } from "lucide-react";
 import { format } from "date-fns";
 import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -87,41 +87,46 @@ const CustomerOrderDetail = () => {
   const getTrackingEvents = () => {
     const events = [];
     
+    // Order created
+    events.push({
+      title: "Order Created",
+      date: order.createdAt,
+      icon: <Package className="h-4 w-4 text-courier-600" />,
+      description: "Your order has been created in our system"
+    });
+    
     // Check if sender availability is confirmed
-    if (order.status !== 'created' && order.status !== 'sender_availability_pending') {
+    if (order.senderConfirmedAt) {
       events.push({
-        title: "Pickup Dates Confirmed",
-        date: order.updatedAt, // Using updatedAt as a fallback
-        icon: <Check className="h-4 w-4 text-green-600" />,
-        description: "You've confirmed available pickup dates"
+        title: "Collection Dates Chosen",
+        date: order.senderConfirmedAt,
+        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
+        description: "Collection dates have been confirmed"
       });
     }
     
     // Check if receiver availability is confirmed
-    if (order.status !== 'created' && 
-        order.status !== 'sender_availability_pending' && 
-        order.status !== 'sender_availability_confirmed' && 
-        order.status !== 'receiver_availability_pending') {
+    if (order.receiverConfirmedAt) {
       events.push({
-        title: "Delivery Dates Confirmed",
-        date: order.updatedAt,
-        icon: <Check className="h-4 w-4 text-green-600" />,
-        description: "You've confirmed available delivery dates"
+        title: "Delivery Dates Chosen",
+        date: order.receiverConfirmedAt,
+        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
+        description: "Delivery dates have been confirmed"
       });
     }
     
     // Check if order is scheduled
-    if (order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered') {
+    if (order.scheduledAt) {
       events.push({
         title: "Transport Scheduled",
-        date: order.updatedAt,
+        date: order.scheduledAt,
         icon: <Calendar className="h-4 w-4 text-courier-600" />,
         description: "Transport manager has scheduled your pickup and delivery"
       });
     }
     
     // Check if order is shipped
-    if (order.status === 'shipped' || order.status === 'delivered') {
+    if (order.status === 'shipped') {
       events.push({
         title: "In Transit",
         date: order.updatedAt,
@@ -135,7 +140,7 @@ const CustomerOrderDetail = () => {
       events.push({
         title: "Delivered",
         date: order.updatedAt,
-        icon: <Package className="h-4 w-4 text-green-600" />,
+        icon: <Check className="h-4 w-4 text-green-600" />,
         description: "Your bike has been delivered"
       });
     }

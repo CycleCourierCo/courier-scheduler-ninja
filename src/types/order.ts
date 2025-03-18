@@ -34,6 +34,9 @@ export type Order = {
   deliveryDate?: Date | Date[];
   scheduledPickupDate?: Date;
   scheduledDeliveryDate?: Date;
+  senderConfirmedAt?: Date;
+  receiverConfirmedAt?: Date;
+  scheduledAt?: Date;
   status: OrderStatus;
   createdAt: Date;
   updatedAt: Date;

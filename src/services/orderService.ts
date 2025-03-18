@@ -14,6 +14,9 @@ const mapDbOrderToOrderType = (dbOrder: any): Order => {
     deliveryDate: dbOrder.delivery_date ? JSON.parse(JSON.stringify(dbOrder.delivery_date)) : undefined,
     scheduledPickupDate: dbOrder.scheduled_pickup_date ? new Date(dbOrder.scheduled_pickup_date) : undefined,
     scheduledDeliveryDate: dbOrder.scheduled_delivery_date ? new Date(dbOrder.scheduled_delivery_date) : undefined,
+    senderConfirmedAt: dbOrder.sender_confirmed_at ? new Date(dbOrder.sender_confirmed_at) : undefined,
+    receiverConfirmedAt: dbOrder.receiver_confirmed_at ? new Date(dbOrder.receiver_confirmed_at) : undefined,
+    scheduledAt: dbOrder.scheduled_at ? new Date(dbOrder.scheduled_at) : undefined,
     status: dbOrder.status,
     createdAt: new Date(dbOrder.created_at),
     updatedAt: new Date(dbOrder.updated_at),
@@ -126,7 +129,8 @@ export const updateOrderScheduledDates = async (
     .update({
       scheduled_pickup_date: scheduledPickupDate.toISOString(),
       scheduled_delivery_date: scheduledDeliveryDate.toISOString(),
-      status: "scheduled"
+      status: "scheduled",
+      scheduled_at: new Date().toISOString()
     })
     .eq("id", id)
     .select()
@@ -194,6 +198,7 @@ export const updateSenderAvailability = async (
       pickup_date: formattedDates,
       status: "sender_availability_confirmed" as OrderStatus,
       updated_at: new Date().toISOString(),
+      sender_confirmed_at: new Date().toISOString()
     })
     .eq("id", id)
     .select()
@@ -219,6 +224,7 @@ export const updateReceiverAvailability = async (
       delivery_date: formattedDates,
       status: "pending_approval" as OrderStatus, // Set to pending_approval when receiver confirms
       updated_at: new Date().toISOString(),
+      receiver_confirmed_at: new Date().toISOString()
     })
     .eq("id", id)
     .select()
