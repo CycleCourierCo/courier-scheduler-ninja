@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Control, UseFormSetValue } from "react-hook-form";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { 
   Command,
   CommandEmpty,
@@ -74,61 +74,76 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
 
   return (
     <div className="space-y-4">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <FormField
-            control={control}
-            name={`${prefix}.street`}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Street Address *</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="123 Main St" 
-                    {...field} 
-                    onClick={() => setOpen(true)} 
+      <div className="relative">
+        <div className="mb-4">
+          <FormLabel className="text-sm font-medium">Search Address</FormLabel>
+          <div className="relative">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <div className="relative">
+                  <Input
+                    placeholder="Search for an address..."
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onClick={() => setOpen(true)}
+                    className="pl-8"
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </PopoverTrigger>
-        <PopoverContent className="p-0" align="start" side="bottom">
-          <Command>
-            <CommandInput 
-              placeholder="Search address..." 
-              value={searchValue}
-              onValueChange={setSearchValue}
-            />
-            {loading && (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-              </div>
-            )}
-            <CommandEmpty>No address found.</CommandEmpty>
-            <CommandGroup className="max-h-[300px] overflow-auto">
-              {suggestions.map((suggestion, index) => (
-                <CommandItem
-                  key={index}
-                  onSelect={() => {
-                    // Update all the relevant form fields with the selected address
-                    setValue(`${prefix}.street`, suggestion.properties.street || "");
-                    setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
-                    setValue(`${prefix}.state`, suggestion.properties.state || "");
-                    setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
-                    setValue(`${prefix}.country`, suggestion.properties.country || "");
-                    setOpen(false);
-                  }}
-                  className="cursor-pointer"
-                >
-                  {suggestion.properties.formatted}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
+                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[300px]" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder="Search address..." 
+                    value={searchValue}
+                    onValueChange={setSearchValue}
+                  />
+                  {loading && (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                    </div>
+                  )}
+                  <CommandEmpty>No address found.</CommandEmpty>
+                  <CommandGroup className="max-h-[300px] overflow-auto">
+                    {suggestions.map((suggestion, index) => (
+                      <CommandItem
+                        key={index}
+                        onSelect={() => {
+                          // Update all the relevant form fields with the selected address
+                          setValue(`${prefix}.street`, suggestion.properties.street || "");
+                          setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
+                          setValue(`${prefix}.state`, suggestion.properties.state || "");
+                          setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
+                          setValue(`${prefix}.country`, suggestion.properties.country || "");
+                          setOpen(false);
+                          setSearchValue("");
+                        }}
+                        className="cursor-pointer"
+                      >
+                        {suggestion.properties.formatted}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      </div>
+
+      <FormField
+        control={control}
+        name={`${prefix}.street`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Street Address *</FormLabel>
+            <FormControl>
+              <Input placeholder="123 Main St" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
