@@ -25,7 +25,7 @@ export type Database = {
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
           sender: Json
-          status: string
+          status: Database["public"]["Enums"]["order_status"]
           tracking_number: string | null
           updated_at: string
           user_id: string
@@ -45,7 +45,7 @@ export type Database = {
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender: Json
-          status: string
+          status: Database["public"]["Enums"]["order_status"]
           tracking_number?: string | null
           updated_at?: string
           user_id: string
@@ -65,7 +65,7 @@ export type Database = {
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender?: Json
-          status?: string
+          status?: Database["public"]["Enums"]["order_status"]
           tracking_number?: string | null
           updated_at?: string
           user_id?: string
@@ -120,6 +120,17 @@ export type Database = {
       }
     }
     Enums: {
+      order_status:
+        | "created"
+        | "sender_availability_pending"
+        | "sender_availability_confirmed"
+        | "receiver_availability_pending"
+        | "receiver_availability_confirmed"
+        | "pending_approval"
+        | "scheduled"
+        | "shipped"
+        | "delivered"
+        | "cancelled"
       user_role: "admin" | "b2b_customer" | "b2c_customer"
     }
     CompositeTypes: {

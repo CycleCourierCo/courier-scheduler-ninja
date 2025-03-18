@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrders, resendSenderAvailabilityEmail } from "@/services/orderService";
-import { Order } from "@/types/order";
+import { Order, OrderStatus } from "@/types/order";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Eye, RefreshCcw, Bike } from "lucide-react";
