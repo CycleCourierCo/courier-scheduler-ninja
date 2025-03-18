@@ -4,18 +4,7 @@ import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Control, UseFormSetValue } from "react-hook-form";
 import { Loader2, Search } from "lucide-react";
-import { 
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 interface AddressFormProps {
   control: Control<any>;
@@ -36,10 +25,10 @@ interface AddressSuggestion {
 }
 
 const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) => {
-  const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
@@ -56,14 +45,15 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       
       const data = await response.json();
       
-      // Initialize with an empty array to prevent undefined is not iterable error
-      setSuggestions([]);
+      // Start with an empty array
+      const newSuggestions: AddressSuggestion[] = [];
       
-      // Only if we have valid features, update the suggestions
+      // Only if we have valid features, add them to suggestions
       if (data && data.features && Array.isArray(data.features)) {
         setSuggestions(data.features);
       } else {
         console.warn("Geoapify API response doesn't contain the expected features array:", data);
+        setSuggestions([]);
       }
     } catch (error) {
       console.error("Error fetching address suggestions:", error);
@@ -74,12 +64,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   };
 
   useEffect(() => {
-    // Clear any previous timeout to prevent race conditions
     const timeoutId = setTimeout(() => {
       if (searchValue && searchValue.length >= 3) {
         fetchAddressSuggestions(searchValue);
       } else {
-        // Always ensure suggestions is a valid array
         setSuggestions([]);
       }
     }, 300);
@@ -87,70 +75,72 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     return () => clearTimeout(timeoutId);
   }, [searchValue]);
 
+  const handleSuggestionClick = (suggestion: AddressSuggestion) => {
+    setValue(`${prefix}.street`, suggestion.properties.street || "");
+    setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
+    setValue(`${prefix}.state`, suggestion.properties.state || "");
+    setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
+    setValue(`${prefix}.country`, suggestion.properties.country || "");
+    setSearchValue("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <div className="mb-4">
-          <FormLabel className="text-sm font-medium">Search Address</FormLabel>
+      <div className="relative mb-4">
+        <FormLabel className="text-sm font-medium">Search Address</FormLabel>
+        <div className="relative">
           <div className="relative">
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <div className="relative">
-                  <Input
-                    placeholder="Search for an address..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    onClick={() => setOpen(true)}
-                    className="pl-8"
-                  />
-                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="p-0" align="start">
-                <Command>
-                  <CommandInput 
-                    placeholder="Search address..." 
-                    value={searchValue}
-                    onValueChange={(value) => {
-                      setSearchValue(value);
-                      // Ensure we don't have undefined suggestions
-                      if (!value || value.length < 3) {
-                        setSuggestions([]);
-                      }
-                    }}
-                  />
-                  {loading && (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-                    </div>
-                  )}
-                  <CommandEmpty>No address found.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-auto">
-                    {Array.isArray(suggestions) && suggestions.map((suggestion, index) => (
-                      <CommandItem
-                        key={index}
-                        onSelect={() => {
-                          // Update all the relevant form fields with the selected address
-                          setValue(`${prefix}.street`, suggestion.properties.street || "");
-                          setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
-                          setValue(`${prefix}.state`, suggestion.properties.state || "");
-                          setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
-                          setValue(`${prefix}.country`, suggestion.properties.country || "");
-                          setOpen(false);
-                          setSearchValue("");
-                          // Clear suggestions after selection
-                          setSuggestions([]);
-                        }}
-                        className="cursor-pointer"
-                      >
-                        {suggestion.properties.formatted}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <Input
+              placeholder="Search for an address..."
+              value={searchValue}
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                if (e.target.value.length >= 3) {
+                  setShowSuggestions(true);
+                } else {
+                  setShowSuggestions(false);
+                  setSuggestions([]);
+                }
+              }}
+              onFocus={() => {
+                if (searchValue.length >= 3 && suggestions.length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
+              className="pl-8"
+            />
+            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           </div>
+          
+          {showSuggestions && (
+            <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto">
+              {loading && (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                </div>
+              )}
+              
+              {!loading && suggestions.length === 0 && (
+                <div className="py-3 px-4 text-sm text-gray-500">No address found.</div>
+              )}
+              
+              {!loading && suggestions.length > 0 && (
+                <ul>
+                  {suggestions.map((suggestion, index) => (
+                    <li 
+                      key={index}
+                      className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion.properties.formatted}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
