@@ -11,16 +11,7 @@ interface OrderItem {
   detail?: string;
 }
 
-interface PickupDetails {
-  name: string;
-  phone: string;
-  address: string;
-  formattedAddress?: string;
-  lat?: number;
-  lng?: number;
-}
-
-interface DeliveryDetails {
+interface LocationDetails {
   name: string;
   phone: string;
   email?: string;
@@ -31,14 +22,23 @@ interface DeliveryDetails {
 }
 
 interface OrderRequest {
+  orderNumber?: string;
+  orderSource?: string;
   orderItem: OrderItem[];
-  pickup: PickupDetails;
-  delivery: DeliveryDetails;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress: string;
+  deliveryAddress?: string;
+  pickupAddress?: string;
+  pickup?: LocationDetails;
+  delivery?: LocationDetails;
+  pickupTime?: string;
+  deliveryTime?: string;
   paymentMethod: 'CASH' | 'CARD';
   deliveryInstruction?: string;
-  dispatcherNote?: string;
-  requestedPickupTime?: string;
-  requestedDeliveryTime?: string;
+  orderType?: "DELIVERY" | "PICKUP" | "PICKUP_AND_DELIVERY";
+  orderStatus?: "ACTIVE" | "READY_FOR_PICKUP" | "ACCEPTED" | "PICKED_UP";
 }
 
 const corsHeaders = {
@@ -137,133 +137,133 @@ serve(async (req) => {
     const pickupDate = new Date(scheduledPickupDate);
     const deliveryDate = new Date(scheduledDeliveryDate);
 
-    // Create a single order item (for package delivery)
-    const orderItem: OrderItem[] = [
-      {
-        name: `Package delivery from ${sender.name} to ${receiver.name}`,
-        quantity: 1,
-        unitPrice: 0,
-        detail: `Order ID: ${orderId}`
-      }
-    ];
-
-    // Create the request payload
-    const orderData: OrderRequest = {
-      orderItem: orderItem,
-      pickup: {
-        name: sender.name,
-        phone: sender.phone,
-        address: senderAddress,
-        formattedAddress: senderAddress,
-      },
-      delivery: {
-        name: receiver.name,
-        phone: receiver.phone,
-        email: receiver.email || "",
-        address: receiverAddress,
-        formattedAddress: receiverAddress,
-      },
-      paymentMethod: "CASH", // Default to cash payment
-      deliveryInstruction: `Deliver to: ${receiver.name}`,
-      dispatcherNote: `Pickup from: ${sender.name}`,
-      requestedPickupTime: pickupDate.toISOString(),
-      requestedDeliveryTime: deliveryDate.toISOString()
+    // Create the first order for pickup
+    const pickupOrderData: OrderRequest = {
+      orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
+      orderSource: "Bicycle Courier App",
+      customerName: sender.name,
+      customerPhone: sender.phone,
+      customerEmail: sender.email || "",
+      customerAddress: senderAddress,
+      pickupAddress: senderAddress,
+      orderItem: [
+        {
+          name: `Bicycle pickup from ${sender.name}`,
+          quantity: 1,
+          unitPrice: 0,
+          detail: `Order ID: ${orderId} (Pickup)`
+        }
+      ],
+      orderType: "PICKUP",
+      orderStatus: "ACTIVE",
+      pickupTime: pickupDate.toISOString(),
+      paymentMethod: "CASH",
+      deliveryInstruction: `Pickup bicycle from: ${sender.name}. ${order.delivery_instructions || ''}`,
     };
 
-    console.log("Creating Shipday order with payload:", JSON.stringify(orderData, null, 2));
+    // Create the second order for delivery
+    const deliveryOrderData: OrderRequest = {
+      orderNumber: `${orderId.substring(0, 8)}-DELIVERY`,
+      orderSource: "Bicycle Courier App",
+      customerName: receiver.name,
+      customerPhone: receiver.phone,
+      customerEmail: receiver.email || "",
+      customerAddress: receiverAddress,
+      deliveryAddress: receiverAddress,
+      orderItem: [
+        {
+          name: `Bicycle delivery to ${receiver.name}`,
+          quantity: 1,
+          unitPrice: 0,
+          detail: `Order ID: ${orderId} (Delivery)`
+        }
+      ],
+      orderType: "DELIVERY",
+      orderStatus: "ACTIVE",
+      deliveryTime: deliveryDate.toISOString(),
+      paymentMethod: "CASH",
+      deliveryInstruction: `Deliver bicycle to: ${receiver.name}. ${order.delivery_instructions || ''}`,
+    };
+
+    console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
+    console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
 
     try {
-      // Make the API call to Shipday
-      const response = await fetch("https://api.shipday.com/orders/", {
+      // Make the API calls to Shipday
+      const pickupResponse = await fetch("https://api.shipday.com/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${shipdayApiKey}`
         },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(pickupOrderData)
       });
       
-      const responseText = await response.text();
-      console.log(`Shipday API response status: ${response.status}`);
-      console.log(`Shipday API response body: ${responseText}`);
+      const pickupResponseText = await pickupResponse.text();
+      console.log(`Shipday pickup API response status: ${pickupResponse.status}`);
+      console.log(`Shipday pickup API response body: ${pickupResponseText}`);
       
-      let responseData;
+      let pickupResponseData;
       try {
-        responseData = JSON.parse(responseText);
+        pickupResponseData = JSON.parse(pickupResponseText);
       } catch (e) {
-        responseData = { rawResponse: responseText };
+        pickupResponseData = { rawResponse: pickupResponseText };
       }
-      
-      // Check for specific 403 case that might indicate a successful order creation but API misreporting
-      if (response.status === 403) {
-        console.log("Received 403 from Shipday API - checking if order might have been created anyway");
-        
-        // Generate a tracking number as fallback
-        const trackingNumber = `SD-${Math.floor(1000000 + Math.random() * 9000000)}`;
-        
-        // Update the order with the generated tracking number and change status to shipped
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({
-            tracking_number: trackingNumber,
-            status: "shipped",
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", orderId);
 
-        if (updateError) {
-          return new Response(
-            JSON.stringify({ error: updateError.message }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-          );
-        }
-
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: "Order likely created in Shipday but API returned 403 - created fallback tracking number", 
-            trackingNumber,
-            shipday_response: responseData,
-            warning: "API returned 403, but a tracking number was generated and order status updated"
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-        );
+      // Now create the delivery order
+      const deliveryResponse = await fetch("https://api.shipday.com/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${shipdayApiKey}`
+        },
+        body: JSON.stringify(deliveryOrderData)
+      });
+      
+      const deliveryResponseText = await deliveryResponse.text();
+      console.log(`Shipday delivery API response status: ${deliveryResponse.status}`);
+      console.log(`Shipday delivery API response body: ${deliveryResponseText}`);
+      
+      let deliveryResponseData;
+      try {
+        deliveryResponseData = JSON.parse(deliveryResponseText);
+      } catch (e) {
+        deliveryResponseData = { rawResponse: deliveryResponseText };
       }
       
-      // Handle standard API failure case
-      if (!response.ok) {
+      // Check if either API call failed
+      if (!pickupResponse.ok || !deliveryResponse.ok) {
         return new Response(
           JSON.stringify({ 
-            error: "Failed to create order in Shipday", 
-            shipday_error: {
-              status: response.status,
-              details: responseData
-            }
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
-        );
-      }
-      
-      // Extract tracking number from the Shipday response
-      const trackingNumber = responseData.orderId || `SD-${responseData.id}` || responseData.trackingNumber;
-      
-      if (!trackingNumber) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Shipday API did not return a tracking number", 
-            shipday_response: responseData 
+            error: "Failed to create orders in Shipday", 
+            pickup_status: pickupResponse.status,
+            pickup_response: pickupResponseData,
+            delivery_status: deliveryResponse.status,
+            delivery_response: deliveryResponseData
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
+      
+      // Extract tracking numbers from the Shipday responses
+      const pickupTrackingNumber = pickupResponseData.orderId || 
+                                 `SD-P-${pickupResponseData.id}` || 
+                                 pickupResponseData.trackingNumber;
+      
+      const deliveryTrackingNumber = deliveryResponseData.orderId || 
+                                   `SD-D-${deliveryResponseData.id}` || 
+                                   deliveryResponseData.trackingNumber;
+      
+      // Combine tracking numbers
+      const combinedTrackingNumber = `P:${pickupTrackingNumber},D:${deliveryTrackingNumber}`;
 
-      console.log("Successfully created order in Shipday with tracking number:", trackingNumber);
+      console.log("Successfully created orders in Shipday with tracking numbers:", combinedTrackingNumber);
 
-      // Update the order with the tracking number and change status to shipped
+      // Update the order with the tracking numbers and change status to shipped
       const { error: updateError } = await supabase
         .from("orders")
         .update({
-          tracking_number: trackingNumber,
+          tracking_number: combinedTrackingNumber,
           status: "shipped",
           updated_at: new Date().toISOString()
         })
@@ -279,9 +279,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Order created in Shipday successfully", 
-          trackingNumber,
-          shipday_response: responseData 
+          message: "Orders created in Shipday successfully", 
+          trackingNumber: combinedTrackingNumber,
+          pickup_response: pickupResponseData,
+          delivery_response: deliveryResponseData
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );

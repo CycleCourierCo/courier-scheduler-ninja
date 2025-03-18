@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
 import { format } from "date-fns";
 import { getOrderById, updateOrderSchedule } from "@/services/orderService";
+import { createShipdayOrder } from "@/services/shipdayService";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,32 +69,23 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      // Call the shipday function to create the shipment
-      const shipdayResponse = await fetch(`${window.location.origin}/api/create-shipday-order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ orderId: id }),
-      });
-      
-      if (!shipdayResponse.ok) {
-        const errorData = await shipdayResponse.json();
-        throw new Error(errorData.error || "Failed to create shipment");
-      }
-      
-      // Update the order with the scheduled dates
       const updatedOrder = await updateOrderSchedule(
         id, 
         new Date(selectedPickupDate), 
         new Date(selectedDeliveryDate)
       );
       
-      if (updatedOrder) {
+      if (!updatedOrder) {
+        throw new Error("Failed to update order schedule");
+      }
+      
+      const shipdayResponse = await createShipdayOrder(id);
+      
+      if (shipdayResponse) {
         setOrder(updatedOrder);
-        toast.success("Order has been scheduled successfully");
+        toast.success("Order has been scheduled and shipments created successfully");
       } else {
-        toast.error("Failed to schedule order");
+        toast.error("Failed to create shipments");
       }
     } catch (error) {
       console.error("Error scheduling order:", error);
@@ -145,7 +136,6 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  // Modified to show date pickers for "receiver_availability_confirmed" status too
   const canSchedule = (order.status === 'pending_approval' || order.status === 'receiver_availability_confirmed') && 
                      Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
                      Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
@@ -289,7 +279,6 @@ const OrderDetail = () => {
                 </div>
                 <p>{format(new Date(order.updatedAt), "PPP 'at' p")}</p>
                 
-                {/* Always show schedule button when dates are available and not already scheduled */}
                 {canSchedule && (
                   <div className="mt-6">
                     <Button 
