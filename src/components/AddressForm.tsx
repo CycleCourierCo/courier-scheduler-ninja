@@ -42,7 +42,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [loading, setLoading] = useState(false);
 
   const fetchAddressSuggestions = async (text: string) => {
-    if (!text || text.length < 3) return;
+    if (!text || text.length < 3) {
+      setSuggestions([]);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -52,11 +55,17 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       );
       
       const data = await response.json();
-      if (data.features) {
+      // Make sure data.features exists and is an array before setting it
+      if (data && data.features && Array.isArray(data.features)) {
         setSuggestions(data.features);
+      } else {
+        // If features doesn't exist or isn't an array, set an empty array
+        setSuggestions([]);
+        console.warn("Geoapify API response doesn't contain the expected features array:", data);
       }
     } catch (error) {
       console.error("Error fetching address suggestions:", error);
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }
@@ -66,6 +75,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     const timeoutId = setTimeout(() => {
       if (searchValue) {
         fetchAddressSuggestions(searchValue);
+      } else {
+        // Clear suggestions when search value is empty
+        setSuggestions([]);
       }
     }, 300);
 
@@ -91,7 +103,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                   <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                 </div>
               </PopoverTrigger>
-              <PopoverContent className="p-0 w-[300px]" align="start">
+              <PopoverContent className="p-0" align="start">
                 <Command>
                   <CommandInput 
                     placeholder="Search address..." 
