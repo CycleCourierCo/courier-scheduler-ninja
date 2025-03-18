@@ -21,14 +21,15 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     const fetchOrders = async () => {
+      // Don't fetch orders if user authentication is still loading or if there's no user
+      if (authLoading || !user) return;
+      
       try {
-        if (!user) return;
-        
         setLoading(true);
         const data = await getOrders();
         setOrders(data);
@@ -40,10 +41,8 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    if (user) {
-      fetchOrders();
-    }
-  }, [user]);
+    fetchOrders();
+  }, [user, authLoading]);
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -60,7 +59,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">

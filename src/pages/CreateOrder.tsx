@@ -47,7 +47,7 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("sender");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -98,6 +98,16 @@ const CreateOrder = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

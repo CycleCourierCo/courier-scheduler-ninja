@@ -47,30 +47,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let mounted = true;
+    
     const setData = async () => {
       try {
+        if (!mounted) return;
+        
         setIsLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (error) {
           console.error("Error getting session:", error);
-          setIsLoading(false);
+          if (mounted) {
+            setIsLoading(false);
+          }
           return;
         }
         
-        setSession(session);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          const role = await fetchUserRole(session.user.id);
-          setUserRole(role);
-        } else {
-          setUserRole(null);
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user || null);
+          
+          if (session?.user) {
+            const role = await fetchUserRole(session.user.id);
+            if (mounted) {
+              setUserRole(role);
+            }
+          } else {
+            if (mounted) {
+              setUserRole(null);
+            }
+          }
+          
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error loading user:", error);
         toast.error("Error loading user session");
-      } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -78,20 +94,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("Auth state changed:", _event, session?.user?.id);
+      
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user || null);
       
       if (session?.user) {
         const role = await fetchUserRole(session.user.id);
-        setUserRole(role);
+        if (mounted) {
+          setUserRole(role);
+        }
       } else {
-        setUserRole(null);
+        if (mounted) {
+          setUserRole(null);
+        }
       }
       
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
