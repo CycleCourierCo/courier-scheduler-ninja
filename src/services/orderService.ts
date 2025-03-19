@@ -43,6 +43,29 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     throw new Error("User not authenticated");
   }
 
+  // Format delivery instructions to include bike swap and payment status
+  let formattedDeliveryInstructions = data.deliveryInstructions || '';
+  
+  // Add bike swap information
+  if (data.isBikeSwap) {
+    formattedDeliveryInstructions = `[BIKE SWAP] ${formattedDeliveryInstructions}`;
+  }
+  
+  // Add payment information
+  if (data.needsPaymentOnCollection) {
+    formattedDeliveryInstructions = `[PAYMENT REQUIRED ON COLLECTION] ${formattedDeliveryInstructions}`;
+  }
+
+  // Create the item name by combining brand and model
+  const itemName = `${data.bikeBrand} ${data.bikeModel}`.trim();
+  
+  // Create an item object
+  const item = {
+    name: itemName,
+    quantity: 1,
+    price: 0
+  };
+
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
@@ -54,8 +77,10 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       customer_order_number: data.customerOrderNumber,
       needs_payment_on_collection: data.needsPaymentOnCollection,
       is_bike_swap: data.isBikeSwap,
-      delivery_instructions: data.deliveryInstructions,
-      status: "created" as OrderStatus
+      delivery_instructions: formattedDeliveryInstructions,
+      status: "created" as OrderStatus,
+      pickup_date: null,  // Will be set when sender confirms availability
+      delivery_date: null // Will be set when receiver confirms availability
     })
     .select()
     .single();
@@ -74,7 +99,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         name: data.sender.name,
         orderId: order.id,
         baseUrl,
-        emailType: "sender" 
+        emailType: "sender",
+        item: item
       }
     });
     
@@ -248,6 +274,13 @@ export const updateSenderAvailability = async (
     
     console.log("Sending email to receiver:", receiverData.email);
     
+    // Create the item from the bike details
+    const item = {
+      name: `${data.bike_brand} ${data.bike_model}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+    
     // Send email to receiver with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
@@ -255,7 +288,8 @@ export const updateSenderAvailability = async (
         name: receiverData.name || "Recipient",
         orderId: id,
         baseUrl,
-        emailType: "receiver" 
+        emailType: "receiver",
+        item: item
       }
     });
     
@@ -316,6 +350,13 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
     
     const baseUrl = window.location.origin;
     
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+    
     // Send email to sender with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
@@ -323,7 +364,8 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
         name: order.sender.name || "Sender",
         orderId: id,
         baseUrl,
-        emailType: "sender" 
+        emailType: "sender",
+        item: item
       }
     });
     
@@ -339,4 +381,3 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
     return false;
   }
 };
-

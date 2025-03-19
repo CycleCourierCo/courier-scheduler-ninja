@@ -148,6 +148,9 @@ const CustomerOrderDetail = () => {
     return events;
   };
 
+  // Create item name from bike brand and model
+  const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+
   const trackingEvents = getTrackingEvents();
 
   return (
@@ -170,7 +173,7 @@ const CustomerOrderDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Package className="mr-2" />
-              Order #{order.id.substring(0, 8)}
+              {itemName} (Order #{order.id.substring(0, 8)})
             </CardTitle>
             <CardDescription>
               Created on {format(new Date(order.createdAt), "PPP")}
@@ -255,27 +258,25 @@ const CustomerOrderDetail = () => {
                   </div>
                 )}
                 
-                {/* Bike details section */}
-                {(order.bikeBrand || order.bikeModel) && (
-                  <div className="mt-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="font-semibold">Bike Details</h3>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      {order.bikeBrand && <p><span className="font-medium">Brand:</span> {order.bikeBrand}</p>}
-                      {order.bikeModel && <p><span className="font-medium">Model:</span> {order.bikeModel}</p>}
-                      {order.customerOrderNumber && (
-                        <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
-                      )}
-                      {order.isBikeSwap && (
-                        <p className="text-courier-600 font-medium">This is a bike swap</p>
-                      )}
-                      {order.needsPaymentOnCollection && (
-                        <p className="text-courier-600 font-medium">Payment required on collection</p>
-                      )}
-                    </div>
+                {/* Item and Bike details section */}
+                <div className="mt-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h3 className="font-semibold">Item Details</h3>
                   </div>
-                )}
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <p><span className="font-medium">Item:</span> {itemName}</p>
+                    <p><span className="font-medium">Quantity:</span> 1</p>
+                    {order.customerOrderNumber && (
+                      <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
+                    )}
+                    {order.isBikeSwap && (
+                      <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
+                    )}
+                    {order.needsPaymentOnCollection && (
+                      <p className="text-courier-600 font-medium">Payment required on collection</p>
+                    )}
+                  </div>
+                </div>
                 
                 {/* Delivery instructions */}
                 {order.deliveryInstructions && (
