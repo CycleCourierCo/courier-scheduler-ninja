@@ -46,6 +46,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
+  // Create the order in the database
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
@@ -342,4 +343,3 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
     return false;
   }
 };
-
