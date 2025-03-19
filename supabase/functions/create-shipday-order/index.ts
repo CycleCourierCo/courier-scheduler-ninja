@@ -129,12 +129,15 @@ serve(async (req) => {
     console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
 
     try {
+      // Basic Auth - Correctly formatted per Shipday documentation
+      const authHeader = `Basic ${shipdayApiKey}`;
+      
       // Make the API calls to Shipday
       const pickupResponse = await fetch("https://api.shipday.com/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${shipdayApiKey}`
+          "Authorization": authHeader
         },
         body: JSON.stringify(pickupOrderData)
       });
@@ -155,7 +158,7 @@ serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${shipdayApiKey}`
+          "Authorization": authHeader
         },
         body: JSON.stringify(deliveryOrderData)
       });
