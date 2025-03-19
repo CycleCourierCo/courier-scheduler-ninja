@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
@@ -18,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,8 @@ const OrderDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<string | null>(null);
+  const [pickupTime, setPickupTime] = useState<string>("09:00");
+  const [deliveryTime, setDeliveryTime] = useState<string>("12:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -69,16 +73,27 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
+      // Combine date and time for pickup
+      const pickupDateTime = new Date(selectedPickupDate);
+      const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
+      pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      
+      // Combine date and time for delivery
+      const deliveryDateTime = new Date(selectedDeliveryDate);
+      const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
+      deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      
       const updatedOrder = await updateOrderSchedule(
         id, 
-        new Date(selectedPickupDate), 
-        new Date(selectedDeliveryDate)
+        pickupDateTime, 
+        deliveryDateTime
       );
       
       if (!updatedOrder) {
         throw new Error("Failed to update order schedule");
       }
       
+      // Pass times to Shipday
       const shipdayResponse = await createShipdayOrder(id);
       
       if (shipdayResponse) {
@@ -206,6 +221,17 @@ const OrderDetail = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    <div className="mt-2">
+                      <label className="text-sm font-medium">Select pickup time:</label>
+                      <Input
+                        type="time"
+                        value={pickupTime}
+                        onChange={(e) => setPickupTime(e.target.value)}
+                        disabled={isSubmitting || isScheduled}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -214,7 +240,7 @@ const OrderDetail = () => {
                         <div className="flex items-center">
                           <Check className="h-4 w-4 text-green-600 mr-2" />
                           <p className="font-medium">
-                            {format(new Date(order.scheduledPickupDate), "PPP")}
+                            {format(new Date(order.scheduledPickupDate), "PPP 'at' p")}
                           </p>
                         </div>
                       </div>
@@ -253,6 +279,17 @@ const OrderDetail = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    <div className="mt-2">
+                      <label className="text-sm font-medium">Select delivery time:</label>
+                      <Input
+                        type="time"
+                        value={deliveryTime}
+                        onChange={(e) => setDeliveryTime(e.target.value)}
+                        disabled={isSubmitting || isScheduled}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -261,7 +298,7 @@ const OrderDetail = () => {
                         <div className="flex items-center">
                           <Check className="h-4 w-4 text-green-600 mr-2" />
                           <p className="font-medium">
-                            {format(new Date(order.scheduledDeliveryDate), "PPP")}
+                            {format(new Date(order.scheduledDeliveryDate), "PPP 'at' p")}
                           </p>
                         </div>
                       </div>
