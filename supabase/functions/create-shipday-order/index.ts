@@ -12,7 +12,7 @@ interface OrderRequest {
   restaurantName: string;
   restaurantAddress: string;
   pickupTime?: string; 
-  deliveryTime?: string;
+  expectedDeliveryTime?: string; // Changed from deliveryTime to expectedDeliveryTime
   // Adding additional fields for better Shipday integration
   orderType?: string;
   expectedDeliveryDate?: string;
@@ -148,16 +148,28 @@ serve(async (req) => {
       return `${year}-${month}-${day}`;
     };
     
+    // Format time only for Shipday (HH:MM:SS) for expectedDeliveryTime
+    const formatTimeOnly = (date: Date | null) => {
+      if (!date) return undefined;
+      
+      // Format time to HH:MM:SS
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = "00"; // Default seconds to 00
+      
+      return `${hours}:${minutes}:${seconds}`;
+    };
+    
     // Format the delivery and pickup times for Shipday
-    const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
     const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
+    const deliveryTimeFormatted = formatTimeOnly(scheduledDeliveryDate); // Changed to use time-only format
     
     // Format expected dates (date only without time) for Shipday API requirements
     const expectedDeliveryDateFormatted = formatDateOnly(scheduledDeliveryDate);
     const expectedPickupDateFormatted = formatDateOnly(scheduledPickupDate);
     
-    console.log("Formatted delivery time:", deliveryTimeFormatted);
     console.log("Formatted pickup time:", pickupTimeFormatted);
+    console.log("Formatted delivery time (HH:MM:SS):", deliveryTimeFormatted);
     console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
     console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
 
@@ -186,7 +198,7 @@ serve(async (req) => {
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
-      deliveryTime: deliveryTimeFormatted, // Use exact time from user input
+      expectedDeliveryTime: deliveryTimeFormatted, // Changed from deliveryTime to expectedDeliveryTime with HH:MM:SS format
       expectedDeliveryDate: expectedDeliveryDateFormatted // Date only format for Shipday
     };
 
