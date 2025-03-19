@@ -1,20 +1,6 @@
 
-export type ContactInfo = {
-  name: string;
-  email: string;
-  phone: string;
-};
-
-export type Address = {
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-};
-
-export type OrderStatus = 
-  | 'created' 
+export type OrderStatus =
+  | 'created'
   | 'sender_availability_pending'
   | 'sender_availability_confirmed'
   | 'receiver_availability_pending'
@@ -25,13 +11,28 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled';
 
-export type Order = {
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface ContactInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address: Address;
+}
+
+export interface Order {
   id: string;
-  user_id: string;  // This property is needed for user filtering
-  sender: ContactInfo & { address: Address };
-  receiver: ContactInfo & { address: Address };
-  pickupDate?: Date | Date[];
-  deliveryDate?: Date | Date[];
+  user_id: string;
+  sender: ContactInfo;
+  receiver: ContactInfo;
+  pickupDate?: Date[];
+  deliveryDate?: Date[];
   scheduledPickupDate?: Date;
   scheduledDeliveryDate?: Date;
   senderConfirmedAt?: Date;
@@ -47,37 +48,26 @@ export type Order = {
   needsPaymentOnCollection?: boolean;
   isBikeSwap?: boolean;
   deliveryInstructions?: string;
-};
+  trackingEvents?: any[]; // Will store Shipday tracking events
+}
 
-export type CreateOrderFormData = {
-  sender: {
-    name: string;
-    email: string;
-    phone: string;
-    address: {
-      street: string;
-      city: string;
-      state: string;
-      zipCode: string;
-      country: string;
-    };
-  };
-  receiver: {
-    name: string;
-    email: string;
-    phone: string;
-    address: {
-      street: string;
-      city: string;
-      state: string;
-      zipCode: string;
-      country: string;
-    };
-  };
-  bikeBrand: string;
-  bikeModel: string;
+export interface CreateOrderFormData {
+  sender: ContactInfo;
+  receiver: ContactInfo;
+  bikeBrand?: string;
+  bikeModel?: string;
   customerOrderNumber?: string;
-  needsPaymentOnCollection: boolean;
-  isBikeSwap: boolean;
+  needsPaymentOnCollection?: boolean;
+  isBikeSwap?: boolean;
   deliveryInstructions?: string;
-};
+}
+
+// Form fields for the sender availability page
+export interface SenderAvailabilityFormData {
+  dates: Date[];
+}
+
+// Form fields for the receiver availability page
+export interface ReceiverAvailabilityFormData {
+  dates: Date[];
+}

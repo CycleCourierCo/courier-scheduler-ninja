@@ -26,7 +26,8 @@ const mapDbOrderToOrderType = (dbOrder: any): Order => {
     customerOrderNumber: dbOrder.customer_order_number,
     needsPaymentOnCollection: dbOrder.needs_payment_on_collection,
     isBikeSwap: dbOrder.is_bike_swap,
-    deliveryInstructions: dbOrder.delivery_instructions
+    deliveryInstructions: dbOrder.delivery_instructions,
+    trackingEvents: dbOrder.tracking_events // Add the tracking events field
   };
 };
 
