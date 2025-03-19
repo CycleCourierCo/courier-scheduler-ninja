@@ -173,7 +173,7 @@ serve(async (req) => {
       orderType: "PICKUP",
       pickupTime: pickupTimeFormatted, // Use exact time from user input
       expectedPickupDate: expectedPickupDateFormatted, // Date only format
-      expectedDeliveryDate: expectedPickupDateFormatted // Per request, set expected delivery date to pickup date
+      expectedDeliveryDate: expectedPickupDateFormatted // Set expected delivery date to pickup date
     };
 
     // Create the delivery order with delivery time
