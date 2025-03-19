@@ -11,17 +11,17 @@ const features = [
   {
     title: "Easy Order Creation",
     description: "Create shipping orders in minutes with our intuitive form.",
-    icon: <Package className="h-12 w-12 text-courier-500" />,
+    icon: <Package className="h-12 w-12 text-courier-600" />,
   },
   {
     title: "Smart Scheduling",
     description: "Automatically coordinate pickup and delivery times between sender and receiver.",
-    icon: <CalendarCheck className="h-12 w-12 text-courier-500" />,
+    icon: <CalendarCheck className="h-12 w-12 text-courier-600" />,
   },
   {
-    title: "Shipday Integration",
-    description: "Seamlessly create shipping orders with Shipday's powerful API.",
-    icon: <Truck className="h-12 w-12 text-courier-500" />,
+    title: "Efficient Delivery",
+    description: "Seamlessly create shipping orders with our powerful delivery network.",
+    icon: <Truck className="h-12 w-12 text-courier-600" />,
   },
 ];
 
@@ -35,7 +35,7 @@ const Index = () => {
           <div className="flex flex-col items-center space-y-4 text-center">
             <div className="space-y-2">
               <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-courier-800">
-                Courier Management Made Simple
+                Cycle Courier Management
               </h1>
               <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl">
                 Streamline your courier operations with our powerful job management platform.
@@ -90,7 +90,7 @@ const Index = () => {
                 <span className="text-2xl font-bold text-courier-600">3</span>
               </div>
               <h3 className="text-xl font-semibold mb-2">Ship with Confidence</h3>
-              <p className="text-gray-600">Automatically create Shipday orders and track shipments in real-time.</p>
+              <p className="text-gray-600">Track shipments in real-time and ensure on-time delivery.</p>
             </div>
           </div>
         </div>

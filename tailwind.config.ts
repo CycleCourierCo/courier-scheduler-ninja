@@ -65,12 +65,12 @@ export default {
 				},
 				courier: {
 					50: '#f0f7ff',
-					100: '#e0effe',
-					200: '#bae0fd',
+					100: '#e0f0fe',
+					200: '#bae2fd',
 					300: '#7ccafb',
 					400: '#36adf6',
 					500: '#0c91e6',
-					600: '#0073c4',
+					600: '#0073c4', // Matches cyclecourierco.com blue
 					700: '#015b9e',
 					800: '#064e83',
 					900: '#0b426d',
