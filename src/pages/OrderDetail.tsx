@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeftIcon } from "@radix-ui/react-icons";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { useUser } from "@/hooks/useUser";
@@ -78,7 +78,7 @@ const OrderDetail: React.FC = () => {
   return (
     <div className="container mx-auto mt-8">
       <Link to="/orders" className="inline-flex items-center mb-4">
-        <ArrowLeftIcon className="mr-2 h-4 w-4" />
+        <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Orders
       </Link>
 
@@ -225,12 +225,11 @@ const OrderDetail: React.FC = () => {
         </section>
       )}
     
-    {/* Add the webhook test component */}
-    {order && order.status === "shipped" && userRole === "admin" && (
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <ShipdayWebhookTest orderId={order.id} />
-      </section>
-    )}
+      {order && order.status === "shipped" && userRole === "admin" && (
+        <section className="bg-white rounded-lg shadow p-6 mb-6">
+          <ShipdayWebhookTest orderId={order.id} />
+        </section>
+      )}
     
     </div>
   );
