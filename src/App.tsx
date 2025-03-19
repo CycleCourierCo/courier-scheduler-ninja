@@ -65,8 +65,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/sender-availability/:id" element={<SenderAvailability />} />
-            <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
+            <Route 
+              path="/sender-availability/:id" 
+              element={<SenderAvailability />} 
+            />
+            <Route 
+              path="/receiver-availability/:id" 
+              element={<ReceiverAvailability />} 
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster position="top-right" />
