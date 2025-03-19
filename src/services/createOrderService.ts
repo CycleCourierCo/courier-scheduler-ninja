@@ -8,19 +8,17 @@ import { mapDbOrderToOrderType } from "./utils/orderMappers";
  */
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   // Get current user ID from Supabase auth - improved error handling
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const { data: sessionData, error: userError } = await supabase.auth.getSession();
   
-  if (userError || !userData.user) {
+  if (userError || !sessionData.session) {
     throw new Error("User not authenticated");
   }
-
-  const userId = userData.user.id;
 
   // Create the order in the database using the exact pattern provided
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      user_id: userId,
+      user_id: sessionData.session.user.id,
       sender: data.sender,
       receiver: data.receiver,
       bike_brand: data.bikeBrand,
