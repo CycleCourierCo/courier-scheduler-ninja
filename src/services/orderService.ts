@@ -25,7 +25,7 @@ const mapDbOrderToOrderType = (dbOrder: any): Order => {
     needsPaymentOnCollection: dbOrder.needs_payment_on_collection,
     isBikeSwap: dbOrder.is_bike_swap,
     deliveryInstructions: dbOrder.delivery_instructions,
-    trackingEvents: dbOrder.tracking_events
+    trackingEvents: dbOrder.tracking_events // Add the tracking events field
   };
 };
 
@@ -44,7 +44,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
-  // Create the order in the database with correct column names
+  // Create the order in the database
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
