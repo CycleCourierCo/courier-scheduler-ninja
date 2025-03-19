@@ -1,376 +1,238 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
-import { format } from "date-fns";
-import { getOrderById, updateOrderSchedule } from "@/services/orderService";
-import { createShipdayOrder } from "@/services/shipdayService";
+import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import StatusBadge from "@/components/StatusBadge";
-import Layout from "@/components/Layout";
-import { toast } from "sonner";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeftIcon } from "@radix-ui/react-icons";
+import { toast } from "sonner";
+import { createShipdayOrder } from "@/services/shipdayService";
+import { useUser } from "@/hooks/useUser";
+import { ShipdayWebhookTest } from "@/components/ShipdayWebhookTest";
 
-const OrderDetail = () => {
-  const { id } = useParams<{ id: string }>();
+const OrderDetail: React.FC = () => {
   const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
-  const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { id } = useParams<{ id: string }>();
+  const { user, userRole } = useUser();
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      if (!id) return;
-      
-      try {
-        setLoading(true);
-        const fetchedOrder = await getOrderById(id);
-        
-        if (fetchedOrder) {
-          setOrder(fetchedOrder);
-          
-          if (fetchedOrder.scheduledPickupDate) {
-            setSelectedPickupDate(new Date(fetchedOrder.scheduledPickupDate).toISOString());
-          }
-          
-          if (fetchedOrder.scheduledDeliveryDate) {
-            setSelectedDeliveryDate(new Date(fetchedOrder.scheduledDeliveryDate).toISOString());
-          }
-        } else {
-          setError("Order not found");
+    const fetchOrder = async () => {
+      if (id) {
+        try {
+          const orderData = await getOrderById(id);
+          setOrder(orderData);
+        } catch (error) {
+          console.error("Error fetching order:", error);
+          toast.error("Failed to fetch order details.");
+        } finally {
+          setIsLoading(false);
         }
-      } catch (err) {
-        console.error("Error fetching order:", err);
-        setError("Failed to load order details");
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchOrderDetails();
+    fetchOrder();
   }, [id]);
 
-  const handleScheduleOrder = async () => {
-    if (!id || !selectedPickupDate || !selectedDeliveryDate) {
-      toast.error("Please select both pickup and delivery dates");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      
-      const updatedOrder = await updateOrderSchedule(
-        id, 
-        new Date(selectedPickupDate), 
-        new Date(selectedDeliveryDate)
-      );
-      
-      if (!updatedOrder) {
-        throw new Error("Failed to update order schedule");
+  const handleCreateShipdayOrder = async () => {
+    if (order?.id) {
+      try {
+        setIsLoading(true);
+        await createShipdayOrder(order.id);
+      } catch (error) {
+        console.error("Error creating Shipday order:", error);
+        toast.error("Failed to create Shipday order.");
+      } finally {
+        setIsLoading(false);
       }
-      
-      const shipdayResponse = await createShipdayOrder(id);
-      
-      if (shipdayResponse) {
-        setOrder(updatedOrder);
-        toast.success("Order has been scheduled and shipments created successfully");
-      } else {
-        toast.error("Failed to create shipments");
-      }
-    } catch (error) {
-      console.error("Error scheduling order:", error);
-      toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
-        </div>
-      </Layout>
-    );
+  if (isLoading) {
+    return <div>Loading order details...</div>;
   }
 
-  if (error || !order) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-          <h2 className="text-xl font-semibold text-red-600">{error || "Order not found"}</h2>
-          <Button asChild>
-            <Link to="/dashboard">
-              <ArrowLeft className="mr-2" />
-              Return to Dashboard
-            </Link>
-          </Button>
-        </div>
-      </Layout>
-    );
+  if (!order) {
+    return <div>Order not found</div>;
   }
 
-  const formatDate = (date: Date | undefined) => {
-    if (!date) return "Not scheduled";
-    return format(new Date(date), "PPP");
+  const statusColors: { [key: string]: string } = {
+    created: "bg-gray-100 text-gray-800",
+    scheduled: "bg-blue-100 text-blue-800",
+    shipped: "bg-yellow-100 text-yellow-800",
+    delivered: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
+    receiver_availability_pending: "bg-purple-100 text-purple-800",
+    receiver_availability_confirmed: "bg-pink-100 text-pink-800",
   };
-
-  const formatDates = (dates: Date | Date[] | undefined) => {
-    if (!dates) return "Not scheduled";
-    
-    if (Array.isArray(dates)) {
-      return dates.map(date => format(new Date(date), "PPP")).join(", ");
-    }
-    
-    return format(new Date(dates), "PPP");
-  };
-
-  const canSchedule = (order.status === 'pending_approval' || order.status === 'receiver_availability_confirmed') && 
-                     Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
-                     Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
-
-  const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="mr-2" />
-                Back
-              </Link>
-            </Button>
-            <h1 className="text-2xl font-bold">Order Details</h1>
-          </div>
-          <StatusBadge status={order.status} />
-        </div>
+    <div className="container mx-auto mt-8">
+      <Link to="/orders" className="inline-flex items-center mb-4">
+        <ArrowLeftIcon className="mr-2 h-4 w-4" />
+        Back to Orders
+      </Link>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Package className="mr-2" />
-              Order #{order.id.substring(0, 8)}
-            </CardTitle>
-            <CardDescription>
-              Created on {format(new Date(order.createdAt), "PPP")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {order.trackingNumber && (
-              <div className="bg-muted p-3 rounded-md">
-                <p className="font-medium">Tracking Number: {order.trackingNumber}</p>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="text-courier-600" />
-                  <h3 className="font-semibold">Pickup Dates</h3>
-                </div>
-                
-                {canSchedule ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Available dates:</p>
-                    <p>{formatDates(order.pickupDate)}</p>
-                    
-                    <div className="mt-2">
-                      <label className="text-sm font-medium">Select pickup date:</label>
-                      <Select
-                        value={selectedPickupDate || ""}
-                        onValueChange={setSelectedPickupDate}
-                        disabled={isSubmitting || isScheduled}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.isArray(order.pickupDate) && order.pickupDate.map((date, index) => (
-                            <SelectItem key={index} value={new Date(date).toISOString()}>
-                              {format(new Date(date), "PPP")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {order.scheduledPickupDate ? (
-                      <div className="bg-green-50 p-2 rounded-md border border-green-200">
-                        <div className="flex items-center">
-                          <Check className="h-4 w-4 text-green-600 mr-2" />
-                          <p className="font-medium">
-                            {format(new Date(order.scheduledPickupDate), "PPP")}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p>{formatDates(order.pickupDate)}</p>
-                    )}
-                  </>
-                )}
-                
-                <div className="flex items-center space-x-2">
-                  <Calendar className="text-courier-600" />
-                  <h3 className="font-semibold">Delivery Dates</h3>
-                </div>
-                
-                {canSchedule ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Available dates:</p>
-                    <p>{formatDates(order.deliveryDate)}</p>
-                    
-                    <div className="mt-2">
-                      <label className="text-sm font-medium">Select delivery date:</label>
-                      <Select
-                        value={selectedDeliveryDate || ""}
-                        onValueChange={setSelectedDeliveryDate}
-                        disabled={isSubmitting || isScheduled}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.isArray(order.deliveryDate) && order.deliveryDate.map((date, index) => (
-                            <SelectItem key={index} value={new Date(date).toISOString()}>
-                              {format(new Date(date), "PPP")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {order.scheduledDeliveryDate ? (
-                      <div className="bg-green-50 p-2 rounded-md border border-green-200">
-                        <div className="flex items-center">
-                          <Check className="h-4 w-4 text-green-600 mr-2" />
-                          <p className="font-medium">
-                            {format(new Date(order.scheduledDeliveryDate), "PPP")}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p>{formatDates(order.deliveryDate)}</p>
-                    )}
-                  </>
-                )}
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Truck className="text-courier-600" />
-                  <h3 className="font-semibold">Last Updated</h3>
-                </div>
-                <p>{format(new Date(order.updatedAt), "PPP 'at' p")}</p>
-                
-                {canSchedule && (
-                  <div className="mt-6">
-                    <Button 
-                      onClick={handleScheduleOrder} 
-                      disabled={!selectedPickupDate || !selectedDeliveryDate || isSubmitting || isScheduled}
-                      className="w-full"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                          Scheduling Order...
-                        </>
-                      ) : (
-                        "Schedule Order"
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
+      <section className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-2xl font-semibold mb-4">Order Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <strong>Order ID:</strong> {order.id}
+          </div>
+          <div>
+            <strong>Status:</strong>{" "}
+            <Badge className={statusColors[order.status] || "bg-gray-500"}>
+              {order.status}
+            </Badge>
+          </div>
+          <div>
+            <strong>Created At:</strong> {order.createdAt.toLocaleString()}
+          </div>
+          <div>
+            <strong>Updated At:</strong> {order.updatedAt.toLocaleString()}
+          </div>
+          {order.trackingNumber && (
+            <div>
+              <strong>Tracking Number:</strong> {order.trackingNumber}
             </div>
-            
-            <Separator className="my-6" />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <User className="text-courier-600" />
-                  <h3 className="font-semibold text-lg">Sender Information</h3>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md space-y-3">
-                  <p className="font-medium text-gray-800">{order.sender.name}</p>
-                  <div className="space-y-2">
-                    <div className="flex items-start space-x-2">
-                      <Mail className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.sender.email}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <Phone className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.sender.phone}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 mt-1 text-gray-500" />
-                      <div>
-                        <p>{order.sender.address.street}</p>
-                        <p>{order.sender.address.city}, {order.sender.address.state} {order.sender.address.zipCode}</p>
-                        <p>{order.sender.address.country}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <User className="text-courier-600" />
-                  <h3 className="font-semibold text-lg">Receiver Information</h3>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md space-y-3">
-                  <p className="font-medium text-gray-800">{order.receiver.name}</p>
-                  <div className="space-y-2">
-                    <div className="flex items-start space-x-2">
-                      <Mail className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.receiver.email}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <Phone className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.receiver.phone}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 mt-1 text-gray-500" />
-                      <div>
-                        <p>{order.receiver.address.street}</p>
-                        <p>{order.receiver.address.city}, {order.receiver.address.state} {order.receiver.address.zipCode}</p>
-                        <p>{order.receiver.address.country}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="mr-2" />
-                Return to Dashboard
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    </Layout>
+          )}
+        </div>
+      </section>
+
+      <section className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Sender Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <strong>Name:</strong> {order.sender.name}
+          </div>
+          <div>
+            <strong>Email:</strong> {order.sender.email}
+          </div>
+          <div>
+            <strong>Phone:</strong> {order.sender.phone}
+          </div>
+          <div>
+            <strong>Address:</strong> {order.sender.address.street}, {order.sender.address.city},{" "}
+            {order.sender.address.state} {order.sender.address.zipCode}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Receiver Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <strong>Name:</strong> {order.receiver.name}
+          </div>
+          <div>
+            <strong>Email:</strong> {order.receiver.email}
+          </div>
+          <div>
+            <strong>Phone:</strong> {order.receiver.phone}
+          </div>
+          <div>
+            <strong>Address:</strong> {order.receiver.address.street}, {order.receiver.address.city},{" "}
+            {order.receiver.address.state} {order.receiver.address.zipCode}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Bike Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <strong>Brand:</strong> {order.bikeBrand}
+          </div>
+          <div>
+            <strong>Model:</strong> {order.bikeModel}
+          </div>
+          <div>
+            <strong>Customer Order Number:</strong> {order.customerOrderNumber}
+          </div>
+          <div>
+            <strong>Needs Payment on Collection:</strong> {order.needsPaymentOnCollection ? "Yes" : "No"}
+          </div>
+          <div>
+            <strong>Is Bike Swap:</strong> {order.isBikeSwap ? "Yes" : "No"}
+          </div>
+          <div>
+            <strong>Delivery Instructions:</strong> {order.deliveryInstructions}
+          </div>
+        </div>
+      </section>
+
+      {order.trackingEvents && order.trackingEvents.length > 0 && (
+        <section className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-xl font-semibold mb-4">Tracking Events</h3>
+          <Table>
+            <TableCaption>A list of tracking events for this order.</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Timestamp</TableHead>
+                <TableHead>Event</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Leg Type</TableHead>
+                <TableHead>Details</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {order.trackingEvents.map((event, index) => (
+                <TableRow key={index}>
+                  <TableCell>{new Date(event.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>{event.shipdayEvent}</TableCell>
+                  <TableCell>{event.shipdayStatus}</TableCell>
+                  <TableCell>{event.legType}</TableCell>
+                  <TableCell>
+                    {event.details && (
+                      <ul>
+                        {event.details.carrier && (
+                          <li>
+                            Carrier: {event.details.carrier.name} ({event.details.carrier.phone})
+                          </li>
+                        )}
+                        {event.details.eta && <li>ETA: {new Date(event.details.eta).toLocaleString()}</li>}
+                        {event.details.pickedUpTime && (
+                          <li>Picked Up Time: {new Date(event.details.pickedUpTime).toLocaleString()}</li>
+                        )}
+                        {event.details.deliveryTime && (
+                          <li>Delivery Time: {new Date(event.details.deliveryTime).toLocaleString()}</li>
+                        )}
+                      </ul>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </section>
+      )}
+
+      {userRole === "admin" && order.status === "scheduled" && (
+        <section className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-xl font-semibold mb-4">Actions</h3>
+          <Button onClick={handleCreateShipdayOrder} disabled={isLoading}>
+            {isLoading ? "Creating Shipday Order..." : "Create Shipday Order"}
+          </Button>
+        </section>
+      )}
+    
+    {/* Add the webhook test component */}
+    {order && order.status === "shipped" && userRole === "admin" && (
+      <section className="bg-white rounded-lg shadow p-6 mb-6">
+        <ShipdayWebhookTest orderId={order.id} />
+      </section>
+    )}
+    
+    </div>
   );
 };
 

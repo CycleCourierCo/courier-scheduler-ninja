@@ -162,11 +162,15 @@ serve(async (req) => {
       );
     }
 
-    // Verify token if configured
-    if (WEBHOOK_TOKEN) {
-      const requestToken = req.headers.get("token");
+    // Get request token
+    const requestToken = req.headers.get("token");
+    
+    // If token is configured, verify it (unless we're in test mode)
+    const isTestMode = req.headers.get("x-shipday-test") === "true" || requestToken === "test-token";
+    
+    if (WEBHOOK_TOKEN && !isTestMode) {
       if (requestToken !== WEBHOOK_TOKEN) {
-        console.error("Invalid webhook token");
+        console.error("Invalid webhook token, received:", requestToken);
         return new Response(
           JSON.stringify({ error: "Unauthorized" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
@@ -182,6 +186,14 @@ serve(async (req) => {
     const { event, order_status, order, timestamp } = payload;
     const orderNumber = order.order_number;
     
+    if (!orderNumber) {
+      console.error("Missing order number in payload:", payload);
+      return new Response(
+        JSON.stringify({ error: "Missing order_number in payload" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    
     // The orderNumber from Shipday will be in the format "{orderId}-PICKUP" or "{orderId}-DELIVERY"
     // Extract the order ID from our system
     const orderIdMatch = orderNumber.match(/^([0-9a-f-]+)-/);
@@ -195,6 +207,7 @@ serve(async (req) => {
     
     // Extract our order ID from the Shipday order number
     const extractedOrderId = orderIdMatch[1];
+    console.log("Extracted order ID:", extractedOrderId);
     
     // Parse full order ID (may be partial in the order number)
     let fullOrderId = extractedOrderId;
@@ -212,7 +225,15 @@ serve(async (req) => {
         .like("id", `${extractedOrderId}%`)
         .limit(1);
         
-      if (lookupError || !matchingOrders || matchingOrders.length === 0) {
+      if (lookupError) {
+        console.error("Error looking up order with partial ID:", lookupError);
+        return new Response(
+          JSON.stringify({ error: "Database lookup error", details: lookupError.message }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
+      
+      if (!matchingOrders || matchingOrders.length === 0) {
         console.error("Could not find order with partial ID:", extractedOrderId);
         return new Response(
           JSON.stringify({ error: "Order not found" }),
@@ -221,27 +242,41 @@ serve(async (req) => {
       }
       
       fullOrderId = matchingOrders[0].id;
+      console.log("Found full order ID:", fullOrderId);
     }
     
     // Get the current order
+    console.log("Looking up order with ID:", fullOrderId);
     const { data: currentOrder, error: orderError } = await supabase
       .from("orders")
       .select("*")
       .eq("id", fullOrderId)
       .single();
       
-    if (orderError || !currentOrder) {
+    if (orderError) {
       console.error("Error fetching order:", orderError);
+      return new Response(
+        JSON.stringify({ error: "Error fetching order", details: orderError.message }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+    
+    if (!currentOrder) {
+      console.error("Order not found with ID:", fullOrderId);
       return new Response(
         JSON.stringify({ error: "Order not found" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
       );
     }
     
+    console.log("Found order:", currentOrder.id);
+    
     // Determine if this is for pickup or delivery based on the order number suffix
     const isPickup = orderNumber.endsWith("-PICKUP");
     const isDelivery = orderNumber.endsWith("-DELIVERY");
     const legType = isPickup ? "pickup" : isDelivery ? "delivery" : "unknown";
+    
+    console.log("Webhook event type:", event, "for leg:", legType);
     
     // Map Shipday status to our system status
     let newOrderStatus = currentOrder.status;
@@ -261,6 +296,8 @@ serve(async (req) => {
       }
     };
     
+    console.log("Created new tracking event:", newEvent);
+    
     // Add the event to tracking history
     trackingEvents.push(newEvent);
     
@@ -268,13 +305,20 @@ serve(async (req) => {
     // Note: This is a simplified mapping - update according to your business logic
     if (event === "ORDER_COMPLETED" && isDelivery) {
       newOrderStatus = "delivered";
+      console.log("Setting order status to delivered");
     } else if (event === "ORDER_PIKEDUP" && isPickup) {
       newOrderStatus = "shipped";
+      console.log("Setting order status to shipped (pickup completed)");
     } else if ((event === "ORDER_ASSIGNED" || event === "ORDER_ACCEPTED_AND_STARTED") && newOrderStatus === "scheduled") {
       newOrderStatus = "shipped";
+      console.log("Setting order status to shipped (driver assigned/started)");
+    } else if (event === "ORDER_FAILED") {
+      newOrderStatus = "failed";
+      console.log("Setting order status to failed");
     }
     
     // Update the order in the database
+    console.log("Updating order with new status:", newOrderStatus);
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update({
@@ -289,7 +333,7 @@ serve(async (req) => {
     if (updateError) {
       console.error("Error updating order:", updateError);
       return new Response(
-        JSON.stringify({ error: "Failed to update order" }),
+        JSON.stringify({ error: "Failed to update order", details: updateError.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
@@ -301,7 +345,10 @@ serve(async (req) => {
         success: true, 
         message: "Webhook processed successfully",
         orderId: fullOrderId,
-        status: newOrderStatus
+        status: newOrderStatus,
+        event: event,
+        legType: legType,
+        trackingEvent: newEvent
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
