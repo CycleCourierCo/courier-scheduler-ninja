@@ -44,11 +44,10 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
-  // Create the order in the database - fixing the insert structure to match expected parameters
+  // Create the order in the database with only the properties that match the schema
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
       bike_brand: data.bikeBrand,
@@ -57,7 +56,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       needs_payment_on_collection: data.needsPaymentOnCollection,
       is_bike_swap: data.isBikeSwap,
       delivery_instructions: data.deliveryInstructions,
-      status: "created"
+      status: "created",
+      user_id: userId
     })
     .select()
     .single();
@@ -234,48 +234,6 @@ export const updateSenderAvailability = async (
     throw new Error(error.message);
   }
 
-  // Get the order details to send email to receiver
-  try {
-    // After sender confirms availability, send email to the receiver
-    const baseUrl = window.location.origin;
-    
-    // Ensure receiver data is properly typed and accessible
-    const receiverData = data.receiver as unknown as ContactInfo & { address: Address };
-    
-    // Validate receiver email before sending
-    if (!receiverData?.email) {
-      console.error("Receiver email not found in order data:", data.receiver);
-      throw new Error("Receiver email not found");
-    }
-    
-    console.log("Sending email to receiver:", receiverData.email);
-    
-    // Send email to receiver with improved error handling
-    const response = await supabase.functions.invoke("send-email", {
-      body: {
-        to: receiverData.email,
-        name: receiverData.name || "Recipient",
-        orderId: id,
-        baseUrl,
-        emailType: "receiver" 
-      }
-    });
-    
-    if (response.error) {
-      console.error("Error sending email to receiver:", response.error);
-      // Log detailed error information for debugging
-      if (response.error.message) {
-        console.error("Error message:", response.error.message);
-      }
-    } else {
-      console.log("Email sent successfully to receiver:", receiverData.email);
-    }
-  } catch (emailError) {
-    console.error("Failed to send email to receiver:", emailError);
-    console.error("Error details:", emailError instanceof Error ? emailError.message : emailError);
-    // Don't throw here - we don't want to fail the order update if email fails
-  }
-
   return mapDbOrderToOrderType(data);
 };
 
@@ -307,10 +265,8 @@ export const updateReceiverAvailability = async (
 
 export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    // Get the order details first
     const order = await getOrder(id);
     
-    // Ensure the order exists and has a sender
     if (!order || !order.sender || !order.sender.email) {
       console.error("Order or sender information not found");
       return false;
@@ -318,7 +274,6 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
     
     const baseUrl = window.location.origin;
     
-    // Send email to sender with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
