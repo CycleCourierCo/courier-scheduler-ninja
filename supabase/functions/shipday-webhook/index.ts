@@ -270,7 +270,7 @@ serve(async (req) => {
       newOrderStatus = "delivered";
     } else if (event === "ORDER_PIKEDUP" && isPickup) {
       newOrderStatus = "shipped";
-    } else if ((event === "ORDER_ASSIGNED" || event === "ORDER_ACCEPTED_AND_STARTED") && newOrderStatus === "scheduled") {
+    } else if ((event === "ORDER_ASSIGNED" || event === "ORDER_ACCEPTED_AND_STARTED" || event === "ORDER_ONTHEWAY") && newOrderStatus === "scheduled") {
       newOrderStatus = "shipped";
     }
     
