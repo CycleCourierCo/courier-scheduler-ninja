@@ -1,7 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
-import { useAuth } from "@/contexts/AuthContext";
 
 // Helper function to map database schema to our Order type
 const mapDbOrderToOrderType = (dbOrder: any): Order => {
