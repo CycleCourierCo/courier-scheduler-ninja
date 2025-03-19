@@ -11,6 +11,8 @@ interface OrderRequest {
   customerPhoneNumber: string;
   restaurantName: string;
   restaurantAddress: string;
+  pickupTime?: string; // Adding pickup time
+  deliveryTime?: string; // Adding delivery time
 }
 
 const corsHeaders = {
@@ -103,6 +105,39 @@ serve(async (req) => {
     // Build receiver address
     const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
+    // Format pickup and delivery times for Shipday
+    let scheduledPickupDate = null;
+    let scheduledDeliveryDate = null;
+    
+    if (order.scheduled_pickup_date) {
+      scheduledPickupDate = new Date(order.scheduled_pickup_date);
+    }
+    
+    if (order.scheduled_delivery_date) {
+      scheduledDeliveryDate = new Date(order.scheduled_delivery_date);
+    }
+    
+    // Format dates for Shipday (YYYY-MM-DD HH:MM:SS)
+    const formatDateForShipday = (date: Date | null) => {
+      if (!date) return undefined;
+      
+      // Format date to YYYY-MM-DD HH:MM:SS
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+    
+    const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
+    const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
+    
+    console.log("Formatted pickup time:", pickupTimeFormatted);
+    console.log("Formatted delivery time:", deliveryTimeFormatted);
+
     // Create the pickup order with only required fields
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
@@ -111,7 +146,8 @@ serve(async (req) => {
       customerEmail: sender.email || undefined,
       customerAddress: senderAddress,
       restaurantName: "Cycle Courier Co.",
-      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+      pickupTime: pickupTimeFormatted, // Adding scheduled pickup time
     };
 
     // Create the delivery order with only required fields
@@ -122,7 +158,8 @@ serve(async (req) => {
       customerEmail: receiver.email || undefined,
       customerAddress: receiverAddress,
       restaurantName: "Cycle Courier Co.",
-      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+      deliveryTime: deliveryTimeFormatted, // Adding scheduled delivery time
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
