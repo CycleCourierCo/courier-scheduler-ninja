@@ -100,7 +100,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`
       },
       body: JSON.stringify({
-        from: 'Bicycle Courier <courier@resend.dev>',
+        from: 'Ccc@notification.cyclecourierco.com',
         to: payload.to,
         subject: emailSubject,
         html: emailContent,
