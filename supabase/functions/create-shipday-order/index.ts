@@ -136,14 +136,26 @@ serve(async (req) => {
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
     
+    // Format with specific time (9AM) for pickup time
+    const formatDate9AM = (date: Date | null) => {
+      if (!date) return undefined;
+      
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      // Always set time to 9:00:00 AM
+      return `${year}-${month}-${day} 09:00:00`;
+    };
+    
     // Format the delivery date for Shipday
     const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
-    const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
+    const pickupTimeFormatted = formatDate9AM(scheduledPickupDate);
     
     console.log("Formatted delivery time:", deliveryTimeFormatted);
-    console.log("Formatted pickup time:", pickupTimeFormatted);
+    console.log("Formatted pickup time (9AM):", pickupTimeFormatted);
 
-    // Create the pickup order using DELIVERY DATE as PICKUP TIME for the pickup order
+    // Create the pickup order using PICKUP DATE as expectedPickupDate with time set to 9AM
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
       customerName: sender.name,
@@ -153,8 +165,9 @@ serve(async (req) => {
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "PICKUP",
-      pickupTime: deliveryTimeFormatted, // Using DELIVERY date (not pickup date) for PICKUP order
-      expectedPickupDate: deliveryTimeFormatted // Using DELIVERY date for better visibility in Shipday
+      pickupTime: pickupTimeFormatted, // Set to pickup date at 9AM
+      expectedPickupDate: pickupTimeFormatted, // Set to pickup date at 9AM
+      expectedDeliveryDate: pickupTimeFormatted // Per request, set expected delivery date to pickup date
     };
 
     // Create the delivery order with delivery time
