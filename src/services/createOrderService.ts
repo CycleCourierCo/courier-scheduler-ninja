@@ -7,13 +7,14 @@ import { mapDbOrderToOrderType } from "./utils/orderMappers";
  * Creates a new order in the database
  */
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
-  // Get current user ID from Supabase auth session
-  const { data: session } = await supabase.auth.getSession();
-  if (!session?.session?.user?.id) {
+  // Get current user ID from Supabase auth - improved error handling
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData.user) {
     throw new Error("User not authenticated");
   }
 
-  const userId = session.session.user.id;
+  const userId = userData.user.id;
 
   // Create the order in the database - include all fields from the form data
   const { data: order, error } = await supabase
