@@ -23,7 +23,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
-      status: "created",
+      status: "created" as OrderStatus,
       bike_brand: data.bikeBrand,
       bike_model: data.bikeModel,
       customer_order_number: data.customerOrderNumber,
