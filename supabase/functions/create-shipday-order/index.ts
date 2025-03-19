@@ -121,7 +121,7 @@ serve(async (req) => {
       scheduledDeliveryDate = new Date(order.scheduled_delivery_date);
     }
     
-    // Format dates for Shipday (YYYY-MM-DD HH:MM:SS)
+    // Format dates for Shipday (YYYY-MM-DD HH:MM:SS) for time fields
     const formatDateForShipday = (date: Date | null) => {
       if (!date) return undefined;
       
@@ -148,12 +148,30 @@ serve(async (req) => {
       return `${year}-${month}-${day} 09:00:00`;
     };
     
+    // Format dates for Shipday (YYYY-MM-DD) for expectedDeliveryDate and expectedPickupDate
+    const formatDateOnly = (date: Date | null) => {
+      if (!date) return undefined;
+      
+      // Format date to YYYY-MM-DD (without time)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    };
+    
     // Format the delivery date for Shipday
     const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
     const pickupTimeFormatted = formatDate9AM(scheduledPickupDate);
     
+    // Format expected dates (date only without time) for Shipday API requirements
+    const expectedDeliveryDateFormatted = formatDateOnly(scheduledDeliveryDate);
+    const expectedPickupDateFormatted = formatDateOnly(scheduledPickupDate);
+    
     console.log("Formatted delivery time:", deliveryTimeFormatted);
     console.log("Formatted pickup time (9AM):", pickupTimeFormatted);
+    console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
+    console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
 
     // Create the pickup order using PICKUP DATE as expectedPickupDate with time set to 9AM
     const pickupOrderData: OrderRequest = {
@@ -166,8 +184,8 @@ serve(async (req) => {
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "PICKUP",
       pickupTime: pickupTimeFormatted, // Set to pickup date at 9AM
-      expectedPickupDate: pickupTimeFormatted, // Set to pickup date at 9AM
-      expectedDeliveryDate: pickupTimeFormatted // Per request, set expected delivery date to pickup date
+      expectedPickupDate: expectedPickupDateFormatted, // Date only format
+      expectedDeliveryDate: expectedPickupDateFormatted // Per request, set expected delivery date to pickup date
     };
 
     // Create the delivery order with delivery time
@@ -181,7 +199,7 @@ serve(async (req) => {
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
       deliveryTime: deliveryTimeFormatted, // Set delivery time
-      expectedDeliveryDate: deliveryTimeFormatted // Additional field to ensure visibility in Shipday
+      expectedDeliveryDate: expectedDeliveryDateFormatted // Date only format for Shipday
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
