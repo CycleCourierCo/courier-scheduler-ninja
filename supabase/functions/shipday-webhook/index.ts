@@ -250,7 +250,11 @@ serve(async (req) => {
       );
     }
     
-    console.log("Initializing Supabase client");
+    console.log("Initializing Supabase client with:", { 
+      supabaseUrl: supabaseUrl.substring(0, 15) + "...", 
+      keyLength: supabaseKey.length 
+    });
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Look up the full order ID if we only have a partial

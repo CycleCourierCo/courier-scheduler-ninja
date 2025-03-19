@@ -45,7 +45,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
-  // Create the order in the database - using correct format for insert() method
+  // Create the order in the database - fixing the insert syntax
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
