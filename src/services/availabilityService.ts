@@ -29,6 +29,29 @@ export const updateSenderAvailability = async (
     throw new Error(error.message);
   }
 
+  // Send email to receiver after sender confirms availability
+  try {
+    const baseUrl = window.location.origin;
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: data.receiver.email,
+        name: data.receiver.name || "Recipient",
+        orderId: id,
+        baseUrl,
+        emailType: "receiver" 
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending email to receiver:", response.error);
+    } else {
+      console.log("Email sent successfully to receiver:", data.receiver.email);
+    }
+  } catch (emailError) {
+    console.error("Failed to send email to receiver:", emailError);
+    // Don't throw here - we don't want to fail the order update if email fails
+  }
+
   return mapDbOrderToOrderType(data);
 };
 

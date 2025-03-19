@@ -12,4 +12,7 @@ export {
   updateSenderAvailability, 
   updateReceiverAvailability 
 } from "./availabilityService";
-export { resendSenderAvailabilityEmail } from "./emailService";
+export { 
+  resendSenderAvailabilityEmail,
+  sendReceiverAvailabilityEmail
+} from "./emailService";
