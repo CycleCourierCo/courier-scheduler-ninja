@@ -18,12 +18,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   // Create the order in the database - only include fields that exist in the database schema
   const { data: order, error } = await supabase
     .from("orders")
-    .insert([{
+    .insert({
       user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
       status: "created"
-    }])
+    })
     .select()
     .single();
 

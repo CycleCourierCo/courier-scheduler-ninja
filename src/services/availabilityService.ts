@@ -31,11 +31,17 @@ export const updateSenderAvailability = async (
 
   // Send email to receiver after sender confirms availability
   try {
+    const order = mapDbOrderToOrderType(data);
+    if (!order.receiver || !order.receiver.email) {
+      console.error("Receiver information not found or incomplete");
+      return order;
+    }
+
     const baseUrl = window.location.origin;
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: data.receiver.email,
-        name: data.receiver.name || "Recipient",
+        to: order.receiver.email,
+        name: order.receiver.name || "Recipient",
         orderId: id,
         baseUrl,
         emailType: "receiver" 
@@ -45,7 +51,7 @@ export const updateSenderAvailability = async (
     if (response.error) {
       console.error("Error sending email to receiver:", response.error);
     } else {
-      console.log("Email sent successfully to receiver:", data.receiver.email);
+      console.log("Email sent successfully to receiver:", order.receiver.email);
     }
   } catch (emailError) {
     console.error("Failed to send email to receiver:", emailError);
