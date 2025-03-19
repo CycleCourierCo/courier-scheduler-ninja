@@ -11,8 +11,8 @@ interface OrderRequest {
   customerPhoneNumber: string;
   restaurantName: string;
   restaurantAddress: string;
-  pickupTime?: string; // Adding pickup time
-  deliveryTime?: string; // Adding delivery time
+  pickupTime?: string; 
+  deliveryTime?: string;
 }
 
 const corsHeaders = {
@@ -132,13 +132,11 @@ serve(async (req) => {
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
     
-    const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
+    // Only format the delivery time
     const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
-    
-    console.log("Formatted pickup time:", pickupTimeFormatted);
     console.log("Formatted delivery time:", deliveryTimeFormatted);
 
-    // Create the pickup order with only required fields
+    // Create the pickup order without time fields
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
       customerName: sender.name,
@@ -146,11 +144,11 @@ serve(async (req) => {
       customerEmail: sender.email || undefined,
       customerAddress: senderAddress,
       restaurantName: "Cycle Courier Co.",
-      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-      pickupTime: pickupTimeFormatted, // Adding scheduled pickup time
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
+      // No pickup time specified
     };
 
-    // Create the delivery order with only required fields
+    // Create the delivery order with only delivery time
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-DELIVERY`,
       customerName: receiver.name,
@@ -159,7 +157,7 @@ serve(async (req) => {
       customerAddress: receiverAddress,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-      deliveryTime: deliveryTimeFormatted, // Adding scheduled delivery time
+      deliveryTime: deliveryTimeFormatted // Only add delivery time
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
