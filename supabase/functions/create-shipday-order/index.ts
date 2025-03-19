@@ -11,6 +11,15 @@ interface OrderRequest {
   customerPhoneNumber: string;
   restaurantName: string;
   restaurantAddress: string;
+  orderItems?: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  expectedDeliveryDate?: string;
+  expectedPickupTime?: string;
+  deliveryInstruction?: string;
+  additionalId?: string;
 }
 
 const corsHeaders = {
@@ -103,7 +112,38 @@ serve(async (req) => {
     // Build receiver address
     const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
-    // Create the pickup order with only required fields
+    // Format dates
+    const pickupDateStr = order.scheduled_pickup_date 
+      ? new Date(order.scheduled_pickup_date).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    
+    const deliveryDateStr = order.scheduled_delivery_date
+      ? new Date(order.scheduled_delivery_date).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    // Create item for bike
+    const bikeItem = {
+      name: `${order.bike_brand || 'Bike'} ${order.bike_model || ''}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+
+    // Create additional details for special instructions
+    let specialInstructions = order.delivery_instructions || '';
+    
+    // Add information about bike swap and payment to instructions
+    if (order.is_bike_swap) {
+      specialInstructions += '\nTHIS IS A BIKE SWAP';
+    }
+    
+    if (order.needs_payment_on_collection) {
+      specialInstructions += '\nPAYMENT REQUIRED ON COLLECTION';
+    }
+    
+    // Add customer order number if available
+    const additionalId = order.customer_order_number || undefined;
+
+    // Create the pickup order with additional fields
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
       customerName: sender.name,
@@ -111,10 +151,15 @@ serve(async (req) => {
       customerEmail: sender.email || undefined,
       customerAddress: senderAddress,
       restaurantName: "Cycle Courier Co.",
-      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+      orderItems: [bikeItem],
+      expectedPickupTime: "09:00:00",
+      expectedDeliveryDate: pickupDateStr,
+      deliveryInstruction: specialInstructions,
+      additionalId
     };
 
-    // Create the delivery order with only required fields
+    // Create the delivery order with additional fields
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-DELIVERY`,
       customerName: receiver.name,
@@ -122,7 +167,12 @@ serve(async (req) => {
       customerEmail: receiver.email || undefined,
       customerAddress: receiverAddress,
       restaurantName: "Cycle Courier Co.",
-      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+      orderItems: [bikeItem],
+      expectedPickupTime: "09:00:00",
+      expectedDeliveryDate: deliveryDateStr,
+      deliveryInstruction: specialInstructions,
+      additionalId
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
