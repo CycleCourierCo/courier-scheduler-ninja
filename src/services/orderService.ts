@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 
@@ -48,7 +47,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   // Create the order in the database - fixing the insert structure to match expected parameters
   const { data: order, error } = await supabase
     .from("orders")
-    .insert([{
+    .insert({
       user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
@@ -59,7 +58,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       is_bike_swap: data.isBikeSwap,
       delivery_instructions: data.deliveryInstructions,
       status: "created"
-    }])
+    })
     .select()
     .single();
 
