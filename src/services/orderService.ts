@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order, CreateOrderFormData, OrderStatus, ContactInfo, Address } from "@/types/order";
 
@@ -44,7 +45,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
-  // Create the order in the database
+  // Create the order in the database - using correct format for insert() method
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
