@@ -31,6 +31,23 @@
   border-color: #DFDFD8;
 }
 
+/* Dark mode adjustments */
+.dark .bg-white {
+  background-color: hsl(var(--background));
+}
+
+.dark .border-gray-200 {
+  border-color: hsl(var(--border));
+}
+
+.dark .text-gray-600 {
+  color: hsl(var(--foreground));
+}
+
+.dark .text-gray-800 {
+  color: hsl(var(--foreground));
+}
+
 /* Keeping other utility styles */
 .logo {
   height: 6em;
