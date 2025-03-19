@@ -16,7 +16,7 @@ export const updateSenderAvailability = async (
     .from("orders")
     .update({
       pickup_date: formattedDates,
-      status: "receiver_availability_pending" as OrderStatus,
+      status: "sender_availability_confirmed" as OrderStatus, // Changed from receiver_availability_pending
       updated_at: new Date().toISOString(),
       sender_confirmed_at: new Date().toISOString()
     })
