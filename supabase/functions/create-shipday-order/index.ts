@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -12,8 +11,7 @@ interface OrderRequest {
   restaurantName: string;
   restaurantAddress: string;
   pickupTime?: string; 
-  expectedDeliveryTime?: string; // Changed from deliveryTime to expectedDeliveryTime
-  // Adding additional fields for better Shipday integration
+  expectedDeliveryTime?: string;
   orderType?: string;
   expectedDeliveryDate?: string;
   expectedPickupDate?: string;
@@ -64,22 +62,6 @@ serve(async (req) => {
     if (order.tracking_number) {
       console.log(`Order ${orderId} already has tracking number: ${order.tracking_number}`);
       
-      // Update order status to shipped if not already
-      if (order.status !== "shipped") {
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({
-            status: "shipped",
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", orderId);
-          
-        if (updateError) {
-          console.error("Error updating order status:", updateError);
-        }
-      }
-      
-      // Return success with existing tracking number
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -282,12 +264,11 @@ serve(async (req) => {
 
       console.log("Successfully created orders in Shipday with tracking numbers:", combinedTrackingNumber);
 
-      // Update the order with the tracking numbers and change status to shipped
+      // Update the order with the tracking numbers but keep the current status
       const { error: updateError } = await supabase
         .from("orders")
         .update({
           tracking_number: combinedTrackingNumber,
-          status: "shipped",
           updated_at: new Date().toISOString()
         })
         .eq("id", orderId);
