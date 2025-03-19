@@ -162,6 +162,7 @@ serve(async (req) => {
     
     // Format the delivery and pickup times for Shipday
     const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
+    const pickupTimeOnlyFormatted = formatTimeOnly(scheduledPickupDate); // Add time-only format for pickup
     const deliveryTimeFormatted = formatTimeOnly(scheduledDeliveryDate); // Changed to use time-only format
     
     // Format expected dates (date only without time) for Shipday API requirements
@@ -169,6 +170,7 @@ serve(async (req) => {
     const expectedPickupDateFormatted = formatDateOnly(scheduledPickupDate);
     
     console.log("Formatted pickup time:", pickupTimeFormatted);
+    console.log("Formatted pickup time (HH:MM:SS):", pickupTimeOnlyFormatted);
     console.log("Formatted delivery time (HH:MM:SS):", deliveryTimeFormatted);
     console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
     console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
@@ -184,6 +186,7 @@ serve(async (req) => {
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "PICKUP",
       pickupTime: pickupTimeFormatted, // Use exact time from user input
+      expectedDeliveryTime: pickupTimeOnlyFormatted, // Added expectedDeliveryTime for pickup order
       expectedPickupDate: expectedPickupDateFormatted, // Date only format
       expectedDeliveryDate: expectedPickupDateFormatted // Set expected delivery date to pickup date
     };
