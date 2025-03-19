@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -6,16 +7,16 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import Layout from "@/components/Layout";
 import ContactForm from "@/components/ContactForm";
 import AddressForm from "@/components/AddressForm";
 import { createOrder } from "@/services/orderService";
 import { CreateOrderFormData } from "@/types/order";
+import OrderDetails from "@/components/create-order/OrderDetails";
+import OrderOptions from "@/components/create-order/OrderOptions";
+import DeliveryInstructions from "@/components/create-order/DeliveryInstructions";
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -209,128 +210,9 @@ const CreateOrder = () => {
                   </TabsList>
 
                   <TabsContent value="details" className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Bike Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="bikeBrand"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bike Brand *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g. Trek, Specialized" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="bikeModel"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bike Model *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g. Domane SL5, Stumpjumper" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="mt-4">
-                        <FormField
-                          control={form.control}
-                          name="customerOrderNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Customer Order Number (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Order reference number if applicable" {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                If you have an existing order number or reference, enter it here.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Order Options</h3>
-                      <div className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="needsPaymentOnCollection"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Payment Required on Collection
-                                </FormLabel>
-                                <FormDescription>
-                                  Toggle if payment needs to be collected when the bike is picked up.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="isBikeSwap"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Bike Swap
-                                </FormLabel>
-                                <FormDescription>
-                                  Toggle if this order is a bike swap (exchanging one bike for another).
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Delivery Instructions</h3>
-                      <FormField
-                        control={form.control}
-                        name="deliveryInstructions"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Special Instructions</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Please provide any special instructions for pickup or delivery"
-                                className="min-h-[100px]"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                    <OrderDetails control={form.control} />
+                    <OrderOptions control={form.control} />
+                    <DeliveryInstructions control={form.control} />
 
                     <div className="flex justify-end">
                       <Button 
