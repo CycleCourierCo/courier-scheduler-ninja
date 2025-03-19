@@ -46,9 +46,10 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   const userId = session.session.user.id;
 
   // Create the order in the database with correct column names that match the database schema
+  // Note: Providing the data as an array with a single object to fix the TypeScript error
   const { data: order, error } = await supabase
     .from("orders")
-    .insert({
+    .insert([{
       user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
@@ -59,7 +60,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       is_bike_swap: data.isBikeSwap,
       delivery_instructions: data.deliveryInstructions,
       status: "created" as OrderStatus
-    })
+    }])
     .select()
     .single();
 
