@@ -10,7 +10,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { OrderStatus } from "@/types/order";
 
 const statusOptions = [
   { value: "all", label: "All Statuses" },
@@ -38,16 +37,24 @@ interface OrderFiltersProps {
     search: string;
     sortBy: string;
   }) => void;
+  initialFilters?: {
+    status: string;
+    search: string;
+    sortBy: string;
+  };
 }
 
-const OrderFilters: React.FC<OrderFiltersProps> = ({ onFilterChange }) => {
-  const [status, setStatus] = useState<string>("all");
-  const [search, setSearch] = useState<string>("");
-  const [sortBy, setSortBy] = useState<string>("created_desc");
+const OrderFilters: React.FC<OrderFiltersProps> = ({ 
+  onFilterChange, 
+  initialFilters = { status: "all", search: "", sortBy: "created_desc" }
+}) => {
+  const [status, setStatus] = useState<string>(initialFilters.status);
+  const [search, setSearch] = useState<string>(initialFilters.search);
+  const [sortBy, setSortBy] = useState<string>(initialFilters.sortBy);
 
   const handleStatusChange = (value: string) => {
     setStatus(value);
-    onFilterChange({ status, search, sortBy: value });
+    onFilterChange({ status: value, search, sortBy });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,10 +68,11 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({ onFilterChange }) => {
   };
 
   const handleClearFilters = () => {
-    setStatus("all");
-    setSearch("");
-    setSortBy("created_desc");
-    onFilterChange({ status: "all", search: "", sortBy: "created_desc" });
+    const defaultFilters = { status: "all", search: "", sortBy: "created_desc" };
+    setStatus(defaultFilters.status);
+    setSearch(defaultFilters.search);
+    setSortBy(defaultFilters.sortBy);
+    onFilterChange(defaultFilters);
   };
 
   return (
