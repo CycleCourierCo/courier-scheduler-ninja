@@ -44,10 +44,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     throw new Error("User not authenticated");
   }
 
+  const userId = session.session.user.id;
+
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      user_id: session.session.user.id,
+      user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
       bike_brand: data.bikeBrand,
