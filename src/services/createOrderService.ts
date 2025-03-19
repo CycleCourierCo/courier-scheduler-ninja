@@ -15,12 +15,10 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
-  // Create the order in the database
+  // Create the order in the database - ensuring field names match DB column names
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      sender: data.sender,
-      receiver: data.receiver,
       bike_brand: data.bikeBrand,
       bike_model: data.bikeModel,
       customer_order_number: data.customerOrderNumber,
@@ -28,7 +26,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       is_bike_swap: data.isBikeSwap,
       delivery_instructions: data.deliveryInstructions,
       status: "created",
-      user_id: userId
+      user_id: userId,
+      sender: data.sender,
+      receiver: data.receiver
     })
     .select()
     .single();
