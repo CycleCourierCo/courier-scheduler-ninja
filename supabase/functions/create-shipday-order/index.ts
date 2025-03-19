@@ -132,11 +132,11 @@ serve(async (req) => {
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
     
-    // Only format the delivery time
+    // Format delivery date for both orders
     const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
     console.log("Formatted delivery time:", deliveryTimeFormatted);
 
-    // Create the pickup order without time fields
+    // Create the pickup order WITH delivery time as pickup time (as specified by user)
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
       customerName: sender.name,
@@ -144,11 +144,11 @@ serve(async (req) => {
       customerEmail: sender.email || undefined,
       customerAddress: senderAddress,
       restaurantName: "Cycle Courier Co.",
-      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom"
-      // No pickup time specified
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+      pickupTime: deliveryTimeFormatted  // Using delivery date as pickup time for the pickup order
     };
 
-    // Create the delivery order with only delivery time
+    // Create the delivery order with delivery time
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-DELIVERY`,
       customerName: receiver.name,
@@ -157,7 +157,7 @@ serve(async (req) => {
       customerAddress: receiverAddress,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-      deliveryTime: deliveryTimeFormatted // Only add delivery time
+      deliveryTime: deliveryTimeFormatted // Set delivery time
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
