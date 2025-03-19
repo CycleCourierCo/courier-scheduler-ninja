@@ -64,17 +64,21 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				courier: {
-					50: '#f0f7ff',
-					100: '#e0f0fe',
-					200: '#bae2fd',
-					300: '#7ccafb',
-					400: '#36adf6',
-					500: '#0c91e6',
-					600: '#0073c4', // Matches cyclecourierco.com blue
-					700: '#015b9e',
-					800: '#064e83',
-					900: '#0b426d',
-					950: '#072a49',
+					50: '#f0f9f6',
+					100: '#dfeee9',
+					200: '#bfd8d1',
+					300: '#9cbcb4',
+					400: '#7a9f96',
+					500: '#4C6762', // Primary color
+					600: '#425a55',
+					700: '#3a4c48',
+					800: '#32403d',
+					900: '#2b3734',
+					950: '#172120',
+				},
+				accent: {
+					DEFAULT: '#DFDFD8', // Secondary color
+					foreground: '#4C6762',
 				}
 			},
 			borderRadius: {

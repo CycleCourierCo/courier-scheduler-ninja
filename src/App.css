@@ -8,15 +8,27 @@
 
 /* Applying our brand colors */
 .text-brand-primary {
-  color: #0073c4;
+  color: #4C6762;
 }
 
 .bg-brand-primary {
-  background-color: #0073c4;
+  background-color: #4C6762;
 }
 
 .border-brand-primary {
-  border-color: #0073c4;
+  border-color: #4C6762;
+}
+
+.text-brand-secondary {
+  color: #DFDFD8;
+}
+
+.bg-brand-secondary {
+  background-color: #DFDFD8;
+}
+
+.border-brand-secondary {
+  border-color: #DFDFD8;
 }
 
 /* Keeping other utility styles */

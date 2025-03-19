@@ -4,24 +4,19 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Layout from "@/components/Layout";
-import { Truck, Package, CalendarCheck, ChevronRight, LogIn } from "lucide-react";
+import { Package, CalendarCheck, ChevronRight, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   {
     title: "Easy Order Creation",
     description: "Create shipping orders in minutes with our intuitive form.",
-    icon: <Package className="h-12 w-12 text-courier-600" />,
+    icon: <Package className="h-12 w-12 text-courier-500" />,
   },
   {
     title: "Smart Scheduling",
     description: "Automatically coordinate pickup and delivery times between sender and receiver.",
-    icon: <CalendarCheck className="h-12 w-12 text-courier-600" />,
-  },
-  {
-    title: "Efficient Delivery",
-    description: "Seamlessly create shipping orders with our powerful delivery network.",
-    icon: <Truck className="h-12 w-12 text-courier-600" />,
+    icon: <CalendarCheck className="h-12 w-12 text-courier-500" />,
   },
 ];
 
@@ -34,26 +29,23 @@ const Index = () => {
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-4 text-center">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-courier-800">
-                Cycle Courier Management
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-courier-500">
+                Book your Bike Delivery now!
               </h1>
-              <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl">
-                Streamline your courier operations with our powerful job management platform.
-              </p>
             </div>
             <div className="space-x-4">
               {user ? (
                 <>
                   <Link to="/create-order">
-                    <Button className="bg-courier-600 hover:bg-courier-700">Create Order</Button>
+                    <Button className="bg-courier-500 hover:bg-courier-600">Create Order</Button>
                   </Link>
                   <Link to="/dashboard">
-                    <Button variant="outline">View Dashboard</Button>
+                    <Button variant="outline" className="border-courier-500 text-courier-500">View Dashboard</Button>
                   </Link>
                 </>
               ) : (
                 <Link to="/auth">
-                  <Button className="bg-courier-600 hover:bg-courier-700">
+                  <Button className="bg-courier-500 hover:bg-courier-600">
                     <LogIn className="mr-2 h-4 w-4" />
                     Sign In / Sign Up
                   </Button>
@@ -64,45 +56,13 @@ const Index = () => {
         </div>
       </section>
 
-      <section className="py-12 bg-gray-50">
-        <div className="container px-4 md:px-6">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-courier-800">How It Works</h2>
-            <p className="mt-4 text-lg text-gray-600">Our simple three-step process</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="rounded-full bg-courier-100 p-4 mb-4">
-                <span className="text-2xl font-bold text-courier-600">1</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Create an Order</h3>
-              <p className="text-gray-600">Enter sender and receiver information to create a new shipping order.</p>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="rounded-full bg-courier-100 p-4 mb-4">
-                <span className="text-2xl font-bold text-courier-600">2</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Schedule Pickup & Delivery</h3>
-              <p className="text-gray-600">Automatically coordinate available dates between sender and receiver.</p>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="rounded-full bg-courier-100 p-4 mb-4">
-                <span className="text-2xl font-bold text-courier-600">3</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Ship with Confidence</h3>
-              <p className="text-gray-600">Track shipments in real-time and ensure on-time delivery.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="py-12">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-courier-800">Key Features</h2>
+            <h2 className="text-3xl font-bold text-courier-500">Key Features</h2>
             <p className="mt-4 text-lg text-gray-600">Everything you need to manage courier orders</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {features.map((feature, index) => (
               <Card key={index} className="border-gray-200">
                 <CardContent className="p-6 flex flex-col items-center text-center">
@@ -112,34 +72,6 @@ const Index = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-12 bg-courier-600 text-white">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center">
-            <div className="space-y-2">
-              <h2 className="text-3xl font-bold">Ready to get started?</h2>
-              <p className="mx-auto max-w-[600px] text-courier-100">
-                Start managing your courier orders more efficiently today.
-              </p>
-            </div>
-            {user ? (
-              <Link to="/create-order">
-                <Button className="bg-white text-courier-800 hover:bg-gray-100">
-                  Create Your First Order
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            ) : (
-              <Link to="/auth">
-                <Button className="bg-white text-courier-800 hover:bg-gray-100">
-                  Sign Up Now
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            )}
           </div>
         </div>
       </section>
