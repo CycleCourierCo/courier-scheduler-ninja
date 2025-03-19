@@ -15,14 +15,20 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   const userId = session.session.user.id;
 
-  // Create the order in the database - only include fields that exist in the database schema
+  // Create the order in the database - include all fields from the form data
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
       user_id: userId,
       sender: data.sender,
       receiver: data.receiver,
-      status: "created"
+      status: "created",
+      bike_brand: data.bikeBrand,
+      bike_model: data.bikeModel,
+      customer_order_number: data.customerOrderNumber,
+      needs_payment_on_collection: data.needsPaymentOnCollection,
+      is_bike_swap: data.isBikeSwap,
+      delivery_instructions: data.deliveryInstructions
     })
     .select()
     .single();
