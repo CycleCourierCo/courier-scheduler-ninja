@@ -12,20 +12,6 @@ import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
 
-// Define the interface for the tracking events
-interface TrackingEvent {
-  timestamp: string;
-  shipdayEvent: string;
-  shipdayStatus: string;
-  legType: string;
-  details: {
-    carrier?: any;
-    eta?: string | null;
-    pickedUpTime?: string | null;
-    deliveryTime?: string | null;
-  };
-}
-
 const CustomerOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
@@ -97,28 +83,6 @@ const CustomerOrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  // Function to get human-readable event titles
-  const getEventTitle = (shipdayEvent: string, legType: string): string => {
-    switch (shipdayEvent) {
-      case "ORDER_ASSIGNED":
-        return `Courier Assigned (${legType})`;
-      case "ORDER_ACCEPTED_AND_STARTED":
-        return `Courier Started Journey (${legType})`;
-      case "ORDER_PIKEDUP":
-        return legType === "pickup" ? "Bike Collected from Sender" : "Bike Picked Up for Delivery";
-      case "ORDER_ONTHEWAY":
-        return `On the Way (${legType})`;
-      case "ORDER_COMPLETED":
-        return legType === "delivery" ? "Delivered to Recipient" : "Pickup Completed";
-      case "ORDER_FAILED":
-        return `Delivery Failed (${legType})`;
-      case "ORDER_INCOMPLETE":
-        return `Delivery Incomplete (${legType})`;
-      default:
-        return `${shipdayEvent.replace(/_/g, " ")} (${legType})`;
-    }
-  };
-
   // Helper to determine which status events to show in the tracking timeline
   const getTrackingEvents = () => {
     const events = [];
@@ -161,46 +125,27 @@ const CustomerOrderDetail = () => {
       });
     }
     
-    // Add Shipday tracking events if available
-    if (order.trackingEvents && Array.isArray(order.trackingEvents)) {
-      // Cast to the correct interface
-      const shipdayEvents = order.trackingEvents as TrackingEvent[];
-      
-      shipdayEvents.forEach(event => {
-        const title = getEventTitle(event.shipdayEvent, event.legType);
-        
-        events.push({
-          title: title,
-          date: new Date(event.timestamp),
-          icon: <Truck className="h-4 w-4 text-courier-600" />,
-          description: `Status: ${event.shipdayStatus.replace(/_/g, " ")}`,
-          // Add carrier info if available
-          carrier: event.details.carrier ? event.details.carrier.name : null
-        });
+    // Check if order is shipped
+    if (order.status === 'shipped') {
+      events.push({
+        title: "In Transit",
+        date: order.updatedAt,
+        icon: <Truck className="h-4 w-4 text-courier-600" />,
+        description: "Your bike is on its way"
       });
-    } else {
-      // If no Shipday events but order is shipped or delivered, add basic events
-      if (order.status === 'shipped') {
-        events.push({
-          title: "In Transit",
-          date: order.updatedAt,
-          icon: <Truck className="h-4 w-4 text-courier-600" />,
-          description: "Your bike is on its way"
-        });
-      }
-      
-      if (order.status === 'delivered') {
-        events.push({
-          title: "Delivered",
-          date: order.updatedAt,
-          icon: <Check className="h-4 w-4 text-green-600" />,
-          description: "Your bike has been delivered"
-        });
-      }
     }
     
-    // Sort events by date (newest first)
-    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Check if order is delivered
+    if (order.status === 'delivered') {
+      events.push({
+        title: "Delivered",
+        date: order.updatedAt,
+        icon: <Check className="h-4 w-4 text-green-600" />,
+        description: "Your bike has been delivered"
+      });
+    }
+    
+    return events;
   };
 
   const trackingEvents = getTrackingEvents();
@@ -299,9 +244,6 @@ const CustomerOrderDetail = () => {
                             {format(new Date(event.date), "PPP 'at' p")}
                           </p>
                           <p className="text-sm">{event.description}</p>
-                          {event.carrier && (
-                            <p className="text-sm text-gray-600">Courier: {event.carrier}</p>
-                          )}
                         </div>
                       </div>
                     ))}
