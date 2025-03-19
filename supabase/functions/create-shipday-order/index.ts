@@ -13,6 +13,10 @@ interface OrderRequest {
   restaurantAddress: string;
   pickupTime?: string; 
   deliveryTime?: string;
+  // Adding additional fields for better Shipday integration
+  orderType?: string;
+  expectedDeliveryDate?: string;
+  expectedPickupDate?: string;
 }
 
 const corsHeaders = {
@@ -132,11 +136,14 @@ serve(async (req) => {
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
     
-    // Format delivery date for both orders
+    // Format the delivery date for Shipday
     const deliveryTimeFormatted = formatDateForShipday(scheduledDeliveryDate);
+    const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
+    
     console.log("Formatted delivery time:", deliveryTimeFormatted);
+    console.log("Formatted pickup time:", pickupTimeFormatted);
 
-    // Create the pickup order WITH delivery time as pickup time (as specified by user)
+    // Create the pickup order using DELIVERY DATE as PICKUP TIME for the pickup order
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
       customerName: sender.name,
@@ -145,7 +152,9 @@ serve(async (req) => {
       customerAddress: senderAddress,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-      pickupTime: deliveryTimeFormatted  // Using delivery date as pickup time for the pickup order
+      orderType: "PICKUP",
+      pickupTime: deliveryTimeFormatted, // Using DELIVERY date (not pickup date) for PICKUP order
+      expectedPickupDate: deliveryTimeFormatted // Using DELIVERY date for better visibility in Shipday
     };
 
     // Create the delivery order with delivery time
@@ -157,7 +166,9 @@ serve(async (req) => {
       customerAddress: receiverAddress,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-      deliveryTime: deliveryTimeFormatted // Set delivery time
+      orderType: "DELIVERY",
+      deliveryTime: deliveryTimeFormatted, // Set delivery time
+      expectedDeliveryDate: deliveryTimeFormatted // Additional field to ensure visibility in Shipday
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
