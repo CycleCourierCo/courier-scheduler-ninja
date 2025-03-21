@@ -54,6 +54,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
   const { user } = useAuth();
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
+  const [isResizing, setIsResizing] = useState(false);
   
   useEffect(() => {
     // Load user preferences when component mounts
@@ -154,15 +155,67 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     }
   };
 
-  // Handle resize event for a column
-  const handleResize = (columnId: string, newSize: number) => {
-    const newWidths = { ...columnWidths, [columnId]: newSize };
-    setColumnWidths(newWidths);
-    saveColumnWidths(newWidths);
-  };
+  useEffect(() => {
+    // Add a handler to cancel resize if mouse is released outside of table
+    if (isResizing) {
+      const handleMouseUp = () => {
+        setIsResizing(false);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = '';
+      };
+      
+      window.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing]);
 
-  // Check if column should be visible
-  const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+  // Start resizing a column
+  const startResize = (e: React.MouseEvent, columnId: string) => {
+    e.preventDefault();
+    
+    // Prevent text selection during resize
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    
+    const startX = e.clientX;
+    const startWidth = columnWidths[columnId];
+    const tableWidth = e.currentTarget.closest('table')?.offsetWidth || 1000;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizing) setIsResizing(true);
+      
+      const deltaX = moveEvent.clientX - startX;
+      const percentageDelta = (deltaX / tableWidth) * 100;
+      const newWidth = Math.max(5, startWidth + percentageDelta);
+      
+      // Update width of current column
+      setColumnWidths(prev => ({
+        ...prev,
+        [columnId]: newWidth
+      }));
+    };
+    
+    const handleMouseUp = () => {
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      
+      // Save the new widths when resize is complete
+      saveColumnWidths({
+        ...columnWidths,
+        [columnId]: columnWidths[columnId]
+      });
+      
+      setIsResizing(false);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-background">
@@ -180,43 +233,14 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
               {visibleColumns.map((columnId) => (
                 <TableHead 
                   key={columnId}
-                  className="relative select-none"
+                  className="relative"
                   style={{ width: `${columnWidths[columnId]}%` }}
                 >
-                  <div className="flex items-center justify-between p-2">
+                  <div className="flex items-center pr-6">
                     {ALL_COLUMNS.find(col => col.id === columnId)?.label}
                     <div 
-                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        
-                        const startX = e.clientX;
-                        const startWidth = columnWidths[columnId];
-                        const tableWidth = e.currentTarget.closest('table')?.offsetWidth || 0;
-                        
-                        const onMouseMove = (moveEvent: MouseEvent) => {
-                          const deltaX = moveEvent.clientX - startX;
-                          const percentageDelta = (deltaX / tableWidth) * 100;
-                          const newWidth = Math.max(5, startWidth + percentageDelta);
-                          
-                          setColumnWidths(prev => ({
-                            ...prev,
-                            [columnId]: newWidth
-                          }));
-                        };
-                        
-                        const onMouseUp = () => {
-                          document.removeEventListener('mousemove', onMouseMove);
-                          document.removeEventListener('mouseup', onMouseUp);
-                          saveColumnWidths({
-                            ...columnWidths,
-                            [columnId]: columnWidths[columnId]
-                          });
-                        };
-                        
-                        document.addEventListener('mousemove', onMouseMove);
-                        document.addEventListener('mouseup', onMouseUp);
-                      }}
+                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700"
+                      onMouseDown={(e) => startResize(e, columnId)}
                     >
                       <GripVertical className="h-4 w-4 text-gray-400" />
                     </div>
@@ -231,7 +255,6 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                 {visibleColumns.map((columnId) => (
                   <TableCell 
                     key={`${order.id}-${columnId}`}
-                    className="overflow-hidden text-ellipsis whitespace-nowrap"
                     style={{ width: `${columnWidths[columnId]}%` }}
                   >
                     {columnId === "id" && (
