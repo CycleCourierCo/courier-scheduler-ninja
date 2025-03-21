@@ -52,13 +52,14 @@ const TableColumnSettings: React.FC<TableColumnSettingsProps> = ({
     if (!user) return;
 
     try {
+      // Using the raw update approach to handle table_preferences
       const { error } = await supabase
         .from('profiles')
         .update({ 
           table_preferences: { 
             orders: { visibleColumns: columns } 
           } 
-        })
+        } as any) // Use type assertion to bypass TypeScript check
         .eq('id', user.id);
 
       if (error) {

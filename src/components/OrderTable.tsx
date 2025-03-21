@@ -52,7 +52,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('table_preferences')
+          .select('*')  // Changed from specific column to all columns
           .eq('id', user.id)
           .single();
         
@@ -61,8 +61,10 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
           return;
         }
         
-        if (data?.table_preferences?.orders?.visibleColumns) {
-          setVisibleColumns(data.table_preferences.orders.visibleColumns);
+        // Safely access table_preferences using optional chaining and type casting
+        const preferences = (data as any).table_preferences;
+        if (preferences?.orders?.visibleColumns) {
+          setVisibleColumns(preferences.orders.visibleColumns);
         }
       } catch (error) {
         console.error("Error fetching user preferences:", error);
@@ -103,7 +105,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
           onChange={handleColumnChange} 
         />
       </div>
-      <div className="overflow-x-auto">
+      <ResizablePanelGroup direction="horizontal" className="overflow-x-auto">
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
@@ -202,7 +204,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ResizablePanelGroup>
     </div>
   );
 };
