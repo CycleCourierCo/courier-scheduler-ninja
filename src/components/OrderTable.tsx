@@ -17,7 +17,6 @@ import StatusBadge from "@/components/StatusBadge";
 import { Order } from "@/types/order";
 import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import TableColumnSettings from "@/components/TableColumnSettings";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -165,14 +164,6 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
   // Check if column should be visible
   const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
 
-  // Calculate the total width for visible columns
-  const getVisibleColumnsInfo = () => {
-    return visibleColumns.map((colId) => ({
-      id: colId,
-      width: columnWidths[colId] || DEFAULT_COLUMN_WIDTHS[colId as keyof typeof DEFAULT_COLUMN_WIDTHS]
-    }));
-  };
-
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-background">
       <div className="flex justify-end p-2 border-b">
@@ -186,99 +177,116 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
         <Table className="w-full">
           <TableHeader>
             <TableRow>
-              <ResizablePanelGroup direction="horizontal">
-                {getVisibleColumnsInfo().map((column) => (
-                  <React.Fragment key={column.id}>
-                    <ResizablePanel 
-                      defaultSize={column.width} 
-                      minSize={10}
-                      onResize={(size) => handleResize(column.id, size)}
+              {visibleColumns.map((columnId) => (
+                <TableHead 
+                  key={columnId}
+                  className="relative select-none"
+                  style={{ width: `${columnWidths[columnId]}%` }}
+                >
+                  <div className="flex items-center justify-between p-2">
+                    {ALL_COLUMNS.find(col => col.id === columnId)?.label}
+                    <div 
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-700"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        
+                        const startX = e.clientX;
+                        const startWidth = columnWidths[columnId];
+                        const tableWidth = e.currentTarget.closest('table')?.offsetWidth || 0;
+                        
+                        const onMouseMove = (moveEvent: MouseEvent) => {
+                          const deltaX = moveEvent.clientX - startX;
+                          const percentageDelta = (deltaX / tableWidth) * 100;
+                          const newWidth = Math.max(5, startWidth + percentageDelta);
+                          
+                          setColumnWidths(prev => ({
+                            ...prev,
+                            [columnId]: newWidth
+                          }));
+                        };
+                        
+                        const onMouseUp = () => {
+                          document.removeEventListener('mousemove', onMouseMove);
+                          document.removeEventListener('mouseup', onMouseUp);
+                          saveColumnWidths({
+                            ...columnWidths,
+                            [columnId]: columnWidths[columnId]
+                          });
+                        };
+                        
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                      }}
                     >
-                      <TableHead className="relative select-none overflow-hidden text-ellipsis whitespace-nowrap">
-                        <div className="flex items-center justify-between p-2">
-                          {ALL_COLUMNS.find(col => col.id === column.id)?.label}
-                          <GripVertical className="h-4 w-4 text-gray-400 cursor-col-resize" />
-                        </div>
-                      </TableHead>
-                    </ResizablePanel>
-                    {column.id !== visibleColumns[visibleColumns.length - 1] && (
-                      <ResizableHandle withHandle />
-                    )}
-                  </React.Fragment>
-                ))}
-              </ResizablePanelGroup>
+                      <GripVertical className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.map((order) => (
               <TableRow key={order.id} className="hover:bg-gray-50 dark:hover:bg-muted/40">
-                <ResizablePanelGroup direction="horizontal">
-                  {getVisibleColumnsInfo().map((column) => (
-                    <React.Fragment key={column.id}>
-                      <ResizablePanel 
-                        defaultSize={column.width} 
-                        minSize={10}
-                      >
-                        <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
-                          {column.id === "id" && (
-                            <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
-                              {order.id.substring(0, 8)}...
+                {visibleColumns.map((columnId) => (
+                  <TableCell 
+                    key={`${order.id}-${columnId}`}
+                    className="overflow-hidden text-ellipsis whitespace-nowrap"
+                    style={{ width: `${columnWidths[columnId]}%` }}
+                  >
+                    {columnId === "id" && (
+                      <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
+                        {order.id.substring(0, 8)}...
+                      </Link>
+                    )}
+                    {columnId === "status" && <StatusBadge status={order.status} />}
+                    {columnId === "sender" && order.sender.name}
+                    {columnId === "receiver" && order.receiver.name}
+                    {columnId === "bike" && (
+                      <>
+                        {order.bikeBrand && order.bikeModel ? (
+                          <div className="flex items-center">
+                            <Bike className="h-4 w-4 mr-1 text-gray-500" />
+                            <span>{order.bikeBrand} {order.bikeModel}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Not specified</span>
+                        )}
+                      </>
+                    )}
+                    {columnId === "created" && format(new Date(order.createdAt), "PP")}
+                    {columnId === "actions" && (
+                      <div className="flex items-center space-x-2">
+                        {userRole === "admin" && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/orders/${order.id}`}>
+                              <Eye className="h-4 w-4 mr-1" />
+                              Admin
                             </Link>
-                          )}
-                          {column.id === "status" && <StatusBadge status={order.status} />}
-                          {column.id === "sender" && order.sender.name}
-                          {column.id === "receiver" && order.receiver.name}
-                          {column.id === "bike" && (
-                            <>
-                              {order.bikeBrand && order.bikeModel ? (
-                                <div className="flex items-center">
-                                  <Bike className="h-4 w-4 mr-1 text-gray-500" />
-                                  <span>{order.bikeBrand} {order.bikeModel}</span>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">Not specified</span>
-                              )}
-                            </>
-                          )}
-                          {column.id === "created" && format(new Date(order.createdAt), "PP")}
-                          {column.id === "actions" && (
-                            <div className="flex items-center space-x-2">
-                              {userRole === "admin" && (
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link to={`/orders/${order.id}`}>
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    Admin
-                                  </Link>
-                                </Button>
-                              )}
-                              
-                              <Button variant="outline" size="sm" asChild>
-                                <Link to={`/customer-orders/${order.id}`}>
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Customer
-                                </Link>
-                              </Button>
-                              
-                              {order.status === "sender_availability_pending" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => handleResendEmail(order.id, e)}
-                                >
-                                  <RefreshCcw className="h-4 w-4 mr-1" />
-                                  Resend
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-                      </ResizablePanel>
-                      {column.id !== visibleColumns[visibleColumns.length - 1] && (
-                        <ResizableHandle />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </ResizablePanelGroup>
+                          </Button>
+                        )}
+                        
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/customer-orders/${order.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            Customer
+                          </Link>
+                        </Button>
+                        
+                        {order.status === "sender_availability_pending" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => handleResendEmail(order.id, e)}
+                          >
+                            <RefreshCcw className="h-4 w-4 mr-1" />
+                            Resend
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                ))}
               </TableRow>
             ))}
           </TableBody>
