@@ -52,7 +52,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')  // Changed from specific column to all columns
+          .select('*')
           .eq('id', user.id)
           .single();
         
@@ -61,8 +61,8 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
           return;
         }
         
-        // Safely access table_preferences using optional chaining and type casting
-        const preferences = (data as any).table_preferences;
+        // Using optional chaining and type assertion to safely access table_preferences
+        const preferences = data?.table_preferences as any;
         if (preferences?.orders?.visibleColumns) {
           setVisibleColumns(preferences.orders.visibleColumns);
         }
