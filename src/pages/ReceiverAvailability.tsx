@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { isBefore, addDays } from "date-fns";
 import Layout from '@/components/Layout';
 import { updateReceiverAvailability } from '@/services/orderService';
 import { useAvailability } from '@/hooks/useAvailability';
@@ -11,6 +10,8 @@ export default function ReceiverAvailability() {
   const {
     dates,
     setDates,
+    notes,
+    setNotes,
     isLoading,
     isSubmitting,
     order,
@@ -21,21 +22,7 @@ export default function ReceiverAvailability() {
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
-    getMinDate: (order) => {
-      // Calculate minimum date based on pickup date
-      if (order?.pickupDate) {
-        if (Array.isArray(order.pickupDate) && order.pickupDate.length > 0) {
-          // Find the earliest pickup date and add one day to it
-          const earliestDate = new Date(Math.min(...order.pickupDate.map(d => d.getTime())));
-          return addDays(earliestDate, 1); // Add one day to the earliest pickup date
-        } else if (!Array.isArray(order.pickupDate)) {
-          // Add one day to the pickup date
-          return addDays(order.pickupDate, 1);
-        }
-      }
-      // Default to 2 days from now if no pickup date is set
-      return addDays(new Date(), 2);
-    },
+    getMinDate: () => new Date(), // Allow from current date
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
       return order.status === 'receiver_availability_confirmed' || 
@@ -69,12 +56,14 @@ export default function ReceiverAvailability() {
     <Layout>
       <AvailabilityForm
         title="Confirm Your Availability"
-        description="Select dates when you will be available for package delivery (must be at least one day after the sender's availability)"
+        description="Select dates when you will be available for package delivery"
         dates={dates}
         setDates={setDates}
+        notes={notes}
+        setNotes={setNotes}
+        placeholder="Add any special instructions for delivery (optional)"
         minDate={minDate}
         isSubmitting={isSubmitting}
-        disabledDate={(date) => isBefore(date, minDate)}
         onSubmit={handleSubmit}
       />
     </Layout>

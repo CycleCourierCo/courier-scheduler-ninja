@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { getOrderById, updateOrderSchedule } from "@/services/orderService";
 import { createShipdayOrder } from "@/services/shipdayService";
@@ -364,6 +364,15 @@ const OrderDetail = () => {
                         <p>{order.sender.address.country}</p>
                       </div>
                     </div>
+                    {order.senderNotes && (
+                      <div className="flex items-start space-x-2 mt-2 pt-2 border-t border-gray-200">
+                        <FileText className="h-4 w-4 mt-1 text-gray-500" />
+                        <div>
+                          <p className="font-medium mb-1">Sender Notes:</p>
+                          <p className="text-sm">{order.senderNotes}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -392,6 +401,15 @@ const OrderDetail = () => {
                         <p>{order.receiver.address.country}</p>
                       </div>
                     </div>
+                    {order.receiverNotes && (
+                      <div className="flex items-start space-x-2 mt-2 pt-2 border-t border-gray-200">
+                        <FileText className="h-4 w-4 mt-1 text-gray-500" />
+                        <div>
+                          <p className="font-medium mb-1">Receiver Notes:</p>
+                          <p className="text-sm">{order.receiverNotes}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

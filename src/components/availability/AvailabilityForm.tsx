@@ -2,9 +2,9 @@
 import React from 'react';
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import Layout from '@/components/Layout';
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertCircle, CalendarIcon } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
 import { format } from "date-fns";
 
 interface AvailabilityFormProps {
@@ -12,6 +12,9 @@ interface AvailabilityFormProps {
   description: string;
   dates: Date[];
   setDates: (dates: Date[]) => void;
+  notes: string;
+  setNotes: (notes: string) => void;
+  placeholder: string;
   minDate: Date;
   isSubmitting: boolean;
   disabledDate?: (date: Date) => boolean;
@@ -23,6 +26,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   description,
   dates,
   setDates,
+  notes,
+  setNotes,
+  placeholder,
   minDate,
   isSubmitting,
   disabledDate,
@@ -60,6 +66,17 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             ) : (
               <p className="text-sm text-gray-500">No dates selected</p>
             )}
+          </div>
+          
+          <div className="mt-6 w-full">
+            <h3 className="font-medium mb-2">Additional notes:</h3>
+            <Textarea
+              placeholder={placeholder}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="resize-y"
+              rows={3}
+            />
           </div>
         </div>
       </CardContent>

@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { isBefore, addDays } from "date-fns";
 import Layout from '@/components/Layout';
 import { updateSenderAvailability } from '@/services/orderService';
 import { useAvailability } from '@/hooks/useAvailability';
@@ -11,6 +10,8 @@ export default function SenderAvailability() {
   const {
     dates,
     setDates,
+    notes,
+    setNotes,
     isLoading,
     isSubmitting,
     order,
@@ -21,7 +22,7 @@ export default function SenderAvailability() {
   } = useAvailability({
     type: 'sender',
     updateFunction: updateSenderAvailability,
-    getMinDate: () => addDays(new Date(), 2), // Sender must be available at least 2 days from now
+    getMinDate: () => new Date(), // Allow from current date
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
       return (order.pickupDate !== undefined) || 
@@ -53,12 +54,14 @@ export default function SenderAvailability() {
     <Layout>
       <AvailabilityForm
         title="Confirm Your Availability"
-        description="Select dates when you will be available for package pickup (minimum 2 days from now)"
+        description="Select dates when you will be available for package pickup"
         dates={dates}
         setDates={setDates}
+        notes={notes}
+        setNotes={setNotes}
+        placeholder="Add any special instructions for pickup (optional)"
         minDate={minDate}
         isSubmitting={isSubmitting}
-        disabledDate={(date) => isBefore(date, minDate)}
         onSubmit={handleSubmit}
       />
     </Layout>

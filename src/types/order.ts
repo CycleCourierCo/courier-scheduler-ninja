@@ -47,6 +47,8 @@ export type Order = {
   needsPaymentOnCollection?: boolean;
   isBikeSwap?: boolean;
   deliveryInstructions?: string;
+  senderNotes?: string;
+  receiverNotes?: string;
 };
 
 export type CreateOrderFormData = {

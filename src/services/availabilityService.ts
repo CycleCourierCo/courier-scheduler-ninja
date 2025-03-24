@@ -6,9 +6,11 @@ import { mapDbOrderToOrderType } from "./orderServiceUtils";
 // Common type for availability updates
 interface AvailabilityUpdate {
   dates: Date[];           // availability dates
+  notes?: string;          // optional notes for the availability
   orderId: string;         // order ID
   updateFields: {          // fields to update in the order
     dateField: string;     // field name for availability dates (pickup_date or delivery_date)
+    notesField: string;    // field name for notes (sender_notes or receiver_notes)
     statusField: string;   // new status value
     confirmedAtField: string; // field for confirmation timestamp
   };
@@ -20,6 +22,7 @@ interface AvailabilityUpdate {
  */
 const updateAvailability = async ({
   dates,
+  notes,
   orderId,
   updateFields,
   emailRecipient
@@ -33,6 +36,11 @@ const updateAvailability = async ({
     updated_at: new Date().toISOString(),
     [updateFields.confirmedAtField]: new Date().toISOString()
   };
+
+  // Add notes if provided
+  if (notes) {
+    updateObject[updateFields.notesField] = notes;
+  }
 
   // Update the order in the database
   const { data, error } = await supabase
@@ -106,13 +114,16 @@ const updateAvailability = async ({
  */
 export const updateSenderAvailability = async (
   id: string, 
-  dates: Date[]
+  dates: Date[],
+  notes?: string
 ): Promise<Order> => {
   return updateAvailability({
     dates,
+    notes,
     orderId: id,
     updateFields: {
       dateField: "pickup_date",
+      notesField: "sender_notes",
       statusField: "receiver_availability_pending",
       confirmedAtField: "sender_confirmed_at"
     },
@@ -125,13 +136,16 @@ export const updateSenderAvailability = async (
  */
 export const updateReceiverAvailability = async (
   id: string, 
-  dates: Date[]
+  dates: Date[],
+  notes?: string
 ): Promise<Order> => {
   return updateAvailability({
     dates,
+    notes,
     orderId: id,
     updateFields: {
       dateField: "delivery_date",
+      notesField: "receiver_notes",
       statusField: "receiver_availability_confirmed",
       confirmedAtField: "receiver_confirmed_at"
     }

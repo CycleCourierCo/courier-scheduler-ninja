@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OrderStatus } from '@/types/order';
-import { format, addDays, isBefore } from "date-fns";
 
 interface AvailabilityOrder {
   id: string;
@@ -15,6 +14,8 @@ interface AvailabilityOrder {
   updatedAt: Date;
   pickupDate?: Date | Date[];
   deliveryDate?: Date | Date[];
+  senderNotes?: string;
+  receiverNotes?: string;
   trackingNumber?: string;
 }
 
@@ -22,7 +23,7 @@ type AvailabilityType = 'sender' | 'receiver';
 
 interface UseAvailabilityProps {
   type: AvailabilityType;
-  updateFunction: (id: string, dates: Date[]) => Promise<any>;
+  updateFunction: (id: string, dates: Date[], notes?: string) => Promise<any>;
   getMinDate: (order: AvailabilityOrder | null) => Date;
   isAlreadyConfirmed: (order: AvailabilityOrder | null) => boolean;
 }
@@ -35,11 +36,12 @@ export const useAvailability = ({
 }: UseAvailabilityProps) => {
   const { id } = useParams<{ id: string }>();
   const [dates, setDates] = useState<Date[]>([]);
+  const [notes, setNotes] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [order, setOrder] = useState<AvailabilityOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [minDate, setMinDate] = useState<Date>(addDays(new Date(), 2));
+  const [minDate, setMinDate] = useState<Date>(new Date());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -95,6 +97,8 @@ export const useAvailability = ({
               orderData.delivery_date.map((d: string) => new Date(d)) :
               new Date(orderData.delivery_date as string)
             : undefined,
+          senderNotes: orderData.sender_notes,
+          receiverNotes: orderData.receiver_notes,
           trackingNumber: orderData.tracking_number
         };
         
@@ -133,10 +137,11 @@ export const useAvailability = ({
 
     try {
       console.log("Starting submission with dates:", dates);
+      console.log("Notes:", notes);
       setIsSubmitting(true);
       
       // Use the service function to update availability
-      const result = await updateFunction(id, dates);
+      const result = await updateFunction(id, dates, notes);
       console.log("Update result:", result);
       
       if (!result) {
@@ -174,6 +179,8 @@ export const useAvailability = ({
     id,
     dates,
     setDates,
+    notes,
+    setNotes,
     isLoading,
     isSubmitting,
     order,
