@@ -30,12 +30,13 @@ export const useAvailability = ({
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [minDate, setMinDate] = useState<Date>(getMinDate());
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const loadOrder = async () => {
-      if (!id) {
-        setError("Order ID is missing");
-        setIsLoading(false);
+      if (!id || hasAttemptedLoad) {
         return;
       }
 
@@ -43,6 +44,11 @@ export const useAvailability = ({
         setIsLoading(true);
         console.log(`Loading order with ID: ${id}`);
         const fetchedOrder = await getPublicOrder(id);
+        
+        // Prevent state updates if component unmounted
+        if (!isMounted) return;
+        
+        setHasAttemptedLoad(true);
         
         if (!fetchedOrder) {
           console.error("Order not found with ID:", id);
@@ -85,15 +91,23 @@ export const useAvailability = ({
           setNotes(fetchedOrder.receiverNotes);
         }
       } catch (err) {
+        if (!isMounted) return;
         console.error("Error loading order:", err);
         setError("Failed to load order details. Please try again later.");
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadOrder();
-  }, [id, type, isAlreadyConfirmed]);
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+  }, [id, type, isAlreadyConfirmed, hasAttemptedLoad]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

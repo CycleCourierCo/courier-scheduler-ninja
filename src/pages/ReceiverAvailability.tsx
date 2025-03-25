@@ -1,7 +1,7 @@
 
 import React from 'react';
 import Layout from '@/components/Layout';
-import { updateReceiverAvailability } from '@/services/orderService';
+import { updateReceiverAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
@@ -36,7 +36,7 @@ export default function ReceiverAvailability() {
   if (isLoading) {
     return (
       <Layout>
-        <LoadingState />
+        <LoadingState message="Loading order details..." />
       </Layout>
     );
   }
