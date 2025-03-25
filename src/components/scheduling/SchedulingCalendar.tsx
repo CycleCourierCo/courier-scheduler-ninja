@@ -26,13 +26,13 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
   }, {});
   
   // Custom renderer for calendar days
-  const renderDay = (day: Date) => {
-    const dateStr = format(day, 'yyyy-MM-dd');
+  const renderDay = (date: Date, modifiers: Record<string, boolean>) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
     const count = scheduledDatesMap[dateStr] || 0;
     
     return (
       <div className="relative w-full h-full flex items-center justify-center">
-        {day.getDate()}
+        {date.getDate()}
         {count > 0 && (
           <Badge 
             variant="secondary" 
@@ -67,7 +67,7 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
         onSelect={setSelectedDate}
         className="rounded-md border"
         components={{
-          Day: ({ day }) => renderDay(day),
+          Day: ({ date, ...props }) => renderDay(date, props.selected || {}),
         }}
       />
       
