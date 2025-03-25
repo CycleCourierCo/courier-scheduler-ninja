@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, FileText, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, FileText, RefreshCcw, Clock, ClipboardEdit } from "lucide-react";
 import { format } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
 import { createShipdayOrder } from "@/services/shipdayService";
@@ -270,6 +270,66 @@ const OrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
+  const getTrackingEvents = () => {
+    const events = [];
+    
+    events.push({
+      title: "Order Created",
+      date: order.createdAt,
+      icon: <Package className="h-4 w-4 text-courier-600" />,
+      description: "Order has been created in the system"
+    });
+    
+    if (order.senderConfirmedAt) {
+      events.push({
+        title: "Collection Dates Chosen",
+        date: order.senderConfirmedAt,
+        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
+        description: "Collection dates have been confirmed"
+      });
+    }
+    
+    if (order.receiverConfirmedAt) {
+      events.push({
+        title: "Delivery Dates Chosen",
+        date: order.receiverConfirmedAt,
+        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
+        description: "Delivery dates have been confirmed"
+      });
+    }
+    
+    if (order.scheduledAt) {
+      events.push({
+        title: "Transport Scheduled",
+        date: order.scheduledAt,
+        icon: <Calendar className="h-4 w-4 text-courier-600" />,
+        description: "Transport manager has scheduled pickup and delivery"
+      });
+    }
+    
+    if (order.status === 'shipped') {
+      events.push({
+        title: "In Transit",
+        date: order.updatedAt,
+        icon: <Truck className="h-4 w-4 text-courier-600" />,
+        description: "Bike is in transit"
+      });
+    }
+    
+    if (order.status === 'delivered') {
+      events.push({
+        title: "Delivered",
+        date: order.updatedAt,
+        icon: <Check className="h-4 w-4 text-green-600" />,
+        description: "Bike has been delivered"
+      });
+    }
+    
+    return events;
+  };
+
+  const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+
   const canSchedule = (order.status === 'pending_approval' || order.status === 'receiver_availability_confirmed') && 
                      Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
                      Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
@@ -278,6 +338,8 @@ const OrderDetail = () => {
 
   const needsSenderConfirmation = order.status === 'created' || order.status === 'sender_availability_pending';
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
+
+  const trackingEvents = getTrackingEvents();
 
   return (
     <Layout>
@@ -318,7 +380,7 @@ const OrderDetail = () => {
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
                 <Package className="mr-2" />
-                Order #{order.id.substring(0, 8)}
+                {itemName} (Order #{order.id.substring(0, 8)})
               </div>
               <div className="flex space-x-2">
                 {needsSenderConfirmation && (
@@ -612,6 +674,76 @@ const OrderDetail = () => {
                     )}
                   </Button>
                 </div>
+              </div>
+            </div>
+            
+            <Separator className="my-6" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Package className="text-courier-600" />
+                  <h3 className="font-semibold">Item Details</h3>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p><span className="font-medium">Item:</span> {itemName}</p>
+                  <p><span className="font-medium">Quantity:</span> 1</p>
+                  {order.customerOrderNumber && (
+                    <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
+                  )}
+                  {order.isBikeSwap && (
+                    <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
+                  )}
+                  {order.needsPaymentOnCollection && (
+                    <p className="text-courier-600 font-medium">Payment required on collection</p>
+                  )}
+                </div>
+                
+                {order.deliveryInstructions && (
+                  <div className="mt-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <FileText className="text-courier-600" />
+                      <h3 className="font-semibold">Delivery Instructions</h3>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <p className="whitespace-pre-line">{order.deliveryInstructions}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Truck className="text-courier-600" />
+                  <h3 className="font-semibold">Tracking Details</h3>
+                </div>
+                
+                {trackingEvents.length > 0 ? (
+                  <div className="space-y-3">
+                    {trackingEvents.map((event, index) => (
+                      <div key={index} className="relative pl-6 pb-3">
+                        {index < trackingEvents.length - 1 && (
+                          <div className="absolute top-2 left-[7px] h-full w-0.5 bg-gray-200" />
+                        )}
+                        <div className="absolute top-1 left-0 rounded-full bg-white">
+                          {event.icon}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">{event.title}</p>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(event.date), "PPP 'at' p")}
+                          </p>
+                          <p className="text-sm">{event.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 text-gray-500">
+                    <Clock className="h-4 w-4" />
+                    <p>Waiting for the first update</p>
+                  </div>
+                )}
               </div>
             </div>
             
