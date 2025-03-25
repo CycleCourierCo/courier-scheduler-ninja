@@ -7,14 +7,14 @@ import { resendReceiverAvailabilityEmail } from "./emailService";
 // Update the schema type based on Supabase database schema
 type UpdateSenderAvailabilityPayload = {
   pickup_date: string[];
-  status: OrderStatus;
+  status: string; // Changed to string to be compatible with Supabase
   sender_confirmed_at: string;
   sender_notes?: string;
 };
 
 type UpdateReceiverAvailabilityPayload = {
   delivery_date: string[];
-  status: OrderStatus;
+  status: string; // Changed to string to be compatible with Supabase
   receiver_confirmed_at: string;
   receiver_notes?: string;
 };
@@ -47,7 +47,7 @@ export const updateSenderAvailability = async (
 
     const payload: UpdateSenderAvailabilityPayload = {
       pickup_date: dates.map(date => date.toISOString()),
-      status: "sender_availability_confirmed",
+      status: "sender_availability_confirmed", // Use string directly
       sender_confirmed_at: new Date().toISOString(),
     };
 
@@ -121,7 +121,7 @@ export const updateReceiverAvailability = async (
 
     const payload: UpdateReceiverAvailabilityPayload = {
       delivery_date: dates.map(date => date.toISOString()),
-      status: "receiver_availability_confirmed",
+      status: "receiver_availability_confirmed", // Use string directly
       receiver_confirmed_at: new Date().toISOString(),
     };
 
@@ -185,13 +185,13 @@ const updateOrderStatusAfterReceiverConfirmation = async (
     const { error } = await supabase
       .from("orders")
       .update({
-        status: "pending_approval"
+        status: "scheduled_dates_pending" // Updated to use the new status
       })
       .eq("id", id)
       .eq("status", "receiver_availability_confirmed");
 
     if (error) {
-      console.error("Error updating to pending_approval:", error);
+      console.error("Error updating to scheduled_dates_pending:", error);
     }
   } catch (err) {
     console.error("Error in updateOrderStatusAfterReceiverConfirmation:", err);

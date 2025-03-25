@@ -64,7 +64,8 @@ export default function ReceiverAvailability() {
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
       return order.status === 'receiver_availability_confirmed' || 
-             order.status === 'pending_approval' ||
+             order.status === 'scheduled_dates_pending' ||
+             order.status === 'pending_approval' || // Handle both status values
              order.status === 'scheduled' ||
              order.status === 'shipped' ||
              order.status === 'delivered';

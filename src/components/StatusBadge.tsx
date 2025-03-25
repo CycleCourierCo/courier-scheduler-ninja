@@ -22,6 +22,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       case "receiver_availability_confirmed":
         return { label: "Receiver Confirmed", className: "bg-blue-500" };
       case "scheduled_dates_pending":
+      case "pending_approval": // Handle both values the same way
         return { label: "Scheduled Dates Pending", className: "bg-purple-300" };
       case "scheduled":
         return { label: "Scheduled", className: "bg-purple-500" };

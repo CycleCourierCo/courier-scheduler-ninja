@@ -7,9 +7,12 @@ export const updateOrderStatus = async (
   id: string,
   status: OrderStatus
 ): Promise<Order> => {
+  // Convert to string for database compatibility
+  const dbStatus = status.toString();
+  
   const { data, error } = await supabase
     .from("orders")
-    .update({ status })
+    .update({ status: dbStatus })
     .eq("id", id)
     .select()
     .single();
@@ -55,11 +58,14 @@ export const updatePublicOrder = async (
   pickup_date: string[],
   status: OrderStatus
 ): Promise<Order> => {
+  // Convert to string for database compatibility
+  const dbStatus = status.toString();
+  
   const { data, error } = await supabase
     .from("orders")
     .update({
       pickup_date,
-      status,
+      status: dbStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -79,10 +85,13 @@ export const updateAdminOrderStatus = async (
   id: string,
   status: OrderStatus
 ): Promise<Order> => {
+  // Convert to string for database compatibility
+  const dbStatus = status.toString();
+  
   const { data, error } = await supabase
     .from("orders")
     .update({
-      status,
+      status: dbStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

@@ -29,7 +29,8 @@ const statusOptions: { value: OrderStatus; label: string }[] = [
   { value: "sender_availability_confirmed", label: "Sender Availability Confirmed" },
   { value: "receiver_availability_pending", label: "Receiver Availability Pending" },
   { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
-  { value: "pending_approval", label: "Pending Approval" },
+  { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
+  { value: "pending_approval", label: "Pending Approval (Legacy)" },
   { value: "scheduled", label: "Scheduled" },
   { value: "shipped", label: "Shipped" },
   { value: "delivered", label: "Delivered" },
@@ -330,9 +331,12 @@ const OrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
-  const canSchedule = (order.status === 'pending_approval' || order.status === 'receiver_availability_confirmed') && 
-                     Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
-                     Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
+  const canSchedule = (
+    order.status === 'scheduled_dates_pending' || 
+    order.status === 'pending_approval' || 
+    order.status === 'receiver_availability_confirmed'
+  ) && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
+    Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
   const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
 

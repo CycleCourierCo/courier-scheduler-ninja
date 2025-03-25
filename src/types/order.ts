@@ -20,6 +20,7 @@ export type OrderStatus =
   | 'receiver_availability_pending'
   | 'receiver_availability_confirmed'
   | 'scheduled_dates_pending'
+  | 'pending_approval' // Keep for backward compatibility
   | 'scheduled'
   | 'shipped'
   | 'delivered'
