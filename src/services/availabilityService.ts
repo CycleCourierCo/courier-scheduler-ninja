@@ -24,6 +24,18 @@ export const updateSenderAvailability = async (
   notes: string
 ): Promise<Order | null> => {
   try {
+    // First check if the order exists
+    const { data: orderExists, error: checkError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("id", id)
+      .single();
+    
+    if (checkError || !orderExists) {
+      console.error("Error checking order existence:", checkError);
+      return null;
+    }
+
     const payload: UpdateSenderAvailabilityPayload = {
       pickup_date: dates.map(date => date.toISOString()),
       status: "sender_availability_confirmed",
@@ -63,6 +75,18 @@ export const updateReceiverAvailability = async (
   notes: string
 ): Promise<Order | null> => {
   try {
+    // First check if the order exists
+    const { data: orderExists, error: checkError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("id", id)
+      .single();
+    
+    if (checkError || !orderExists) {
+      console.error("Error checking order existence:", checkError);
+      return null;
+    }
+
     const payload: UpdateReceiverAvailabilityPayload = {
       delivery_date: dates.map(date => date.toISOString()),
       status: "receiver_availability_confirmed",

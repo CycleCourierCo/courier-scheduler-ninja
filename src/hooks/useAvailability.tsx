@@ -41,14 +41,17 @@ export const useAvailability = ({
 
       try {
         setIsLoading(true);
+        console.log(`Loading order with ID: ${id}`);
         const fetchedOrder = await getPublicOrder(id);
         
         if (!fetchedOrder) {
+          console.error("Order not found with ID:", id);
           setError("Order not found. The link may be invalid or expired.");
           setIsLoading(false);
           return;
         }
 
+        console.log("Order loaded successfully:", fetchedOrder.id);
         setOrder(fetchedOrder);
 
         // Check if the availability is already confirmed
@@ -107,6 +110,7 @@ export const useAvailability = ({
 
     try {
       setIsSubmitting(true);
+      console.log(`Submitting ${type} availability for order: ${id}`);
       const updatedOrder = await updateFunction(id, dates, notes);
 
       if (updatedOrder) {
@@ -115,11 +119,11 @@ export const useAvailability = ({
           navigate("/");
         }, 2000);
       } else {
-        throw new Error("Failed to update availability");
+        throw new Error(`Failed to update ${type} availability`);
       }
     } catch (err) {
-      console.error("Error updating availability:", err);
-      toast.error("Failed to update your availability. Please try again.");
+      console.error(`Error updating ${type} availability:`, err);
+      toast.error(`Failed to update your availability. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
