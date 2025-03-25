@@ -13,6 +13,7 @@ export type Address = {
   country: string;
 };
 
+// Update OrderStatus to include scheduled_dates_pending
 export type OrderStatus = 
   | 'created' 
   | 'sender_availability_pending'

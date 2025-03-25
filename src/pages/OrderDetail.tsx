@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, FileText, RefreshCcw, Clock, ClipboardEdit } from "lucide-react";
+import { ArrowLeft, Package } from "lucide-react";
 import { format } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
 import { createShipdayOrder } from "@/services/shipdayService";
@@ -8,34 +9,17 @@ import { Order, OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 
-const statusOptions: { value: OrderStatus; label: string }[] = [
-  { value: "created", label: "Created" },
-  { value: "sender_availability_pending", label: "Sender Availability Pending" },
-  { value: "sender_availability_confirmed", label: "Sender Availability Confirmed" },
-  { value: "receiver_availability_pending", label: "Receiver Availability Pending" },
-  { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
-  { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
-  { value: "pending_approval", label: "Pending Approval (Legacy)" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "shipped", label: "Shipped" },
-  { value: "delivered", label: "Delivered" },
-  { value: "cancelled", label: "Cancelled" },
-];
+// Import our new components
+import OrderHeader from "@/components/order-detail/OrderHeader";
+import DateSelection from "@/components/order-detail/DateSelection";
+import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
+import ItemDetails from "@/components/order-detail/ItemDetails";
+import ContactDetails from "@/components/order-detail/ContactDetails";
+import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
+import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -256,79 +240,6 @@ const OrderDetail = () => {
     );
   }
 
-  const formatDate = (date: Date | undefined) => {
-    if (!date) return "Not scheduled";
-    return format(new Date(date), "PPP");
-  };
-
-  const formatDates = (dates: Date | Date[] | undefined) => {
-    if (!dates) return "Not scheduled";
-    
-    if (Array.isArray(dates)) {
-      return dates.map(date => format(new Date(date), "PPP")).join(", ");
-    }
-    
-    return format(new Date(dates), "PPP");
-  };
-
-  const getTrackingEvents = () => {
-    const events = [];
-    
-    events.push({
-      title: "Order Created",
-      date: order.createdAt,
-      icon: <Package className="h-4 w-4 text-courier-600" />,
-      description: "Order has been created in the system"
-    });
-    
-    if (order.senderConfirmedAt) {
-      events.push({
-        title: "Collection Dates Chosen",
-        date: order.senderConfirmedAt,
-        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
-        description: "Collection dates have been confirmed"
-      });
-    }
-    
-    if (order.receiverConfirmedAt) {
-      events.push({
-        title: "Delivery Dates Chosen",
-        date: order.receiverConfirmedAt,
-        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
-        description: "Delivery dates have been confirmed"
-      });
-    }
-    
-    if (order.scheduledAt) {
-      events.push({
-        title: "Transport Scheduled",
-        date: order.scheduledAt,
-        icon: <Calendar className="h-4 w-4 text-courier-600" />,
-        description: "Transport manager has scheduled pickup and delivery"
-      });
-    }
-    
-    if (order.status === 'shipped') {
-      events.push({
-        title: "In Transit",
-        date: order.updatedAt,
-        icon: <Truck className="h-4 w-4 text-courier-600" />,
-        description: "Bike is in transit"
-      });
-    }
-    
-    if (order.status === 'delivered') {
-      events.push({
-        title: "Delivered",
-        date: order.updatedAt,
-        icon: <Check className="h-4 w-4 text-green-600" />,
-        description: "Bike has been delivered"
-      });
-    }
-    
-    return events;
-  };
-
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
   const canSchedule = (
@@ -343,41 +254,15 @@ const OrderDetail = () => {
   const needsSenderConfirmation = order.status === 'created' || order.status === 'sender_availability_pending';
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
 
-  const trackingEvents = getTrackingEvents();
-
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="mr-2" />
-                Back
-              </Link>
-            </Button>
-            <h1 className="text-2xl font-bold">Order Details</h1>
-          </div>
-          <div className="flex items-center space-x-3">
-            <StatusBadge status={order.status} />
-            <Select 
-              value={selectedStatus || undefined} 
-              onValueChange={(value) => handleStatusChange(value as OrderStatus)}
-              disabled={statusUpdating}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Change status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <OrderHeader 
+          status={order.status}
+          statusUpdating={statusUpdating}
+          selectedStatus={selectedStatus}
+          onStatusChange={handleStatusChange}
+        />
 
         <Card>
           <CardHeader>
@@ -386,48 +271,14 @@ const OrderDetail = () => {
                 <Package className="mr-2" />
                 {itemName} (Order #{order.id.substring(0, 8)})
               </div>
-              <div className="flex space-x-2">
-                {needsSenderConfirmation && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleResendSenderEmail}
-                    disabled={isResendingEmail.sender}
-                  >
-                    {isResendingEmail.sender ? (
-                      <div className="flex items-center space-x-1">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
-                        <span>Sending...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <RefreshCcw className="mr-2 h-4 w-4" /> 
-                        Resend Sender Email
-                      </>
-                    )}
-                  </Button>
-                )}
-                {needsReceiverConfirmation && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleResendReceiverEmail}
-                    disabled={isResendingEmail.receiver}
-                  >
-                    {isResendingEmail.receiver ? (
-                      <div className="flex items-center space-x-1">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
-                        <span>Sending...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <RefreshCcw className="mr-2 h-4 w-4" /> 
-                        Resend Receiver Email
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
+              <EmailResendButtons 
+                needsSenderConfirmation={needsSenderConfirmation}
+                needsReceiverConfirmation={needsReceiverConfirmation}
+                isResendingSender={isResendingEmail.sender}
+                isResendingReceiver={isResendingEmail.receiver}
+                onResendSenderEmail={handleResendSenderEmail}
+                onResendReceiverEmail={handleResendReceiverEmail}
+              />
             </CardTitle>
             <CardDescription>
               Created on {format(new Date(order.createdAt), "PPP")}
@@ -442,391 +293,75 @@ const OrderDetail = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="text-courier-600" />
-                  <h3 className="font-semibold">Pickup Dates</h3>
-                </div>
+                <DateSelection 
+                  title="Pickup Dates"
+                  availableDates={order.pickupDate}
+                  scheduledDate={order.scheduledPickupDate}
+                  selectedDate={selectedPickupDate}
+                  setSelectedDate={setSelectedPickupDate}
+                  timeValue={pickupTime}
+                  setTimeValue={setPickupTime}
+                  calendarDate={pickupDatePicker}
+                  setCalendarDate={setPickupDatePicker}
+                  isSubmitting={isSubmitting}
+                  isScheduled={isScheduled}
+                />
                 
-                {canSchedule ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Available dates:</p>
-                    <p>{formatDates(order.pickupDate)}</p>
-                    
-                    <div className="mt-2">
-                      <label className="text-sm font-medium">Select pickup date:</label>
-                      <Select
-                        value={selectedPickupDate || ""}
-                        onValueChange={setSelectedPickupDate}
-                        disabled={isSubmitting || isScheduled}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.isArray(order.pickupDate) && order.pickupDate.map((date, index) => (
-                            <SelectItem key={index} value={new Date(date).toISOString()}>
-                              {format(new Date(date), "PPP")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="mt-2">
-                      <label className="text-sm font-medium">Select pickup time:</label>
-                      <Input
-                        type="time"
-                        value={pickupTime}
-                        onChange={(e) => setPickupTime(e.target.value)}
-                        disabled={isSubmitting || isScheduled}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {order.scheduledPickupDate ? (
-                      <div className="bg-green-50 p-2 rounded-md border border-green-200">
-                        <div className="flex items-center">
-                          <Check className="h-4 w-4 text-green-600 mr-2" />
-                          <p className="font-medium">
-                            {format(new Date(order.scheduledPickupDate), "PPP 'at' p")}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p>{formatDates(order.pickupDate)}</p>
-                    )}
-                    
-                    <div className="space-y-2 border-t pt-4 mt-4">
-                      <h4 className="text-sm font-medium">Admin: Set Pickup Date</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !pickupDatePicker && "text-muted-foreground"
-                                )}
-                              >
-                                <Calendar className="mr-2 h-4 w-4" />
-                                {pickupDatePicker ? format(pickupDatePicker, "PPP") : <span>Pick a date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <CalendarComponent
-                                mode="single"
-                                selected={pickupDatePicker}
-                                onSelect={setPickupDatePicker}
-                                initialFocus
-                                className="p-3 pointer-events-auto"
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                        
-                        <Input
-                          type="time"
-                          value={pickupTime}
-                          onChange={(e) => setPickupTime(e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex items-center space-x-2">
-                  <Calendar className="text-courier-600" />
-                  <h3 className="font-semibold">Delivery Dates</h3>
-                </div>
-                
-                {canSchedule ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Available dates:</p>
-                    <p>{formatDates(order.deliveryDate)}</p>
-                    
-                    <div className="mt-2">
-                      <label className="text-sm font-medium">Select delivery date:</label>
-                      <Select
-                        value={selectedDeliveryDate || ""}
-                        onValueChange={setSelectedDeliveryDate}
-                        disabled={isSubmitting || isScheduled}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.isArray(order.deliveryDate) && order.deliveryDate.map((date, index) => (
-                            <SelectItem key={index} value={new Date(date).toISOString()}>
-                              {format(new Date(date), "PPP")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="mt-2">
-                      <label className="text-sm font-medium">Select delivery time:</label>
-                      <Input
-                        type="time"
-                        value={deliveryTime}
-                        onChange={(e) => setDeliveryTime(e.target.value)}
-                        disabled={isSubmitting || isScheduled}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {order.scheduledDeliveryDate ? (
-                      <div className="bg-green-50 p-2 rounded-md border border-green-200">
-                        <div className="flex items-center">
-                          <Check className="h-4 w-4 text-green-600 mr-2" />
-                          <p className="font-medium">
-                            {format(new Date(order.scheduledDeliveryDate), "PPP 'at' p")}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p>{formatDates(order.deliveryDate)}</p>
-                    )}
-                    
-                    <div className="space-y-2 border-t pt-4 mt-4">
-                      <h4 className="text-sm font-medium">Admin: Set Delivery Date</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !deliveryDatePicker && "text-muted-foreground"
-                                )}
-                              >
-                                <Calendar className="mr-2 h-4 w-4" />
-                                {deliveryDatePicker ? format(deliveryDatePicker, "PPP") : <span>Pick a date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <CalendarComponent
-                                mode="single"
-                                selected={deliveryDatePicker}
-                                onSelect={setDeliveryDatePicker}
-                                initialFocus
-                                className="p-3 pointer-events-auto"
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                        
-                        <Input
-                          type="time"
-                          value={deliveryTime}
-                          onChange={(e) => setDeliveryTime(e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <DateSelection 
+                  title="Delivery Dates"
+                  availableDates={order.deliveryDate}
+                  scheduledDate={order.scheduledDeliveryDate}
+                  selectedDate={selectedDeliveryDate}
+                  setSelectedDate={setSelectedDeliveryDate}
+                  timeValue={deliveryTime}
+                  setTimeValue={setDeliveryTime}
+                  calendarDate={deliveryDatePicker}
+                  setCalendarDate={setDeliveryDatePicker}
+                  isSubmitting={isSubmitting}
+                  isScheduled={isScheduled}
+                />
               </div>
               
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <Truck className="text-courier-600" />
-                  <h3 className="font-semibold">Last Updated</h3>
+                  <p>Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}</p>
                 </div>
-                <p>{format(new Date(order.updatedAt), "PPP 'at' p")}</p>
                 
-                {canSchedule && (
-                  <div className="mt-6">
-                    <Button 
-                      onClick={handleScheduleOrder} 
-                      disabled={!selectedPickupDate || !selectedDeliveryDate || isSubmitting || isScheduled}
-                      className="w-full"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                          Scheduling Order...
-                        </>
-                      ) : (
-                        "Schedule Order"
-                      )}
-                    </Button>
-                  </div>
-                )}
-                
-                <div className="mt-6 border-t pt-4">
-                  <Button 
-                    onClick={handleAdminScheduleOrder} 
-                    disabled={!pickupDatePicker || !deliveryDatePicker || isSubmitting}
-                    className="w-full"
-                    variant="default"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                        Scheduling Order...
-                      </>
-                    ) : (
-                      "Admin: Schedule Order"
-                    )}
-                  </Button>
-                </div>
+                <SchedulingButtons 
+                  onSchedule={handleScheduleOrder}
+                  onAdminSchedule={handleAdminScheduleOrder}
+                  canSchedule={canSchedule}
+                  isSubmitting={isSubmitting}
+                  isScheduled={isScheduled}
+                  pickupDateSelected={!!selectedPickupDate}
+                  deliveryDateSelected={!!selectedDeliveryDate}
+                  adminPickupDateSelected={!!pickupDatePicker}
+                  adminDeliveryDateSelected={!!deliveryDatePicker}
+                />
               </div>
             </div>
             
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Package className="text-courier-600" />
-                  <h3 className="font-semibold">Item Details</h3>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <p><span className="font-medium">Item:</span> {itemName}</p>
-                  <p><span className="font-medium">Quantity:</span> 1</p>
-                  {order.customerOrderNumber && (
-                    <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
-                  )}
-                  {order.isBikeSwap && (
-                    <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
-                  )}
-                  {order.needsPaymentOnCollection && (
-                    <p className="text-courier-600 font-medium">Payment required on collection</p>
-                  )}
-                </div>
-                
-                {order.deliveryInstructions && (
-                  <div className="mt-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <FileText className="text-courier-600" />
-                      <h3 className="font-semibold">Delivery Instructions</h3>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="whitespace-pre-line">{order.deliveryInstructions}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Truck className="text-courier-600" />
-                  <h3 className="font-semibold">Tracking Details</h3>
-                </div>
-                
-                {trackingEvents.length > 0 ? (
-                  <div className="space-y-3">
-                    {trackingEvents.map((event, index) => (
-                      <div key={index} className="relative pl-6 pb-3">
-                        {index < trackingEvents.length - 1 && (
-                          <div className="absolute top-2 left-[7px] h-full w-0.5 bg-gray-200" />
-                        )}
-                        <div className="absolute top-1 left-0 rounded-full bg-white">
-                          {event.icon}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-800">{event.title}</p>
-                          <p className="text-sm text-gray-500">
-                            {format(new Date(event.date), "PPP 'at' p")}
-                          </p>
-                          <p className="text-sm">{event.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2 text-gray-500">
-                    <Clock className="h-4 w-4" />
-                    <p>Waiting for the first update</p>
-                  </div>
-                )}
-              </div>
+              <ItemDetails order={order} />
+              <TrackingTimeline order={order} />
             </div>
             
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <User className="text-courier-600" />
-                  <h3 className="font-semibold text-lg">Sender Information</h3>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md space-y-3">
-                  <p className="font-medium text-gray-800">{order.sender.name}</p>
-                  <div className="space-y-2">
-                    <div className="flex items-start space-x-2">
-                      <Mail className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.sender.email}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <Phone className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.sender.phone}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 mt-1 text-gray-500" />
-                      <div>
-                        <p>{order.sender.address.street}</p>
-                        <p>{order.sender.address.city}, {order.sender.address.state} {order.sender.address.zipCode}</p>
-                        <p>{order.sender.address.country}</p>
-                      </div>
-                    </div>
-                    {order.senderNotes && (
-                      <div className="flex items-start space-x-2 mt-2 pt-2 border-t border-gray-200">
-                        <FileText className="h-4 w-4 mt-1 text-gray-500" />
-                        <div>
-                          <p className="font-medium mb-1">Sender Notes:</p>
-                          <p className="text-sm whitespace-pre-line">{order.senderNotes}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ContactDetails 
+                type="sender"
+                contact={order.sender}
+                notes={order.senderNotes}
+              />
               
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <User className="text-courier-600" />
-                  <h3 className="font-semibold text-lg">Receiver Information</h3>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md space-y-3">
-                  <p className="font-medium text-gray-800">{order.receiver.name}</p>
-                  <div className="space-y-2">
-                    <div className="flex items-start space-x-2">
-                      <Mail className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.receiver.email}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <Phone className="h-4 w-4 mt-1 text-gray-500" />
-                      <p>{order.receiver.phone}</p>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 mt-1 text-gray-500" />
-                      <div>
-                        <p>{order.receiver.address.street}</p>
-                        <p>{order.receiver.address.city}, {order.receiver.address.state} {order.receiver.address.zipCode}</p>
-                        <p>{order.receiver.address.country}</p>
-                      </div>
-                    </div>
-                    {order.receiverNotes && (
-                      <div className="flex items-start space-x-2 mt-2 pt-2 border-t border-gray-200">
-                        <FileText className="h-4 w-4 mt-1 text-gray-500" />
-                        <div>
-                          <p className="font-medium mb-1">Receiver Notes:</p>
-                          <p className="text-sm whitespace-pre-line">{order.receiverNotes}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ContactDetails 
+                type="receiver"
+                contact={order.receiver}
+                notes={order.receiverNotes}
+              />
             </div>
           </CardContent>
           <CardFooter>
