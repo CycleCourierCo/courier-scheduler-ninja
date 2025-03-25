@@ -26,7 +26,7 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
   }, {});
   
   // Custom renderer for calendar days
-  const renderDay = (date: Date, modifiers: Record<string, boolean>) => {
+  const renderDay = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const count = scheduledDatesMap[dateStr] || 0;
     
@@ -67,7 +67,7 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
         onSelect={setSelectedDate}
         className="rounded-md border"
         components={{
-          Day: ({ date, ...props }) => renderDay(date, props.selected || {}),
+          Day: ({ date }) => renderDay(date),
         }}
       />
       
