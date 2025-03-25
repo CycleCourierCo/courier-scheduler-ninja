@@ -1,21 +1,21 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Order } from "@/types/order";
+import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 
 // Update the schema type based on Supabase database schema
 type UpdateSenderAvailabilityPayload = {
   pickup_date: string[];
-  status: string;
+  status: OrderStatus;
   sender_confirmed_at: string;
-  sender_notes?: string; // Added sender notes field
+  sender_notes?: string;
 };
 
 type UpdateReceiverAvailabilityPayload = {
   delivery_date: string[];
-  status: string;
+  status: OrderStatus;
   receiver_confirmed_at: string;
-  receiver_notes?: string; // Added receiver notes field
+  receiver_notes?: string;
 };
 
 export const updateSenderAvailability = async (

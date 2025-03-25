@@ -1,7 +1,7 @@
 
 import React from 'react';
 import Layout from '@/components/Layout';
-import { updateSenderAvailability } from '@/services/orderService';
+import { updateSenderAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
@@ -25,7 +25,7 @@ export default function SenderAvailability() {
     getMinDate: () => new Date(), // Allow from current date
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
-      return (order.pickupDate !== undefined) || 
+      return (order.pickupDate !== undefined && order.pickupDate !== null) || 
              (order.status !== 'sender_availability_pending' && 
               order.status !== 'created');
     }
@@ -34,7 +34,7 @@ export default function SenderAvailability() {
   if (isLoading) {
     return (
       <Layout>
-        <LoadingState />
+        <LoadingState message="Loading order details..." />
       </Layout>
     );
   }

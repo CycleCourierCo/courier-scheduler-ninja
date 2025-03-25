@@ -2,7 +2,8 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getPublicOrder, Order } from "@/services/orderService";
+import { getPublicOrder } from "@/services/fetchOrderService";
+import { Order } from "@/types/order";
 import { format } from "date-fns";
 
 type AvailabilityType = 'sender' | 'receiver';
@@ -32,7 +33,11 @@ export const useAvailability = ({
 
   useEffect(() => {
     const loadOrder = async () => {
-      if (!id) return;
+      if (!id) {
+        setError("Order ID is missing");
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
@@ -40,6 +45,7 @@ export const useAvailability = ({
         
         if (!fetchedOrder) {
           setError("Order not found. The link may be invalid or expired.");
+          setIsLoading(false);
           return;
         }
 
