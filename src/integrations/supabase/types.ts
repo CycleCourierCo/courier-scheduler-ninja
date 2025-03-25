@@ -152,6 +152,7 @@ export type Database = {
         | "shipped"
         | "delivered"
         | "cancelled"
+        | "scheduled_dates_pending"
       user_role: "admin" | "b2b_customer" | "b2c_customer"
     }
     CompositeTypes: {
