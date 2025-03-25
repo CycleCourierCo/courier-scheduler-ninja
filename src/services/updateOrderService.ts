@@ -73,3 +73,26 @@ export const updatePublicOrder = async (
 
   return mapDbOrderToOrderType(data);
 };
+
+// New function to update order status manually by admin
+export const updateAdminOrderStatus = async (
+  id: string,
+  status: OrderStatus
+): Promise<Order> => {
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating order status by admin:", error);
+    throw new Error(error.message);
+  }
+
+  return mapDbOrderToOrderType(data);
+};

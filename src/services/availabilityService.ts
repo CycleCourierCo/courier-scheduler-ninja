@@ -1,154 +1,137 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Order, ContactInfo, Address } from "@/types/order";
+import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 
-// Common type for availability updates
-interface AvailabilityUpdate {
-  dates: Date[];           // availability dates
-  notes?: string;          // optional notes for the availability
-  orderId: string;         // order ID
-  updateFields: {          // fields to update in the order
-    dateField: string;     // field name for availability dates (pickup_date or delivery_date)
-    notesField: string;    // field name for notes (sender_notes or receiver_notes)
-    statusField: string;   // new status value
-    confirmedAtField: string; // field for confirmation timestamp
-  };
-  emailRecipient?: 'sender' | 'receiver'; // recipient for notification email (optional)
-}
-
-/**
- * Core function to update availability (used by both sender and receiver)
- */
-const updateAvailability = async ({
-  dates,
-  notes,
-  orderId,
-  updateFields,
-  emailRecipient
-}: AvailabilityUpdate): Promise<Order> => {
-  const formattedDates = dates.map(date => date.toISOString());
-  
-  // Prepare the update object dynamically
-  const updateObject: Record<string, any> = {
-    [updateFields.dateField]: formattedDates,
-    status: updateFields.statusField,
-    updated_at: new Date().toISOString(),
-    [updateFields.confirmedAtField]: new Date().toISOString()
-  };
-
-  // Add notes if provided
-  if (notes) {
-    updateObject[updateFields.notesField] = notes;
-  }
-
-  // Update the order in the database
-  const { data, error } = await supabase
-    .from("orders")
-    .update(updateObject)
-    .eq("id", orderId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error(`Error updating availability:`, error);
-    throw new Error(error.message);
-  }
-
-  // Send email notification if required
-  if (emailRecipient && emailRecipient === 'receiver') {
-    try {
-      // Get necessary data for the email
-      const baseUrl = window.location.origin;
-      
-      // Ensure receiver data is properly typed and accessible
-      const receiverData = data.receiver as unknown as ContactInfo & { address: Address };
-      
-      // Validate receiver email before sending
-      if (!receiverData?.email) {
-        console.error("Receiver email not found in order data:", data.receiver);
-        throw new Error("Receiver email not found");
-      }
-      
-      console.log("Sending email to receiver:", receiverData.email);
-      
-      // Create the item from the bike details
-      const item = {
-        name: `${data.bike_brand} ${data.bike_model}`.trim(),
-        quantity: 1,
-        price: 0
-      };
-      
-      // Send email to receiver
-      const response = await supabase.functions.invoke("send-email", {
-        body: {
-          to: receiverData.email,
-          name: receiverData.name || "Recipient",
-          orderId,
-          baseUrl,
-          emailType: "receiver",
-          item: item
-        }
-      });
-      
-      if (response.error) {
-        console.error("Error sending email to receiver:", response.error);
-        if (response.error.message) {
-          console.error("Error message:", response.error.message);
-        }
-      } else {
-        console.log("Email sent successfully to receiver:", receiverData.email);
-      }
-    } catch (emailError) {
-      console.error("Failed to send email to receiver:", emailError);
-      console.error("Error details:", emailError instanceof Error ? emailError.message : emailError);
-      // Don't throw here - we don't want to fail the order update if email fails
-    }
-  }
-
-  return mapDbOrderToOrderType(data);
+// Update the schema type based on Supabase database schema
+type UpdateSenderAvailabilityPayload = {
+  pickup_date: string[];
+  status: string;
+  sender_confirmed_at: string;
+  sender_notes?: string; // Added sender notes field
 };
 
-/**
- * Update sender availability dates
- */
+type UpdateReceiverAvailabilityPayload = {
+  delivery_date: string[];
+  status: string;
+  receiver_confirmed_at: string;
+  receiver_notes?: string; // Added receiver notes field
+};
+
 export const updateSenderAvailability = async (
-  id: string, 
+  id: string,
   dates: Date[],
-  notes?: string
-): Promise<Order> => {
-  return updateAvailability({
-    dates,
-    notes,
-    orderId: id,
-    updateFields: {
-      dateField: "pickup_date",
-      notesField: "sender_notes",
-      statusField: "receiver_availability_pending",
-      confirmedAtField: "sender_confirmed_at"
-    },
-    emailRecipient: "receiver" // Send email to receiver after sender confirms
-  });
+  notes: string
+): Promise<Order | null> => {
+  try {
+    const payload: UpdateSenderAvailabilityPayload = {
+      pickup_date: dates.map(date => date.toISOString()),
+      status: "sender_availability_confirmed",
+      sender_confirmed_at: new Date().toISOString(),
+    };
+
+    // Only include notes if there are any
+    if (notes && notes.trim() !== "") {
+      payload.sender_notes = notes.trim();
+    }
+    
+    const { data, error } = await supabase
+      .from("orders")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating sender availability:", error);
+      return null;
+    }
+
+    // Update receiver_availability_pending status only if successful
+    await updateOrderStatusAfterSenderConfirmation(id);
+
+    return mapDbOrderToOrderType(data);
+  } catch (err) {
+    console.error("Error in updateSenderAvailability:", err);
+    return null;
+  }
 };
 
-/**
- * Update receiver availability dates
- */
 export const updateReceiverAvailability = async (
-  id: string, 
+  id: string,
   dates: Date[],
-  notes?: string
-): Promise<Order> => {
-  return updateAvailability({
-    dates,
-    notes,
-    orderId: id,
-    updateFields: {
-      dateField: "delivery_date",
-      notesField: "receiver_notes",
-      statusField: "receiver_availability_confirmed",
-      confirmedAtField: "receiver_confirmed_at"
+  notes: string
+): Promise<Order | null> => {
+  try {
+    const payload: UpdateReceiverAvailabilityPayload = {
+      delivery_date: dates.map(date => date.toISOString()),
+      status: "receiver_availability_confirmed",
+      receiver_confirmed_at: new Date().toISOString(),
+    };
+
+    // Only include notes if there are any
+    if (notes && notes.trim() !== "") {
+      payload.receiver_notes = notes.trim();
     }
-    // No email recipient - we don't send emails after receiver confirms
-  });
+    
+    const { data, error } = await supabase
+      .from("orders")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating receiver availability:", error);
+      return null;
+    }
+
+    // Update pending_approval status only if successful
+    await updateOrderStatusAfterReceiverConfirmation(id);
+
+    return mapDbOrderToOrderType(data);
+  } catch (err) {
+    console.error("Error in updateReceiverAvailability:", err);
+    return null;
+  }
+};
+
+const updateOrderStatusAfterSenderConfirmation = async (
+  id: string
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: "receiver_availability_pending"
+      })
+      .eq("id", id)
+      .eq("status", "sender_availability_confirmed");
+
+    if (error) {
+      console.error("Error updating to receiver_availability_pending:", error);
+    }
+  } catch (err) {
+    console.error("Error in updateOrderStatusAfterSenderConfirmation:", err);
+  }
+};
+
+const updateOrderStatusAfterReceiverConfirmation = async (
+  id: string
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: "pending_approval"
+      })
+      .eq("id", id)
+      .eq("status", "receiver_availability_confirmed");
+
+    if (error) {
+      console.error("Error updating to pending_approval:", error);
+    }
+  } catch (err) {
+    console.error("Error in updateOrderStatusAfterReceiverConfirmation:", err);
+  }
 };

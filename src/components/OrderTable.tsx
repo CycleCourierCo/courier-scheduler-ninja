@@ -27,6 +27,7 @@ interface OrderTableProps {
 
 // Define all available columns
 const ALL_COLUMNS = [
+  { id: "creator", label: "Created By" },
   { id: "id", label: "ID" },
   { id: "status", label: "Status" },
   { id: "sender", label: "Sender" },
@@ -41,7 +42,8 @@ const DEFAULT_VISIBLE_COLUMNS = ALL_COLUMNS.map(col => col.id);
 
 // Default column widths
 const DEFAULT_COLUMN_WIDTHS = {
-  id: 15,
+  creator: 15,
+  id: 10,
   status: 15,
   sender: 15,
   receiver: 15,
@@ -55,6 +57,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
   const [isResizing, setIsResizing] = useState(false);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   
   useEffect(() => {
     // Load user preferences when component mounts
@@ -90,6 +93,40 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     
     fetchUserPreferences();
   }, [user]);
+
+  // Fetch creator names for all orders
+  useEffect(() => {
+    const fetchCreatorNames = async () => {
+      // Get unique user IDs from all orders
+      const userIds = [...new Set(orders.map(order => order.user_id))];
+      
+      if (userIds.length === 0) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+        
+        if (error) {
+          console.error("Error fetching creator names:", error);
+          return;
+        }
+        
+        // Create a mapping of user ID to name
+        const nameMap: Record<string, string> = {};
+        data.forEach(profile => {
+          nameMap[profile.id] = profile.name || profile.email || 'Unknown user';
+        });
+        
+        setCreatorNames(nameMap);
+      } catch (error) {
+        console.error("Error fetching creator names:", error);
+      }
+    };
+    
+    fetchCreatorNames();
+  }, [orders]);
 
   const handleColumnChange = (columns: string[]) => {
     setVisibleColumns(columns);
@@ -257,6 +294,11 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                     key={`${order.id}-${columnId}`}
                     style={{ width: `${columnWidths[columnId]}%` }}
                   >
+                    {columnId === "creator" && (
+                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
+                        {creatorNames[order.user_id] || 'Unknown'}
+                      </span>
+                    )}
                     {columnId === "id" && (
                       <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
                         {order.id.substring(0, 8)}...
