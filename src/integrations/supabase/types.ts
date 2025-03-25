@@ -23,11 +23,13 @@ export type Database = {
           pickup_date: Json | null
           receiver: Json
           receiver_confirmed_at: string | null
+          receiver_notes: string | null
           scheduled_at: string | null
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
           sender: Json
           sender_confirmed_at: string | null
+          sender_notes: string | null
           status: Database["public"]["Enums"]["order_status"]
           tracking_events: Json | null
           tracking_number: string | null
@@ -47,11 +49,13 @@ export type Database = {
           pickup_date?: Json | null
           receiver: Json
           receiver_confirmed_at?: string | null
+          receiver_notes?: string | null
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender: Json
           sender_confirmed_at?: string | null
+          sender_notes?: string | null
           status: Database["public"]["Enums"]["order_status"]
           tracking_events?: Json | null
           tracking_number?: string | null
@@ -71,11 +75,13 @@ export type Database = {
           pickup_date?: Json | null
           receiver?: Json
           receiver_confirmed_at?: string | null
+          receiver_notes?: string | null
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender?: Json
           sender_confirmed_at?: string | null
+          sender_notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tracking_events?: Json | null
           tracking_number?: string | null

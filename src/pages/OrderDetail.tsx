@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, FileText, RefreshCcw } from "lucide-react";
@@ -51,7 +50,6 @@ const OrderDetail = () => {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
   
-  // For the date pickers
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
 
@@ -99,12 +97,10 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      // Combine date and time for pickup
       const pickupDateTime = new Date(selectedPickupDate);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
       
-      // Combine date and time for delivery
       const deliveryDateTime = new Date(selectedDeliveryDate);
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
@@ -119,7 +115,6 @@ const OrderDetail = () => {
         throw new Error("Failed to update order schedule");
       }
       
-      // Pass times to Shipday
       const shipdayResponse = await createShipdayOrder(id);
       
       if (shipdayResponse) {
@@ -145,12 +140,10 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      // Combine date and time for pickup
       const pickupDateTime = new Date(pickupDatePicker);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
       
-      // Combine date and time for delivery
       const deliveryDateTime = new Date(deliveryDatePicker);
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
@@ -439,7 +432,6 @@ const OrderDetail = () => {
                       <p>{formatDates(order.pickupDate)}</p>
                     )}
                     
-                    {/* Admin date picker for pickup */}
                     <div className="space-y-2 border-t pt-4 mt-4">
                       <h4 className="text-sm font-medium">Admin: Set Pickup Date</h4>
                       <div className="grid grid-cols-2 gap-2">
@@ -536,7 +528,6 @@ const OrderDetail = () => {
                       <p>{formatDates(order.deliveryDate)}</p>
                     )}
                     
-                    {/* Admin date picker for delivery */}
                     <div className="space-y-2 border-t pt-4 mt-4">
                       <h4 className="text-sm font-medium">Admin: Set Delivery Date</h4>
                       <div className="grid grid-cols-2 gap-2">
@@ -604,7 +595,6 @@ const OrderDetail = () => {
                   </div>
                 )}
                 
-                {/* Admin can schedule regardless of status */}
                 <div className="mt-6 border-t pt-4">
                   <Button 
                     onClick={handleAdminScheduleOrder} 
@@ -657,7 +647,7 @@ const OrderDetail = () => {
                         <FileText className="h-4 w-4 mt-1 text-gray-500" />
                         <div>
                           <p className="font-medium mb-1">Sender Notes:</p>
-                          <p className="text-sm">{order.senderNotes}</p>
+                          <p className="text-sm whitespace-pre-line">{order.senderNotes}</p>
                         </div>
                       </div>
                     )}
@@ -694,7 +684,7 @@ const OrderDetail = () => {
                         <FileText className="h-4 w-4 mt-1 text-gray-500" />
                         <div>
                           <p className="font-medium mb-1">Receiver Notes:</p>
-                          <p className="text-sm">{order.receiverNotes}</p>
+                          <p className="text-sm whitespace-pre-line">{order.receiverNotes}</p>
                         </div>
                       </div>
                     )}

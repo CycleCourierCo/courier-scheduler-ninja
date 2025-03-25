@@ -25,7 +25,9 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     customerOrderNumber: dbOrder.customer_order_number,
     needsPaymentOnCollection: dbOrder.needs_payment_on_collection,
     isBikeSwap: dbOrder.is_bike_swap,
-    deliveryInstructions: dbOrder.delivery_instructions
+    deliveryInstructions: dbOrder.delivery_instructions,
+    senderNotes: dbOrder.sender_notes,
+    receiverNotes: dbOrder.receiver_notes
   };
 };
 
