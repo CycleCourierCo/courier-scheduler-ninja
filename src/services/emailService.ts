@@ -13,7 +13,9 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
       return false;
     }
     
+    // Use the current domain dynamically
     const baseUrl = window.location.origin;
+    console.log("Using base URL for email:", baseUrl);
     
     // Create item from bike details
     const item = {
@@ -58,7 +60,9 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
       return false;
     }
     
+    // Use the current domain dynamically
     const baseUrl = window.location.origin;
+    console.log("Using base URL for email:", baseUrl);
     
     // Create item from bike details
     const item = {

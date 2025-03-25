@@ -59,7 +59,10 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   // Send email to sender after order creation
   try {
+    // Get the current domain dynamically
     const baseUrl = window.location.origin;
+    console.log("Using base URL for order creation email:", baseUrl);
+    
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: data.sender.email,

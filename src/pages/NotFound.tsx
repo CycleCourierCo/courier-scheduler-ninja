@@ -9,15 +9,17 @@ const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error(
-      "404 Error: User attempted to access non-existent route:",
-      location.pathname
-    );
-    
-    // Log additional debugging information
+    // Log comprehensive domain and routing information
+    console.error("=== 404 ERROR DIAGNOSTICS ===");
+    console.error("Current domain:", window.location.origin);
     console.error("Full URL:", window.location.href);
+    console.error("Path:", location.pathname);
     console.error("Search params:", location.search);
     console.error("Hash:", location.hash);
+    console.error("Host:", window.location.host);
+    console.error("Hostname:", window.location.hostname);
+    console.error("Protocol:", window.location.protocol);
+    console.error("============================");
   }, [location]);
 
   return (
@@ -34,9 +36,9 @@ const NotFound = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            The requested resource could not be found: <strong>{location.pathname}</strong>
-            <br />
-            If you were accessing an order or function, it may have been deleted or may not exist.
+            <p>The requested resource could not be found: <strong>{location.pathname}</strong></p>
+            <p className="mt-2">Current domain: <code>{window.location.origin}</code></p>
+            <p>If you were accessing an order or function, it may have been deleted or may not exist.</p>
           </AlertDescription>
         </Alert>
         

@@ -7,21 +7,41 @@ import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
 import { toast } from 'sonner';
+import { getPublicOrder } from '@/services/fetchOrderService';
 
 export default function ReceiverAvailability() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [paramError, setParamError] = useState<string | null>(null);
+  const [initialCheckCompleted, setInitialCheckCompleted] = useState(false);
   
-  // Log the route params for debugging
+  // Log the route params and domain info for debugging
   useEffect(() => {
-    console.log("ReceiverAvailability route params:", params);
+    console.log("=== RECEIVER AVAILABILITY COMPONENT ===");
+    console.log("Current domain:", window.location.origin);
     console.log("Full URL:", window.location.href);
+    console.log("Route params:", params);
+    console.log("ID param:", params.id);
     
     // Validate if ID param exists
     if (!params.id) {
       console.error("Missing ID parameter in the URL");
       setParamError("Missing order ID in the URL. Please check your link and try again.");
+    } else {
+      // Verify that the order exists directly (extra validation)
+      getPublicOrder(params.id)
+        .then(order => {
+          if (!order) {
+            console.error(`Order with ID ${params.id} not found`);
+            setParamError(`Order with ID ${params.id} was not found. Please check your link and try again.`);
+          }
+          setInitialCheckCompleted(true);
+        })
+        .catch(err => {
+          console.error("Error pre-fetching order:", err);
+          setParamError("Error loading order information. Please try again later.");
+          setInitialCheckCompleted(true);
+        });
     }
   }, [params]);
 
@@ -62,7 +82,7 @@ export default function ReceiverAvailability() {
     );
   }
 
-  if (isLoading) {
+  if (!initialCheckCompleted || isLoading) {
     return (
       <Layout>
         <LoadingState message="Loading order details..." />
