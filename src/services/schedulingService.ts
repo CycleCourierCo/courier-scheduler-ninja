@@ -30,18 +30,27 @@ export type SchedulingJobGroup = {
 
 // Function to get all pending orders that need scheduling
 export const getPendingSchedulingOrders = async (): Promise<Order[]> => {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("status", "scheduled_dates_pending")
-    .order("created_at", { ascending: false });
+  try {
+    console.log("Fetching pending scheduling orders...");
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("status", "scheduled_dates_pending")
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error getting pending scheduling orders:", error);
-    throw new Error(error.message);
+    if (error) {
+      console.error("Error getting pending scheduling orders:", error);
+      throw new Error(error.message);
+    }
+
+    console.log(`Found ${data.length} pending scheduling orders`);
+    const mappedOrders = data.map(mapDbOrderToOrderType);
+    console.log("Mapped orders:", mappedOrders);
+    return mappedOrders;
+  } catch (error) {
+    console.error("Unexpected error in getPendingSchedulingOrders:", error);
+    throw error;
   }
-
-  return data.map(mapDbOrderToOrderType);
 };
 
 // Function to extract city from an address
@@ -66,6 +75,12 @@ const findOverlappingDates = (dates1: Date[], dates2: Date[]): Date[] => {
 
 // Function to group orders by location pairs and find optimal routes
 export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
+  if (!orders || orders.length === 0) {
+    console.log("No orders to group");
+    return [];
+  }
+  
+  console.log(`Grouping ${orders.length} orders by location`);
   const groups: SchedulingGroup[] = [];
   const processedOrders = new Set<string>();
   
@@ -76,8 +91,15 @@ export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
     const fromCity = extractCity(order.sender.address);
     const toCity = extractCity(order.receiver.address);
     
+    console.log(`Processing order ${order.id} from ${fromCity} to ${toCity}`);
+    console.log("Order pickup dates:", order.pickupDate);
+    console.log("Order delivery dates:", order.deliveryDate);
+    
     // Skip if we don't have location or date information
-    if (!fromCity || !toCity || !order.pickupDate || !order.deliveryDate) return;
+    if (!fromCity || !toCity || !order.pickupDate || !order.deliveryDate) {
+      console.log(`Skipping order ${order.id} due to missing location or date information`);
+      return;
+    }
     
     // Ensure pickupDate and deliveryDate are arrays of Date objects
     const pickupDates = Array.isArray(order.pickupDate) 
@@ -88,8 +110,40 @@ export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
       ? order.deliveryDate.filter(d => d instanceof Date)
       : (order.deliveryDate instanceof Date ? [order.deliveryDate] : []);
     
+    // Try to convert string dates if needed
+    if (pickupDates.length === 0 && order.pickupDate) {
+      const dates = Array.isArray(order.pickupDate) ? order.pickupDate : [order.pickupDate];
+      dates.forEach(date => {
+        if (typeof date === 'string') {
+          try {
+            pickupDates.push(new Date(date));
+          } catch (e) {
+            console.error(`Failed to parse pickup date: ${date}`, e);
+          }
+        }
+      });
+    }
+    
+    if (deliveryDates.length === 0 && order.deliveryDate) {
+      const dates = Array.isArray(order.deliveryDate) ? order.deliveryDate : [order.deliveryDate];
+      dates.forEach(date => {
+        if (typeof date === 'string') {
+          try {
+            deliveryDates.push(new Date(date));
+          } catch (e) {
+            console.error(`Failed to parse delivery date: ${date}`, e);
+          }
+        }
+      });
+    }
+    
     // Skip if no valid dates
-    if (pickupDates.length === 0 || deliveryDates.length === 0) return;
+    if (pickupDates.length === 0 || deliveryDates.length === 0) {
+      console.log(`Skipping order ${order.id} due to no valid dates`);
+      return;
+    }
+    
+    console.log(`Order ${order.id} has ${pickupDates.length} pickup dates and ${deliveryDates.length} delivery dates`);
     
     // Create a new group for this location pair
     const group: SchedulingGroup = {
@@ -108,6 +162,7 @@ export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
     
     groups.push(group);
     processedOrders.add(order.id);
+    console.log(`Added order ${order.id} to group ${group.id}`);
   });
   
   // Second pass: try to chain groups to create optimal routes
@@ -164,6 +219,7 @@ export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
     }
   }
   
+  console.log(`Created ${optimizedGroups.length} order groups`);
   return optimizedGroups;
 };
 

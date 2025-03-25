@@ -26,10 +26,14 @@ const JobScheduling: React.FC = () => {
   const queryClient = useQueryClient();
   
   // Fetch pending orders
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, error, refetch } = useQuery({
     queryKey: ['pending-scheduling-orders'],
     queryFn: getPendingSchedulingOrders
   });
+  
+  useEffect(() => {
+    console.log("Orders data:", orders);
+  }, [orders]);
   
   // Mutation for scheduling orders
   const scheduleMutation = useMutation({
@@ -98,11 +102,28 @@ const JobScheduling: React.FC = () => {
     
     toast.info(`Group "${group.locationPair.from} → ${group.locationPair.to}" added to ${date.toLocaleDateString()}`);
   };
+  
+  if (error) {
+    console.error("Error loading orders:", error);
+  }
 
   return (
     <Layout>
       <div className="container py-6">
         <h1 className="text-3xl font-bold mb-6">Job Scheduling</h1>
+        
+        <div className="mb-4 flex justify-between items-center">
+          <div>
+            {orders && orders.length > 0 ? (
+              <p className="text-muted-foreground">Found {orders.length} orders pending scheduling</p>
+            ) : (
+              <p className="text-muted-foreground">No orders pending scheduling</p>
+            )}
+          </div>
+          <Button onClick={() => refetch()} variant="outline">
+            Refresh
+          </Button>
+        </div>
         
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
