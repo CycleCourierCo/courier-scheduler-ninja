@@ -125,8 +125,8 @@ export const useAvailability = ({
       return;
     }
 
-    if (dates.length === 0) {
-      toast.error("Please select at least one date when you'll be available");
+    if (dates.length < 5) {
+      toast.error("Please select at least 5 dates when you'll be available");
       return;
     }
 
