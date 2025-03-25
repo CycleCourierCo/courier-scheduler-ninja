@@ -7,8 +7,8 @@ export const updateOrderStatus = async (
   id: string,
   status: OrderStatus
 ): Promise<Order> => {
-  // Convert to string for database compatibility
-  const dbStatus = status.toString();
+  // No need to convert to string as OrderStatus is already compatible
+  const dbStatus = status;
   
   const { data, error } = await supabase
     .from("orders")
@@ -35,7 +35,7 @@ export const updateOrderScheduledDates = async (
     .update({
       scheduled_pickup_date: scheduledPickupDate.toISOString(),
       scheduled_delivery_date: scheduledDeliveryDate.toISOString(),
-      status: "scheduled",
+      status: "scheduled" as OrderStatus,
       scheduled_at: new Date().toISOString()
     })
     .eq("id", id)
@@ -58,8 +58,8 @@ export const updatePublicOrder = async (
   pickup_date: string[],
   status: OrderStatus
 ): Promise<Order> => {
-  // Convert to string for database compatibility
-  const dbStatus = status.toString();
+  // No need to convert status to string
+  const dbStatus = status;
   
   const { data, error } = await supabase
     .from("orders")
@@ -85,8 +85,8 @@ export const updateAdminOrderStatus = async (
   id: string,
   status: OrderStatus
 ): Promise<Order> => {
-  // Convert to string for database compatibility
-  const dbStatus = status.toString();
+  // No need to convert status to string
+  const dbStatus = status;
   
   const { data, error } = await supabase
     .from("orders")
