@@ -13,7 +13,12 @@ const NotFound = () => {
       "404 Error: User attempted to access non-existent route:",
       location.pathname
     );
-  }, [location.pathname]);
+    
+    // Log additional debugging information
+    console.error("Full URL:", window.location.href);
+    console.error("Search params:", location.search);
+    console.error("Hash:", location.hash);
+  }, [location]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
@@ -29,8 +34,9 @@ const NotFound = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            The requested resource could not be found. If you were accessing an order or 
-            function, it may have been deleted or may not exist.
+            The requested resource could not be found: <strong>{location.pathname}</strong>
+            <br />
+            If you were accessing an order or function, it may have been deleted or may not exist.
           </AlertDescription>
         </Alert>
         

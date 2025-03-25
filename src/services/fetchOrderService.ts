@@ -38,10 +38,12 @@ export const getOrderById = getOrder;
 export const getPublicOrder = async (id: string): Promise<Order | null> => {
   try {
     if (!id) {
-      console.error("Invalid order ID provided");
+      console.error("Invalid order ID provided:", id);
       return null;
     }
 
+    console.log(`Fetching public order with ID: ${id}`);
+    
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -50,6 +52,7 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
 
     if (error) {
       console.error("Error getting public order:", error);
+      console.error("Error details:", JSON.stringify(error));
       
       // Return null instead of throwing when the order is not found or another error occurs
       // This allows the UI to handle the error more gracefully
@@ -61,9 +64,11 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       return null;
     }
 
+    console.log("Order data retrieved successfully:", data.id);
     return mapDbOrderToOrderType(data);
   } catch (err) {
     console.error("Unexpected error in getPublicOrder:", err);
+    console.error("Error object:", JSON.stringify(err, null, 2));
     return null;
   }
 };

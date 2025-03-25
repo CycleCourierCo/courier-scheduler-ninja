@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
@@ -68,14 +68,11 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route 
-                path="/sender-availability/:id" 
-                element={<SenderAvailability />} 
-              />
-              <Route 
-                path="/receiver-availability/:id" 
-                element={<ReceiverAvailability />} 
-              />
+              {/* Ensure these routes work in all environments */}
+              <Route path="/sender-availability/:id" element={<SenderAvailability />} />
+              <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
+              
+              {/* Catch-all for 404 errors */}
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster position="top-right" />

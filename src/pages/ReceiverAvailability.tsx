@@ -1,18 +1,28 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { updateReceiverAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
-import { useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function ReceiverAvailability() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [paramError, setParamError] = useState<string | null>(null);
   
   // Log the route params for debugging
   useEffect(() => {
     console.log("ReceiverAvailability route params:", params);
+    console.log("Full URL:", window.location.href);
+    
+    // Validate if ID param exists
+    if (!params.id) {
+      console.error("Missing ID parameter in the URL");
+      setParamError("Missing order ID in the URL. Please check your link and try again.");
+    }
   }, [params]);
 
   const {
@@ -25,7 +35,7 @@ export default function ReceiverAvailability() {
     order,
     error,
     minDate,
-    navigate,
+    navigate: hookNavigate,
     handleSubmit
   } = useAvailability({
     type: 'receiver',
@@ -40,6 +50,17 @@ export default function ReceiverAvailability() {
              order.status === 'delivered';
     }
   });
+
+  if (paramError) {
+    return (
+      <Layout>
+        <ErrorState 
+          error={paramError} 
+          onHome={() => navigate("/")} 
+        />
+      </Layout>
+    );
+  }
 
   if (isLoading) {
     return (
