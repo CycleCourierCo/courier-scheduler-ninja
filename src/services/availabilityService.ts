@@ -24,6 +24,14 @@ export const updateSenderAvailability = async (
   notes: string
 ): Promise<Order | null> => {
   try {
+    if (!id || typeof id !== 'string') {
+      console.error("Invalid order ID:", id);
+      return null;
+    }
+    
+    console.log("Updating sender availability for order ID:", id);
+    console.log("Selected dates:", dates);
+    
     // First check if the order exists
     const { data: orderExists, error: checkError } = await supabase
       .from("orders")
@@ -47,6 +55,8 @@ export const updateSenderAvailability = async (
       payload.sender_notes = notes.trim();
     }
     
+    console.log("Sending payload to Supabase:", JSON.stringify(payload));
+    
     const { data, error } = await supabase
       .from("orders")
       .update(payload)
@@ -56,15 +66,19 @@ export const updateSenderAvailability = async (
 
     if (error) {
       console.error("Error updating sender availability:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return null;
     }
 
     // Update receiver_availability_pending status only if successful
     await updateOrderStatusAfterSenderConfirmation(id);
-
+    
+    console.log("Sender availability updated successfully:", data.id);
     return mapDbOrderToOrderType(data);
   } catch (err) {
     console.error("Error in updateSenderAvailability:", err);
+    console.error("Error details:", JSON.stringify(err, null, 2));
+    console.error("Parameters - ID:", id, "Dates count:", dates?.length);
     return null;
   }
 };
@@ -75,6 +89,14 @@ export const updateReceiverAvailability = async (
   notes: string
 ): Promise<Order | null> => {
   try {
+    if (!id || typeof id !== 'string') {
+      console.error("Invalid order ID:", id);
+      return null;
+    }
+    
+    console.log("Updating receiver availability for order ID:", id);
+    console.log("Selected dates:", dates);
+    
     // First check if the order exists
     const { data: orderExists, error: checkError } = await supabase
       .from("orders")
@@ -98,6 +120,8 @@ export const updateReceiverAvailability = async (
       payload.receiver_notes = notes.trim();
     }
     
+    console.log("Sending payload to Supabase:", JSON.stringify(payload));
+    
     const { data, error } = await supabase
       .from("orders")
       .update(payload)
@@ -107,15 +131,19 @@ export const updateReceiverAvailability = async (
 
     if (error) {
       console.error("Error updating receiver availability:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return null;
     }
 
     // Update pending_approval status only if successful
     await updateOrderStatusAfterReceiverConfirmation(id);
-
+    
+    console.log("Receiver availability updated successfully:", data.id);
     return mapDbOrderToOrderType(data);
   } catch (err) {
     console.error("Error in updateReceiverAvailability:", err);
+    console.error("Error details:", JSON.stringify(err, null, 2));
+    console.error("Parameters - ID:", id, "Dates count:", dates?.length);
     return null;
   }
 };

@@ -121,6 +121,7 @@ export const useAvailability = ({
 
     if (!id) {
       setError("Order ID is missing");
+      toast.error("Missing order identifier. Please try again with a valid link.");
       return;
     }
 
@@ -132,7 +133,7 @@ export const useAvailability = ({
     try {
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
-      console.log("Selected dates:", dates);
+      console.log("Selected dates:", dates.map(d => d.toISOString()));
       
       const updatedOrder = await updateFunction(id, dates, notes);
 
