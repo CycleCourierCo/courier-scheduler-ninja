@@ -25,13 +25,31 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Email service function called");
+    
     const payload: EmailPayload = await req.json()
+    console.log("Received payload:", JSON.stringify(payload, null, 2));
     
     if (!payload.to || !payload.orderId || !payload.baseUrl || !payload.emailType) {
+      console.error("Missing required email parameters:", JSON.stringify(payload, null, 2));
       return new Response(
         JSON.stringify({ error: 'Missing required email parameters' }),
         { 
           status: 400, 
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          } 
+        }
+      )
+    }
+
+    if (!RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not set");
+      return new Response(
+        JSON.stringify({ error: 'RESEND_API_KEY is not configured' }),
+        { 
+          status: 500, 
           headers: {
             'Content-Type': 'application/json',
             ...corsHeaders
@@ -81,6 +99,7 @@ serve(async (req) => {
         </div>
       `
     } else {
+      console.error("Invalid email type:", payload.emailType);
       return new Response(
         JSON.stringify({ error: 'Invalid email type' }),
         { 
@@ -93,6 +112,8 @@ serve(async (req) => {
       )
     }
 
+    console.log(`Sending ${payload.emailType} email to ${payload.to} for order ${payload.orderId}`);
+    
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -105,12 +126,13 @@ serve(async (req) => {
         subject: emailSubject,
         html: emailContent,
       })
-    })
+    });
 
     const data = await response.json()
+    console.log("Resend API response:", JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      console.error('Error sending email:', data)
+      console.error('Error sending email:', data);
       return new Response(
         JSON.stringify({ error: 'Failed to send email', details: data }),
         { 
@@ -123,6 +145,8 @@ serve(async (req) => {
       )
     }
 
+    console.log(`Successfully sent ${payload.emailType} email to ${payload.to}`);
+    
     return new Response(
       JSON.stringify({
         success: true,
@@ -138,7 +162,8 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error processing request:', error)
+    console.error('Error processing request:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),

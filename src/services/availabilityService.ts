@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
+import { resendReceiverAvailabilityEmail } from "./emailService";
 
 // Update the schema type based on Supabase database schema
 type UpdateSenderAvailabilityPayload = {
@@ -72,6 +73,15 @@ export const updateSenderAvailability = async (
 
     // Update receiver_availability_pending status only if successful
     await updateOrderStatusAfterSenderConfirmation(id);
+    
+    // After successfully updating sender availability, send email to receiver
+    console.log("Attempting to send email to receiver after sender confirmed");
+    const emailResult = await resendReceiverAvailabilityEmail(id);
+    if (emailResult) {
+      console.log("Email to receiver sent successfully after sender confirmation");
+    } else {
+      console.error("Failed to send email to receiver after sender confirmation");
+    }
     
     console.log("Sender availability updated successfully:", data.id);
     return mapDbOrderToOrderType(data);
