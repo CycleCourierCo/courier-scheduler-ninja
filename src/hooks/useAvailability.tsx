@@ -42,7 +42,8 @@ export const useAvailability = ({
 
       try {
         setIsLoading(true);
-        console.log(`Loading order with ID: ${id}`);
+        console.log(`Loading order with ID: ${id}, URL path: ${window.location.pathname}`);
+        
         const fetchedOrder = await getPublicOrder(id);
         
         // Prevent state updates if component unmounted
@@ -57,7 +58,7 @@ export const useAvailability = ({
           return;
         }
 
-        console.log("Order loaded successfully:", fetchedOrder.id);
+        console.log("Order loaded successfully:", fetchedOrder.id, "Status:", fetchedOrder.status);
         setOrder(fetchedOrder);
 
         // Check if the availability is already confirmed
@@ -76,6 +77,12 @@ export const useAvailability = ({
                 .join(", ");
             } else if (alreadyConfirmedDates instanceof Date) {
               formattedDates = format(new Date(alreadyConfirmedDates), "PPP");
+            } else if (typeof alreadyConfirmedDates === 'string') {
+              try {
+                formattedDates = format(new Date(alreadyConfirmedDates), "PPP");
+              } catch (err) {
+                console.error("Failed to format date string:", alreadyConfirmedDates);
+              }
             }
             
             setError(`Your ${type === 'sender' ? 'pickup' : 'delivery'} dates (${formattedDates}) have already been confirmed.`);
@@ -125,6 +132,8 @@ export const useAvailability = ({
     try {
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
+      console.log("Selected dates:", dates);
+      
       const updatedOrder = await updateFunction(id, dates, notes);
 
       if (updatedOrder) {

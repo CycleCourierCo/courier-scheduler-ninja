@@ -1,12 +1,20 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { updateReceiverAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
+import { useParams } from 'react-router-dom';
 
 export default function ReceiverAvailability() {
+  const params = useParams();
+  
+  // Log the route params for debugging
+  useEffect(() => {
+    console.log("ReceiverAvailability route params:", params);
+  }, [params]);
+
   const {
     dates,
     setDates,
