@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -52,9 +53,9 @@ const extractCity = (address: any): string => {
 const findOverlappingDates = (dates1: Date[], dates2: Date[]): Date[] => {
   const overlappingDates: Date[] = [];
   
-  // Convert all dates to string format for easy comparison
-  const stringDates1 = dates1.map(d => d.toISOString().split('T')[0]);
-  const stringDates2 = dates2.map(d => d.toISOString().split('T')[0]);
+  // Convert all dates to string format for easy comparison, but first ensure they are Date objects
+  const stringDates1 = dates1.filter(d => d instanceof Date).map(d => d.toISOString().split('T')[0]);
+  const stringDates2 = dates2.filter(d => d instanceof Date).map(d => d.toISOString().split('T')[0]);
   
   // Find common dates
   const commonDates = stringDates1.filter(date => stringDates2.includes(date));
@@ -78,8 +79,17 @@ export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
     // Skip if we don't have location or date information
     if (!fromCity || !toCity || !order.pickupDate || !order.deliveryDate) return;
     
-    const pickupDates = Array.isArray(order.pickupDate) ? order.pickupDate : [order.pickupDate];
-    const deliveryDates = Array.isArray(order.deliveryDate) ? order.deliveryDate : [order.deliveryDate];
+    // Ensure pickupDate and deliveryDate are arrays of Date objects
+    const pickupDates = Array.isArray(order.pickupDate) 
+      ? order.pickupDate.filter(d => d instanceof Date)
+      : (order.pickupDate instanceof Date ? [order.pickupDate] : []);
+      
+    const deliveryDates = Array.isArray(order.deliveryDate) 
+      ? order.deliveryDate.filter(d => d instanceof Date)
+      : (order.deliveryDate instanceof Date ? [order.deliveryDate] : []);
+    
+    // Skip if no valid dates
+    if (pickupDates.length === 0 || deliveryDates.length === 0) return;
     
     // Create a new group for this location pair
     const group: SchedulingGroup = {
@@ -164,17 +174,19 @@ export const organizeGroupsByDates = (groups: SchedulingGroup[]): SchedulingJobG
   groups.forEach(group => {
     // For each possible pickup date
     group.dateRange.pickup.forEach(pickupDate => {
-      const dateStr = pickupDate.toISOString().split('T')[0];
-      
-      if (!dateGroupMap.has(dateStr)) {
-        dateGroupMap.set(dateStr, {
-          date: new Date(dateStr),
-          groups: []
-        });
+      if (pickupDate instanceof Date) {
+        const dateStr = pickupDate.toISOString().split('T')[0];
+        
+        if (!dateGroupMap.has(dateStr)) {
+          dateGroupMap.set(dateStr, {
+            date: new Date(dateStr),
+            groups: []
+          });
+        }
+        
+        const jobGroup = dateGroupMap.get(dateStr)!;
+        jobGroup.groups.push(group);
       }
-      
-      const jobGroup = dateGroupMap.get(dateStr)!;
-      jobGroup.groups.push(group);
     });
   });
   
