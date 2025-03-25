@@ -145,7 +145,7 @@ export const updateReceiverAvailability = async (
       return null;
     }
 
-    // Update pending_approval status only if successful
+    // Update scheduled_dates_pending status (formerly pending_approval) only if successful
     await updateOrderStatusAfterReceiverConfirmation(id);
     
     console.log("Receiver availability updated successfully:", data.id);
@@ -185,13 +185,13 @@ const updateOrderStatusAfterReceiverConfirmation = async (
     const { error } = await supabase
       .from("orders")
       .update({
-        status: "pending_approval"
+        status: "scheduled_dates_pending"
       })
       .eq("id", id)
       .eq("status", "receiver_availability_confirmed");
 
     if (error) {
-      console.error("Error updating to pending_approval:", error);
+      console.error("Error updating to scheduled_dates_pending:", error);
     }
   } catch (err) {
     console.error("Error in updateOrderStatusAfterReceiverConfirmation:", err);
