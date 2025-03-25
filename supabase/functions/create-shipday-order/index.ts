@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -15,6 +16,7 @@ interface OrderRequest {
   orderType?: string;
   expectedDeliveryDate?: string;
   expectedPickupDate?: string;
+  deliveryInstruction?: string;  // Added field for delivery instructions
 }
 
 const corsHeaders = {
@@ -157,6 +159,17 @@ serve(async (req) => {
     console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
     console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
 
+    // Prepare delivery instructions for pickup order
+    const baseDeliveryInstructions = order.delivery_instructions || '';
+    const senderNotes = order.sender_notes || '';
+    
+    // For pickup order: combine delivery instructions with sender notes
+    const pickupInstructions = [baseDeliveryInstructions, senderNotes].filter(Boolean).join(' | ');
+    
+    // For delivery order: combine delivery instructions with receiver notes
+    const receiverNotes = order.receiver_notes || '';
+    const deliveryInstructions = [baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
+
     // Create the pickup order
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderId.substring(0, 8)}-PICKUP`,
@@ -170,7 +183,8 @@ serve(async (req) => {
       pickupTime: pickupTimeFormatted, // Use exact time from user input
       expectedDeliveryTime: pickupTimeOnlyFormatted, // Added expectedDeliveryTime for pickup order
       expectedPickupDate: expectedPickupDateFormatted, // Date only format
-      expectedDeliveryDate: expectedPickupDateFormatted // Set expected delivery date to pickup date
+      expectedDeliveryDate: expectedPickupDateFormatted, // Set expected delivery date to pickup date
+      deliveryInstruction: pickupInstructions // Added delivery instructions for pickup
     };
 
     // Create the delivery order with delivery time
@@ -184,7 +198,8 @@ serve(async (req) => {
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
       expectedDeliveryTime: deliveryTimeFormatted, // Changed from deliveryTime to expectedDeliveryTime with HH:MM:SS format
-      expectedDeliveryDate: expectedDeliveryDateFormatted // Date only format for Shipday
+      expectedDeliveryDate: expectedDeliveryDateFormatted, // Date only format for Shipday
+      deliveryInstruction: deliveryInstructions // Added delivery instructions for delivery
     };
 
     console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
