@@ -57,7 +57,9 @@ const JobScheduling: React.FC = () => {
   const pendingGroups = allGroups.filter(group => 
     group.orders.some(order => 
       order.status === 'scheduled_dates_pending' || 
-      order.status === 'pending_approval'
+      order.status === 'pending_approval' ||
+      order.status === 'sender_availability_confirmed' ||
+      order.status === 'receiver_availability_confirmed'
     )
   );
   
@@ -113,7 +115,12 @@ const JobScheduling: React.FC = () => {
                   Found {orders.length} orders ({pendingGroups.length} orders pending scheduling)
                 </p>
                 <Badge variant="outline" className="mt-1">
-                  {orders.filter(o => o.status === 'scheduled_dates_pending' || o.status === 'pending_approval').length} pending
+                  {orders.filter(o => 
+                    o.status === 'scheduled_dates_pending' || 
+                    o.status === 'pending_approval' ||
+                    o.status === 'sender_availability_confirmed' ||
+                    o.status === 'receiver_availability_confirmed'
+                  ).length} pending
                 </Badge>
                 <Badge variant="outline" className="mt-1 ml-2">
                   {orders.filter(o => o.status === 'scheduled').length} scheduled

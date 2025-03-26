@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -37,7 +36,13 @@ export const getPendingSchedulingOrders = async (): Promise<Order[]> => {
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .in("status", ["scheduled_dates_pending", "pending_approval", "scheduled"])
+      .in("status", [
+        "scheduled_dates_pending", 
+        "pending_approval", 
+        "scheduled",
+        "sender_availability_confirmed",
+        "receiver_availability_confirmed"
+      ])
       .order("created_at", { ascending: false });
 
     if (error) {
