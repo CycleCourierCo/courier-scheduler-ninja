@@ -16,6 +16,7 @@ import ReceiverAvailability from "./pages/ReceiverAvailability";
 import OrderDetail from "./pages/OrderDetail";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import JobScheduling from "./pages/JobScheduling";
+import Tracking from "./pages/Tracking";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -77,6 +78,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              {/* Public tracking page - accessible to anyone */}
+              <Route path="/tracking" element={<Tracking />} />
+              
               {/* Ensure these routes work in all environments */}
               <Route path="/sender-availability/:id" element={<SenderAvailability />} />
               <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
