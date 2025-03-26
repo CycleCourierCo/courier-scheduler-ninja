@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -144,7 +143,7 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       });
       
       if (isProximityMatch) {
-        // Add to this group
+        // Add to this group, regardless of how many orders it already has
         group.orders.push(order);
         console.log(`Added order ${order.id} to existing group ${group.id} (proximity match) for ${type}`);
         processedOrders.add(`${order.id}-${type}`);
