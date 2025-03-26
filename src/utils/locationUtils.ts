@@ -37,7 +37,7 @@ export const getLocationName = (contact: OrderContact): string => {
 export const areLocationsWithinRadius = (
   contact1: OrderContact | undefined,
   contact2: OrderContact | undefined,
-  radiusMiles: number = 5 // Reduced radius to make groups more specific to smaller areas
+  radiusMiles: number = 60
 ): boolean => {
   if (!contact1?.address?.zipCode || !contact2?.address?.zipCode) {
     return false;
@@ -61,14 +61,6 @@ export const areLocationsWithinRadius = (
   // or maintain a database of postcode coordinates.
   // This is a simplified approach:
   
-  // Birmingham specific handling - B postcodes are likely within Birmingham area
-  if ((outward1.startsWith('B') && outward2.startsWith('B')) ||
-      (contact1.address.city.toLowerCase() === 'birmingham' && outward2.startsWith('B')) ||
-      (contact2.address.city.toLowerCase() === 'birmingham' && outward1.startsWith('B'))) {
-    // They are both in the Birmingham area
-    return true;
-  }
-  
   // Compare first letters - if different, likely far apart
   if (outward1[0] !== outward2[0]) {
     // Different first letter typically indicates different regions in UK
@@ -87,6 +79,6 @@ export const areLocationsWithinRadius = (
     }
   }
   
-  // Default - be inclusive rather than exclusive for smaller radius
-  return false;
+  // Default - be inclusive rather than exclusive
+  return true;
 };

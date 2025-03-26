@@ -129,7 +129,6 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     
     // Get location name for group identification
     const locationName = getLocationName(mainContact);
-    console.log(`Order ${order.id} ${type} location: ${locationName}`);
     
     // Find if there's an existing group with locations in proximity
     let foundGroup = false;
@@ -141,9 +140,7 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       // Check if any order in the group has a location close to this order
       const isProximityMatch = group.orders.some(existingOrder => {
         const existingContact = type === 'pickup' ? existingOrder.sender : existingOrder.receiver;
-        const matchResult = areLocationsWithinRadius(existingContact, mainContact);
-        console.log(`Checking proximity between ${getLocationName(existingContact)} and ${getLocationName(mainContact)}: ${matchResult}`);
-        return matchResult;
+        return areLocationsWithinRadius(existingContact, mainContact);
       });
       
       if (isProximityMatch) {
