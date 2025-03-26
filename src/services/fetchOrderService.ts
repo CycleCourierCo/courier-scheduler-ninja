@@ -38,25 +38,33 @@ export const getOrderById = getOrder;
 export const getPublicOrder = async (id: string): Promise<Order | null> => {
   try {
     if (!id) {
-      console.error("Invalid order ID provided");
+      console.error("Invalid order ID provided:", id);
+      console.error("Current domain:", window.location.origin);
       return null;
     }
 
-    console.log(`Fetching public order with ID: ${id}`);
+    console.log(`Fetching public order with ID: ${id} from domain: ${window.location.origin}`);
     
     const { data, error } = await supabase
       .from("orders")
       .select("*")
       .eq("id", id)
-      .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no match is found
-    
+      .single();
+
     if (error) {
       console.error("Error getting public order:", error);
+      console.error("Error details:", JSON.stringify(error));
+      console.error("Domain information:", window.location.origin);
+      console.error("Full URL:", window.location.href);
+      
+      // Return null instead of throwing when the order is not found or another error occurs
+      // This allows the UI to handle the error more gracefully
       return null;
     }
 
     if (!data) {
       console.error("No order found with ID:", id);
+      console.error("Current domain:", window.location.origin);
       return null;
     }
 
@@ -64,6 +72,8 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     return mapDbOrderToOrderType(data);
   } catch (err) {
     console.error("Unexpected error in getPublicOrder:", err);
+    console.error("Error object:", JSON.stringify(err, null, 2));
+    console.error("Domain information:", window.location.origin);
     return null;
   }
 };
