@@ -14,7 +14,6 @@ import SchedulingCard from "@/components/scheduling/SchedulingCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Package } from "lucide-react";
 
 const JobScheduling: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState<SchedulingGroup | null>(null);
@@ -47,24 +46,36 @@ const JobScheduling: React.FC = () => {
     }
   });
   
-  // Process orders into groups (collections and deliveries separately)
-  const pickupGroups = orders ? groupOrdersByLocation(orders, 'pickup') : [];
-  const deliveryGroups = orders ? groupOrdersByLocation(orders, 'delivery') : [];
+  // Process orders into all groups, both pickups and deliveries
+  const allGroups = orders ? [
+    ...groupOrdersByLocation(orders, 'pickup'),
+    ...groupOrdersByLocation(orders, 'delivery')
+  ] : [];
   
   // Get pending groups (not scheduled)
-  const pendingPickupGroups = pickupGroups.filter(group => 
+  const pendingGroups = allGroups.filter(group => 
     group.orders.some(order => 
       order.status === 'scheduled_dates_pending' || 
       order.status === 'pending_approval'
     )
   );
   
-  const pendingDeliveryGroups = deliveryGroups.filter(group => 
-    group.orders.some(order => 
-      order.status === 'scheduled_dates_pending' || 
-      order.status === 'pending_approval'
-    )
-  );
+  // Group the pending groups by location (city)
+  const locationGroupsMap = pendingGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
+    const locationKey = group.type === 'pickup' 
+      ? group.locationPair.from 
+      : group.locationPair.to;
+    
+    if (!acc[locationKey]) {
+      acc[locationKey] = [];
+    }
+    
+    acc[locationKey].push(group);
+    return acc;
+  }, {});
+  
+  // Convert the map to a sorted array of entries
+  const locationGroups = Object.entries(locationGroupsMap).sort((a, b) => a[0].localeCompare(b[0]));
   
   // Handle scheduling a group from the card
   const handleScheduleGroup = (group: SchedulingGroup) => {
@@ -93,7 +104,7 @@ const JobScheduling: React.FC = () => {
             {orders ? (
               <div>
                 <p className="text-muted-foreground">
-                  Found {orders.length} orders ({pendingPickupGroups.length + pendingDeliveryGroups.length} groups pending scheduling)
+                  Found {orders.length} orders ({pendingGroups.length} orders pending scheduling)
                 </p>
                 <Badge variant="outline" className="mt-1">
                   {orders.filter(o => o.status === 'scheduled_dates_pending' || o.status === 'pending_approval').length} pending
@@ -119,52 +130,29 @@ const JobScheduling: React.FC = () => {
           <div className="bg-card rounded-lg p-4 shadow mb-8">
             <h2 className="text-xl font-semibold mb-4">Pending Order Groups</h2>
             
-            {pendingPickupGroups.length === 0 && pendingDeliveryGroups.length === 0 ? (
+            {pendingGroups.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No pending order groups to schedule
               </div>
             ) : (
-              <>
-                {/* Collections */}
-                {pendingPickupGroups.length > 0 && (
-                  <div className="mb-6">
+              <div className="space-y-8">
+                {locationGroups.map(([location, groups]) => (
+                  <div key={location} className="mb-6">
                     <div className="flex items-center gap-2 mb-3">
-                      <Package className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-medium">Collections</h3>
+                      <h3 className="text-lg font-medium">{location}</h3>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {pendingPickupGroups.map((group) => (
+                      {groups.map((group) => (
                         <SchedulingCard 
-                          key={`pickup-${group.id}`} 
+                          key={`${group.type}-${group.id}`} 
                           group={group}
                           onSchedule={handleScheduleGroup}
-                          isPickup={true}
                         />
                       ))}
                     </div>
                   </div>
-                )}
-                
-                {/* Deliveries */}
-                {pendingDeliveryGroups.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Truck className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-medium">Deliveries</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {pendingDeliveryGroups.map((group) => (
-                        <SchedulingCard 
-                          key={`delivery-${group.id}`} 
-                          group={group}
-                          onSchedule={handleScheduleGroup}
-                          isPickup={false}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+                ))}
+              </div>
             )}
           </div>
         )}
