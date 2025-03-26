@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -30,7 +31,6 @@ const OrderDetail = () => {
   const [pickupTime, setPickupTime] = useState<string>("09:00");
   const [deliveryTime, setDeliveryTime] = useState<string>("12:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCreatingShipments, setIsCreatingShipments] = useState(false);
   const [isResendingEmail, setIsResendingEmail] = useState<{sender: boolean; receiver: boolean}>({ sender: false, receiver: false });
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
@@ -100,47 +100,19 @@ const OrderDetail = () => {
         throw new Error("Failed to update order schedule");
       }
       
-      setOrder(updatedOrder);
-      toast.success("Order has been scheduled successfully");
+      const shipdayResponse = await createShipdayOrder(id);
+      
+      if (shipdayResponse) {
+        setOrder(updatedOrder);
+        toast.success("Order has been scheduled and shipments created successfully");
+      } else {
+        toast.error("Failed to create shipments");
+      }
     } catch (error) {
       console.error("Error scheduling order:", error);
       toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleCreateShipments = async () => {
-    if (!id) {
-      toast.error("Order ID is missing");
-      return;
-    }
-
-    if (!order?.scheduledPickupDate || !order?.scheduledDeliveryDate) {
-      toast.error("Order must be scheduled before creating shipments");
-      return;
-    }
-
-    try {
-      setIsCreatingShipments(true);
-      
-      const shipdayResponse = await createShipdayOrder(id);
-      
-      if (shipdayResponse) {
-        const updatedOrder = await getOrderById(id);
-        if (updatedOrder) {
-          setOrder(updatedOrder);
-        }
-        
-        toast.success("Shipments created successfully");
-      } else {
-        toast.error("Failed to create shipments");
-      }
-    } catch (error) {
-      console.error("Error creating shipments:", error);
-      toast.error(`Failed to create shipments: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsCreatingShipments(false);
     }
   };
 
@@ -171,8 +143,15 @@ const OrderDetail = () => {
         throw new Error("Failed to update order schedule");
       }
       
-      setOrder(updatedOrder);
-      toast.success("Order has been scheduled successfully");
+      const shipdayResponse = await createShipdayOrder(id);
+      
+      if (shipdayResponse) {
+        setOrder(updatedOrder);
+        toast.success("Order has been scheduled and shipments created successfully");
+      } else {
+        setOrder(updatedOrder);
+        toast.warning("Order scheduled but failed to create shipments in Shipday");
+      }
     } catch (error) {
       console.error("Error scheduling order:", error);
       toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -277,7 +256,6 @@ const OrderDetail = () => {
     Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
   const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
-  const hasScheduledDates = order.scheduledPickupDate && order.scheduledDeliveryDate;
 
   const needsSenderConfirmation = order.status === 'created' || order.status === 'sender_availability_pending';
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
@@ -360,64 +338,18 @@ const OrderDetail = () => {
                   <p>Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}</p>
                 </div>
                 
-                <div className="space-y-4">
-                  {canSchedule && !isScheduled && (
-                    <div className="mt-6">
-                      <Button 
-                        onClick={handleScheduleOrder} 
-                        disabled={!selectedPickupDate || !selectedDeliveryDate || isSubmitting}
-                        className="w-full"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                            Scheduling Order...
-                          </>
-                        ) : (
-                          "Schedule Order"
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {showAdminControls && !isScheduled && (
-                    <div className="mt-6 border-t pt-4">
-                      <Button 
-                        onClick={handleAdminScheduleOrder} 
-                        disabled={!pickupDatePicker || !deliveryDatePicker || isSubmitting}
-                        className="w-full mb-3"
-                        variant="default"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                            Scheduling Order...
-                          </>
-                        ) : (
-                          "Admin: Schedule Order"
-                        )}
-                      </Button>
-                      
-                      {hasScheduledDates && (
-                        <Button 
-                          onClick={handleCreateShipments} 
-                          disabled={isCreatingShipments || !hasScheduledDates}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          {isCreatingShipments ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary mr-2"></div>
-                              Creating Shipments...
-                            </>
-                          ) : (
-                            "Create Shipments"
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SchedulingButtons 
+                  onSchedule={handleScheduleOrder}
+                  onAdminSchedule={handleAdminScheduleOrder}
+                  canSchedule={canSchedule}
+                  isSubmitting={isSubmitting}
+                  isScheduled={isScheduled}
+                  pickupDateSelected={!!selectedPickupDate}
+                  deliveryDateSelected={!!selectedDeliveryDate}
+                  adminPickupDateSelected={!!pickupDatePicker}
+                  adminDeliveryDateSelected={!!deliveryDatePicker}
+                  showAdminControls={showAdminControls}
+                />
               </div>
             </div>
             

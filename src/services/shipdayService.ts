@@ -1,8 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { updateAdminOrderStatus } from "./updateOrderService";
-import { OrderStatus } from "@/types/order";
 
 /**
  * Creates shipments in Shipday for the given order
@@ -29,9 +27,6 @@ export const createShipdayOrder = async (orderId: string) => {
       toast.error(data.error || "Failed to create Shipday order");
       throw new Error(data.error || "Unknown error creating Shipday orders");
     }
-
-    // Update the order status to "scheduled" after creating shipments
-    await updateAdminOrderStatus(orderId, "scheduled" as OrderStatus);
 
     toast.success("Shipday order created successfully");
     return data;
