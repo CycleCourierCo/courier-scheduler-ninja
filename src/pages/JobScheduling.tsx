@@ -47,11 +47,12 @@ const JobScheduling: React.FC = () => {
     }
   });
   
-  // Process orders into all groups, both pickups and deliveries
-  const allGroups = orders ? [
-    ...groupOrdersByLocation(orders, 'pickup'),
-    ...groupOrdersByLocation(orders, 'delivery')
-  ] : [];
+  // Process orders into pickup and delivery groups separately
+  const pickupGroups = orders ? groupOrdersByLocation(orders, 'pickup') : [];
+  const deliveryGroups = orders ? groupOrdersByLocation(orders, 'delivery') : [];
+  
+  // Combine all groups
+  const allGroups = [...pickupGroups, ...deliveryGroups];
   
   // Get pending groups (not scheduled)
   const pendingGroups = allGroups.filter(group => 
@@ -62,6 +63,12 @@ const JobScheduling: React.FC = () => {
       order.status === 'receiver_availability_confirmed'
     )
   );
+  
+  useEffect(() => {
+    console.log("Pending pickup groups:", pickupGroups.length);
+    console.log("Pending delivery groups:", deliveryGroups.length);
+    console.log("All pending groups:", pendingGroups.length);
+  }, [pickupGroups, deliveryGroups, pendingGroups]);
   
   // Group the pending groups by location (proximity areas)
   const locationGroupsMap = pendingGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
@@ -114,17 +121,25 @@ const JobScheduling: React.FC = () => {
                 <p className="text-muted-foreground">
                   Found {orders.length} orders ({pendingGroups.length} groups pending scheduling)
                 </p>
-                <Badge variant="outline" className="mt-1">
-                  {orders.filter(o => 
-                    o.status === 'scheduled_dates_pending' || 
-                    o.status === 'pending_approval' ||
-                    o.status === 'sender_availability_confirmed' ||
-                    o.status === 'receiver_availability_confirmed'
-                  ).length} pending
-                </Badge>
-                <Badge variant="outline" className="mt-1 ml-2">
-                  {orders.filter(o => o.status === 'scheduled').length} scheduled
-                </Badge>
+                <div className="flex gap-2 mt-1">
+                  <Badge variant="outline">
+                    {pickupGroups.length} pickup groups
+                  </Badge>
+                  <Badge variant="outline">
+                    {deliveryGroups.length} delivery groups
+                  </Badge>
+                  <Badge variant="outline">
+                    {orders.filter(o => 
+                      o.status === 'scheduled_dates_pending' || 
+                      o.status === 'pending_approval' ||
+                      o.status === 'sender_availability_confirmed' ||
+                      o.status === 'receiver_availability_confirmed'
+                    ).length} pending
+                  </Badge>
+                  <Badge variant="outline">
+                    {orders.filter(o => o.status === 'scheduled').length} scheduled
+                  </Badge>
+                </div>
               </div>
             ) : (
               <p className="text-muted-foreground">No orders found</p>
@@ -154,6 +169,12 @@ const JobScheduling: React.FC = () => {
                     <div className="flex items-center gap-2 mb-3">
                       <h3 className="text-lg font-medium">{location}</h3>
                       <Badge variant="outline">{groups.length} groups</Badge>
+                      <Badge variant="outline">
+                        {groups.filter(g => g.type === 'pickup').length} pickups
+                      </Badge>
+                      <Badge variant="outline">
+                        {groups.filter(g => g.type === 'delivery').length} deliveries
+                      </Badge>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {groups.map((group) => (
