@@ -29,7 +29,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      {canSchedule && (
+      {canSchedule && !isScheduled && (
         <div className="mt-6">
           <Button 
             onClick={onSchedule} 
@@ -48,7 +48,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
         </div>
       )}
       
-      {showAdminControls && (
+      {showAdminControls && !isScheduled && (
         <div className="mt-6 border-t pt-4">
           <Button 
             onClick={onAdminSchedule} 

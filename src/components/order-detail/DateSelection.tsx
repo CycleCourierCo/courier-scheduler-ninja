@@ -57,7 +57,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         <h3 className="font-semibold">{title}</h3>
       </div>
       
-      {canSelectDate ? (
+      {canSelectDate && !isScheduled ? (
         <div className="space-y-2">
           <p className="text-sm text-gray-500">Available dates:</p>
           <p>{formatDates(availableDates)}</p>
@@ -108,7 +108,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             <p>{formatDates(availableDates)}</p>
           )}
           
-          {showAdminControls && (
+          {showAdminControls && !isScheduled && (
             <div className="space-y-2 border-t pt-4 mt-4">
               <h4 className="text-sm font-medium">Admin: Set Date</h4>
               <div className="grid grid-cols-2 gap-2">
