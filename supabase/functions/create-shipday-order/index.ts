@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -147,6 +148,7 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
 
+    // Use the customer_order_number instead of UUID for the Shipday order reference
     const orderReference = order.customer_order_number || orderId.substring(0, 8);
 
     const pickupOrderData: OrderRequest = {
