@@ -1,7 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { updateOrderScheduledDates } from "./updateOrderService";
+import { areLocationsWithinRadius, getLocationName } from "@/utils/locationUtils";
 
 // Define types for our scheduling functionality
 export type LocationPair = {
@@ -73,35 +75,26 @@ const findOverlappingDates = (dates1: Date[], dates2: Date[]): Date[] => {
   return commonDates.map(dateStr => new Date(dateStr));
 };
 
-// Function to group orders by location pairs for either pickup or delivery
+// Function to group orders by location proximity for either pickup or delivery
 export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'delivery' = 'pickup'): SchedulingGroup[] => {
   if (!orders || orders.length === 0) {
     console.log("No orders to group");
     return [];
   }
   
-  console.log(`Grouping ${orders.length} orders by location for ${type}`);
+  console.log(`Grouping ${orders.length} orders by location proximity for ${type}`);
   const groups: SchedulingGroup[] = [];
   const processedOrders = new Set<string>();
   
-  // Create groups based on from/to pairs
+  // Create groups based on proximity
   orders.forEach(order => {
     if (processedOrders.has(`${order.id}-${type}`)) return;
     
-    // For pickup, the "from" is sender and "to" is receiver
-    // For delivery, we want to consider separately where we're taking the bikes to
-    const fromCity = type === 'pickup' 
-      ? extractCity(order.sender.address)
-      : extractCity(order.receiver.address);
-      
-    const toCity = type === 'pickup'
-      ? extractCity(order.receiver.address)
-      : extractCity(order.sender.address);
-    
-    console.log(`Processing order ${order.id} ${type} from ${fromCity} to ${toCity}`);
+    // For pickup, the contact is sender; for delivery, it's receiver
+    const mainContact = type === 'pickup' ? order.sender : order.receiver;
     
     // Skip if we don't have location or date information
-    if (!fromCity || !toCity || !order.pickupDate || !order.deliveryDate) {
+    if (!mainContact?.address?.zipCode || !order.pickupDate || !order.deliveryDate) {
       console.log(`Skipping order ${order.id} due to missing location or date information`);
       return;
     }
@@ -148,22 +141,42 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       return;
     }
     
-    console.log(`Order ${order.id} has ${pickupDates.length} pickup dates and ${deliveryDates.length} delivery dates`);
+    // Get location name for group identification
+    const locationName = getLocationName(mainContact);
     
-    // Find existing group for this location pair and type
-    const existingGroupIndex = groups.findIndex(g => 
-      g.locationPair.from === fromCity && 
-      g.locationPair.to === toCity &&
-      g.type === type
-    );
+    // Find if there's an existing group with locations in proximity
+    let foundGroup = false;
     
-    if (existingGroupIndex >= 0) {
-      // Add to existing group
-      const group = groups[existingGroupIndex];
-      group.orders.push(order);
-      console.log(`Added order ${order.id} to existing group ${group.id}`);
-    } else {
-      // Create a new group for this location pair
+    for (const group of groups) {
+      // Only consider groups of the same type (pickup or delivery)
+      if (group.type !== type) continue;
+      
+      // Check if any order in the group has a location close to this order
+      const isProximityMatch = group.orders.some(existingOrder => {
+        const existingContact = type === 'pickup' ? existingOrder.sender : existingOrder.receiver;
+        return areLocationsWithinRadius(existingContact, mainContact);
+      });
+      
+      if (isProximityMatch) {
+        // Add to this group
+        group.orders.push(order);
+        console.log(`Added order ${order.id} to existing group ${group.id} (proximity match)`);
+        processedOrders.add(`${order.id}-${type}`);
+        foundGroup = true;
+        break;
+      }
+    }
+    
+    if (!foundGroup) {
+      // Create a new group
+      const fromCity = type === 'pickup' 
+        ? extractCity(order.sender.address)
+        : extractCity(order.receiver.address);
+        
+      const toCity = type === 'pickup'
+        ? extractCity(order.receiver.address)
+        : extractCity(order.sender.address);
+      
       const group: SchedulingGroup = {
         id: `${type}-group-${groups.length + 1}`,
         locationPair: {
@@ -180,10 +193,9 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       };
       
       groups.push(group);
-      console.log(`Added order ${order.id} to new group ${group.id}`);
+      console.log(`Created new group ${group.id} for ${locationName}`);
+      processedOrders.add(`${order.id}-${type}`);
     }
-    
-    processedOrders.add(`${order.id}-${type}`);
   });
   
   console.log(`Created ${groups.length} ${type} order groups`);

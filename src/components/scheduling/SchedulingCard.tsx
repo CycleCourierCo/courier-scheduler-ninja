@@ -2,9 +2,10 @@
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, MapPin, Package } from "lucide-react";
 import { SchedulingGroup } from "@/services/schedulingService";
 import { useDraggable } from "@/hooks/useDraggable";
+import { extractOutwardCode } from "@/utils/locationUtils";
 
 interface SchedulingCardProps {
   group: SchedulingGroup;
@@ -27,6 +28,9 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
   
   // Get bike information
   const bikeInfo = `${firstOrder.bikeBrand || ""} ${firstOrder.bikeModel || ""}`.trim() || "Bike";
+  
+  // Extract postcode outward code for display
+  const postcodeOutward = extractOutwardCode(contact.address.zipCode);
 
   return (
     <Card 
@@ -48,7 +52,8 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
       </CardHeader>
       <CardContent className="pb-2">
         <div className="flex flex-col space-y-2 text-sm">
-          <div>
+          <div className="flex items-center">
+            <Package className="w-4 h-4 mr-2 text-muted-foreground" />
             <span className="font-semibold">{bikeInfo}</span>
           </div>
           <div>
@@ -58,7 +63,8 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           <div className="flex items-start">
             <MapPin className="w-4 h-4 mr-2 mt-1 text-muted-foreground" />
             <span>
-              {contact.address.street}, {contact.address.city}, {contact.address.state} {contact.address.zipCode}
+              {contact.address.street}, {contact.address.city} 
+              <div className="font-medium">{postcodeOutward}</div>
             </span>
           </div>
           <div className="flex items-center">

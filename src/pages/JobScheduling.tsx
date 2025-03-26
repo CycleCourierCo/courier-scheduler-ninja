@@ -14,6 +14,7 @@ import SchedulingCard from "@/components/scheduling/SchedulingCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
+import { getLocationName } from "@/utils/locationUtils";
 
 const JobScheduling: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState<SchedulingGroup | null>(null);
@@ -60,11 +61,16 @@ const JobScheduling: React.FC = () => {
     )
   );
   
-  // Group the pending groups by location (city)
+  // Group the pending groups by location (proximity areas)
   const locationGroupsMap = pendingGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
-    const locationKey = group.type === 'pickup' 
-      ? group.locationPair.from 
-      : group.locationPair.to;
+    // Get a representative contact for the group based on type
+    const firstOrder = group.orders[0];
+    const representativeContact = group.type === 'pickup' 
+      ? firstOrder.sender 
+      : firstOrder.receiver;
+    
+    // Get a location name to use as a key
+    const locationKey = getLocationName(representativeContact);
     
     if (!acc[locationKey]) {
       acc[locationKey] = [];
@@ -140,6 +146,7 @@ const JobScheduling: React.FC = () => {
                   <div key={location} className="mb-6">
                     <div className="flex items-center gap-2 mb-3">
                       <h3 className="text-lg font-medium">{location}</h3>
+                      <Badge variant="outline">{groups.length} groups</Badge>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {groups.map((group) => (
