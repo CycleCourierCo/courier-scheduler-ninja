@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,18 @@ const JobScheduling: React.FC = () => {
     ...groupOrdersByLocation(orders, 'delivery')
   ] : [];
   
-  const locationGroupsMap = allGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
+  // Filter for pending groups only
+  const pendingGroups = allGroups.filter(group => 
+    group.orders.some(order => 
+      order.status === 'scheduled_dates_pending' || 
+      order.status === 'pending_approval' ||
+      order.status === 'sender_availability_confirmed' ||
+      order.status === 'receiver_availability_confirmed'
+    )
+  );
+  
+  // Use pending groups for the location map instead of all groups
+  const locationGroupsMap = pendingGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
     const firstOrder = group.orders[0];
     const representativeContact = group.type === 'pickup' 
       ? firstOrder.sender 
@@ -92,7 +104,7 @@ const JobScheduling: React.FC = () => {
             {orders ? (
               <div>
                 <p className="text-muted-foreground">
-                  Found {orders.length} orders ({allGroups.length} total groups)
+                  Found {orders.length} orders ({pendingGroups.length} groups pending scheduling)
                 </p>
                 <Badge variant="outline" className="mt-1">
                   {orders.filter(o => 
@@ -121,11 +133,11 @@ const JobScheduling: React.FC = () => {
           </div>
         ) : (
           <div className="bg-card rounded-lg p-4 shadow mb-8">
-            <h2 className="text-xl font-semibold mb-4">All Order Groups</h2>
+            <h2 className="text-xl font-semibold mb-4">Pending Order Groups</h2>
             
-            {allGroups.length === 0 ? (
+            {pendingGroups.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No order groups found
+                No pending order groups to schedule
               </div>
             ) : (
               <div className="space-y-8">
