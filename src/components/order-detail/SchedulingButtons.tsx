@@ -40,7 +40,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
                 Scheduling Order...
               </>
             ) : (
-              "Schedule Order"
+              "Schedule Order & Create Shipments"
             )}
           </Button>
         </div>
@@ -59,7 +59,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
               Scheduling Order...
             </>
           ) : (
-            "Admin: Schedule Order"
+            "Admin: Schedule Order & Create Shipments"
           )}
         </Button>
       </div>

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -143,9 +142,15 @@ const OrderDetail = () => {
         throw new Error("Failed to update order schedule");
       }
       
-      setOrder(updatedOrder);
-      toast.success("Order has been scheduled successfully");
+      const shipdayResponse = await createShipdayOrder(id);
       
+      if (shipdayResponse) {
+        setOrder(updatedOrder);
+        toast.success("Order has been scheduled and shipments created successfully");
+      } else {
+        setOrder(updatedOrder);
+        toast.warning("Order scheduled but failed to create shipments in Shipday");
+      }
     } catch (error) {
       console.error("Error scheduling order:", error);
       toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
