@@ -61,36 +61,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {navLinks}
           </nav>
           
-          {/* Mobile Navigation */}
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[250px]">
-              <div className="flex flex-col space-y-4 py-4">
-                {navLinks}
-                {user && (
-                  <button 
-                    onClick={() => { signOut(); closeSheet(); }} 
-                    className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </button>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+          {/* Mobile Navigation - Moved to right side with theme toggle to the left */}
+          <div className="flex items-center space-x-2 md:hidden">
+            <ThemeToggle />
+            
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Toggle Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[250px]">
+                <div className="flex flex-col space-y-4 py-4">
+                  {navLinks}
+                  {user && (
+                    <button 
+                      onClick={() => { signOut(); closeSheet(); }} 
+                      className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </button>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
           
-          <div className="flex items-center space-x-2">
+          {/* Desktop Right Side Controls */}
+          <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
             {user && (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild className="hidden md:inline-flex">
+                <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <User className="h-5 w-5" />
                   </Button>
