@@ -1,11 +1,13 @@
 
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import Layout from "@/components/Layout";
-import { Package, CalendarCheck, ChevronRight, LogIn } from "lucide-react";
+import { Package, CalendarCheck, ChevronRight, LogIn, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const features = [
   {
@@ -22,6 +24,15 @@ const features = [
 
 const Index = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [trackingId, setTrackingId] = useState("");
+
+  const handleTrackOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (trackingId.trim()) {
+      navigate(`/tracking/${trackingId.trim()}`);
+    }
+  };
 
   return (
     <Layout>
@@ -52,6 +63,33 @@ const Index = () => {
                 </Link>
               )}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Add Tracking Order Section */}
+      <section className="py-8">
+        <div className="container px-4 md:px-6">
+          <div className="max-w-md mx-auto">
+            <Card>
+              <CardContent className="pt-6">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <Search className="mr-2 h-5 w-5 text-courier-500" />
+                  Track Your Order
+                </h2>
+                <form onSubmit={handleTrackOrder} className="flex gap-2">
+                  <Input
+                    value={trackingId}
+                    onChange={(e) => setTrackingId(e.target.value)}
+                    placeholder="Enter your order ID"
+                    className="flex-1"
+                  />
+                  <Button type="submit" className="bg-courier-500 hover:bg-courier-600">
+                    Track
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
