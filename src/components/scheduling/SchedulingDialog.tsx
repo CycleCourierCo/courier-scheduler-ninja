@@ -30,7 +30,7 @@ const SchedulingDialog: React.FC<SchedulingDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Schedule Group</DialogTitle>
           <DialogDescription>
-            Choose a date to schedule this {selectedGroup?.type === 'pickup' ? 'collection' : 'delivery'} group.
+            Choose a date to schedule this order group.
           </DialogDescription>
         </DialogHeader>
         
@@ -41,7 +41,6 @@ const SchedulingDialog: React.FC<SchedulingDialogProps> = ({
               <p>From: {selectedGroup.locationPair.from}</p>
               <p>To: {selectedGroup.locationPair.to}</p>
               <p>Orders: {selectedGroup.orders.length}</p>
-              <p>Type: {selectedGroup.type === 'pickup' ? 'Collection' : 'Delivery'}</p>
             </div>
             
             <div className="mb-4">
