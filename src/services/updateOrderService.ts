@@ -28,16 +28,23 @@ export const updateOrderStatus = async (
 export const updateOrderScheduledDates = async (
   id: string,
   scheduledPickupDate: Date,
-  scheduledDeliveryDate: Date
+  scheduledDeliveryDate: Date,
+  changeStatus: boolean = true
 ): Promise<Order> => {
+  const updateData: any = {
+    scheduled_pickup_date: scheduledPickupDate.toISOString(),
+    scheduled_delivery_date: scheduledDeliveryDate.toISOString(),
+    scheduled_at: new Date().toISOString()
+  };
+  
+  // Only update status to "scheduled" if explicitly requested
+  if (changeStatus) {
+    updateData.status = "scheduled" as OrderStatus;
+  }
+
   const { data, error } = await supabase
     .from("orders")
-    .update({
-      scheduled_pickup_date: scheduledPickupDate.toISOString(),
-      scheduled_delivery_date: scheduledDeliveryDate.toISOString(),
-      status: "scheduled" as OrderStatus,
-      scheduled_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq("id", id)
     .select()
     .single();
@@ -50,8 +57,14 @@ export const updateOrderScheduledDates = async (
   return mapDbOrderToOrderType(data);
 };
 
-// Alias for updateOrderScheduledDates to maintain compatibility with existing code
-export const updateOrderSchedule = updateOrderScheduledDates;
+// Modified to not automatically change status to scheduled
+export const updateOrderSchedule = async (
+  id: string,
+  scheduledPickupDate: Date,
+  scheduledDeliveryDate: Date
+): Promise<Order> => {
+  return updateOrderScheduledDates(id, scheduledPickupDate, scheduledDeliveryDate, false);
+};
 
 export const updatePublicOrder = async (
   id: string,
