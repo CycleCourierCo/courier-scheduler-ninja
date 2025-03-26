@@ -41,7 +41,7 @@ const TrackingForm = ({ onSearch }: { onSearch: (orderId: string) => void }) => 
               <FormLabel>Enter Order ID</FormLabel>
               <div className="flex gap-2">
                 <FormControl>
-                  <Input placeholder="Enter your order ID" {...field} />
+                  <Input placeholder="Enter your order ID (e.g., CCC754...)" {...field} />
                 </FormControl>
                 <Button type="submit" className="bg-courier-500 hover:bg-courier-600">
                   Track
@@ -114,7 +114,11 @@ const TrackingPage = () => {
                 <div>
                   <h2 className="text-xl font-semibold flex items-center">
                     <Package className="mr-2 h-5 w-5 text-courier-500" />
-                    Order #{order.id.substring(0, 8)}
+                    {order.customerOrderNumber ? (
+                      `Order #${order.customerOrderNumber}`
+                    ) : (
+                      `Order #${order.id.substring(0, 8)}`
+                    )}
                   </h2>
                   <p className="text-muted-foreground">Created on {new Date(order.createdAt).toLocaleDateString()}</p>
                 </div>
