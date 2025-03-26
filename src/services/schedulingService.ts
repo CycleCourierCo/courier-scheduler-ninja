@@ -104,17 +104,7 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     
     // Skip if we don't have location or date information
     if (!mainContact?.address?.zipCode) {
-      console.log(`Skipping order ${order.id} due to missing location information`);
-      return;
-    }
-    
-    // Ensure we have valid dates
-    const hasValidDates = type === 'pickup' 
-      ? order.pickupDate && (Array.isArray(order.pickupDate) ? order.pickupDate.length > 0 : true)
-      : order.deliveryDate && (Array.isArray(order.deliveryDate) ? order.deliveryDate.length > 0 : true);
-    
-    if (!hasValidDates) {
-      console.log(`Skipping order ${order.id} due to missing date information for ${type}`);
+      console.log(`Skipping order ${order.id} due to missing location information for ${type}`);
       return;
     }
     
@@ -122,7 +112,11 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     const pickupDates = processDateArray(order.pickupDate);
     const deliveryDates = processDateArray(order.deliveryDate);
     
-    // Skip if no valid dates
+    // Debug logging to diagnose the issue
+    console.log(`Order ${order.id} ${type}:`, 
+      type === 'pickup' ? `Pickup dates: ${pickupDates.length}` : `Delivery dates: ${deliveryDates.length}`);
+    
+    // Skip if no valid dates for the current type (pickup or delivery)
     if (type === 'pickup' && pickupDates.length === 0) {
       console.log(`Skipping order ${order.id} due to no valid pickup dates`);
       return;
@@ -152,7 +146,7 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       if (isProximityMatch) {
         // Add to this group
         group.orders.push(order);
-        console.log(`Added order ${order.id} to existing group ${group.id} (proximity match)`);
+        console.log(`Added order ${order.id} to existing group ${group.id} (proximity match) for ${type}`);
         processedOrders.add(`${order.id}-${type}`);
         foundGroup = true;
         break;
@@ -217,7 +211,13 @@ function processDateArray(dateData: any): Date[] {
         dates.push(date);
       } else if (typeof date === 'string') {
         try {
-          dates.push(new Date(date));
+          const newDate = new Date(date);
+          // Validate the date is valid
+          if (!isNaN(newDate.getTime())) {
+            dates.push(newDate);
+          } else {
+            console.error(`Invalid date string: ${date}`);
+          }
         } catch (e) {
           console.error(`Failed to parse date: ${date}`, e);
         }
@@ -230,7 +230,13 @@ function processDateArray(dateData: any): Date[] {
   // If it's a string
   if (typeof dateData === 'string') {
     try {
-      return [new Date(dateData)];
+      const newDate = new Date(dateData);
+      // Validate the date is valid
+      if (!isNaN(newDate.getTime())) {
+        return [newDate];
+      } else {
+        console.error(`Invalid date string: ${dateData}`);
+      }
     } catch (e) {
       console.error(`Failed to parse date: ${dateData}`, e);
     }

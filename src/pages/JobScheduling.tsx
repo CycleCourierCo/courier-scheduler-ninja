@@ -11,7 +11,7 @@ import {
   scheduleOrderGroup
 } from "@/services/schedulingService";
 import SchedulingCard from "@/components/scheduling/SchedulingCard";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { getLocationName } from "@/utils/locationUtils";
@@ -176,6 +176,9 @@ const JobScheduling: React.FC = () => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Schedule Group</DialogTitle>
+              <DialogDescription>
+                Choose a date to schedule this {selectedGroup?.type === 'pickup' ? 'collection' : 'delivery'} group.
+              </DialogDescription>
             </DialogHeader>
             
             {selectedGroup && (
