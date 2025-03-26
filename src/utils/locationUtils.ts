@@ -1,5 +1,19 @@
 
-import { OrderContact } from "@/types/order";
+import { Order } from "@/types/order";
+
+// Define the OrderContact type using the same structure as in the Order type
+export type OrderContact = {
+  name: string;
+  email?: string;
+  phone?: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country?: string;
+  };
+};
 
 // Helper function to extract the first part of a UK postcode (outward code)
 export const extractOutwardCode = (postcode: string): string => {
@@ -55,16 +69,4 @@ export const getLocationName = (contact: OrderContact): string => {
   const postcode = contact.address?.zipCode || "";
   const outcode = extractOutwardCode(postcode);
   return `${contact.address?.city || "Unknown"} (${outcode})`;
-};
-
-export type OrderContact = {
-  name: string;
-  email?: string;
-  phone?: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  };
 };
