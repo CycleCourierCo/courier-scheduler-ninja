@@ -16,6 +16,7 @@ import SchedulingCard from "@/components/scheduling/SchedulingCard";
 import SchedulingCalendar from "@/components/scheduling/SchedulingCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 
 const JobScheduling: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState<SchedulingGroup | null>(null);
@@ -25,9 +26,9 @@ const JobScheduling: React.FC = () => {
   
   const queryClient = useQueryClient();
   
-  // Fetch pending orders
+  // Fetch pending orders and scheduled orders
   const { data: orders, isLoading, error, refetch } = useQuery({
-    queryKey: ['pending-scheduling-orders'],
+    queryKey: ['scheduling-orders'],
     queryFn: getPendingSchedulingOrders
   });
   
@@ -42,7 +43,7 @@ const JobScheduling: React.FC = () => {
     onSuccess: () => {
       toast.success("Orders scheduled successfully");
       setIsDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['pending-scheduling-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['scheduling-orders'] });
     },
     onError: () => {
       toast.error("Failed to schedule orders");
@@ -54,6 +55,14 @@ const JobScheduling: React.FC = () => {
   
   // Organize groups by dates
   const jobGroups = organizeGroupsByDates(groups);
+  
+  // Get pending groups (not scheduled)
+  const pendingGroups = groups.filter(group => 
+    group.orders.some(order => 
+      order.status === 'scheduled_dates_pending' || 
+      order.status === 'pending_approval'
+    )
+  );
   
   // Handle scheduling a group from the card
   const handleScheduleGroup = (group: SchedulingGroup) => {
@@ -114,10 +123,20 @@ const JobScheduling: React.FC = () => {
         
         <div className="mb-4 flex justify-between items-center">
           <div>
-            {orders && orders.length > 0 ? (
-              <p className="text-muted-foreground">Found {orders.length} orders pending scheduling</p>
+            {orders ? (
+              <div>
+                <p className="text-muted-foreground">
+                  Found {orders.length} orders ({pendingGroups.length} groups pending scheduling)
+                </p>
+                <Badge variant="outline" className="mt-1">
+                  {orders.filter(o => o.status === 'scheduled_dates_pending' || o.status === 'pending_approval').length} pending
+                </Badge>
+                <Badge variant="outline" className="mt-1 ml-2">
+                  {orders.filter(o => o.status === 'scheduled').length} scheduled
+                </Badge>
+              </div>
             ) : (
-              <p className="text-muted-foreground">No orders pending scheduling</p>
+              <p className="text-muted-foreground">No orders found</p>
             )}
           </div>
           <Button onClick={() => refetch()} variant="outline">
@@ -133,15 +152,15 @@ const JobScheduling: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="bg-card rounded-lg p-4 shadow">
-                <h2 className="text-xl font-semibold mb-4">Available Order Groups</h2>
+                <h2 className="text-xl font-semibold mb-4">Pending Order Groups</h2>
                 
-                {groups.length === 0 ? (
+                {pendingGroups.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    No pending orders to schedule
+                    No pending order groups to schedule
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {groups.map((group) => (
+                    {pendingGroups.map((group) => (
                       <SchedulingCard 
                         key={group.id} 
                         group={group}

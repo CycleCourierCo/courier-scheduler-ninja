@@ -28,22 +28,22 @@ export type SchedulingJobGroup = {
   groups: SchedulingGroup[];
 };
 
-// Function to get all pending orders that need scheduling
+// Function to get all pending orders that need scheduling and already scheduled orders
 export const getPendingSchedulingOrders = async (): Promise<Order[]> => {
   try {
-    console.log("Fetching pending scheduling orders...");
+    console.log("Fetching pending scheduling orders and scheduled orders...");
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .eq("status", "scheduled_dates_pending")
+      .in("status", ["scheduled_dates_pending", "pending_approval", "scheduled"])
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error getting pending scheduling orders:", error);
+      console.error("Error getting scheduling orders:", error);
       throw new Error(error.message);
     }
 
-    console.log(`Found ${data.length} pending scheduling orders`);
+    console.log(`Found ${data.length} orders for scheduling`);
     const mappedOrders = data.map(mapDbOrderToOrderType);
     console.log("Mapped orders:", mappedOrders);
     return mappedOrders;
