@@ -12,6 +12,7 @@ interface SchedulingButtonsProps {
   deliveryDateSelected: boolean;
   adminPickupDateSelected: boolean | undefined;
   adminDeliveryDateSelected: boolean | undefined;
+  showAdminControls?: boolean;
 }
 
 const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
@@ -24,6 +25,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   deliveryDateSelected,
   adminPickupDateSelected,
   adminDeliveryDateSelected,
+  showAdminControls = false,
 }) => {
   return (
     <div className="space-y-4">
@@ -46,23 +48,25 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
         </div>
       )}
       
-      <div className="mt-6 border-t pt-4">
-        <Button 
-          onClick={onAdminSchedule} 
-          disabled={!adminPickupDateSelected || !adminDeliveryDateSelected || isSubmitting}
-          className="w-full"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Order...
-            </>
-          ) : (
-            "Admin: Schedule Order & Create Shipments"
-          )}
-        </Button>
-      </div>
+      {showAdminControls && (
+        <div className="mt-6 border-t pt-4">
+          <Button 
+            onClick={onAdminSchedule} 
+            disabled={!adminPickupDateSelected || !adminDeliveryDateSelected || isSubmitting}
+            className="w-full"
+            variant="default"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                Scheduling Order...
+              </>
+            ) : (
+              "Admin: Schedule Order & Create Shipments"
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

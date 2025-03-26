@@ -3,6 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { CreateOrderFormData, Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 
+// Function to generate a custom order ID
+// Format: CCC + 754 + 9-digit sequence + first 3 letters of sender name + first 3 letters of receiver zipcode
+export const generateCustomOrderId = (senderName: string, receiverZipCode: string): string => {
+  // Create a random 9-digit number
+  const randomDigits = Math.floor(100000000 + Math.random() * 900000000);
+  
+  // Get first 3 letters of sender name (uppercase)
+  const senderPrefix = senderName.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
+  
+  // Get first 3 characters of receiver zipcode
+  const zipSuffix = receiverZipCode.substring(0, 3).toUpperCase();
+  
+  // Combine all parts
+  return `CCC754${randomDigits}${senderPrefix}${zipSuffix}`;
+};
+
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   // Get current user ID from Supabase auth session
   const { data: session } = await supabase.auth.getSession();
@@ -33,6 +49,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     price: 0
   };
 
+  // Generate a custom order ID
+  const customOrderId = generateCustomOrderId(
+    data.sender.name,
+    data.receiver.address.zipCode
+  );
+
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
@@ -41,7 +63,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       receiver: data.receiver,
       bike_brand: data.bikeBrand,
       bike_model: data.bikeModel,
-      customer_order_number: data.customerOrderNumber,
+      customer_order_number: data.customerOrderNumber || customOrderId,
       needs_payment_on_collection: data.needsPaymentOnCollection,
       is_bike_swap: data.isBikeSwap,
       delivery_instructions: formattedDeliveryInstructions,

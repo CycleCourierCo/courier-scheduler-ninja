@@ -258,6 +258,8 @@ const OrderDetail = () => {
 
   const needsSenderConfirmation = order.status === 'created' || order.status === 'sender_availability_pending';
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
+  
+  const showAdminControls = false;
 
   return (
     <Layout>
@@ -274,7 +276,7 @@ const OrderDetail = () => {
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
                 <Package className="mr-2" />
-                {itemName} (Order #{order.id.substring(0, 8)})
+                {itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : `(Order #${order.id.substring(0, 8)})`}
               </div>
               <EmailResendButtons 
                 needsSenderConfirmation={needsSenderConfirmation}
@@ -310,6 +312,7 @@ const OrderDetail = () => {
                   setCalendarDate={setPickupDatePicker}
                   isSubmitting={isSubmitting}
                   isScheduled={isScheduled}
+                  showAdminControls={showAdminControls}
                 />
                 
                 <DateSelection 
@@ -324,6 +327,7 @@ const OrderDetail = () => {
                   setCalendarDate={setDeliveryDatePicker}
                   isSubmitting={isSubmitting}
                   isScheduled={isScheduled}
+                  showAdminControls={showAdminControls}
                 />
               </div>
               
@@ -342,6 +346,7 @@ const OrderDetail = () => {
                   deliveryDateSelected={!!selectedDeliveryDate}
                   adminPickupDateSelected={!!pickupDatePicker}
                   adminDeliveryDateSelected={!!deliveryDatePicker}
+                  showAdminControls={showAdminControls}
                 />
               </div>
             </div>
@@ -384,3 +389,4 @@ const OrderDetail = () => {
 };
 
 export default OrderDetail;
+

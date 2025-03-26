@@ -21,6 +21,7 @@ interface DateSelectionProps {
   setCalendarDate: (date: Date | undefined) => void;
   isSubmitting: boolean;
   isScheduled: boolean;
+  showAdminControls?: boolean;
 }
 
 const DateSelection: React.FC<DateSelectionProps> = ({
@@ -35,6 +36,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   setCalendarDate,
   isSubmitting,
   isScheduled,
+  showAdminControls = false,
 }) => {
   const formatDates = (dates: Date | Date[] | undefined) => {
     if (!dates) return "Not scheduled";
@@ -106,43 +108,45 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             <p>{formatDates(availableDates)}</p>
           )}
           
-          <div className="space-y-2 border-t pt-4 mt-4">
-            <h4 className="text-sm font-medium">Admin: Set Date</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !calendarDate && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {calendarDate ? format(calendarDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={calendarDate}
-                      onSelect={setCalendarDate}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+          {showAdminControls && (
+            <div className="space-y-2 border-t pt-4 mt-4">
+              <h4 className="text-sm font-medium">Admin: Set Date</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !calendarDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {calendarDate ? format(calendarDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={calendarDate}
+                        onSelect={setCalendarDate}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <Input
+                  type="time"
+                  value={timeValue}
+                  onChange={(e) => setTimeValue(e.target.value)}
+                  className="w-full"
+                />
               </div>
-              
-              <Input
-                type="time"
-                value={timeValue}
-                onChange={(e) => setTimeValue(e.target.value)}
-                className="w-full"
-              />
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
