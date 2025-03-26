@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -259,7 +260,8 @@ const OrderDetail = () => {
   const needsSenderConfirmation = order.status === 'created' || order.status === 'sender_availability_pending';
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
   
-  const showAdminControls = false;
+  // Update this to true so admin controls are visible
+  const showAdminControls = true;
 
   return (
     <Layout>
@@ -389,4 +391,3 @@ const OrderDetail = () => {
 };
 
 export default OrderDetail;
-

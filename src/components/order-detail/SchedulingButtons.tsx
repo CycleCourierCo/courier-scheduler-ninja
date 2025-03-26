@@ -48,6 +48,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
         </div>
       )}
       
+      {/* Show admin scheduling controls if showAdminControls is true and order is not scheduled */}
       {showAdminControls && !isScheduled && (
         <div className="mt-6 border-t pt-4">
           <Button 

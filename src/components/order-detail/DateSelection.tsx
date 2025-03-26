@@ -108,6 +108,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             <p>{formatDates(availableDates)}</p>
           )}
           
+          {/* Show admin controls if they are enabled and the order is not already scheduled */}
           {showAdminControls && !isScheduled && (
             <div className="space-y-2 border-t pt-4 mt-4">
               <h4 className="text-sm font-medium">Admin: Set Date</h4>
