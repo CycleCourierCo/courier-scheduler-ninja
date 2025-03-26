@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -21,6 +20,7 @@ export type SchedulingGroup = {
   dateRange: DateRange;
   orders: Order[];
   isOptimal: boolean;
+  type: 'pickup' | 'delivery'; // Added type to distinguish between pickup and delivery
 };
 
 export type SchedulingJobGroup = {
@@ -73,27 +73,32 @@ const findOverlappingDates = (dates1: Date[], dates2: Date[]): Date[] => {
   return commonDates.map(dateStr => new Date(dateStr));
 };
 
-// Function to group orders by location pairs and find optimal routes
-export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
+// Function to group orders by location pairs for either pickup or delivery
+export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'delivery' = 'pickup'): SchedulingGroup[] => {
   if (!orders || orders.length === 0) {
     console.log("No orders to group");
     return [];
   }
   
-  console.log(`Grouping ${orders.length} orders by location`);
+  console.log(`Grouping ${orders.length} orders by location for ${type}`);
   const groups: SchedulingGroup[] = [];
   const processedOrders = new Set<string>();
   
-  // First pass: create initial groups based on direct from/to pairs
+  // Create groups based on from/to pairs
   orders.forEach(order => {
-    if (processedOrders.has(order.id)) return;
+    if (processedOrders.has(`${order.id}-${type}`)) return;
     
-    const fromCity = extractCity(order.sender.address);
-    const toCity = extractCity(order.receiver.address);
+    // For pickup, the "from" is sender and "to" is receiver
+    // For delivery, we want to consider separately where we're taking the bikes to
+    const fromCity = type === 'pickup' 
+      ? extractCity(order.sender.address)
+      : extractCity(order.receiver.address);
+      
+    const toCity = type === 'pickup'
+      ? extractCity(order.receiver.address)
+      : extractCity(order.sender.address);
     
-    console.log(`Processing order ${order.id} from ${fromCity} to ${toCity}`);
-    console.log("Order pickup dates:", order.pickupDate);
-    console.log("Order delivery dates:", order.deliveryDate);
+    console.log(`Processing order ${order.id} ${type} from ${fromCity} to ${toCity}`);
     
     // Skip if we don't have location or date information
     if (!fromCity || !toCity || !order.pickupDate || !order.deliveryDate) {
@@ -145,82 +150,44 @@ export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
     
     console.log(`Order ${order.id} has ${pickupDates.length} pickup dates and ${deliveryDates.length} delivery dates`);
     
-    // Create a new group for this location pair
-    const group: SchedulingGroup = {
-      id: `group-${groups.length + 1}`,
-      locationPair: {
-        from: fromCity,
-        to: toCity
-      },
-      dateRange: {
-        pickup: pickupDates,
-        delivery: deliveryDates
-      },
-      orders: [order],
-      isOptimal: false
-    };
+    // Find existing group for this location pair and type
+    const existingGroupIndex = groups.findIndex(g => 
+      g.locationPair.from === fromCity && 
+      g.locationPair.to === toCity &&
+      g.type === type
+    );
     
-    groups.push(group);
-    processedOrders.add(order.id);
-    console.log(`Added order ${order.id} to group ${group.id}`);
+    if (existingGroupIndex >= 0) {
+      // Add to existing group
+      const group = groups[existingGroupIndex];
+      group.orders.push(order);
+      console.log(`Added order ${order.id} to existing group ${group.id}`);
+    } else {
+      // Create a new group for this location pair
+      const group: SchedulingGroup = {
+        id: `${type}-group-${groups.length + 1}`,
+        locationPair: {
+          from: fromCity,
+          to: toCity
+        },
+        dateRange: {
+          pickup: pickupDates,
+          delivery: deliveryDates
+        },
+        orders: [order],
+        isOptimal: false,
+        type: type
+      };
+      
+      groups.push(group);
+      console.log(`Added order ${order.id} to new group ${group.id}`);
+    }
+    
+    processedOrders.add(`${order.id}-${type}`);
   });
   
-  // Second pass: try to chain groups to create optimal routes
-  let optimizedGroups: SchedulingGroup[] = [...groups];
-  let madeChanges = true;
-  
-  // Keep trying to optimize until no more changes can be made
-  while (madeChanges) {
-    madeChanges = false;
-    
-    for (let i = 0; i < optimizedGroups.length; i++) {
-      const group1 = optimizedGroups[i];
-      
-      for (let j = 0; j < optimizedGroups.length; j++) {
-        if (i === j) continue;
-        
-        const group2 = optimizedGroups[j];
-        
-        // Check if destination of group1 matches origin of group2
-        if (group1.locationPair.to === group2.locationPair.from) {
-          // Check if there are overlapping dates
-          const overlappingDeliveryPickup = findOverlappingDates(
-            group1.dateRange.delivery, 
-            group2.dateRange.pickup
-          );
-          
-          if (overlappingDeliveryPickup.length > 0) {
-            // We can chain these groups
-            const newGroup: SchedulingGroup = {
-              id: `chain-${group1.id}-${group2.id}`,
-              locationPair: {
-                from: group1.locationPair.from,
-                to: group2.locationPair.to
-              },
-              dateRange: {
-                pickup: group1.dateRange.pickup,
-                delivery: group2.dateRange.delivery
-              },
-              orders: [...group1.orders, ...group2.orders],
-              isOptimal: true
-            };
-            
-            // Remove the old groups and add the new one
-            optimizedGroups = optimizedGroups.filter((_, index) => index !== i && index !== j);
-            optimizedGroups.push(newGroup);
-            
-            madeChanges = true;
-            break;
-          }
-        }
-      }
-      
-      if (madeChanges) break;
-    }
-  }
-  
-  console.log(`Created ${optimizedGroups.length} order groups`);
-  return optimizedGroups;
+  console.log(`Created ${groups.length} ${type} order groups`);
+  return groups;
 };
 
 // Function to organize scheduling groups by dates
@@ -259,11 +226,17 @@ export const scheduleOrderGroup = async (
 ): Promise<boolean> => {
   try {
     const promises = group.orders.map(order => {
-      // Calculate delivery date (for simplicity, delivery is 1 day after pickup)
-      const deliveryDate = new Date(scheduleDate);
-      deliveryDate.setDate(deliveryDate.getDate() + 1);
-      
-      return updateOrderScheduledDates(order.id, scheduleDate, deliveryDate);
+      if (group.type === 'pickup') {
+        // For pickup groups, we're setting the pickup date
+        const deliveryDate = new Date(scheduleDate);
+        deliveryDate.setDate(deliveryDate.getDate() + 1);
+        return updateOrderScheduledDates(order.id, scheduleDate, deliveryDate);
+      } else {
+        // For delivery groups, we're setting the delivery date
+        const pickupDate = new Date(scheduleDate);
+        pickupDate.setDate(pickupDate.getDate() - 1);
+        return updateOrderScheduledDates(order.id, pickupDate, scheduleDate);
+      }
     });
     
     await Promise.all(promises);

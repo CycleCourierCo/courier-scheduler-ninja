@@ -2,20 +2,23 @@
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, MapPin, Truck, Package } from "lucide-react";
 import { SchedulingGroup } from "@/services/schedulingService";
 import { useDraggable } from "@/hooks/useDraggable";
 
 interface SchedulingCardProps {
   group: SchedulingGroup;
   onSchedule: (group: SchedulingGroup) => void;
+  isPickup: boolean;
 }
 
-const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) => {
+const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule, isPickup }) => {
   const { dragRef, isDragging } = useDraggable({
     type: "scheduling-group",
     item: group,
   });
+
+  const TypeIcon = isPickup ? Package : Truck;
 
   return (
     <Card 
@@ -26,6 +29,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
         <CardTitle className="text-lg flex items-center justify-between">
           <div className="flex items-center">
             <span className={`mr-2 w-3 h-3 rounded-full ${group.isOptimal ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+            <TypeIcon className="w-4 h-4 mr-2 text-muted-foreground" />
             <span>
               {group.locationPair.from} → {group.locationPair.to}
             </span>
@@ -47,7 +51,10 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-            <span>Pickup dates: <span className="font-semibold">{group.dateRange.pickup.length}</span></span>
+            <span>
+              {isPickup ? 'Pickup' : 'Delivery'} dates: 
+              <span className="font-semibold"> {isPickup ? group.dateRange.pickup.length : group.dateRange.delivery.length}</span>
+            </span>
           </div>
         </div>
       </CardContent>
@@ -57,7 +64,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           variant="outline" 
           className="w-full"
         >
-          Schedule Group
+          Schedule {isPickup ? 'Collection' : 'Delivery'}
         </Button>
       </CardFooter>
     </Card>

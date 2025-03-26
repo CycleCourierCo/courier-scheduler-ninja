@@ -7,22 +7,19 @@ import { toast } from "sonner";
 import { 
   getPendingSchedulingOrders, 
   groupOrdersByLocation, 
-  organizeGroupsByDates,
   SchedulingGroup,
-  scheduleOrderGroup,
-  SchedulingJobGroup
+  scheduleOrderGroup
 } from "@/services/schedulingService";
 import SchedulingCard from "@/components/scheduling/SchedulingCard";
-import SchedulingCalendar from "@/components/scheduling/SchedulingCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
+import { Truck, Package } from "lucide-react";
 
 const JobScheduling: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState<SchedulingGroup | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [draggedGroups, setDraggedGroups] = useState<SchedulingJobGroup[]>([]);
   
   const queryClient = useQueryClient();
   
@@ -50,14 +47,19 @@ const JobScheduling: React.FC = () => {
     }
   });
   
-  // Process orders into groups
-  const groups = orders ? groupOrdersByLocation(orders) : [];
-  
-  // Organize groups by dates
-  const jobGroups = organizeGroupsByDates(groups);
+  // Process orders into groups (collections and deliveries separately)
+  const pickupGroups = orders ? groupOrdersByLocation(orders, 'pickup') : [];
+  const deliveryGroups = orders ? groupOrdersByLocation(orders, 'delivery') : [];
   
   // Get pending groups (not scheduled)
-  const pendingGroups = groups.filter(group => 
+  const pendingPickupGroups = pickupGroups.filter(group => 
+    group.orders.some(order => 
+      order.status === 'scheduled_dates_pending' || 
+      order.status === 'pending_approval'
+    )
+  );
+  
+  const pendingDeliveryGroups = deliveryGroups.filter(group => 
     group.orders.some(order => 
       order.status === 'scheduled_dates_pending' || 
       order.status === 'pending_approval'
@@ -77,41 +79,6 @@ const JobScheduling: React.FC = () => {
     }
   };
   
-  // Handle dropping a group on a date
-  const handleDropGroup = (group: SchedulingGroup, date: Date) => {
-    // Add the group to our dropped groups state
-    const dateStr = date.toISOString().split('T')[0];
-    
-    // Check if we already have this date in our dragged groups
-    const existingJobGroupIndex = draggedGroups.findIndex(
-      jg => jg.date.toISOString().split('T')[0] === dateStr
-    );
-    
-    if (existingJobGroupIndex >= 0) {
-      // Update existing job group
-      const updatedDraggedGroups = [...draggedGroups];
-      const jobGroup = {...updatedDraggedGroups[existingJobGroupIndex]};
-      
-      // Add the group if it's not already in this date
-      if (!jobGroup.groups.some(g => g.id === group.id)) {
-        jobGroup.groups.push(group);
-        updatedDraggedGroups[existingJobGroupIndex] = jobGroup;
-        setDraggedGroups(updatedDraggedGroups);
-      }
-    } else {
-      // Create a new job group for this date
-      setDraggedGroups([
-        ...draggedGroups,
-        {
-          date,
-          groups: [group]
-        }
-      ]);
-    }
-    
-    toast.info(`Group "${group.locationPair.from} → ${group.locationPair.to}" added to ${date.toLocaleDateString()}`);
-  };
-  
   if (error) {
     console.error("Error loading orders:", error);
   }
@@ -126,7 +93,7 @@ const JobScheduling: React.FC = () => {
             {orders ? (
               <div>
                 <p className="text-muted-foreground">
-                  Found {orders.length} orders ({pendingGroups.length} groups pending scheduling)
+                  Found {orders.length} orders ({pendingPickupGroups.length + pendingDeliveryGroups.length} groups pending scheduling)
                 </p>
                 <Badge variant="outline" className="mt-1">
                   {orders.filter(o => o.status === 'scheduled_dates_pending' || o.status === 'pending_approval').length} pending
@@ -149,38 +116,56 @@ const JobScheduling: React.FC = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="bg-card rounded-lg p-4 shadow">
-                <h2 className="text-xl font-semibold mb-4">Pending Order Groups</h2>
-                
-                {pendingGroups.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No pending order groups to schedule
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {pendingGroups.map((group) => (
-                      <SchedulingCard 
-                        key={group.id} 
-                        group={group}
-                        onSchedule={handleScheduleGroup}
-                      />
-                    ))}
+          <div className="bg-card rounded-lg p-4 shadow mb-8">
+            <h2 className="text-xl font-semibold mb-4">Pending Order Groups</h2>
+            
+            {pendingPickupGroups.length === 0 && pendingDeliveryGroups.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No pending order groups to schedule
+              </div>
+            ) : (
+              <>
+                {/* Collections */}
+                {pendingPickupGroups.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Package className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-medium">Collections</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {pendingPickupGroups.map((group) => (
+                        <SchedulingCard 
+                          key={`pickup-${group.id}`} 
+                          group={group}
+                          onSchedule={handleScheduleGroup}
+                          isPickup={true}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
-            
-            <div className="col-span-1">
-              <div className="bg-card rounded-lg p-4 shadow">
-                <h2 className="text-xl font-semibold mb-4">Scheduling Calendar</h2>
-                <SchedulingCalendar 
-                  jobGroups={[...jobGroups, ...draggedGroups]} 
-                  onDropGroup={handleDropGroup}
-                />
-              </div>
-            </div>
+                
+                {/* Deliveries */}
+                {pendingDeliveryGroups.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Truck className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-medium">Deliveries</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {pendingDeliveryGroups.map((group) => (
+                        <SchedulingCard 
+                          key={`delivery-${group.id}`} 
+                          group={group}
+                          onSchedule={handleScheduleGroup}
+                          isPickup={false}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
         
@@ -198,6 +183,7 @@ const JobScheduling: React.FC = () => {
                   <p>From: {selectedGroup.locationPair.from}</p>
                   <p>To: {selectedGroup.locationPair.to}</p>
                   <p>Orders: {selectedGroup.orders.length}</p>
+                  <p>Type: {selectedGroup.type === 'pickup' ? 'Collection' : 'Delivery'}</p>
                 </div>
                 
                 <div className="mb-4">
