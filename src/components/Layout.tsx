@@ -30,6 +30,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Link to="/" className="text-foreground hover:text-courier-500 transition-colors">
               Home
             </Link>
+            <Link to="/tracking" className="text-foreground hover:text-courier-500 transition-colors">
+              Track Order
+            </Link>
             {user ? (
               <>
                 <Link to="/create-order" className="text-foreground hover:text-courier-500 transition-colors">
