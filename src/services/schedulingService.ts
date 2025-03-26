@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -93,56 +94,42 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
   
   // Create groups based on proximity
   orders.forEach(order => {
-    if (processedOrders.has(`${order.id}-${type}`)) return;
+    // Skip already processed orders for this type
+    if (processedOrders.has(`${order.id}-${type}`)) {
+      return;
+    }
     
     // For pickup, the contact is sender; for delivery, it's receiver
     const mainContact = type === 'pickup' ? order.sender : order.receiver;
     
     // Skip if we don't have location or date information
-    if (!mainContact?.address?.zipCode || !order.pickupDate || !order.deliveryDate) {
-      console.log(`Skipping order ${order.id} due to missing location or date information`);
+    if (!mainContact?.address?.zipCode) {
+      console.log(`Skipping order ${order.id} due to missing location information`);
       return;
     }
     
-    // Ensure pickupDate and deliveryDate are arrays of Date objects
-    const pickupDates = Array.isArray(order.pickupDate) 
-      ? order.pickupDate.filter(d => d instanceof Date)
-      : (order.pickupDate instanceof Date ? [order.pickupDate] : []);
-      
-    const deliveryDates = Array.isArray(order.deliveryDate) 
-      ? order.deliveryDate.filter(d => d instanceof Date)
-      : (order.deliveryDate instanceof Date ? [order.deliveryDate] : []);
+    // Ensure we have valid dates
+    const hasValidDates = type === 'pickup' 
+      ? order.pickupDate && (Array.isArray(order.pickupDate) ? order.pickupDate.length > 0 : true)
+      : order.deliveryDate && (Array.isArray(order.deliveryDate) ? order.deliveryDate.length > 0 : true);
     
-    // Try to convert string dates if needed
-    if (pickupDates.length === 0 && order.pickupDate) {
-      const dates = Array.isArray(order.pickupDate) ? order.pickupDate : [order.pickupDate];
-      dates.forEach(date => {
-        if (typeof date === 'string') {
-          try {
-            pickupDates.push(new Date(date));
-          } catch (e) {
-            console.error(`Failed to parse pickup date: ${date}`, e);
-          }
-        }
-      });
+    if (!hasValidDates) {
+      console.log(`Skipping order ${order.id} due to missing date information for ${type}`);
+      return;
     }
     
-    if (deliveryDates.length === 0 && order.deliveryDate) {
-      const dates = Array.isArray(order.deliveryDate) ? order.deliveryDate : [order.deliveryDate];
-      dates.forEach(date => {
-        if (typeof date === 'string') {
-          try {
-            deliveryDates.push(new Date(date));
-          } catch (e) {
-            console.error(`Failed to parse delivery date: ${date}`, e);
-          }
-        }
-      });
-    }
+    // Process dates
+    const pickupDates = processDateArray(order.pickupDate);
+    const deliveryDates = processDateArray(order.deliveryDate);
     
     // Skip if no valid dates
-    if (pickupDates.length === 0 || deliveryDates.length === 0) {
-      console.log(`Skipping order ${order.id} due to no valid dates`);
+    if (type === 'pickup' && pickupDates.length === 0) {
+      console.log(`Skipping order ${order.id} due to no valid pickup dates`);
+      return;
+    }
+    
+    if (type === 'delivery' && deliveryDates.length === 0) {
+      console.log(`Skipping order ${order.id} due to no valid delivery dates`);
       return;
     }
     
@@ -198,7 +185,7 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       };
       
       groups.push(group);
-      console.log(`Created new group ${group.id} for ${locationName}`);
+      console.log(`Created new group ${group.id} for ${locationName} with type ${type}`);
       processedOrders.add(`${order.id}-${type}`);
     }
   });
@@ -206,6 +193,51 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
   console.log(`Created ${groups.length} ${type} order groups`);
   return groups;
 };
+
+// Helper function to process dates from order data
+function processDateArray(dateData: any): Date[] {
+  if (!dateData) return [];
+  
+  // If it's already an array of Date objects
+  if (Array.isArray(dateData) && dateData.every(d => d instanceof Date)) {
+    return dateData;
+  }
+  
+  // If it's a single Date object
+  if (dateData instanceof Date) {
+    return [dateData];
+  }
+  
+  // If it's an array of strings or mixed types
+  if (Array.isArray(dateData)) {
+    const dates: Date[] = [];
+    
+    dateData.forEach(date => {
+      if (date instanceof Date) {
+        dates.push(date);
+      } else if (typeof date === 'string') {
+        try {
+          dates.push(new Date(date));
+        } catch (e) {
+          console.error(`Failed to parse date: ${date}`, e);
+        }
+      }
+    });
+    
+    return dates;
+  }
+  
+  // If it's a string
+  if (typeof dateData === 'string') {
+    try {
+      return [new Date(dateData)];
+    } catch (e) {
+      console.error(`Failed to parse date: ${dateData}`, e);
+    }
+  }
+  
+  return [];
+}
 
 // Function to organize scheduling groups by dates
 export const organizeGroupsByDates = (groups: SchedulingGroup[]): SchedulingJobGroup[] => {

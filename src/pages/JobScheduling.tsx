@@ -112,7 +112,7 @@ const JobScheduling: React.FC = () => {
             {orders ? (
               <div>
                 <p className="text-muted-foreground">
-                  Found {orders.length} orders ({pendingGroups.length} orders pending scheduling)
+                  Found {orders.length} orders ({pendingGroups.length} groups pending scheduling)
                 </p>
                 <Badge variant="outline" className="mt-1">
                   {orders.filter(o => 

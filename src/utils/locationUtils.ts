@@ -1,72 +1,84 @@
 
-import { Order } from "@/types/order";
+import { Address } from "@/types/order";
 
-// Define the OrderContact type using the same structure as in the Order type
+// Define a type for contact information that includes address
 export type OrderContact = {
   name: string;
-  email?: string;
-  phone?: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country?: string;
-  };
+  email: string;
+  phone: string;
+  address: Address;
 };
 
-// Helper function to extract the first part of a UK postcode (outward code)
+// Simple function to extract the outward code from a UK postcode
 export const extractOutwardCode = (postcode: string): string => {
-  if (!postcode) return "";
+  if (!postcode) return '';
   
-  // Clean and format the postcode
-  const cleanPostcode = postcode.trim().toUpperCase().replace(/\s+/g, "");
+  // Standardize the postcode format
+  const cleanPostcode = postcode.toUpperCase().replace(/\s+/g, '');
   
   // Extract the outward code (first part of the postcode)
-  // Generally, this is the first 3-4 characters
-  const match = cleanPostcode.match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/);
-  return match ? match[1] : cleanPostcode;
+  // UK postcodes format: AA9A 9AA or A9A 9AA or A9 9AA or A99 9AA
+  const match = cleanPostcode.match(/^[A-Z]{1,2}[0-9][0-9A-Z]?/);
+  return match ? match[0] : cleanPostcode.substring(0, Math.min(4, cleanPostcode.length));
 };
 
-// Simple distance approximation based on outward postcodes
-// This is a very simplified approach using the first digits of the outcode
-export const getPostcodeProximity = (postcodeA: string, postcodeB: string): number => {
-  const outcodeA = extractOutwardCode(postcodeA);
-  const outcodeB = extractOutwardCode(postcodeB);
+// Get a displayable location name for grouping
+export const getLocationName = (contact: OrderContact): string => {
+  if (!contact?.address) return 'Unknown';
   
-  // If the outward codes are the same, they're in the same area
-  if (outcodeA === outcodeB) return 0;
+  const { city, zipCode } = contact.address;
+  const outwardCode = extractOutwardCode(zipCode);
   
-  // If they start with the same letter(s), they're in the same region
-  if (outcodeA.charAt(0) === outcodeB.charAt(0)) {
-    // If they also have the same first number, they're closer
-    if (outcodeA.match(/\d/) && outcodeB.match(/\d/) && 
-        outcodeA.match(/\d/)?.[0] === outcodeB.match(/\d/)?.[0]) {
-      return 30; // Rough estimate: ~30 miles apart
-    }
-    return 50; // Rough estimate: ~50 miles apart
-  }
-  
-  // Different regions, likely >60 miles apart
-  return 100;
+  return `${city} (${outwardCode})`;
 };
 
-// Function to determine if two contacts are within the proximity radius
+// Approximate distance between postcodes based on outward codes
+// This is a very simplified approach and doesn't use actual geocoding
 export const areLocationsWithinRadius = (
-  contact1: OrderContact, 
-  contact2: OrderContact, 
+  contact1: OrderContact | undefined,
+  contact2: OrderContact | undefined,
   radiusMiles: number = 60
 ): boolean => {
-  const postcode1 = contact1.address?.zipCode || "";
-  const postcode2 = contact2.address?.zipCode || "";
+  if (!contact1?.address?.zipCode || !contact2?.address?.zipCode) {
+    return false;
+  }
   
-  const distance = getPostcodeProximity(postcode1, postcode2);
-  return distance <= radiusMiles;
-};
-
-// Get a simplified location name from a contact
-export const getLocationName = (contact: OrderContact): string => {
-  const postcode = contact.address?.zipCode || "";
-  const outcode = extractOutwardCode(postcode);
-  return `${contact.address?.city || "Unknown"} (${outcode})`;
+  // Get outward codes
+  const outward1 = extractOutwardCode(contact1.address.zipCode);
+  const outward2 = extractOutwardCode(contact2.address.zipCode);
+  
+  // If the outward codes are the same, they are definitely within radius
+  if (outward1 === outward2) {
+    return true;
+  }
+  
+  // Check if the same city - likely within radius
+  if (contact1.address.city.toLowerCase() === contact2.address.city.toLowerCase()) {
+    return true;
+  }
+  
+  // For more accurate distance calculation, we would need to use a geocoding service
+  // or maintain a database of postcode coordinates.
+  // This is a simplified approach:
+  
+  // Compare first letters - if different, likely far apart
+  if (outward1[0] !== outward2[0]) {
+    // Different first letter typically indicates different regions in UK
+    return false;
+  }
+  
+  // If we have the same first letter but different second character,
+  // they might be in nearby areas (like B1 and B9)
+  if (outward1.length > 1 && outward2.length > 1) {
+    const num1 = parseInt(outward1.substring(1, 2), 10);
+    const num2 = parseInt(outward2.substring(1, 2), 10);
+    
+    if (!isNaN(num1) && !isNaN(num2)) {
+      // If the numeric part differs by more than 3, they may be far apart
+      return Math.abs(num1 - num2) <= 3;
+    }
+  }
+  
+  // Default - be inclusive rather than exclusive
+  return true;
 };
