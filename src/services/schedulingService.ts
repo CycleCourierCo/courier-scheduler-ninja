@@ -21,7 +21,6 @@ export type SchedulingGroup = {
   dateRange: DateRange;
   orders: Order[];
   isOptimal: boolean;
-  type: 'pickup' | 'delivery'; // Added type to distinguish between pickup and delivery
 };
 
 export type SchedulingJobGroup = {
@@ -80,30 +79,30 @@ const findOverlappingDates = (dates1: Date[], dates2: Date[]): Date[] => {
   return commonDates.map(dateStr => new Date(dateStr));
 };
 
-// Function to group orders by location proximity for either pickup or delivery
-export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'delivery' = 'pickup'): SchedulingGroup[] => {
+// Function to group orders by location proximity
+export const groupOrdersByLocation = (orders: Order[]): SchedulingGroup[] => {
   if (!orders || orders.length === 0) {
     console.log("No orders to group");
     return [];
   }
   
-  console.log(`Grouping ${orders.length} orders by location proximity for ${type}`);
+  console.log(`Grouping ${orders.length} orders by location proximity`);
   const groups: SchedulingGroup[] = [];
   const processedOrders = new Set<string>();
   
   // Create groups based on proximity
   orders.forEach(order => {
-    // Skip already processed orders for this type
-    if (processedOrders.has(`${order.id}-${type}`)) {
+    // Skip already processed orders
+    if (processedOrders.has(order.id)) {
       return;
     }
     
-    // For pickup, the contact is sender; for delivery, it's receiver
-    const mainContact = type === 'pickup' ? order.sender : order.receiver;
+    // Use sender address as the main location point
+    const mainContact = order.sender;
     
     // Skip if we don't have location or date information
     if (!mainContact?.address?.zipCode) {
-      console.log(`Skipping order ${order.id} due to missing location information for ${type}`);
+      console.log(`Skipping order ${order.id} due to missing location information`);
       return;
     }
     
@@ -111,18 +110,12 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     const pickupDates = processDateArray(order.pickupDate);
     const deliveryDates = processDateArray(order.deliveryDate);
     
-    // Debug logging to diagnose the issue
-    console.log(`Order ${order.id} ${type}:`, 
-      type === 'pickup' ? `Pickup dates: ${pickupDates.length}` : `Delivery dates: ${deliveryDates.length}`);
+    // Debug logging
+    console.log(`Order ${order.id}: Pickup dates: ${pickupDates.length}, Delivery dates: ${deliveryDates.length}`);
     
-    // Skip if no valid dates for the current type (pickup or delivery)
-    if (type === 'pickup' && pickupDates.length === 0) {
+    // Skip if no valid dates
+    if (pickupDates.length === 0) {
       console.log(`Skipping order ${order.id} due to no valid pickup dates`);
-      return;
-    }
-    
-    if (type === 'delivery' && deliveryDates.length === 0) {
-      console.log(`Skipping order ${order.id} due to no valid delivery dates`);
       return;
     }
     
@@ -133,20 +126,16 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     let foundGroup = false;
     
     for (const group of groups) {
-      // Only consider groups of the same type (pickup or delivery)
-      if (group.type !== type) continue;
-      
       // Check if any order in the group has a location close to this order
       const isProximityMatch = group.orders.some(existingOrder => {
-        const existingContact = type === 'pickup' ? existingOrder.sender : existingOrder.receiver;
-        return areLocationsWithinRadius(existingContact, mainContact);
+        return areLocationsWithinRadius(existingOrder.sender, mainContact);
       });
       
       if (isProximityMatch) {
         // Add to this group, regardless of how many orders it already has
         group.orders.push(order);
-        console.log(`Added order ${order.id} to existing group ${group.id} (proximity match) for ${type}`);
-        processedOrders.add(`${order.id}-${type}`);
+        console.log(`Added order ${order.id} to existing group ${group.id} (proximity match)`);
+        processedOrders.add(order.id);
         foundGroup = true;
         break;
       }
@@ -154,16 +143,11 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     
     if (!foundGroup) {
       // Create a new group
-      const fromCity = type === 'pickup' 
-        ? extractCity(order.sender.address)
-        : extractCity(order.receiver.address);
-        
-      const toCity = type === 'pickup'
-        ? extractCity(order.receiver.address)
-        : extractCity(order.sender.address);
+      const fromCity = extractCity(order.sender.address);
+      const toCity = extractCity(order.receiver.address);
       
       const group: SchedulingGroup = {
-        id: `${type}-group-${groups.length + 1}`,
+        id: `group-${groups.length + 1}`,
         locationPair: {
           from: fromCity,
           to: toCity
@@ -173,17 +157,16 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
           delivery: deliveryDates
         },
         orders: [order],
-        isOptimal: false,
-        type: type
+        isOptimal: false
       };
       
       groups.push(group);
-      console.log(`Created new group ${group.id} for ${locationName} with type ${type}`);
-      processedOrders.add(`${order.id}-${type}`);
+      console.log(`Created new group ${group.id} for ${locationName}`);
+      processedOrders.add(order.id);
     }
   });
   
-  console.log(`Created ${groups.length} ${type} order groups`);
+  console.log(`Created ${groups.length} order groups`);
   return groups;
 };
 
@@ -280,17 +263,10 @@ export const scheduleOrderGroup = async (
 ): Promise<boolean> => {
   try {
     const promises = group.orders.map(order => {
-      if (group.type === 'pickup') {
-        // For pickup groups, we're setting the pickup date
-        const deliveryDate = new Date(scheduleDate);
-        deliveryDate.setDate(deliveryDate.getDate() + 1);
-        return updateOrderScheduledDates(order.id, scheduleDate, deliveryDate);
-      } else {
-        // For delivery groups, we're setting the delivery date
-        const pickupDate = new Date(scheduleDate);
-        pickupDate.setDate(pickupDate.getDate() - 1);
-        return updateOrderScheduledDates(order.id, pickupDate, scheduleDate);
-      }
+      // Set both pickup and delivery dates based on the scheduled date
+      const deliveryDate = new Date(scheduleDate);
+      deliveryDate.setDate(deliveryDate.getDate() + 1);
+      return updateOrderScheduledDates(order.id, scheduleDate, deliveryDate);
     });
     
     await Promise.all(promises);

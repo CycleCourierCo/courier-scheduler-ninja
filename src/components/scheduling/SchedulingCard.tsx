@@ -20,11 +20,9 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
 
   // The first order in the group to get representative data
   const firstOrder = group.orders[0];
-  const isPickup = group.type === 'pickup';
   
-  // Get the contact info based on whether this is a pickup or delivery
-  const contact = isPickup ? firstOrder.sender : firstOrder.receiver;
-  const contactType = isPickup ? "Sender" : "Receiver";
+  // Get the sender contact info
+  const contact = firstOrder.sender;
   
   // Get bike information
   const bikeInfo = `${firstOrder.bikeBrand || ""} ${firstOrder.bikeModel || ""}`.trim() || "Bike";
@@ -57,7 +55,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             <span className="font-semibold">{bikeInfo}</span>
           </div>
           <div>
-            <span className="font-semibold">{contactType}: </span>
+            <span className="font-semibold">Sender: </span>
             <span>{contact.name}</span>
           </div>
           <div className="flex items-start">
@@ -70,8 +68,8 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
             <span>
-              {isPickup ? 'Pickup' : 'Delivery'} dates: 
-              <span className="font-semibold"> {isPickup ? group.dateRange.pickup.length : group.dateRange.delivery.length}</span>
+              Available dates: 
+              <span className="font-semibold"> {group.dateRange.pickup.length}</span>
             </span>
           </div>
         </div>
@@ -82,7 +80,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           variant="outline" 
           className="w-full"
         >
-          Schedule {isPickup ? 'Collection' : 'Delivery'}
+          Schedule Job
         </Button>
       </CardFooter>
     </Card>

@@ -43,10 +43,8 @@ const JobScheduling: React.FC = () => {
     }
   });
   
-  const allGroups = orders ? [
-    ...groupOrdersByLocation(orders, 'pickup'),
-    ...groupOrdersByLocation(orders, 'delivery')
-  ] : [];
+  // Use a single grouping function without the type parameter
+  const allGroups = orders ? groupOrdersByLocation(orders) : [];
   
   // Filter for pending groups only
   const pendingGroups = allGroups.filter(group => 
@@ -58,12 +56,10 @@ const JobScheduling: React.FC = () => {
     )
   );
   
-  // Use pending groups for the location map instead of all groups
+  // Use pending groups for the location map
   const locationGroupsMap = pendingGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
     const firstOrder = group.orders[0];
-    const representativeContact = group.type === 'pickup' 
-      ? firstOrder.sender 
-      : firstOrder.receiver;
+    const representativeContact = firstOrder.sender;
     
     const locationKey = getLocationName(representativeContact);
     
