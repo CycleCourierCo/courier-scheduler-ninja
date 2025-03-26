@@ -1,81 +1,60 @@
-
 import React from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import Layout from "@/components/Layout";
-import { Package, CalendarCheck, ChevronRight, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-
-const features = [
-  {
-    title: "Easy Order Creation",
-    description: "Create shipping orders in minutes with our intuitive form.",
-    icon: <Package className="h-12 w-12 text-courier-500" />,
-  },
-  {
-    title: "Smart Scheduling",
-    description: "Automatically coordinate pickup and delivery times between sender and receiver.",
-    icon: <CalendarCheck className="h-12 w-12 text-courier-500" />,
-  },
-];
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   return (
-    <Layout>
-      <section className="py-12 md:py-24">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-courier-500">
-                Book your Bike Delivery now!
-              </h1>
-            </div>
-            <div className="space-x-4">
-              {user ? (
-                <>
-                  <Link to="/create-order">
-                    <Button className="bg-courier-500 hover:bg-courier-600">Create Order</Button>
-                  </Link>
-                  <Link to="/dashboard">
-                    <Button variant="outline" className="border-courier-500 text-courier-500">View Dashboard</Button>
-                  </Link>
-                </>
-              ) : (
-                <Link to="/auth">
-                  <Button className="bg-courier-500 hover:bg-courier-600">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Sign In / Sign Up
-                  </Button>
-                </Link>
-              )}
-            </div>
+    <div className="min-h-screen flex flex-col">
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center">
+            <img
+              src="/cycle-courier-logo.png"
+              alt="Cycle Courier Logo"
+              className="h-10 w-auto mr-2"
+            />
+            <h1 className="text-2xl font-bold text-courier-600">Cycle Courier</h1>
+          </div>
+          <div className="flex space-x-4 items-center">
+            <Button variant="ghost" asChild>
+              <a href="/tracking">Track Your Order</a>
+            </Button>
+            {user ? (
+              <Button onClick={() => navigate("/dashboard")}>Dashboard</Button>
+            ) : (
+              <Button onClick={() => navigate("/auth")}>Login</Button>
+            )}
+            <ThemeToggle />
           </div>
         </div>
-      </section>
+      </header>
 
-      <section className="py-12">
-        <div className="container px-4 md:px-6">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-courier-500">Key Features</h2>
-            <p className="mt-4 text-lg text-foreground">Everything you need to manage courier orders</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {features.map((feature, index) => (
-              <Card key={index} className="border-border bg-card">
-                <CardContent className="p-6 flex flex-col items-center text-center">
-                  <div className="mb-4">{feature.icon}</div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-card-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <main className="container mx-auto px-4 py-8 flex-grow">
+        <section className="text-center">
+          <h2 className="text-4xl font-extrabold text-gray-800 mb-4">
+            Efficient Bike Courier Scheduling
+          </h2>
+          <p className="text-lg text-gray-600 mb-8">
+            Streamline your bike courier operations with our intuitive scheduling
+            platform.
+          </p>
+          <Button size="lg" onClick={() => navigate(user ? "/create-order" : "/auth")}>
+            {user ? "Create Order" : "Get Started"}
+          </Button>
+        </section>
+      </main>
+
+      <footer className="bg-gray-100 py-6">
+        <div className="container mx-auto px-4 text-center text-gray-600">
+          <p>© {new Date().getFullYear()} Cycle Courier. All rights reserved.</p>
         </div>
-      </section>
-    </Layout>
+      </footer>
+    </div>
   );
 };
 
