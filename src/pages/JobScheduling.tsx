@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,6 @@ const JobScheduling: React.FC = () => {
   
   const queryClient = useQueryClient();
   
-  // Fetch pending orders and scheduled orders
   const { data: orders, isLoading, error, refetch } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: getPendingSchedulingOrders
@@ -33,7 +31,6 @@ const JobScheduling: React.FC = () => {
     console.log("Orders data:", orders);
   }, [orders]);
   
-  // Mutation for scheduling orders
   const scheduleMutation = useMutation({
     mutationFn: ({ group, date }: { group: SchedulingGroup, date: Date }) => 
       scheduleOrderGroup(group, date),
@@ -47,31 +44,17 @@ const JobScheduling: React.FC = () => {
     }
   });
   
-  // Process orders into all groups, both pickups and deliveries
   const allGroups = orders ? [
     ...groupOrdersByLocation(orders, 'pickup'),
     ...groupOrdersByLocation(orders, 'delivery')
   ] : [];
   
-  // Get pending groups (not scheduled)
-  const pendingGroups = allGroups.filter(group => 
-    group.orders.some(order => 
-      order.status === 'scheduled_dates_pending' || 
-      order.status === 'pending_approval' ||
-      order.status === 'sender_availability_confirmed' ||
-      order.status === 'receiver_availability_confirmed'
-    )
-  );
-  
-  // Group the pending groups by location (proximity areas)
-  const locationGroupsMap = pendingGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
-    // Get a representative contact for the group based on type
+  const locationGroupsMap = allGroups.reduce<Record<string, SchedulingGroup[]>>((acc, group) => {
     const firstOrder = group.orders[0];
     const representativeContact = group.type === 'pickup' 
       ? firstOrder.sender 
       : firstOrder.receiver;
     
-    // Get a location name to use as a key
     const locationKey = getLocationName(representativeContact);
     
     if (!acc[locationKey]) {
@@ -82,16 +65,13 @@ const JobScheduling: React.FC = () => {
     return acc;
   }, {});
   
-  // Convert the map to a sorted array of entries
   const locationGroups = Object.entries(locationGroupsMap).sort((a, b) => a[0].localeCompare(b[0]));
   
-  // Handle scheduling a group from the card
   const handleScheduleGroup = (group: SchedulingGroup) => {
     setSelectedGroup(group);
     setIsDialogOpen(true);
   };
   
-  // Handle confirming scheduling with a selected date
   const handleConfirmSchedule = () => {
     if (selectedGroup && scheduleDate) {
       scheduleMutation.mutate({ group: selectedGroup, date: scheduleDate });
@@ -112,7 +92,7 @@ const JobScheduling: React.FC = () => {
             {orders ? (
               <div>
                 <p className="text-muted-foreground">
-                  Found {orders.length} orders ({pendingGroups.length} groups pending scheduling)
+                  Found {orders.length} orders ({allGroups.length} total groups)
                 </p>
                 <Badge variant="outline" className="mt-1">
                   {orders.filter(o => 
@@ -141,11 +121,11 @@ const JobScheduling: React.FC = () => {
           </div>
         ) : (
           <div className="bg-card rounded-lg p-4 shadow mb-8">
-            <h2 className="text-xl font-semibold mb-4">Pending Order Groups</h2>
+            <h2 className="text-xl font-semibold mb-4">All Order Groups</h2>
             
-            {pendingGroups.length === 0 ? (
+            {allGroups.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No pending order groups to schedule
+                No order groups found
               </div>
             ) : (
               <div className="space-y-8">
@@ -171,7 +151,6 @@ const JobScheduling: React.FC = () => {
           </div>
         )}
         
-        {/* Scheduling dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
