@@ -100,7 +100,9 @@ export type Database = {
       }
       profiles: {
         Row: {
-          account_status: string | null
+          account_status:
+            | Database["public"]["Enums"]["account_status_type"]
+            | null
           company_name: string | null
           created_at: string
           email: string | null
@@ -114,7 +116,9 @@ export type Database = {
           website: string | null
         }
         Insert: {
-          account_status?: string | null
+          account_status?:
+            | Database["public"]["Enums"]["account_status_type"]
+            | null
           company_name?: string | null
           created_at?: string
           email?: string | null
@@ -128,7 +132,9 @@ export type Database = {
           website?: string | null
         }
         Update: {
-          account_status?: string | null
+          account_status?:
+            | Database["public"]["Enums"]["account_status_type"]
+            | null
           company_name?: string | null
           created_at?: string
           email?: string | null
@@ -201,6 +207,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_status_type: "pending" | "approved" | "rejected" | "suspended"
       order_status:
         | "created"
         | "sender_availability_pending"

@@ -139,6 +139,8 @@ const AccountApprovals = () => {
         return <Badge className="bg-green-500">Approved</Badge>;
       case 'rejected':
         return <Badge variant="destructive">Rejected</Badge>;
+      case 'suspended':
+        return <Badge variant="outline" className="bg-red-100 text-red-800">Suspended</Badge>;
       default:
         return <Badge variant="outline" className="bg-amber-100 text-amber-800">Pending</Badge>;
     }
