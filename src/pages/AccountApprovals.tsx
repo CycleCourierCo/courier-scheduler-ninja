@@ -27,6 +27,9 @@ const AccountApprovals = () => {
   useEffect(() => {
     const fetchBusinessAccounts = async () => {
       try {
+        setIsLoading(true);
+        console.log("Fetching business accounts...");
+        
         const { data, error } = await supabase
           .from('profiles')
           .select(`
@@ -44,6 +47,8 @@ const AccountApprovals = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
+        
+        console.log("Retrieved business accounts:", data?.length || 0);
         setBusinessAccounts(data || []);
       } catch (error) {
         console.error("Error fetching business accounts:", error);
