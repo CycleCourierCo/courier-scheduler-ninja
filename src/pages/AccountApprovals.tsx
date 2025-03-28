@@ -43,12 +43,18 @@ const AccountApprovals = () => {
             created_at,
             role
           `)
-          .eq('is_business', true)
-          .order('created_at', { ascending: false });
+          .eq('is_business', true);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching business accounts:", error);
+          throw error;
+        }
         
         console.log("Retrieved business accounts:", data?.length || 0);
+        if (data) {
+          console.log("Business accounts data:", data);
+        }
+        
         setBusinessAccounts(data || []);
       } catch (error) {
         console.error("Error fetching business accounts:", error);
