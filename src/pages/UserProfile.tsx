@@ -155,11 +155,17 @@ const UserProfile = () => {
 
   return (
     <Layout>
-      <DashboardHeader 
-        title="Your Profile" 
-        description="Manage your personal information and address"
-        icon={<User size={28} />}
-      />
+      <DashboardHeader>
+        <div className="flex items-center">
+          <User size={28} className="mr-2" />
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Your Profile</h2>
+            <p className="text-muted-foreground">
+              Manage your personal information and address
+            </p>
+          </div>
+        </div>
+      </DashboardHeader>
 
       <div className="container px-4 py-6 md:px-6 max-w-4xl mx-auto">
         <Form {...form}>
