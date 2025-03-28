@@ -1,179 +1,87 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.29.0'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || ''
+// Get the API key from environment variable
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-interface EmailPayload {
-  to: string
-  name: string
-  orderId: string
-  baseUrl: string
-  emailType: 'sender' | 'receiver'
-  item?: {
-    name: string
-    quantity: number
-    price: number
-  }
-}
+// Set up CORS headers for browser requests
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
+// Define the request handler
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Email service function called");
-    
-    const payload: EmailPayload = await req.json()
-    console.log("Received payload:", JSON.stringify(payload, null, 2));
-    
-    if (!payload.to || !payload.orderId || !payload.baseUrl || !payload.emailType) {
-      console.error("Missing required email parameters:", JSON.stringify(payload, null, 2));
-      return new Response(
-        JSON.stringify({ error: 'Missing required email parameters' }),
-        { 
-          status: 400, 
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          } 
-        }
-      )
-    }
+    // Parse the request body
+    const { to, subject, text, html, name, orderId, baseUrl, emailType, item } = await req.json();
 
-    if (!RESEND_API_KEY) {
-      console.error("RESEND_API_KEY is not set");
-      return new Response(
-        JSON.stringify({ error: 'RESEND_API_KEY is not configured' }),
-        { 
-          status: 500, 
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          } 
-        }
-      )
-    }
-
-    // Extract item details if provided
-    const itemName = payload.item?.name || 'Bike'
-    const itemQuantity = payload.item?.quantity || 1
-    
-    let emailContent = ''
-    let emailSubject = ''
-    let callToActionUrl = ''
-    
-    if (payload.emailType === 'sender') {
-      callToActionUrl = `${payload.baseUrl}/sender-availability/${payload.orderId}`
-      emailSubject = `Please confirm collection dates for your ${itemName}`
-      emailContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Hello ${payload.name || 'there'},</h2>
-          <p>Thank you for choosing our bicycle courier service.</p>
-          <p>We need to schedule a collection for your ${itemName}. Please click the button below to select dates when you'll be available for collection.</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${callToActionUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Select Collection Dates</a>
+    // Handle different email types
+    if (emailType === "sender" || emailType === "receiver") {
+      // This is for availability emails
+      const availabilityLink = `${baseUrl}/${emailType === "sender" ? "sender" : "receiver"}-availability/${orderId}`;
+      const emailTitle = emailType === "sender" ? "Collection Availability" : "Delivery Availability";
+      
+      const { data, error } = await resend.emails.send({
+        from: "Cycle Courier <notifications@cyclecourierco.com>",
+        to: [to],
+        subject: `Cycle Courier: Please Confirm Your ${emailTitle}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1>Hello ${name},</h1>
+            <p>You have a ${item.name} ${emailType === "sender" ? "to be collected" : "being delivered to you"}.</p>
+            <p>Please click the link below to confirm your availability:</p>
+            <a href="${availabilityLink}" style="display: inline-block; background-color: #0e7490; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin: 20px 0;">
+              Confirm Your Availability
+            </a>
+            <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+            <p style="word-break: break-all;">${availabilityLink}</p>
+            <p>Thank you,<br>The Cycle Courier Team</p>
           </div>
-          <p>This link will expire in 7 days.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p>Thank you,<br>Your Bicycle Courier Team</p>
-        </div>
-      `
-    } else if (payload.emailType === 'receiver') {
-      callToActionUrl = `${payload.baseUrl}/receiver-availability/${payload.orderId}`
-      emailSubject = `Please confirm delivery dates for your ${itemName}`
-      emailContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Hello ${payload.name || 'there'},</h2>
-          <p>We have a bicycle delivery scheduled for you.</p>
-          <p>The sender has selected their available dates for collection. Now we need to schedule the delivery of your ${itemName}. Please click the button below to select dates when you'll be available to receive the delivery.</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${callToActionUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Select Delivery Dates</a>
-          </div>
-          <p>This link will expire in 7 days.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p>Thank you,<br>Your Bicycle Courier Team</p>
-        </div>
-      `
-    } else {
-      console.error("Invalid email type:", payload.emailType);
-      return new Response(
-        JSON.stringify({ error: 'Invalid email type' }),
-        { 
-          status: 400, 
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          } 
-        }
-      )
-    }
+        `,
+      });
 
-    console.log(`Sending ${payload.emailType} email to ${payload.to} for order ${payload.orderId}`);
+      if (error) throw error;
+      
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
     
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`
-      },
-      body: JSON.stringify({
-        from: 'Ccc@notification.cyclecourierco.com',
-        to: payload.to,
-        subject: emailSubject,
-        html: emailContent,
-      })
+    // For general purpose emails
+    const { data, error } = await resend.emails.send({
+      from: "Cycle Courier <notifications@cyclecourierco.com>",
+      to: [to],
+      subject: subject,
+      text: text,
+      html: html,
     });
 
-    const data = await response.json()
-    console.log("Resend API response:", JSON.stringify(data, null, 2));
-
-    if (!response.ok) {
-      console.error('Error sending email:', data);
-      return new Response(
-        JSON.stringify({ error: 'Failed to send email', details: data }),
-        { 
-          status: response.status, 
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          } 
-        }
-      )
-    }
-
-    console.log(`Successfully sent ${payload.emailType} email to ${payload.to}`);
+    if (error) throw error;
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  } catch (error) {
+    console.error("Error sending email:", error);
     
     return new Response(
       JSON.stringify({
-        success: true,
-        message: 'Email sent successfully',
-        data
+        success: false,
+        error: error.message,
       }),
-      { 
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        } 
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
       }
-    )
-
-  } catch (error) {
-    console.error('Error processing request:', error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
-    
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { 
-        status: 500, 
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        } 
-      }
-    )
+    );
   }
-})
+});

@@ -9,9 +9,12 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isApproved: boolean;
+  userProfile: any | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, metadata?: Record<string, any>) => Promise<any>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +23,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isApproved, setIsApproved] = useState(false);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
   const navigate = useNavigate();
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      
+      setUserProfile(data);
+      setIsApproved(data.account_status === 'approved' || data.role === 'admin');
+      return data;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchUserProfile(user.id);
+    }
+  };
 
   useEffect(() => {
     const setData = async () => {
@@ -30,6 +60,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setSession(session);
         setUser(session?.user || null);
+
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        }
       } catch (error) {
         console.error("Error loading user:", error);
         toast.error("Error loading user session");
@@ -44,6 +78,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user || null);
       setIsLoading(false);
+      
+      if (session?.user) {
+        setTimeout(() => {
+          fetchUserProfile(session.user.id);
+        }, 0);
+      } else {
+        setUserProfile(null);
+        setIsApproved(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -55,8 +98,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
-      toast.success("Signed in successfully");
-      navigate("/dashboard");
+      // Fetch the user profile after signing in to check approval status
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const profile = await fetchUserProfile(user.id);
+        
+        if (profile && profile.is_business && profile.account_status !== 'approved' && profile.role !== 'admin') {
+          // If business account is not approved, sign out and show message
+          await supabase.auth.signOut();
+          toast.info("Your business account is pending approval. We'll contact you soon.");
+          return;
+        }
+        
+        toast.success("Signed in successfully");
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast.error(error.message || "Error signing in");
@@ -66,20 +123,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, metadata: Record<string, any> = {}) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { name }
+          data: {
+            name,
+            ...metadata
+          }
         }
       });
       
       if (error) throw error;
       
-      toast.success("Signed up successfully! Please check your email for verification.");
+      return data;
     } catch (error: any) {
       console.error("Error signing up:", error);
       toast.error(error.message || "Error signing up");
@@ -106,7 +166,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      isLoading, 
+      isApproved,
+      userProfile,
+      signIn, 
+      signUp, 
+      signOut,
+      refreshProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );

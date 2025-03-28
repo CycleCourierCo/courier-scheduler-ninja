@@ -100,31 +100,85 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string | null
+          company_name: string | null
           created_at: string
           email: string | null
           id: string
+          is_business: boolean | null
           name: string | null
+          phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           table_preferences: Json | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          account_status?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id: string
+          is_business?: boolean | null
           name?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           table_preferences?: Json | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          account_status?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          is_business?: boolean | null
           name?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           table_preferences?: Json | null
           updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      user_addresses: {
+        Row: {
+          address_line_1: string
+          address_line_2: string | null
+          city: string
+          country: string
+          created_at: string
+          id: string
+          postal_code: string
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line_1: string
+          address_line_2?: string | null
+          city: string
+          country?: string
+          created_at?: string
+          id?: string
+          postal_code: string
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line_1?: string
+          address_line_2?: string | null
+          city?: string
+          country?: string
+          created_at?: string
+          id?: string
+          postal_code?: string
+          state?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -138,6 +192,12 @@ export type Database = {
           user_id: string
         }
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_account_approved: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

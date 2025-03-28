@@ -1,14 +1,15 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
@@ -18,10 +19,12 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, userProfile } = useAuth();
   const [open, setOpen] = useState(false);
 
   const closeSheet = () => setOpen(false);
+
+  const isAdmin = userProfile?.role === 'admin';
 
   const navLinks = (
     <>
@@ -39,6 +42,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link to="/dashboard" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
             Dashboard
           </Link>
+          {isAdmin && (
+            <Link to="/account-approvals" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+              Account Approvals
+            </Link>
+          )}
         </>
       ) : (
         <Link to="/auth" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
@@ -75,14 +83,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <SheetContent side="right" className="w-[250px]">
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
+                  
                   {user && (
-                    <button 
-                      onClick={() => { signOut(); closeSheet(); }} 
-                      className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </button>
+                    <>
+                      <DropdownMenuSeparator className="my-2" />
+                      <Link 
+                        to="/profile" 
+                        onClick={closeSheet}
+                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Your Profile
+                      </Link>
+                      <button 
+                        onClick={() => { signOut(); closeSheet(); }} 
+                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                      </button>
+                    </>
                   )}
                 </div>
               </SheetContent>
@@ -104,6 +124,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <DropdownMenuItem disabled>
                     <span className="text-sm">{user.email}</span>
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
+                      <Home className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer flex w-full items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Your Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>Account Approvals</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>

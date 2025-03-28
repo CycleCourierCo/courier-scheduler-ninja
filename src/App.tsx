@@ -17,6 +17,9 @@ import OrderDetail from "./pages/OrderDetail";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import JobScheduling from "./pages/JobScheduling";
 import TrackingPage from "./pages/TrackingPage";
+import UserProfile from "./pages/UserProfile";
+import AwaitingApproval from "./pages/AwaitingApproval";
+import AccountApprovals from "./pages/AccountApprovals";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -38,6 +41,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/awaiting-approval" element={<AwaitingApproval />} />
               <Route
                 path="/dashboard"
                 element={
@@ -78,11 +82,26 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              {/* Ensure these routes work in all environments */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <UserProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/account-approvals"
+                element={
+                  <ProtectedRoute adminOnly={true}>
+                    <AccountApprovals />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Public routes that skip authentication */}
               <Route path="/sender-availability/:id" element={<SenderAvailability />} />
               <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
-              
-              {/* Add new tracking routes */}
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               
