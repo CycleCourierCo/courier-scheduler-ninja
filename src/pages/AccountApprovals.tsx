@@ -61,16 +61,26 @@ const AccountApprovals = () => {
       // Show processing state
       setProcessingAccountIds(prev => [...prev, userId]);
       
+      console.log(`Attempting to approve account ${userId}`);
+      
+      // Update the account status in the profiles table
       const { error } = await supabase
         .from('profiles')
         .update({ account_status: 'approved' })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error approving account:", error);
+        throw error;
+      }
+
+      console.log(`Successfully updated account ${userId} status to approved`);
 
       // Send approval email
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
+        console.log(`Sending approval email to ${user.email}`);
+        
         const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
             to: user.email,
@@ -82,6 +92,8 @@ const AccountApprovals = () => {
         if (emailResponse.error) {
           console.error("Error sending approval email:", emailResponse.error);
           toast.error("Account approved but failed to send notification email");
+        } else {
+          console.log("Approval email sent successfully");
         }
       }
 
@@ -108,16 +120,26 @@ const AccountApprovals = () => {
       // Show processing state
       setProcessingAccountIds(prev => [...prev, userId]);
       
+      console.log(`Attempting to reject account ${userId}`);
+      
+      // Update the account status in the profiles table
       const { error } = await supabase
         .from('profiles')
         .update({ account_status: 'rejected' })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error rejecting account:", error);
+        throw error;
+      }
+
+      console.log(`Successfully updated account ${userId} status to rejected`);
 
       // Send rejection email
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
+        console.log(`Sending rejection email to ${user.email}`);
+        
         const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
             to: user.email,
@@ -129,6 +151,8 @@ const AccountApprovals = () => {
         if (emailResponse.error) {
           console.error("Error sending rejection email:", emailResponse.error);
           toast.error("Account rejected but failed to send notification email");
+        } else {
+          console.log("Rejection email sent successfully");
         }
       }
 
