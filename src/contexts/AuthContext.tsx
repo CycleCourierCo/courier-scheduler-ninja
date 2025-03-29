@@ -122,7 +122,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (profile && profile.is_business && profile.account_status !== 'approved' && profile.role !== 'admin') {
           // If business account is not approved, sign out and show message
           await supabase.auth.signOut();
-          toast.info("Your business account is pending approval. We'll contact you soon.");
+          
+          // Show appropriate message based on account status
+          if (profile.account_status === 'pending') {
+            toast.info("Your business account is pending approval. We'll contact you soon.");
+          } else if (profile.account_status === 'rejected') {
+            toast.error("Your business account application has been rejected. Please contact support for more information.");
+          } else if (profile.account_status === 'suspended') {
+            toast.error("Your account has been suspended. Please contact support for assistance.");
+          } else {
+            toast.info("Your business account requires approval before you can sign in.");
+          }
           return;
         }
         
