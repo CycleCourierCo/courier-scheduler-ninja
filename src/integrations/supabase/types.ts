@@ -201,6 +201,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       account_status_type: "pending" | "approved" | "rejected" | "suspended"

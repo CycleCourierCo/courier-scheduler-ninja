@@ -67,8 +67,8 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Using update to set the account status to approved
-      const { data, error } = await supabase
+      // Important: Don't use .select() when just updating
+      const { error } = await supabase
         .from('profiles')
         .update({ 
           account_status: 'approved', 
@@ -81,7 +81,7 @@ const AccountApprovals = () => {
         throw error;
       }
 
-      console.log(`Updated account ${userId} status to approved, response:`, data);
+      console.log(`Updated account ${userId} status to approved`);
 
       // Send approval email
       const user = businessAccounts.find(account => account.id === userId);
@@ -93,6 +93,7 @@ const AccountApprovals = () => {
             to: user.email,
             subject: "Your business account has been approved",
             text: `Hello ${user.name},\n\nYour business account for The Cycle Courier Co. has been approved. You can now log in and access all features.\n\nThank you for choosing us!\n\nThe Cycle Courier Co. Team`,
+            from: "Ccc@notification.cyclecourierco.com"
           }
         });
         
@@ -147,8 +148,8 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Using update to set the account status to rejected
-      const { data, error } = await supabase
+      // Important: Don't use .select() when just updating
+      const { error } = await supabase
         .from('profiles')
         .update({ 
           account_status: 'rejected', 
@@ -161,7 +162,7 @@ const AccountApprovals = () => {
         throw error;
       }
 
-      console.log(`Updated account ${userId} status to rejected, response:`, data);
+      console.log(`Updated account ${userId} status to rejected`);
 
       // Send rejection email
       const user = businessAccounts.find(account => account.id === userId);
@@ -173,6 +174,7 @@ const AccountApprovals = () => {
             to: user.email,
             subject: "Your business account application status",
             text: `Hello ${user.name},\n\nWe regret to inform you that your business account application for The Cycle Courier Co. has not been approved at this time. Please contact our customer service for more information.\n\nThe Cycle Courier Co. Team`,
+            from: "Ccc@notification.cyclecourierco.com"
           }
         });
         
