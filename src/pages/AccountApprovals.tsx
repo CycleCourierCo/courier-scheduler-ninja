@@ -30,7 +30,7 @@ const AccountApprovals = () => {
         setIsLoading(true);
         console.log("Fetching business accounts...");
         
-        // Use a simpler query to ensure we get results
+        // Very simple query with debug logs
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -41,8 +41,23 @@ const AccountApprovals = () => {
           throw error;
         }
         
-        console.log("Retrieved business accounts:", data?.length || 0);
-        console.log("Business accounts data:", data);
+        console.log("Raw business accounts data:", data);
+        console.log("Retrieved business accounts count:", data?.length || 0);
+        
+        // Extra debugging to verify the data
+        if (data && data.length === 0) {
+          // Let's check if there are any profiles at all
+          const { data: allProfiles, error: allProfilesError } = await supabase
+            .from('profiles')
+            .select('*');
+            
+          console.log("All profiles count:", allProfiles?.length || 0);
+          console.log("Sample of all profiles:", allProfiles?.slice(0, 3));
+          
+          if (allProfilesError) {
+            console.error("Error fetching all profiles:", allProfilesError);
+          }
+        }
         
         setBusinessAccounts(data || []);
       } catch (error) {

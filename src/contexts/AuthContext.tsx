@@ -29,23 +29,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log("Fetching user profile for ID:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        throw error;
+      }
       
       console.log("Fetched user profile:", data);
       setUserProfile(data);
+      
       // Business accounts need approval unless they're admins
       // Non-business accounts (b2c) are automatically approved
-      setIsApproved(
-        data.role === 'admin' || 
-        !data.is_business || 
-        data.account_status === 'approved'
-      );
+      const isUserApproved = data.role === 'admin' || 
+                            !data.is_business || 
+                            data.account_status === 'approved';
+      
+      console.log("Setting isApproved to:", isUserApproved);
+      setIsApproved(isUserApproved);
       return data;
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -82,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setData();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state changed, session:", session ? "exists" : "null");
       setSession(session);
       setUser(session?.user || null);
       setIsLoading(false);

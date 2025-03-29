@@ -22,6 +22,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isReceiverAvailabilityPage = location.pathname.includes('/receiver-availability/');
   const isAwaitingApprovalPage = location.pathname === '/awaiting-approval';
   
+  // Debug logs
+  console.log("ProtectedRoute - Current path:", location.pathname);
+  console.log("ProtectedRoute - isApproved:", isApproved);
+  console.log("ProtectedRoute - userProfile:", userProfile);
+  
   // Skip authentication for public pages
   if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {
     return <>{children}</>;
@@ -51,6 +56,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // If approval is required and user is not approved, redirect to awaiting approval page
+  // But skip this check if the user is already on the awaiting approval page
   if (requiresApproval && !isApproved && !isAwaitingApprovalPage) {
     console.log("User is not approved, redirecting to awaiting approval page");
     return <Navigate to="/awaiting-approval" replace />;
