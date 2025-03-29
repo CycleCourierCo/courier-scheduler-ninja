@@ -87,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       
       if (session?.user) {
+        // Use setTimeout to avoid Supabase auth recursion issues
         setTimeout(() => {
           fetchUserProfile(session.user.id);
         }, 0);

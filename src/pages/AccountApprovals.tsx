@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ const AccountApprovals = () => {
         setIsLoading(true);
         console.log("Fetching business accounts...");
         
+        // Use a simpler query to ensure we get results
         const { data, error } = await supabase
           .from('profiles')
           .select('*')

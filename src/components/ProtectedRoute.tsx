@@ -44,14 +44,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If approval is required and user is not approved, redirect to awaiting approval page
-  if (requiresApproval && !isApproved && !isAwaitingApprovalPage) {
-    return <Navigate to="/awaiting-approval" replace />;
-  }
-
   // If on the awaiting approval page but already approved, redirect to dashboard
   if (isAwaitingApprovalPage && isApproved) {
+    console.log("User is approved, redirecting from awaiting approval to dashboard");
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // If approval is required and user is not approved, redirect to awaiting approval page
+  if (requiresApproval && !isApproved && !isAwaitingApprovalPage) {
+    console.log("User is not approved, redirecting to awaiting approval page");
+    return <Navigate to="/awaiting-approval" replace />;
   }
 
   return <>{children}</>;
