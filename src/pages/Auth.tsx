@@ -113,30 +113,16 @@ const Auth = () => {
         is_business: data.is_business.toString(),
         company_name: data.company_name || null,
         website: data.website || null,
-        phone: data.phone
+        phone: data.phone,
+        address_line_1: data.address.address_line_1,
+        address_line_2: data.address.address_line_2 || null,
+        city: data.address.city,
+        postal_code: data.address.postal_code
       };
 
-      // Sign up the user first
+      // Sign up the user
       const result = await signUp(data.email, data.password, data.name, metadata);
       
-      if (result?.user?.id) {
-        // Create address record
-        const { error: addressError } = await supabase
-          .from('user_addresses')
-          .insert({
-            user_id: result.user.id,
-            address_line_1: data.address.address_line_1,
-            address_line_2: data.address.address_line_2 || null,
-            city: data.address.city,
-            postal_code: data.address.postal_code,
-          });
-
-        if (addressError) {
-          console.error("Error saving address:", addressError);
-          toast.error("Unable to save address information.");
-        }
-      }
-
       // Show appropriate message based on account type
       if (data.is_business) {
         toast.success("Business account created. Your application is pending admin approval.");
