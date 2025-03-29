@@ -35,8 +35,8 @@ BEGIN
     new.raw_user_meta_data->>'phone',
     (new.raw_user_meta_data->>'is_business')::boolean,
     CASE 
-      WHEN new.raw_user_meta_data->>'is_business' = 'true' THEN 'pending'
-      ELSE 'approved'
+      WHEN new.raw_user_meta_data->>'is_business' = 'true' THEN 'pending'::account_status_type
+      ELSE 'approved'::account_status_type
     END,
     new.raw_user_meta_data->>'address_line_1',
     new.raw_user_meta_data->>'address_line_2',
@@ -46,4 +46,3 @@ BEGIN
   RETURN new;
 END;
 $function$;
-
