@@ -32,12 +32,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   console.log("ProtectedRoute - userRole:", userProfile?.role);
   console.log("ProtectedRoute - is B2C customer:", userProfile?.role === 'b2c_customer');
 
-  // Skip authentication for public pages
+  // Bail early for public pages 
   if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {
     return <>{children}</>;
   }
-
-  // Show loading state while auth state is loading
+  
+  // We need to handle several scenarios BEFORE allowing any rendering
+  
+  // 1. Still loading auth state - show loading spinner
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -45,33 +47,33 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       </div>
     );
   }
-
-  // Redirect to login if no user
+  
+  // 2. No authenticated user - redirect to login
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  // EARLY PROTECTION: Check for B2C access restrictions before rendering anything
-  if ((isAwaitingApprovalPage || noB2CAccess) && userProfile?.role === 'b2c_customer') {
+  
+  // 3. B2C access restrictions - completely prevent access to certain pages
+  if (userProfile?.role === 'b2c_customer' && (noB2CAccess || isAwaitingApprovalPage)) {
     return <Navigate to="/dashboard" replace />;
   }
-
-  // Admin-only route protection
+  
+  // 4. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
-
-  // Approved users shouldn't see the awaiting approval page
+  
+  // 5. Approved users shouldn't see the awaiting approval page
   if (isAwaitingApprovalPage && isApproved) {
     return <Navigate to="/dashboard" replace />;
   }
-
-  // Unapproved business users that need to be on the awaiting approval page
+  
+  // 6. Unapproved business users that need to be on the awaiting approval page
   if (requiresApproval && !isApproved && !isAwaitingApprovalPage && userProfile?.role !== 'b2c_customer') {
     return <Navigate to="/awaiting-approval" replace />;
   }
-
-  // All checks passed, render the protected content
+  
+  // Only render the protected content if all checks pass
   return <>{children}</>;
 };
 
