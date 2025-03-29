@@ -103,6 +103,9 @@ export type Database = {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          address_line_1: string | null
+          address_line_2: string | null
+          city: string | null
           company_name: string | null
           created_at: string
           email: string | null
@@ -110,6 +113,7 @@ export type Database = {
           is_business: boolean | null
           name: string | null
           phone: string | null
+          postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           table_preferences: Json | null
           updated_at: string
@@ -119,6 +123,9 @@ export type Database = {
           account_status?:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          address_line_1?: string | null
+          address_line_2?: string | null
+          city?: string | null
           company_name?: string | null
           created_at?: string
           email?: string | null
@@ -126,6 +133,7 @@ export type Database = {
           is_business?: boolean | null
           name?: string | null
           phone?: string | null
+          postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           table_preferences?: Json | null
           updated_at?: string
@@ -135,6 +143,9 @@ export type Database = {
           account_status?:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          address_line_1?: string | null
+          address_line_2?: string | null
+          city?: string | null
           company_name?: string | null
           created_at?: string
           email?: string | null
@@ -142,6 +153,7 @@ export type Database = {
           is_business?: boolean | null
           name?: string | null
           phone?: string | null
+          postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           table_preferences?: Json | null
           updated_at?: string
@@ -160,6 +172,9 @@ export type Database = {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          address_line_1: string | null
+          address_line_2: string | null
+          city: string | null
           company_name: string | null
           created_at: string
           email: string | null
@@ -167,6 +182,7 @@ export type Database = {
           is_business: boolean | null
           name: string | null
           phone: string | null
+          postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           table_preferences: Json | null
           updated_at: string

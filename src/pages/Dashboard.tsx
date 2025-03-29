@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -77,7 +76,6 @@ const Dashboard: React.FC = () => {
     }
   }, [user, userRole]);
 
-  // Apply filters and sorting to orders
   useEffect(() => {
     const result = applyFiltersToOrders(orders, filters);
     setFilteredOrders(result);
@@ -108,7 +106,7 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <DashboardHeader />
+        <DashboardHeader showActionButtons={true} />
         <OrderFilters 
           onFilterChange={handleFilterChange} 
           initialFilters={filters}
