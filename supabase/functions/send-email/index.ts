@@ -29,7 +29,7 @@ serve(async (req) => {
       const emailTitle = emailType === "sender" ? "Collection Availability" : "Delivery Availability";
       
       const { data, error } = await resend.emails.send({
-        from: "Cycle Courier <notifications@cyclecourierco.com>",
+        from: "Cycle Courier <ccc@notifications.cyclecourierco.com>",
         to: [to],
         subject: `Cycle Courier: Please Confirm Your ${emailTitle}`,
         html: `
@@ -57,7 +57,7 @@ serve(async (req) => {
     
     // For general purpose emails (account approvals, etc.)
     const { data, error } = await resend.emails.send({
-      from: "Cycle Courier <notifications@cyclecourierco.com>",
+      from: "Cycle Courier <ccc@notifications.cyclecourierco.com>",
       to: [to],
       subject: subject,
       html: html || `
