@@ -274,6 +274,7 @@ const AccountApprovals = () => {
                     <TableRow>
                       <TableHead>Company</TableHead>
                       <TableHead>Contact</TableHead>
+                      <TableHead>Address</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -299,6 +300,17 @@ const AccountApprovals = () => {
                           <div className="text-xs text-muted-foreground">{account.email}</div>
                           {account.phone && (
                             <div className="text-xs text-muted-foreground">{account.phone}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {account.address_line_1 && (
+                            <div className="text-xs">
+                              <div>{account.address_line_1}</div>
+                              {account.address_line_2 && <div>{account.address_line_2}</div>}
+                              <div>
+                                {account.city}{account.postal_code ? `, ${account.postal_code}` : ''}
+                              </div>
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>
