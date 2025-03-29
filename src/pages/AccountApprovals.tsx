@@ -64,17 +64,18 @@ const AccountApprovals = () => {
       console.log(`Attempting to approve account ${userId}`);
       
       // Update the account status in the profiles table
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ account_status: 'approved' })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
         console.error("Supabase error approving account:", error);
         throw error;
       }
 
-      console.log(`Successfully updated account ${userId} status to approved`);
+      console.log(`Successfully updated account ${userId} status to approved, response:`, data);
 
       // Send approval email
       const user = businessAccounts.find(account => account.id === userId);
@@ -123,17 +124,18 @@ const AccountApprovals = () => {
       console.log(`Attempting to reject account ${userId}`);
       
       // Update the account status in the profiles table
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ account_status: 'rejected' })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
         console.error("Supabase error rejecting account:", error);
         throw error;
       }
 
-      console.log(`Successfully updated account ${userId} status to rejected`);
+      console.log(`Successfully updated account ${userId} status to rejected, response:`, data);
 
       // Send rejection email
       const user = businessAccounts.find(account => account.id === userId);
