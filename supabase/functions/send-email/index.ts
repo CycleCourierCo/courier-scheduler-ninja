@@ -21,6 +21,8 @@ serve(async (req) => {
   try {
     // Parse the request body
     const { to, subject, text, html, name, orderId, baseUrl, emailType, item } = await req.json();
+    
+    console.log("Email request received:", { to, subject, emailType });
 
     // Handle different email types
     if (emailType === "sender" || emailType === "receiver") {
@@ -47,7 +49,12 @@ serve(async (req) => {
         `,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error sending availability email:", error);
+        throw error;
+      }
+      
+      console.log("Availability email sent successfully", data);
       
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -56,6 +63,7 @@ serve(async (req) => {
     }
     
     // For general purpose emails (account approvals, etc.)
+    console.log("Sending general purpose email to:", to);
     const { data, error } = await resend.emails.send({
       from: "Cycle Courier <Ccc@notification.cyclecourierco.com>",
       to: [to],
@@ -70,7 +78,12 @@ serve(async (req) => {
       text: text,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error sending general email:", error);
+      throw error;
+    }
+    
+    console.log("General email sent successfully", data);
     
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

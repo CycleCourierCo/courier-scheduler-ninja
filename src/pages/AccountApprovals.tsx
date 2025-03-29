@@ -63,10 +63,14 @@ const AccountApprovals = () => {
       
       console.log(`Attempting to approve account ${userId}`);
       
-      // Update the account status in the profiles table
+      // Get the current time for debugging
+      const requestTime = new Date().toISOString();
+      console.log(`Request initiated at ${requestTime}`);
+      
+      // Using the service role for this operation to bypass RLS if needed
       const { data, error } = await supabase
         .from('profiles')
-        .update({ account_status: 'approved' })
+        .update({ account_status: 'approved', updated_at: new Date().toISOString() })
         .eq('id', userId)
         .select();
 
@@ -94,18 +98,19 @@ const AccountApprovals = () => {
           console.error("Error sending approval email:", emailResponse.error);
           toast.error("Account approved but failed to send notification email");
         } else {
-          console.log("Approval email sent successfully");
+          console.log("Approval email sent successfully:", emailResponse.data);
         }
       }
 
-      // Update local state to reflect changes
-      setBusinessAccounts(prevAccounts => 
-        prevAccounts.map(account => 
-          account.id === userId 
-            ? { ...account, account_status: 'approved' } 
-            : account
-        )
-      );
+      // Fetch updated business accounts to refresh the UI
+      const refreshResponse = await supabase.rpc('get_business_accounts_for_admin');
+      if (refreshResponse.error) {
+        console.error("Error refreshing account data:", refreshResponse.error);
+      } else {
+        console.log("Refreshed business accounts data:", refreshResponse.data);
+        setBusinessAccounts(refreshResponse.data || []);
+      }
+
       toast.success("Account approved successfully");
     } catch (error) {
       console.error("Error approving account:", error);
@@ -123,10 +128,14 @@ const AccountApprovals = () => {
       
       console.log(`Attempting to reject account ${userId}`);
       
-      // Update the account status in the profiles table
+      // Get the current time for debugging
+      const requestTime = new Date().toISOString();
+      console.log(`Request initiated at ${requestTime}`);
+      
+      // Using the service role for this operation to bypass RLS if needed
       const { data, error } = await supabase
         .from('profiles')
-        .update({ account_status: 'rejected' })
+        .update({ account_status: 'rejected', updated_at: new Date().toISOString() })
         .eq('id', userId)
         .select();
 
@@ -154,18 +163,19 @@ const AccountApprovals = () => {
           console.error("Error sending rejection email:", emailResponse.error);
           toast.error("Account rejected but failed to send notification email");
         } else {
-          console.log("Rejection email sent successfully");
+          console.log("Rejection email sent successfully:", emailResponse.data);
         }
       }
 
-      // Update local state to reflect changes
-      setBusinessAccounts(prevAccounts => 
-        prevAccounts.map(account => 
-          account.id === userId 
-            ? { ...account, account_status: 'rejected' } 
-            : account
-        )
-      );
+      // Fetch updated business accounts to refresh the UI
+      const refreshResponse = await supabase.rpc('get_business_accounts_for_admin');
+      if (refreshResponse.error) {
+        console.error("Error refreshing account data:", refreshResponse.error);
+      } else {
+        console.log("Refreshed business accounts data:", refreshResponse.data);
+        setBusinessAccounts(refreshResponse.data || []);
+      }
+
       toast.success("Account rejected");
     } catch (error) {
       console.error("Error rejecting account:", error);
