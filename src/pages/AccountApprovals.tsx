@@ -67,19 +67,21 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Using the service role for this operation to bypass RLS if needed
+      // Using update to set the account status to approved
       const { data, error } = await supabase
         .from('profiles')
-        .update({ account_status: 'approved', updated_at: new Date().toISOString() })
-        .eq('id', userId)
-        .select();
+        .update({ 
+          account_status: 'approved', 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', userId);
 
       if (error) {
         console.error("Supabase error approving account:", error);
         throw error;
       }
 
-      console.log(`Successfully updated account ${userId} status to approved, response:`, data);
+      console.log(`Updated account ${userId} status to approved, response:`, data);
 
       // Send approval email
       const user = businessAccounts.find(account => account.id === userId);
@@ -102,14 +104,14 @@ const AccountApprovals = () => {
         }
       }
 
-      // Fetch updated business accounts to refresh the UI
-      const refreshResponse = await supabase.rpc('get_business_accounts_for_admin');
-      if (refreshResponse.error) {
-        console.error("Error refreshing account data:", refreshResponse.error);
-      } else {
-        console.log("Refreshed business accounts data:", refreshResponse.data);
-        setBusinessAccounts(refreshResponse.data || []);
-      }
+      // Update local state to reflect the change
+      setBusinessAccounts(prevAccounts => 
+        prevAccounts.map(account => 
+          account.id === userId 
+            ? { ...account, account_status: 'approved' } 
+            : account
+        )
+      );
 
       toast.success("Account approved successfully");
     } catch (error) {
@@ -118,6 +120,19 @@ const AccountApprovals = () => {
     } finally {
       // Remove processing state
       setProcessingAccountIds(prev => prev.filter(id => id !== userId));
+      
+      // Refresh the business accounts list to ensure we have the latest data
+      try {
+        const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
+        if (error) {
+          console.error("Error refreshing account data:", error);
+        } else {
+          console.log("Refreshed business accounts data:", data);
+          setBusinessAccounts(data || []);
+        }
+      } catch (refreshError) {
+        console.error("Error refreshing business accounts:", refreshError);
+      }
     }
   };
 
@@ -132,19 +147,21 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Using the service role for this operation to bypass RLS if needed
+      // Using update to set the account status to rejected
       const { data, error } = await supabase
         .from('profiles')
-        .update({ account_status: 'rejected', updated_at: new Date().toISOString() })
-        .eq('id', userId)
-        .select();
+        .update({ 
+          account_status: 'rejected', 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', userId);
 
       if (error) {
         console.error("Supabase error rejecting account:", error);
         throw error;
       }
 
-      console.log(`Successfully updated account ${userId} status to rejected, response:`, data);
+      console.log(`Updated account ${userId} status to rejected, response:`, data);
 
       // Send rejection email
       const user = businessAccounts.find(account => account.id === userId);
@@ -167,14 +184,14 @@ const AccountApprovals = () => {
         }
       }
 
-      // Fetch updated business accounts to refresh the UI
-      const refreshResponse = await supabase.rpc('get_business_accounts_for_admin');
-      if (refreshResponse.error) {
-        console.error("Error refreshing account data:", refreshResponse.error);
-      } else {
-        console.log("Refreshed business accounts data:", refreshResponse.data);
-        setBusinessAccounts(refreshResponse.data || []);
-      }
+      // Update local state to reflect the change
+      setBusinessAccounts(prevAccounts => 
+        prevAccounts.map(account => 
+          account.id === userId 
+            ? { ...account, account_status: 'rejected' } 
+            : account
+        )
+      );
 
       toast.success("Account rejected");
     } catch (error) {
@@ -183,6 +200,19 @@ const AccountApprovals = () => {
     } finally {
       // Remove processing state
       setProcessingAccountIds(prev => prev.filter(id => id !== userId));
+      
+      // Refresh the business accounts list to ensure we have the latest data
+      try {
+        const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
+        if (error) {
+          console.error("Error refreshing account data:", error);
+        } else {
+          console.log("Refreshed business accounts data:", data);
+          setBusinessAccounts(data || []);
+        }
+      } catch (refreshError) {
+        console.error("Error refreshing business accounts:", refreshError);
+      }
     }
   };
 
