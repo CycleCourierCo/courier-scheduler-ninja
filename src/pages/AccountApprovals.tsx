@@ -14,6 +14,7 @@ import { Shield, CheckCircle, XCircle, ExternalLink, Building, Clock } from "luc
 const AccountApprovals = () => {
   const [businessAccounts, setBusinessAccounts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
   const { userProfile } = useAuth();
 
   // Redirect if not admin
@@ -57,6 +58,9 @@ const AccountApprovals = () => {
 
   const approveAccount = async (userId: string) => {
     try {
+      // Show processing state
+      setProcessingAccountIds(prev => [...prev, userId]);
+      
       const { error } = await supabase
         .from('profiles')
         .update({ account_status: 'approved' })
@@ -67,15 +71,21 @@ const AccountApprovals = () => {
       // Send approval email
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
-        await supabase.functions.invoke("send-email", {
+        const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
             to: user.email,
             subject: "Your business account has been approved",
             text: `Hello ${user.name},\n\nYour business account for The Cycle Courier Co. has been approved. You can now log in and access all features.\n\nThank you for choosing us!\n\nThe Cycle Courier Co. Team`,
           }
         });
+        
+        if (emailResponse.error) {
+          console.error("Error sending approval email:", emailResponse.error);
+          toast.error("Account approved but failed to send notification email");
+        }
       }
 
+      // Update local state to reflect changes
       setBusinessAccounts(prevAccounts => 
         prevAccounts.map(account => 
           account.id === userId 
@@ -87,11 +97,17 @@ const AccountApprovals = () => {
     } catch (error) {
       console.error("Error approving account:", error);
       toast.error("Failed to approve account");
+    } finally {
+      // Remove processing state
+      setProcessingAccountIds(prev => prev.filter(id => id !== userId));
     }
   };
 
   const rejectAccount = async (userId: string) => {
     try {
+      // Show processing state
+      setProcessingAccountIds(prev => [...prev, userId]);
+      
       const { error } = await supabase
         .from('profiles')
         .update({ account_status: 'rejected' })
@@ -102,15 +118,21 @@ const AccountApprovals = () => {
       // Send rejection email
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
-        await supabase.functions.invoke("send-email", {
+        const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
             to: user.email,
             subject: "Your business account application status",
             text: `Hello ${user.name},\n\nWe regret to inform you that your business account application for The Cycle Courier Co. has not been approved at this time. Please contact our customer service for more information.\n\nThe Cycle Courier Co. Team`,
           }
         });
+        
+        if (emailResponse.error) {
+          console.error("Error sending rejection email:", emailResponse.error);
+          toast.error("Account rejected but failed to send notification email");
+        }
       }
 
+      // Update local state to reflect changes
       setBusinessAccounts(prevAccounts => 
         prevAccounts.map(account => 
           account.id === userId 
@@ -122,6 +144,9 @@ const AccountApprovals = () => {
     } catch (error) {
       console.error("Error rejecting account:", error);
       toast.error("Failed to reject account");
+    } finally {
+      // Remove processing state
+      setProcessingAccountIds(prev => prev.filter(id => id !== userId));
     }
   };
 
@@ -137,6 +162,8 @@ const AccountApprovals = () => {
         return <Badge variant="outline" className="bg-amber-100 text-amber-800">Pending</Badge>;
     }
   };
+
+  const isProcessing = (userId: string) => processingAccountIds.includes(userId);
 
   return (
     <Layout>
@@ -217,29 +244,55 @@ const AccountApprovals = () => {
                                 size="sm" 
                                 className="text-green-600"
                                 onClick={() => approveAccount(account.id)}
+                                disabled={isProcessing(account.id)}
                               >
-                                <CheckCircle size={16} className="mr-1" />
-                                Approve
+                                {isProcessing(account.id) ? (
+                                  <><span className="animate-spin mr-1">◌</span> Processing</>
+                                ) : (
+                                  <><CheckCircle size={16} className="mr-1" /> Approve</>
+                                )}
                               </Button>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
                                 className="text-red-600"
                                 onClick={() => rejectAccount(account.id)}
+                                disabled={isProcessing(account.id)}
                               >
-                                <XCircle size={16} className="mr-1" />
-                                Reject
+                                {isProcessing(account.id) ? (
+                                  <><span className="animate-spin mr-1">◌</span> Processing</>
+                                ) : (
+                                  <><XCircle size={16} className="mr-1" /> Reject</>
+                                )}
                               </Button>
                             </div>
                           ) : account.account_status === 'approved' ? (
-                            <Button variant="ghost" size="sm" className="text-red-600" onClick={() => rejectAccount(account.id)}>
-                              <XCircle size={16} className="mr-1" />
-                              Revoke
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-red-600" 
+                              onClick={() => rejectAccount(account.id)}
+                              disabled={isProcessing(account.id)}
+                            >
+                              {isProcessing(account.id) ? (
+                                <><span className="animate-spin mr-1">◌</span> Processing</>
+                              ) : (
+                                <><XCircle size={16} className="mr-1" /> Revoke</>
+                              )}
                             </Button>
                           ) : (
-                            <Button variant="ghost" size="sm" className="text-green-600" onClick={() => approveAccount(account.id)}>
-                              <CheckCircle size={16} className="mr-1" />
-                              Approve
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-green-600" 
+                              onClick={() => approveAccount(account.id)}
+                              disabled={isProcessing(account.id)}
+                            >
+                              {isProcessing(account.id) ? (
+                                <><span className="animate-spin mr-1">◌</span> Processing</>
+                              ) : (
+                                <><CheckCircle size={16} className="mr-1" /> Approve</>
+                              )}
                             </Button>
                           )}
                         </TableCell>

@@ -55,13 +55,19 @@ serve(async (req) => {
       });
     }
     
-    // For general purpose emails
+    // For general purpose emails (account approvals, etc.)
     const { data, error } = await resend.emails.send({
       from: "Cycle Courier <notifications@cyclecourierco.com>",
       to: [to],
       subject: subject,
+      html: html || `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1>Hello${name ? ' ' + name : ''},</h1>
+          <p>${text}</p>
+          <p>Thank you,<br>The Cycle Courier Team</p>
+        </div>
+      `,
       text: text,
-      html: html,
     });
 
     if (error) throw error;
