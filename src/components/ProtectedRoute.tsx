@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiresApproval?: boolean;
   adminOnly?: boolean;
   noB2CAccess?: boolean;
 }
@@ -16,7 +15,6 @@ interface ProtectedRouteProps {
  */
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requiresApproval = true,
   adminOnly = false,
   noB2CAccess = false
 }) => {

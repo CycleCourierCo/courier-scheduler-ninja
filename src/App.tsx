@@ -18,7 +18,6 @@ import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import JobScheduling from "./pages/JobScheduling";
 import TrackingPage from "./pages/TrackingPage";
 import UserProfile from "./pages/UserProfile";
-import AwaitingApproval from "./pages/AwaitingApproval";
 import AccountApprovals from "./pages/AccountApprovals";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -41,9 +40,6 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              
-              {/* Temporarily making awaiting-approval a regular route without protection */}
-              <Route path="/awaiting-approval" element={<AwaitingApproval />} />
               
               {/* All remaining routes */}
               <Route

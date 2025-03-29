@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
@@ -9,7 +8,6 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  isApproved: boolean;
   userProfile: any | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, metadata?: Record<string, any>) => Promise<any>;
@@ -23,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isApproved, setIsApproved] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const navigate = useNavigate();
 
@@ -43,15 +40,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log("Fetched user profile:", data);
       setUserProfile(data);
-      
-      // Business accounts need approval unless they're admins
-      // Non-business accounts (b2c) are automatically approved
-      const isUserApproved = data.role === 'admin' || 
-                            !data.is_business || 
-                            data.account_status === 'approved';
-      
-      console.log("Setting isApproved to:", isUserApproved);
-      setIsApproved(isUserApproved);
       return data;
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -100,7 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, 0);
       } else {
         setUserProfile(null);
-        setIsApproved(false);
       }
     });
 
@@ -194,8 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ 
       user, 
       session, 
-      isLoading, 
-      isApproved,
+      isLoading,
       userProfile,
       signIn, 
       signUp, 
