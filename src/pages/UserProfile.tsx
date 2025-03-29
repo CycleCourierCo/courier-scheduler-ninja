@@ -20,19 +20,16 @@ const profileSchema = z.object({
   phone: z.string().min(4, "Phone number is required"),
   company_name: z.string().optional(),
   website: z.string().optional(),
-  address: z.object({
-    address_line_1: z.string().min(1, "Address line 1 is required"),
-    address_line_2: z.string().optional(),
-    city: z.string().min(1, "City is required"),
-    postal_code: z.string().min(1, "Postal code is required"),
-  }),
+  address_line_1: z.string().min(1, "Address line 1 is required"),
+  address_line_2: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  postal_code: z.string().min(1, "Postal code is required"),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const UserProfile = () => {
   const { user, userProfile, refreshProfile } = useAuth();
-  const [address, setAddress] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<ProfileFormValues>({
@@ -43,59 +40,29 @@ const UserProfile = () => {
       phone: "",
       company_name: "",
       website: "",
-      address: {
-        address_line_1: "",
-        address_line_2: "",
-        city: "",
-        postal_code: "",
-      },
+      address_line_1: "",
+      address_line_2: "",
+      city: "",
+      postal_code: "",
     },
   });
 
-  // Fetch user's address
+  // Set form values when user profile is loaded
   useEffect(() => {
-    const fetchAddress = async () => {
-      if (!user?.id) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('user_addresses')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching address:", error);
-          return;
-        }
-
-        setAddress(data);
-      } catch (error) {
-        console.error("Error in address fetch:", error);
-      }
-    };
-
-    fetchAddress();
-  }, [user?.id]);
-
-  // Set form values when user profile and address are loaded
-  useEffect(() => {
-    if (userProfile && address) {
+    if (userProfile) {
       form.reset({
         name: userProfile.name || "",
         email: userProfile.email || "",
         phone: userProfile.phone || "",
         company_name: userProfile.company_name || "",
         website: userProfile.website || "",
-        address: {
-          address_line_1: address.address_line_1 || "",
-          address_line_2: address.address_line_2 || "",
-          city: address.city || "",
-          postal_code: address.postal_code || "",
-        },
+        address_line_1: userProfile.address_line_1 || "",
+        address_line_2: userProfile.address_line_2 || "",
+        city: userProfile.city || "",
+        postal_code: userProfile.postal_code || "",
       });
     }
-  }, [userProfile, address, form]);
+  }, [userProfile, form]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     if (!user?.id) return;
@@ -110,38 +77,14 @@ const UserProfile = () => {
           phone: data.phone,
           company_name: data.company_name,
           website: data.website,
+          address_line_1: data.address_line_1,
+          address_line_2: data.address_line_2 || null,
+          city: data.city,
+          postal_code: data.postal_code,
         })
         .eq('id', user.id);
 
       if (profileError) throw profileError;
-
-      // Update address
-      if (address?.id) {
-        const { error: addressError } = await supabase
-          .from('user_addresses')
-          .update({
-            address_line_1: data.address.address_line_1,
-            address_line_2: data.address.address_line_2 || null,
-            city: data.address.city,
-            postal_code: data.address.postal_code,
-          })
-          .eq('id', address.id);
-
-        if (addressError) throw addressError;
-      } else {
-        // Create new address record if none exists
-        const { error: newAddressError } = await supabase
-          .from('user_addresses')
-          .insert({
-            user_id: user.id,
-            address_line_1: data.address.address_line_1,
-            address_line_2: data.address.address_line_2 || null,
-            city: data.address.city,
-            postal_code: data.address.postal_code,
-          });
-
-        if (newAddressError) throw newAddressError;
-      }
 
       await refreshProfile();
       toast.success("Profile updated successfully");
@@ -283,7 +226,7 @@ const UserProfile = () => {
               <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="address.address_line_1"
+                  name="address_line_1"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Address Line 1</FormLabel>
@@ -297,7 +240,7 @@ const UserProfile = () => {
 
                 <FormField
                   control={form.control}
-                  name="address.address_line_2"
+                  name="address_line_2"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Address Line 2 (optional)</FormLabel>
@@ -312,7 +255,7 @@ const UserProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="address.city"
+                    name="city"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>City</FormLabel>
@@ -326,7 +269,7 @@ const UserProfile = () => {
 
                   <FormField
                     control={form.control}
-                    name="address.postal_code"
+                    name="postal_code"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Postal Code</FormLabel>

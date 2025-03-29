@@ -154,6 +154,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_business_accounts_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          account_status:
+            | Database["public"]["Enums"]["account_status_type"]
+            | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_business: boolean | null
+          name: string | null
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          table_preferences: Json | null
+          updated_at: string
+          website: string | null
+        }[]
+      }
       get_user_role: {
         Args: {
           user_id: string
