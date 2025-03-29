@@ -7,12 +7,16 @@ import { Plus, Calendar } from "lucide-react";
 interface DashboardHeaderProps {
   children?: React.ReactNode;
   showActionButtons?: boolean;
+  userRole?: string | null;
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
   children, 
-  showActionButtons = false 
+  showActionButtons = false,
+  userRole = null
 }) => {
+  const isAdmin = userRole === 'admin';
+
   return (
     <div className="flex flex-col space-y-4 pb-4">
       {children || (
@@ -25,12 +29,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       )}
       {showActionButtons && (
         <div className="flex justify-end space-x-2">
-          <Button asChild variant="outline">
-            <Link to="/job-scheduling">
-              <Calendar className="mr-2 h-4 w-4" />
-              Job Scheduling
-            </Link>
-          </Button>
+          {isAdmin && (
+            <Button asChild variant="outline">
+              <Link to="/job-scheduling">
+                <Calendar className="mr-2 h-4 w-4" />
+                Job Scheduling
+              </Link>
+            </Button>
+          )}
           <Button asChild>
             <Link to="/create-order">
               <Plus className="mr-2 h-4 w-4" />
