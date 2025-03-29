@@ -20,18 +20,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false,
   noB2CAccess = false
 }) => {
-  const { user, isLoading, isApproved, userProfile } = useAuth();
+  const { user, isLoading, userProfile } = useAuth();
   const location = useLocation();
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
   const isReceiverAvailabilityPage = location.pathname.includes('/receiver-availability/');
-  const isAwaitingApprovalPage = location.pathname === '/awaiting-approval';
   
   // Debug logs
   console.log("ProtectedRoute - Current path:", location.pathname);
-  console.log("ProtectedRoute - isApproved:", isApproved);
   console.log("ProtectedRoute - userProfile:", userProfile);
   console.log("ProtectedRoute - userRole:", userProfile?.role);
   console.log("ProtectedRoute - is B2C customer:", userProfile?.role === 'b2c_customer');
@@ -63,33 +61,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/auth" replace />;
   }
 
-  // ----------------------------------------------------
-  // CRITICAL: B2C ACCESS CHECKS
-  // ----------------------------------------------------
-  
-  // 3. Block B2C users from certain pages immediately
-  // B2C users should NEVER see awaiting approval page or other restricted pages
-  if (userProfile?.role === 'b2c_customer') {
-    // If attempting to access awaiting approval or other restricted page, redirect
-    if (isAwaitingApprovalPage || noB2CAccess) {
-      console.log("B2C user attempted to access restricted page, redirecting to dashboard");
-      return <Navigate to="/dashboard" replace />;
-    }
+  // 3. Block B2C users from admin-only pages
+  if (noB2CAccess && userProfile?.role === 'b2c_customer') {
+    console.log("B2C user attempted to access restricted page, redirecting to dashboard");
+    return <Navigate to="/dashboard" replace />;
   }
 
   // 4. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
-  }
-
-  // 5. Approved users shouldn't see the awaiting approval page
-  if (isAwaitingApprovalPage && isApproved) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // 6. Route B2B users to awaiting approval page if needed
-  if (requiresApproval && !isApproved && !isAwaitingApprovalPage && userProfile?.role !== 'b2c_customer') {
-    return <Navigate to="/awaiting-approval" replace />;
   }
 
   // All checks passed, render the protected content

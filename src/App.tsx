@@ -42,18 +42,8 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               
-              {/* B2C users are explicitly blocked from this page - this is a B2B-only page */}
-              <Route 
-                path="/awaiting-approval" 
-                element={
-                  <ProtectedRoute 
-                    requiresApproval={false} 
-                    noB2CAccess={true} // Explicitly block B2C users
-                  >
-                    <AwaitingApproval />
-                  </ProtectedRoute>
-                } 
-              />
+              {/* Temporarily making awaiting-approval a regular route without protection */}
+              <Route path="/awaiting-approval" element={<AwaitingApproval />} />
               
               {/* All remaining routes */}
               <Route
