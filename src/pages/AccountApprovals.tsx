@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,17 +31,7 @@ const AccountApprovals = () => {
         
         const { data, error } = await supabase
           .from('profiles')
-          .select(`
-            id,
-            name,
-            email,
-            company_name,
-            website,
-            phone,
-            account_status,
-            created_at,
-            role
-          `)
+          .select('*')
           .eq('is_business', true);
 
         if (error) {
@@ -51,9 +40,7 @@ const AccountApprovals = () => {
         }
         
         console.log("Retrieved business accounts:", data?.length || 0);
-        if (data) {
-          console.log("Business accounts data:", data);
-        }
+        console.log("Business accounts data:", data);
         
         setBusinessAccounts(data || []);
       } catch (error) {

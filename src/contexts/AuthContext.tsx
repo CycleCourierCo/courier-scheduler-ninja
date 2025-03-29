@@ -37,8 +37,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      console.log("Fetched user profile:", data);
       setUserProfile(data);
-      setIsApproved(data.account_status === 'approved' || data.role === 'admin');
+      // Business accounts need approval unless they're admins
+      // Non-business accounts (b2c) are automatically approved
+      setIsApproved(
+        data.role === 'admin' || 
+        !data.is_business || 
+        data.account_status === 'approved'
+      );
       return data;
     } catch (error) {
       console.error("Error fetching user profile:", error);
