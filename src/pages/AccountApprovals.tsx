@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +67,7 @@ const AccountApprovals = () => {
       console.log(`Request initiated at ${requestTime}`);
       
       // Important: Don't use .select() when just updating
+      // Fix: Use the correct column name without type suffix
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -148,7 +148,7 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Important: Don't use .select() when just updating
+      // Fix: Use the correct column name without type suffix
       const { error } = await supabase
         .from('profiles')
         .update({ 
