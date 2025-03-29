@@ -26,6 +26,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   console.log("ProtectedRoute - Current path:", location.pathname);
   console.log("ProtectedRoute - isApproved:", isApproved);
   console.log("ProtectedRoute - userProfile:", userProfile);
+  console.log("ProtectedRoute - userRole:", userProfile?.role);
   
   // Skip authentication for public pages
   if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {
@@ -49,15 +50,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If on the awaiting approval page but already approved, redirect to dashboard
-  if (isAwaitingApprovalPage && isApproved) {
-    console.log("User is approved, redirecting from awaiting approval to dashboard");
+  // B2C customers should never see the awaiting approval page
+  if (isAwaitingApprovalPage && userProfile?.role === 'b2c_customer') {
+    console.log("B2C customer attempting to access awaiting approval page, redirecting to dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
-  // B2C customers don't need approval, so redirect to dashboard
-  if (requiresApproval && userProfile?.role === 'b2c_customer' && isAwaitingApprovalPage) {
-    console.log("B2C customer on awaiting approval page, redirecting to dashboard");
+  // If on the awaiting approval page but already approved, redirect to dashboard
+  if (isAwaitingApprovalPage && isApproved) {
+    console.log("User is approved, redirecting from awaiting approval to dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
