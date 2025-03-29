@@ -27,6 +27,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   console.log("ProtectedRoute - isApproved:", isApproved);
   console.log("ProtectedRoute - userProfile:", userProfile);
   console.log("ProtectedRoute - userRole:", userProfile?.role);
+  console.log("ProtectedRoute - is B2C customer:", userProfile?.role === 'b2c_customer');
   
   // Skip authentication for public pages
   if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {
@@ -51,6 +52,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // B2C customers should never see the awaiting approval page
+  // This check needs to happen before any other awaiting approval related checks
   if (isAwaitingApprovalPage && userProfile?.role === 'b2c_customer') {
     console.log("B2C customer attempting to access awaiting approval page, redirecting to dashboard");
     return <Navigate to="/dashboard" replace />;

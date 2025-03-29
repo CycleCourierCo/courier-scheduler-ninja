@@ -41,7 +41,14 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/awaiting-approval" element={<AwaitingApproval />} />
+              <Route 
+                path="/awaiting-approval" 
+                element={
+                  <ProtectedRoute requiresApproval={false}>
+                    <AwaitingApproval />
+                  </ProtectedRoute>
+                } 
+              />
               <Route
                 path="/dashboard"
                 element={
