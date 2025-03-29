@@ -44,7 +44,7 @@ function App() {
               <Route 
                 path="/awaiting-approval" 
                 element={
-                  <ProtectedRoute requiresApproval={false}>
+                  <ProtectedRoute requiresApproval={false} noB2CAccess={true}>
                     <AwaitingApproval />
                   </ProtectedRoute>
                 } 
