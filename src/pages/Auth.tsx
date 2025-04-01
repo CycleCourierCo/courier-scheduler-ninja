@@ -1,76 +1,27 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
-import { User, Building, KeyRound } from "lucide-react";
-
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const addressSchema = z.object({
-  address_line_1: z.string().min(1, "Address line 1 is required"),
-  address_line_2: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  postal_code: z.string().min(1, "Postal code is required"),
-});
-
-const registerSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(3, "+44 followed by at least 10 digits").default("+44"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Confirm password is required"),
-  is_business: z.boolean().default(false),
-  company_name: z.string().optional(),
-  website: z.string().optional(),
-  address: addressSchema,
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-}).refine(
-  (data) => !data.is_business || data.company_name, {
-    message: "Company name is required for business accounts",
-    path: ["company_name"],
-  }
-);
-
-const resetPasswordSchema = z.object({
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Confirm password is required"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
-type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+import LoginForm from "@/components/auth/LoginForm";
+import RegisterForm from "@/components/auth/RegisterForm";
+import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
+import ResetEmailSent from "@/components/auth/ResetEmailSent";
+import BusinessRegistrationComplete from "@/components/auth/BusinessRegistrationComplete";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
-  const [isBusinessAccount, setIsBusinessAccount] = useState(false);
   const [businessRegistrationComplete, setBusinessRegistrationComplete] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [isResetEmailSent, setIsResetEmailSent] = useState(false);
   const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
-  const { signIn, signUp, isLoading, user } = useAuth();
+  const { isLoading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -102,101 +53,7 @@ const Auth = () => {
     }
   }, [user, navigate, isResettingPassword]);
 
-  const loginForm = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "+44",
-      password: "",
-      confirmPassword: "",
-      is_business: false,
-      company_name: "",
-      website: "",
-      address: {
-        address_line_1: "",
-        address_line_2: "",
-        city: "",
-        postal_code: "",
-      }
-    },
-  });
-  
-  const resetPasswordForm = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      password: "",
-      confirmPassword: "",
-    },
-  });
-
-  useEffect(() => {
-    registerForm.setValue("is_business", isBusinessAccount);
-  }, [isBusinessAccount, registerForm]);
-
-  const onLoginSubmit = async (data: LoginFormValues) => {
-    try {
-      await signIn(data.email, data.password);
-    } catch (error) {
-      console.error("Login error:", error);
-    }
-  };
-
-  const onRegisterSubmit = async (data: RegisterFormValues) => {
-    try {
-      console.log("Starting registration process", data);
-      console.log("Is business account:", data.is_business);
-      
-      const metadata = {
-        name: data.name,
-        is_business: data.is_business.toString(),
-        company_name: data.company_name || null,
-        website: data.website || null,
-        phone: data.phone,
-        address_line_1: data.address.address_line_1,
-        address_line_2: data.address.address_line_2 || null,
-        city: data.address.city,
-        postal_code: data.address.postal_code
-      };
-
-      console.log("User metadata:", metadata);
-      
-      const result = await signUp(data.email, data.password, data.name, metadata);
-      
-      console.log("Registration result:", result);
-      
-      if (data.is_business) {
-        setBusinessRegistrationComplete(true);
-        toast.success("Business account created. Your application is pending admin approval.");
-      } else {
-        toast.success("Account created successfully! You can now log in.");
-        setActiveTab("login");
-      }
-      
-      registerForm.reset();
-    } catch (error) {
-      console.error("Registration error:", error);
-    }
-  };
-
-  const handleForgotPassword = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    
-    const email = loginForm.getValues("email");
-    
-    if (!email) {
-      toast.error("Please enter your email address first");
-      return;
-    }
-    
+  const handleForgotPassword = async (email: string) => {
     try {
       setForgotPasswordIsLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -218,7 +75,7 @@ const Auth = () => {
     }
   };
   
-  const handlePasswordReset = async (data: ResetPasswordFormValues) => {
+  const handlePasswordReset = async (data: { password: string, confirmPassword: string }) => {
     try {
       setResetPasswordLoading(true);
       
@@ -229,7 +86,6 @@ const Auth = () => {
       if (error) throw error;
       
       toast.success("Password updated successfully!");
-      resetPasswordForm.reset();
       
       // After successful password reset, redirect to login
       setIsResettingPassword(false);
@@ -248,6 +104,16 @@ const Auth = () => {
     }
   };
 
+  const handleSuccessfulRegistration = (isBusinessAccount: boolean) => {
+    if (isBusinessAccount) {
+      setBusinessRegistrationComplete(true);
+      toast.success("Business account created. Your application is pending admin approval.");
+    } else {
+      toast.success("Account created successfully! You can now log in.");
+      setActiveTab("login");
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto max-w-2xl py-12">
@@ -260,24 +126,12 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             {businessRegistrationComplete ? (
-              <div className="text-center space-y-4">
-                <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
-                  <h3 className="font-medium text-amber-800 mb-2">Business Account Registration Complete</h3>
-                  <p className="text-amber-700">
-                    Your business account application has been submitted successfully. An administrator will review your 
-                    application and you'll receive an email when your account is approved.
-                  </p>
-                </div>
-                <Button 
-                  onClick={() => {
-                    setBusinessRegistrationComplete(false);
-                    setActiveTab("login");
-                  }} 
-                  className="bg-courier-600 hover:bg-courier-700"
-                >
-                  Return to Login
-                </Button>
-              </div>
+              <BusinessRegistrationComplete 
+                onReturnToLogin={() => {
+                  setBusinessRegistrationComplete(false);
+                  setActiveTab("login");
+                }}
+              />
             ) : (
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -287,340 +141,24 @@ const Auth = () => {
 
                 <TabsContent value="login">
                   {isResetEmailSent ? (
-                    <div className="text-center space-y-4 py-4">
-                      <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-                        <h3 className="font-medium text-green-800 mb-2">Reset Email Sent</h3>
-                        <p className="text-green-700">
-                          We've sent a password reset link to <strong>{forgotPasswordEmail}</strong>.
-                          Please check your email and follow the instructions to reset your password.
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={() => setIsResetEmailSent(false)} 
-                        variant="outline"
-                        className="mt-4"
-                      >
-                        Back to Login
-                      </Button>
-                    </div>
+                    <ResetEmailSent 
+                      email={forgotPasswordEmail}
+                      onBack={() => setIsResetEmailSent(false)}
+                    />
                   ) : (
-                    <Form {...loginForm}>
-                      <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                        <FormField
-                          control={loginForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input type="email" placeholder="you@example.com" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={loginForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <Button 
-                          type="submit" 
-                          className="w-full bg-courier-600 hover:bg-courier-700" 
-                          disabled={isLoading}
-                        >
-                          {isLoading ? "Signing in..." : "Sign in"}
-                        </Button>
-                        
-                        <div className="text-center mt-2">
-                          <button
-                            onClick={handleForgotPassword}
-                            className="text-sm text-courier-600 hover:text-courier-700 hover:underline"
-                            disabled={forgotPasswordIsLoading}
-                          >
-                            {forgotPasswordIsLoading ? "Sending..." : "Forgot your password?"}
-                          </button>
-                        </div>
-                      </form>
-                    </Form>
+                    <LoginForm onForgotPassword={handleForgotPassword} />
                   )}
                 </TabsContent>
 
                 <TabsContent value="register">
-                  <Form {...registerForm}>
-                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-medium text-center">Account Type</h3>
-                        <div className="flex flex-col items-center space-y-3">
-                          <p className="text-sm text-muted-foreground text-center">Select your account type</p>
-                          <div className="flex items-center justify-center w-full max-w-xs rounded-full bg-accent/30 p-1">
-                            <button
-                              type="button"
-                              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
-                                !isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                              }`}
-                              onClick={() => setIsBusinessAccount(false)}
-                            >
-                              <User size={16} />
-                              <span>Personal</span>
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
-                                isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                              }`}
-                              onClick={() => setIsBusinessAccount(true)}
-                            >
-                              <Building size={16} />
-                              <span>Business</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <FormField
-                          control={registerForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Full Name *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="John Doe" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={registerForm.control}
-                            name="email"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email *</FormLabel>
-                                <FormControl>
-                                  <Input type="email" placeholder="you@example.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={registerForm.control}
-                            name="phone"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Phone Number *</FormLabel>
-                                <FormControl>
-                                  <Input type="tel" placeholder="1234567890" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {isBusinessAccount && (
-                          <div className="space-y-4 border p-4 rounded-md bg-accent/30">
-                            <h3 className="font-medium">Business Information</h3>
-                            <FormField
-                              control={registerForm.control}
-                              name="company_name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Company/Trading Name *</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="Company Ltd or Trading Name" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={registerForm.control}
-                              name="website"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Website (optional)</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="https://example.com" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        )}
-
-                        <div className="space-y-4 border p-4 rounded-md bg-accent/30">
-                          <h3 className="font-medium">Address Information</h3>
-                          <FormField
-                            control={registerForm.control}
-                            name="address.address_line_1"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Address Line 1 *</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="123 Main St" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={registerForm.control}
-                            name="address.address_line_2"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Address Line 2 (optional)</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Apt 4B" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={registerForm.control}
-                              name="address.city"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>City *</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="London" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={registerForm.control}
-                              name="address.postal_code"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Postal Code *</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="SW1A 1AA" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={registerForm.control}
-                            name="password"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Password *</FormLabel>
-                                <FormControl>
-                                  <Input type="password" placeholder="••••••••" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={registerForm.control}
-                            name="confirmPassword"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Confirm Password *</FormLabel>
-                                <FormControl>
-                                  <Input type="password" placeholder="••••••••" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-courier-600 hover:bg-courier-700" 
-                        disabled={isLoading}
-                      >
-                        {isLoading ? "Creating Account..." : "Create Account"}
-                      </Button>
-                    </form>
-                  </Form>
+                  <RegisterForm onSuccessfulRegistration={handleSuccessfulRegistration} />
                 </TabsContent>
                 
                 <TabsContent value="reset">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center mb-4">
-                      <div className="bg-courier-50 p-3 rounded-full">
-                        <KeyRound className="h-6 w-6 text-courier-600" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-medium text-center">Reset Your Password</h3>
-                    <p className="text-sm text-center text-muted-foreground mb-4">
-                      Please enter a new password for your account
-                    </p>
-                    
-                    <Form {...resetPasswordForm}>
-                      <form onSubmit={resetPasswordForm.handleSubmit(handlePasswordReset)} className="space-y-4">
-                        <FormField
-                          control={resetPasswordForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>New Password</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={resetPasswordForm.control}
-                          name="confirmPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Confirm New Password</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <Button 
-                          type="submit" 
-                          className="w-full bg-courier-600 hover:bg-courier-700" 
-                          disabled={resetPasswordLoading}
-                        >
-                          {resetPasswordLoading ? "Updating Password..." : "Update Password"}
-                        </Button>
-                      </form>
-                    </Form>
-                  </div>
+                  <ResetPasswordForm 
+                    onSubmit={handlePasswordReset}
+                    isLoading={resetPasswordLoading}
+                  />
                 </TabsContent>
               </Tabs>
             )}
