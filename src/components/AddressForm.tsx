@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -34,7 +33,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
 
-  // Check if address fields have values to determine if they should be shown
   useEffect(() => {
     const checkFormValues = () => {
       const streetValue = control._formValues[`${prefix}.street`];
@@ -43,7 +41,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       }
     };
     
-    // Add a small delay to ensure form values are updated after tab changes
     const timeoutId = setTimeout(checkFormValues, 100);
     return () => clearTimeout(timeoutId);
   }, [control, prefix]);
@@ -56,14 +53,12 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setLoading(true);
     try {
-      // Direct API call to Geoapify
-      const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+      const apiKey = "06b0c657cdcb466889f61736b5bb56c3";
       const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=${apiKey}`;
       
       const response = await fetch(url, { method: "GET" });
       const data = await response.json();
       
-      // Only if we have valid features, add them to suggestions
       if (data && data.features && Array.isArray(data.features)) {
         setSuggestions(data.features);
       } else {
@@ -91,7 +86,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   }, [searchValue]);
 
   const handleSuggestionClick = (suggestion: AddressSuggestion) => {
-    // Create a complete street address with house number if available
     const houseNumber = suggestion.properties.housenumber || "";
     const street = suggestion.properties.street || "";
     const fullStreetAddress = houseNumber 
@@ -100,11 +94,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setValue(`${prefix}.street`, fullStreetAddress);
     setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
-    setValue(`${prefix}.state`, suggestion.properties.county || ""); // Changed to use county instead of state
+    setValue(`${prefix}.state`, suggestion.properties.county || "");
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
     
-    // Store latitude and longitude coordinates
     if (suggestion.properties.lat !== undefined && suggestion.properties.lon !== undefined) {
       setValue(`${prefix}.latitude`, suggestion.properties.lat);
       setValue(`${prefix}.longitude`, suggestion.properties.lon);
@@ -125,7 +118,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   };
 
   const handleSearchClick = () => {
-    // Clear form fields
     setValue(`${prefix}.street`, "");
     setValue(`${prefix}.city`, "");
     setValue(`${prefix}.state`, "");
@@ -134,10 +126,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.latitude`, undefined);
     setValue(`${prefix}.longitude`, undefined);
     
-    // Hide address fields
     setAddressSelected(false);
     
-    // Focus on search
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
@@ -162,7 +152,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 }
               }}
               onFocus={() => {
-                handleSearchClick(); // Clear and hide address fields when focusing on search
+                handleSearchClick();
                 if (searchValue.length >= 3 && suggestions.length > 0) {
                   setShowSuggestions(true);
                 }
@@ -289,7 +279,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
             />
           </div>
 
-          {/* Hidden fields for coordinates that won't be displayed in the UI */}
           <FormField
             control={control}
             name={`${prefix}.latitude`}
