@@ -21,9 +21,9 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           control={control}
           name="needsPaymentOnCollection"
           render={({ field }) => (
-            <FormItem className="flex flex-col rounded-lg border p-4 w-full">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">
+            <FormItem className="flex flex-col rounded-lg border p-3 sm:p-4 w-full">
+              <div className="space-y-1">
+                <FormLabel className="text-sm sm:text-base">
                   Payment Required on Collection
                 </FormLabel>
                 <FormDescription className="text-xs">
@@ -46,9 +46,9 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           control={control}
           name="isBikeSwap"
           render={({ field }) => (
-            <FormItem className="flex flex-col rounded-lg border p-4 w-full">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">
+            <FormItem className="flex flex-col rounded-lg border p-3 sm:p-4 w-full">
+              <div className="space-y-1">
+                <FormLabel className="text-sm sm:text-base">
                   Bike Swap
                 </FormLabel>
                 <FormDescription className="text-xs">

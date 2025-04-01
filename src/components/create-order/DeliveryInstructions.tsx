@@ -18,11 +18,11 @@ const DeliveryInstructions: React.FC<DeliveryInstructionsProps> = ({ control }) 
         name="deliveryInstructions"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Special Instructions</FormLabel>
+            <FormLabel className="text-sm sm:text-base">Special Instructions</FormLabel>
             <FormControl>
               <Textarea 
                 placeholder="Please provide any special instructions for pickup or delivery"
-                className="min-h-[80px] w-full resize-y"
+                className="min-h-[80px] w-full resize-y text-sm"
                 {...field} 
               />
             </FormControl>

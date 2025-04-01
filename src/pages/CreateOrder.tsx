@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -190,9 +189,7 @@ const CreateOrder = () => {
     }
   };
 
-  // This function does nothing to prevent tab clicks from changing tabs
   const handleTabClick = (value: string) => {
-    // Intentionally empty - prevents tab switching on click
     return;
   };
 
@@ -211,27 +208,33 @@ const CreateOrder = () => {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs value={activeTab} onValueChange={handleTabClick} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsList className={`${isMobile ? 'flex flex-col w-full space-y-1 h-auto' : 'grid grid-cols-3'} mb-6`}>
                     <TabsTrigger 
                       value="details" 
-                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default text-[10px] md:text-sm px-1 md:px-3 truncate flex items-center justify-center h-10`}
+                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} 
+                        cursor-default text-xs md:text-sm py-2 px-2 md:px-3 
+                        ${isMobile ? 'w-full justify-start text-left' : 'flex items-center justify-center h-10'}`}
                       disabled={true}
                     >
-                      <span className="truncate">Order Details</span>
+                      Order Details
                     </TabsTrigger>
                     <TabsTrigger 
                       value="sender" 
-                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default text-[10px] md:text-sm px-1 md:px-3 truncate flex items-center justify-center h-10`}
+                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} 
+                        cursor-default text-xs md:text-sm py-2 px-2 md:px-3 
+                        ${isMobile ? 'w-full justify-start text-left' : 'flex items-center justify-center h-10'}`}
                       disabled={true}
                     >
-                      <span className="truncate">Collection Info</span>
+                      Collection Info
                     </TabsTrigger>
                     <TabsTrigger 
                       value="receiver" 
-                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default text-[10px] md:text-sm px-1 md:px-3 truncate flex items-center justify-center h-10`}
+                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} 
+                        cursor-default text-xs md:text-sm py-2 px-2 md:px-3 
+                        ${isMobile ? 'w-full justify-start text-left' : 'flex items-center justify-center h-10'}`}
                       disabled={true}
                     >
-                      <span className="truncate">Delivery Info</span>
+                      Delivery Info
                     </TabsTrigger>
                   </TabsList>
 

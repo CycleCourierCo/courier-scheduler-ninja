@@ -52,11 +52,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
             name="customerOrderNumber"
             render={({ field }) => (
               <FormItem className="w-full">
-                <FormLabel>Customer Order Number (Optional)</FormLabel>
+                <FormLabel className="text-sm">Customer Order Number (Optional)</FormLabel>
                 <FormControl>
                   <Input placeholder="Order reference number if applicable" {...field} className="w-full" />
                 </FormControl>
-                <FormDescription className="text-xs md:text-sm">
+                <FormDescription className="text-xs">
                   If you have an existing order number or reference, enter it here.
                 </FormDescription>
                 <FormMessage />
