@@ -11,7 +11,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   
-  // Get API key from window object (set in index.html)
+  // Get API key from environment variables
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
   
   useEffect(() => {
@@ -54,8 +54,9 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
   }, [pickupGroups, deliveryGroups, apiKey, mapLoaded]);
   
   const initializeMap = () => {
-    // Skip if no window.maplibregl (loaded by Geoapify script)
+    // Skip if the maplibregl is not available on window
     if (!window.maplibregl) {
+      console.error("maplibregl is not available on window");
       return;
     }
     
@@ -91,8 +92,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
     const center = [-0.118092, 51.509865]; // London coordinates
     
     // Initialize map
-    // @ts-ignore - maplibregl comes from the Geoapify script
-    const map = new maplibregl.Map({
+    const map = new window.maplibregl.Map({
       container: 'route-map',
       style: `https://maps.geoapify.com/v1/styles/osm-carto/style.json?apiKey=${apiKey}`,
       center: center,
@@ -100,8 +100,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
     });
     
     // Add navigation control
-    // @ts-ignore
-    map.addControl(new maplibregl.NavigationControl());
+    map.addControl(new window.maplibregl.NavigationControl());
     
     // Add markers when map is loaded
     map.on('load', function() {
@@ -132,12 +131,10 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
               el.innerText = (index + 1).toString();
               
               // Add marker to map
-              // @ts-ignore
-              new maplibregl.Marker(el)
+              new window.maplibregl.Marker(el)
                 .setLngLat(coords)
                 .setPopup(
-                  // @ts-ignore
-                  new maplibregl.Popup({ offset: 25 })
+                  new window.maplibregl.Popup({ offset: 25 })
                     .setHTML(`
                       <div>
                         <p><strong>${location.name}</strong></p>
