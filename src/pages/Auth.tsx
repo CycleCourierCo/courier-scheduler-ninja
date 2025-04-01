@@ -21,21 +21,21 @@ const Auth = () => {
   const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
-  const { isLoading, user } = useAuth();
+  const { isLoading, user, isPasswordReset } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if we're in a password reset flow (either from URL hash or query params)
+  // Check if we're in a password reset flow
   useEffect(() => {
     const handlePasswordResetRedirect = async () => {
-      // Check for hash fragment from Supabase redirects
-      if (location.hash && location.hash.includes('type=recovery')) {
+      // Check for hash fragment from Supabase redirects that contains the access token
+      if (location.hash && 
+          (location.hash.includes('type=recovery') || 
+           location.hash.includes('access_token='))) {
         console.log("Password reset redirect detected from hash:", location.hash);
         setIsResettingPassword(true);
         setActiveTab("reset");
         
-        // No need to extract tokens, Supabase client will handle it
-        // Just let the user know they can now reset their password
         toast.success("You can now set a new password");
       }
       // Also check query params for ?tab=reset
@@ -52,6 +52,14 @@ const Auth = () => {
       navigate("/dashboard");
     }
   }, [user, navigate, isResettingPassword]);
+
+  // Update to handle auth status changes
+  useEffect(() => {
+    if (isPasswordReset) {
+      setIsResettingPassword(true);
+      setActiveTab("reset");
+    }
+  }, [isPasswordReset]);
 
   const handleForgotPassword = async (email: string) => {
     try {
@@ -113,6 +121,15 @@ const Auth = () => {
       setActiveTab("login");
     }
   };
+
+  // Debug the component state
+  console.log("Auth component state:", {
+    activeTab,
+    isResetEmailSent,
+    isResettingPassword,
+    hash: location.hash,
+    search: location.search
+  });
 
   return (
     <Layout>

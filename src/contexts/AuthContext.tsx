@@ -31,12 +31,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check if URL has reset password token
   const checkForPasswordResetToken = () => {
     // Check for Supabase hash fragment from recovery flow
-    if (window.location.hash && window.location.hash.includes('type=recovery')) {
-      console.log("Password reset token detected in URL hash");
+    if (window.location.hash) {
+      // Look for type=recovery in hash
+      if (window.location.hash.includes('type=recovery')) {
+        console.log("Password reset token detected in URL hash (type=recovery)");
+        setIsPasswordReset(true);
+        return true;
+      }
+      
+      // Also look for access_token with type=recovery
+      if (window.location.hash.includes('access_token=') && 
+          window.location.hash.includes('type=recovery')) {
+        console.log("Password reset token detected in URL hash (access_token with type=recovery)");
+        setIsPasswordReset(true);
+        return true;
+      }
+    }
+    
+    // Also check query parameters
+    if (window.location.search && window.location.search.includes('type=recovery')) {
+      console.log("Password reset token detected in URL query params");
       setIsPasswordReset(true);
-      navigate("/auth?tab=reset", { replace: true });
       return true;
     }
+    
     return false;
   };
 
@@ -76,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const hasResetToken = checkForPasswordResetToken();
         if (hasResetToken) {
           // If there's a reset token, we'll handle it in the Auth page
+          console.log("Password reset token found, will redirect to auth page");
           setIsLoading(false);
           return;
         }

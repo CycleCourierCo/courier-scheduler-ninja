@@ -32,6 +32,8 @@ const ResetPasswordForm = ({ onSubmit, isLoading }: ResetPasswordFormProps) => {
     },
   });
 
+  console.log("ResetPasswordForm rendered");
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-center mb-4">
