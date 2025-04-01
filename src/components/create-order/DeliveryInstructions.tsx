@@ -22,7 +22,7 @@ const DeliveryInstructions: React.FC<DeliveryInstructionsProps> = ({ control }) 
             <FormControl>
               <Textarea 
                 placeholder="Please provide any special instructions for pickup or delivery"
-                className="min-h-[80px] md:min-h-[100px] w-full"
+                className="min-h-[80px] w-full resize-y"
                 {...field} 
               />
             </FormControl>

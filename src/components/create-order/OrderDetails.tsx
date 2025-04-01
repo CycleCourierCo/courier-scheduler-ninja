@@ -17,7 +17,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
     <div className="space-y-6 w-full">
       <div>
         <h3 className="text-lg font-medium mb-4">Bike Information</h3>
-        <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 w-full`}>
+        <div className="grid grid-cols-1 gap-4 w-full">
           <FormField
             control={control}
             name="bikeBrand"

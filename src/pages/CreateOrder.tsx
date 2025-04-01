@@ -211,27 +211,27 @@ const CreateOrder = () => {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs value={activeTab} onValueChange={handleTabClick} className="w-full">
-                  <TabsList className={`grid w-full grid-cols-3 mb-6 ${isMobile ? 'text-xs' : ''}`}>
+                  <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger 
                       value="details" 
-                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default`}
+                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default text-[10px] md:text-sm px-1 md:px-3 truncate flex items-center justify-center h-10`}
                       disabled={true}
                     >
-                      Order Details
+                      <span className="truncate">Order Details</span>
                     </TabsTrigger>
                     <TabsTrigger 
                       value="sender" 
-                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default`}
+                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default text-[10px] md:text-sm px-1 md:px-3 truncate flex items-center justify-center h-10`}
                       disabled={true}
                     >
-                      Collection Info
+                      <span className="truncate">Collection Info</span>
                     </TabsTrigger>
                     <TabsTrigger 
                       value="receiver" 
-                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default`}
+                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default text-[10px] md:text-sm px-1 md:px-3 truncate flex items-center justify-center h-10`}
                       disabled={true}
                     >
-                      Delivery Info
+                      <span className="truncate">Delivery Info</span>
                     </TabsTrigger>
                   </TabsList>
 

@@ -21,17 +21,17 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           control={control}
           name="needsPaymentOnCollection"
           render={({ field }) => (
-            <FormItem className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} rounded-lg border p-4 w-full`}>
+            <FormItem className="flex flex-col rounded-lg border p-4 w-full">
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
                   Payment Required on Collection
                 </FormLabel>
-                <FormDescription className="text-xs md:text-sm">
+                <FormDescription className="text-xs">
                   Toggle if payment needs to be collected when the bike is picked up.
                 </FormDescription>
               </div>
               <FormControl>
-                <div className={`${isMobile ? 'mt-2' : ''}`}>
+                <div className="mt-2 self-start">
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
@@ -46,17 +46,17 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           control={control}
           name="isBikeSwap"
           render={({ field }) => (
-            <FormItem className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} rounded-lg border p-4 w-full`}>
+            <FormItem className="flex flex-col rounded-lg border p-4 w-full">
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
                   Bike Swap
                 </FormLabel>
-                <FormDescription className="text-xs md:text-sm">
+                <FormDescription className="text-xs">
                   Toggle if this order is a bike swap (exchanging one bike for another).
                 </FormDescription>
               </div>
               <FormControl>
-                <div className={`${isMobile ? 'mt-2' : ''}`}>
+                <div className="mt-2 self-start">
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}

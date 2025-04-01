@@ -23,11 +23,20 @@ export function useIsMobile() {
     // Check on mount
     checkMobile()
     
-    // Set up the event listener
-    window.addEventListener('resize', checkMobile)
+    // Set up throttled event listener to prevent excessive re-renders
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkMobile, 100);
+    };
+    
+    window.addEventListener('resize', handleResize)
     
     // Clean up
-    return () => window.removeEventListener('resize', checkMobile)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      clearTimeout(resizeTimer);
+    }
   }, [])
 
   return isMobile
