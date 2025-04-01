@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -17,6 +16,7 @@ import { CreateOrderFormData } from "@/types/order";
 import OrderDetails from "@/components/create-order/OrderDetails";
 import OrderOptions from "@/components/create-order/OrderOptions";
 import DeliveryInstructions from "@/components/create-order/DeliveryInstructions";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -58,6 +58,7 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isMobile = useIsMobile();
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -188,13 +189,17 @@ const CreateOrder = () => {
     }
   };
 
+  const handleTabClick = () => {
+    // This does nothing, so tab clicks won't change tabs
+  };
+
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
-        <Card>
-          <CardHeader>
-            <CardTitle>Order Details</CardTitle>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-courier-800 mb-4 md:mb-6">Create New Order</h1>
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl md:text-2xl">Order Details</CardTitle>
             <CardDescription>
               Enter the order information to create a new courier order.
             </CardDescription>
@@ -202,11 +207,26 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-3 mb-6">
-                    <TabsTrigger value="details">Order Details</TabsTrigger>
-                    <TabsTrigger value="sender">Collection Information</TabsTrigger>
-                    <TabsTrigger value="receiver">Delivery Information</TabsTrigger>
+                <Tabs value={activeTab} onValueChange={handleTabClick}>
+                  <TabsList className={`grid w-full grid-cols-3 mb-6 ${isMobile ? 'text-xs' : ''}`}>
+                    <TabsTrigger 
+                      value="details" 
+                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"}`}
+                    >
+                      Order Details
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="sender" 
+                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"}`}
+                    >
+                      Collection Info
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="receiver" 
+                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"}`}
+                    >
+                      Delivery Info
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="details" className="space-y-6">
@@ -218,7 +238,7 @@ const CreateOrder = () => {
                       <Button 
                         type="button" 
                         onClick={handleNextToSender}
-                        className="bg-courier-600 hover:bg-courier-700"
+                        className="bg-courier-600 hover:bg-courier-700 w-full md:w-auto"
                         disabled={!isDetailsValid}
                       >
                         Next: Collection Information
@@ -241,18 +261,19 @@ const CreateOrder = () => {
                       />
                     </div>
 
-                    <div className="flex justify-between">
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'}`}>
                       <Button 
                         type="button" 
                         variant="outline" 
                         onClick={() => setActiveTab("details")}
+                        className={isMobile ? "w-full" : ""}
                       >
                         Back to Order Details
                       </Button>
                       <Button 
                         type="button" 
                         onClick={handleNextToReceiver}
-                        className="bg-courier-600 hover:bg-courier-700"
+                        className={`bg-courier-600 hover:bg-courier-700 ${isMobile ? "w-full" : ""}`}
                         disabled={!isSenderValid}
                       >
                         Next: Delivery Information
@@ -275,17 +296,18 @@ const CreateOrder = () => {
                       />
                     </div>
 
-                    <div className="flex justify-between">
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'}`}>
                       <Button 
                         type="button" 
                         variant="outline" 
                         onClick={() => setActiveTab("sender")}
+                        className={isMobile ? "w-full" : ""}
                       >
                         Back to Collection Information
                       </Button>
                       <Button 
                         type="submit" 
-                        className="bg-courier-600 hover:bg-courier-700"
+                        className={`bg-courier-600 hover:bg-courier-700 ${isMobile ? "w-full" : ""}`}
                         disabled={isSubmitting || !isReceiverValid}
                       >
                         {isSubmitting ? "Creating Order..." : "Create Order"}

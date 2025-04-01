@@ -4,17 +4,20 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescripti
 import { Input } from "@/components/ui/input";
 import { Control } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface OrderDetailsProps {
   control: Control<CreateOrderFormData>;
 }
 
 const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
+  const isMobile = useIsMobile();
+  
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium mb-4">Bike Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4`}>
           <FormField
             control={control}
             name="bikeBrand"
@@ -53,7 +56,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
                 <FormControl>
                   <Input placeholder="Order reference number if applicable" {...field} />
                 </FormControl>
-                <FormDescription>
+                <FormDescription className="text-xs md:text-sm">
                   If you have an existing order number or reference, enter it here.
                 </FormDescription>
                 <FormMessage />
