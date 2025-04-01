@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -21,6 +23,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading, userProfile } = useAuth();
   const location = useLocation();
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
@@ -55,19 +58,31 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // 2. No authenticated user - must redirect to login
-  if (!user) {
+  // Only perform redirect if we're not already redirecting to prevent loops
+  if (!user && !redirecting) {
+    setRedirecting(true);
     return <Navigate to="/auth" replace />;
   }
 
   // 3. Block B2C users from admin-only pages
-  if (noB2CAccess && userProfile?.role === 'b2c_customer') {
+  // Only perform redirect if we're not already redirecting to prevent loops
+  if (noB2CAccess && userProfile?.role === 'b2c_customer' && !redirecting) {
     console.log("B2C user attempted to access restricted page, redirecting to dashboard");
+    setRedirecting(true);
     return <Navigate to="/dashboard" replace />;
   }
 
   // 4. Admin-only route protection
-  if (adminOnly && userProfile?.role !== 'admin') {
+  // Only perform redirect if we're not already redirecting to prevent loops
+  if (adminOnly && userProfile?.role !== 'admin' && !redirecting) {
+    setRedirecting(true);
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Reset redirecting state when we're rendering children
+  // This ensures we can redirect again if necessary on future renders
+  if (redirecting) {
+    setRedirecting(false);
   }
 
   // All checks passed, render the protected content
