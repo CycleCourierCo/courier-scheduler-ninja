@@ -26,6 +26,10 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     throw new Error("User not authenticated");
   }
 
+  // Log the sender and receiver data to verify lat/lon are included
+  console.log("Sender data being sent to Supabase:", data.sender);
+  console.log("Receiver data being sent to Supabase:", data.receiver);
+
   // Format delivery instructions to include bike swap and payment status
   let formattedDeliveryInstructions = data.deliveryInstructions || '';
   
@@ -55,12 +59,33 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     data.receiver.address.zipCode
   );
 
+  // Ensure the address objects are correctly formatted with lat/lon properties
+  const senderWithCoordinates = {
+    ...data.sender,
+    address: {
+      ...data.sender.address,
+      // Ensure lat/lon are included if they exist
+      lat: data.sender.address.lat,
+      lon: data.sender.address.lon
+    }
+  };
+
+  const receiverWithCoordinates = {
+    ...data.receiver,
+    address: {
+      ...data.receiver.address,
+      // Ensure lat/lon are included if they exist
+      lat: data.receiver.address.lat,
+      lon: data.receiver.address.lon
+    }
+  };
+
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
       user_id: session.session.user.id,
-      sender: data.sender,
-      receiver: data.receiver,
+      sender: senderWithCoordinates,
+      receiver: receiverWithCoordinates,
       bike_brand: data.bikeBrand,
       bike_model: data.bikeModel,
       customer_order_number: data.customerOrderNumber || customOrderId,
@@ -78,6 +103,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     console.error("Error creating order:", error);
     throw new Error(error.message);
   }
+
+  // Log the created order to verify lat/lon were included
+  console.log("Order created in Supabase:", order);
 
   // Send email to sender after order creation
   try {
