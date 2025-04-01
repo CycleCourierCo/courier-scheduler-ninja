@@ -39,27 +39,36 @@ const Auth = () => {
       if (searchParams.get('action') === 'resetPassword') {
         console.log("Setting active tab to reset from action param");
         setActiveTab("reset");
-        setIsResettingPassword(true);
-        return true;
-      }
-      
-      // Check tab parameter
-      if (searchParams.get('tab') === 'reset') {
-        console.log("Setting active tab to reset from tab param");
-        setActiveTab("reset");
-        return true;
-      }
-      
-      // Check for access_token or type=recovery in hash
-      const isResetToken = 
-        (location.hash && (
+        
+        // Check for actual token in hash or search params
+        const hasToken = 
+          location.hash.includes('access_token=') || 
           location.hash.includes('type=recovery') ||
-          location.hash.includes('access_token=')
-        )) || 
-        (location.search && location.search.includes('type=recovery'));
-         
-      if (isResetToken) {
-        console.log("Password reset token detected:", isResetToken);
+          location.search.includes('type=recovery');
+          
+        if (hasToken) {
+          console.log("Found actual reset token, enabling reset password form");
+          setIsResettingPassword(true);
+        }
+        
+        return true;
+      }
+      
+      // Check if hash contains reset token indicators
+      if (location.hash && (
+        location.hash.includes('access_token=') || 
+        location.hash.includes('type=recovery')
+      )) {
+        console.log("Password reset token found in hash");
+        setIsResettingPassword(true);
+        setActiveTab("reset");
+        toast.success("You can now set a new password");
+        return true;
+      }
+      
+      // Check if search params contain reset token indicators
+      if (location.search && location.search.includes('type=recovery')) {
+        console.log("Password reset token found in search params");
         setIsResettingPassword(true);
         setActiveTab("reset");
         toast.success("You can now set a new password");

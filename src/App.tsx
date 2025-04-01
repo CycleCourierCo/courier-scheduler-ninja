@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -50,8 +51,8 @@ const PasswordResetHandler = () => {
     
     console.log("PasswordResetHandler - Has recovery token:", hasRecoveryToken);
     
-    // Create the redirect URL, preserving all query params and hash fragments
-    const redirectUrl = `/auth?action=resetPassword${search ? (search.includes('?') ? '&' : '') + search.replace('?', '') : ''}${hash}`;
+    // Preserve the full hash and search params
+    const redirectUrl = `/auth?action=resetPassword${search ? '&' + search.substring(1) : ''}${hash}`;
     
     console.log("PasswordResetHandler - Redirecting to:", redirectUrl);
     

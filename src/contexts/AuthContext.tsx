@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
@@ -34,27 +33,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("Current URL hash:", window.location.hash);
     console.log("Current URL search:", window.location.search);
     
-    // Check for Supabase hash fragment from recovery flow
-    if (window.location.hash) {
-      // Look for type=recovery in hash
-      if (window.location.hash.includes('type=recovery')) {
-        console.log("Password reset token detected in URL hash (type=recovery)");
-        setIsPasswordReset(true);
-        return true;
-      }
+    // Check all possible token locations
+    const hasToken = 
+      (window.location.hash && (
+        window.location.hash.includes('access_token=') || 
+        window.location.hash.includes('type=recovery')
+      )) || 
+      (window.location.search && window.location.search.includes('type=recovery')) ||
+      (window.location.pathname.includes('/reset-password')) ||
+      (window.location.pathname.includes('/reset'));
       
-      // Also look for access_token with type=recovery
-      if (window.location.hash.includes('access_token=') && 
-          window.location.hash.includes('type=recovery')) {
-        console.log("Password reset token detected in URL hash (access_token with type=recovery)");
-        setIsPasswordReset(true);
-        return true;
-      }
-    }
-    
-    // Also check query parameters
-    if (window.location.search && window.location.search.includes('type=recovery')) {
-      console.log("Password reset token detected in URL query params");
+    if (hasToken) {
+      console.log("Password reset token detected");
       setIsPasswordReset(true);
       return true;
     }
@@ -96,9 +86,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Check for password reset token first
         const hasResetToken = checkForPasswordResetToken();
-        if (hasResetToken) {
-          // If there's a reset token, we'll handle it in the Auth page
-          console.log("Password reset token found, will redirect to auth page");
+        
+        // Explicitly check URL path as well
+        const isOnResetPage = 
+          window.location.pathname.includes('/reset-password') || 
+          window.location.pathname.includes('/reset') ||
+          window.location.pathname.includes('/auth') && window.location.search.includes('action=resetPassword');
+          
+        if (hasResetToken || isOnResetPage) {
+          console.log("Password reset flow detected");
+          setIsPasswordReset(true);
           setIsLoading(false);
           return;
         }
