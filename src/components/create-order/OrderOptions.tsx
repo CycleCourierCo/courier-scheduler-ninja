@@ -4,39 +4,34 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/
 import { Switch } from "@/components/ui/switch";
 import { Control } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface OrderOptionsProps {
   control: Control<CreateOrderFormData>;
 }
 
 const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
-  const isMobile = useIsMobile();
-  
   return (
-    <div className="w-full">
+    <div>
       <h3 className="text-lg font-medium mb-4">Order Options</h3>
-      <div className="space-y-4 w-full">
+      <div className="space-y-4">
         <FormField
           control={control}
           name="needsPaymentOnCollection"
           render={({ field }) => (
-            <FormItem className="flex flex-col rounded-lg border p-3 sm:p-4 w-full">
-              <div className="space-y-1">
-                <FormLabel className="text-sm sm:text-base">
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
                   Payment Required on Collection
                 </FormLabel>
-                <FormDescription className="text-xs">
+                <FormDescription>
                   Toggle if payment needs to be collected when the bike is picked up.
                 </FormDescription>
               </div>
               <FormControl>
-                <div className="mt-2 self-start">
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </div>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
               </FormControl>
             </FormItem>
           )}
@@ -46,22 +41,20 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           control={control}
           name="isBikeSwap"
           render={({ field }) => (
-            <FormItem className="flex flex-col rounded-lg border p-3 sm:p-4 w-full">
-              <div className="space-y-1">
-                <FormLabel className="text-sm sm:text-base">
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
                   Bike Swap
                 </FormLabel>
-                <FormDescription className="text-xs">
+                <FormDescription>
                   Toggle if this order is a bike swap (exchanging one bike for another).
                 </FormDescription>
               </div>
               <FormControl>
-                <div className="mt-2 self-start">
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </div>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
               </FormControl>
             </FormItem>
           )}

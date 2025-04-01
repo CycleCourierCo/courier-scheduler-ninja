@@ -24,7 +24,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
-  const [authActionInProgress, setAuthActionInProgress] = useState(false);
   const navigate = useNavigate();
 
   const fetchUserProfile = async (userId: string) => {
@@ -38,7 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error fetching user profile:", error);
-        throw error;
+        // Don't throw here - just return null to prevent complete auth failure
+        return null;
       }
       
       console.log("Fetched user profile:", data);
@@ -78,26 +78,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setData();
 
-    // Use a separate flag to track if a profile fetch is already in progress
-    let profileFetchInProgress = false;
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("Auth state changed, session:", session ? "exists" : "null");
       setSession(session);
       setUser(session?.user || null);
       
-      if (session?.user && !profileFetchInProgress) {
-        profileFetchInProgress = true;
-        // Use setTimeout to break potential synchronous loops
+      if (session?.user) {
         setTimeout(() => {
           fetchUserProfile(session.user.id)
             .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
-            .finally(() => {
-              setIsLoading(false);
-              profileFetchInProgress = false;
-            });
+            .finally(() => setIsLoading(false));
         }, 0);
-      } else if (!session) {
+      } else {
         setUserProfile(null);
         setIsLoading(false);
       }
@@ -107,11 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Prevent multiple sign-in attempts
-    if (authActionInProgress) return;
-    
     try {
-      setAuthActionInProgress(true);
       setIsLoading(true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -121,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         const profile = await fetchUserProfile(user.id);
         
+        // Only check business account status if profile was successfully fetched
         if (profile && profile.is_business && profile.account_status !== 'approved' && profile.role !== 'admin') {
           await supabase.auth.signOut();
           
@@ -136,11 +125,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         
+        // If we get here, either profile fetch failed (should allow login), or account status is approved
         toast.success("Signed in successfully");
-        // Use setTimeout to break potential redirect loops
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 0);
+        navigate("/dashboard");
       }
     } catch (error: any) {
       console.error("Error signing in:", error);
@@ -148,16 +135,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     } finally {
       setIsLoading(false);
-      setAuthActionInProgress(false);
     }
   };
 
   const signUp = async (email: string, password: string, name: string, metadata: Record<string, any> = {}) => {
-    // Prevent multiple sign-up attempts
-    if (authActionInProgress) return;
-    
     try {
-      setAuthActionInProgress(true);
       setIsLoading(true);
       const isBusinessAccount = metadata.is_business === 'true';
       
@@ -217,31 +199,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     } finally {
       setIsLoading(false);
-      setAuthActionInProgress(false);
     }
   };
 
   const signOut = async () => {
-    // Prevent multiple sign-out attempts
-    if (authActionInProgress) return;
-    
     try {
-      setAuthActionInProgress(true);
       setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Use setTimeout to break potential redirect loops
-      setTimeout(() => {
-        navigate("/auth");
-      }, 0);
+      navigate("/auth");
       toast.success("Signed out successfully");
     } catch (error: any) {
       console.error("Error signing out:", error);
       toast.error(error.message || "Error signing out");
     } finally {
       setIsLoading(false);
-      setAuthActionInProgress(false);
     }
   };
 

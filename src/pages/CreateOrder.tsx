@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -16,7 +17,6 @@ import { CreateOrderFormData } from "@/types/order";
 import OrderDetails from "@/components/create-order/OrderDetails";
 import OrderOptions from "@/components/create-order/OrderOptions";
 import DeliveryInstructions from "@/components/create-order/DeliveryInstructions";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -58,7 +58,6 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const isMobile = useIsMobile();
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -189,17 +188,13 @@ const CreateOrder = () => {
     }
   };
 
-  const handleTabClick = (value: string) => {
-    return;
-  };
-
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-courier-800 mb-4 md:mb-6">Create New Order</h1>
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl md:text-2xl">Order Details</CardTitle>
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Details</CardTitle>
             <CardDescription>
               Enter the order information to create a new courier order.
             </CardDescription>
@@ -207,47 +202,23 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={handleTabClick} className="w-full">
-                  <TabsList className={`${isMobile ? 'flex flex-col w-full space-y-1 h-auto' : 'grid grid-cols-3'} mb-6`}>
-                    <TabsTrigger 
-                      value="details" 
-                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} 
-                        cursor-default text-xs md:text-sm py-2 px-2 md:px-3 
-                        ${isMobile ? 'w-full justify-start text-left' : 'flex items-center justify-center h-10'}`}
-                      disabled={true}
-                    >
-                      Order Details
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="sender" 
-                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} 
-                        cursor-default text-xs md:text-sm py-2 px-2 md:px-3 
-                        ${isMobile ? 'w-full justify-start text-left' : 'flex items-center justify-center h-10'}`}
-                      disabled={true}
-                    >
-                      Collection Info
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="receiver" 
-                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} 
-                        cursor-default text-xs md:text-sm py-2 px-2 md:px-3 
-                        ${isMobile ? 'w-full justify-start text-left' : 'flex items-center justify-center h-10'}`}
-                      disabled={true}
-                    >
-                      Delivery Info
-                    </TabsTrigger>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="grid w-full grid-cols-3 mb-6">
+                    <TabsTrigger value="details">Order Details</TabsTrigger>
+                    <TabsTrigger value="sender">Collection Information</TabsTrigger>
+                    <TabsTrigger value="receiver">Delivery Information</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="details" className="space-y-6 w-full">
+                  <TabsContent value="details" className="space-y-6">
                     <OrderDetails control={form.control} />
                     <OrderOptions control={form.control} />
                     <DeliveryInstructions control={form.control} />
 
-                    <div className="flex justify-end w-full">
+                    <div className="flex justify-end">
                       <Button 
                         type="button" 
                         onClick={handleNextToSender}
-                        className="bg-courier-600 hover:bg-courier-700 w-full md:w-auto"
+                        className="bg-courier-600 hover:bg-courier-700"
                         disabled={!isDetailsValid}
                       >
                         Next: Collection Information
@@ -255,13 +226,13 @@ const CreateOrder = () => {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="sender" className="space-y-6 w-full">
-                    <div className="w-full">
+                  <TabsContent value="sender" className="space-y-6">
+                    <div>
                       <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
                       <ContactForm control={form.control} prefix="sender" />
                     </div>
 
-                    <div className="w-full">
+                    <div>
                       <h3 className="text-lg font-medium mb-4">Collection Address</h3>
                       <AddressForm 
                         control={form.control} 
@@ -270,19 +241,18 @@ const CreateOrder = () => {
                       />
                     </div>
 
-                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'} w-full`}>
+                    <div className="flex justify-between">
                       <Button 
                         type="button" 
                         variant="outline" 
                         onClick={() => setActiveTab("details")}
-                        className={isMobile ? "w-full" : ""}
                       >
                         Back to Order Details
                       </Button>
                       <Button 
                         type="button" 
                         onClick={handleNextToReceiver}
-                        className={`bg-courier-600 hover:bg-courier-700 ${isMobile ? "w-full" : ""}`}
+                        className="bg-courier-600 hover:bg-courier-700"
                         disabled={!isSenderValid}
                       >
                         Next: Delivery Information
@@ -290,13 +260,13 @@ const CreateOrder = () => {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="receiver" className="space-y-6 w-full">
-                    <div className="w-full">
+                  <TabsContent value="receiver" className="space-y-6">
+                    <div>
                       <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
                       <ContactForm control={form.control} prefix="receiver" />
                     </div>
 
-                    <div className="w-full">
+                    <div>
                       <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
                       <AddressForm 
                         control={form.control} 
@@ -305,18 +275,17 @@ const CreateOrder = () => {
                       />
                     </div>
 
-                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'} w-full`}>
+                    <div className="flex justify-between">
                       <Button 
                         type="button" 
                         variant="outline" 
                         onClick={() => setActiveTab("sender")}
-                        className={isMobile ? "w-full" : ""}
                       >
                         Back to Collection Information
                       </Button>
                       <Button 
                         type="submit" 
-                        className={`bg-courier-600 hover:bg-courier-700 ${isMobile ? "w-full" : ""}`}
+                        className="bg-courier-600 hover:bg-courier-700"
                         disabled={isSubmitting || !isReceiverValid}
                       >
                         {isSubmitting ? "Creating Order..." : "Create Order"}

@@ -11,18 +11,18 @@ interface DeliveryInstructionsProps {
 
 const DeliveryInstructions: React.FC<DeliveryInstructionsProps> = ({ control }) => {
   return (
-    <div className="w-full">
+    <div>
       <h3 className="text-lg font-medium mb-4">Delivery Instructions</h3>
       <FormField
         control={control}
         name="deliveryInstructions"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="text-sm sm:text-base">Special Instructions</FormLabel>
+            <FormLabel>Special Instructions</FormLabel>
             <FormControl>
               <Textarea 
                 placeholder="Please provide any special instructions for pickup or delivery"
-                className="min-h-[80px] w-full resize-y text-sm"
+                className="min-h-[100px]"
                 {...field} 
               />
             </FormControl>
