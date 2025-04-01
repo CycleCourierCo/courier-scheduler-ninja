@@ -146,39 +146,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       const isBusinessAccount = metadata.is_business === 'true';
       
-      // For business accounts, use email signup without auto-confirmation
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
+      if (isBusinessAccount) {
+        // For business accounts, use admin sign up option to prevent auto-login
+        const { data, error } = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true, // Consider user's email as confirmed
+          user_metadata: {
             name,
             ...metadata
           }
-        }
-      });
-      
-      if (error) throw error;
-      
-      // For business accounts, immediately sign out to prevent auto-login
-      // and send confirmation email
-      if (isBusinessAccount) {
-        console.log("Business account created - signing out immediately");
+        });
+        
+        if (error) throw error;
+        
+        console.log("Business account created without automatic login");
         
         // Send confirmation email that account is pending approval
         await sendBusinessAccountCreationEmail(email, name);
         
-        await supabase.auth.signOut();
+        return { data, isBusinessAccount: true };
+      } else {
+        // For regular accounts, use normal signup with auto-login
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              ...metadata
+            }
+          }
+        });
         
-        // Clear state explicitly
-        setUser(null);
-        setSession(null);
-        setUserProfile(null);
+        if (error) throw error;
         
-        return { ...data, isBusinessAccount: true };
+        return data;
       }
-      
-      return data;
     } catch (error: any) {
       console.error("Error signing up:", error);
       toast.error(error.message || "Error signing up");
