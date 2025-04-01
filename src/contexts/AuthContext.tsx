@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
@@ -82,10 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user || null);
       
-      // Don't set isLoading to false here - only set it after we've attempted to fetch the profile
-      
       if (session?.user) {
-        // Use setTimeout to avoid Supabase auth recursion issues
         setTimeout(() => {
           fetchUserProfile(session.user.id)
             .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
@@ -106,17 +102,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
-      // Fetch the user profile after signing in to check approval status
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
         const profile = await fetchUserProfile(user.id);
         
         if (profile && profile.is_business && profile.account_status !== 'approved' && profile.role !== 'admin') {
-          // If business account is not approved, sign out and show message
           await supabase.auth.signOut();
           
-          // Show appropriate message based on account status
           if (profile.account_status === 'pending') {
             toast.info("Your business account is pending approval. We'll contact you soon.");
           } else if (profile.account_status === 'rejected') {
@@ -146,43 +139,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       const isBusinessAccount = metadata.is_business === 'true';
       
-      if (isBusinessAccount) {
-        // For business accounts, use admin sign up option to prevent auto-login
-        const { data, error } = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true, // Consider user's email as confirmed
-          user_metadata: {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
             name,
             ...metadata
           }
-        });
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (isBusinessAccount) {
+        console.log("Business account created - signing out immediately");
         
-        if (error) throw error;
-        
-        console.log("Business account created without automatic login");
-        
-        // Send confirmation email that account is pending approval
         await sendBusinessAccountCreationEmail(email, name);
         
-        return { data, isBusinessAccount: true };
-      } else {
-        // For regular accounts, use normal signup with auto-login
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name,
-              ...metadata
-            }
-          }
-        });
+        if (data.session) {
+          await supabase.auth.signOut();
+          
+          setUser(null);
+          setSession(null);
+          setUserProfile(null);
+        }
         
-        if (error) throw error;
-        
-        return data;
+        return { ...data, isBusinessAccount: true };
       }
+      
+      return data;
     } catch (error: any) {
       console.error("Error signing up:", error);
       toast.error(error.message || "Error signing up");
