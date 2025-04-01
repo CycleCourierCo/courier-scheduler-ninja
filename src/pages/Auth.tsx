@@ -146,9 +146,6 @@ const Auth = () => {
       <div className="container mx-auto max-w-2xl py-12">
         <Card>
           <CardHeader>
-            <div className="flex justify-center mb-4">
-              <img src="/cycle-courier-logo.png" alt="Cycle Courier Company" className="h-10" />
-            </div>
             <CardTitle className="text-2xl text-center">Courier Management</CardTitle>
             <CardDescription className="text-center">
               Sign in to access your account or create a new one
