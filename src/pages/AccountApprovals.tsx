@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Shield, CheckCircle, XCircle, ExternalLink, Building, Clock } from "lucide-react";
+import { Shield, CheckCircle, XCircle, ExternalLink, Building, Clock, Filter } from "lucide-react";
 import { sendAccountApprovalEmail } from "@/services/emailService";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Define the type for the business account data
 interface BusinessAccount {
@@ -36,6 +37,7 @@ const AccountApprovals = () => {
   const [businessAccounts, setBusinessAccounts] = useState<BusinessAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<string>("all");
   const { userProfile } = useAuth();
 
   useEffect(() => {
@@ -188,6 +190,14 @@ const AccountApprovals = () => {
   };
 
   const isProcessing = (userId: string) => processingAccountIds.includes(userId);
+  
+  const filteredAccounts = businessAccounts.filter(account => {
+    if (activeTab === "all") return true;
+    if (activeTab === "pending") return account.account_status === "pending" || !account.account_status;
+    if (activeTab === "approved") return account.account_status === "approved";
+    if (activeTab === "rejected") return account.account_status === "rejected" || account.account_status === "suspended";
+    return true;
+  });
 
   return (
     <Layout>
@@ -214,14 +224,28 @@ const AccountApprovals = () => {
               Review and approve business account applications
             </CardDescription>
           </CardHeader>
+          
+          <div className="px-6">
+            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="approved">Approved</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          
           <CardContent>
             {isLoading ? (
               <div className="flex justify-center p-6">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-courier-600"></div>
               </div>
-            ) : businessAccounts.length === 0 ? (
+            ) : filteredAccounts.length === 0 ? (
               <div className="text-center p-6 text-muted-foreground">
-                No business accounts found
+                {activeTab === "all" 
+                  ? "No business accounts found" 
+                  : `No ${activeTab} business accounts found`}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -236,7 +260,7 @@ const AccountApprovals = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {businessAccounts.map((account) => (
+                    {filteredAccounts.map((account) => (
                       <TableRow key={account.id}>
                         <TableCell>
                           <div className="font-medium">{account.company_name || "N/A"}</div>
@@ -250,6 +274,9 @@ const AccountApprovals = () => {
                               {account.website} <ExternalLink size={12} className="ml-1" />
                             </a>
                           )}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Created: {new Date(account.created_at).toLocaleDateString()}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div>{account.name}</div>
@@ -259,7 +286,7 @@ const AccountApprovals = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {account.address_line_1 && (
+                          {account.address_line_1 ? (
                             <div className="text-xs">
                               <div>{account.address_line_1}</div>
                               {account.address_line_2 && <div>{account.address_line_2}</div>}
@@ -267,13 +294,15 @@ const AccountApprovals = () => {
                                 {account.city}{account.postal_code ? `, ${account.postal_code}` : ''}
                               </div>
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No address provided</span>
                           )}
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(account.account_status || '')}
                         </TableCell>
                         <TableCell className="text-right">
-                          {account.account_status === 'pending' ? (
+                          {account.account_status === 'pending' || !account.account_status ? (
                             <div className="space-x-2">
                               <Button 
                                 variant="ghost" 
