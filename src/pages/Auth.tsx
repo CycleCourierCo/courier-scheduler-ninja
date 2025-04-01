@@ -263,7 +263,7 @@ const Auth = () => {
                             <FormItem>
                               <FormLabel>Phone Number *</FormLabel>
                               <FormControl>
-                                <Input type="tel" placeholder="+44 1234567890" {...field} />
+                                <Input type="tel" placeholder="1234567890" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
