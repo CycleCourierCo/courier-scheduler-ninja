@@ -11,7 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Shield, CheckCircle, XCircle, ExternalLink, Building, Clock, Filter } from "lucide-react";
 import { sendAccountApprovalEmail } from "@/services/emailService";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Define the type for the business account data
 interface BusinessAccount {
@@ -37,7 +49,7 @@ const AccountApprovals = () => {
   const [businessAccounts, setBusinessAccounts] = useState<BusinessAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const { userProfile } = useAuth();
 
   useEffect(() => {
@@ -179,23 +191,23 @@ const AccountApprovals = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-500">Approved</Badge>;
+        return <Badge variant="success">Approved</Badge>;
       case 'rejected':
         return <Badge variant="destructive">Rejected</Badge>;
       case 'suspended':
         return <Badge variant="outline" className="bg-red-100 text-red-800">Suspended</Badge>;
       default:
-        return <Badge variant="outline" className="bg-amber-100 text-amber-800">Pending</Badge>;
+        return <Badge variant="warning">Pending</Badge>;
     }
   };
 
   const isProcessing = (userId: string) => processingAccountIds.includes(userId);
   
   const filteredAccounts = businessAccounts.filter(account => {
-    if (activeTab === "all") return true;
-    if (activeTab === "pending") return account.account_status === "pending" || !account.account_status;
-    if (activeTab === "approved") return account.account_status === "approved";
-    if (activeTab === "rejected") return account.account_status === "rejected" || account.account_status === "suspended";
+    if (statusFilter === "all") return true;
+    if (statusFilter === "pending") return account.account_status === "pending" || !account.account_status;
+    if (statusFilter === "approved") return account.account_status === "approved";
+    if (statusFilter === "rejected") return account.account_status === "rejected" || account.account_status === "suspended";
     return true;
   });
 
@@ -225,35 +237,25 @@ const AccountApprovals = () => {
             </CardDescription>
           </CardHeader>
           
-          <div className="p-6 pt-4">
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-4 rounded-full p-1 bg-gray-100 dark:bg-gray-800 mb-6">
-                <TabsTrigger 
-                  value="all" 
-                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="pending" 
-                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
-                >
-                  Pending
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="approved" 
-                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
-                >
-                  Approved
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="rejected" 
-                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
-                >
-                  Rejected
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="p-6 flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium">Filter by status:</p>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  <SelectItem value="pending">Pending Approval</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected/Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              Showing {filteredAccounts.length} of {businessAccounts.length} accounts
+            </div>
           </div>
           
           <CardContent>
@@ -263,9 +265,9 @@ const AccountApprovals = () => {
               </div>
             ) : filteredAccounts.length === 0 ? (
               <div className="text-center p-6 text-muted-foreground">
-                {activeTab === "all" 
+                {statusFilter === "all" 
                   ? "No business accounts found" 
-                  : `No ${activeTab} business accounts found`}
+                  : `No ${statusFilter} business accounts found`}
               </div>
             ) : (
               <div className="overflow-x-auto">
