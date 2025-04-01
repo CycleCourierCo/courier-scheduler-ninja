@@ -80,15 +80,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("Auth state changed, session:", session ? "exists" : "null");
       setSession(session);
       setUser(session?.user || null);
-      setIsLoading(false);
+      
+      // Don't set isLoading to false here - only set it after we've attempted to fetch the profile
       
       if (session?.user) {
         // Use setTimeout to avoid Supabase auth recursion issues
         setTimeout(() => {
-          fetchUserProfile(session.user.id);
+          fetchUserProfile(session.user.id)
+            .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
+            .finally(() => setIsLoading(false));
         }, 0);
       } else {
         setUserProfile(null);
+        setIsLoading(false);
       }
     });
 
@@ -159,6 +163,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isBusinessAccount) {
         console.log("Business account created - signing out immediately");
         await supabase.auth.signOut();
+        
+        // Clear state explicitly
+        setUser(null);
+        setSession(null);
+        setUserProfile(null);
+        
         return { ...data, isBusinessAccount: true };
       }
       

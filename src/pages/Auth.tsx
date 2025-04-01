@@ -121,11 +121,9 @@ const Auth = () => {
       const result = await signUp(data.email, data.password, data.name, metadata);
       
       if (data.is_business) {
-        // For business accounts, show the completion message
         setBusinessRegistrationComplete(true);
         toast.success("Business account created. Your application is pending admin approval.");
       } else {
-        // For personal accounts, we keep the existing behavior - auto-login
         toast.success("Account created successfully! You can now log in.");
         setActiveTab("login");
       }
