@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -146,7 +147,7 @@ const Auth = () => {
       <div className="container mx-auto max-w-2xl py-12">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Courier Management</CardTitle>
+            <CardTitle className="text-2xl text-center">Log in or Register</CardTitle>
             <CardDescription className="text-center">
               Sign in to access your account or create a new one
             </CardDescription>
