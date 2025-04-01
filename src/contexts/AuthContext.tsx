@@ -15,6 +15,7 @@ type AuthContextType = {
   signUp: (email: string, password: string, name: string, metadata?: Record<string, any>) => Promise<any>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  isPasswordReset: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +25,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
   const navigate = useNavigate();
+
+  // Check if URL has reset password token
+  const checkForPasswordResetToken = () => {
+    // Check for Supabase hash fragment from recovery flow
+    if (window.location.hash && window.location.hash.includes('type=recovery')) {
+      console.log("Password reset token detected in URL hash");
+      setIsPasswordReset(true);
+      navigate("/auth?tab=reset", { replace: true });
+      return true;
+    }
+    return false;
+  };
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -58,6 +72,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const setData = async () => {
       try {
+        // Check for password reset token first
+        const hasResetToken = checkForPasswordResetToken();
+        if (hasResetToken) {
+          // If there's a reset token, we'll handle it in the Auth page
+          setIsLoading(false);
+          return;
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -95,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -224,7 +246,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signIn, 
       signUp, 
       signOut,
-      refreshProfile
+      refreshProfile,
+      isPasswordReset
     }}>
       {children}
     </AuthContext.Provider>

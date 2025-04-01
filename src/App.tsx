@@ -21,6 +21,7 @@ import UserProfile from "./pages/UserProfile";
 import AccountApprovals from "./pages/AccountApprovals";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { useEffect } from "react";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -31,6 +32,16 @@ const queryClient = new QueryClient({
   },
 });
 
+// Password reset handler component
+const PasswordResetHandler = () => {
+  useEffect(() => {
+    // Just redirect to auth page with reset parameter
+    window.location.href = "/auth?tab=reset";
+  }, []);
+  
+  return <div>Redirecting to password reset...</div>;
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -40,6 +51,9 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              
+              {/* Handle password reset redirects */}
+              <Route path="/reset-password" element={<PasswordResetHandler />} />
               
               {/* All remaining routes */}
               <Route
