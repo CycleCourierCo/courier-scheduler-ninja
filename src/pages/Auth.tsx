@@ -54,6 +54,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [isBusinessAccount, setIsBusinessAccount] = useState(false);
+  const [businessRegistrationComplete, setBusinessRegistrationComplete] = useState(false);
   const { signIn, signUp, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
@@ -120,12 +121,15 @@ const Auth = () => {
       const result = await signUp(data.email, data.password, data.name, metadata);
       
       if (data.is_business) {
+        // For business accounts, show the completion message
+        setBusinessRegistrationComplete(true);
         toast.success("Business account created. Your application is pending admin approval.");
       } else {
+        // For personal accounts, we keep the existing behavior - auto-login
         toast.success("Account created successfully! You can now log in.");
+        setActiveTab("login");
       }
       
-      setActiveTab("login");
       registerForm.reset();
     } catch (error) {
       console.error("Registration error:", error);
@@ -146,188 +150,115 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
-              </TabsList>
+            {businessRegistrationComplete ? (
+              <div className="text-center space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
+                  <h3 className="font-medium text-amber-800 mb-2">Business Account Registration Complete</h3>
+                  <p className="text-amber-700">
+                    Your business account application has been submitted successfully. An administrator will review your 
+                    application and you'll receive an email when your account is approved.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => {
+                    setBusinessRegistrationComplete(false);
+                    setActiveTab("login");
+                  }} 
+                  className="bg-courier-600 hover:bg-courier-700"
+                >
+                  Return to Login
+                </Button>
+              </div>
+            ) : (
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="register">Register</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="login">
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="you@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="••••••••" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-courier-600 hover:bg-courier-700" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Signing in..." : "Sign in"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-
-              <TabsContent value="register">
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-medium text-center">Account Type</h3>
-                      <div className="flex flex-col items-center space-y-3">
-                        <p className="text-sm text-muted-foreground text-center">Select your account type</p>
-                        <div className="flex items-center justify-center w-full max-w-xs rounded-full bg-accent/30 p-1">
-                          <button
-                            type="button"
-                            className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
-                              !isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                            }`}
-                            onClick={() => setIsBusinessAccount(false)}
-                          >
-                            <User size={16} />
-                            <span>Personal</span>
-                          </button>
-                          <button
-                            type="button"
-                            className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
-                              isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                            }`}
-                            onClick={() => setIsBusinessAccount(true)}
-                          >
-                            <Building size={16} />
-                            <span>Business</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
+                <TabsContent value="login">
+                  <Form {...loginForm}>
+                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                       <FormField
-                        control={registerForm.control}
-                        name="name"
+                        control={loginForm.control}
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Full Name *</FormLabel>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="John Doe" {...field} />
+                              <Input type="email" placeholder="you@example.com" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={registerForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email *</FormLabel>
-                              <FormControl>
-                                <Input type="email" placeholder="you@example.com" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={loginForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="••••••••" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={registerForm.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Phone Number *</FormLabel>
-                              <FormControl>
-                                <Input type="tel" placeholder="1234567890" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-courier-600 hover:bg-courier-700" 
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Signing in..." : "Sign in"}
+                      </Button>
+                    </form>
+                  </Form>
+                </TabsContent>
+
+                <TabsContent value="register">
+                  <Form {...registerForm}>
+                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-medium text-center">Account Type</h3>
+                        <div className="flex flex-col items-center space-y-3">
+                          <p className="text-sm text-muted-foreground text-center">Select your account type</p>
+                          <div className="flex items-center justify-center w-full max-w-xs rounded-full bg-accent/30 p-1">
+                            <button
+                              type="button"
+                              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
+                                !isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                              }`}
+                              onClick={() => setIsBusinessAccount(false)}
+                            >
+                              <User size={16} />
+                              <span>Personal</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
+                                isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                              }`}
+                              onClick={() => setIsBusinessAccount(true)}
+                            >
+                              <Building size={16} />
+                              <span>Business</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
-                      {isBusinessAccount && (
-                        <div className="space-y-4 border p-4 rounded-md bg-accent/30">
-                          <h3 className="font-medium">Business Information</h3>
-                          <FormField
-                            control={registerForm.control}
-                            name="company_name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Company/Trading Name *</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Company Ltd or Trading Name" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={registerForm.control}
-                            name="website"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Website (optional)</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="https://example.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      )}
-
-                      <div className="space-y-4 border p-4 rounded-md bg-accent/30">
-                        <h3 className="font-medium">Address Information</h3>
+                      <div className="space-y-4">
                         <FormField
                           control={registerForm.control}
-                          name="address.address_line_1"
+                          name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Address Line 1 *</FormLabel>
+                              <FormLabel>Full Name *</FormLabel>
                               <FormControl>
-                                <Input placeholder="123 Main St" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={registerForm.control}
-                          name="address.address_line_2"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Address Line 2 (optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Apt 4B" {...field} />
+                                <Input placeholder="John Doe" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -337,12 +268,12 @@ const Auth = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={registerForm.control}
-                            name="address.city"
+                            name="email"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>City *</FormLabel>
+                                <FormLabel>Email *</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="London" {...field} />
+                                  <Input type="email" placeholder="you@example.com" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -351,12 +282,136 @@ const Auth = () => {
 
                           <FormField
                             control={registerForm.control}
-                            name="address.postal_code"
+                            name="phone"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Postal Code *</FormLabel>
+                                <FormLabel>Phone Number *</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="SW1A 1AA" {...field} />
+                                  <Input type="tel" placeholder="1234567890" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {isBusinessAccount && (
+                          <div className="space-y-4 border p-4 rounded-md bg-accent/30">
+                            <h3 className="font-medium">Business Information</h3>
+                            <FormField
+                              control={registerForm.control}
+                              name="company_name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Company/Trading Name *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Company Ltd or Trading Name" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={registerForm.control}
+                              name="website"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Website (optional)</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="https://example.com" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-4 border p-4 rounded-md bg-accent/30">
+                          <h3 className="font-medium">Address Information</h3>
+                          <FormField
+                            control={registerForm.control}
+                            name="address.address_line_1"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Address Line 1 *</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="123 Main St" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={registerForm.control}
+                            name="address.address_line_2"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Address Line 2 (optional)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Apt 4B" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={registerForm.control}
+                              name="address.city"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>City *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="London" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={registerForm.control}
+                              name="address.postal_code"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Postal Code *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="SW1A 1AA" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={registerForm.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Password *</FormLabel>
+                                <FormControl>
+                                  <Input type="password" placeholder="••••••••" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={registerForm.control}
+                            name="confirmPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Confirm Password *</FormLabel>
+                                <FormControl>
+                                  <Input type="password" placeholder="••••••••" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -365,48 +420,18 @@ const Auth = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={registerForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password *</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={registerForm.control}
-                          name="confirmPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Confirm Password *</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="••••••••" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-courier-600 hover:bg-courier-700" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Creating Account..." : "Create Account"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-courier-600 hover:bg-courier-700" 
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Creating Account..." : "Create Account"}
+                      </Button>
+                    </form>
+                  </Form>
+                </TabsContent>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       </div>

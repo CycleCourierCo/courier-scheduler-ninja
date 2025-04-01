@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
@@ -138,6 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string, metadata: Record<string, any> = {}) => {
     try {
       setIsLoading(true);
+      const isBusinessAccount = metadata.is_business === 'true';
+      
+      // For business accounts, use email signup without auto-confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -150,6 +154,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) throw error;
+      
+      // For business accounts, immediately sign out to prevent auto-login
+      if (isBusinessAccount) {
+        console.log("Business account created - signing out immediately");
+        await supabase.auth.signOut();
+        return { ...data, isBusinessAccount: true };
+      }
       
       return data;
     } catch (error: any) {
