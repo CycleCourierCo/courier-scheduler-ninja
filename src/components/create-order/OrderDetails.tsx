@@ -14,18 +14,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
   const isMobile = useIsMobile();
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div>
         <h3 className="text-lg font-medium mb-4">Bike Information</h3>
-        <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4`}>
+        <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 w-full`}>
           <FormField
             control={control}
             name="bikeBrand"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="w-full">
                 <FormLabel>Bike Brand *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g. Trek, Specialized" {...field} />
+                  <Input placeholder="e.g. Trek, Specialized" {...field} className="w-full" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -35,10 +35,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
             control={control}
             name="bikeModel"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="w-full">
                 <FormLabel>Bike Model *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g. Domane SL5, Stumpjumper" {...field} />
+                  <Input placeholder="e.g. Domane SL5, Stumpjumper" {...field} className="w-full" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -46,15 +46,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
           />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 w-full">
           <FormField
             control={control}
             name="customerOrderNumber"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="w-full">
                 <FormLabel>Customer Order Number (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="Order reference number if applicable" {...field} />
+                  <Input placeholder="Order reference number if applicable" {...field} className="w-full" />
                 </FormControl>
                 <FormDescription className="text-xs md:text-sm">
                   If you have an existing order number or reference, enter it here.

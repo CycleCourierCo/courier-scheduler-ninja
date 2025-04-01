@@ -14,14 +14,14 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
   const isMobile = useIsMobile();
   
   return (
-    <div>
+    <div className="w-full">
       <h3 className="text-lg font-medium mb-4">Order Options</h3>
-      <div className="space-y-4">
+      <div className="space-y-4 w-full">
         <FormField
           control={control}
           name="needsPaymentOnCollection"
           render={({ field }) => (
-            <FormItem className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} rounded-lg border p-4`}>
+            <FormItem className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} rounded-lg border p-4 w-full`}>
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
                   Payment Required on Collection
@@ -46,7 +46,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           control={control}
           name="isBikeSwap"
           render={({ field }) => (
-            <FormItem className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} rounded-lg border p-4`}>
+            <FormItem className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} rounded-lg border p-4 w-full`}>
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
                   Bike Swap

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -189,8 +190,10 @@ const CreateOrder = () => {
     }
   };
 
-  const handleTabClick = () => {
-    // This does nothing, so tab clicks won't change tabs
+  // This function does nothing to prevent tab clicks from changing tabs
+  const handleTabClick = (value: string) => {
+    // Intentionally empty - prevents tab switching on click
+    return;
   };
 
   return (
@@ -207,34 +210,37 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={handleTabClick}>
+                <Tabs value={activeTab} onValueChange={handleTabClick} className="w-full">
                   <TabsList className={`grid w-full grid-cols-3 mb-6 ${isMobile ? 'text-xs' : ''}`}>
                     <TabsTrigger 
                       value="details" 
-                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"}`}
+                      className={`${activeTab === "details" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default`}
+                      disabled={true}
                     >
                       Order Details
                     </TabsTrigger>
                     <TabsTrigger 
                       value="sender" 
-                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"}`}
+                      className={`${activeTab === "sender" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default`}
+                      disabled={true}
                     >
                       Collection Info
                     </TabsTrigger>
                     <TabsTrigger 
                       value="receiver" 
-                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"}`}
+                      className={`${activeTab === "receiver" ? "bg-courier-600 text-white hover:bg-courier-700" : "opacity-70"} cursor-default`}
+                      disabled={true}
                     >
                       Delivery Info
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="details" className="space-y-6">
+                  <TabsContent value="details" className="space-y-6 w-full">
                     <OrderDetails control={form.control} />
                     <OrderOptions control={form.control} />
                     <DeliveryInstructions control={form.control} />
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end w-full">
                       <Button 
                         type="button" 
                         onClick={handleNextToSender}
@@ -246,13 +252,13 @@ const CreateOrder = () => {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="sender" className="space-y-6">
-                    <div>
+                  <TabsContent value="sender" className="space-y-6 w-full">
+                    <div className="w-full">
                       <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
                       <ContactForm control={form.control} prefix="sender" />
                     </div>
 
-                    <div>
+                    <div className="w-full">
                       <h3 className="text-lg font-medium mb-4">Collection Address</h3>
                       <AddressForm 
                         control={form.control} 
@@ -261,7 +267,7 @@ const CreateOrder = () => {
                       />
                     </div>
 
-                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'}`}>
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'} w-full`}>
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -281,13 +287,13 @@ const CreateOrder = () => {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="receiver" className="space-y-6">
-                    <div>
+                  <TabsContent value="receiver" className="space-y-6 w-full">
+                    <div className="w-full">
                       <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
                       <ContactForm control={form.control} prefix="receiver" />
                     </div>
 
-                    <div>
+                    <div className="w-full">
                       <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
                       <AddressForm 
                         control={form.control} 
@@ -296,7 +302,7 @@ const CreateOrder = () => {
                       />
                     </div>
 
-                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'}`}>
+                    <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'justify-between'} w-full`}>
                       <Button 
                         type="button" 
                         variant="outline" 
