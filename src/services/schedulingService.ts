@@ -383,8 +383,16 @@ export const optimizeRoutes = async (dates: Date[]): Promise<boolean> => {
     // Get all pending orders
     const orders = await getPendingSchedulingOrders();
     
+    // Filter to only include orders that need scheduling
+    const pendingOrders = orders.filter(order => 
+      order.status === 'scheduled_dates_pending' || 
+      order.status === 'pending_approval' ||
+      order.status === 'sender_availability_confirmed' ||
+      order.status === 'receiver_availability_confirmed'
+    );
+    
     // Group orders by date
-    const dateGroups = groupOrdersByDate(orders, dates);
+    const dateGroups = groupOrdersByDate(pendingOrders, dates);
     
     // For each day, optimize the routes using Geoapify API
     const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;

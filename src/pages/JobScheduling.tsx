@@ -35,10 +35,19 @@ const JobScheduling: React.FC = () => {
     return addDays(new Date(), i);
   });
   
+  // Fetch only pending scheduling orders
   const { data: orders, isLoading, error, refetch } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: getPendingSchedulingOrders
   });
+  
+  // Filter to only include orders that need scheduling (remove already scheduled orders)
+  const pendingOrders = orders ? orders.filter(order => 
+    order.status === 'scheduled_dates_pending' || 
+    order.status === 'pending_approval' ||
+    order.status === 'sender_availability_confirmed' ||
+    order.status === 'receiver_availability_confirmed'
+  ) : [];
   
   const scheduleMutation = useMutation({
     mutationFn: ({ group, date }: { group: SchedulingGroup, date: Date }) => 
@@ -67,8 +76,8 @@ const JobScheduling: React.FC = () => {
     }
   });
   
-  // Group orders by the next 5 days based on available dates
-  const dateGroupedOrders = orders ? groupOrdersByDate(orders, nextFiveDays) : [];
+  // Group only pending orders by the next 5 days based on available dates
+  const dateGroupedOrders = pendingOrders.length > 0 ? groupOrdersByDate(pendingOrders, nextFiveDays) : [];
   
   // Get job groups for the currently selected day
   const selectedDayIndex = parseInt(selectedTab);
@@ -121,7 +130,7 @@ const JobScheduling: React.FC = () => {
             </Button>
             <Button 
               onClick={handleOptimizeRoutes} 
-              disabled={isOptimizing || isLoading}
+              disabled={isOptimizing || isLoading || pendingOrders.length === 0}
             >
               {isOptimizing ? (
                 <>
@@ -136,7 +145,7 @@ const JobScheduling: React.FC = () => {
         </div>
         
         <SchedulingStats 
-          orders={orders}
+          pendingOrdersCount={pendingOrders.length}
           pendingGroupsCount={dateGroupedOrders.reduce(
             (count, day) => count + day.pickupGroups.length + day.deliveryGroups.length, 
             0
