@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { SchedulingGroup } from "@/services/schedulingService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface RouteMapProps {
   pickupGroups: SchedulingGroup[];
@@ -10,19 +11,46 @@ interface RouteMapProps {
 const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
   
-  // Get API key from environment variables
-  const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+  // Fetch API key from Supabase edge function
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-geoapify-key', {
+          method: 'GET'
+        });
+        
+        if (error) {
+          console.error("Error fetching Geoapify API key:", error);
+          setMapError("Failed to load map API key. Please try again later.");
+          return;
+        }
+        
+        if (data && data.apiKey) {
+          setApiKey(data.apiKey);
+        } else {
+          setMapError("API key not configured. Map may not display properly.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch Geoapify API key:", err);
+        setMapError("Failed to load map API key. Please try again later.");
+        
+        // Fall back to environment variable if edge function fails
+        const envApiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+        if (envApiKey) {
+          setApiKey(envApiKey);
+          setMapError(null);
+        }
+      }
+    };
+    
+    fetchApiKey();
+  }, []);
   
   useEffect(() => {
-    // Skip if no groups to display
-    if (pickupGroups.length === 0 && deliveryGroups.length === 0) {
-      return;
-    }
-    
-    // Check for API key
-    if (!apiKey) {
-      setMapError("Geoapify API key is missing. Please add it to your environment variables.");
+    // Skip if no groups to display or no API key
+    if ((pickupGroups.length === 0 && deliveryGroups.length === 0) || !apiKey) {
       return;
     }
     
@@ -54,9 +82,9 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
   }, [pickupGroups, deliveryGroups, apiKey, mapLoaded]);
   
   const initializeMap = () => {
-    // Skip if the maplibregl is not available on window
-    if (!window.maplibregl) {
-      console.error("maplibregl is not available on window");
+    // Skip if the maplibregl is not available on window or no API key
+    if (!window.maplibregl || !apiKey) {
+      console.error("maplibregl is not available on window or API key is missing");
       return;
     }
     
@@ -250,7 +278,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pickupGroups, deliveryGroups }) => 
         id="route-map" 
         className="w-full h-[400px] bg-muted rounded-md"
       >
-        {!mapLoaded && (
+        {(!mapLoaded || !apiKey) && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>

@@ -1,1 +1,4 @@
-project_id = "axigtrmaxhetyfzjjdve"
+
+project_id = "courier"
+[functions.get-geoapify-key]
+verify_jwt = true

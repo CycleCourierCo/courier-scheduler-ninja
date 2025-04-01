@@ -5,6 +5,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Control, UseFormSetValue } from "react-hook-form";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddressFormProps {
   control: Control<any>;
@@ -33,7 +34,43 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
-  const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+
+  // Fetch API key from Supabase secrets
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-geoapify-key', {
+          method: 'GET'
+        });
+        
+        if (error) {
+          console.error("Error fetching Geoapify API key:", error);
+          setApiKeyError("Failed to load address search. Please try again later.");
+          return;
+        }
+        
+        if (data && data.apiKey) {
+          setApiKey(data.apiKey);
+        } else {
+          setApiKeyError("API key not configured. Address search may not work properly.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch Geoapify API key:", err);
+        setApiKeyError("Failed to load address search. Please try again later.");
+        
+        // Fall back to environment variable if edge function fails
+        const envApiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+        if (envApiKey) {
+          setApiKey(envApiKey);
+          setApiKeyError(null);
+        }
+      }
+    };
+    
+    fetchApiKey();
+  }, []);
 
   // Check if address fields have values to determine if they should be shown
   useEffect(() => {
@@ -50,7 +87,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   }, [control, prefix]);
 
   const fetchAddressSuggestions = async (text: string) => {
-    if (!text || text.length < 3) {
+    if (!text || text.length < 3 || !apiKey) {
       setSuggestions([]);
       return;
     }
@@ -85,7 +122,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchValue && searchValue.length >= 3) {
+      if (searchValue && searchValue.length >= 3 && apiKey) {
         fetchAddressSuggestions(searchValue);
       } else {
         setSuggestions([]);
@@ -93,7 +130,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchValue]);
+  }, [searchValue, apiKey]);
 
   const handleSuggestionClick = (suggestion: AddressSuggestion) => {
     // Create a complete street address with house number if available
@@ -108,6 +145,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, suggestion.properties.county || ""); // Changed to use county instead of state
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
+    
     // Store coordinates
     setValue(`${prefix}.latitude`, suggestion.properties.lat);
     setValue(`${prefix}.longitude`, suggestion.properties.lon);
@@ -167,9 +205,16 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                 }
               }}
               className="pl-8"
+              disabled={!apiKey}
             />
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           </div>
+          
+          {apiKeyError && (
+            <div className="mt-1 text-sm text-red-500">
+              {apiKeyError}
+            </div>
+          )}
           
           {showSuggestions && (
             <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto">

@@ -9,3 +9,8 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Add maplibregl to the global window object
+interface Window {
+  maplibregl: any;
+}
