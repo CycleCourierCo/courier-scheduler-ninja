@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -92,16 +93,18 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       ? `${houseNumber} ${street}`.trim() 
       : street.trim();
     
+    // Set basic address fields
     setValue(`${prefix}.street`, fullStreetAddress);
     setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
     setValue(`${prefix}.state`, suggestion.properties.county || "");
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
     
+    // Store latitude and longitude directly in the address object
     if (suggestion.properties.lat !== undefined && suggestion.properties.lon !== undefined) {
-      setValue(`${prefix}.latitude`, suggestion.properties.lat);
-      setValue(`${prefix}.longitude`, suggestion.properties.lon);
-      console.log(`Stored coordinates: Lat: ${suggestion.properties.lat}, Lon: ${suggestion.properties.lon}`);
+      setValue(`${prefix}.lat`, suggestion.properties.lat);
+      setValue(`${prefix}.lon`, suggestion.properties.lon);
+      console.log(`Stored coordinates in address: Lat: ${suggestion.properties.lat}, Lon: ${suggestion.properties.lon}`);
     } else {
       console.warn("No coordinates found in the address suggestion");
     }
@@ -123,8 +126,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, "");
     setValue(`${prefix}.zipCode`, "");
     setValue(`${prefix}.country`, "");
-    setValue(`${prefix}.latitude`, undefined);
-    setValue(`${prefix}.longitude`, undefined);
+    setValue(`${prefix}.lat`, undefined);
+    setValue(`${prefix}.lon`, undefined);
     
     setAddressSelected(false);
     
@@ -279,9 +282,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
             />
           </div>
 
+          {/* Hidden fields for coordinates stored directly in the address object */}
           <FormField
             control={control}
-            name={`${prefix}.latitude`}
+            name={`${prefix}.lat`}
             render={({ field }) => (
               <FormItem className="hidden">
                 <FormControl>
@@ -293,7 +297,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
           
           <FormField
             control={control}
-            name={`${prefix}.longitude`}
+            name={`${prefix}.lon`}
             render={({ field }) => (
               <FormItem className="hidden">
                 <FormControl>
