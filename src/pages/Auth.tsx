@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -56,6 +55,8 @@ const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [isBusinessAccount, setIsBusinessAccount] = useState(false);
   const [businessRegistrationComplete, setBusinessRegistrationComplete] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [isResetEmailSent, setIsResetEmailSent] = useState(false);
   const { signIn, signUp, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
@@ -142,6 +143,37 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    const email = loginForm.getValues("email");
+    
+    if (!email) {
+      toast.error("Please enter your email address first");
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?tab=reset`,
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      setForgotPasswordEmail(email);
+      setIsResetEmailSent(true);
+      toast.success("Password reset link sent to your email");
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      toast.error(error.message || "Failed to send reset email");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto max-w-2xl py-12">
@@ -180,45 +212,74 @@ const Auth = () => {
                 </TabsList>
 
                 <TabsContent value="login">
-                  <Form {...loginForm}>
-                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                      <FormField
-                        control={loginForm.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input type="email" placeholder="you@example.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={loginForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="••••••••" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
+                  {isResetEmailSent ? (
+                    <div className="text-center space-y-4 py-4">
+                      <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                        <h3 className="font-medium text-green-800 mb-2">Reset Email Sent</h3>
+                        <p className="text-green-700">
+                          We've sent a password reset link to <strong>{forgotPasswordEmail}</strong>.
+                          Please check your email and follow the instructions to reset your password.
+                        </p>
+                      </div>
                       <Button 
-                        type="submit" 
-                        className="w-full bg-courier-600 hover:bg-courier-700" 
-                        disabled={isLoading}
+                        onClick={() => setIsResetEmailSent(false)} 
+                        variant="outline"
+                        className="mt-4"
                       >
-                        {isLoading ? "Signing in..." : "Sign in"}
+                        Back to Login
                       </Button>
-                    </form>
-                  </Form>
+                    </div>
+                  ) : (
+                    <Form {...loginForm}>
+                      <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                        <FormField
+                          control={loginForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                <Input type="email" placeholder="you@example.com" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={loginForm.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Password</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="••••••••" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <Button 
+                          type="submit" 
+                          className="w-full bg-courier-600 hover:bg-courier-700" 
+                          disabled={isLoading}
+                        >
+                          {isLoading ? "Signing in..." : "Sign in"}
+                        </Button>
+                        
+                        <div className="text-center mt-2">
+                          <button
+                            onClick={handleForgotPassword}
+                            className="text-sm text-courier-600 hover:text-courier-700 hover:underline"
+                            disabled={isLoading}
+                          >
+                            Forgot your password?
+                          </button>
+                        </div>
+                      </form>
+                    </Form>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="register">
