@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,39 +26,62 @@ const Auth = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
+  // Check for recovery tokens on mount and when URL changes
   useEffect(() => {
-    const handlePasswordResetRedirect = async () => {
+    const detectPasswordResetToken = () => {
+      // Debug logs
       console.log("Auth component - checking for reset token");
       console.log("URL hash:", location.hash);
       console.log("URL search params:", location.search);
-      console.log("Tab param:", searchParams.get('tab'));
+      console.log("Action param:", searchParams.get('action'));
       
-      if (searchParams.get('tab') === 'reset') {
-        console.log("Setting active tab to reset from query param");
+      // Check explicit action parameter
+      if (searchParams.get('action') === 'resetPassword') {
+        console.log("Setting active tab to reset from action param");
         setActiveTab("reset");
+        setIsResettingPassword(true);
+        return true;
       }
       
-      const isResetToken = location.hash &&
-        (location.hash.includes('type=recovery') ||
-         location.hash.includes('access_token='));
+      // Check tab parameter
+      if (searchParams.get('tab') === 'reset') {
+        console.log("Setting active tab to reset from tab param");
+        setActiveTab("reset");
+        return true;
+      }
+      
+      // Check for access_token or type=recovery in hash
+      const isResetToken = 
+        (location.hash && (
+          location.hash.includes('type=recovery') ||
+          location.hash.includes('access_token=')
+        )) || 
+        (location.search && location.search.includes('type=recovery'));
          
       if (isResetToken) {
-        console.log("Password reset token detected in hash:", location.hash);
+        console.log("Password reset token detected:", isResetToken);
         setIsResettingPassword(true);
         setActiveTab("reset");
         toast.success("You can now set a new password");
+        return true;
       }
+      
+      return false;
     };
 
-    handlePasswordResetRedirect();
+    const hasResetToken = detectPasswordResetToken();
+    console.log("Has reset token:", hasResetToken);
+    
   }, [location, searchParams]);
 
+  // Redirect logged in users to dashboard (unless they're resetting password)
   useEffect(() => {
     if (user && !isResettingPassword) {
       navigate("/dashboard");
     }
   }, [user, navigate, isResettingPassword]);
 
+  // Handle isPasswordReset flag from AuthContext
   useEffect(() => {
     if (isPasswordReset) {
       console.log("isPasswordReset flag is true, showing reset form");
@@ -70,8 +94,10 @@ const Auth = () => {
     try {
       setForgotPasswordIsLoading(true);
       
+      // Get the base URL of the site
       const origin = window.location.origin;
-      const redirectTo = `${origin}/auth?tab=reset`;
+      // Create redirect URL that will be recognized by our app
+      const redirectTo = `${origin}/reset-password`;
       
       console.log("Requesting password reset with redirect to:", redirectTo);
       
@@ -112,6 +138,7 @@ const Auth = () => {
       setIsResettingPassword(false);
       setActiveTab("login");
       
+      // Clear URL hash and params after successful password reset
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, '', window.location.pathname);
       }

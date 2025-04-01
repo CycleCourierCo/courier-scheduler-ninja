@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -32,21 +31,38 @@ const queryClient = new QueryClient({
   },
 });
 
-// Password reset handler component with improved logging
+// Improved Password reset handler component
 const PasswordResetHandler = () => {
   useEffect(() => {
-    // Extract any hash or query params from the current URL
+    // Get the full URL including hash and search params
+    const currentUrl = window.location.href;
     const { hash, search } = window.location;
-    console.log("PasswordResetHandler - Redirecting with hash:", hash, "and search:", search);
     
-    // Redirect to auth page, preserving the hash and search params
-    const redirectUrl = `/auth${search}${hash}`;
+    console.log("PasswordResetHandler - Current URL:", currentUrl);
+    console.log("PasswordResetHandler - Hash:", hash);
+    console.log("PasswordResetHandler - Search:", search);
+    
+    // Check if the URL contains a recovery token
+    const hasRecoveryToken = 
+      hash.includes('type=recovery') || 
+      hash.includes('access_token=') ||
+      search.includes('type=recovery');
+    
+    console.log("PasswordResetHandler - Has recovery token:", hasRecoveryToken);
+    
+    // Create the redirect URL, preserving all query params and hash fragments
+    const redirectUrl = `/auth?action=resetPassword${search ? (search.includes('?') ? '&' : '') + search.replace('?', '') : ''}${hash}`;
+    
     console.log("PasswordResetHandler - Redirecting to:", redirectUrl);
     
-    window.location.href = redirectUrl;
+    // Use replace to avoid adding to browser history
+    window.location.replace(redirectUrl);
   }, []);
   
-  return <div>Redirecting to password reset page...</div>;
+  return <div className="p-8 text-center">
+    <h1 className="text-xl font-semibold mb-2">Processing Password Reset</h1>
+    <p>Please wait while we redirect you to the password reset form...</p>
+  </div>;
 };
 
 function App() {
@@ -59,10 +75,10 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               
-              {/* Handle password reset redirects with improved handling */}
+              {/* Improved handling for password reset redirects */}
               <Route path="/reset-password" element={<PasswordResetHandler />} />
               <Route path="/reset" element={<PasswordResetHandler />} />
-              <Route path="/auth/reset-password" element={<Navigate to="/auth?tab=reset" />} />
+              <Route path="/auth/reset-password" element={<Navigate to="/auth?action=resetPassword" />} />
               
               {/* All remaining routes */}
               <Route
