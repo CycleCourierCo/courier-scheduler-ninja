@@ -37,8 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error fetching user profile:", error);
-        // Don't throw here - just return null to prevent complete auth failure
-        return null;
+        throw error;
       }
       
       console.log("Fetched user profile:", data);
@@ -109,7 +108,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         const profile = await fetchUserProfile(user.id);
         
-        // Only check business account status if profile was successfully fetched
         if (profile && profile.is_business && profile.account_status !== 'approved' && profile.role !== 'admin') {
           await supabase.auth.signOut();
           
@@ -125,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         
-        // If we get here, either profile fetch failed (should allow login), or account status is approved
         toast.success("Signed in successfully");
         navigate("/dashboard");
       }
