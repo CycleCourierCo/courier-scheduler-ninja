@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,28 +23,34 @@ const Auth = () => {
   const { isLoading, user, isPasswordReset } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
-  // Check if we're in a password reset flow
   useEffect(() => {
     const handlePasswordResetRedirect = async () => {
-      // Check for hash fragment from Supabase redirects that contains the access token
-      if (location.hash && 
-          (location.hash.includes('type=recovery') || 
-           location.hash.includes('access_token='))) {
-        console.log("Password reset redirect detected from hash:", location.hash);
+      console.log("Auth component - checking for reset token");
+      console.log("URL hash:", location.hash);
+      console.log("URL search params:", location.search);
+      console.log("Tab param:", searchParams.get('tab'));
+      
+      if (searchParams.get('tab') === 'reset') {
+        console.log("Setting active tab to reset from query param");
+        setActiveTab("reset");
+      }
+      
+      const isResetToken = location.hash &&
+        (location.hash.includes('type=recovery') ||
+         location.hash.includes('access_token='));
+         
+      if (isResetToken) {
+        console.log("Password reset token detected in hash:", location.hash);
         setIsResettingPassword(true);
         setActiveTab("reset");
-        
         toast.success("You can now set a new password");
-      }
-      // Also check query params for ?tab=reset
-      else if (location.search.includes('tab=reset')) {
-        setActiveTab("reset");
       }
     };
 
     handlePasswordResetRedirect();
-  }, [location]);
+  }, [location, searchParams]);
 
   useEffect(() => {
     if (user && !isResettingPassword) {
@@ -53,9 +58,9 @@ const Auth = () => {
     }
   }, [user, navigate, isResettingPassword]);
 
-  // Update to handle auth status changes
   useEffect(() => {
     if (isPasswordReset) {
+      console.log("isPasswordReset flag is true, showing reset form");
       setIsResettingPassword(true);
       setActiveTab("reset");
     }
@@ -64,8 +69,14 @@ const Auth = () => {
   const handleForgotPassword = async (email: string) => {
     try {
       setForgotPasswordIsLoading(true);
+      
+      const origin = window.location.origin;
+      const redirectTo = `${origin}/auth?tab=reset`;
+      
+      console.log("Requesting password reset with redirect to:", redirectTo);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?tab=reset`,
+        redirectTo: redirectTo,
       });
       
       if (error) {
@@ -88,7 +99,6 @@ const Auth = () => {
       setResetPasswordLoading(true);
       console.log("Attempting to update password...");
       
-      // Using the updateUser method as per Supabase documentation
       const { data: updateData, error } = await supabase.auth.updateUser({
         password: data.password
       });
@@ -99,11 +109,9 @@ const Auth = () => {
       
       toast.success("Password updated successfully!");
       
-      // After successful password reset, redirect to login
       setIsResettingPassword(false);
       setActiveTab("login");
       
-      // Clear hash from URL to prevent issues on refresh
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -126,7 +134,6 @@ const Auth = () => {
     }
   };
 
-  // Debug the component state
   console.log("Auth component state:", {
     activeTab,
     isResetEmailSent,

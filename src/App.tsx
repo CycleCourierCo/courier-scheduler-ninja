@@ -32,14 +32,21 @@ const queryClient = new QueryClient({
   },
 });
 
-// Password reset handler component
+// Password reset handler component with improved logging
 const PasswordResetHandler = () => {
   useEffect(() => {
-    // Just redirect to auth page with reset parameter
-    window.location.href = "/auth?tab=reset";
+    // Extract any hash or query params from the current URL
+    const { hash, search } = window.location;
+    console.log("PasswordResetHandler - Redirecting with hash:", hash, "and search:", search);
+    
+    // Redirect to auth page, preserving the hash and search params
+    const redirectUrl = `/auth${search}${hash}`;
+    console.log("PasswordResetHandler - Redirecting to:", redirectUrl);
+    
+    window.location.href = redirectUrl;
   }, []);
   
-  return <div>Redirecting to password reset...</div>;
+  return <div>Redirecting to password reset page...</div>;
 };
 
 function App() {
@@ -52,8 +59,10 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               
-              {/* Handle password reset redirects */}
+              {/* Handle password reset redirects with improved handling */}
               <Route path="/reset-password" element={<PasswordResetHandler />} />
+              <Route path="/reset" element={<PasswordResetHandler />} />
+              <Route path="/auth/reset-password" element={<Navigate to="/auth?tab=reset" />} />
               
               {/* All remaining routes */}
               <Route
