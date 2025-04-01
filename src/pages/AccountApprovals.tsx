@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,26 +59,18 @@ const AccountApprovals = () => {
       
       console.log(`Attempting to approve account ${userId}`);
       
-      const requestTime = new Date().toISOString();
-      console.log(`Request initiated at ${requestTime}`);
-      
-      // Update account status to 'approved'
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ 
-          account_status: 'approved', 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', userId);
+      const { data, error } = await supabase.rpc('admin_update_account_status', {
+        user_id: userId,
+        status: 'approved'
+      });
 
       if (error) {
-        console.error("Supabase error approving account:", error);
+        console.error("Error approving account:", error);
         throw error;
       }
 
-      console.log(`Updated account ${userId} status to approved`, data);
+      console.log(`Updated account ${userId} status to approved, result:`, data);
 
-      // Find the user in the current list to get their email and name
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
         console.log(`Sending approval email to ${user.email}`);
@@ -99,7 +90,6 @@ const AccountApprovals = () => {
 
       toast.success("Account approved successfully");
       
-      // Refresh the list to get the latest data
       await fetchBusinessAccounts();
       
     } catch (error) {
@@ -116,24 +106,17 @@ const AccountApprovals = () => {
       
       console.log(`Attempting to reject account ${userId}`);
       
-      const requestTime = new Date().toISOString();
-      console.log(`Request initiated at ${requestTime}`);
-      
-      // Update account status to 'rejected'
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ 
-          account_status: 'rejected', 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', userId);
+      const { data, error } = await supabase.rpc('admin_update_account_status', {
+        user_id: userId,
+        status: 'rejected'
+      });
 
       if (error) {
-        console.error("Supabase error rejecting account:", error);
+        console.error("Error rejecting account:", error);
         throw error;
       }
 
-      console.log(`Updated account ${userId} status to rejected`, data);
+      console.log(`Updated account ${userId} status to rejected, result:`, data);
 
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
@@ -158,7 +141,6 @@ const AccountApprovals = () => {
 
       toast.success("Account rejected");
       
-      // Refresh the list to get the latest data
       await fetchBusinessAccounts();
       
     } catch (error) {

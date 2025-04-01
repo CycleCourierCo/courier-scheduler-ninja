@@ -166,6 +166,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_update_account_status: {
+        Args: {
+          user_id: string
+          status: string
+        }
+        Returns: boolean
+      }
       get_business_accounts_for_admin: {
         Args: Record<PropertyKey, never>
         Returns: {
