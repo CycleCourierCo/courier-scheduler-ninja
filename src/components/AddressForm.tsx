@@ -22,6 +22,8 @@ interface AddressSuggestion {
     state: string;
     postcode: string;
     country: string;
+    lon: number; // Geoapify provides longitude as 'lon'
+    lat: number; // Geoapify provides latitude as 'lat'
   };
 }
 
@@ -31,6 +33,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
+  const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
 
   // Check if address fields have values to determine if they should be shown
   useEffect(() => {
@@ -56,7 +59,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     try {
       // Added filter=countrycode:gb to limit results to the United Kingdom
       const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=06b0c657cdcb466889f61736b5bb56c3`,
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=${apiKey}`,
         { method: 'GET' }
       );
       
@@ -105,6 +108,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, suggestion.properties.county || ""); // Changed to use county instead of state
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
+    // Store coordinates
+    setValue(`${prefix}.latitude`, suggestion.properties.lat);
+    setValue(`${prefix}.longitude`, suggestion.properties.lon);
+    
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
@@ -123,6 +130,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, "");
     setValue(`${prefix}.zipCode`, "");
     setValue(`${prefix}.country`, "");
+    setValue(`${prefix}.latitude`, undefined);
+    setValue(`${prefix}.longitude`, undefined);
     
     // Hide address fields
     setAddressSelected(false);

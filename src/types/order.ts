@@ -1,4 +1,3 @@
-
 export type ContactInfo = {
   name: string;
   email: string;
@@ -11,9 +10,10 @@ export type Address = {
   state: string;
   zipCode: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
 };
 
-// Update OrderStatus to include scheduled_dates_pending
 export type OrderStatus = 
   | 'created' 
   | 'sender_availability_pending'
@@ -64,6 +64,8 @@ export type CreateOrderFormData = {
       state: string;
       zipCode: string;
       country: string;
+      latitude?: number;
+      longitude?: number;
     };
   };
   receiver: {
@@ -76,6 +78,8 @@ export type CreateOrderFormData = {
       state: string;
       zipCode: string;
       country: string;
+      latitude?: number;
+      longitude?: number;
     };
   };
   bikeBrand: string;
