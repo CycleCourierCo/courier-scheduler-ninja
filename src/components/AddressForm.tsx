@@ -5,7 +5,6 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Control, UseFormSetValue } from "react-hook-form";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 
 interface AddressFormProps {
   control: Control<any>;
@@ -57,16 +56,12 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setLoading(true);
     try {
-      // Use Supabase Edge Function to fetch address suggestions securely
-      const { data, error } = await supabase.functions.invoke("geocode", {
-        body: { searchText: text }
-      });
+      // Direct API call to Geoapify
+      const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+      const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=${apiKey}`;
       
-      if (error) {
-        console.error("Error calling geocode function:", error);
-        setSuggestions([]);
-        return;
-      }
+      const response = await fetch(url, { method: "GET" });
+      const data = await response.json();
       
       // Only if we have valid features, add them to suggestions
       if (data && data.features && Array.isArray(data.features)) {

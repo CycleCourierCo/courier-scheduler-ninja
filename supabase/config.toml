@@ -1,5 +1,2 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
-
-[functions.geocode]
-verify_jwt = true
