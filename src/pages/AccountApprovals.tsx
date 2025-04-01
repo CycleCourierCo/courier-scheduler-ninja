@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,14 +63,14 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
+      // Use a direct UPDATE query to change the account status
       const { data, error } = await supabase
         .from('profiles')
         .update({ 
           account_status: 'approved', 
           updated_at: new Date().toISOString() 
         })
-        .eq('id', userId)
-        .select();
+        .eq('id', userId);
 
       if (error) {
         console.error("Supabase error approving account:", error);
@@ -78,6 +79,7 @@ const AccountApprovals = () => {
 
       console.log(`Updated account ${userId} status to approved`, data);
 
+      // Find the user in the current list to get their email and name
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
         console.log(`Sending approval email to ${user.email}`);
@@ -95,6 +97,7 @@ const AccountApprovals = () => {
         }
       }
 
+      // Update the local state to reflect the change
       setBusinessAccounts(prevAccounts => 
         prevAccounts.map(account => 
           account.id === userId 
@@ -105,6 +108,7 @@ const AccountApprovals = () => {
 
       toast.success("Account approved successfully");
       
+      // Refresh the list to ensure we have the latest data
       await fetchBusinessAccounts();
       
     } catch (error) {
@@ -124,14 +128,14 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
+      // Use a direct UPDATE query to change the account status
       const { data, error } = await supabase
         .from('profiles')
         .update({ 
           account_status: 'rejected', 
           updated_at: new Date().toISOString() 
         })
-        .eq('id', userId)
-        .select();
+        .eq('id', userId);
 
       if (error) {
         console.error("Supabase error rejecting account:", error);
@@ -161,6 +165,7 @@ const AccountApprovals = () => {
         }
       }
 
+      // Update the local state to reflect the change
       setBusinessAccounts(prevAccounts => 
         prevAccounts.map(account => 
           account.id === userId 
@@ -171,6 +176,7 @@ const AccountApprovals = () => {
 
       toast.success("Account rejected");
       
+      // Refresh the list to ensure we have the latest data
       await fetchBusinessAccounts();
       
     } catch (error) {
