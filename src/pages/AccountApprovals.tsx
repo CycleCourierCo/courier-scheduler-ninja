@@ -63,7 +63,7 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Use a direct UPDATE query to change the account status
+      // Update account status to 'approved'
       const { data, error } = await supabase
         .from('profiles')
         .update({ 
@@ -97,18 +97,9 @@ const AccountApprovals = () => {
         }
       }
 
-      // Update the local state to reflect the change
-      setBusinessAccounts(prevAccounts => 
-        prevAccounts.map(account => 
-          account.id === userId 
-            ? { ...account, account_status: 'approved' } 
-            : account
-        )
-      );
-
       toast.success("Account approved successfully");
       
-      // Refresh the list to ensure we have the latest data
+      // Refresh the list to get the latest data
       await fetchBusinessAccounts();
       
     } catch (error) {
@@ -128,7 +119,7 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Use a direct UPDATE query to change the account status
+      // Update account status to 'rejected'
       const { data, error } = await supabase
         .from('profiles')
         .update({ 
@@ -165,18 +156,9 @@ const AccountApprovals = () => {
         }
       }
 
-      // Update the local state to reflect the change
-      setBusinessAccounts(prevAccounts => 
-        prevAccounts.map(account => 
-          account.id === userId 
-            ? { ...account, account_status: 'rejected' } 
-            : account
-        )
-      );
-
       toast.success("Account rejected");
       
-      // Refresh the list to ensure we have the latest data
+      // Refresh the list to get the latest data
       await fetchBusinessAccounts();
       
     } catch (error) {
