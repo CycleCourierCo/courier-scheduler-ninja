@@ -3,7 +3,6 @@ import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { updateOrderScheduledDates } from "./updateOrderService";
 import { areLocationsWithinRadius, getLocationName } from "@/utils/locationUtils";
-import { format, isWithinInterval, addDays, isSameDay } from "date-fns";
 
 // Define types for our scheduling functionality
 export type LocationPair = {
@@ -28,12 +27,6 @@ export type SchedulingGroup = {
 export type SchedulingJobGroup = {
   date: Date;
   groups: SchedulingGroup[];
-};
-
-export type DayScheduleData = {
-  date: Date;
-  pickupGroups: SchedulingGroup[];
-  deliveryGroups: SchedulingGroup[];
 };
 
 // Function to get all pending orders that need scheduling and already scheduled orders
@@ -194,73 +187,6 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
   return groups;
 };
 
-// Function to get the available dates for an order based on type
-const getAvailableDates = (order: Order, type: 'pickup' | 'delivery'): Date[] => {
-  if (type === 'pickup') {
-    return processDateArray(order.pickupDate);
-  } else {
-    return processDateArray(order.deliveryDate);
-  }
-};
-
-// Function to check if a date is in the array of available dates
-const isDateAvailable = (date: Date, availableDates: Date[]): boolean => {
-  if (!availableDates || availableDates.length === 0) {
-    return false;
-  }
-  
-  return availableDates.some(availableDate => 
-    isSameDay(new Date(availableDate), date)
-  );
-};
-
-// Function to group orders by date for the next 5 days
-export const groupOrdersByDate = (orders: Order[], nextDays: Date[]): DayScheduleData[] => {
-  if (!orders || orders.length === 0) {
-    console.log("No orders to group by date");
-    return nextDays.map(date => ({
-      date,
-      pickupGroups: [],
-      deliveryGroups: []
-    }));
-  }
-  
-  console.log(`Grouping ${orders.length} orders by date for next ${nextDays.length} days`);
-  
-  // Create a schedule for each day
-  return nextDays.map(date => {
-    // Filter orders that are available for pickup on this date
-    const pickupAvailableOrders = orders.filter(order => {
-      // Only consider orders with status that needs scheduling
-      if (order.status === 'scheduled') return false;
-      
-      const pickupDates = processDateArray(order.pickupDate);
-      return isDateAvailable(date, pickupDates);
-    });
-    
-    // Filter orders that are available for delivery on this date
-    const deliveryAvailableOrders = orders.filter(order => {
-      // Only consider orders with status that needs scheduling
-      if (order.status === 'scheduled') return false;
-      
-      const deliveryDates = processDateArray(order.deliveryDate);
-      return isDateAvailable(date, deliveryDates);
-    });
-    
-    // Group pickup orders by location
-    const pickupGroups = groupOrdersByLocation(pickupAvailableOrders, 'pickup');
-    
-    // Group delivery orders by location
-    const deliveryGroups = groupOrdersByLocation(deliveryAvailableOrders, 'delivery');
-    
-    return {
-      date,
-      pickupGroups,
-      deliveryGroups
-    };
-  });
-};
-
 // Helper function to process dates from order data
 function processDateArray(dateData: any): Date[] {
   if (!dateData) return [];
@@ -372,172 +298,5 @@ export const scheduleOrderGroup = async (
   } catch (error) {
     console.error("Error scheduling order group:", error);
     return false;
-  }
-};
-
-// Function to optimize routes using Geoapify API
-export const optimizeRoutes = async (dates: Date[]): Promise<boolean> => {
-  try {
-    console.log("Optimizing routes for dates:", dates);
-    
-    // Get all pending orders
-    const orders = await getPendingSchedulingOrders();
-    
-    // Filter to only include orders that need scheduling
-    const pendingOrders = orders.filter(order => 
-      order.status === 'scheduled_dates_pending' || 
-      order.status === 'pending_approval' ||
-      order.status === 'sender_availability_confirmed' ||
-      order.status === 'receiver_availability_confirmed'
-    );
-    
-    // Group orders by date
-    const dateGroups = groupOrdersByDate(pendingOrders, dates);
-    
-    // For each day, optimize the routes using Geoapify API
-    const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
-    
-    if (!apiKey) {
-      console.error("Geoapify API key is missing");
-      throw new Error("Geoapify API key is missing");
-    }
-    
-    // For each day in the schedule
-    for (const dayGroup of dateGroups) {
-      const { date, pickupGroups, deliveryGroups } = dayGroup;
-      
-      // Skip if no groups to optimize
-      if (pickupGroups.length === 0 && deliveryGroups.length === 0) {
-        continue;
-      }
-      
-      console.log(`Optimizing routes for ${format(date, 'yyyy-MM-dd')}`);
-      
-      // Collect all locations for this day
-      const locations = [];
-      
-      // Add pickup locations
-      for (const group of pickupGroups) {
-        for (const order of group.orders) {
-          locations.push({
-            address: order.sender.address,
-            type: 'pickup',
-            order: order
-          });
-        }
-      }
-      
-      // Add delivery locations
-      for (const group of deliveryGroups) {
-        for (const order of group.orders) {
-          locations.push({
-            address: order.receiver.address,
-            type: 'delivery',
-            order: order
-          });
-        }
-      }
-      
-      // Skip if no locations
-      if (locations.length === 0) {
-        continue;
-      }
-      
-      // For each location, geocode the address
-      const geocodedLocations = await Promise.all(
-        locations.map(async location => {
-          const address = location.address;
-          const fullAddress = `${address.street}, ${address.city}, ${address.zipCode}`;
-          
-          try {
-            const response = await fetch(
-              `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(fullAddress)}&apiKey=${apiKey}`
-            );
-            
-            const data = await response.json();
-            
-            if (data.features && data.features.length > 0) {
-              const feature = data.features[0];
-              return {
-                ...location,
-                coordinates: feature.geometry.coordinates,
-                formattedAddress: feature.properties.formatted
-              };
-            }
-            
-            return null;
-          } catch (error) {
-            console.error(`Error geocoding address ${fullAddress}:`, error);
-            return null;
-          }
-        })
-      );
-      
-      // Filter out failed geocoding
-      const validLocations = geocodedLocations.filter(loc => loc !== null);
-      
-      if (validLocations.length >= 2) {
-        // Maximum optimization batch size of 10 for the free tier
-        const batchSize = 10;
-        const batches = [];
-        
-        for (let i = 0; i < validLocations.length; i += batchSize) {
-          batches.push(validLocations.slice(i, i + batchSize));
-        }
-        
-        // Process each batch separately
-        for (const batch of batches) {
-          // Format waypoints for the Routing API
-          const waypoints = batch
-            .map(loc => loc.coordinates.join(','))
-            .join('|');
-          
-          try {
-            // Call Geoapify Routing API to optimize the route
-            const routeResponse = await fetch(
-              `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=drive&optimize=time&apiKey=${apiKey}`
-            );
-            
-            const routeData = await routeResponse.json();
-            
-            if (routeData.features && routeData.features.length > 0) {
-              // Route optimization successful
-              console.log("Route optimized successfully");
-              
-              // Extract the optimized order (not implemented in this version)
-              // You would typically get the order of waypoints from the response
-              // and then update the scheduling accordingly
-            }
-          } catch (error) {
-            console.error("Error optimizing route:", error);
-          }
-        }
-      }
-      
-      // Schedule optimized orders
-      const optimizedPickupGroups = pickupGroups.map(group => ({
-        ...group,
-        isOptimal: true
-      }));
-      
-      const optimizedDeliveryGroups = deliveryGroups.map(group => ({
-        ...group,
-        isOptimal: true
-      }));
-      
-      // Schedule the optimized groups
-      for (const group of [...optimizedPickupGroups, ...optimizedDeliveryGroups]) {
-        try {
-          await scheduleOrderGroup(group, date);
-        } catch (error) {
-          console.error(`Error scheduling group ${group.id}:`, error);
-        }
-      }
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error optimizing routes:", error);
-    throw error;
   }
 };

@@ -2,16 +2,17 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Order } from "@/types/order";
 
 interface SchedulingStatsProps {
-  pendingOrdersCount: number;
+  orders: Order[] | undefined;
   pendingGroupsCount: number;
   onRefresh: () => void;
   isLoading: boolean;
 }
 
 const SchedulingStats: React.FC<SchedulingStatsProps> = ({ 
-  pendingOrdersCount,
+  orders,
   pendingGroupsCount,
   onRefresh,
   isLoading
@@ -32,17 +33,25 @@ const SchedulingStats: React.FC<SchedulingStatsProps> = ({
   return (
     <div className="mb-4 flex justify-between items-center">
       <div>
-        {pendingOrdersCount > 0 ? (
+        {orders ? (
           <div>
             <p className="text-muted-foreground">
-              Found {pendingOrdersCount} orders pending scheduling ({pendingGroupsCount} groups)
+              Found {orders.length} orders ({pendingGroupsCount} groups pending scheduling)
             </p>
             <Badge variant="outline" className="mt-1">
-              {pendingGroupsCount} groups to schedule
+              {orders.filter(o => 
+                o.status === 'scheduled_dates_pending' || 
+                o.status === 'pending_approval' ||
+                o.status === 'sender_availability_confirmed' ||
+                o.status === 'receiver_availability_confirmed'
+              ).length} pending
+            </Badge>
+            <Badge variant="outline" className="mt-1 ml-2">
+              {orders.filter(o => o.status === 'scheduled').length} scheduled
             </Badge>
           </div>
         ) : (
-          <p className="text-muted-foreground">No pending orders found</p>
+          <p className="text-muted-foreground">No orders found</p>
         )}
       </div>
       <Button onClick={onRefresh} variant="outline">
