@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,8 +12,28 @@ import { toast } from "sonner";
 import { Shield, CheckCircle, XCircle, ExternalLink, Building, Clock } from "lucide-react";
 import { sendAccountApprovalEmail } from "@/services/emailService";
 
+// Define the type for the business account data
+interface BusinessAccount {
+  id: string;
+  name: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+  role: string;
+  table_preferences: any | null;
+  company_name: string | null;
+  website: string | null;
+  phone: string | null;
+  is_business: boolean | null;
+  account_status: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  city: string | null;
+  postal_code: string | null;
+}
+
 const AccountApprovals = () => {
-  const [businessAccounts, setBusinessAccounts] = useState<any[]>([]);
+  const [businessAccounts, setBusinessAccounts] = useState<BusinessAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
   const { userProfile } = useAuth();
@@ -59,7 +80,8 @@ const AccountApprovals = () => {
       
       console.log(`Attempting to approve account ${userId}`);
       
-      const { data, error } = await supabase.rpc('admin_update_account_status', {
+      // Type assertion to make TypeScript happy
+      const { data, error } = await supabase.rpc('admin_update_account_status' as any, {
         user_id: userId,
         status: 'approved'
       });
@@ -106,7 +128,8 @@ const AccountApprovals = () => {
       
       console.log(`Attempting to reject account ${userId}`);
       
-      const { data, error } = await supabase.rpc('admin_update_account_status', {
+      // Type assertion to make TypeScript happy
+      const { data, error } = await supabase.rpc('admin_update_account_status' as any, {
         user_id: userId,
         status: 'rejected'
       });
@@ -247,7 +270,7 @@ const AccountApprovals = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(account.account_status)}
+                          {getStatusBadge(account.account_status || '')}
                         </TableCell>
                         <TableCell className="text-right">
                           {account.account_status === 'pending' ? (
