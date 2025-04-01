@@ -5,6 +5,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Control, UseFormSetValue } from "react-hook-form";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddressFormProps {
   control: Control<any>;
@@ -22,6 +23,8 @@ interface AddressSuggestion {
     state: string;
     postcode: string;
     country: string;
+    lat?: number;
+    lon?: number;
   };
 }
 
@@ -54,16 +57,16 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setLoading(true);
     try {
-      // Added filter=countrycode:gb to limit results to the United Kingdom
-      const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=06b0c657cdcb466889f61736b5bb56c3`,
-        { method: 'GET' }
-      );
+      // Use Supabase Edge Function to fetch address suggestions securely
+      const { data, error } = await supabase.functions.invoke("geocode", {
+        body: { searchText: text }
+      });
       
-      const data = await response.json();
-      
-      // Start with an empty array
-      const newSuggestions: AddressSuggestion[] = [];
+      if (error) {
+        console.error("Error calling geocode function:", error);
+        setSuggestions([]);
+        return;
+      }
       
       // Only if we have valid features, add them to suggestions
       if (data && data.features && Array.isArray(data.features)) {
@@ -105,6 +108,16 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, suggestion.properties.county || ""); // Changed to use county instead of state
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
+    
+    // Store latitude and longitude coordinates
+    if (suggestion.properties.lat !== undefined && suggestion.properties.lon !== undefined) {
+      setValue(`${prefix}.latitude`, suggestion.properties.lat);
+      setValue(`${prefix}.longitude`, suggestion.properties.lon);
+      console.log(`Stored coordinates: Lat: ${suggestion.properties.lat}, Lon: ${suggestion.properties.lon}`);
+    } else {
+      console.warn("No coordinates found in the address suggestion");
+    }
+    
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
@@ -123,6 +136,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, "");
     setValue(`${prefix}.zipCode`, "");
     setValue(`${prefix}.country`, "");
+    setValue(`${prefix}.latitude`, undefined);
+    setValue(`${prefix}.longitude`, undefined);
     
     // Hide address fields
     setAddressSelected(false);
@@ -278,6 +293,31 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               )}
             />
           </div>
+
+          {/* Hidden fields for coordinates that won't be displayed in the UI */}
+          <FormField
+            control={control}
+            name={`${prefix}.latitude`}
+            render={({ field }) => (
+              <FormItem className="hidden">
+                <FormControl>
+                  <Input type="hidden" {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={control}
+            name={`${prefix}.longitude`}
+            render={({ field }) => (
+              <FormItem className="hidden">
+                <FormControl>
+                  <Input type="hidden" {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
         </>
       )}
     </div>
