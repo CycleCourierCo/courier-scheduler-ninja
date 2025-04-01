@@ -64,9 +64,9 @@ serve(async (req) => {
       const item = reqData.item || { name: 'Bicycle', quantity: 1 };
       
       const availabilityType = reqData.emailType === 'sender' ? 'pickup' : 'delivery';
-      const urlPath = reqData.emailType === 'sender' ? 'sender' : 'receiver';
       
-      const availabilityUrl = `${baseUrl}/availability/${urlPath}/${orderId}`;
+      // FIXED URL CONSTRUCTION: Using the correct paths that match our routes
+      const availabilityUrl = `${baseUrl}/${reqData.emailType}-availability/${orderId}`;
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
       emailOptions.html = `
