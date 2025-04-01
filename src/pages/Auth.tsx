@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -15,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
+import { User, Building } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -57,7 +57,6 @@ const Auth = () => {
   const { signIn, signUp, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate("/dashboard");
@@ -92,7 +91,6 @@ const Auth = () => {
     },
   });
 
-  // Update form when isBusinessAccount changes
   useEffect(() => {
     registerForm.setValue("is_business", isBusinessAccount);
   }, [isBusinessAccount, registerForm]);
@@ -107,7 +105,6 @@ const Auth = () => {
 
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
-      // Prepare metadata with all the additional fields
       const metadata = {
         name: data.name,
         is_business: data.is_business.toString(),
@@ -120,10 +117,8 @@ const Auth = () => {
         postal_code: data.address.postal_code
       };
 
-      // Sign up the user
       const result = await signUp(data.email, data.password, data.name, metadata);
       
-      // Show appropriate message based on account type
       if (data.is_business) {
         toast.success("Business account created. Your application is pending admin approval.");
       } else {
@@ -202,19 +197,32 @@ const Auth = () => {
               <TabsContent value="register">
                 <Form {...registerForm}>
                   <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex flex-col space-y-1">
-                        <h3 className="text-sm font-medium">Account Type</h3>
-                        <p className="text-xs text-muted-foreground">Select your account type</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={isBusinessAccount ? "text-muted-foreground" : ""}>Personal</span>
-                        <Switch 
-                          checked={isBusinessAccount} 
-                          onCheckedChange={setIsBusinessAccount} 
-                          id="account-type"
-                        />
-                        <span className={!isBusinessAccount ? "text-muted-foreground" : ""}>Business</span>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-medium text-center">Account Type</h3>
+                      <div className="flex flex-col items-center space-y-3">
+                        <p className="text-sm text-muted-foreground text-center">Select your account type</p>
+                        <div className="flex items-center justify-center w-full max-w-xs rounded-full bg-accent/30 p-1">
+                          <button
+                            type="button"
+                            className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
+                              !isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                            }`}
+                            onClick={() => setIsBusinessAccount(false)}
+                          >
+                            <User size={16} />
+                            <span>Personal</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
+                              isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                            }`}
+                            onClick={() => setIsBusinessAccount(true)}
+                          >
+                            <Building size={16} />
+                            <span>Business</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
