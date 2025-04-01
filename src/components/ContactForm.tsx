@@ -10,16 +10,17 @@ interface ContactFormProps {
 }
 
 const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
-  // Function to ensure +44 prefix is preserved
+  // Function to ensure +44 prefix is preserved but not duplicated
   const handlePhoneInput = (e: React.ChangeEvent<HTMLInputElement>, onChange: (value: string) => void) => {
     let value = e.target.value;
     
-    // If user is trying to delete or change the prefix, restore it
-    if (!value.startsWith('+44')) {
-      value = '+44' + value.replace(/^\+44/, '');
+    // If the value doesn't already start with +44, add it
+    // But first remove any existing +44 to prevent duplication
+    if (value.startsWith('+44')) {
+      value = value.substring(3);
     }
     
-    onChange(value);
+    onChange('+44' + value);
   };
 
   return (
@@ -64,7 +65,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
                   placeholder="1234567890" 
                   type="tel" 
                   value={field.value} 
-                  onChange={(e) => handlePhoneInput(e, field.onChange)}
+                  onChange={field.onChange}
                   onBlur={field.onBlur}
                 />
               </FormControl>

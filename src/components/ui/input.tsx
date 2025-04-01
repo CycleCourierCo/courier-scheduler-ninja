@@ -15,7 +15,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         <div className="flex h-10 w-full rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
           <span className="flex items-center px-3 text-base text-foreground select-none md:text-sm">+44</span>
           <input
-            type={type}
+            type="text" // Changed from tel to text to avoid browser's native formatting
             className={cn(
               "flex-1 h-full border-0 bg-transparent px-0 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
               className
@@ -35,6 +35,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
                 onChange(syntheticEvent);
               }
             }}
+            placeholder="1234567890" // Add placeholder for better UX
             {...otherProps}
           />
         </div>
