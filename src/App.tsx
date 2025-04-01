@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 
 import "./App.css";
 import Index from "./pages/Index";
@@ -19,6 +19,7 @@ import JobScheduling from "./pages/JobScheduling";
 import TrackingPage from "./pages/TrackingPage";
 import UserProfile from "./pages/UserProfile";
 import AccountApprovals from "./pages/AccountApprovals";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useEffect } from "react";
@@ -123,6 +124,14 @@ function App() {
                 }
               />
               <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute adminOnly={true}>
+                    <AnalyticsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/profile"
                 element={
                   <ProtectedRoute>
@@ -149,7 +158,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster position="top-right" />
-            <Analytics />
+            <VercelAnalytics />
           </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
