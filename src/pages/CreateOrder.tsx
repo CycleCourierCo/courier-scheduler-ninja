@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -218,6 +217,7 @@ const CreateOrder = () => {
                         value="sender" 
                         className="justify-start text-left"
                         icon={<PackageCheck className="h-4 w-4" />}
+                        disabled={!isDetailsValid}
                       >
                         Collection Information
                       </TabsTrigger>
@@ -225,6 +225,7 @@ const CreateOrder = () => {
                         value="receiver" 
                         className="justify-start text-left"
                         icon={<Truck className="h-4 w-4" />}
+                        disabled={!isSenderValid || !isDetailsValid}
                       >
                         Delivery Information
                       </TabsTrigger>
