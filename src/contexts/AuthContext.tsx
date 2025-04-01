@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
@@ -139,36 +140,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       const isBusinessAccount = metadata.is_business === 'true';
       
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            ...metadata
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
       if (isBusinessAccount) {
-        console.log("Business account created - signing out immediately");
+        console.log("Creating business account via Edge Function");
         
+        // Use our Edge Function to create the business user
+        const response = await supabase.functions.invoke("create-business-user", {
+          body: {
+            email,
+            password,
+            userData: {
+              name,
+              ...metadata
+            }
+          }
+        });
+        
+        if (response.error) {
+          console.error("Edge function error:", response.error);
+          throw new Error(response.error.message || "Failed to create business account");
+        }
+        
+        console.log("Business account created without automatic login");
+        
+        // Send confirmation email that account is pending approval
         await sendBusinessAccountCreationEmail(email, name);
         
-        if (data.session) {
-          await supabase.auth.signOut();
-          
-          setUser(null);
-          setSession(null);
-          setUserProfile(null);
-        }
+        return { data: response.data, isBusinessAccount: true };
+      } else {
+        // For regular accounts, use normal signup with auto-login
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              ...metadata
+            }
+          }
+        });
         
-        return { ...data, isBusinessAccount: true };
+        if (error) throw error;
+        
+        return data;
       }
-      
-      return data;
     } catch (error: any) {
       console.error("Error signing up:", error);
       toast.error(error.message || "Error signing up");
