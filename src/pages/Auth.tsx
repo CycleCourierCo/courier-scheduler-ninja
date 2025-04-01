@@ -57,6 +57,7 @@ const Auth = () => {
   const [businessRegistrationComplete, setBusinessRegistrationComplete] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [isResetEmailSent, setIsResetEmailSent] = useState(false);
+  const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false);
   const { signIn, signUp, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
@@ -154,7 +155,7 @@ const Auth = () => {
     }
     
     try {
-      setIsLoading(true);
+      setForgotPasswordIsLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth?tab=reset`,
       });
@@ -170,7 +171,7 @@ const Auth = () => {
       console.error("Password reset error:", error);
       toast.error(error.message || "Failed to send reset email");
     } finally {
-      setIsLoading(false);
+      setForgotPasswordIsLoading(false);
     }
   };
 
@@ -272,9 +273,9 @@ const Auth = () => {
                           <button
                             onClick={handleForgotPassword}
                             className="text-sm text-courier-600 hover:text-courier-700 hover:underline"
-                            disabled={isLoading}
+                            disabled={forgotPasswordIsLoading}
                           >
-                            Forgot your password?
+                            {forgotPasswordIsLoading ? "Sending..." : "Forgot your password?"}
                           </button>
                         </div>
                       </form>
