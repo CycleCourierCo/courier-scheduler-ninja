@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Shield, CheckCircle, XCircle, ExternalLink, Building, Clock } from "lucide-react";
+import { sendAccountApprovalEmail } from "@/services/emailService";
 
 const AccountApprovals = () => {
   const [businessAccounts, setBusinessAccounts] = useState<any[]>([]);
@@ -16,21 +17,18 @@ const AccountApprovals = () => {
   const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
   const { userProfile } = useAuth();
 
-  // Redirect if not admin
   useEffect(() => {
     if (userProfile && userProfile.role !== 'admin') {
       window.location.href = '/dashboard';
     }
   }, [userProfile]);
 
-  // Fetch business accounts
   useEffect(() => {
     const fetchBusinessAccounts = async () => {
       try {
         setIsLoading(true);
         console.log("Fetching business accounts...");
         
-        // Use the RPC function that bypasses RLS for admins
         const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
         
         if (error) {
@@ -57,17 +55,13 @@ const AccountApprovals = () => {
 
   const approveAccount = async (userId: string) => {
     try {
-      // Show processing state
       setProcessingAccountIds(prev => [...prev, userId]);
       
       console.log(`Attempting to approve account ${userId}`);
       
-      // Get the current time for debugging
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Important: Don't use .select() when just updating
-      // Fix: Use the correct column name without type suffix
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -83,29 +77,23 @@ const AccountApprovals = () => {
 
       console.log(`Updated account ${userId} status to approved`);
 
-      // Send approval email
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
         console.log(`Sending approval email to ${user.email}`);
         
-        const emailResponse = await supabase.functions.invoke("send-email", {
-          body: {
-            to: user.email,
-            subject: "Your business account has been approved",
-            text: `Hello ${user.name},\n\nYour business account for The Cycle Courier Co. has been approved. You can now log in and access all features.\n\nThank you for choosing us!\n\nThe Cycle Courier Co. Team`,
-            from: "Ccc@notification.cyclecourierco.com"
-          }
-        });
+        const emailSent = await sendAccountApprovalEmail(
+          user.email, 
+          user.name || "Customer",
+          user.company_name
+        );
         
-        if (emailResponse.error) {
-          console.error("Error sending approval email:", emailResponse.error);
+        if (!emailSent) {
           toast.error("Account approved but failed to send notification email");
         } else {
-          console.log("Approval email sent successfully:", emailResponse.data);
+          console.log("Approval email sent successfully");
         }
       }
 
-      // Update local state to reflect the change
       setBusinessAccounts(prevAccounts => 
         prevAccounts.map(account => 
           account.id === userId 
@@ -119,10 +107,8 @@ const AccountApprovals = () => {
       console.error("Error approving account:", error);
       toast.error("Failed to approve account");
     } finally {
-      // Remove processing state
       setProcessingAccountIds(prev => prev.filter(id => id !== userId));
       
-      // Refresh the business accounts list to ensure we have the latest data
       try {
         const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
         if (error) {
@@ -139,16 +125,13 @@ const AccountApprovals = () => {
 
   const rejectAccount = async (userId: string) => {
     try {
-      // Show processing state
       setProcessingAccountIds(prev => [...prev, userId]);
       
       console.log(`Attempting to reject account ${userId}`);
       
-      // Get the current time for debugging
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      // Fix: Use the correct column name without type suffix
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -164,7 +147,6 @@ const AccountApprovals = () => {
 
       console.log(`Updated account ${userId} status to rejected`);
 
-      // Send rejection email
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
         console.log(`Sending rejection email to ${user.email}`);
@@ -186,7 +168,6 @@ const AccountApprovals = () => {
         }
       }
 
-      // Update local state to reflect the change
       setBusinessAccounts(prevAccounts => 
         prevAccounts.map(account => 
           account.id === userId 
@@ -200,10 +181,8 @@ const AccountApprovals = () => {
       console.error("Error rejecting account:", error);
       toast.error("Failed to reject account");
     } finally {
-      // Remove processing state
       setProcessingAccountIds(prev => prev.filter(id => id !== userId));
       
-      // Refresh the business accounts list to ensure we have the latest data
       try {
         const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
         if (error) {

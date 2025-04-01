@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { sendBusinessAccountCreationEmail } from "@/services/emailService";
 
 type AuthContextType = {
   user: User | null;
@@ -160,8 +161,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       // For business accounts, immediately sign out to prevent auto-login
+      // and send confirmation email
       if (isBusinessAccount) {
         console.log("Business account created - signing out immediately");
+        
+        // Send confirmation email that account is pending approval
+        await sendBusinessAccountCreationEmail(email, name);
+        
         await supabase.auth.signOut();
         
         // Clear state explicitly

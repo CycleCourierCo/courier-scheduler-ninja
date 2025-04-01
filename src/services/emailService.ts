@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./fetchOrderService";
 
@@ -102,6 +101,80 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
   } catch (error) {
     console.error("Failed to send email to receiver:", error);
     console.error("Error details:", JSON.stringify(error, null, 2));
+    return false;
+  }
+};
+
+export const sendBusinessAccountCreationEmail = async (email: string, name: string): Promise<boolean> => {
+  try {
+    console.log("Sending business account creation confirmation email to:", email);
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: email,
+        subject: "Your Business Account Application",
+        text: `Hello ${name},
+
+Thank you for creating a business account with The Cycle Courier Co.
+
+Your account is currently pending approval, which typically takes place within 24 hours. Once approved, you'll receive another email confirming you can access your account.
+
+If you have any questions in the meantime, please don't hesitate to contact our support team.
+
+Thank you for choosing The Cycle Courier Co.
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending business account creation email:", response.error);
+      return false;
+    }
+    
+    console.log("Business account creation email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send business account creation email:", error);
+    return false;
+  }
+};
+
+export const sendAccountApprovalEmail = async (email: string, name: string, companyName?: string): Promise<boolean> => {
+  try {
+    console.log("Sending account approval email to:", email);
+    
+    const greeting = companyName 
+      ? `Hello ${name} at ${companyName},` 
+      : `Hello ${name},`;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: email,
+        subject: "Your Business Account Has Been Approved",
+        text: `${greeting}
+
+Great news! Your business account with The Cycle Courier Co. has been approved.
+
+You can now log in to your account and start creating orders. Our platform offers a range of features to help manage your deliveries efficiently.
+
+If you have any questions or need assistance getting started, please don't hesitate to contact our support team.
+
+Thank you for choosing The Cycle Courier Co.
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending account approval email:", response.error);
+      return false;
+    }
+    
+    console.log("Account approval email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send account approval email:", error);
     return false;
   }
 };
