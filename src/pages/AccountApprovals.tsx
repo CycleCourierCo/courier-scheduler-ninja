@@ -23,31 +23,31 @@ const AccountApprovals = () => {
     }
   }, [userProfile]);
 
-  useEffect(() => {
-    const fetchBusinessAccounts = async () => {
-      try {
-        setIsLoading(true);
-        console.log("Fetching business accounts...");
-        
-        const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
-        
-        if (error) {
-          console.error("Error fetching business accounts:", error);
-          throw error;
-        }
-        
-        console.log("Raw business accounts data:", data);
-        console.log("Retrieved business accounts count:", data?.length || 0);
-        
-        setBusinessAccounts(data || []);
-      } catch (error) {
+  const fetchBusinessAccounts = async () => {
+    try {
+      setIsLoading(true);
+      console.log("Fetching business accounts...");
+      
+      const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
+      
+      if (error) {
         console.error("Error fetching business accounts:", error);
-        toast.error("Could not load business accounts");
-      } finally {
-        setIsLoading(false);
+        throw error;
       }
-    };
+      
+      console.log("Raw business accounts data:", data);
+      console.log("Retrieved business accounts count:", data?.length || 0);
+      
+      setBusinessAccounts(data || []);
+    } catch (error) {
+      console.error("Error fetching business accounts:", error);
+      toast.error("Could not load business accounts");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (userProfile?.role === 'admin') {
       fetchBusinessAccounts();
     }
@@ -62,20 +62,21 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ 
           account_status: 'approved', 
           updated_at: new Date().toISOString() 
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
         console.error("Supabase error approving account:", error);
         throw error;
       }
 
-      console.log(`Updated account ${userId} status to approved`);
+      console.log(`Updated account ${userId} status to approved`, data);
 
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
@@ -103,23 +104,14 @@ const AccountApprovals = () => {
       );
 
       toast.success("Account approved successfully");
+      
+      await fetchBusinessAccounts();
+      
     } catch (error) {
       console.error("Error approving account:", error);
       toast.error("Failed to approve account");
     } finally {
       setProcessingAccountIds(prev => prev.filter(id => id !== userId));
-      
-      try {
-        const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
-        if (error) {
-          console.error("Error refreshing account data:", error);
-        } else {
-          console.log("Refreshed business accounts data:", data);
-          setBusinessAccounts(data || []);
-        }
-      } catch (refreshError) {
-        console.error("Error refreshing business accounts:", refreshError);
-      }
     }
   };
 
@@ -132,20 +124,21 @@ const AccountApprovals = () => {
       const requestTime = new Date().toISOString();
       console.log(`Request initiated at ${requestTime}`);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ 
           account_status: 'rejected', 
           updated_at: new Date().toISOString() 
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
         console.error("Supabase error rejecting account:", error);
         throw error;
       }
 
-      console.log(`Updated account ${userId} status to rejected`);
+      console.log(`Updated account ${userId} status to rejected`, data);
 
       const user = businessAccounts.find(account => account.id === userId);
       if (user?.email) {
@@ -177,23 +170,14 @@ const AccountApprovals = () => {
       );
 
       toast.success("Account rejected");
+      
+      await fetchBusinessAccounts();
+      
     } catch (error) {
       console.error("Error rejecting account:", error);
       toast.error("Failed to reject account");
     } finally {
       setProcessingAccountIds(prev => prev.filter(id => id !== userId));
-      
-      try {
-        const { data, error } = await supabase.rpc('get_business_accounts_for_admin');
-        if (error) {
-          console.error("Error refreshing account data:", error);
-        } else {
-          console.log("Refreshed business accounts data:", data);
-          setBusinessAccounts(data || []);
-        }
-      } catch (refreshError) {
-        console.error("Error refreshing business accounts:", refreshError);
-      }
     }
   };
 

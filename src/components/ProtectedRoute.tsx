@@ -31,6 +31,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   console.log("ProtectedRoute - userProfile:", userProfile);
   console.log("ProtectedRoute - userRole:", userProfile?.role);
   console.log("ProtectedRoute - is B2C customer:", userProfile?.role === 'b2c_customer');
+  console.log("ProtectedRoute - account_status:", userProfile?.account_status);
 
   // Set initialLoadComplete after the first profile load
   useEffect(() => {
@@ -59,13 +60,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/auth" replace />;
   }
 
-  // 3. Block B2C users from admin-only pages
+  // 3. Business account status check - if not approved, redirect to dashboard
+  if (userProfile?.is_business && userProfile?.account_status !== 'approved' && userProfile?.role !== 'admin') {
+    console.log("Business account not approved, redirecting to auth");
+    return <Navigate to="/auth" replace />;
+  }
+
+  // 4. Block B2C users from admin-only pages
   if (noB2CAccess && userProfile?.role === 'b2c_customer') {
     console.log("B2C user attempted to access restricted page, redirecting to dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 4. Admin-only route protection
+  // 5. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
