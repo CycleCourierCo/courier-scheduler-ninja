@@ -214,24 +214,44 @@ const AccountApprovals = () => {
       </DashboardHeader>
       
       <div className="container px-4 py-6 md:px-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building size={18} />
+        <Card className="overflow-hidden shadow-md">
+          <CardHeader className="bg-white dark:bg-background p-6 border-b">
+            <CardTitle className="flex items-center gap-2 text-3xl font-bold">
+              <Building size={24} />
               Business Accounts
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-lg text-gray-600 dark:text-gray-400">
               Review and approve business account applications
             </CardDescription>
           </CardHeader>
           
-          <div className="px-6">
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4 mb-4">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="approved">Approved</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <div className="p-6 pt-4">
+            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full grid grid-cols-4 rounded-full p-1 bg-gray-100 dark:bg-gray-800 mb-6">
+                <TabsTrigger 
+                  value="all" 
+                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  All
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="pending" 
+                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  Pending
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="approved" 
+                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  Approved
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="rejected" 
+                  className="rounded-full py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  Rejected
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
