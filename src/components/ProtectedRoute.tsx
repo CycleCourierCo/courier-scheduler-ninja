@@ -25,12 +25,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
   const isReceiverAvailabilityPage = location.pathname.includes('/receiver-availability/');
+  const isAuthPage = location.pathname === '/auth';
   
   // Debug logs
   console.log("ProtectedRoute - Current path:", location.pathname);
   console.log("ProtectedRoute - userProfile:", userProfile);
   console.log("ProtectedRoute - userRole:", userProfile?.role);
   console.log("ProtectedRoute - is B2C customer:", userProfile?.role === 'b2c_customer');
+  console.log("ProtectedRoute - account_status:", userProfile?.account_status);
 
   // Set initialLoadComplete after the first profile load
   useEffect(() => {
@@ -56,16 +58,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // 2. No authenticated user - must redirect to login
   if (!user) {
+    // Only redirect to auth if not already on auth page to prevent redirect loops
+    if (!isAuthPage) {
+      return <Navigate to="/auth" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  // 3. Check for pending business accounts
+  if (userProfile?.is_business && userProfile?.account_status === 'pending' && !isAuthPage) {
+    // Automatically log the user out and redirect to auth page
+    supabase.auth.signOut().then(() => {
+      toast.info("Your business account is pending approval. We'll contact you soon.");
+    });
     return <Navigate to="/auth" replace />;
   }
 
-  // 3. Block B2C users from admin-only pages
+  // 4. Block B2C users from admin-only pages
   if (noB2CAccess && userProfile?.role === 'b2c_customer') {
     console.log("B2C user attempted to access restricted page, redirecting to dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 4. Admin-only route protection
+  // 5. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
