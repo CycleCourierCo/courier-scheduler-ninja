@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Bike, PackageCheck, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -190,7 +191,7 @@ const CreateOrder = () => {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
         <Card>
           <CardHeader>
@@ -202,96 +203,123 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-3 mb-6">
-                    <TabsTrigger value="details">Order Details</TabsTrigger>
-                    <TabsTrigger value="sender">Collection Information</TabsTrigger>
-                    <TabsTrigger value="receiver">Delivery Information</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="details" className="space-y-6">
-                    <OrderDetails control={form.control} />
-                    <OrderOptions control={form.control} />
-                    <DeliveryInstructions control={form.control} />
-
-                    <div className="flex justify-end">
-                      <Button 
-                        type="button" 
-                        onClick={handleNextToSender}
-                        className="bg-courier-600 hover:bg-courier-700"
-                        disabled={!isDetailsValid}
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col md:flex-row gap-6">
+                  <div className="w-full md:w-64 space-y-4">
+                    <h3 className="text-base font-medium mb-2">Order Steps</h3>
+                    <TabsList orientation="vertical" className="w-full bg-muted/60">
+                      <TabsTrigger 
+                        value="details" 
+                        className="justify-start text-left"
+                        icon={<Bike className="h-4 w-4" />}
                       >
-                        Next: Collection Information
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="sender" className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
-                      <ContactForm control={form.control} prefix="sender" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Collection Address</h3>
-                      <AddressForm 
-                        control={form.control} 
-                        prefix="sender.address" 
-                        setValue={form.setValue}
-                      />
-                    </div>
-
-                    <div className="flex justify-between">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setActiveTab("details")}
+                        Bike Details
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="sender" 
+                        className="justify-start text-left"
+                        icon={<PackageCheck className="h-4 w-4" />}
                       >
-                        Back to Order Details
-                      </Button>
-                      <Button 
-                        type="button" 
-                        onClick={handleNextToReceiver}
-                        className="bg-courier-600 hover:bg-courier-700"
-                        disabled={!isSenderValid}
+                        Collection Information
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="receiver" 
+                        className="justify-start text-left"
+                        icon={<Truck className="h-4 w-4" />}
                       >
-                        Next: Delivery Information
-                      </Button>
+                        Delivery Information
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <div className="text-sm text-muted-foreground pt-4">
+                      <p>Complete all steps to create your bicycle courier order.</p>
                     </div>
-                  </TabsContent>
+                  </div>
 
-                  <TabsContent value="receiver" className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
-                      <ContactForm control={form.control} prefix="receiver" />
-                    </div>
+                  <div className="flex-1">
+                    <TabsContent value="details" className="space-y-6 mt-0">
+                      <OrderDetails control={form.control} />
+                      <OrderOptions control={form.control} />
+                      <DeliveryInstructions control={form.control} />
 
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
-                      <AddressForm 
-                        control={form.control} 
-                        prefix="receiver.address" 
-                        setValue={form.setValue}
-                      />
-                    </div>
+                      <div className="flex justify-end">
+                        <Button 
+                          type="button" 
+                          onClick={handleNextToSender}
+                          className="bg-courier-600 hover:bg-courier-700"
+                          disabled={!isDetailsValid}
+                        >
+                          Next: Collection Information
+                        </Button>
+                      </div>
+                    </TabsContent>
 
-                    <div className="flex justify-between">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setActiveTab("sender")}
-                      >
-                        Back to Collection Information
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        className="bg-courier-600 hover:bg-courier-700"
-                        disabled={isSubmitting || !isReceiverValid}
-                      >
-                        {isSubmitting ? "Creating Order..." : "Create Order"}
-                      </Button>
-                    </div>
-                  </TabsContent>
+                    <TabsContent value="sender" className="space-y-6 mt-0">
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
+                        <ContactForm control={form.control} prefix="sender" />
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Collection Address</h3>
+                        <AddressForm 
+                          control={form.control} 
+                          prefix="sender.address" 
+                          setValue={form.setValue}
+                        />
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setActiveTab("details")}
+                        >
+                          Back to Order Details
+                        </Button>
+                        <Button 
+                          type="button" 
+                          onClick={handleNextToReceiver}
+                          className="bg-courier-600 hover:bg-courier-700"
+                          disabled={!isSenderValid}
+                        >
+                          Next: Delivery Information
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="receiver" className="space-y-6 mt-0">
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
+                        <ContactForm control={form.control} prefix="receiver" />
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
+                        <AddressForm 
+                          control={form.control} 
+                          prefix="receiver.address" 
+                          setValue={form.setValue}
+                        />
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setActiveTab("sender")}
+                        >
+                          Back to Collection Information
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          className="bg-courier-600 hover:bg-courier-700"
+                          disabled={isSubmitting || !isReceiverValid}
+                        >
+                          {isSubmitting ? "Creating Order..." : "Create Order"}
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  </div>
                 </Tabs>
               </form>
             </Form>
