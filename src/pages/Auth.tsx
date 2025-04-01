@@ -106,6 +106,9 @@ const Auth = () => {
 
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
+      console.log("Starting registration process", data);
+      console.log("Is business account:", data.is_business);
+      
       const metadata = {
         name: data.name,
         is_business: data.is_business.toString(),
@@ -118,7 +121,11 @@ const Auth = () => {
         postal_code: data.address.postal_code
       };
 
+      console.log("User metadata:", metadata);
+      
       const result = await signUp(data.email, data.password, data.name, metadata);
+      
+      console.log("Registration result:", result);
       
       if (data.is_business) {
         setBusinessRegistrationComplete(true);

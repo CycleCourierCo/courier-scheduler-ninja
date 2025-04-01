@@ -155,9 +155,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         });
         
+        console.log("Edge function response:", response);
+        
         if (response.error) {
           console.error("Edge function error:", response.error);
           throw new Error(response.error.message || "Failed to create business account");
+        }
+        
+        if (!response.data) {
+          console.error("No data returned from edge function");
+          throw new Error("Failed to create business account - no data returned");
         }
         
         console.log("Business account created without automatic login");
