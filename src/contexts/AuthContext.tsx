@@ -30,6 +30,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if URL has reset password token
   const checkForPasswordResetToken = () => {
+    console.log("Checking for password reset token...");
+    console.log("Current URL hash:", window.location.hash);
+    console.log("Current URL search:", window.location.search);
+    
     // Check for Supabase hash fragment from recovery flow
     if (window.location.hash) {
       // Look for type=recovery in hash
@@ -102,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
+        console.log("Retrieved session:", session ? "exists" : "null");
         setSession(session);
         setUser(session?.user || null);
 

@@ -86,10 +86,14 @@ const Auth = () => {
   const handlePasswordReset = async (data: { password: string, confirmPassword: string }) => {
     try {
       setResetPasswordLoading(true);
+      console.log("Attempting to update password...");
       
-      const { error } = await supabase.auth.updateUser({
+      // Using the updateUser method as per Supabase documentation
+      const { data: updateData, error } = await supabase.auth.updateUser({
         password: data.password
       });
+      
+      console.log("Password update response:", { updateData, error });
       
       if (error) throw error;
       
