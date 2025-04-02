@@ -43,7 +43,7 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       return null;
     }
 
-    console.log(`Fetching public order with ID or custom ID: ${id} from domain: ${window.location.origin}`);
+    console.log(`Fetching public order with ID or tracking number: ${id} from domain: ${window.location.origin}`);
     
     // First try to fetch by UUID (id column)
     if (id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
@@ -60,7 +60,20 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       }
     }
     
-    // If UUID search failed or ID is not a UUID, try to fetch by customer_order_number
+    // Try to fetch by tracking_number (which should have the CCC754... format)
+    console.log("Trying to fetch by tracking_number:", id);
+    const { data: orderByTracking, error: trackingError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("tracking_number", id)
+      .single();
+    
+    if (!trackingError && orderByTracking) {
+      console.log("Order data retrieved successfully by tracking number:", orderByTracking.id);
+      return mapDbOrderToOrderType(orderByTracking);
+    }
+    
+    // If tracking_number search failed, try to fetch by customer_order_number
     console.log("Trying to fetch by customer_order_number:", id);
     const { data: orderByCustomId, error: customIdError } = await supabase
       .from("orders")
@@ -78,7 +91,7 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     }
 
     if (!orderByCustomId) {
-      console.error("No order found with custom ID:", id);
+      console.error("No order found with ID:", id);
       console.error("Current domain:", window.location.origin);
       return null;
     }

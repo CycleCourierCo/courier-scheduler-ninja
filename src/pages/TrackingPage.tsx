@@ -117,7 +117,7 @@ const TrackingPage = () => {
                     {order.customerOrderNumber ? (
                       `Order #${order.customerOrderNumber}`
                     ) : (
-                      `Order #${order.id.substring(0, 8)}`
+                      `Order #${order.trackingNumber || order.id.substring(0, 8)}`
                     )}
                   </h2>
                   <p className="text-muted-foreground">Created on {new Date(order.createdAt).toLocaleDateString()}</p>
