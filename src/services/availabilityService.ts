@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -125,7 +124,6 @@ export const updateOrderAvailability = async (
   return mapDbOrderToOrderType(data);
 };
 
-// Add the missing functions for sender and receiver availability updates
 export const updateSenderAvailability = async (
   id: string, 
   dates: Date[],

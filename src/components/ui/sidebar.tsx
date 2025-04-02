@@ -11,7 +11,7 @@ import {
   Users,
   ClipboardCheck,
 } from "lucide-react";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface SidebarProps {
   className?: string;
@@ -32,7 +32,7 @@ export function Sidebar({
   showAppsList = false,
   sidebarLinks,
 }: SidebarProps) {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const { pathname } = useLocation();
 
   const defaultLinks = [

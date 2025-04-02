@@ -2,15 +2,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Order, Address } from "@/types/order";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
 // Types for jobs
 export type JobType = 'collection' | 'delivery';
+export type JobStatus = 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
 export type Job = {
   id: string;
   order_id: string;
   location: string;
   type: JobType;
+  status?: JobStatus;
   related_job_id?: string;
   preferred_date?: string[];
   created_at: Date;
@@ -61,7 +64,8 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
           id: collectionId,
           order_id: order.id,
           location: formatAddress(order.sender.address),
-          type: 'collection',
+          type: 'collection' as JobType,
+          status: 'pending' as JobStatus,
           related_job_id: deliveryId,
           preferred_date: pickupDates
         },
@@ -69,7 +73,8 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
           id: deliveryId,
           order_id: order.id,
           location: formatAddress(order.receiver.address),
-          type: 'delivery',
+          type: 'delivery' as JobType,
+          status: 'pending' as JobStatus,
           related_job_id: collectionId,
           preferred_date: deliveryDates
         }
@@ -98,6 +103,8 @@ export const getAllJobs = async (): Promise<Job[]> => {
     
     return data.map(job => ({
       ...job,
+      type: job.type as JobType,
+      status: job.status as JobStatus,
       created_at: new Date(job.created_at),
       updated_at: new Date(job.updated_at)
     }));
@@ -121,6 +128,8 @@ export const getJobsByOrderId = async (orderId: string): Promise<Job[]> => {
     
     return data.map(job => ({
       ...job,
+      type: job.type as JobType,
+      status: job.status as JobStatus,
       created_at: new Date(job.created_at),
       updated_at: new Date(job.updated_at)
     }));
@@ -135,8 +144,8 @@ export const getJobsByOrderId = async (orderId: string): Promise<Job[]> => {
 export const updateJobStatuses = async (orderId: string, orderStatus: string): Promise<boolean> => {
   try {
     // Map order status to appropriate job statuses
-    let collectionStatus = '';
-    let deliveryStatus = '';
+    let collectionStatus: JobStatus | null = null;
+    let deliveryStatus: JobStatus | null = null;
     
     switch (orderStatus) {
       case 'scheduled':

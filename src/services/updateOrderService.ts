@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -8,11 +9,10 @@ export const updateOrderStatus = async (
   status: OrderStatus
 ): Promise<Order> => {
   // No need to convert to string as OrderStatus is already compatible
-  const dbStatus = status;
   
   const { data, error } = await supabase
     .from("orders")
-    .update({ status: dbStatus })
+    .update({ status: status })
     .eq("id", id)
     .select()
     .single();
@@ -67,13 +67,12 @@ export const updatePublicOrder = async (
   status: OrderStatus
 ): Promise<Order> => {
   // No need to convert status to string
-  const dbStatus = status;
   
   const { data, error } = await supabase
     .from("orders")
     .update({
       pickup_date,
-      status: dbStatus,
+      status: status,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -94,12 +93,11 @@ export const updateAdminOrderStatus = async (
   status: OrderStatus
 ): Promise<Order> => {
   // No need to convert status to string
-  const dbStatus = status;
   
   const { data, error } = await supabase
     .from("orders")
     .update({
-      status: dbStatus,
+      status: status,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
