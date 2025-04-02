@@ -34,11 +34,12 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get orders without tracking numbers
+    // Get orders without tracking numbers or with tracking numbers that include "P:" and "D:"
+    // which indicates they were generated with the wrong format
     const { data: orders, error } = await supabase
       .from("orders")
       .select("*")
-      .is("tracking_number", null);
+      .or("tracking_number.is.null,tracking_number.like.P:%,tracking_number.like.SD-%");
 
     if (error) {
       return new Response(
@@ -47,7 +48,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${orders?.length || 0} orders without tracking numbers`);
+    console.log(`Found ${orders?.length || 0} orders that need correct tracking numbers`);
 
     // Process each order
     const results = [];

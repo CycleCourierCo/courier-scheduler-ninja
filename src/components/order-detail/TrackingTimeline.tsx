@@ -16,7 +16,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       title: "Order Created",
       date: order.createdAt,
       icon: <Package className="h-4 w-4 text-courier-600" />,
-      description: "Order has been created in the system"
+      description: `Order has been created with tracking number: ${order.trackingNumber || 'Pending'}`
     });
     
     if (order.senderConfirmedAt) {

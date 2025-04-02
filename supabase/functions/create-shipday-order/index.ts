@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -21,6 +20,39 @@ interface OrderRequest {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const formatDateForShipday = (date: Date | null) => {
+  if (!date) return undefined;
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const formatDateOnly = (date: Date | null) => {
+  if (!date) return undefined;
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
+const formatTimeOnly = (date: Date | null) => {
+  if (!date) return undefined;
+  
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = "00";
+  
+  return `${hours}:${minutes}:${seconds}`;
 };
 
 serve(async (req) => {
@@ -55,19 +87,6 @@ serve(async (req) => {
       );
     }
 
-    if (order.tracking_number) {
-      console.log(`Order ${orderId} already has tracking number: ${order.tracking_number}`);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Order already exists in Shipday", 
-          trackingNumber: order.tracking_number
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
-    }
-
     const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
     
     if (!shipdayApiKey) {
@@ -95,39 +114,6 @@ serve(async (req) => {
       scheduledDeliveryDate = new Date(order.scheduled_delivery_date);
     }
     
-    const formatDateForShipday = (date: Date | null) => {
-      if (!date) return undefined;
-      
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    };
-    
-    const formatDateOnly = (date: Date | null) => {
-      if (!date) return undefined;
-      
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      return `${year}-${month}-${day}`;
-    };
-    
-    const formatTimeOnly = (date: Date | null) => {
-      if (!date) return undefined;
-      
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = "00";
-      
-      return `${hours}:${minutes}:${seconds}`;
-    };
-    
     const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
     const pickupTimeOnlyFormatted = formatTimeOnly(scheduledPickupDate);
     const deliveryTimeFormatted = formatTimeOnly(scheduledDeliveryDate);
@@ -148,7 +134,7 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
 
-    // Use the tracking number instead of customer_order_number
+    // Use the tracking number as the order reference
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
     const pickupOrderData: OrderRequest = {
@@ -239,22 +225,30 @@ serve(async (req) => {
       );
     }
     
-    const pickupTrackingNumber = pickupResponseData.orderId || 
-                               `SD-P-${pickupResponseData.id}` || 
-                               pickupResponseData.trackingNumber;
-      
-    const deliveryTrackingNumber = deliveryResponseData.orderId || 
-                                 `SD-D-${deliveryResponseData.id}` || 
-                                 deliveryResponseData.trackingNumber;
-      
-    const combinedTrackingNumber = `P:${pickupTrackingNumber},D:${deliveryTrackingNumber}`;
+    // Store the individual tracking numbers from Shipday, but don't update the main tracking number
+    // which should remain as the internally generated order ID
+    const shipdayPickupId = pickupResponseData.orderId || 
+                           `SD-P-${pickupResponseData.id}` || 
+                           pickupResponseData.trackingNumber;
+    
+    const shipdayDeliveryId = deliveryResponseData.orderId || 
+                             `SD-D-${deliveryResponseData.id}` || 
+                             deliveryResponseData.trackingNumber;
+    
+    // Don't modify the tracking_number field as it already contains our CCC754... format
+    // Instead, store the Shipday IDs in the tracking_events field
+    const trackingEvents = order.tracking_events || {};
+    trackingEvents.shipday = {
+      pickup_id: shipdayPickupId,
+      delivery_id: shipdayDeliveryId,
+      created_at: new Date().toISOString()
+    };
 
-    console.log("Successfully created orders in Shipday with tracking numbers:", combinedTrackingNumber);
-
+    // Update the order with the Shipday IDs but keep the original tracking number
     const { error: updateError } = await supabase
       .from("orders")
       .update({
-        tracking_number: combinedTrackingNumber,
+        tracking_events: trackingEvents,
         updated_at: new Date().toISOString()
       })
       .eq("id", orderId);
@@ -270,7 +264,9 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Orders created in Shipday successfully", 
-        trackingNumber: combinedTrackingNumber,
+        shipdayPickupId,
+        shipdayDeliveryId,
+        trackingNumber: order.tracking_number,
         pickup_response: pickupResponseData,
         delivery_response: deliveryResponseData
       }),
