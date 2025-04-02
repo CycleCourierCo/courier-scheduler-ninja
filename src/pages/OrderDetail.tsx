@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -12,7 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
 
-// Import our new components
 import OrderHeader from "@/components/order-detail/OrderHeader";
 import DateSelection from "@/components/order-detail/DateSelection";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
@@ -260,7 +258,6 @@ const OrderDetail = () => {
   const needsSenderConfirmation = order.status === 'created' || order.status === 'sender_availability_pending';
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
   
-  // Update this to true so admin controls are visible
   const showAdminControls = true;
 
   return (
@@ -278,7 +275,7 @@ const OrderDetail = () => {
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
                 <Package className="mr-2" />
-                {itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : `(Order #${order.id.substring(0, 8)})`}
+                {itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : ''}
               </div>
               <EmailResendButtons 
                 needsSenderConfirmation={needsSenderConfirmation}

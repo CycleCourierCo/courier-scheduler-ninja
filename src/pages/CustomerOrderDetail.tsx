@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, Clock, ClipboardEdit } from "lucide-react";
@@ -83,11 +82,9 @@ const CustomerOrderDetail = () => {
     return format(new Date(dates), "PPP");
   };
 
-  // Helper to determine which status events to show in the tracking timeline
   const getTrackingEvents = () => {
     const events = [];
     
-    // Order created
     events.push({
       title: "Order Created",
       date: order.createdAt,
@@ -95,7 +92,6 @@ const CustomerOrderDetail = () => {
       description: "Your order has been created in our system"
     });
     
-    // Check if sender availability is confirmed
     if (order.senderConfirmedAt) {
       events.push({
         title: "Collection Dates Chosen",
@@ -105,7 +101,6 @@ const CustomerOrderDetail = () => {
       });
     }
     
-    // Check if receiver availability is confirmed
     if (order.receiverConfirmedAt) {
       events.push({
         title: "Delivery Dates Chosen",
@@ -115,7 +110,6 @@ const CustomerOrderDetail = () => {
       });
     }
     
-    // Check if order is scheduled
     if (order.scheduledAt) {
       events.push({
         title: "Transport Scheduled",
@@ -125,7 +119,6 @@ const CustomerOrderDetail = () => {
       });
     }
     
-    // Check if order is shipped
     if (order.status === 'shipped') {
       events.push({
         title: "In Transit",
@@ -135,7 +128,6 @@ const CustomerOrderDetail = () => {
       });
     }
     
-    // Check if order is delivered
     if (order.status === 'delivered') {
       events.push({
         title: "Delivered",
@@ -148,7 +140,6 @@ const CustomerOrderDetail = () => {
     return events;
   };
 
-  // Create item name from bike brand and model
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
   const trackingEvents = getTrackingEvents();
@@ -173,16 +164,16 @@ const CustomerOrderDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Package className="mr-2" />
-              {itemName} (Order #{order.id.substring(0, 8)})
+              {itemName}
             </CardTitle>
             <CardDescription>
               Created on {format(new Date(order.createdAt), "PPP")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.trackingNumber && (
+            {order.customerOrderNumber && (
               <div className="bg-muted p-3 rounded-md">
-                <p className="font-medium">Tracking Number: {order.trackingNumber}</p>
+                <p className="font-medium">Order Number: {order.customerOrderNumber}</p>
               </div>
             )}
             
@@ -258,7 +249,6 @@ const CustomerOrderDetail = () => {
                   </div>
                 )}
                 
-                {/* Item and Bike details section */}
                 <div className="mt-4">
                   <div className="flex items-center space-x-2 mb-2">
                     <h3 className="font-semibold">Item Details</h3>
@@ -278,7 +268,6 @@ const CustomerOrderDetail = () => {
                   </div>
                 </div>
                 
-                {/* Delivery instructions */}
                 {order.deliveryInstructions && (
                   <div className="mt-4">
                     <div className="flex items-center space-x-2 mb-2">

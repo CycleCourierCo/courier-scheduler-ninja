@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, Bike, GripVertical } from "lucide-react";
+import { Eye, RefreshCcw, Bike, GripVertical, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -28,28 +27,35 @@ interface OrderTableProps {
 // Define all available columns
 const ALL_COLUMNS = [
   { id: "creator", label: "Created By" },
-  { id: "id", label: "ID" },
+  { id: "orderNumber", label: "Order Number" },
   { id: "status", label: "Status" },
   { id: "sender", label: "Sender" },
   { id: "receiver", label: "Receiver" },
   { id: "bike", label: "Bike" },
+  { id: "pickupDate", label: "Pickup Date" },
+  { id: "deliveryDate", label: "Delivery Date" },
   { id: "created", label: "Created" },
   { id: "actions", label: "Actions" },
 ];
 
 // Default visible columns if user has no saved preferences
-const DEFAULT_VISIBLE_COLUMNS = ALL_COLUMNS.map(col => col.id);
+const DEFAULT_VISIBLE_COLUMNS = [
+  "orderNumber", "status", "sender", "receiver", "bike", 
+  "pickupDate", "deliveryDate", "created", "actions"
+];
 
 // Default column widths
 const DEFAULT_COLUMN_WIDTHS = {
   creator: 15,
-  id: 10,
-  status: 15,
-  sender: 15,
-  receiver: 15,
-  bike: 15,
-  created: 15,
-  actions: 20,
+  orderNumber: 12,
+  status: 10,
+  sender: 12,
+  receiver: 12,
+  bike: 12,
+  pickupDate: 10,
+  deliveryDate: 10,
+  created: 10,
+  actions: 12,
 };
 
 const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
@@ -147,7 +153,6 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     }
   };
 
-  // Save column widths to user preferences
   const saveColumnWidths = async (newWidths: Record<string, number>) => {
     if (!user) return;
     
@@ -209,7 +214,6 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     }
   }, [isResizing]);
 
-  // Start resizing a column
   const startResize = (e: React.MouseEvent, columnId: string) => {
     e.preventDefault();
     
@@ -252,6 +256,11 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return "Not scheduled";
+    return format(new Date(date), "PP");
   };
 
   return (
@@ -299,9 +308,9 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                         {creatorNames[order.user_id] || 'Unknown'}
                       </span>
                     )}
-                    {columnId === "id" && (
+                    {columnId === "orderNumber" && (
                       <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
-                        {order.id.substring(0, 8)}...
+                        {order.customerOrderNumber || `${order.id.substring(0, 8)}...`}
                       </Link>
                     )}
                     {columnId === "status" && <StatusBadge status={order.status} />}
@@ -318,6 +327,18 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                           <span className="text-gray-400">Not specified</span>
                         )}
                       </>
+                    )}
+                    {columnId === "pickupDate" && (
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{order.scheduledPickupDate ? formatDate(order.scheduledPickupDate) : "Not scheduled"}</span>
+                      </div>
+                    )}
+                    {columnId === "deliveryDate" && (
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{order.scheduledDeliveryDate ? formatDate(order.scheduledDeliveryDate) : "Not scheduled"}</span>
+                      </div>
                     )}
                     {columnId === "created" && format(new Date(order.createdAt), "PP")}
                     {columnId === "actions" && (
