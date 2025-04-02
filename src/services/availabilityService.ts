@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -122,4 +123,85 @@ export const updateOrderAvailability = async (
   }
 
   return mapDbOrderToOrderType(data);
+};
+
+// Add the missing functions for sender and receiver availability updates
+export const updateSenderAvailability = async (
+  id: string, 
+  dates: Date[],
+  notes: string
+): Promise<Order | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .update({
+        pickup_date: dates.map(date => date.toISOString()),
+        sender_notes: notes,
+        status: "sender_availability_confirmed" as OrderStatus,
+        sender_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating sender availability:", error);
+      throw new Error(error.message);
+    }
+
+    const mappedOrder = mapDbOrderToOrderType(data);
+    
+    // Attempt to create jobs after sender confirms availability
+    try {
+      await createJobsForOrder(mappedOrder);
+    } catch (jobError) {
+      console.error("Error creating jobs on sender availability update:", jobError);
+    }
+
+    return mappedOrder;
+  } catch (err) {
+    console.error("Error in updateSenderAvailability:", err);
+    return null;
+  }
+};
+
+export const updateReceiverAvailability = async (
+  id: string, 
+  dates: Date[],
+  notes: string
+): Promise<Order | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .update({
+        delivery_date: dates.map(date => date.toISOString()),
+        receiver_notes: notes,
+        status: "receiver_availability_confirmed" as OrderStatus,
+        receiver_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating receiver availability:", error);
+      throw new Error(error.message);
+    }
+
+    const mappedOrder = mapDbOrderToOrderType(data);
+    
+    // Create jobs after receiver confirms availability
+    try {
+      await createJobsForOrder(mappedOrder);
+    } catch (jobError) {
+      console.error("Error creating jobs on receiver availability update:", jobError);
+    }
+
+    return mappedOrder;
+  } catch (err) {
+    console.error("Error in updateReceiverAvailability:", err);
+    return null;
+  }
 };
