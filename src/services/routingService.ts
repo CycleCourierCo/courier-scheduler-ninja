@@ -103,10 +103,10 @@ export const fetchJobsFromOrders = async (): Promise<JobInput[]> => {
       const orderData: Order = {
         id: order.id,
         user_id: order.user_id,
-        pickupDate: order.pickup_date ? order.pickup_date : undefined,
-        deliveryDate: order.delivery_date ? order.delivery_date : undefined,
-        sender: order.sender,
-        receiver: order.receiver,
+        pickupDate: order.pickup_date ? parseJsonDates(order.pickup_date) : undefined,
+        deliveryDate: order.delivery_date ? parseJsonDates(order.delivery_date) : undefined,
+        sender: order.sender as (Order['sender']),
+        receiver: order.receiver as (Order['receiver']),
         status: order.status,
         createdAt: new Date(order.created_at),
         updatedAt: new Date(order.updated_at),
@@ -136,6 +136,14 @@ export const fetchJobsFromOrders = async (): Promise<JobInput[]> => {
     toast.error("Failed to fetch jobs for optimization");
     return [];
   }
+};
+
+// Helper function to parse JSON dates into Date objects
+const parseJsonDates = (dateJson: any): Date[] | Date => {
+  if (Array.isArray(dateJson)) {
+    return dateJson.map(d => new Date(d));
+  }
+  return new Date(dateJson);
 };
 
 // Fetch available drivers
