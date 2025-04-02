@@ -99,18 +99,34 @@ export const fetchJobsFromOrders = async (): Promise<JobInput[]> => {
     // Convert orders to jobs
     const jobs: JobInput[] = [];
     orders.forEach(order => {
-      const orderJobs = orderToJobs({
-        ...order,
+      // Properly type-cast the data from database to Order type
+      const orderData: Order = {
         id: order.id,
-        pickupDate: order.pickup_date,
-        deliveryDate: order.delivery_date,
+        user_id: order.user_id,
+        pickupDate: order.pickup_date ? order.pickup_date : undefined,
+        deliveryDate: order.delivery_date ? order.delivery_date : undefined,
         sender: order.sender,
         receiver: order.receiver,
         status: order.status,
         createdAt: new Date(order.created_at),
         updatedAt: new Date(order.updated_at),
-        user_id: order.user_id
-      });
+        bikeBrand: order.bike_brand,
+        bikeModel: order.bike_model,
+        scheduledPickupDate: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date) : undefined,
+        scheduledDeliveryDate: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined,
+        scheduledAt: order.scheduled_at ? new Date(order.scheduled_at) : undefined,
+        trackingNumber: order.tracking_number,
+        customerOrderNumber: order.customer_order_number,
+        needsPaymentOnCollection: order.needs_payment_on_collection,
+        isBikeSwap: order.is_bike_swap,
+        deliveryInstructions: order.delivery_instructions,
+        senderNotes: order.sender_notes,
+        receiverNotes: order.receiver_notes,
+        senderConfirmedAt: order.sender_confirmed_at ? new Date(order.sender_confirmed_at) : undefined,
+        receiverConfirmedAt: order.receiver_confirmed_at ? new Date(order.receiver_confirmed_at) : undefined
+      };
+      
+      const orderJobs = orderToJobs(orderData);
       jobs.push(...orderJobs);
     });
     
@@ -125,13 +141,14 @@ export const fetchJobsFromOrders = async (): Promise<JobInput[]> => {
 // Fetch available drivers
 export const fetchDrivers = async (): Promise<DriverInput[]> => {
   try {
-    const { data: drivers, error } = await supabase
+    // Use any cast temporarily to address the missing type in the generated Supabase client
+    const { data: drivers, error } = await (supabase as any)
       .from("drivers")
       .select("id, name, available_hours");
     
     if (error) throw error;
     
-    return drivers.map(driver => ({
+    return drivers.map((driver: any) => ({
       id: driver.id,
       available_hours: driver.available_hours || 9
     }));
@@ -181,7 +198,7 @@ export const optimizeRoutes = async (
 export const saveOptimizedRoutes = async (optimizationResult: OptimizationResponse): Promise<boolean> => {
   try {
     // Create routes in the database
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("routes")
       .insert(optimizationResult.routes.map(route => ({
         driver_id: route.driver_id,
@@ -209,7 +226,7 @@ export const saveOptimizedRoutes = async (optimizationResult: OptimizationRespon
     );
     
     if (jobData.length > 0) {
-      const { error: jobsError } = await supabase
+      const { error: jobsError } = await (supabase as any)
         .from("jobs")
         .insert(jobData);
       
