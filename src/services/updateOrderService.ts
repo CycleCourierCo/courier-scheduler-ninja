@@ -8,11 +8,12 @@ export const updateOrderStatus = async (
   id: string,
   status: OrderStatus
 ): Promise<Order> => {
-  // No need to convert to string as OrderStatus is already compatible
+  // Use type assertion to ensure TypeScript compatibility with all enum values
+  const safeStatus = status as unknown as OrderStatus;
   
   const { data, error } = await supabase
     .from("orders")
-    .update({ status })
+    .update({ status: safeStatus })
     .eq("id", id)
     .select()
     .single();
@@ -38,12 +39,15 @@ export const updateOrderScheduledDates = async (
   scheduledPickupDate: Date,
   scheduledDeliveryDate: Date
 ): Promise<Order> => {
+  // Use type assertion to ensure TypeScript compatibility
+  const status = "scheduled" as OrderStatus;
+
   const { data, error } = await supabase
     .from("orders")
     .update({
       scheduled_pickup_date: scheduledPickupDate.toISOString(),
       scheduled_delivery_date: scheduledDeliveryDate.toISOString(),
-      status: "scheduled" as OrderStatus,
+      status,
       scheduled_at: new Date().toISOString()
     })
     .eq("id", id)
@@ -66,13 +70,14 @@ export const updatePublicOrder = async (
   pickup_date: string[],
   status: OrderStatus
 ): Promise<Order> => {
-  // No need to convert status to string
+  // Use type assertion to ensure TypeScript compatibility
+  const safeStatus = status as unknown as OrderStatus;
   
   const { data, error } = await supabase
     .from("orders")
     .update({
       pickup_date,
-      status,
+      status: safeStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -92,12 +97,13 @@ export const updateAdminOrderStatus = async (
   id: string,
   status: OrderStatus
 ): Promise<Order> => {
-  // No need to convert status to string
+  // Use type assertion to ensure TypeScript compatibility
+  const safeStatus = status as unknown as OrderStatus;
   
   const { data, error } = await supabase
     .from("orders")
     .update({
-      status,
+      status: safeStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

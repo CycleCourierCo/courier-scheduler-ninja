@@ -38,11 +38,14 @@ export const confirmSenderAvailability = async (
   id: string,
   pickupDate: Date[]
 ): Promise<Order> => {
+  // Use type assertion to avoid TypeScript errors with new enum values
+  const status = "sender_availability_confirmed" as OrderStatus;
+
   const { data, error } = await supabase
     .from("orders")
     .update({
       pickup_date: pickupDate.map(date => date.toISOString()),
-      status: "sender_availability_confirmed" as OrderStatus,
+      status,
       sender_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -72,11 +75,14 @@ export const confirmReceiverAvailability = async (
   id: string,
   deliveryDate: Date[]
 ): Promise<Order> => {
+  // Use type assertion to avoid TypeScript errors with new enum values
+  const status = "receiver_availability_confirmed" as OrderStatus;
+
   const { data, error } = await supabase
     .from("orders")
     .update({
       delivery_date: deliveryDate.map(date => date.toISOString()),
-      status: "receiver_availability_confirmed" as OrderStatus,
+      status,
       receiver_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -131,12 +137,15 @@ export const updateSenderAvailability = async (
   notes: string
 ): Promise<Order | null> => {
   try {
+    // Use type assertion to avoid TypeScript errors with new enum values
+    const status = "sender_availability_confirmed" as OrderStatus;
+
     const { data, error } = await supabase
       .from("orders")
       .update({
         pickup_date: dates.map(date => date.toISOString()),
         sender_notes: notes,
-        status: "sender_availability_confirmed" as OrderStatus,
+        status,
         sender_confirmed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -171,12 +180,15 @@ export const updateReceiverAvailability = async (
   notes: string
 ): Promise<Order | null> => {
   try {
+    // Use type assertion to avoid TypeScript errors with new enum values
+    const status = "receiver_availability_confirmed" as OrderStatus;
+
     const { data, error } = await supabase
       .from("orders")
       .update({
         delivery_date: dates.map(date => date.toISOString()),
         receiver_notes: notes,
-        status: "receiver_availability_confirmed" as OrderStatus,
+        status,
         receiver_confirmed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
