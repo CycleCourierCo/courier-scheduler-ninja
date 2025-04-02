@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -106,7 +105,8 @@ const Dashboard: React.FC = () => {
     
     try {
       setGeneratingTrackingNumbers(true);
-      await generateTrackingNumbers();
+      // Pass forceAll=true to regenerate ALL tracking numbers
+      await generateTrackingNumbers(true);
       // Refresh the orders to show the updated tracking numbers
       await fetchOrders();
     } catch (error) {
@@ -149,7 +149,7 @@ const Dashboard: React.FC = () => {
               ) : (
                 <Tag className="h-4 w-4" />
               )}
-              {generatingTrackingNumbers ? "Generating..." : "Generate Tracking Numbers"}
+              {generatingTrackingNumbers ? "Generating..." : "Regenerate ALL Tracking Numbers"}
             </Button>
           )}
         </div>

@@ -34,12 +34,21 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get orders without tracking numbers or with tracking numbers that include "P:" and "D:"
-    // which indicates they were generated with the wrong format
-    const { data: orders, error } = await supabase
-      .from("orders")
-      .select("*")
-      .or("tracking_number.is.null,tracking_number.like.P:%,tracking_number.like.SD-%");
+    // Get all orders by default, but also allow filtering only those without proper tracking numbers
+    const reqBody = await req.json().catch(() => ({ forceAll: true }));
+    const forceAll = reqBody.forceAll === true;
+
+    // Build query for orders
+    let query = supabase.from("orders").select("*");
+    
+    // If not forcing all, only get orders with problematic tracking numbers
+    if (!forceAll) {
+      query = query.or(
+        "tracking_number.is.null,tracking_number.ilike.P:%,tracking_number.ilike.SD-%,tracking_number.not.ilike.CCC754%"
+      );
+    }
+    
+    const { data: orders, error } = await query;
 
     if (error) {
       return new Response(
@@ -73,13 +82,15 @@ serve(async (req) => {
           results.push({ 
             id: order.id, 
             success: false, 
-            error: updateError.message 
+            error: updateError.message,
+            oldTrackingNumber: order.tracking_number
           });
         } else {
           results.push({ 
             id: order.id, 
             success: true, 
-            trackingNumber 
+            trackingNumber,
+            oldTrackingNumber: order.tracking_number
           });
         }
       } catch (err) {
@@ -87,7 +98,8 @@ serve(async (req) => {
         results.push({ 
           id: order.id, 
           success: false, 
-          error: err.message 
+          error: err.message,
+          oldTrackingNumber: order.tracking_number
         });
       }
     }
