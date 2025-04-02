@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, HTTPException, Depends, Security, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader, APIKey
@@ -12,6 +11,7 @@ from datetime import datetime, timedelta
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import time
+import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,9 +63,24 @@ class JobModel(BaseModel):
     related_job_id: Optional[str] = None
     preferred_date: Optional[List[str]] = None
 
+class JobUpdateModel(BaseModel):
+    location: Optional[str] = None
+    type: Optional[str] = None
+    related_job_id: Optional[str] = None
+    preferred_date: Optional[List[str]] = None
+
 class DriverModel(BaseModel):
     id: str
     available_hours: int = 9  # Default 9 hours
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+class DriverUpdateModel(BaseModel):
+    available_hours: Optional[int] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 class OptimizationRequest(BaseModel):
     jobs: List[JobModel]
@@ -85,6 +100,11 @@ class RouteModel(BaseModel):
 class OptimizationResponse(BaseModel):
     routes: List[RouteModel]
     unassigned: List[str]  # job_ids
+
+# In-memory storage for development/testing
+# In production, you would use a database
+jobs_db = {}
+drivers_db = {}
 
 # Helper functions
 def compute_time_matrix(locations):
@@ -342,6 +362,92 @@ def solve_vrp(data_model, day_index):
             unassigned.append(job_id)
     
     return routes, unassigned
+
+@app.get("/api/jobs", response_model=List[JobModel])
+async def get_jobs(api_key: APIKey = Depends(get_api_key)):
+    """Get all jobs"""
+    return list(jobs_db.values())
+
+@app.get("/api/jobs/{job_id}", response_model=JobModel)
+async def get_job(job_id: str, api_key: APIKey = Depends(get_api_key)):
+    """Get a specific job by ID"""
+    if job_id not in jobs_db:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return jobs_db[job_id]
+
+@app.post("/api/jobs", response_model=JobModel, status_code=status.HTTP_201_CREATED)
+async def create_job(job: JobModel, api_key: APIKey = Depends(get_api_key)):
+    """Create a new job"""
+    if not job.id:
+        job.id = str(uuid.uuid4())
+    jobs_db[job.id] = job
+    return job
+
+@app.put("/api/jobs/{job_id}", response_model=JobModel)
+async def update_job(job_id: str, job_update: JobUpdateModel, api_key: APIKey = Depends(get_api_key)):
+    """Update an existing job"""
+    if job_id not in jobs_db:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    current_job = jobs_db[job_id]
+    update_data = job_update.dict(exclude_unset=True)
+    
+    for key, value in update_data.items():
+        setattr(current_job, key, value)
+    
+    jobs_db[job_id] = current_job
+    return current_job
+
+@app.delete("/api/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_job(job_id: str, api_key: APIKey = Depends(get_api_key)):
+    """Delete a job"""
+    if job_id not in jobs_db:
+        raise HTTPException(status_code=404, detail="Job not found")
+    del jobs_db[job_id]
+    return None
+
+@app.get("/api/drivers", response_model=List[DriverModel])
+async def get_drivers(api_key: APIKey = Depends(get_api_key)):
+    """Get all drivers"""
+    return list(drivers_db.values())
+
+@app.get("/api/drivers/{driver_id}", response_model=DriverModel)
+async def get_driver(driver_id: str, api_key: APIKey = Depends(get_api_key)):
+    """Get a specific driver by ID"""
+    if driver_id not in drivers_db:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return drivers_db[driver_id]
+
+@app.post("/api/drivers", response_model=DriverModel, status_code=status.HTTP_201_CREATED)
+async def create_driver(driver: DriverModel, api_key: APIKey = Depends(get_api_key)):
+    """Create a new driver"""
+    if not driver.id:
+        driver.id = str(uuid.uuid4())
+    drivers_db[driver.id] = driver
+    return driver
+
+@app.put("/api/drivers/{driver_id}", response_model=DriverModel)
+async def update_driver(driver_id: str, driver_update: DriverUpdateModel, api_key: APIKey = Depends(get_api_key)):
+    """Update an existing driver"""
+    if driver_id not in drivers_db:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    
+    current_driver = drivers_db[driver_id]
+    update_data = driver_update.dict(exclude_unset=True)
+    
+    for key, value in update_data.items():
+        setattr(current_driver, key, value)
+    
+    drivers_db[driver_id] = current_driver
+    return current_driver
+
+@app.delete("/api/drivers/{driver_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_driver(driver_id: str, api_key: APIKey = Depends(get_api_key)):
+    """Delete a driver"""
+    if driver_id not in drivers_db:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    del drivers_db[driver_id]
+    return None
 
 @app.post("/api/optimize", response_model=OptimizationResponse)
 async def optimize_routes(

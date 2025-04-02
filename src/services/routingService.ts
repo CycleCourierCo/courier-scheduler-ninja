@@ -15,6 +15,9 @@ type JobInput = {
 type DriverInput = {
   id: string;
   available_hours: number;
+  name?: string;
+  email?: string;
+  phone?: string;
 };
 
 type OptimizationRequest = {
@@ -81,6 +84,14 @@ const orderToJobs = (order: Order): JobInput[] => {
   return [collectionJob, deliveryJob];
 };
 
+// Helper function to parse JSON dates into Date objects
+const parseJsonDates = (dateJson: any): Date[] | Date => {
+  if (Array.isArray(dateJson)) {
+    return dateJson.map(d => new Date(d));
+  }
+  return new Date(dateJson);
+};
+
 // Fetch orders and convert to jobs
 export const fetchJobsFromOrders = async (): Promise<JobInput[]> => {
   try {
@@ -138,36 +149,194 @@ export const fetchJobsFromOrders = async (): Promise<JobInput[]> => {
   }
 };
 
-// Helper function to parse JSON dates into Date objects
-const parseJsonDates = (dateJson: any): Date[] | Date => {
-  if (Array.isArray(dateJson)) {
-    return dateJson.map(d => new Date(d));
+// ----- API Functions for Jobs -----
+
+export const createJob = async (job: JobInput): Promise<JobInput | null> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/jobs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': ROUTING_API_KEY
+      },
+      body: JSON.stringify(job)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to create job');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating job:", error);
+    toast.error(`Failed to create job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
   }
-  return new Date(dateJson);
 };
 
-// Fetch available drivers
-export const fetchDrivers = async (): Promise<DriverInput[]> => {
+export const fetchJobs = async (): Promise<JobInput[]> => {
   try {
-    // Use any cast temporarily to address the missing type in the generated Supabase client
-    const { data: drivers, error } = await (supabase as any)
-      .from("drivers")
-      .select("id, name, available_hours");
+    const response = await fetch(`${ROUTING_API_URL}/api/jobs`, {
+      headers: {
+        'X-API-KEY': ROUTING_API_KEY
+      }
+    });
     
-    if (error) throw error;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to fetch jobs');
+    }
     
-    return drivers.map((driver: any) => ({
-      id: driver.id,
-      available_hours: driver.available_hours || 9
-    }));
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching drivers:", error);
-    toast.error("Failed to fetch drivers");
+    console.error("Error fetching jobs:", error);
+    toast.error(`Failed to fetch jobs: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return [];
   }
 };
 
-// Optimize routes using the backend API
+export const updateJob = async (jobId: string, jobData: Partial<JobInput>): Promise<JobInput | null> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/jobs/${jobId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': ROUTING_API_KEY
+      },
+      body: JSON.stringify(jobData)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to update job');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating job:", error);
+    toast.error(`Failed to update job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
+  }
+};
+
+export const deleteJob = async (jobId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/jobs/${jobId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-KEY': ROUTING_API_KEY
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to delete job');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error deleting job:", error);
+    toast.error(`Failed to delete job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return false;
+  }
+};
+
+// ----- API Functions for Drivers -----
+
+export const fetchDrivers = async (): Promise<DriverInput[]> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/drivers`, {
+      headers: {
+        'X-API-KEY': ROUTING_API_KEY
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to fetch drivers');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching drivers:", error);
+    toast.error(`Failed to fetch drivers: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return [];
+  }
+};
+
+export const createDriver = async (driver: DriverInput): Promise<DriverInput | null> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/drivers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': ROUTING_API_KEY
+      },
+      body: JSON.stringify(driver)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to create driver');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating driver:", error);
+    toast.error(`Failed to create driver: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
+  }
+};
+
+export const updateDriver = async (driverId: string, driverData: Partial<DriverInput>): Promise<DriverInput | null> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/drivers/${driverId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': ROUTING_API_KEY
+      },
+      body: JSON.stringify(driverData)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to update driver');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating driver:", error);
+    toast.error(`Failed to update driver: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
+  }
+};
+
+export const deleteDriver = async (driverId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${ROUTING_API_URL}/api/drivers/${driverId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-KEY': ROUTING_API_KEY
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to delete driver');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error deleting driver:", error);
+    toast.error(`Failed to delete driver: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return false;
+  }
+};
+
+// ----- Optimization Function -----
+
 export const optimizeRoutes = async (
   jobs: JobInput[],
   drivers: DriverInput[],
@@ -262,20 +431,50 @@ export const runRouteOptimization = async (numDriversPerDay: number = 2): Promis
       return false;
     }
     
-    // 2. Fetch available drivers
-    const drivers = await fetchDrivers();
+    // 2. Synchronize jobs with API
+    for (const job of jobs) {
+      await createJob(job);
+    }
+    
+    // 3. Fetch drivers
+    let drivers = await fetchDrivers();
+    
+    // If no drivers in API, fetch from Supabase and create them
+    if (drivers.length === 0) {
+      const { data: supabaseDrivers, error } = await (supabase as any)
+        .from("drivers")
+        .select("id, name, available_hours, email, phone");
+      
+      if (error) throw error;
+      
+      if (supabaseDrivers.length > 0) {
+        for (const driver of supabaseDrivers) {
+          await createDriver({
+            id: driver.id,
+            name: driver.name,
+            available_hours: driver.available_hours || 9,
+            email: driver.email,
+            phone: driver.phone
+          });
+        }
+        
+        // Fetch again after creating
+        drivers = await fetchDrivers();
+      }
+    }
+    
     if (drivers.length === 0) {
       toast.error("No drivers available for optimization");
       return false;
     }
     
-    // 3. Run optimization
+    // 4. Run optimization
     const optimizationResult = await optimizeRoutes(jobs, drivers, numDriversPerDay);
     if (!optimizationResult) {
       return false;
     }
     
-    // 4. Save optimized routes
+    // 5. Save optimized routes
     return await saveOptimizedRoutes(optimizationResult);
   } catch (error) {
     console.error("Route optimization failed:", error);
@@ -286,9 +485,23 @@ export const runRouteOptimization = async (numDriversPerDay: number = 2): Promis
 
 // Export the service
 export default {
-  fetchJobsFromOrders,
+  // Job API
+  fetchJobs,
+  createJob,
+  updateJob,
+  deleteJob,
+  
+  // Driver API
   fetchDrivers,
+  createDriver,
+  updateDriver,
+  deleteDriver,
+  
+  // Optimization
   optimizeRoutes,
   saveOptimizedRoutes,
-  runRouteOptimization
+  runRouteOptimization,
+  
+  // Utility
+  fetchJobsFromOrders
 };
