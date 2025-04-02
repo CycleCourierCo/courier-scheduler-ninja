@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, Clock, ClipboardEdit } from "lucide-react";
@@ -140,7 +141,7 @@ const CustomerOrderDetail = () => {
     return events;
   };
 
-  const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+  const itemName = `${order.bikeBrand || ""}`.trim();
 
   const trackingEvents = getTrackingEvents();
 
@@ -164,18 +165,19 @@ const CustomerOrderDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Package className="mr-2" />
-              {itemName}
+              {order.bikeBrand} {order.bikeModel}
             </CardTitle>
             <CardDescription>
               Created on {format(new Date(order.createdAt), "PPP")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.customerOrderNumber && (
-              <div className="bg-muted p-3 rounded-md">
-                <p className="font-medium">Order Number: {order.customerOrderNumber}</p>
-              </div>
-            )}
+            <div className="bg-muted p-3 rounded-md flex flex-col gap-2">
+              <p className="font-medium">Tracking Number: {order.trackingNumber || "Not assigned"}</p>
+              {order.customerOrderNumber && (
+                <p className="font-medium">Customer Order Number: {order.customerOrderNumber}</p>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -254,10 +256,10 @@ const CustomerOrderDetail = () => {
                     <h3 className="font-semibold">Item Details</h3>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
-                    <p><span className="font-medium">Item:</span> {itemName}</p>
+                    <p><span className="font-medium">Item:</span> {order.bikeBrand} {order.bikeModel}</p>
                     <p><span className="font-medium">Quantity:</span> 1</p>
                     {order.customerOrderNumber && (
-                      <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
+                      <p><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
                     )}
                     {order.isBikeSwap && (
                       <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>

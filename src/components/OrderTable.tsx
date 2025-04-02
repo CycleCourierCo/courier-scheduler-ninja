@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -27,33 +28,37 @@ interface OrderTableProps {
 // Define all available columns
 const ALL_COLUMNS = [
   { id: "creator", label: "Created By" },
-  { id: "orderNumber", label: "Order Number" },
+  { id: "trackingNumber", label: "Tracking Number" },
   { id: "status", label: "Status" },
   { id: "sender", label: "Sender" },
   { id: "receiver", label: "Receiver" },
   { id: "bike", label: "Bike" },
   { id: "pickupDate", label: "Pickup Date" },
   { id: "deliveryDate", label: "Delivery Date" },
+  { id: "scheduledPickup", label: "Scheduled Pickup" },
+  { id: "scheduledDelivery", label: "Scheduled Delivery" },
   { id: "created", label: "Created" },
   { id: "actions", label: "Actions" },
 ];
 
 // Default visible columns if user has no saved preferences
 const DEFAULT_VISIBLE_COLUMNS = [
-  "orderNumber", "status", "sender", "receiver", "bike", 
-  "pickupDate", "deliveryDate", "created", "actions"
+  "trackingNumber", "status", "sender", "receiver", "bike", 
+  "scheduledPickup", "scheduledDelivery", "created", "actions"
 ];
 
 // Default column widths
 const DEFAULT_COLUMN_WIDTHS = {
   creator: 15,
-  orderNumber: 12,
+  trackingNumber: 12,
   status: 10,
   sender: 12,
   receiver: 12,
   bike: 12,
   pickupDate: 10,
   deliveryDate: 10,
+  scheduledPickup: 10,
+  scheduledDelivery: 10,
   created: 10,
   actions: 12,
 };
@@ -308,9 +313,9 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                         {creatorNames[order.user_id] || 'Unknown'}
                       </span>
                     )}
-                    {columnId === "orderNumber" && (
+                    {columnId === "trackingNumber" && (
                       <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
-                        {order.customerOrderNumber || `${order.id.substring(0, 8)}...`}
+                        {order.trackingNumber || `${order.id.substring(0, 8)}...`}
                       </Link>
                     )}
                     {columnId === "status" && <StatusBadge status={order.status} />}
@@ -331,13 +336,25 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                     {columnId === "pickupDate" && (
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                        <span>{order.scheduledPickupDate ? formatDate(order.scheduledPickupDate) : "Not scheduled"}</span>
+                        <span>{order.pickupDate ? formatDate(Array.isArray(order.pickupDate) ? order.pickupDate[0] : order.pickupDate) : "Not scheduled"}</span>
                       </div>
                     )}
                     {columnId === "deliveryDate" && (
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                        <span>{order.scheduledDeliveryDate ? formatDate(order.scheduledDeliveryDate) : "Not scheduled"}</span>
+                        <span>{order.deliveryDate ? formatDate(Array.isArray(order.deliveryDate) ? order.deliveryDate[0] : order.deliveryDate) : "Not scheduled"}</span>
+                      </div>
+                    )}
+                    {columnId === "scheduledPickup" && (
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{formatDate(order.scheduledPickupDate)}</span>
+                      </div>
+                    )}
+                    {columnId === "scheduledDelivery" && (
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{formatDate(order.scheduledDeliveryDate)}</span>
                       </div>
                     )}
                     {columnId === "created" && format(new Date(order.createdAt), "PP")}

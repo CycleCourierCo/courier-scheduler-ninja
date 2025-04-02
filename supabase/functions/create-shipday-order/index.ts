@@ -148,8 +148,8 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
 
-    // Use the customer_order_number instead of UUID for the Shipday order reference
-    const orderReference = order.customer_order_number || orderId.substring(0, 8);
+    // Use the tracking number instead of customer_order_number
+    const orderReference = order.tracking_number || orderId.substring(0, 8);
 
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderReference}-PICKUP`,

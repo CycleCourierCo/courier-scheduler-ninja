@@ -67,8 +67,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     price: 0
   };
 
-  // Generate a custom order ID
-  const customOrderId = generateCustomOrderId(
+  // Generate a custom tracking number (order ID)
+  const customTrackingNumber = generateCustomOrderId(
     data.sender.name,
     data.receiver.address.zipCode
   );
@@ -116,7 +116,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       receiver: receiverWithCoordinates,
       bike_brand: data.bikeBrand,
       bike_model: data.bikeModel,
-      customer_order_number: data.customerOrderNumber || customOrderId,
+      customer_order_number: data.customerOrderNumber || null, // Keep customer order number separate
+      tracking_number: customTrackingNumber, // Always set tracking number to the generated custom ID
       needs_payment_on_collection: data.needsPaymentOnCollection,
       is_bike_swap: data.isBikeSwap,
       delivery_instructions: formattedDeliveryInstructions,
