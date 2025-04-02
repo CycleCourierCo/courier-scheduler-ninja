@@ -12,6 +12,8 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import time
 import uuid
+import requests
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -108,37 +110,60 @@ drivers_db = {}
 
 # Helper functions
 def compute_time_matrix(locations):
-    """Calculate travel time matrix using Google Maps API"""
-    if not gmaps:
+    """Calculate travel time matrix using Google Routes API"""
+    if not GOOGLE_MAPS_API_KEY:
         # Use dummy matrix with estimated times if no API key is provided
         logger.warning("Using dummy time matrix as Google Maps API key is not set")
         n = len(locations)
         return [[max(30, abs(i-j) * 20) for j in range(n)] for i in range(n)]
     
     try:
-        logger.info(f"Computing travel times for {len(locations)} locations")
+        logger.info(f"Computing travel times for {len(locations)} locations using Routes API")
         matrix = []
         
-        # Batch API calls to stay within rate limits
+        # Define the Routes API endpoint
+        routes_url = "https://routes.googleapis.com/directions/v2:computeRouteMatrix"
+        
+        # Process each origin-destination pair
         for origin_idx, origin in enumerate(locations):
             row = []
             
-            # Process in batches of 10 destinations
+            # Process in batches to stay within rate limits
             for i in range(0, len(locations), 10):
                 batch_destinations = locations[i:i+10]
-                result = gmaps.distance_matrix(
-                    origin,
-                    batch_destinations,
-                    mode="driving",
-                    traffic_model="best_guess",
-                    departure_time=datetime.now(),
+                
+                # Prepare the request body
+                request_body = {
+                    "origins": [{"address": origin}],
+                    "destinations": [{"address": dest} for dest in batch_destinations],
+                    "travelMode": "DRIVE",
+                    "routingPreference": "TRAFFIC_AWARE",
+                    "departureTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+                }
+                
+                # Make the API request
+                response = requests.post(
+                    routes_url,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+                        "X-Goog-FieldMask": "originIndex,destinationIndex,duration"
+                    },
+                    data=json.dumps(request_body)
                 )
                 
+                if response.status_code != 200:
+                    logger.error(f"Routes API error: {response.text}")
+                    raise Exception(f"Routes API error: {response.status_code}")
+                
+                result = response.json()
+                
                 # Extract duration values in seconds, convert to minutes
-                for element in result["rows"][0]["elements"]:
-                    if element["status"] == "OK":
+                for element in result.get("originDestinationPairs", []):
+                    if "duration" in element:
                         # Convert seconds to minutes and round up
-                        row.append(element["duration"]["value"] // 60)
+                        duration_seconds = int(element["duration"].replace("s", ""))
+                        row.append(duration_seconds // 60)
                     else:
                         # If location can't be reached, use a large value
                         row.append(9999)
@@ -148,7 +173,7 @@ def compute_time_matrix(locations):
             
             matrix.append(row)
         
-        logger.info("Time matrix computation completed")
+        logger.info("Time matrix computation completed using Routes API")
         return matrix
     
     except Exception as e:
