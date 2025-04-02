@@ -9,6 +9,84 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      drivers: {
+        Row: {
+          available_hours: number | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          available_hours?: number | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          available_hours?: number | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      jobs: {
+        Row: {
+          created_at: string
+          id: string
+          location: string
+          order_id: string
+          preferred_date: Json | null
+          related_job_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location: string
+          order_id: string
+          preferred_date?: Json | null
+          related_job_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string
+          order_id?: string
+          preferred_date?: Json | null
+          related_job_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_related_job_id_fkey"
+            columns: ["related_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           bike_brand: string | null
@@ -160,6 +238,44 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      routes: {
+        Row: {
+          created_at: string
+          day: number
+          driver_id: string
+          id: string
+          stops: Json
+          total_time: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day: number
+          driver_id: string
+          id?: string
+          stops: Json
+          total_time: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day?: number
+          driver_id?: string
+          id?: string
+          stops?: Json
+          total_time?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
