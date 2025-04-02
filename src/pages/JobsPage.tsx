@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { getAllJobs, Job, JobType } from "@/services/jobService";
 import { getOrders } from "@/services/orderService";
@@ -165,7 +164,35 @@ const JobsPage: React.FC = () => {
     return type === "collection" ? "Collection" : "Delivery";
   };
 
-  // Map orders status options
+  const getPreferredDatesDisplay = (job) => {
+    if (!job.preferred_date) return "No dates set";
+    
+    // Convert to array if it's not already
+    const dates = Array.isArray(job.preferred_date) 
+      ? job.preferred_date 
+      : typeof job.preferred_date === 'string' 
+        ? [job.preferred_date]
+        : Object.values(job.preferred_date);
+        
+    if (dates.length === 0) return "No dates set";
+    
+    return dates.map(date => format(new Date(date), "PP")).join(", ");
+  };
+
+  const getPreferredDatesCount = (preferred_date) => {
+    if (!preferred_date) return 0;
+    
+    if (Array.isArray(preferred_date)) {
+      return preferred_date.length;
+    }
+    
+    if (typeof preferred_date === 'object') {
+      return Object.values(preferred_date).length;
+    }
+    
+    return preferred_date ? 1 : 0;
+  };
+
   const statusOptions = [
     { value: "all", label: "All Statuses" },
     { value: "created", label: "Created" },
@@ -378,16 +405,7 @@ const JobsPage: React.FC = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {job.preferred_date && job.preferred_date.length > 0 ? (
-                            <div className="flex items-center">
-                              <CalendarDays className="w-4 h-4 mr-1 text-gray-500" />
-                              <span>
-                                {job.preferred_date.length} date{job.preferred_date.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">No dates</span>
-                          )}
+                          {getPreferredDatesDisplay(job)}
                         </TableCell>
                         <TableCell>
                           {format(job.created_at, "PP")}

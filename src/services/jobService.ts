@@ -57,8 +57,7 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
       order.deliveryDate.map(d => new Date(d).toISOString()) : 
       order.deliveryDate ? [new Date(order.deliveryDate).toISOString()] : [];
     
-    // We need to add the status field to the jobs table
-    // For now, we'll use a type assertion to handle this discrepancy
+    // Now we have a status field in the jobs table
     const { error: insertError } = await supabase
       .from("jobs")
       .insert([
@@ -67,7 +66,6 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
           order_id: order.id,
           location: formatAddress(order.sender.address),
           type: 'collection',
-          // @ts-ignore - status field is needed but not in DB type
           status: 'pending',
           related_job_id: deliveryId,
           preferred_date: pickupDates
@@ -77,7 +75,6 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
           order_id: order.id,
           location: formatAddress(order.receiver.address),
           type: 'delivery',
-          // @ts-ignore - status field is needed but not in DB type
           status: 'pending',
           related_job_id: collectionId,
           preferred_date: deliveryDates
@@ -108,8 +105,7 @@ export const getAllJobs = async (): Promise<Job[]> => {
     return data.map(job => ({
       ...job,
       type: job.type as JobType,
-      // @ts-ignore - status might not exist in DB but is required in our type
-      status: job.status as JobStatus || 'pending',
+      status: (job.status as JobStatus) || 'pending',
       created_at: new Date(job.created_at),
       updated_at: new Date(job.updated_at),
       // Make preferred_date compatible with both string[] and Json
@@ -136,8 +132,7 @@ export const getJobsByOrderId = async (orderId: string): Promise<Job[]> => {
     return data.map(job => ({
       ...job,
       type: job.type as JobType,
-      // @ts-ignore - status might not exist in DB but is required in our type
-      status: job.status as JobStatus || 'pending',
+      status: (job.status as JobStatus) || 'pending',
       created_at: new Date(job.created_at),
       updated_at: new Date(job.updated_at),
       // Make preferred_date compatible with both string[] and Json
@@ -187,7 +182,6 @@ export const updateJobStatuses = async (orderId: string, orderStatus: string): P
       const { error: collectionError } = await supabase
         .from("jobs")
         .update({ 
-          // @ts-ignore - status field is needed but not in DB type
           status: collectionStatus 
         })
         .eq("order_id", orderId)
@@ -201,7 +195,6 @@ export const updateJobStatuses = async (orderId: string, orderStatus: string): P
       const { error: deliveryError } = await supabase
         .from("jobs")
         .update({ 
-          // @ts-ignore - status field is needed but not in DB type
           status: deliveryStatus 
         })
         .eq("order_id", orderId)

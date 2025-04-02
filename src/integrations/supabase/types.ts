@@ -47,6 +47,7 @@ export type Database = {
           order_id: string
           preferred_date: Json | null
           related_job_id: string | null
+          status: string | null
           type: string
           updated_at: string
         }
@@ -57,6 +58,7 @@ export type Database = {
           order_id: string
           preferred_date?: Json | null
           related_job_id?: string | null
+          status?: string | null
           type: string
           updated_at?: string
         }
@@ -67,6 +69,7 @@ export type Database = {
           order_id?: string
           preferred_date?: Json | null
           related_job_id?: string | null
+          status?: string | null
           type?: string
           updated_at?: string
         }
@@ -343,6 +346,9 @@ export type Database = {
         | "delivered"
         | "cancelled"
         | "scheduled_dates_pending"
+        | "driver_to_collection"
+        | "collected"
+        | "driver_to_delivery"
       user_role: "admin" | "b2b_customer" | "b2c_customer"
     }
     CompositeTypes: {
