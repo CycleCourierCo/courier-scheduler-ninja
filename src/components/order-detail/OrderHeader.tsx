@@ -1,10 +1,9 @@
 
 import React from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ChevronRight, CheckCircle2 } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
-import StatusBadge from "@/components/StatusBadge";
 import {
   Select,
   SelectContent,
@@ -12,20 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const statusOptions: { value: OrderStatus; label: string }[] = [
-  { value: "created", label: "Created" },
-  { value: "sender_availability_pending", label: "Sender Confirmation Pending" },
-  { value: "sender_availability_confirmed", label: "Sender Confirmed" },
-  { value: "receiver_availability_pending", label: "Receiver Confirmation Pending" },
-  { value: "receiver_availability_confirmed", label: "Receiver Confirmed" },
-  { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
-  { value: "pending_approval", label: "Pending Approval (Legacy)" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "shipped", label: "Shipped" },
-  { value: "delivered", label: "Delivered" },
-  { value: "cancelled", label: "Cancelled" },
-];
 
 interface OrderHeaderProps {
   status: OrderStatus;
@@ -40,35 +25,61 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   selectedStatus,
   onStatusChange,
 }) => {
+  // Updated status options with new driver statuses
+  const statusOptions: { value: OrderStatus; label: string }[] = [
+    { value: "created", label: "Created" },
+    { value: "sender_availability_pending", label: "Sender Availability Pending" },
+    { value: "sender_availability_confirmed", label: "Sender Availability Confirmed" },
+    { value: "receiver_availability_pending", label: "Receiver Availability Pending" },
+    { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
+    { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
+    { value: "scheduled", label: "Scheduled" },
+    { value: "driver_to_collection", label: "Driver to Collection" },
+    { value: "collected", label: "Collected" },
+    { value: "driver_to_delivery", label: "Driver to Delivery" },
+    { value: "shipped", label: "Shipped" },
+    { value: "delivered", label: "Delivered" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
   return (
-    <div className="flex justify-between items-center">
-      <div className="flex items-center space-x-4">
-        <Button variant="outline" asChild>
-          <Link to="/dashboard">
-            <ArrowLeft className="mr-2" />
-            Back
-          </Link>
-        </Button>
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center">
         <h1 className="text-2xl font-bold">Order Details</h1>
-      </div>
-      <div className="flex items-center space-x-3">
+        <ChevronRight className="mx-1 h-5 w-5 text-gray-500" />
         <StatusBadge status={status} />
-        <Select 
-          value={selectedStatus || undefined} 
-          onValueChange={(value) => onStatusChange(value as OrderStatus)}
-          disabled={statusUpdating}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Change status" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      </div>
+
+      <div className="mt-4 md:mt-0 w-full md:w-auto flex flex-col sm:flex-row gap-3">
+        <div className="flex gap-2 items-center">
+          <Select
+            value={selectedStatus || status}
+            onValueChange={(newStatus) => onStatusChange(newStatus as OrderStatus)}
+            disabled={statusUpdating}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Select Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {statusUpdating && (
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
+          )}
+        </div>
+        
+        {status === 'scheduled' && (
+          <Button variant="outline" className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            Mark as Dispatched
+          </Button>
+        )}
       </div>
     </div>
   );

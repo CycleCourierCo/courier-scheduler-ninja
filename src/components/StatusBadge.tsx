@@ -26,6 +26,12 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
         return { label: "Scheduled Dates Pending", className: "bg-purple-300" };
       case "scheduled":
         return { label: "Scheduled", className: "bg-purple-500" };
+      case "driver_to_collection":
+        return { label: "Driver En Route to Pickup", className: "bg-blue-600" };
+      case "collected":
+        return { label: "Bike Collected", className: "bg-green-400" };
+      case "driver_to_delivery":
+        return { label: "Driver En Route to Delivery", className: "bg-blue-600" };
       case "shipped":
         return { label: "Shipped", className: "bg-courier-600" };
       case "delivered":

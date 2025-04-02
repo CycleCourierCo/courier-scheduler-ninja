@@ -15,7 +15,7 @@ export type Address = {
   lon?: number;
 };
 
-// Update OrderStatus to include scheduled_dates_pending
+// Update OrderStatus to include delivery statuses
 export type OrderStatus = 
   | 'created' 
   | 'sender_availability_pending'
@@ -25,7 +25,10 @@ export type OrderStatus =
   | 'scheduled_dates_pending'
   | 'pending_approval' // Keep for backward compatibility
   | 'scheduled'
-  | 'shipped'
+  | 'driver_to_collection' // New status
+  | 'collected' // New status
+  | 'driver_to_delivery' // New status
+  | 'shipped' // Existing status, keep for compatibility
   | 'delivered'
   | 'cancelled';
 

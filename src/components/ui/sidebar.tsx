@@ -1,121 +1,142 @@
 
-import React from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { 
-  LayoutDashboard, 
-  ClipboardList, 
-  CalendarClock, 
-  UserCircle, 
-  Settings, 
-  LogOut, 
-  Users,
-  BarChart3
-} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import ThemeToggle from "@/components/ThemeToggle";
+import {
+  LayoutDashboard,
+  Package,
+  Plus,
+  User,
+  BarChart3,
+  CalendarDays,
+  Users,
+  ClipboardCheck,
+} from "lucide-react";
+import { useMobile } from "@/hooks/use-mobile";
 
-interface SidebarProps {
+export interface SidebarProps {
   className?: string;
+  isSidebarOpen: boolean;
+  onCloseSidebar?: () => void;
+  showAppsList?: boolean;
+  sidebarLinks?: {
+    href: string;
+    icon: React.ReactNode;
+    label: string;
+  }[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ className }) => {
-  const { signOut, userProfile } = useAuth();
-  const location = useLocation();
-  const isAdmin = userProfile?.role === 'admin';
-  
-  const links = [
+export function Sidebar({
+  className,
+  isSidebarOpen,
+  onCloseSidebar,
+  showAppsList = false,
+  sidebarLinks,
+}: SidebarProps) {
+  const isMobile = useMobile();
+  const { pathname } = useLocation();
+
+  const defaultLinks = [
     {
-      title: "Dashboard",
       href: "/dashboard",
-      icon: <LayoutDashboard size={20} />,
-      adminOnly: false,
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      label: "Dashboard",
     },
     {
-      title: "Create Order",
       href: "/create-order",
-      icon: <ClipboardList size={20} />,
-      adminOnly: false,
+      icon: <Plus className="h-5 w-5" />,
+      label: "New Order",
     },
     {
-      title: "Job Scheduling",
-      href: "/job-scheduling",
-      icon: <CalendarClock size={20} />,
-      adminOnly: true,
+      href: "/jobs",
+      icon: <ClipboardCheck className="h-5 w-5" />,
+      label: "Jobs",
     },
     {
-      title: "Analytics",
+      href: "/scheduling",
+      icon: <CalendarDays className="h-5 w-5" />,
+      label: "Scheduling",
+    },
+    {
       href: "/analytics",
-      icon: <BarChart3 size={20} />,
-      adminOnly: true,
+      icon: <BarChart3 className="h-5 w-5" />,
+      label: "Analytics",
     },
     {
-      title: "Account Approvals",
-      href: "/account-approvals",
-      icon: <Users size={20} />,
-      adminOnly: true,
+      href: "/approvals",
+      icon: <Users className="h-5 w-5" />,
+      label: "Account Approvals",
     },
     {
-      title: "Profile",
       href: "/profile",
-      icon: <UserCircle size={20} />,
-      adminOnly: false,
+      icon: <User className="h-5 w-5" />,
+      label: "Profile",
     },
   ];
 
-  const handleSignOut = () => {
-    signOut();
-  };
+  const links = sidebarLinks || defaultLinks;
 
   return (
-    <aside className={cn("h-screen bg-card border-r flex flex-col", className)}>
-      <div className="flex justify-center my-6">
-        <img
-          src="/cycle-courier-logo.png"
-          alt="The Cycle Courier Co."
-          className="h-10"
-        />
-      </div>
+    <>
+      {/* Overlay for mobile */}
+      {isMobile && isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          onClick={onCloseSidebar}
+        ></div>
+      )}
 
-      <div className="flex-1 flex flex-col py-4 px-3 space-y-1">
-        {links.map(
-          (link) =>
-            (!link.adminOnly || isAdmin) && (
-              <NavLink
-                key={link.href}
-                to={link.href}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center rounded-md px-3 py-2 transition-colors",
-                    "hover:text-foreground hover:bg-accent",
-                    {
-                      "bg-accent text-foreground": isActive,
-                      "text-muted-foreground": !isActive,
-                    }
-                  )
-                }
-              >
-                <span className="mr-2">{link.icon}</span>
-                <span>{link.title}</span>
-              </NavLink>
-            )
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed top-0 bottom-0 z-50 flex h-screen border-r bg-background transition-all duration-300",
+          isSidebarOpen
+            ? "left-0 w-64 translate-x-0"
+            : isMobile
+            ? "-translate-x-full w-64"
+            : "w-16",
+          className
         )}
-      </div>
+      >
+        <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-5">
+          <div className="flex justify-center">
+            <Link to="/" onClick={isMobile ? onCloseSidebar : undefined}>
+              <div className="flex items-center justify-center">
+                <img
+                  src="/cycle-courier-logo.png"
+                  alt="Logo"
+                  height={32}
+                  width={32}
+                  className="h-8 w-8"
+                />
+                {isSidebarOpen && (
+                  <span className="ml-3 text-lg font-bold">Cycle Courier</span>
+                )}
+              </div>
+            </Link>
+          </div>
 
-      <div className="p-4 flex flex-col gap-2">
-        <ThemeToggle />
-        <Button
-          variant="outline"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-          onClick={handleSignOut}
-        >
-          <LogOut size={18} className="mr-2" />
-          Sign Out
-        </Button>
+          <div className="mt-8 flex-1">
+            <nav className="space-y-2 px-2">
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  onClick={isMobile ? onCloseSidebar : undefined}
+                  className={cn(
+                    "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    pathname === link.href
+                      ? "bg-courier-500 text-white"
+                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                  )}
+                >
+                  {link.icon}
+                  {isSidebarOpen && <span className="ml-3">{link.label}</span>}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
       </div>
-    </aside>
+    </>
   );
-};
-
-export default Sidebar;
+}

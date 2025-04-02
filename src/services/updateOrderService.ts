@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
+import { updateJobStatuses } from "./jobService";
 
 export const updateOrderStatus = async (
   id: string,
@@ -20,6 +20,14 @@ export const updateOrderStatus = async (
   if (error) {
     console.error("Error updating order status:", error);
     throw new Error(error.message);
+  }
+
+  // Update job statuses based on the new order status
+  try {
+    await updateJobStatuses(id, status);
+  } catch (jobError) {
+    console.error("Error updating job statuses:", jobError);
+    // Continue with order update even if job update fails
   }
 
   return mapDbOrderToOrderType(data);
@@ -101,6 +109,14 @@ export const updateAdminOrderStatus = async (
   if (error) {
     console.error("Error updating order status by admin:", error);
     throw new Error(error.message);
+  }
+
+  // Update job statuses based on the new order status
+  try {
+    await updateJobStatuses(id, status);
+  } catch (jobError) {
+    console.error("Error updating job statuses:", jobError);
+    // Continue with order update even if job update fails
   }
 
   return mapDbOrderToOrderType(data);
