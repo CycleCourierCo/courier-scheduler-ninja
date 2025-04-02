@@ -134,13 +134,18 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   // Log the created order to verify lat/lon were included
   console.log("Order created in Supabase:", order);
+  
+  // Type assertion to safely access the nested properties
+  const senderData = order.sender as any;
+  const receiverData = order.receiver as any;
+  
   console.log("Sender coordinates in created order:", 
-    order.sender.address.lat, 
-    order.sender.address.lon
+    senderData.address?.lat, 
+    senderData.address?.lon
   );
   console.log("Receiver coordinates in created order:", 
-    order.receiver.address.lat, 
-    order.receiver.address.lon
+    receiverData.address?.lat, 
+    receiverData.address?.lon
   );
 
   // Send email to sender after order creation
