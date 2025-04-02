@@ -12,7 +12,7 @@ export const updateOrderStatus = async (
   
   const { data, error } = await supabase
     .from("orders")
-    .update({ status: status })
+    .update({ status })
     .eq("id", id)
     .select()
     .single();
@@ -72,7 +72,7 @@ export const updatePublicOrder = async (
     .from("orders")
     .update({
       pickup_date,
-      status: status,
+      status,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -97,7 +97,7 @@ export const updateAdminOrderStatus = async (
   const { data, error } = await supabase
     .from("orders")
     .update({
-      status: status,
+      status,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
