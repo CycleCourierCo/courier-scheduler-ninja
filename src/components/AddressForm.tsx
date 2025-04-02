@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -92,6 +93,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       ? `${houseNumber} ${street}`.trim() 
       : street.trim();
     
+    // Log the full suggestion to see what we're working with
+    console.log("Selected address suggestion:", suggestion.properties);
+    
     // Set basic address fields
     setValue(`${prefix}.street`, fullStreetAddress);
     setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
@@ -101,9 +105,12 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     // Store latitude and longitude directly in the address object
     if (suggestion.properties.lat !== undefined && suggestion.properties.lon !== undefined) {
+      // Set the coordinates at the root level of the address
       setValue(`${prefix}.lat`, suggestion.properties.lat);
       setValue(`${prefix}.lon`, suggestion.properties.lon);
-      console.log(`Stored coordinates in address: Lat: ${suggestion.properties.lat}, Lon: ${suggestion.properties.lon}`);
+      
+      // Log confirmation of storing coordinates
+      console.log(`Stored coordinates for ${prefix}: Lat: ${suggestion.properties.lat}, Lon: ${suggestion.properties.lon}`);
     } else {
       console.warn("No coordinates found in the address suggestion");
     }
@@ -281,29 +288,19 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
             />
           </div>
 
-          {/* Hidden fields for coordinates stored directly in the address object */}
-          <FormField
-            control={control}
+          {/* Hidden fields for coordinates */}
+          <input 
+            type="hidden" 
+            id={`${prefix}.lat`}
             name={`${prefix}.lat`}
-            render={({ field }) => (
-              <FormItem className="hidden">
-                <FormControl>
-                  <Input type="hidden" {...field} />
-                </FormControl>
-              </FormItem>
-            )}
+            {...control.register(`${prefix}.lat`)}
           />
           
-          <FormField
-            control={control}
+          <input 
+            type="hidden" 
+            id={`${prefix}.lon`}
             name={`${prefix}.lon`}
-            render={({ field }) => (
-              <FormItem className="hidden">
-                <FormControl>
-                  <Input type="hidden" {...field} />
-                </FormControl>
-              </FormItem>
-            )}
+            {...control.register(`${prefix}.lon`)}
           />
         </>
       )}

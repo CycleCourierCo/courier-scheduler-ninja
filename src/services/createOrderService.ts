@@ -26,9 +26,23 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     throw new Error("User not authenticated");
   }
 
-  // Log the sender and receiver data to verify lat/lon are included
-  console.log("Sender data being sent to Supabase:", data.sender);
-  console.log("Receiver data being sent to Supabase:", data.receiver);
+  // Log the full data object to inspect all form values
+  console.log("Full form data submitted:", JSON.stringify(data, null, 2));
+  
+  // Specifically log the sender and receiver data to verify lat/lon
+  console.log("Sender address with coordinates:", {
+    street: data.sender.address.street,
+    city: data.sender.address.city,
+    lat: data.sender.address.lat,
+    lon: data.sender.address.lon
+  });
+  
+  console.log("Receiver address with coordinates:", {
+    street: data.receiver.address.street,
+    city: data.receiver.address.city,
+    lat: data.receiver.address.lat,
+    lon: data.receiver.address.lon
+  });
 
   // Format delivery instructions to include bike swap and payment status
   let formattedDeliveryInstructions = data.deliveryInstructions || '';
@@ -59,26 +73,40 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     data.receiver.address.zipCode
   );
 
-  // Ensure the address objects are correctly formatted with lat/lon properties
+  // Create sender and receiver objects with coordinates explicitly included
   const senderWithCoordinates = {
-    ...data.sender,
+    name: data.sender.name,
+    email: data.sender.email,
+    phone: data.sender.phone,
     address: {
-      ...data.sender.address,
-      // Ensure lat/lon are included if they exist
+      street: data.sender.address.street,
+      city: data.sender.address.city,
+      state: data.sender.address.state,
+      zipCode: data.sender.address.zipCode,
+      country: data.sender.address.country,
       lat: data.sender.address.lat,
       lon: data.sender.address.lon
     }
   };
 
   const receiverWithCoordinates = {
-    ...data.receiver,
+    name: data.receiver.name,
+    email: data.receiver.email,
+    phone: data.receiver.phone,
     address: {
-      ...data.receiver.address,
-      // Ensure lat/lon are included if they exist
+      street: data.receiver.address.street,
+      city: data.receiver.address.city,
+      state: data.receiver.address.state,
+      zipCode: data.receiver.address.zipCode,
+      country: data.receiver.address.country,
       lat: data.receiver.address.lat,
       lon: data.receiver.address.lon
     }
   };
+
+  // Log the objects being sent to Supabase
+  console.log("Sender object being sent to Supabase:", senderWithCoordinates);
+  console.log("Receiver object being sent to Supabase:", receiverWithCoordinates);
 
   const { data: order, error } = await supabase
     .from("orders")
