@@ -1,5 +1,5 @@
 
-import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -24,115 +24,65 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <Index />,
-  },
-  {
-    path: "/auth/:mode",
-    element: <Auth />,
-  },
-  {
-    path: "/dashboard",
-    element: (
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/orders/:id",
-    element: (
-      <ProtectedRoute>
-        <OrderDetail />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/jobs",
-    element: (
-      <ProtectedRoute>
-        <JobsPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/customer-orders/:id",
-    element: (
-      <ProtectedRoute>
-        <CustomerOrderDetail />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/create-order",
-    element: (
-      <ProtectedRoute>
-        <CreateOrder />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/profile",
-    element: (
-      <ProtectedRoute>
-        <UserProfile />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/analytics",
-    element: (
-      <ProtectedRoute>
-        <AnalyticsPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/scheduling",
-    element: (
-      <ProtectedRoute>
-        <JobScheduling />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/approvals",
-    element: (
-      <ProtectedRoute>
-        <AccountApprovals />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/sender-availability/:id",
-    element: <SenderAvailability />,
-  },
-  {
-    path: "/receiver-availability/:id",
-    element: <ReceiverAvailability />,
-  },
-  {
-    path: "/tracking/:id",
-    element: <TrackingPage />,
-  },
-  {
-    path: "/auth",
-    element: <Navigate to="/auth/login" />,
-  },
-  {
-    path: "*",
-    element: <NotFound />,
-  },
-]);
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider>
         <AuthProvider>
-          <RouterProvider router={router} />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth/:mode" element={<Auth />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders/:id" element={
+              <ProtectedRoute>
+                <OrderDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/jobs" element={
+              <ProtectedRoute>
+                <JobsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer-orders/:id" element={
+              <ProtectedRoute>
+                <CustomerOrderDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/create-order" element={
+              <ProtectedRoute>
+                <CreateOrder />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/scheduling" element={
+              <ProtectedRoute>
+                <JobScheduling />
+              </ProtectedRoute>
+            } />
+            <Route path="/approvals" element={
+              <ProtectedRoute>
+                <AccountApprovals />
+              </ProtectedRoute>
+            } />
+            <Route path="/sender-availability/:id" element={<SenderAvailability />} />
+            <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
+            <Route path="/tracking/:id" element={<TrackingPage />} />
+            <Route path="/auth" element={<Navigate to="/auth/login" />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
           <Toaster position="top-right" closeButton richColors />
         </AuthProvider>
       </ThemeProvider>
