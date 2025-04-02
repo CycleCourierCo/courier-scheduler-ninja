@@ -36,36 +36,3 @@ export const createShipdayOrder = async (orderId: string) => {
     throw err;
   }
 };
-
-/**
- * Generates tracking numbers for orders
- * @param forceAll If true, regenerate ALL tracking numbers regardless of current value
- * @returns The response from the edge function
- */
-export const generateTrackingNumbers = async (forceAll = false) => {
-  try {
-    const { data, error } = await supabase.functions.invoke("generate-tracking-numbers", {
-      body: { forceAll }
-    });
-
-    if (error) {
-      console.error("Error generating tracking numbers:", error);
-      toast.error("Failed to generate tracking numbers");
-      throw new Error(error.message);
-    }
-
-    if (!data.success) {
-      console.error("Failed to generate tracking numbers:", data);
-      toast.error(data.error || "Failed to generate tracking numbers");
-      throw new Error(data.error || "Unknown error generating tracking numbers");
-    }
-
-    const successCount = data.results?.filter(r => r.success).length || 0;
-    toast.success(`Generated tracking numbers for ${successCount} orders`);
-    return data;
-  } catch (err) {
-    console.error("Error in generateTrackingNumbers:", err);
-    toast.error("An unexpected error occurred");
-    throw err;
-  }
-};

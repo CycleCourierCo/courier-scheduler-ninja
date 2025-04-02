@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -10,16 +11,12 @@ import OrderTable from "@/components/OrderTable";
 import EmptyOrdersState from "@/components/EmptyOrdersState";
 import DashboardHeader from "@/components/DashboardHeader";
 import { applyFiltersToOrders } from "@/utils/dashboardUtils";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, Tag } from "lucide-react";
-import { generateTrackingNumbers } from "@/services/shipdayService";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [generatingTrackingNumbers, setGeneratingTrackingNumbers] = useState(false);
   const [filters, setFilters] = useState({
     status: "all",
     search: "",
@@ -97,25 +94,6 @@ const Dashboard: React.FC = () => {
     setFilters({ status: "all", search: "", sortBy: "created_desc" });
   };
 
-  const handleGenerateTrackingNumbers = async () => {
-    if (!userRole || userRole !== "admin") {
-      toast.error("Only administrators can generate tracking numbers");
-      return;
-    }
-    
-    try {
-      setGeneratingTrackingNumbers(true);
-      // Pass forceAll=true to regenerate ALL tracking numbers
-      await generateTrackingNumbers(true);
-      // Refresh the orders to show the updated tracking numbers
-      await fetchOrders();
-    } catch (error) {
-      console.error("Error generating tracking numbers:", error);
-    } finally {
-      setGeneratingTrackingNumbers(false);
-    }
-  };
-
   if (loading) {
     return (
       <Layout>
@@ -136,22 +114,6 @@ const Dashboard: React.FC = () => {
             onFilterChange={handleFilterChange} 
             initialFilters={filters}
           />
-          
-          {userRole === "admin" && (
-            <Button 
-              variant="outline"
-              onClick={handleGenerateTrackingNumbers} 
-              disabled={generatingTrackingNumbers}
-              className="flex items-center gap-2"
-            >
-              {generatingTrackingNumbers ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Tag className="h-4 w-4" />
-              )}
-              {generatingTrackingNumbers ? "Generating..." : "Regenerate ALL Tracking Numbers"}
-            </Button>
-          )}
         </div>
 
         {filteredOrders.length === 0 ? (
