@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -41,7 +42,7 @@ export const confirmSenderAvailability = async (
     .from("orders")
     .update({
       pickup_date: pickupDate.map(date => date.toISOString()),
-      status: "sender_availability_confirmed",
+      status: "sender_availability_confirmed" as OrderStatus,
       sender_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -75,7 +76,7 @@ export const confirmReceiverAvailability = async (
     .from("orders")
     .update({
       delivery_date: deliveryDate.map(date => date.toISOString()),
-      status: "receiver_availability_confirmed",
+      status: "receiver_availability_confirmed" as OrderStatus,
       receiver_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
