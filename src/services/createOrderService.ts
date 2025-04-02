@@ -29,7 +29,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   // Log the full data object to inspect all form values
   console.log("Full form data submitted:", JSON.stringify(data, null, 2));
   
-  // Specifically log the sender and receiver data to verify lat/lon
+  // Specifically log the sender and receiver address data to verify all fields including lat/lon
   console.log("Sender address with coordinates:", {
     street: data.sender.address.street,
     city: data.sender.address.city,
@@ -105,8 +105,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   };
 
   // Log the objects being sent to Supabase
-  console.log("Sender object being sent to Supabase:", senderWithCoordinates);
-  console.log("Receiver object being sent to Supabase:", receiverWithCoordinates);
+  console.log("Sender object being sent to Supabase:", JSON.stringify(senderWithCoordinates, null, 2));
+  console.log("Receiver object being sent to Supabase:", JSON.stringify(receiverWithCoordinates, null, 2));
 
   const { data: order, error } = await supabase
     .from("orders")
@@ -134,6 +134,14 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   // Log the created order to verify lat/lon were included
   console.log("Order created in Supabase:", order);
+  console.log("Sender coordinates in created order:", 
+    order.sender.address.lat, 
+    order.sender.address.lon
+  );
+  console.log("Receiver coordinates in created order:", 
+    order.receiver.address.lat, 
+    order.receiver.address.lon
+  );
 
   // Send email to sender after order creation
   try {

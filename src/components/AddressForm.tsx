@@ -103,16 +103,21 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
     
-    // Store latitude and longitude directly in the address object
+    // Store latitude and longitude
     if (suggestion.properties.lat !== undefined && suggestion.properties.lon !== undefined) {
-      // Set the coordinates at the root level of the address
+      // Explicitly set lat and lon values
       setValue(`${prefix}.lat`, suggestion.properties.lat);
       setValue(`${prefix}.lon`, suggestion.properties.lon);
       
-      // Log confirmation of storing coordinates
-      console.log(`Stored coordinates for ${prefix}: Lat: ${suggestion.properties.lat}, Lon: ${suggestion.properties.lon}`);
+      console.log(`Stored coordinates for ${prefix}:`, {
+        lat: suggestion.properties.lat,
+        lon: suggestion.properties.lon
+      });
     } else {
       console.warn("No coordinates found in the address suggestion");
+      // Reset coordinates if none available
+      setValue(`${prefix}.lat`, undefined);
+      setValue(`${prefix}.lon`, undefined);
     }
     
     setSearchValue("");
@@ -288,19 +293,21 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
             />
           </div>
 
-          {/* Hidden fields for coordinates */}
-          <input 
-            type="hidden" 
-            id={`${prefix}.lat`}
+          {/* Hidden fields for coordinates that will be part of the form submission */}
+          <FormField
+            control={control}
             name={`${prefix}.lat`}
-            {...control.register(`${prefix}.lat`)}
+            render={({ field }) => (
+              <input type="hidden" {...field} />
+            )}
           />
           
-          <input 
-            type="hidden" 
-            id={`${prefix}.lon`}
+          <FormField
+            control={control}
             name={`${prefix}.lon`}
-            {...control.register(`${prefix}.lon`)}
+            render={({ field }) => (
+              <input type="hidden" {...field} />
+            )}
           />
         </>
       )}
