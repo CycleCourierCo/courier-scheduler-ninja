@@ -69,6 +69,23 @@ const OrderDetail = () => {
     };
 
     fetchOrderDetails();
+    
+    const intervalId = setInterval(async () => {
+      if (id) {
+        try {
+          const updatedOrder = await getOrderById(id);
+          if (updatedOrder) {
+            console.log("Refreshed order data:", updatedOrder);
+            setOrder(updatedOrder);
+            setSelectedStatus(updatedOrder.status);
+          }
+        } catch (err) {
+          console.error("Error refreshing order:", err);
+        }
+      }
+    }, 10000); // Poll every 10 seconds
+    
+    return () => clearInterval(intervalId);
   }, [id]);
 
   const handleScheduleOrder = async () => {

@@ -108,11 +108,23 @@ serve(async (req) => {
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
       .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
-      .or(`tracking_number.eq.${baseOrderNumber}`)
+      .eq("tracking_number", baseOrderNumber)
       .limit(1);
 
     if (fetchError || !orders || orders.length === 0) {
       console.error("Error fetching order or no order found:", fetchError, baseOrderNumber);
+      
+      // Log additional details for debugging
+      console.log(`Tried to find order with tracking_number = ${baseOrderNumber}, found ${orders ? orders.length : 0} results`);
+      
+      // Try to fetch all orders with shipday IDs for debugging
+      const { data: allOrders } = await supabase
+        .from("orders")
+        .select("id, tracking_number, shipday_pickup_id, shipday_delivery_id")
+        .limit(10);
+      
+      console.log("Available orders with tracking numbers:", allOrders);
+      
       return new Response(JSON.stringify({ error: "Order not found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 404,
@@ -169,18 +181,28 @@ serve(async (req) => {
 
     shipdayEvents.last_status = order_status;
     shipdayEvents.last_updated = new Date().toISOString();
-    shipdayEvents.updates = [
-      ...(shipdayEvents.updates || []),
-      {
-        status: order_status,
-        event: event,
-        timestamp: new Date().toISOString(),
-        orderId: order.id.toString(),
-        description: statusDescription
-      },
-    ];
+    
+    // Ensure the updates array exists
+    if (!shipdayEvents.updates) {
+      shipdayEvents.updates = [];
+    }
+    
+    // Add the new update to the beginning for chronological ordering
+    shipdayEvents.updates.unshift({
+      status: order_status,
+      event: event,
+      timestamp: new Date().toISOString(),
+      orderId: order.id.toString(),
+      description: statusDescription
+    });
 
     trackingEvents.shipday = shipdayEvents;
+
+    console.log("Updating order with:", {
+      status: newStatus,
+      tracking_events: trackingEvents,
+      updated_at: new Date().toISOString(),
+    });
 
     // Update the order
     const { data: updatedOrder, error: updateError } = await supabase
@@ -196,7 +218,7 @@ serve(async (req) => {
 
     if (updateError) {
       console.error("Error updating order:", updateError);
-      return new Response(JSON.stringify({ error: "Failed to update order" }), {
+      return new Response(JSON.stringify({ error: "Failed to update order", details: updateError.message }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
@@ -216,7 +238,8 @@ serve(async (req) => {
       success: true, 
       message: `Order status updated to ${newStatus}`,
       orderId: dbOrder.id,
-      statusDescription
+      statusDescription,
+      trackingEvents: trackingEvents
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
