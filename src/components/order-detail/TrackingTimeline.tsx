@@ -55,43 +55,71 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     
     if (shipdayUpdates.length > 0) {
       shipdayUpdates.forEach(update => {
-        const isPickup = update.orderId === pickupId;
-        const statusLower = update.status.toLowerCase();
-        
-        let title = "";
-        let icon = <Truck className="h-4 w-4 text-courier-600" />;
-        let description = "";
-        
-        if (isPickup) {
-          if (statusLower === "on-the-way") {
+        // If the update has a description, use that directly
+        if (update.description) {
+          let title = "";
+          let icon = <Truck className="h-4 w-4 text-courier-600" />;
+          
+          if (update.description.includes("way to collect")) {
             title = "Driver En Route to Collection";
             icon = <Map className="h-4 w-4 text-courier-600" />;
-            description = "Driver is on the way to collect the bike";
-          } else if (statusLower === "picked-up" || statusLower === "delivered") {
-            // Handle both "picked-up" and "delivered" statuses for pickup
+          } else if (update.description.includes("collected the bike")) {
             title = "Bike Collected";
             icon = <Check className="h-4 w-4 text-courier-600" />;
-            description = "Bike has been collected from sender";
-          }
-        } else {
-          if (statusLower === "on-the-way") {
+          } else if (update.description.includes("way to deliver")) {
             title = "Driver En Route to Delivery";
             icon = <Truck className="h-4 w-4 text-courier-600" />;
-            description = "Driver is on the way to deliver the bike";
-          } else if (statusLower === "delivered") {
+          } else if (update.description.includes("delivered the bike")) {
             title = "Delivered";
             icon = <Check className="h-4 w-4 text-green-600" />;
-            description = "Bike has been delivered to receiver";
           }
-        }
-        
-        if (title) {
+          
           events.push({
-            title,
+            title: title || "Status Update",
             date: new Date(update.timestamp),
             icon,
-            description
+            description: update.description
           });
+        } else {
+          // Legacy handling for updates without description
+          const isPickup = update.orderId === pickupId;
+          const statusLower = update.status.toLowerCase();
+          
+          let title = "";
+          let icon = <Truck className="h-4 w-4 text-courier-600" />;
+          let description = "";
+          
+          if (isPickup) {
+            if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
+              title = "Driver En Route to Collection";
+              icon = <Map className="h-4 w-4 text-courier-600" />;
+              description = "Driver is on the way to collect the bike";
+            } else if (statusLower === "picked-up" || statusLower === "delivered" || statusLower === "already_delivered") {
+              // Handle both "picked-up" and "delivered" statuses for pickup
+              title = "Bike Collected";
+              icon = <Check className="h-4 w-4 text-courier-600" />;
+              description = "Bike has been collected from sender";
+            }
+          } else {
+            if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
+              title = "Driver En Route to Delivery";
+              icon = <Truck className="h-4 w-4 text-courier-600" />;
+              description = "Driver is on the way to deliver the bike";
+            } else if (statusLower === "delivered" || statusLower === "already_delivered") {
+              title = "Delivered";
+              icon = <Check className="h-4 w-4 text-green-600" />;
+              description = "Bike has been delivered to receiver";
+            }
+          }
+          
+          if (title) {
+            events.push({
+              title,
+              date: new Date(update.timestamp),
+              icon,
+              description
+            });
+          }
         }
       });
     } else {

@@ -69,15 +69,36 @@ serve(async (req) => {
     const payload = await req.json();
     console.log("Received Shipday webhook payload:", JSON.stringify(payload, null, 2));
 
-    const { orderId, status, timestamp } = payload;
-
-    if (!orderId || !status) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    // Extract the relevant information from the payload
+    const { order, order_status, event } = payload;
+    
+    if (!order || !order_status) {
+      return new Response(JSON.stringify({ error: "Missing required fields in payload" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
     }
 
+    // Get the order number which contains either -PICKUP or -DELIVERY suffix
+    const orderNumber = order.order_number;
+    console.log("Order number from webhook:", orderNumber);
+    
+    // Check if this is a pickup or delivery job
+    const isPickup = orderNumber.endsWith("-PICKUP");
+    const isDelivery = orderNumber.endsWith("-DELIVERY");
+    
+    if (!isPickup && !isDelivery) {
+      console.error("Order number does not end with -PICKUP or -DELIVERY:", orderNumber);
+      return new Response(JSON.stringify({ error: "Invalid order number format" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    
+    // Get the base order ID (remove the -PICKUP or -DELIVERY suffix)
+    const baseOrderNumber = orderNumber.replace(/-PICKUP$|-DELIVERY$/, "");
+    console.log("Base order number:", baseOrderNumber);
+    
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
@@ -86,60 +107,76 @@ serve(async (req) => {
     // Find the order in the database
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("*")
-      .or(`shipday_pickup_id.eq.${orderId},shipday_delivery_id.eq.${orderId}`)
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+      .or(`tracking_number.eq.${baseOrderNumber}`)
       .limit(1);
 
     if (fetchError || !orders || orders.length === 0) {
-      console.error("Error fetching order or no order found:", fetchError, orderId);
+      console.error("Error fetching order or no order found:", fetchError, baseOrderNumber);
       return new Response(JSON.stringify({ error: "Order not found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 404,
       });
     }
 
-    const order = orders[0];
+    const dbOrder = orders[0];
+    console.log("Found order in database:", dbOrder);
     
-    // Determine if this is for pickup or delivery
-    const isPickup = orderId === order.shipday_pickup_id;
-
     // Map Shipday status to application OrderStatus
-    let newStatus = order.status;
-    const statusLower = status.toLowerCase();
+    let newStatus = dbOrder.status;
+    let statusDescription = "";
 
+    // Handle status mapping based on Shipday event and order type
     if (isPickup) {
-      if (statusLower === "on-the-way") {
+      if (order_status === "READY_TO_DELIVER" || event === "ORDER_ONTHEWAY") {
         newStatus = "driver_to_collection";
-      } else if (statusLower === "picked-up" || statusLower === "delivered") {
-        // Map both "picked-up" and "delivered" to "collected" for pickup orders
+        statusDescription = "Driver is on the way to collect the bike";
+      } else if (order_status === "ALREADY_DELIVERED" || event === "ORDER_DELIVERED") {
         newStatus = "collected";
+        statusDescription = "Driver has collected the bike";
       }
-    } else {
-      if (statusLower === "on-the-way") {
+    } else if (isDelivery) {
+      if (order_status === "READY_TO_DELIVER" || event === "ORDER_ONTHEWAY") {
         newStatus = "driver_to_delivery";
-      } else if (statusLower === "delivered") {
+        statusDescription = "Driver is on the way to deliver the bike";
+      } else if (order_status === "ALREADY_DELIVERED" || event === "ORDER_DELIVERED") {
         newStatus = "delivered";
+        statusDescription = "Driver has delivered the bike";
       }
     }
 
-    console.log(`Mapping Shipday status "${status}" for ${isPickup ? "pickup" : "delivery"} to order status "${newStatus}"`);
+    console.log(`Mapping Shipday status "${order_status}" (event: ${event}) for ${isPickup ? "pickup" : "delivery"} to order status "${newStatus}"`);
+    console.log(`Status description: "${statusDescription}"`);
+
+    if (newStatus === dbOrder.status && !statusDescription) {
+      console.log("No status change required, skipping update");
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "No status change required"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
     // Update tracking events
-    const trackingEvents = order.tracking_events || {};
+    const trackingEvents = dbOrder.tracking_events || {};
     const shipdayEvents = trackingEvents.shipday || {
-      pickup_id: order.shipday_pickup_id,
-      delivery_id: order.shipday_delivery_id,
+      pickup_id: dbOrder.shipday_pickup_id,
+      delivery_id: dbOrder.shipday_delivery_id,
       updates: [],
     };
 
-    shipdayEvents.last_status = status;
-    shipdayEvents.last_updated = timestamp || new Date().toISOString();
+    shipdayEvents.last_status = order_status;
+    shipdayEvents.last_updated = new Date().toISOString();
     shipdayEvents.updates = [
       ...(shipdayEvents.updates || []),
       {
-        status,
-        timestamp: timestamp || new Date().toISOString(),
-        orderId,
+        status: order_status,
+        event: event,
+        timestamp: new Date().toISOString(),
+        orderId: order.id.toString(),
+        description: statusDescription
       },
     ];
 
@@ -153,7 +190,7 @@ serve(async (req) => {
         tracking_events: trackingEvents,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", order.id)
+      .eq("id", dbOrder.id)
       .select()
       .single();
 
@@ -165,12 +202,21 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Successfully updated order ${order.id} status to ${newStatus}`);
+    console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);
+
+    // Update jobs if available
+    try {
+      await updateJobStatuses(dbOrder.id, newStatus);
+    } catch (jobError) {
+      console.error("Error updating job statuses:", jobError);
+      // Continue with response even if job update fails
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
       message: `Order status updated to ${newStatus}`,
-      orderId: order.id 
+      orderId: dbOrder.id,
+      statusDescription
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -183,3 +229,68 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to update job statuses
+async function updateJobStatuses(orderId: string, orderStatus: string): Promise<boolean> {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") || "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+  );
+  
+  // Map order status to appropriate job statuses
+  let collectionStatus: string | null = null;
+  let deliveryStatus: string | null = null;
+  
+  switch (orderStatus) {
+    case 'scheduled':
+      collectionStatus = 'scheduled';
+      deliveryStatus = 'scheduled';
+      break;
+    case 'driver_to_collection':
+      collectionStatus = 'in_progress';
+      deliveryStatus = 'pending';
+      break;
+    case 'collected':
+      collectionStatus = 'completed';
+      deliveryStatus = 'pending';
+      break;
+    case 'driver_to_delivery':
+      collectionStatus = 'completed';
+      deliveryStatus = 'in_progress';
+      break;
+    case 'delivered':
+      collectionStatus = 'completed';
+      deliveryStatus = 'completed';
+      break;
+    default:
+      return true; // No updates needed
+  }
+  
+  // Update collection job
+  if (collectionStatus) {
+    const { error: collectionError } = await supabase
+      .from("jobs")
+      .update({ 
+        status: collectionStatus 
+      })
+      .eq("order_id", orderId)
+      .eq("type", 'collection');
+    
+    if (collectionError) throw collectionError;
+  }
+  
+  // Update delivery job
+  if (deliveryStatus) {
+    const { error: deliveryError } = await supabase
+      .from("jobs")
+      .update({ 
+        status: deliveryStatus 
+      })
+      .eq("order_id", orderId)
+      .eq("type", 'delivery');
+    
+    if (deliveryError) throw deliveryError;
+  }
+  
+  return true;
+}
