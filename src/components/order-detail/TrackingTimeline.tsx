@@ -8,6 +8,15 @@ interface TrackingTimelineProps {
   order: Order;
 }
 
+// Define the expected structure of a Shipday update
+interface ShipdayUpdate {
+  status: string;
+  timestamp: string;
+  orderId: string;
+  description?: string;
+  event?: string;
+}
+
 const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
   const getTrackingEvents = () => {
     const events = [];
@@ -54,7 +63,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     const deliveryId = order.trackingEvents?.shipday?.delivery_id;
     
     if (shipdayUpdates.length > 0) {
-      shipdayUpdates.forEach(update => {
+      shipdayUpdates.forEach((update: ShipdayUpdate) => {
         // If the update has a description, use that directly
         if (update.description) {
           let title = "";

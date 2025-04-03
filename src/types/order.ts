@@ -32,6 +32,14 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled';
 
+export type ShipdayUpdate = {
+  status: string;
+  timestamp: string;
+  orderId: string;
+  description?: string;
+  event?: string;
+};
+
 export type Order = {
   id: string;
   user_id: string;  // This property is needed for user filtering
@@ -62,11 +70,7 @@ export type Order = {
       delivery_id?: string;
       last_status?: string;
       last_updated?: string;
-      updates?: Array<{
-        status: string;
-        timestamp: string;
-        orderId: string;
-      }>;
+      updates?: ShipdayUpdate[];
     };
   };
 };
