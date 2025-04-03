@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
@@ -12,6 +11,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
   const getTrackingEvents = () => {
     const events = [];
     
+    // Use a map to keep track of events by title to preserve the original timestamps
+    const eventMap = {};
+    
+    // Add the creation event first (this always exists)
     events.push({
       title: "Order Created",
       date: order.createdAt,
@@ -20,38 +23,43 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         `Order created with tracking number: ${order.trackingNumber}` : 
         "Order created successfully"
     });
+    eventMap["Order Created"] = events[0];
     
+    // Add confirmation events with their original timestamps
     if (order.senderConfirmedAt) {
-      events.push({
+      const event = {
         title: "Collection Dates Chosen",
         date: order.senderConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
         description: "Collection dates have been confirmed"
-      });
+      };
+      events.push(event);
+      eventMap["Collection Dates Chosen"] = event;
     }
     
     if (order.receiverConfirmedAt) {
-      events.push({
+      const event = {
         title: "Delivery Dates Chosen",
         date: order.receiverConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
         description: "Delivery dates have been confirmed"
-      });
+      };
+      events.push(event);
+      eventMap["Delivery Dates Chosen"] = event;
     }
     
     if (order.scheduledAt) {
-      events.push({
+      const event = {
         title: "Transport Scheduled",
         date: order.scheduledAt,
         icon: <Calendar className="h-4 w-4 text-courier-600" />,
         description: "Transport manager has scheduled pickup and delivery"
-      });
+      };
+      events.push(event);
+      eventMap["Transport Scheduled"] = event;
     }
     
-    // Create an object instead of Map to track events by title to prevent duplicates
-    const eventMap = {};
-    
-    // Always include Shipday tracking events if available
+    // Process Shipday tracking events if available
     const shipdayUpdates = order.trackingEvents?.shipday?.updates || [];
     const pickupId = order.trackingEvents?.shipday?.pickup_id;
     const deliveryId = order.trackingEvents?.shipday?.delivery_id;
@@ -63,7 +71,12 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     let hasDeliveredEvent = false;
     
     if (shipdayUpdates.length > 0) {
-      shipdayUpdates.forEach((update: ShipdayUpdate) => {
+      // Process each update in chronological order to preserve timestamps
+      const sortedUpdates = [...shipdayUpdates].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      sortedUpdates.forEach((update: ShipdayUpdate) => {
         // If the update has a description, use that directly
         if (update.description) {
           let title = "";
@@ -87,15 +100,28 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             icon = <Check className="h-4 w-4 text-green-600" />;
           }
           
-          // Only add if we have a title and it's not a duplicate
-          if (title && !eventMap[title]) {
+          // Only add if we have a title and we haven't seen this event type before
+          // or if we're updating an event with a newer timestamp
+          if (title && (!eventMap[title] || 
+              new Date(update.timestamp).getTime() > new Date(eventMap[title].date).getTime())) {
             const event = {
-              title: title || "Status Update",
+              title: title,
               date: new Date(update.timestamp),
               icon,
               description: update.description
             };
-            events.push(event);
+            
+            // If this is a new event, add it to the events array
+            if (!eventMap[title]) {
+              events.push(event);
+            } else {
+              // Otherwise, update the existing event in place
+              const index = events.findIndex(e => e.title === title);
+              if (index !== -1) {
+                events[index] = event;
+              }
+            }
+            
             eventMap[title] = event;
           }
         } else {
@@ -134,15 +160,28 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             }
           }
           
-          // Only add if we have a title and it's not a duplicate
-          if (title && !eventMap[title]) {
+          // Only add if we have a title and we haven't seen this event type before
+          // or if we're updating an event with a newer timestamp
+          if (title && (!eventMap[title] || 
+              new Date(update.timestamp).getTime() > new Date(eventMap[title].date).getTime())) {
             const event = {
               title,
               date: new Date(update.timestamp),
               icon,
               description
             };
-            events.push(event);
+            
+            // If this is a new event, add it to the events array
+            if (!eventMap[title]) {
+              events.push(event);
+            } else {
+              // Otherwise, update the existing event in place
+              const index = events.findIndex(e => e.title === title);
+              if (index !== -1) {
+                events[index] = event;
+              }
+            }
+            
             eventMap[title] = event;
           }
         }
@@ -187,8 +226,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     }
     
     // Always add these critical steps if they're missing and the order has progressed to or past these stages
+    // We'll only add them if we don't already have events for these stages (preserve original timestamps)
+    
     // Driver to Collection - add if status indicates this happened but no event exists yet
-    if (!hasDriverToCollectionEvent && 
+    if (!hasDriverToCollectionEvent && !eventMap["Driver En Route to Collection"] && 
         (order.status === "driver_to_collection" || 
          order.status === "collected" || 
          order.status === "driver_to_delivery" || 
@@ -205,7 +246,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     }
     
     // Bike Collected - add if status indicates this happened but no event exists yet
-    if (!hasBikeCollectedEvent && 
+    if (!hasBikeCollectedEvent && !eventMap["Bike Collected"] && 
         (order.status === "collected" || 
          order.status === "driver_to_delivery" || 
          order.status === "shipped" || 
@@ -221,7 +262,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     }
     
     // Driver to Delivery - add if status indicates this happened but no event exists yet
-    if (!hasDriverToDeliveryEvent && 
+    if (!hasDriverToDeliveryEvent && !eventMap["Driver En Route to Delivery"] && 
         (order.status === "driver_to_delivery" || 
          order.status === "shipped" || 
          order.status === "delivered")) {
@@ -248,7 +289,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     }
     
     // Delivered - add if status indicates this happened but no event exists yet
-    if (!hasDeliveredEvent && order.status === "delivered") {
+    if (!hasDeliveredEvent && !eventMap["Delivered"] && order.status === "delivered") {
       const event = {
         title: "Delivered",
         date: order.updatedAt,
