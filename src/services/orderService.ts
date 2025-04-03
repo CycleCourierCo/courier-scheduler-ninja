@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
@@ -8,7 +9,8 @@ import {
   resendReceiverAvailabilityEmail,
   sendSenderAvailabilityEmail,
   resendSenderAvailabilityEmail,
-  sendReceiverAvailabilityEmail
+  sendReceiverAvailabilityEmail,
+  sendDeliveryConfirmationEmails
 } from "@/services/emailService";
 import { generateTrackingNumber } from "@/services/trackingService";
 
@@ -84,6 +86,15 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
     if (error) {
       console.error("Error updating order status:", error);
       return null;
+    }
+    
+    // Handle status-specific actions
+    if (status === "delivered") {
+      // Send delivery confirmation emails when order is marked as delivered
+      await sendDeliveryConfirmationEmails(id);
+    } else if (status === "receiver_availability_pending") {
+      // Send receiver availability email when status changes to receiver_availability_pending
+      await sendReceiverAvailabilityEmail(id);
     }
 
     return mapDbOrderToOrderType(data);
@@ -166,7 +177,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         needs_payment_on_collection: needsPaymentOnCollection,
         is_bike_swap: isBikeSwap,
         delivery_instructions: deliveryInstructions,
-        status: "created",
+        status: "sender_availability_pending", // Updated to match new workflow
         created_at: timestamp,
         updated_at: timestamp,
         tracking_number: trackingNumber,
