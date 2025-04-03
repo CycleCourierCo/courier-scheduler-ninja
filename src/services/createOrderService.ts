@@ -154,6 +154,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   // Send emails after order creation
   try {
+    let senderAvailabilityEmailSent = false;
+    
     // First, send traditional availability email to sender
     console.log("Sending availability email to sender...");
     const availabilityEmailResponse = await supabase.functions.invoke("send-email", {
@@ -171,6 +173,26 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       console.error("Error sending availability email to sender:", availabilityEmailResponse.error);
     } else {
       console.log("Availability email sent successfully to sender");
+      senderAvailabilityEmailSent = true;
+      
+      // If the availability email was successful, update the order status to "sender_availability_pending"
+      if (senderAvailabilityEmailSent) {
+        const { error: statusUpdateError } = await supabase
+          .from("orders")
+          .update({ 
+            status: "sender_availability_pending",
+            updated_at: new Date().toISOString() 
+          })
+          .eq("id", order.id);
+          
+        if (statusUpdateError) {
+          console.error("Error updating order status to sender_availability_pending:", statusUpdateError);
+        } else {
+          console.log("Order status updated to sender_availability_pending");
+          // Update the mapped order object to reflect the new status
+          mappedOrder.status = "sender_availability_pending";
+        }
+      }
     }
     
     // Now send the new order confirmation email to sender
