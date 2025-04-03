@@ -1,20 +1,11 @@
 
 import React from "react";
 import { format } from "date-fns";
-import { Order } from "@/types/order";
+import { Order, ShipdayUpdate } from "@/types/order";
 import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
-}
-
-// Define the expected structure of a Shipday update
-interface ShipdayUpdate {
-  status: string;
-  timestamp: string;
-  orderId: string;
-  description?: string;
-  event?: string;
 }
 
 const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {

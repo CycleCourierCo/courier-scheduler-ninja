@@ -79,11 +79,10 @@ serve(async (req) => {
       });
     }
 
-    // Get the order number which contains either -PICKUP or -DELIVERY suffix
+    // Check if this is a pickup or delivery job based on order number suffix
     const orderNumber = order.order_number;
     console.log("Order number from webhook:", orderNumber);
     
-    // Check if this is a pickup or delivery job
     const isPickup = orderNumber.endsWith("-PICKUP");
     const isDelivery = orderNumber.endsWith("-DELIVERY");
     
@@ -95,33 +94,69 @@ serve(async (req) => {
       });
     }
     
-    // Get the base order ID (remove the -PICKUP or -DELIVERY suffix)
-    const baseOrderNumber = orderNumber.replace(/-PICKUP$|-DELIVERY$/, "");
-    console.log("Base order number:", baseOrderNumber);
-    
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     );
 
-    // Find the order in the database
+    // Find the order in the database based on Shipday pickup_id or delivery_id
+    const shipdayOrderId = order.id.toString();
+    console.log(`Looking for order with ${isPickup ? "shipday_pickup_id" : "shipday_delivery_id"} = ${shipdayOrderId}`);
+    
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
       .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
-      .or(`tracking_number.eq.${baseOrderNumber}`)
+      .or(
+        isPickup 
+          ? `shipday_pickup_id.eq.${shipdayOrderId}` 
+          : `shipday_delivery_id.eq.${shipdayOrderId}`
+      )
       .limit(1);
 
     if (fetchError || !orders || orders.length === 0) {
-      console.error("Error fetching order or no order found:", fetchError, baseOrderNumber);
-      return new Response(JSON.stringify({ error: "Order not found" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 404,
-      });
+      console.error("Error fetching order or no order found:", fetchError);
+      console.error(`No order found with ${isPickup ? "shipday_pickup_id" : "shipday_delivery_id"} = ${shipdayOrderId}`);
+      
+      // Try fallback to tracking number if ID-based lookup failed
+      const baseOrderNumber = orderNumber.replace(/-PICKUP$|-DELIVERY$/, "");
+      console.log("Fallback: Looking up by tracking number:", baseOrderNumber);
+      
+      const { data: fallbackOrders, error: fallbackError } = await supabase
+        .from("orders")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+        .eq("tracking_number", baseOrderNumber)
+        .limit(1);
+        
+      if (fallbackError || !fallbackOrders || fallbackOrders.length === 0) {
+        console.error("Fallback lookup also failed:", fallbackError);
+        return new Response(JSON.stringify({ error: "Order not found" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404,
+        });
+      }
+      
+      console.log("Found order using fallback lookup:", fallbackOrders[0]);
+      var dbOrder = fallbackOrders[0];
+      
+      // Update the Shipday ID for future lookups
+      if (isPickup && !dbOrder.shipday_pickup_id) {
+        await supabase
+          .from("orders")
+          .update({ shipday_pickup_id: shipdayOrderId })
+          .eq("id", dbOrder.id);
+        console.log(`Updated shipday_pickup_id to ${shipdayOrderId}`);
+      } else if (isDelivery && !dbOrder.shipday_delivery_id) {
+        await supabase
+          .from("orders")
+          .update({ shipday_delivery_id: shipdayOrderId })
+          .eq("id", dbOrder.id);
+        console.log(`Updated shipday_delivery_id to ${shipdayOrderId}`);
+      }
+    } else {
+      var dbOrder = orders[0];
+      console.log("Found order in database:", dbOrder);
     }
 
-    const dbOrder = orders[0];
-    console.log("Found order in database:", dbOrder);
-    
     // Map Shipday status to application OrderStatus
     let newStatus = dbOrder.status;
     let statusDescription = "";
@@ -148,17 +183,6 @@ serve(async (req) => {
     console.log(`Mapping Shipday status "${order_status}" (event: ${event}) for ${isPickup ? "pickup" : "delivery"} to order status "${newStatus}"`);
     console.log(`Status description: "${statusDescription}"`);
 
-    if (newStatus === dbOrder.status && !statusDescription) {
-      console.log("No status change required, skipping update");
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "No status change required"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
     // Update tracking events
     const trackingEvents = dbOrder.tracking_events || {};
     const shipdayEvents = trackingEvents.shipday || {
@@ -169,13 +193,15 @@ serve(async (req) => {
 
     shipdayEvents.last_status = order_status;
     shipdayEvents.last_updated = new Date().toISOString();
+    
+    // Add the new update to the updates array
     shipdayEvents.updates = [
       ...(shipdayEvents.updates || []),
       {
         status: order_status,
         event: event,
         timestamp: new Date().toISOString(),
-        orderId: order.id.toString(),
+        orderId: shipdayOrderId,
         description: statusDescription
       },
     ];
@@ -203,6 +229,7 @@ serve(async (req) => {
     }
 
     console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);
+    console.log("Updated tracking events:", JSON.stringify(trackingEvents, null, 2));
 
     // Update jobs if available
     try {
@@ -216,7 +243,8 @@ serve(async (req) => {
       success: true, 
       message: `Order status updated to ${newStatus}`,
       orderId: dbOrder.id,
-      statusDescription
+      statusDescription,
+      trackingEvents: trackingEvents
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

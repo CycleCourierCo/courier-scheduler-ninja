@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
-
 import OrderHeader from "@/components/order-detail/OrderHeader";
 import DateSelection from "@/components/order-detail/DateSelection";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
@@ -18,6 +17,7 @@ import ItemDetails from "@/components/order-detail/ItemDetails";
 import ContactDetails from "@/components/order-detail/ContactDetails";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
+import { pollOrderUpdates } from "@/services/orderService";
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +70,16 @@ const OrderDetail = () => {
 
     fetchOrderDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (order?.id) {
+      const cleanup = pollOrderUpdates(order.id, (updatedOrder) => {
+        setOrder(updatedOrder);
+      }, 5000); // Poll every 5 seconds
+      
+      return cleanup;
+    }
+  }, [order?.id]);
 
   const handleScheduleOrder = async () => {
     if (!id || !selectedPickupDate || !selectedDeliveryDate) {

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, Clock, ClipboardEdit } from "lucide-react";
@@ -11,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { toast } from "sonner";
+import { pollOrderUpdates } from '@/services/orderService';
 
 const CustomerOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +41,17 @@ const CustomerOrderDetail = () => {
 
     fetchOrderDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (order?.id) {
+      // Set up polling for updates
+      const cleanup = pollOrderUpdates(order.id, (updatedOrder) => {
+        setOrder(updatedOrder);
+      }, 5000); // Poll every 5 seconds
+      
+      return cleanup;
+    }
+  }, [order?.id]);
 
   if (loading) {
     return (
