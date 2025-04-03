@@ -2,7 +2,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { Order } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -45,6 +45,34 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         date: order.scheduledAt,
         icon: <Calendar className="h-4 w-4 text-courier-600" />,
         description: "Transport manager has scheduled pickup and delivery"
+      });
+    }
+    
+    // Add new status events with appropriate icons
+    if (order.status === 'driver_to_collection') {
+      events.push({
+        title: "Driver En Route to Collection",
+        date: order.updatedAt,
+        icon: <Map className="h-4 w-4 text-courier-600" />,
+        description: "Driver is on the way to collect the bike"
+      });
+    }
+    
+    if (order.status === 'collected') {
+      events.push({
+        title: "Bike Collected",
+        date: order.updatedAt,
+        icon: <MapPin className="h-4 w-4 text-courier-600" />,
+        description: "Bike has been collected from sender"
+      });
+    }
+    
+    if (order.status === 'driver_to_delivery') {
+      events.push({
+        title: "Driver En Route to Delivery",
+        date: order.updatedAt,
+        icon: <Truck className="h-4 w-4 text-courier-600" />,
+        description: "Driver is on the way to deliver the bike"
       });
     }
     

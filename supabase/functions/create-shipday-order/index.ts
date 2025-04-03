@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -225,8 +226,7 @@ serve(async (req) => {
       );
     }
     
-    // Store the individual tracking numbers from Shipday, but don't update the main tracking number
-    // which should remain as the internally generated order ID
+    // Store the individual tracking numbers from Shipday
     const shipdayPickupId = pickupResponseData.orderId || 
                            `SD-P-${pickupResponseData.id}` || 
                            pickupResponseData.trackingNumber;
@@ -235,8 +235,7 @@ serve(async (req) => {
                              `SD-D-${deliveryResponseData.id}` || 
                              deliveryResponseData.trackingNumber;
     
-    // Don't modify the tracking_number field as it already contains our CCC754... format
-    // Instead, store the Shipday IDs in the tracking_events field
+    // Now store IDs in both tracking_events and the new dedicated columns
     const trackingEvents = order.tracking_events || {};
     trackingEvents.shipday = {
       pickup_id: shipdayPickupId,
@@ -244,11 +243,13 @@ serve(async (req) => {
       created_at: new Date().toISOString()
     };
 
-    // Update the order with the Shipday IDs but keep the original tracking number
+    // Update the order with both tracking_events JSON and the new dedicated columns
     const { error: updateError } = await supabase
       .from("orders")
       .update({
         tracking_events: trackingEvents,
+        shipday_pickup_id: shipdayPickupId,
+        shipday_delivery_id: shipdayDeliveryId,
         updated_at: new Date().toISOString()
       })
       .eq("id", orderId);

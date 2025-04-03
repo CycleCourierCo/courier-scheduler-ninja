@@ -111,6 +111,8 @@ export type Database = {
           sender: Json
           sender_confirmed_at: string | null
           sender_notes: string | null
+          shipday_delivery_id: string | null
+          shipday_pickup_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           tracking_events: Json | null
           tracking_number: string | null
@@ -137,6 +139,8 @@ export type Database = {
           sender: Json
           sender_confirmed_at?: string | null
           sender_notes?: string | null
+          shipday_delivery_id?: string | null
+          shipday_pickup_id?: string | null
           status: Database["public"]["Enums"]["order_status"]
           tracking_events?: Json | null
           tracking_number?: string | null
@@ -163,6 +167,8 @@ export type Database = {
           sender?: Json
           sender_confirmed_at?: string | null
           sender_notes?: string | null
+          shipday_delivery_id?: string | null
+          shipday_pickup_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tracking_events?: Json | null
           tracking_number?: string | null
