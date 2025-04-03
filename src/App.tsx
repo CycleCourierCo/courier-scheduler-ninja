@@ -79,6 +79,7 @@ function App() {
             } />
             <Route path="/sender-availability/:id" element={<SenderAvailability />} />
             <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
+            <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/tracking/:id" element={<TrackingPage />} />
             <Route path="/auth" element={<Navigate to="/auth/login" />} />
             <Route path="*" element={<NotFound />} />

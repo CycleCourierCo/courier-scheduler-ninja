@@ -39,7 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           Create Order
         </Link>
       ) : (
-        <Link to="/auth" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
         </Link>
       )}
