@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
@@ -13,13 +12,11 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || "";
 
 serve(async (req) => {
-  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Ensure API key is available
     if (!RESEND_API_KEY) {
       console.error('RESEND_API_KEY environment variable is not set');
       return new Response(
@@ -31,20 +28,16 @@ serve(async (req) => {
       );
     }
     
-    // Initialize Resend with API key
     const resend = new Resend(RESEND_API_KEY);
     
-    // Get the request body
     const reqData = await req.json();
     console.log('Request data:', reqData);
 
-    // Check for special internal actions like delivery confirmation
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
       console.log("Processing delivery confirmation action for order:", reqData.meta.orderId);
       return await handleDeliveryConfirmation(reqData.meta.orderId, resend);
     }
 
-    // Validate required fields
     if (!reqData.to) {
       return new Response(
         JSON.stringify({ error: 'Missing required field: to' }),
@@ -55,18 +48,14 @@ serve(async (req) => {
       );
     }
 
-    // Set default from if not provided
     const from = reqData.from || "Ccc@notification.cyclecourierco.com";
     
-    // Build the email options
     const emailOptions = {
       from,
       to: reqData.to,
     };
     
-    // Handle different email types
     if (reqData.emailType === 'sender' || reqData.emailType === 'receiver') {
-      // For sender/receiver availability emails
       const baseUrl = reqData.baseUrl || '';
       const orderId = reqData.orderId || '';
       const name = reqData.name || 'Customer';
@@ -74,7 +63,6 @@ serve(async (req) => {
       
       const availabilityType = reqData.emailType === 'sender' ? 'pickup' : 'delivery';
       
-      // FIXED URL CONSTRUCTION: Using the correct paths that match our routes
       const availabilityUrl = `${baseUrl}/${reqData.emailType}-availability/${orderId}`;
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
@@ -112,7 +100,6 @@ Thank you,
 The Cycle Courier Co. Team
       `;
     } else {
-      // For standard emails
       emailOptions.subject = reqData.subject || 'Notification from The Cycle Courier Co.';
       emailOptions.text = reqData.text || '';
       if (reqData.html) {
@@ -123,7 +110,6 @@ The Cycle Courier Co. Team
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
     console.log(`Email subject: ${emailOptions.subject}`);
 
-    // Send the email
     const { data, error } = await resend.emails.send(emailOptions);
 
     if (error) {
@@ -153,15 +139,12 @@ The Cycle Courier Co. Team
   }
 });
 
-// Helper function to handle delivery confirmation emails
 async function handleDeliveryConfirmation(orderId: string, resend: any): Promise<Response> {
   try {
     console.log("Starting delivery confirmation process for order:", orderId);
     
-    // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Get order details
     const { data: order, error } = await supabase
       .from("orders")
       .select("*")
@@ -179,7 +162,6 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       );
     }
     
-    // Prepare email content
     const trackingUrl = `https://cyclecourierco.com/tracking/${order.tracking_number}`;
     const reviewLinks = {
       trustpilot: "https://www.trustpilot.com/review/cyclecourierco.com",
@@ -191,7 +173,6 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
     let senderSent = false;
     let receiverSent = false;
     
-    // Send confirmation to sender
     if (order.sender && order.sender.email) {
       console.log("Sending delivery confirmation to sender:", order.sender.email);
       
@@ -243,7 +224,6 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       }
     }
     
-    // Send confirmation to receiver
     if (order.receiver && order.receiver.email) {
       console.log("Sending delivery confirmation to receiver:", order.receiver.email);
       

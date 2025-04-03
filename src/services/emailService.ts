@@ -161,14 +161,18 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     
     // Create item from bike details
     const item = {
-      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim() || "Bicycle",
       quantity: 1,
       price: 0
     };
 
-    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    // Fix: Use the actual tracking number from the order object
+    const trackingNumber = order.trackingNumber || "Not available yet";
+    const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
     
     console.log("About to send order notification email to receiver:", order.receiver.email);
+    console.log("Using tracking number:", trackingNumber);
+    console.log("Using tracking URL:", trackingUrl);
     
     const response = await supabase.functions.invoke("send-email", {
       body: {
@@ -181,7 +185,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
             <p>Here are the details:</p>
             <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
               <p><strong>Bicycle:</strong> ${item.name}</p>
-              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+              <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
             </div>
             <p>We have contacted the sender to arrange a collection date. Once they confirm their availability, you will receive an email to confirm your availability for delivery.</p>
             <p>You can track the order's progress by visiting:</p>
