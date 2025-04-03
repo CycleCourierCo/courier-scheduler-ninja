@@ -85,14 +85,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <Home className="mr-2 h-4 w-4" />
                         Dashboard
                       </Link>
-                      <Link 
-                        to="/analytics" 
-                        onClick={closeSheet}
-                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                      >
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        Analytics
-                      </Link>
+                      {isAdmin && (
+                        <Link 
+                          to="/analytics" 
+                          onClick={closeSheet}
+                          className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Analytics
+                        </Link>
+                      )}
                       <Link 
                         to="/profile" 
                         onClick={closeSheet}
@@ -147,12 +149,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span>Dashboard</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/analytics" className="cursor-pointer flex w-full items-center">
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      <span>Analytics</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/analytics" className="cursor-pointer flex w-full items-center">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        <span>Analytics</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />

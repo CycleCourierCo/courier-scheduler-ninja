@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface SidebarProps {
   className?: string;
@@ -34,46 +35,58 @@ export function Sidebar({
 }: SidebarProps) {
   const isMobile = useIsMobile();
   const { pathname } = useLocation();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === 'admin';
 
-  const defaultLinks = [
-    {
-      href: "/dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-      label: "Dashboard",
-    },
-    {
-      href: "/create-order",
-      icon: <Plus className="h-5 w-5" />,
-      label: "New Order",
-    },
-    {
-      href: "/jobs",
-      icon: <ClipboardCheck className="h-5 w-5" />,
-      label: "Jobs",
-    },
-    {
-      href: "/scheduling",
-      icon: <CalendarDays className="h-5 w-5" />,
-      label: "Scheduling",
-    },
-    {
-      href: "/analytics",
-      icon: <BarChart3 className="h-5 w-5" />,
-      label: "Analytics",
-    },
-    {
+  const getDefaultLinks = () => {
+    const links = [
+      {
+        href: "/dashboard",
+        icon: <LayoutDashboard className="h-5 w-5" />,
+        label: "Dashboard",
+      },
+      {
+        href: "/create-order",
+        icon: <Plus className="h-5 w-5" />,
+        label: "New Order",
+      },
+      {
+        href: "/jobs",
+        icon: <ClipboardCheck className="h-5 w-5" />,
+        label: "Jobs",
+      },
+      {
+        href: "/scheduling",
+        icon: <CalendarDays className="h-5 w-5" />,
+        label: "Scheduling",
+      }
+    ];
+    
+    // Only add Analytics link for admin users
+    if (isAdmin) {
+      links.push({
+        href: "/analytics",
+        icon: <BarChart3 className="h-5 w-5" />,
+        label: "Analytics",
+      });
+    }
+    
+    links.push({
       href: "/approvals",
       icon: <Users className="h-5 w-5" />,
       label: "Account Approvals",
-    },
-    {
+    });
+    
+    links.push({
       href: "/profile",
       icon: <User className="h-5 w-5" />,
       label: "Profile",
-    },
-  ];
+    });
+    
+    return links;
+  };
 
-  const links = sidebarLinks || defaultLinks;
+  const links = sidebarLinks || getDefaultLinks();
 
   return (
     <>

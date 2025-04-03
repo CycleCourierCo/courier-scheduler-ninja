@@ -63,7 +63,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
-              <ProtectedRoute>
+              <ProtectedRoute adminOnly={true}>
                 <AnalyticsPage />
               </ProtectedRoute>
             } />
