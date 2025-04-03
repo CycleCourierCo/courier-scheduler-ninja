@@ -28,7 +28,7 @@
   ],
   "functions": {
     "api/*.py": {
-      "runtime": "python3.12"
+      "runtime": "python4.7.1"
     }
   }
 }
