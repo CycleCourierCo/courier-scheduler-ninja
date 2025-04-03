@@ -208,6 +208,9 @@ serve(async (req) => {
 
     trackingEvents.shipday = shipdayEvents;
 
+    // Track if we need to send delivery confirmation emails
+    const shouldSendDeliveryEmails = newStatus === "delivered" && dbOrder.status !== "delivered";
+
     // Update the order
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
@@ -215,6 +218,8 @@ serve(async (req) => {
         status: newStatus,
         tracking_events: trackingEvents,
         updated_at: new Date().toISOString(),
+        // If we're setting to delivered, add a flag to indicate delivery emails were sent
+        ...(shouldSendDeliveryEmails ? { delivery_emails_sent: true } : {})
       })
       .eq("id", dbOrder.id)
       .select()
@@ -239,17 +244,14 @@ serve(async (req) => {
       // Continue with response even if job update fails
     }
 
-    // Send delivery confirmation emails if status is "delivered"
-    if (newStatus === "delivered") {
+    // Send delivery confirmation emails if status is "delivered" and we haven't sent them yet
+    if (shouldSendDeliveryEmails) {
       try {
-        console.log("Sending delivery confirmation emails through existing email service for order:", dbOrder.id);
+        console.log("Sending delivery confirmation emails through send-email service for order:", dbOrder.id);
         
-        // Call the send-email endpoint for sender
-        const senderEmailResponse = await supabase.functions.invoke("send-email", {
+        // Call the send-email endpoint with delivery confirmation action
+        const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
-            to: "internal-notification@cyclecourierco.com",
-            subject: "Delivery Email Notification Request",
-            text: `Please send delivery confirmation emails for order ID: ${dbOrder.id}`,
             meta: {
               action: "delivery_confirmation",
               orderId: dbOrder.id
@@ -257,8 +259,8 @@ serve(async (req) => {
           }
         });
         
-        if (senderEmailResponse.error) {
-          console.error("Error triggering delivery confirmation emails:", senderEmailResponse.error);
+        if (emailResponse.error) {
+          console.error("Error triggering delivery confirmation emails:", emailResponse.error);
         } else {
           console.log("Successfully triggered delivery confirmation emails");
         }
@@ -266,6 +268,10 @@ serve(async (req) => {
         console.error("Error sending delivery confirmation emails:", emailError);
         // Continue with response even if email sending fails
       }
+    } else {
+      console.log(
+        "Skipping delivery confirmation emails - either order is not delivered or emails were already sent"
+      );
     }
 
     return new Response(JSON.stringify({ 
@@ -273,7 +279,8 @@ serve(async (req) => {
       message: `Order status updated to ${newStatus}`,
       orderId: dbOrder.id,
       statusDescription,
-      trackingEvents: trackingEvents
+      trackingEvents: trackingEvents,
+      emailsSent: shouldSendDeliveryEmails
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
