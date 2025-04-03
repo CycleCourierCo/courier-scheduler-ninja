@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 
@@ -166,7 +167,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     };
 
     // Fix: Use the actual tracking number from the order object
-    const trackingNumber = order.trackingNumber || "Not available yet";
+    const trackingNumber = order.trackingNumber || id;
     const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
     
     console.log("About to send order notification email to receiver:", order.receiver.email);

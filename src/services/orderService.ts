@@ -170,17 +170,31 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw error;
     }
     
-    try {
-      console.log("Sending order creation email to sender:", order.id);
-      const senderEmailSent = await sendOrderCreationEmailToSender(order.id);
-      console.log("Sender email sent:", senderEmailSent);
-      
-      console.log("Sending order notification to receiver:", order.id);
-      const receiverEmailSent = await sendOrderNotificationToReceiver(order.id);
-      console.log("Receiver email sent:", receiverEmailSent);
-    } catch (emailError) {
-      console.error("Error sending order creation emails:", emailError);
-    }
+    // Improved email sending with better logging and error handling
+    const sendEmails = async () => {
+      try {
+        // First send to sender
+        console.log("Sending order creation email to sender:", order.id);
+        const senderEmailSent = await sendOrderCreationEmailToSender(order.id);
+        console.log("Sender email sent:", senderEmailSent);
+        
+        // Then send to receiver - with more detailed logging
+        console.log("Sending order notification to receiver:", order.id);
+        console.log("Receiver email:", receiver.email);
+        const receiverEmailSent = await sendOrderNotificationToReceiver(order.id);
+        console.log("Receiver email sent status:", receiverEmailSent);
+        
+        return { senderEmailSent, receiverEmailSent };
+      } catch (emailError) {
+        console.error("Error sending order creation emails:", emailError);
+        throw emailError; // Re-throw to capture in the outer catch
+      }
+    };
+    
+    // Send emails but don't wait for them to complete
+    sendEmails().catch(err => {
+      console.error("Background email sending failed:", err);
+    });
     
     return mapDbOrderToOrderType(order);
   } catch (error) {

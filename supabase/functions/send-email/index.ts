@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
@@ -31,7 +32,7 @@ serve(async (req) => {
     const resend = new Resend(RESEND_API_KEY);
     
     const reqData = await req.json();
-    console.log('Request data:', reqData);
+    console.log('Request data:', JSON.stringify(reqData, null, 2));
 
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
       console.log("Processing delivery confirmation action for order:", reqData.meta.orderId);
