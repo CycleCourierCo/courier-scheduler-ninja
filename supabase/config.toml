@@ -47,3 +47,4 @@ verify_jwt = true
 
 [functions.shipday-webhook]
 verify_jwt = false
+
