@@ -165,6 +165,14 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
   }
 };
 
+// Define interfaces for sender and receiver objects
+interface Person {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: any;
+}
+
 /**
  * Send availability request email to the sender
  */
@@ -184,6 +192,9 @@ export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> 
       return false;
     }
     
+    // Type assertion for sender object
+    const sender = order.sender as Person;
+    
     // Use the current domain dynamically
     const baseUrl = window.location.origin;
     console.log("Using base URL for email:", baseUrl);
@@ -194,13 +205,13 @@ export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> 
       quantity: 1
     };
     
-    console.log("Sending sender availability email to:", order.sender.email);
+    console.log("Sending sender availability email to:", sender.email);
     
     // Send email to sender with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.sender.email,
-        name: order.sender.name || "Sender",
+        to: sender.email,
+        name: sender.name || "Sender",
         orderId: id,
         baseUrl,
         emailType: "sender", // Using the string identifier to match the edge function
@@ -253,6 +264,9 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
       return false;
     }
     
+    // Type assertion for receiver object
+    const receiver = order.receiver as Person;
+    
     // Use the current domain dynamically
     const baseUrl = window.location.origin;
     console.log("Using base URL for email:", baseUrl);
@@ -263,13 +277,13 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
       quantity: 1
     };
     
-    console.log("Sending receiver availability email to:", order.receiver.email);
+    console.log("Sending receiver availability email to:", receiver.email);
     
     // Send email to receiver with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.receiver.email,
-        name: order.receiver.name || "Receiver",
+        to: receiver.email,
+        name: receiver.name || "Receiver",
         orderId: id,
         baseUrl,
         emailType: "receiver", // Using the string identifier to match the edge function
