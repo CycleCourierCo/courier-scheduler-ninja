@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { resendReceiverAvailabilityEmail } from "./emailService";
+import { Order } from "@/types/order";
 
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
@@ -114,13 +115,102 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
   }
 };
 
+export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string): Promise<Order | null> => {
+  try {
+    if (!orderId || !dates || dates.length === 0) {
+      console.error("Invalid parameters for updateSenderAvailability");
+      return null;
+    }
+    
+    console.log(`Updating sender availability for order ${orderId}`);
+    console.log(`Selected dates: ${dates.map(d => d.toISOString())}`);
+    
+    // Format dates as ISO strings
+    const dateStrings = dates.map(date => date.toISOString());
+    
+    // Update the order with the pickup dates and notes
+    const { data, error } = await supabase
+      .from("orders")
+      .update({
+        pickup_date: dateStrings,
+        sender_notes: notes.trim(),
+        sender_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", orderId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error updating sender availability:", error);
+      return null;
+    }
+    
+    // Automatically confirm sender availability and update status
+    const success = await confirmSenderAvailability(orderId, dateStrings);
+    
+    if (!success) {
+      console.error("Failed to confirm sender availability after update");
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Unexpected error in updateSenderAvailability:", error);
+    return null;
+  }
+};
+
+export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string): Promise<Order | null> => {
+  try {
+    if (!orderId || !dates || dates.length === 0) {
+      console.error("Invalid parameters for updateReceiverAvailability");
+      return null;
+    }
+    
+    console.log(`Updating receiver availability for order ${orderId}`);
+    console.log(`Selected dates: ${dates.map(d => d.toISOString())}`);
+    
+    // Format dates as ISO strings
+    const dateStrings = dates.map(date => date.toISOString());
+    
+    // Update the order with the delivery dates and notes
+    const { data, error } = await supabase
+      .from("orders")
+      .update({
+        delivery_date: dateStrings,
+        receiver_notes: notes.trim(),
+        receiver_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", orderId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error updating receiver availability:", error);
+      return null;
+    }
+    
+    // Automatically confirm receiver availability
+    const success = await confirmReceiverAvailability(orderId, dateStrings);
+    
+    if (!success) {
+      console.error("Failed to confirm receiver availability after update");
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Unexpected error in updateReceiverAvailability:", error);
+    return null;
+  }
+};
+
 export const getSenderAvailability = async (orderId: string) => {
   try {
     const { data, error } = await supabase
-      .from("availability")
-      .select("*")
-      .eq("order_id", orderId)
-      .eq("type", "sender")
+      .from("orders")
+      .select("sender_notes, pickup_date")
+      .eq("id", orderId)
       .single();
 
     if (error) {
@@ -129,7 +219,10 @@ export const getSenderAvailability = async (orderId: string) => {
       return null;
     }
 
-    return data;
+    return {
+      notes: data.sender_notes || "",
+      dates: Array.isArray(data.pickup_date) ? data.pickup_date.map(d => new Date(d)) : []
+    };
   } catch (error) {
     console.error("Unexpected error fetching sender availability:", error);
     toast.error("Unexpected error fetching sender availability.");
@@ -140,10 +233,9 @@ export const getSenderAvailability = async (orderId: string) => {
 export const getReceiverAvailability = async (orderId: string) => {
   try {
     const { data, error } = await supabase
-      .from("availability")
-      .select("*")
-      .eq("order_id", orderId)
-      .eq("type", "receiver")
+      .from("orders")
+      .select("receiver_notes, delivery_date")
+      .eq("id", orderId)
       .single();
 
     if (error) {
@@ -152,7 +244,10 @@ export const getReceiverAvailability = async (orderId: string) => {
       return null;
     }
 
-    return data;
+    return {
+      notes: data.receiver_notes || "",
+      dates: Array.isArray(data.delivery_date) ? data.delivery_date.map(d => new Date(d)) : []
+    };
   } catch (error) {
     console.error("Unexpected error fetching receiver availability:", error);
     toast.error("Unexpected error fetching receiver availability.");
