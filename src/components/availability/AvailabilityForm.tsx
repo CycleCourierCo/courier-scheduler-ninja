@@ -26,6 +26,7 @@ interface AvailabilityFormProps {
   minDate: Date;
   isSubmitting: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  isDateDisabled?: (date: Date) => boolean;
 }
 
 export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
@@ -39,6 +40,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   minDate,
   isSubmitting,
   onSubmit,
+  isDateDisabled,
 }) => {
   const today = startOfDay(new Date());
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -67,10 +69,23 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
     setDates(dates.filter(date => date.getTime() !== dateToRemove.getTime()));
   };
   
-  // Disable dates in the past
-  const isDateDisabled = (date: Date) => {
-    return isBefore(date, today);
+  // Default date disabling logic if custom function is not provided
+  const defaultIsDateDisabled = (date: Date) => {
+    // Disable dates before today
+    if (isBefore(date, today)) {
+      return true;
+    }
+    
+    // If minDate is provided, disable dates before minDate
+    if (minDate && isBefore(date, startOfDay(minDate))) {
+      return true;
+    }
+    
+    return false;
   };
+  
+  // Use the custom isDateDisabled function if provided, otherwise use the default
+  const disableDate = isDateDisabled || defaultIsDateDisabled;
   
   return (
     <form onSubmit={onSubmit} className="max-w-4xl mx-auto py-8 px-4">
@@ -92,8 +107,8 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   min={1}
                   selected={dates}
                   onSelect={handleDateSelect}
-                  disabled={isDateDisabled}
-                  fromDate={today}
+                  disabled={disableDate}
+                  fromDate={minDate || today}
                   className="p-3 pointer-events-auto"
                 />
               </div>
@@ -102,6 +117,14 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     {validationError}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {minDate && minDate > today && (
+                <Alert className="mt-4">
+                  <CalendarIcon className="h-4 w-4" />
+                  <AlertDescription>
+                    The earliest you can select is {format(minDate, 'MMMM d, yyyy')} based on the sender's availability.
                   </AlertDescription>
                 </Alert>
               )}

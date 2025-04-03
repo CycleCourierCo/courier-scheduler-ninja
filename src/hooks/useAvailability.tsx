@@ -32,6 +32,29 @@ export const useAvailability = ({
   const [minDate, setMinDate] = useState<Date>(getMinDate());
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
+  // This function will be used to check if a date should be disabled
+  const isDateDisabled = (date: Date): boolean => {
+    // Disable past dates (before today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (date < today) {
+      return true;
+    }
+    
+    // For receiver, also disable dates before the earliest sender date
+    if (type === 'receiver' && minDate) {
+      const minDateCopy = new Date(minDate);
+      minDateCopy.setHours(0, 0, 0, 0);
+      
+      if (date < minDateCopy) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   useEffect(() => {
     let isMounted = true;
     
@@ -212,6 +235,7 @@ export const useAvailability = ({
     error,
     minDate,
     navigate,
-    handleSubmit
+    handleSubmit,
+    isDateDisabled  // Now exporting the isDateDisabled function
   };
 };

@@ -56,7 +56,8 @@ export default function ReceiverAvailability() {
     error,
     minDate,
     navigate: hookNavigate,
-    handleSubmit
+    handleSubmit,
+    isDateDisabled
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
@@ -118,6 +119,7 @@ export default function ReceiverAvailability() {
         minDate={minDate}
         isSubmitting={isSubmitting}
         onSubmit={handleSubmit}
+        isDateDisabled={isDateDisabled}
       />
     </Layout>
   );
