@@ -24,11 +24,14 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log("Received request to generate tracking numbers");
+    
     // Get Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -36,6 +39,7 @@ serve(async (req) => {
 
     // Parse request body
     const reqBody = await req.json().catch(() => ({}));
+    console.log("Request body:", JSON.stringify(reqBody));
     
     // Handle single tracking number generation (no database update)
     if (reqBody.generateSingle === true) {
@@ -44,6 +48,7 @@ serve(async (req) => {
       const receiverZipCode = reqBody.receiverZipCode || "000";
       
       const trackingNumber = generateCustomOrderId(senderName, receiverZipCode);
+      console.log("Generated tracking number:", trackingNumber);
       
       return new Response(
         JSON.stringify({ 
@@ -75,6 +80,7 @@ serve(async (req) => {
     const { data: orders, error } = await query;
 
     if (error) {
+      console.error("Error fetching orders:", error);
       return new Response(
         JSON.stringify({ error: error.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
