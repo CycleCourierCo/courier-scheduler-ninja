@@ -25,36 +25,33 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
 
     // Add confirmation events with their original timestamps
     if (order.senderConfirmedAt) {
-      const event = {
+      events.push({
         title: "Collection Dates Chosen",
         date: order.senderConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
         description: "Collection dates have been confirmed",
-      };
-      events.push(event);
-      eventMap["Collection Dates Chosen"] = event;
+      });
+      eventMap["Collection Dates Chosen"] = events[events.length - 1];
     }
 
     if (order.receiverConfirmedAt) {
-      const event = {
+      events.push({
         title: "Delivery Dates Chosen",
         date: order.receiverConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
         description: "Delivery dates have been confirmed",
-      };
-      events.push(event);
-      eventMap["Delivery Dates Chosen"] = event;
+      });
+      eventMap["Delivery Dates Chosen"] = events[events.length - 1];
     }
 
     if (order.scheduledAt) {
-      const event = {
+      events.push({
         title: "Transport Scheduled",
         date: order.scheduledAt,
         icon: <Calendar className="h-4 w-4 text-courier-600" />,
         description: "Transport manager has scheduled pickup and delivery",
-      };
-      events.push(event);
-      eventMap["Transport Scheduled"] = event;
+      });
+      eventMap["Transport Scheduled"] = events[events.length - 1];
     }
 
     // Process Shipday tracking events
@@ -71,52 +68,50 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       sortedUpdates.forEach((update: ShipdayUpdate) => {
         let title = "";
         let icon = <Truck className="h-4 w-4 text-courier-600" />;
-        let description = update.description;
+        let description = update.description || "";
 
-        // Handle updates with descriptions first
-        if (update.description) {
-          if (update.description.includes("way to collect")) {
+        const isPickup = update.orderId === pickupId;
+        const statusLower = update.status.toLowerCase();
+
+        // Map pickup events
+        if (isPickup) {
+          if (
+            statusLower === "on-the-way" ||
+            statusLower === "ready_to_deliver" ||
+            description.includes("way to collect")
+          ) {
             title = "Driver En Route to Collection";
             icon = <Map className="h-4 w-4 text-courier-600" />;
-          } else if (update.description.includes("collected the bike")) {
+            description = description || "Driver is on the way to collect the bike";
+          } else if (
+            statusLower === "picked-up" ||
+            statusLower === "delivered" ||
+            statusLower === "already_delivered" ||
+            description.includes("collected the bike")
+          ) {
             title = "Bike Collected";
             icon = <Check className="h-4 w-4 text-courier-600" />;
-          } else if (update.description.includes("way to deliver")) {
+            description = description || "Bike has been collected from sender";
+          }
+        }
+        // Map delivery events
+        else if (update.orderId === deliveryId) {
+          if (
+            statusLower === "on-the-way" ||
+            statusLower === "ready_to_deliver" ||
+            description.includes("way to deliver")
+          ) {
             title = "Driver En Route to Delivery";
             icon = <Truck className="h-4 w-4 text-courier-600" />;
-          } else if (update.description.includes("delivered the bike")) {
+            description = description || "Driver is on the way to deliver the bike";
+          } else if (
+            statusLower === "delivered" ||
+            statusLower === "already_delivered" ||
+            description.includes("delivered the bike")
+          ) {
             title = "Delivered";
             icon = <Check className="h-4 w-4 text-green-600" />;
-          }
-        } else {
-          // Legacy handling for updates without description
-          const isPickup = update.orderId === pickupId;
-          const statusLower = update.status.toLowerCase();
-
-          if (isPickup) {
-            if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
-              title = "Driver En Route to Collection";
-              icon = <Map className="h-4 w-4 text-courier-600" />;
-              description = "Driver is on the way to collect the bike";
-            } else if (
-              statusLower === "picked-up" ||
-              statusLower === "delivered" ||
-              statusLower === "already_delivered"
-            ) {
-              title = "Bike Collected";
-              icon = <Check className="h-4 w-4 text-courier-600" />;
-              description = "Bike has been collected from sender";
-            }
-          } else {
-            if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
-              title = "Driver En Route to Delivery";
-              icon = <Truck className="h-4 w-4 text-courier-600" />;
-              description = "Driver is on the way to deliver the bike";
-            } else if (statusLower === "delivered" || statusLower === "already_delivered") {
-              title = "Delivered";
-              icon = <Check className="h-4 w-4 text-green-600" />;
-              description = "Bike has been delivered to receiver";
-            }
+            description = description || "Bike has been delivered to receiver";
           }
         }
 
