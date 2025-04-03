@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -14,8 +13,8 @@ const generateCustomOrderId = (senderName: string, receiverZipCode: string): str
   // Get first 3 characters of receiver zipcode
   const zipSuffix = (receiverZipCode || '').substring(0, 3).toUpperCase();
   
-  // Combine all parts - ensure we use the correct prefix CCC754
-  return `CCC754${randomDigits}${senderPrefix}${zipSuffix}`;
+  // Combine all parts - ensure we use the correct prefix CCC754 and trim any spaces
+  return `CCC754${randomDigits}${senderPrefix}${zipSuffix}`.trim().replace(/\s+/g, '');
 };
 
 const corsHeaders = {
@@ -69,7 +68,7 @@ serve(async (req) => {
         const senderName = sender?.name || "UNKNOWN";
         const receiverZipCode = receiver?.address?.zipCode || "000";
 
-        // Generate a tracking number
+        // Generate a tracking number - ensure it has no spaces
         const trackingNumber = generateCustomOrderId(senderName, receiverZipCode);
         
         // Update the order with the new tracking number

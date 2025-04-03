@@ -1,4 +1,3 @@
-
 import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -176,9 +175,8 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
  */
 export const createOrder = async (orderData: CreateOrderFormData): Promise<Order> => {
   try {
-    // We'll generate a placeholder tracking number, which will be replaced
-    // by the proper one from the generate-tracking-numbers function
-    const trackingNumber = `CCC${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`;
+    // Generate a placeholder tracking number with no spaces
+    const trackingNumber = `CCC${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`.trim().replace(/\s+/g, '');
     
     // Modified to use JSON structure for sender and receiver instead of flattened fields
     const { data, error } = await supabase
