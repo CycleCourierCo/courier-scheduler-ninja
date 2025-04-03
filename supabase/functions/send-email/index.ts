@@ -164,30 +164,6 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
     
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Check if the delivery emails were already sent
-    const { data: orderData, error: checkError } = await supabase
-      .from("orders")
-      .select("delivery_emails_sent")
-      .eq("id", orderId)
-      .single();
-      
-    if (checkError) {
-      console.error("Error checking delivery email status:", checkError);
-    } else if (orderData?.delivery_emails_sent) {
-      console.log("Delivery confirmation emails were already sent for this order, skipping");
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          alreadySent: true,
-          message: "Delivery confirmation emails were already sent" 
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
-      );
-    }
-    
     const { data: order, error } = await supabase
       .from("orders")
       .select("*")
@@ -315,20 +291,6 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
         }
       } catch (e) {
         console.error("Exception sending receiver email:", e);
-      }
-    }
-    
-    // Update the order to mark emails as sent
-    if (senderSent || receiverSent) {
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ delivery_emails_sent: true })
-        .eq("id", orderId);
-        
-      if (updateError) {
-        console.error("Error updating order delivery_emails_sent status:", updateError);
-      } else {
-        console.log("Successfully marked delivery emails as sent in the database");
       }
     }
     

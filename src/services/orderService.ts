@@ -69,7 +69,6 @@ export const getOrders = async (): Promise<Order[]> => {
 
 export const updateOrderStatus = async (id: string, status: OrderStatus): Promise<Order | null> => {
   try {
-    // Don't trigger delivery emails from this function - let the webhook handle it
     const { data, error } = await supabase
       .from("orders")
       .update({ status })
