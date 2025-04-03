@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./fetchOrderService";
 
@@ -176,6 +175,285 @@ Thank you for choosing The Cycle Courier Co.
     return true;
   } catch (error) {
     console.error("Failed to send account approval email:", error);
+    return false;
+  }
+};
+
+export const sendOrderCreationEmailToSender = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Sending order creation confirmation email to sender for order ID:", id);
+    
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+
+    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.sender.email,
+        subject: "Thank You for Your Order - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.sender.name},</h2>
+            <p>Thank you for choosing The Cycle Courier Co.</p>
+            <p>Your order has been successfully created. Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+            </div>
+            <p>We have sent you a separate email to arrange a collection date.</p>
+            <p>You can track your order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track Your Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p>Thank you,<br>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending order creation email to sender:", response.error);
+      return false;
+    }
+    
+    console.log("Order creation email sent successfully to sender:", order.sender.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send order creation email to sender:", error);
+    return false;
+  }
+};
+
+export const sendOrderNotificationToReceiver = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Sending order notification email to receiver for order ID:", id);
+    
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a receiver
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+
+    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.receiver.email,
+        subject: "Your Bicycle Delivery - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.receiver.name},</h2>
+            <p>A bicycle is being sent to you via The Cycle Courier Co.</p>
+            <p>Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+            </div>
+            <p>We have contacted the sender to arrange a collection date. Once they confirm their availability, you will receive an email to confirm your availability for delivery.</p>
+            <p>You can track the order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track This Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending order notification email to receiver:", response.error);
+      return false;
+    }
+    
+    console.log("Order notification email sent successfully to receiver:", order.receiver.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send order notification email to receiver:", error);
+    return false;
+  }
+};
+
+export const sendDeliveryConfirmationToSender = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Sending delivery confirmation email to sender for order ID:", id);
+    
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+
+    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    const reviewLinks = {
+      trustpilot: "https://www.trustpilot.com/review/cyclecourierco.com",
+      facebook: "https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506"
+    };
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.sender.email,
+        subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.sender.name},</h2>
+            <p>Great news! Your bicycle has been successfully delivered.</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+            </div>
+            <p>You can view the complete delivery details by visiting:</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                View Delivery Details
+              </a>
+            </div>
+            <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
+            <p>Please consider leaving us a review:</p>
+            <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
+              <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Trustpilot
+              </a>
+              <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Facebook
+              </a>
+            </div>
+            <p>Thank you for choosing The Cycle Courier Co.</p>
+            <p>Best regards,<br>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending delivery confirmation email to sender:", response.error);
+      return false;
+    }
+    
+    console.log("Delivery confirmation email sent successfully to sender:", order.sender.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send delivery confirmation email to sender:", error);
+    return false;
+  }
+};
+
+export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Sending delivery confirmation email to receiver for order ID:", id);
+    
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a receiver
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+
+    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    const reviewLinks = {
+      trustpilot: "https://www.trustpilot.com/review/cyclecourierco.com",
+      facebook: "https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506"
+    };
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.receiver.email,
+        subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.receiver.name},</h2>
+            <p>Great news! Your bicycle has been successfully delivered to you.</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+            </div>
+            <p>You can view the complete delivery details by visiting:</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                View Delivery Details
+              </a>
+            </div>
+            <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
+            <p>Please consider leaving us a review:</p>
+            <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
+              <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Trustpilot
+              </a>
+              <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Facebook
+              </a>
+            </div>
+            <p>Thank you for choosing The Cycle Courier Co.</p>
+            <p>Best regards,<br>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending delivery confirmation email to receiver:", response.error);
+      return false;
+    }
+    
+    console.log("Delivery confirmation email sent successfully to receiver:", order.receiver.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send delivery confirmation email to receiver:", error);
     return false;
   }
 };

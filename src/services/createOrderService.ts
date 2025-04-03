@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { CreateOrderFormData, Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
+import { sendOrderCreationEmailToSender, sendOrderNotificationToReceiver } from "./emailService";
 
 // Function to generate a custom order ID
 // Format: CCC + 754 + 9-digit sequence + first 3 letters of sender name + first 3 letters of receiver zipcode
@@ -149,32 +149,33 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     receiverData.address?.lon
   );
 
-  // Send email to sender after order creation
+  const mappedOrder = mapDbOrderToOrderType(order);
+
+  // Send emails after order creation
   try {
-    // Get the current domain dynamically
-    const baseUrl = window.location.origin;
-    console.log("Using base URL for order creation email:", baseUrl);
-    
-    const response = await supabase.functions.invoke("send-email", {
+    // Send availability email to sender (keep existing functionality)
+    await supabase.functions.invoke("send-email", {
       body: {
         to: data.sender.email,
         name: data.sender.name,
         orderId: order.id,
-        baseUrl,
+        baseUrl: window.location.origin,
         emailType: "sender",
         item: item
       }
     });
     
-    if (response.error) {
-      console.error("Error sending email:", response.error);
-    } else {
-      console.log("Email sent successfully to sender:", data.sender.email);
-    }
+    // Send new order confirmation email to sender
+    await sendOrderCreationEmailToSender(order.id);
+    
+    // Send notification to receiver
+    await sendOrderNotificationToReceiver(order.id);
+    
+    console.log("All order creation emails sent successfully");
   } catch (emailError) {
-    console.error("Failed to send email:", emailError);
+    console.error("Failed to send one or more order creation emails:", emailError);
     // Don't throw here - we don't want to fail the order creation if email fails
   }
 
-  return mapDbOrderToOrderType(order);
+  return mappedOrder;
 };

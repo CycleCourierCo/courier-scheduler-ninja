@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { updateJobStatuses } from "./jobService";
+import { sendDeliveryConfirmationToSender, sendDeliveryConfirmationToReceiver } from "./emailService";
 
 export const updateOrderStatus = async (
   id: string,
@@ -31,7 +32,23 @@ export const updateOrderStatus = async (
     // Continue with order update even if job update fails
   }
 
-  return mapDbOrderToOrderType(data);
+  const mappedOrder = mapDbOrderToOrderType(data);
+
+  // Send delivery confirmation emails if order status is "delivered"
+  if (status === "delivered") {
+    try {
+      console.log("Sending delivery confirmation emails for order:", id);
+      await Promise.all([
+        sendDeliveryConfirmationToSender(id),
+        sendDeliveryConfirmationToReceiver(id)
+      ]);
+    } catch (emailError) {
+      console.error("Error sending delivery confirmation emails:", emailError);
+      // Don't throw here - we don't want to fail the order update if email fails
+    }
+  }
+
+  return mappedOrder;
 };
 
 export const updateOrderScheduledDates = async (
@@ -123,5 +140,21 @@ export const updateAdminOrderStatus = async (
     // Continue with order update even if job update fails
   }
 
-  return mapDbOrderToOrderType(data);
+  const mappedOrder = mapDbOrderToOrderType(data);
+
+  // Send delivery confirmation emails if order status is "delivered"
+  if (status === "delivered") {
+    try {
+      console.log("Sending delivery confirmation emails for order:", id);
+      await Promise.all([
+        sendDeliveryConfirmationToSender(id),
+        sendDeliveryConfirmationToReceiver(id)
+      ]);
+    } catch (emailError) {
+      console.error("Error sending delivery confirmation emails:", emailError);
+      // Don't throw here - we don't want to fail the order update if email fails
+    }
+  }
+
+  return mappedOrder;
 };
