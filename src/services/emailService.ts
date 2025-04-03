@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./fetchOrderService";
 
@@ -201,6 +202,8 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
 
     const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
     
+    console.log("About to send order creation email to sender:", order.sender.email);
+    
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
@@ -264,6 +267,8 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     };
 
     const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    
+    console.log("About to send order notification email to receiver:", order.receiver.email);
     
     const response = await supabase.functions.invoke("send-email", {
       body: {

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { CreateOrderFormData, Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -153,8 +154,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
   // Send emails after order creation
   try {
-    // Send availability email to sender (keep existing functionality)
-    await supabase.functions.invoke("send-email", {
+    // First, send traditional availability email to sender
+    console.log("Sending availability email to sender...");
+    const availabilityEmailResponse = await supabase.functions.invoke("send-email", {
       body: {
         to: data.sender.email,
         name: data.sender.name,
@@ -165,11 +167,21 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       }
     });
     
-    // Send new order confirmation email to sender
-    await sendOrderCreationEmailToSender(order.id);
+    if (availabilityEmailResponse.error) {
+      console.error("Error sending availability email to sender:", availabilityEmailResponse.error);
+    } else {
+      console.log("Availability email sent successfully to sender");
+    }
+    
+    // Now send the new order confirmation email to sender
+    console.log("Sending order confirmation email to sender...");
+    const senderConfirmationResponse = await sendOrderCreationEmailToSender(order.id);
+    console.log("Sender confirmation email result:", senderConfirmationResponse);
     
     // Send notification to receiver
-    await sendOrderNotificationToReceiver(order.id);
+    console.log("Sending notification email to receiver...");
+    const receiverNotificationResponse = await sendOrderNotificationToReceiver(order.id);
+    console.log("Receiver notification email result:", receiverNotificationResponse);
     
     console.log("All order creation emails sent successfully");
   } catch (emailError) {

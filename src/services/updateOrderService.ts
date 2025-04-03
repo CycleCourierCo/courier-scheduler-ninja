@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -38,10 +37,18 @@ export const updateOrderStatus = async (
   if (status === "delivered") {
     try {
       console.log("Sending delivery confirmation emails for order:", id);
-      await Promise.all([
-        sendDeliveryConfirmationToSender(id),
-        sendDeliveryConfirmationToReceiver(id)
-      ]);
+      
+      // Send confirmation to sender
+      const senderEmailResult = await sendDeliveryConfirmationToSender(id);
+      console.log("Sender delivery confirmation email result:", senderEmailResult);
+      
+      // Send confirmation to receiver
+      const receiverEmailResult = await sendDeliveryConfirmationToReceiver(id);
+      console.log("Receiver delivery confirmation email result:", receiverEmailResult);
+      
+      if (!senderEmailResult || !receiverEmailResult) {
+        console.error("One or more delivery confirmation emails failed to send");
+      }
     } catch (emailError) {
       console.error("Error sending delivery confirmation emails:", emailError);
       // Don't throw here - we don't want to fail the order update if email fails
@@ -146,10 +153,18 @@ export const updateAdminOrderStatus = async (
   if (status === "delivered") {
     try {
       console.log("Sending delivery confirmation emails for order:", id);
-      await Promise.all([
-        sendDeliveryConfirmationToSender(id),
-        sendDeliveryConfirmationToReceiver(id)
-      ]);
+      
+      // Send confirmation to sender
+      const senderEmailResult = await sendDeliveryConfirmationToSender(id);
+      console.log("Sender delivery confirmation email result:", senderEmailResult);
+      
+      // Send confirmation to receiver
+      const receiverEmailResult = await sendDeliveryConfirmationToReceiver(id);
+      console.log("Receiver delivery confirmation email result:", receiverEmailResult);
+      
+      if (!senderEmailResult || !receiverEmailResult) {
+        console.error("One or more delivery confirmation emails failed to send");
+      }
     } catch (emailError) {
       console.error("Error sending delivery confirmation emails:", emailError);
       // Don't throw here - we don't want to fail the order update if email fails

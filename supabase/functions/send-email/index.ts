@@ -112,6 +112,7 @@ The Cycle Courier Co. Team
     }
     
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
+    console.log(`Email subject: ${emailOptions.subject}`);
 
     // Send the email
     const { data, error } = await resend.emails.send(emailOptions);
