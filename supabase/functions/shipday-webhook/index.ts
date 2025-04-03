@@ -29,27 +29,41 @@ serve(async (req) => {
     });
     console.log("Received headers:", JSON.stringify(headersDebug, null, 2));
 
-    // Get token from environment
+    // Check if we have SHIPDAY_WEBHOOK_TOKEN configured
     const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
-    console.log("Expected token configured:", expectedToken ? "Yes" : "No");
     
-    // In production, you should use proper token validation
-    // For now, we'll make it optional during initial setup/debugging
-    const webhookToken = req.headers.get("x-webhook-token");
-    const tokenValid = !expectedToken || webhookToken === expectedToken;
+    // TEMPORARY DEVELOPMENT MODE:
+    // During initial setup and testing, we'll accept all webhook calls
+    // IMPORTANT: In production, always enable token validation!
     
-    if (!tokenValid) {
-      console.error("Invalid webhook token");
-      console.log(`Received: "${webhookToken}", Expected: "${expectedToken}"`);
+    // Set this to true to enable token validation once everything is set up
+    const enforceTokenValidation = false;
+    
+    if (enforceTokenValidation && expectedToken) {
+      // Get token from the header Shipday is using
+      const webhookToken = req.headers.get("x-webhook-token");
       
-      // During initial setup, you might want to log the payload anyway
-      const payload = await req.json();
-      console.log("Rejected payload:", JSON.stringify(payload, null, 2));
-      
-      return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
+      if (!webhookToken || webhookToken !== expectedToken) {
+        console.error("Invalid webhook token provided");
+        console.log(`Received: "${webhookToken}", Expected: "${expectedToken}"`);
+        
+        // Log the payload anyway for debugging
+        try {
+          const requestClone = req.clone();
+          const payload = await requestClone.json();
+          console.log("Rejected payload:", JSON.stringify(payload, null, 2));
+        } catch (e) {
+          console.error("Could not parse rejected payload:", e);
+        }
+        
+        return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        });
+      }
+    } else {
+      // In development mode, log that we're skipping token validation
+      console.log("DEVELOPMENT MODE: Skipping webhook token validation");
     }
 
     const payload = await req.json();
