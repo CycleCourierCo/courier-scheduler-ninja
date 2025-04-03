@@ -50,8 +50,20 @@ serve(async (req) => {
     const resend = new Resend(RESEND_API_KEY);
     
     // Parse request data and log it
-    const reqData = await req.json();
-    console.log('Request data:', JSON.stringify(reqData, null, 2));
+    let reqData;
+    try {
+      reqData = await req.json();
+      console.log('Request data:', JSON.stringify(reqData, null, 2));
+    } catch (parseError) {
+      console.error('Error parsing request JSON:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
     
     // Handle special actions
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
@@ -118,9 +130,19 @@ serve(async (req) => {
         }
       );
     } catch (sendError) {
+      // Improved error handling for Resend API errors
       console.error('Error sending email via Resend:', sendError);
+      
+      // Check if the error is a response error
+      const errorMessage = typeof sendError === 'object' && sendError !== null 
+        ? sendError.message || 'Unknown error' 
+        : String(sendError);
+        
       return new Response(
-        JSON.stringify({ error: sendError.message || 'Failed to send email via Resend API' }),
+        JSON.stringify({ 
+          error: errorMessage,
+          details: sendError.code || sendError.statusCode || 'unknown_error'
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500
@@ -130,13 +152,20 @@ serve(async (req) => {
   } catch (error) {
     console.error('General error in send-email function:', error);
     
+    // Ensure error is properly serialized
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to send email' }),
+      JSON.stringify({ 
+        error: errorMessage,
+        stack: errorStack
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
-        }
-      );
+      }
+    );
   }
 });
 
@@ -153,9 +182,14 @@ async function generateEmailContent(data) {
 
   // Get order details if orderId is provided
   let order = null;
-  if (data.orderId) {
-    order = await getOrderDetails(data.orderId);
-    console.log("Order details retrieved:", JSON.stringify(order, null, 2));
+  try {
+    if (data.orderId) {
+      order = await getOrderDetails(data.orderId);
+      console.log("Order details retrieved:", JSON.stringify(order, null, 2));
+    }
+  } catch (orderError) {
+    console.error("Error fetching order details:", orderError);
+    // Continue with default template if order fetch fails
   }
   
   // Generate content based on email type
@@ -495,6 +529,10 @@ Best regards,
 The Cycle Courier Co. Team
       `;
       break;
+      
+    default:
+      // Keep the default content set above
+      break;
   }
 
   return { subject, html, text };
@@ -576,12 +614,10 @@ async function handleDeliveryConfirmation(orderId, resend) {
       );
     }
     
-    const trackingUrl = `https://cyclecourierco.com/tracking/${order.tracking_number}`;
-    const itemName = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle";
-    
     let senderSent = false;
     let receiverSent = false;
     
+    // Send email to sender
     if (order.sender && order.sender.email) {
       console.log("Sending delivery confirmation to sender:", order.sender.email);
       
@@ -593,16 +629,19 @@ async function handleDeliveryConfirmation(orderId, resend) {
           baseUrl: "https://cyclecourierco.com"
         });
         
-        const { data: senderData, error: senderError } = await resend.emails.send({
+        const senderResult = await resend.emails.send({
           from: DEFAULT_FROM_EMAIL,
           to: order.sender.email,
           subject: emailContent.subject,
           html: emailContent.html,
           text: emailContent.text
+        }).catch(err => {
+          console.error("Resend API error (sender):", err);
+          return { error: err };
         });
         
-        if (senderError) {
-          console.error("Error sending email to sender:", senderError);
+        if (senderResult.error) {
+          console.error("Error sending email to sender:", senderResult.error);
         } else {
           console.log("Successfully sent delivery confirmation to sender");
           senderSent = true;
@@ -612,6 +651,7 @@ async function handleDeliveryConfirmation(orderId, resend) {
       }
     }
     
+    // Send email to receiver
     if (order.receiver && order.receiver.email) {
       console.log("Sending delivery confirmation to receiver:", order.receiver.email);
       
@@ -623,16 +663,19 @@ async function handleDeliveryConfirmation(orderId, resend) {
           baseUrl: "https://cyclecourierco.com"
         });
         
-        const { data: receiverData, error: receiverError } = await resend.emails.send({
+        const receiverResult = await resend.emails.send({
           from: DEFAULT_FROM_EMAIL,
           to: order.receiver.email,
           subject: emailContent.subject,
           html: emailContent.html,
           text: emailContent.text
+        }).catch(err => {
+          console.error("Resend API error (receiver):", err);
+          return { error: err };
         });
         
-        if (receiverError) {
-          console.error("Error sending email to receiver:", receiverError);
+        if (receiverResult.error) {
+          console.error("Error sending email to receiver:", receiverResult.error);
         } else {
           console.log("Successfully sent delivery confirmation to receiver");
           receiverSent = true;
@@ -657,7 +700,10 @@ async function handleDeliveryConfirmation(orderId, resend) {
   } catch (error) {
     console.error("Error in handleDeliveryConfirmation:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to send delivery confirmation emails" }),
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : String(error),
+        details: "Failed to send delivery confirmation emails" 
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
