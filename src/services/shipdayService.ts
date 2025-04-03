@@ -29,6 +29,15 @@ export const createShipdayOrder = async (orderId: string) => {
     }
 
     toast.success("Shipday order created successfully");
+    
+    // Display helpful information about webhook setup
+    console.log("Shipday order created. Make sure to configure the Shipday webhook:", {
+      url: `https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/shipday-webhook`,
+      headers: {
+        "x-webhook-token": "Your SHIPDAY_WEBHOOK_TOKEN value"
+      }
+    });
+    
     return data;
   } catch (err) {
     console.error("Error in createShipdayOrder:", err);

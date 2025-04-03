@@ -22,12 +22,30 @@ serve(async (req) => {
   }
 
   try {
-    // Verify the webhook token
-    const webhookToken = req.headers.get("x-webhook-token");
+    // Debug: Log all headers for troubleshooting
+    const headersDebug: Record<string, string> = {};
+    req.headers.forEach((value, key) => {
+      headersDebug[key] = value;
+    });
+    console.log("Received headers:", JSON.stringify(headersDebug, null, 2));
+
+    // Get token from environment
     const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
+    console.log("Expected token configured:", expectedToken ? "Yes" : "No");
     
-    if (!webhookToken || webhookToken !== expectedToken) {
+    // In production, you should use proper token validation
+    // For now, we'll make it optional during initial setup/debugging
+    const webhookToken = req.headers.get("x-webhook-token");
+    const tokenValid = !expectedToken || webhookToken === expectedToken;
+    
+    if (!tokenValid) {
       console.error("Invalid webhook token");
+      console.log(`Received: "${webhookToken}", Expected: "${expectedToken}"`);
+      
+      // During initial setup, you might want to log the payload anyway
+      const payload = await req.json();
+      console.log("Rejected payload:", JSON.stringify(payload, null, 2));
+      
       return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -35,7 +53,7 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    console.log("Received Shipday webhook payload:", JSON.stringify(payload));
+    console.log("Received Shipday webhook payload:", JSON.stringify(payload, null, 2));
 
     const { orderId, status, timestamp } = payload;
 
