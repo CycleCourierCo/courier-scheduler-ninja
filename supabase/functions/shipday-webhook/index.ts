@@ -239,6 +239,17 @@ serve(async (req) => {
       // Continue with response even if job update fails
     }
 
+    // Send delivery confirmation emails if status is "delivered"
+    if (newStatus === "delivered") {
+      try {
+        console.log("Sending delivery confirmation emails for order:", dbOrder.id);
+        await sendDeliveryConfirmationEmails(dbOrder.id, supabase);
+      } catch (emailError) {
+        console.error("Error sending delivery confirmation emails:", emailError);
+        // Continue with response even if email sending fails
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       message: `Order status updated to ${newStatus}`,
@@ -321,4 +332,94 @@ async function updateJobStatuses(orderId: string, orderStatus: string): Promise<
   }
   
   return true;
+}
+
+// New function to send delivery confirmation emails
+async function sendDeliveryConfirmationEmails(orderId: string, supabase: any): Promise<boolean> {
+  try {
+    // Get order details first including sender and receiver information
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .single();
+    
+    if (error || !order) {
+      console.error("Error fetching order details for email:", error);
+      return false;
+    }
+    
+    console.log("Preparing to send delivery confirmation emails for order:", orderId);
+    
+    // Send confirmation to sender
+    if (order.sender && order.sender.email) {
+      console.log("Sending delivery confirmation to sender:", order.sender.email);
+      
+      const senderResponse = await supabase.functions.invoke("send-email", {
+        body: {
+          to: order.sender.email,
+          name: order.sender.name || "Sender",
+          subject: "Your Bike Has Been Delivered",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Delivery Confirmation</h2>
+              <p>Hello ${order.sender.name || "Customer"},</p>
+              <p>We're pleased to inform you that your bike (${order.bike_brand} ${order.bike_model}) has been successfully delivered to ${order.receiver.name}.</p>
+              <p>Thank you for using our service!</p>
+              <p>Order details:</p>
+              <ul>
+                <li>Tracking Number: ${order.tracking_number}</li>
+                <li>Status: Delivered</li>
+              </ul>
+              <p>Best regards,<br>The Cycle Courier Co. Team</p>
+            </div>
+          `
+        }
+      });
+      
+      if (senderResponse.error) {
+        console.error("Error sending email to sender:", senderResponse.error);
+      } else {
+        console.log("Successfully sent delivery confirmation to sender");
+      }
+    }
+    
+    // Send confirmation to receiver
+    if (order.receiver && order.receiver.email) {
+      console.log("Sending delivery confirmation to receiver:", order.receiver.email);
+      
+      const receiverResponse = await supabase.functions.invoke("send-email", {
+        body: {
+          to: order.receiver.email,
+          name: order.receiver.name || "Receiver",
+          subject: "Your Bike Has Been Delivered",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Delivery Confirmation</h2>
+              <p>Hello ${order.receiver.name || "Customer"},</p>
+              <p>We're pleased to inform you that your bike (${order.bike_brand} ${order.bike_model}) has been successfully delivered to you.</p>
+              <p>Thank you for using our service!</p>
+              <p>Order details:</p>
+              <ul>
+                <li>Tracking Number: ${order.tracking_number}</li>
+                <li>Status: Delivered</li>
+              </ul>
+              <p>Best regards,<br>The Cycle Courier Co. Team</p>
+            </div>
+          `
+        }
+      });
+      
+      if (receiverResponse.error) {
+        console.error("Error sending email to receiver:", receiverResponse.error);
+      } else {
+        console.log("Successfully sent delivery confirmation to receiver");
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in sendDeliveryConfirmationEmails:", error);
+    return false;
+  }
 }
