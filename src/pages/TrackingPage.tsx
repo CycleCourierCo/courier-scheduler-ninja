@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicOrder } from "@/services/fetchOrderService";
@@ -59,21 +59,40 @@ const TrackingPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchId, setSearchId] = useState<string | undefined>(id);
+  // Track whether we've attempted to load the order
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+
+  // Set searchId when id param changes
+  useEffect(() => {
+    if (id) {
+      setSearchId(id);
+      setHasAttemptedLoad(false); // Reset when ID changes
+    }
+  }, [id]);
 
   const handleSearch = (orderId: string) => {
     navigate(`/tracking/${orderId}`);
     setSearchId(orderId);
+    setHasAttemptedLoad(false); // Reset when manually searching
   };
 
-  const { data: order, isLoading, error } = useQuery({
+  const { data: order, isLoading, error, isSuccess } = useQuery({
     queryKey: ['publicOrder', searchId],
-    queryFn: () => searchId ? getPublicOrder(searchId) : Promise.resolve(null),
+    queryFn: () => {
+      console.log("Fetching order with ID:", searchId);
+      if (searchId) {
+        setHasAttemptedLoad(true);
+        return getPublicOrder(searchId);
+      }
+      return Promise.resolve(null);
+    },
     enabled: !!searchId,
   });
 
   // Debug logs
   console.log("TrackingPage order data:", order);
   console.log("TrackingPage order tracking:", order?.trackingEvents);
+  console.log("HasAttemptedLoad:", hasAttemptedLoad, "isSuccess:", isSuccess);
 
   return (
     <Layout>
@@ -135,7 +154,8 @@ const TrackingPage = () => {
           </Card>
         )}
 
-        {!isLoading && !error && searchId && !order && (
+        {/* Only show the "not found" message after we've attempted to load the order and it wasn't found */}
+        {!isLoading && !error && hasAttemptedLoad && searchId && !order && (
           <Card className="border-yellow-200 bg-yellow-50">
             <CardContent className="pt-6 text-center py-8">
               <p className="text-yellow-700">No order found with this ID. Please check the order ID and try again.</p>
