@@ -61,6 +61,24 @@ export const useAvailability = ({
         console.log("Order loaded successfully:", fetchedOrder.id, "Status:", fetchedOrder.status);
         setOrder(fetchedOrder);
 
+        // For receiver: set min date to earliest date from sender's availability 
+        if (type === 'receiver' && fetchedOrder.pickupDate && Array.isArray(fetchedOrder.pickupDate) && fetchedOrder.pickupDate.length > 0) {
+          // Find the earliest date from sender's availability
+          let earliestDate: Date | null = null;
+          
+          fetchedOrder.pickupDate.forEach(dateStr => {
+            const date = new Date(dateStr);
+            if (!earliestDate || date < earliestDate) {
+              earliestDate = date;
+            }
+          });
+          
+          if (earliestDate) {
+            console.log("Setting min date for receiver to earliest sender date:", earliestDate);
+            setMinDate(earliestDate);
+          }
+        }
+
         // Check if the availability is already confirmed
         if (isAlreadyConfirmed(fetchedOrder)) {
           const alreadyConfirmedDates = type === 'sender' 

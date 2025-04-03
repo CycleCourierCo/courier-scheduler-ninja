@@ -45,6 +45,8 @@ export default function ReceiverAvailability() {
     }
   }, [params]);
 
+  // The getMinDate function now just returns the current date as a fallback
+  // The actual minimum date will be set in the useAvailability hook based on the sender's dates
   const {
     dates,
     setDates,
@@ -60,7 +62,7 @@ export default function ReceiverAvailability() {
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
-    getMinDate: () => new Date(), // Allow from current date
+    getMinDate: () => new Date(), // This default will be overridden in the hook
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
       return order.status === 'receiver_availability_confirmed' || 
@@ -106,7 +108,7 @@ export default function ReceiverAvailability() {
     <Layout>
       <AvailabilityForm
         title="Confirm Your Availability"
-        description="Select dates when you will be available for package delivery"
+        description="Select dates when you will be available for bicycle delivery"
         dates={dates}
         setDates={setDates}
         notes={notes}

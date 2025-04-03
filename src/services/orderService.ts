@@ -1,4 +1,3 @@
-
 import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
@@ -232,8 +231,12 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
 
     // Send email only to sender
     try {
-      await sendOrderCreationEmailToSender(data.id);
-      console.log("Sender notification email sent successfully");
+      const emailResult = await sendOrderCreationEmailToSender(data.id);
+      if (emailResult) {
+        console.log("Sender notification email sent successfully");
+      } else {
+        console.error("Failed to send email to sender");
+      }
       // We no longer send an email to the receiver at this point
       // Will be sent after sender confirms availability
     } catch (emailError) {
@@ -591,4 +594,3 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
     return false;
   }
 };
-
