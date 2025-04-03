@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -35,22 +35,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         Track Order
       </Link>
       {user ? (
-        <>
-          <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-            Create Order
-          </Link>
-          <Link to="/dashboard" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-            Dashboard
-          </Link>
-          {isAdmin && (
-            <Link to="/account-approvals" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-              Account Approvals
-            </Link>
-          )}
-        </>
+        <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          Create Order
+        </Link>
       ) : (
         <Link to="/auth" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
+        </Link>
+      )}
+      {isAdmin && (
+        <Link to="/account-approvals" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          Account Approvals
         </Link>
       )}
     </>
@@ -87,6 +82,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   {user && (
                     <>
                       <DropdownMenuSeparator className="my-2" />
+                      <Link 
+                        to="/dashboard" 
+                        onClick={closeSheet}
+                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                      >
+                        <Home className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                      <Link 
+                        to="/analytics" 
+                        onClick={closeSheet}
+                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                      >
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Analytics
+                      </Link>
                       <Link 
                         to="/profile" 
                         onClick={closeSheet}
@@ -129,6 +140,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
                       <Home className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/analytics" className="cursor-pointer flex w-full items-center">
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      <span>Analytics</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
