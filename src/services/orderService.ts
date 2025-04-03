@@ -4,6 +4,7 @@ import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { sendOrderCreationEmailToSender, sendOrderNotificationToReceiver, resendReceiverAvailabilityEmail as resendReceiverAvailabilityEmailFunc } from "@/services/emailService";
+import { generateTrackingNumber } from "@/services/trackingService";
 
 // For backward compatibility with fetchOrderService
 export const getOrder = async (id: string): Promise<Order | null> => {
@@ -124,6 +125,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     // Create timestamp for consistency
     const timestamp = new Date().toISOString();
 
+    // Generate a custom tracking number based on sender name and receiver zipcode
+    const trackingNumber = generateTrackingNumber(sender.name, receiver.address.zipCode);
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
@@ -165,6 +169,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,
+        tracking_number: trackingNumber, // Set the tracking number explicitly
       })
       .select()
       .single();
