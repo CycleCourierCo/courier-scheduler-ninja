@@ -24,19 +24,10 @@ serve(async (req) => {
   try {
     // Verify the webhook token
     const webhookToken = req.headers.get("x-webhook-token");
-    // Read token from environment variable
     const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
     
-    // Log token information for debugging (be careful with this in production)
-    console.log("Received webhook token:", webhookToken);
-    console.log("Expected webhook token set in env:", expectedToken ? "Yes (set)" : "No (not set)");
-    
-    // For testing purposes, allow the special "test-token" value
-    const isTestToken = webhookToken === "test-token";
-    
-    // Only validate the token if we're not in test mode and the expected token is set
-    if (!isTestToken && expectedToken && webhookToken !== expectedToken) {
-      console.error("Invalid webhook token", webhookToken);
+    if (!webhookToken || webhookToken !== expectedToken) {
+      console.error("Invalid webhook token");
       return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
