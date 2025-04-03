@@ -43,11 +43,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           Sign In
         </Link>
       )}
-      {isAdmin && (
-        <Link to="/account-approvals" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-          Account Approvals
-        </Link>
-      )}
     </>
   );
 
@@ -106,6 +101,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>
+                      {isAdmin && (
+                        <Link 
+                          to="/account-approvals" 
+                          onClick={closeSheet}
+                          className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                        >
+                          <Shield className="mr-2 h-4 w-4" />
+                          Account Approvals
+                        </Link>
+                      )}
                       <button 
                         onClick={() => { signOut(); closeSheet(); }} 
                         className="flex items-center text-foreground hover:text-courier-500 transition-colors"
