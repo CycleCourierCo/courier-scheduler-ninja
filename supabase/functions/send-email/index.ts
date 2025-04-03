@@ -72,27 +72,17 @@ serve(async (req) => {
       const name = reqData.name || 'Customer';
       const item = reqData.item || { name: 'Bicycle', quantity: 1 };
       
-      // Different messages based on sender/receiver role
-      let actionType = '';
-      let introMessage = '';
-      
-      if (reqData.emailType === 'sender') {
-        actionType = 'pickup';
-        introMessage = 'We need to confirm your availability for us to collect a bicycle from you:';
-      } else {
-        actionType = 'delivery';
-        introMessage = 'We need to confirm your availability for the delivery of a bicycle to you:';
-      }
+      const availabilityType = reqData.emailType === 'sender' ? 'pickup' : 'delivery';
       
       // FIXED URL CONSTRUCTION: Using the correct paths that match our routes
       const availabilityUrl = `${baseUrl}/${reqData.emailType}-availability/${orderId}`;
       
-      emailOptions.subject = `Please confirm your ${actionType} availability`;
+      emailOptions.subject = `Please confirm your ${availabilityType} availability`;
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
           <p>Thank you for using The Cycle Courier Co.</p>
-          <p>${introMessage}</p>
+          <p>We need to confirm your availability for the ${availabilityType} of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
           </div>
@@ -112,7 +102,7 @@ Hello ${name},
 
 Thank you for using The Cycle Courier Co.
 
-${introMessage}
+We need to confirm your availability for the ${availabilityType} of your item:
 ${item.name} (Quantity: ${item.quantity})
 
 Please visit the following link to confirm your availability:
