@@ -176,7 +176,8 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
  */
 export const createOrder = async (orderData: CreateOrderFormData): Promise<Order> => {
   try {
-    // Generate a tracking number
+    // We'll generate a placeholder tracking number, which will be replaced
+    // by the proper one from the generate-tracking-numbers function
     const trackingNumber = `CCC${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`;
     
     // Modified to use JSON structure for sender and receiver instead of flattened fields
@@ -218,7 +219,7 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
         needs_payment_on_collection: orderData.needsPaymentOnCollection,
         is_bike_swap: orderData.isBikeSwap,
         delivery_instructions: orderData.deliveryInstructions,
-        status: "created" as OrderStatus,
+        status: "sender_availability_pending" as OrderStatus, // Set initial status to sender_availability_pending
         user_id: (await supabase.auth.getSession()).data.session?.user.id || '' // Get current user ID
       })
       .select()
@@ -236,6 +237,22 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
     } catch (emailError) {
       console.error("Error sending order emails:", emailError);
       // Continue even if emails fail
+    }
+
+    // Generate proper tracking number format
+    try {
+      const response = await supabase.functions.invoke("generate-tracking-numbers", {
+        body: { forceAll: false }
+      });
+      
+      if (response.error) {
+        console.error("Error generating tracking number:", response.error);
+      } else {
+        console.log("Generated tracking numbers:", response.data);
+      }
+    } catch (trackingError) {
+      console.error("Failed to generate tracking number:", trackingError);
+      // Continue even if tracking number generation fails
     }
 
     return mapDbOrderToOrderType(data);

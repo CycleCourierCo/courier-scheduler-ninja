@@ -14,7 +14,7 @@ const generateCustomOrderId = (senderName: string, receiverZipCode: string): str
   // Get first 3 characters of receiver zipcode
   const zipSuffix = (receiverZipCode || '').substring(0, 3).toUpperCase();
   
-  // Combine all parts
+  // Combine all parts - ensure we use the correct prefix CCC754
   return `CCC754${randomDigits}${senderPrefix}${zipSuffix}`;
 };
 
