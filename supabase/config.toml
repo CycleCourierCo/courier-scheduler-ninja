@@ -1,2 +1,47 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+[auth.email]
+enabled = true
+
+[functions.create-business-user]
+verify_jwt = true
+
+[functions.generate-tracking-numbers]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.create-shipday-order]
+verify_jwt = true
+
+[functions.shipday-webhook]
+verify_jwt = false

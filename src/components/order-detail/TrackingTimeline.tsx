@@ -2,7 +2,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { Order } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -48,7 +48,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       });
     }
     
-    // Add new status events with appropriate icons
+    // Add status events with appropriate icons based on order status
     if (order.status === 'driver_to_collection') {
       events.push({
         title: "Driver En Route to Collection",
@@ -94,7 +94,51 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       });
     }
     
-    return events;
+    // Add Shipday webhook updates if they exist
+    const shipdayUpdates = order.tracking_events?.shipday?.updates || [];
+    shipdayUpdates.forEach((update: any) => {
+      if (!update.timestamp || !update.status) return;
+      
+      // Only add Shipday updates that provide additional information
+      const isPickup = update.orderId === order.shipday_pickup_id || 
+                      update.orderId === order.tracking_events?.shipday?.pickup_id;
+      
+      // Map the shipday status to a user-friendly title
+      let title = "";
+      let description = "";
+      let icon = <Bike className="h-4 w-4 text-courier-600" />;
+      
+      if (isPickup) {
+        if (update.status.toLowerCase() === "on-the-way") {
+          title = "Driver Heading to Collection";
+          description = "Courier is on the way to collect your bike";
+        } else if (update.status.toLowerCase() === "picked-up") {
+          title = "Bike Collected by Courier";
+          description = "Your bike has been collected";
+        }
+      } else {
+        if (update.status.toLowerCase() === "on-the-way") {
+          title = "Delivery in Progress";
+          description = "Courier is on the way to deliver your bike";
+        } else if (update.status.toLowerCase() === "delivered") {
+          title = "Delivered Successfully";
+          description = "Your bike has been delivered";
+          icon = <Check className="h-4 w-4 text-green-600" />;
+        }
+      }
+      
+      if (title) {
+        events.push({
+          title,
+          date: update.timestamp,
+          icon,
+          description
+        });
+      }
+    });
+    
+    // Sort events by date
+    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const trackingEvents = getTrackingEvents();
