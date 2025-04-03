@@ -1,26 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { getOrder } from "./orderService";
 
-/**
- * Email Template Types
- */
-export const EmailTemplates = {
-  // Business Account Emails
-  BUSINESS_ACCOUNT_CREATED: "business_account_created",
-  BUSINESS_ACCOUNT_APPROVED: "business_account_approved",
-  BUSINESS_ACCOUNT_REJECTED: "business_account_rejected",
-  
-  // Order Emails
-  ORDER_CREATED_SENDER: "order_created_sender",
-  ORDER_CREATED_RECEIVER: "order_created_receiver",
-  SENDER_AVAILABILITY: "sender_availability",
-  RECEIVER_AVAILABILITY: "receiver_availability",
-  DELIVERY_CONFIRMATION: "delivery_confirmation"
-};
-
-/**
- * Send an email to a business account applicant confirming receipt of their application
- */
 export const sendBusinessAccountCreationEmail = async (email: string, name: string): Promise<boolean> => {
   try {
     console.log("Sending business account creation confirmation email to:", email);
@@ -28,8 +8,18 @@ export const sendBusinessAccountCreationEmail = async (email: string, name: stri
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
-        emailType: EmailTemplates.BUSINESS_ACCOUNT_CREATED,
-        name: name
+        subject: "Your Business Account Application",
+        text: `Hello ${name},
+
+Thank you for creating a business account with The Cycle Courier Co.
+
+Your account is currently pending approval, which typically takes place within 24 hours. Once approved, you'll receive another email confirming you can access your account.
+
+If you have any questions in the meantime, please don't hesitate to contact our support team.
+
+Thank you for choosing The Cycle Courier Co.
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
       }
     });
     
@@ -46,19 +36,29 @@ export const sendBusinessAccountCreationEmail = async (email: string, name: stri
   }
 };
 
-/**
- * Send an email to a business account applicant informing them of their approval
- */
 export const sendAccountApprovalEmail = async (email: string, name: string, companyName?: string): Promise<boolean> => {
   try {
     console.log("Sending account approval email to:", email);
     
+    const greeting = companyName 
+      ? `Hello ${name} at ${companyName},` 
+      : `Hello ${name},`;
+    
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
-        emailType: EmailTemplates.BUSINESS_ACCOUNT_APPROVED,
-        name: name,
-        companyName: companyName
+        subject: "Your Business Account Has Been Approved",
+        text: `${greeting}
+
+Great news! Your business account with The Cycle Courier Co. has been approved.
+
+You can now log in to your account and start creating orders. Our platform offers a range of features to help manage your deliveries efficiently.
+
+If you have any questions or need assistance getting started, please don't hesitate to contact our support team.
+
+Thank you for choosing The Cycle Courier Co.
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
       }
     });
     
@@ -75,49 +75,61 @@ export const sendAccountApprovalEmail = async (email: string, name: string, comp
   }
 };
 
-/**
- * Send an email to a business account applicant informing them of their rejection
- */
-export const sendAccountRejectionEmail = async (email: string, name: string): Promise<boolean> => {
-  try {
-    console.log("Sending account rejection email to:", email);
-    
-    const response = await supabase.functions.invoke("send-email", {
-      body: {
-        to: email,
-        emailType: EmailTemplates.BUSINESS_ACCOUNT_REJECTED,
-        name: name
-      }
-    });
-    
-    if (response.error) {
-      console.error("Error sending account rejection email:", response.error);
-      return false;
-    }
-    
-    console.log("Account rejection email sent successfully");
-    return true;
-  } catch (error) {
-    console.error("Failed to send account rejection email:", error);
-    return false;
-  }
-};
-
-/**
- * Send order creation confirmation email to the sender
- */
 export const sendOrderCreationEmailToSender = async (id: string): Promise<boolean> => {
   try {
     console.log("Sending order creation confirmation email to sender for order ID:", id);
     
-    // Use the current domain dynamically
-    const baseUrl = window.location.origin;
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim() || "Bicycle",
+      quantity: 1,
+      price: 0
+    };
+
+    // Fix: Use the actual tracking number from the order object
+    const trackingNumber = order.trackingNumber || id;
+    const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
+    
+    console.log("About to send order creation email to sender:", order.sender.email);
+    console.log("Using tracking number:", trackingNumber);
+    console.log("Using tracking URL:", trackingUrl);
     
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        emailType: EmailTemplates.ORDER_CREATED_SENDER,
-        orderId: id,
-        baseUrl
+        to: order.sender.email,
+        subject: "Thank You for Your Order - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.sender.name},</h2>
+            <p>Thank you for choosing The Cycle Courier Co.</p>
+            <p>Your order has been successfully created. Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+            </div>
+            <p><strong>We have sent you a separate email to arrange a collection date.</strong> Please check your inbox and confirm your availability as soon as possible.</p>
+            <p>You can track your order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track Your Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
       }
     });
     
@@ -126,7 +138,7 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
       return false;
     }
     
-    console.log("Order creation email sent successfully to sender for order:", id);
+    console.log("Order creation email sent successfully to sender:", order.sender.email);
     return true;
   } catch (error) {
     console.error("Failed to send order creation email to sender:", error);
@@ -134,66 +146,246 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
   }
 };
 
-/**
- * Send order notification email to the receiver
- */
 export const sendOrderNotificationToReceiver = async (id: string): Promise<boolean> => {
   try {
     console.log("Sending order notification email to receiver for order ID:", id);
     
-    // Use the current domain dynamically
-    const baseUrl = window.location.origin;
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a receiver
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim() || "Bicycle",
+      quantity: 1,
+      price: 0
+    };
+
+    // Fix: Use the actual tracking number from the order object
+    const trackingNumber = order.trackingNumber || id;
+    const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
+    
+    console.log("About to send order notification email to receiver:", order.receiver.email);
+    console.log("Using tracking number:", trackingNumber);
+    console.log("Using tracking URL:", trackingUrl);
     
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        emailType: EmailTemplates.ORDER_CREATED_RECEIVER,
-        orderId: id,
-        baseUrl
+        to: order.receiver.email,
+        subject: "Your Bicycle Delivery - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.receiver.name},</h2>
+            <p>A bicycle is being sent to you via The Cycle Courier Co.</p>
+            <p>Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+            </div>
+            <p><strong>Next Steps:</strong></p>
+            <ol style="margin-bottom: 20px;">
+              <li>We have contacted the sender to arrange a collection date.</li>
+              <li>Once the sender confirms their availability, <strong>you will receive an email with a link to confirm your availability for delivery</strong>.</li>
+              <li>After both confirmations, we will schedule the pickup and delivery.</li>
+            </ol>
+            <p>You can track the order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track This Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
       }
     });
     
     if (response.error) {
       console.error("Error sending order notification email to receiver:", response.error);
+      console.error("Response error details:", JSON.stringify(response.error, null, 2));
       return false;
     }
     
-    console.log("Order notification email sent successfully to receiver for order:", id);
+    console.log("Order notification email sent successfully to receiver:", order.receiver.email);
     return true;
   } catch (error) {
     console.error("Failed to send order notification email to receiver:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return false;
   }
 };
 
-// Define interfaces for sender and receiver objects
-interface Person {
-  name: string;
-  email: string;
-  phone?: string;
-  address?: any;
-}
+export const sendDeliveryConfirmationToSender = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Sending delivery confirmation email to sender for order ID:", id);
+    
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
 
-/**
- * Send availability request email to the sender
- */
+    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    const reviewLinks = {
+      trustpilot: "https://www.trustpilot.com/review/cyclecourierco.com",
+      facebook: "https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506"
+    };
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.sender.email,
+        subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.sender.name},</h2>
+            <p>Great news! Your bicycle has been successfully delivered.</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+            </div>
+            <p>You can view the complete delivery details by visiting:</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                View Delivery Details
+              </a>
+            </div>
+            <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
+            <p>Please consider leaving us a review:</p>
+            <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
+              <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Trustpilot
+              </a>
+              <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Facebook
+              </a>
+            </div>
+            <p>Thank you for choosing The Cycle Courier Co.</p>
+            <p>Best regards,<br>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending delivery confirmation email to sender:", response.error);
+      return false;
+    }
+    
+    console.log("Delivery confirmation email sent successfully to sender:", order.sender.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send delivery confirmation email to sender:", error);
+    return false;
+  }
+};
+
+export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Sending delivery confirmation email to receiver for order ID:", id);
+    
+    // Get the order details first
+    const order = await getOrder(id);
+    
+    // Ensure the order exists and has a receiver
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", id);
+      return false;
+    }
+    
+    // Create item from bike details
+    const item = {
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
+    };
+
+    const trackingUrl = `${window.location.origin}/tracking/${order.trackingNumber}`;
+    const reviewLinks = {
+      trustpilot: "https://www.trustpilot.com/review/cyclecourierco.com",
+      facebook: "https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506"
+    };
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.receiver.email,
+        subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${order.receiver.name},</h2>
+            <p>Great news! Your bicycle has been successfully delivered to you.</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>
+            </div>
+            <p>You can view the complete delivery details by visiting:</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                View Delivery Details
+              </a>
+            </div>
+            <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
+            <p>Please consider leaving us a review:</p>
+            <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
+              <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Trustpilot
+              </a>
+              <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Facebook
+              </a>
+            </div>
+            <p>Thank you for choosing The Cycle Courier Co.</p>
+            <p>Best regards,<br>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending delivery confirmation email to receiver:", response.error);
+      return false;
+    }
+    
+    console.log("Delivery confirmation email sent successfully to receiver:", order.receiver.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send delivery confirmation email to receiver:", error);
+    return false;
+  }
+};
+
 export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
     console.log("Starting to send sender availability email for order ID:", id);
     
-    // Get the order details from the database
-    const { data: order, error } = await supabase
-      .from("orders")
-      .select("sender, bike_brand, bike_model")
-      .eq("id", id)
-      .single();
+    // Get the order details first
+    const order = await getOrder(id);
     
-    if (error || !order) {
-      console.error("Error fetching order for sender availability email:", error);
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", id);
       return false;
     }
-    
-    // Type assertion for sender object
-    const sender = order.sender as Person;
     
     // Use the current domain dynamically
     const baseUrl = window.location.origin;
@@ -201,43 +393,43 @@ export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> 
     
     // Create item from bike details
     const item = {
-      name: `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle",
-      quantity: 1
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
     };
     
-    console.log("Sending sender availability email to:", sender.email);
+    console.log("Sending sender availability email to:", order.sender.email);
     
     // Send email to sender with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: sender.email,
-        name: sender.name || "Sender",
+        to: order.sender.email,
+        name: order.sender.name || "Sender",
         orderId: id,
         baseUrl,
-        emailType: EmailTemplates.SENDER_AVAILABILITY,
+        emailType: "sender",
         item: item
       }
     });
     
     if (response.error) {
-      console.error("Error sending availability email to sender:", response.error);
+      console.error("Error sending email to sender:", response.error);
+      console.error("Response error details:", JSON.stringify(response.error, null, 2));
       return false;
     }
     
-    console.log("Sender availability email sent successfully");
+    console.log("Email sent successfully to sender:", order.sender.email, "Response:", JSON.stringify(response.data));
     return true;
   } catch (error) {
-    console.error("Failed to send sender availability email:", error);
+    console.error("Failed to send email to sender:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return false;
   }
 };
 
-/**
- * Resend availability request email to the sender
- */
 export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    console.log("Resending sender availability email for order ID:", id);
+    console.log("Attempting to resend sender availability email for order ID:", id);
     return await sendSenderAvailabilityEmail(id);
   } catch (error) {
     console.error("Error resending sender availability email:", error);
@@ -245,27 +437,18 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
   }
 };
 
-/**
- * Send availability request email to the receiver
- */
 export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
     console.log("Starting to send receiver availability email for order ID:", id);
     
-    // Get the order details from the database
-    const { data: order, error } = await supabase
-      .from("orders")
-      .select("receiver, bike_brand, bike_model")
-      .eq("id", id)
-      .single();
+    // Get the order details first
+    const order = await getOrder(id);
     
-    if (error || !order) {
-      console.error("Error fetching order for receiver availability email:", error);
+    // Ensure the order exists and has a receiver
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", id);
       return false;
     }
-    
-    // Type assertion for receiver object
-    const receiver = order.receiver as Person;
     
     // Use the current domain dynamically
     const baseUrl = window.location.origin;
@@ -273,75 +456,46 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
     
     // Create item from bike details
     const item = {
-      name: `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle",
-      quantity: 1
+      name: `${order.bikeBrand} ${order.bikeModel}`.trim(),
+      quantity: 1,
+      price: 0
     };
     
-    console.log("Sending receiver availability email to:", receiver.email);
+    console.log("Sending receiver availability email to:", order.receiver.email);
     
     // Send email to receiver with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: receiver.email,
-        name: receiver.name || "Receiver",
+        to: order.receiver.email,
+        name: order.receiver.name || "Receiver",
         orderId: id,
         baseUrl,
-        emailType: EmailTemplates.RECEIVER_AVAILABILITY,
+        emailType: "receiver",
         item: item
       }
     });
     
     if (response.error) {
-      console.error("Error sending availability email to receiver:", response.error);
+      console.error("Error sending email to receiver:", response.error);
+      console.error("Response error details:", JSON.stringify(response.error, null, 2));
       return false;
     }
     
-    console.log("Receiver availability email sent successfully");
+    console.log("Email sent successfully to receiver:", order.receiver.email, "Response:", JSON.stringify(response.data));
     return true;
   } catch (error) {
-    console.error("Failed to send receiver availability email:", error);
+    console.error("Failed to send email to receiver:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return false;
   }
 };
 
-/**
- * Resend availability request email to the receiver
- */
 export const resendReceiverAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    console.log("Resending receiver availability email for order ID:", id);
+    console.log("Attempting to resend receiver availability email for order ID:", id);
     return await sendReceiverAvailabilityEmail(id);
   } catch (error) {
     console.error("Error resending receiver availability email:", error);
-    return false;
-  }
-};
-
-/**
- * Send delivery confirmation emails to both sender and receiver
- */
-export const sendDeliveryConfirmationEmails = async (id: string): Promise<boolean> => {
-  try {
-    console.log("Sending delivery confirmation emails for order ID:", id);
-    
-    const response = await supabase.functions.invoke("send-email", {
-      body: {
-        meta: {
-          action: "delivery_confirmation",
-          orderId: id
-        }
-      }
-    });
-    
-    if (response.error) {
-      console.error("Error sending delivery confirmation emails:", response.error);
-      return false;
-    }
-    
-    console.log("Delivery confirmation emails sent successfully");
-    return true;
-  } catch (error) {
-    console.error("Failed to send delivery confirmation emails:", error);
     return false;
   }
 };

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -159,19 +158,8 @@ const CreateOrder = () => {
     setIsSubmitting(true);
     try {
       const order = await createOrder(data);
-      
-      if (order) {
-        // Check that the order status is as expected
-        if (order.status === 'sender_availability_pending') {
-          toast.success("Order created successfully! An availability request has been sent to the sender.");
-        } else {
-          toast.success("Order created successfully!");
-        }
-        
-        navigate(`/dashboard`);
-      } else {
-        throw new Error("Failed to create order");
-      }
+      toast.success("Order created successfully!");
+      navigate(`/dashboard`);
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order. Please try again.");
