@@ -2,7 +2,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { Order } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -48,53 +48,101 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       });
     }
     
-    // Add new status events with appropriate icons
-    if (order.status === 'driver_to_collection') {
-      events.push({
-        title: "Driver En Route to Collection",
-        date: order.updatedAt,
-        icon: <Map className="h-4 w-4 text-courier-600" />,
-        description: "Driver is on the way to collect the bike"
+    // Add Shipday tracking events if available
+    const shipdayUpdates = order.trackingEvents?.shipday?.updates || [];
+    const pickupId = order.trackingEvents?.shipday?.pickup_id;
+    const deliveryId = order.trackingEvents?.shipday?.delivery_id;
+    
+    if (shipdayUpdates.length > 0) {
+      shipdayUpdates.forEach(update => {
+        const isPickup = update.orderId === pickupId;
+        const statusLower = update.status.toLowerCase();
+        
+        let title = "";
+        let icon = <Truck className="h-4 w-4 text-courier-600" />;
+        let description = "";
+        
+        if (isPickup) {
+          if (statusLower === "on-the-way") {
+            title = "Driver En Route to Collection";
+            icon = <Map className="h-4 w-4 text-courier-600" />;
+            description = "Driver is on the way to collect the bike";
+          } else if (statusLower === "picked-up") {
+            title = "Bike Collected";
+            icon = <Check className="h-4 w-4 text-courier-600" />;
+            description = "Bike has been collected from sender";
+          }
+        } else {
+          if (statusLower === "on-the-way") {
+            title = "Driver En Route to Delivery";
+            icon = <Truck className="h-4 w-4 text-courier-600" />;
+            description = "Driver is on the way to deliver the bike";
+          } else if (statusLower === "delivered") {
+            title = "Delivered";
+            icon = <Check className="h-4 w-4 text-green-600" />;
+            description = "Bike has been delivered to receiver";
+          }
+        }
+        
+        if (title) {
+          events.push({
+            title,
+            date: new Date(update.timestamp),
+            icon,
+            description
+          });
+        }
       });
+    } else {
+      // Fall back to order status if no Shipday updates
+      if (order.status === "driver_to_collection") {
+        events.push({
+          title: "Driver En Route to Collection",
+          date: order.updatedAt,
+          icon: <Map className="h-4 w-4 text-courier-600" />,
+          description: "Driver is on the way to collect the bike"
+        });
+      }
+      
+      if (order.status === "collected") {
+        events.push({
+          title: "Bike Collected",
+          date: order.updatedAt,
+          icon: <MapPin className="h-4 w-4 text-courier-600" />,
+          description: "Bike has been collected from sender"
+        });
+      }
+      
+      if (order.status === "driver_to_delivery") {
+        events.push({
+          title: "Driver En Route to Delivery",
+          date: order.updatedAt,
+          icon: <Truck className="h-4 w-4 text-courier-600" />,
+          description: "Driver is on the way to deliver the bike"
+        });
+      }
+      
+      if (order.status === "shipped") {
+        events.push({
+          title: "In Transit",
+          date: order.updatedAt,
+          icon: <Truck className="h-4 w-4 text-courier-600" />,
+          description: "Bike is in transit"
+        });
+      }
+      
+      if (order.status === "delivered") {
+        events.push({
+          title: "Delivered",
+          date: order.updatedAt,
+          icon: <Check className="h-4 w-4 text-green-600" />,
+          description: "Bike has been delivered"
+        });
+      }
     }
     
-    if (order.status === 'collected') {
-      events.push({
-        title: "Bike Collected",
-        date: order.updatedAt,
-        icon: <MapPin className="h-4 w-4 text-courier-600" />,
-        description: "Bike has been collected from sender"
-      });
-    }
-    
-    if (order.status === 'driver_to_delivery') {
-      events.push({
-        title: "Driver En Route to Delivery",
-        date: order.updatedAt,
-        icon: <Truck className="h-4 w-4 text-courier-600" />,
-        description: "Driver is on the way to deliver the bike"
-      });
-    }
-    
-    if (order.status === 'shipped') {
-      events.push({
-        title: "In Transit",
-        date: order.updatedAt,
-        icon: <Truck className="h-4 w-4 text-courier-600" />,
-        description: "Bike is in transit"
-      });
-    }
-    
-    if (order.status === 'delivered') {
-      events.push({
-        title: "Delivered",
-        date: order.updatedAt,
-        icon: <Check className="h-4 w-4 text-green-600" />,
-        description: "Bike has been delivered"
-      });
-    }
-    
-    return events;
+    // Sort events by date
+    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const trackingEvents = getTrackingEvents();

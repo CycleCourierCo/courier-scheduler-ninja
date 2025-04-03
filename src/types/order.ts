@@ -56,6 +56,19 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
+  trackingEvents?: {
+    shipday?: {
+      pickup_id?: string;
+      delivery_id?: string;
+      last_status?: string;
+      last_updated?: string;
+      updates?: Array<{
+        status: string;
+        timestamp: string;
+        orderId: string;
+      }>;
+    };
+  };
 };
 
 export type CreateOrderFormData = {

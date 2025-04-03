@@ -1,2 +1,5 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
+
+[functions.shipday-webhook]
+verify_jwt = false

@@ -36,3 +36,45 @@ export const createShipdayOrder = async (orderId: string) => {
     throw err;
   }
 };
+
+/**
+ * Tests the Shipday webhook with a simulated status update
+ * This is for testing purposes only and should not be used in production
+ * 
+ * @param orderId The ID of the order to test the webhook for
+ * @param shipdayId The Shipday ID (pickup_id or delivery_id)
+ * @param status The status to simulate
+ * @returns The response from the webhook
+ */
+export const testShipdayWebhook = async (
+  orderId: string, 
+  shipdayId: string, 
+  status: 'on-the-way' | 'picked-up' | 'delivered'
+) => {
+  try {
+    // Call the webhook directly for testing
+    const { data, error } = await supabase.functions.invoke("shipday-webhook", {
+      body: { 
+        orderId: shipdayId, 
+        status,
+        timestamp: new Date().toISOString()
+      },
+      headers: {
+        'x-webhook-token': 'test-token' // This should match what's set in the webhook function
+      }
+    });
+
+    if (error) {
+      console.error("Error testing Shipday webhook:", error);
+      toast.error("Failed to test Shipday webhook");
+      throw new Error(error.message);
+    }
+
+    toast.success(`Webhook test successful: Status updated to ${status}`);
+    return data;
+  } catch (err) {
+    console.error("Error in testShipdayWebhook:", err);
+    toast.error("An unexpected error occurred");
+    throw err;
+  }
+};
