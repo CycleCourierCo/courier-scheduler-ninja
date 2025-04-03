@@ -56,6 +56,20 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
+  // Add the missing properties
+  tracking_events?: {
+    shipday?: {
+      pickup_id?: string;
+      delivery_id?: string;
+      updates?: Array<{
+        status: string;
+        timestamp: string;
+        orderId: string;
+      }>;
+    };
+  };
+  shipday_pickup_id?: string;
+  shipday_delivery_id?: string;
 };
 
 export type CreateOrderFormData = {
