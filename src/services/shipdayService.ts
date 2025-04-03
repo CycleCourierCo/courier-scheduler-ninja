@@ -22,10 +22,10 @@ export const createShipdayOrder = async (orderId: string) => {
       throw new Error(error.message);
     }
 
-    if (!data.success) {
+    if (!data || !data.success) {
       console.error("Failed to create Shipday orders:", data);
-      toast.error(data.error || "Failed to create Shipday order");
-      throw new Error(data.error || "Unknown error creating Shipday orders");
+      toast.error(data?.error || "Failed to create Shipday order");
+      throw new Error(data?.error || "Unknown error creating Shipday orders");
     }
 
     toast.success("Shipday order created successfully");
