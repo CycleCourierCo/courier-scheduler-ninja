@@ -28,8 +28,10 @@ enabled = true
 enabled = true
 site_url = "http://localhost:3000"
 
+# The correct format is to use auth.email instead of auth.email.enabled
 [auth.email]
-enabled = true
+# Instead of "enabled = true", we just define the section
+# The presence of this section indicates email auth is enabled
 
 [functions.create-business-user]
 verify_jwt = true
