@@ -126,6 +126,34 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     
     // If no shipday updates are found but we have specific status, add fallback events
     if (shipdayUpdates.length === 0) {
+      // Status-based fallback timeline events (important for customer visibility)
+      if (order.status === "sender_availability_pending" && !events.some(e => e.title === "Awaiting Collection Dates")) {
+        events.push({
+          title: "Awaiting Collection Dates",
+          date: order.updatedAt || order.createdAt,
+          icon: <Clock className="h-4 w-4 text-courier-600" />,
+          description: "Waiting for sender to confirm availability dates"
+        });
+      }
+      
+      if (order.status === "receiver_availability_pending" && !events.some(e => e.title === "Awaiting Delivery Dates")) {
+        events.push({
+          title: "Awaiting Delivery Dates",
+          date: order.updatedAt || order.createdAt,
+          icon: <Clock className="h-4 w-4 text-courier-600" />,
+          description: "Waiting for receiver to confirm availability dates"
+        });
+      }
+      
+      if (order.status === "scheduled_dates_pending" && !events.some(e => e.title === "Scheduling in Progress")) {
+        events.push({
+          title: "Scheduling in Progress",
+          date: order.updatedAt || order.createdAt,
+          icon: <Calendar className="h-4 w-4 text-courier-600" />,
+          description: "Transport team is scheduling your pickup and delivery"
+        });
+      }
+      
       if (order.status === "driver_to_collection") {
         events.push({
           title: "Driver En Route to Collection",

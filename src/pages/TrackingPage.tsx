@@ -71,6 +71,10 @@ const TrackingPage = () => {
     enabled: !!searchId,
   });
 
+  // Debug logs
+  console.log("TrackingPage order data:", order);
+  console.log("TrackingPage order tracking:", order?.trackingEvents);
+
   return (
     <Layout>
       <div className="container py-8">

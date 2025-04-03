@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Eye, RefreshCcw, Bike, GripVertical, Calendar } from "lucide-react";
 import { toast } from "sonner";
@@ -65,11 +65,19 @@ const DEFAULT_COLUMN_WIDTHS = {
 
 const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
   const [isResizing, setIsResizing] = useState(false);
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   
+  // Filter out actions column for non-admin users
+  useEffect(() => {
+    if (userRole !== "admin" && visibleColumns.includes("actions")) {
+      setVisibleColumns(prevColumns => prevColumns.filter(col => col !== "actions"));
+    }
+  }, [userRole, visibleColumns]);
+
   useEffect(() => {
     // Load user preferences when component mounts
     const fetchUserPreferences = async () => {
@@ -140,7 +148,12 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
   }, [orders]);
 
   const handleColumnChange = (columns: string[]) => {
-    setVisibleColumns(columns);
+    // Filter out actions column for non-admin users
+    const filteredColumns = userRole !== "admin" 
+      ? columns.filter(col => col !== "actions") 
+      : columns;
+      
+    setVisibleColumns(filteredColumns);
   };
 
   const handleResendEmail = async (orderId: string, e: React.MouseEvent) => {
@@ -156,6 +169,11 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
       console.error("Error resending email:", error);
       toast.error("Failed to resend email");
     }
+  };
+
+  const handleRowClick = (orderId: string) => {
+    if (userRole === "admin") return; // Don't navigate on row click for admins
+    navigate(`/customer-orders/${orderId}`);
   };
 
   const saveColumnWidths = async (newWidths: Record<string, number>) => {
@@ -268,11 +286,18 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     return format(new Date(date), "PP");
   };
 
+  // Determine cursor style for rows based on userRole
+  const getRowClassName = () => {
+    return userRole !== "admin" 
+      ? "hover:bg-gray-50 dark:hover:bg-muted/40 cursor-pointer" 
+      : "hover:bg-gray-50 dark:hover:bg-muted/40";
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-background">
       <div className="flex justify-end p-2 border-b">
         <TableColumnSettings 
-          columns={ALL_COLUMNS} 
+          columns={userRole === "admin" ? ALL_COLUMNS : ALL_COLUMNS.filter(col => col.id !== "actions")} 
           visibleColumns={visibleColumns} 
           onChange={handleColumnChange} 
         />
@@ -302,7 +327,11 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
           </TableHeader>
           <TableBody>
             {orders.map((order) => (
-              <TableRow key={order.id} className="hover:bg-gray-50 dark:hover:bg-muted/40">
+              <TableRow 
+                key={order.id} 
+                className={getRowClassName()}
+                onClick={() => handleRowClick(order.id)}
+              >
                 {visibleColumns.map((columnId) => (
                   <TableCell 
                     key={`${order.id}-${columnId}`}
@@ -314,9 +343,19 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                       </span>
                     )}
                     {columnId === "trackingNumber" && (
-                      <Link to={`/orders/${order.id}`} className="hover:underline text-courier-600">
-                        {order.trackingNumber || `${order.id.substring(0, 8)}...`}
-                      </Link>
+                      userRole === "admin" ? (
+                        <Link 
+                          to={`/orders/${order.id}`} 
+                          className="hover:underline text-courier-600"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {order.trackingNumber || `${order.id.substring(0, 8)}...`}
+                        </Link>
+                      ) : (
+                        <span className="text-courier-600">
+                          {order.trackingNumber || `${order.id.substring(0, 8)}...`}
+                        </span>
+                      )
                     )}
                     {columnId === "status" && <StatusBadge status={order.status} />}
                     {columnId === "sender" && order.sender.name}
@@ -359,7 +398,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                     )}
                     {columnId === "created" && format(new Date(order.createdAt), "PP")}
                     {columnId === "actions" && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         {userRole === "admin" && (
                           <Button variant="outline" size="sm" asChild>
                             <Link to={`/orders/${order.id}`}>
