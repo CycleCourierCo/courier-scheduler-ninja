@@ -1,7 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { resendReceiverAvailabilityEmail } from "./emailService";
 import { Order } from "@/types/order";
+import { mapDbOrderToOrderType } from "./orderServiceUtils";
+import { resendReceiverAvailabilityEmail } from "./emailService";
 
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
@@ -146,6 +148,9 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       return null;
     }
     
+    // Map the database response to our Order type
+    const order = mapDbOrderToOrderType(data);
+    
     // Automatically confirm sender availability and update status
     const success = await confirmSenderAvailability(orderId, dateStrings);
     
@@ -153,7 +158,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       console.error("Failed to confirm sender availability after update");
     }
     
-    return data;
+    return order;
   } catch (error) {
     console.error("Unexpected error in updateSenderAvailability:", error);
     return null;
@@ -191,6 +196,9 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       return null;
     }
     
+    // Map the database response to our Order type
+    const order = mapDbOrderToOrderType(data);
+    
     // Automatically confirm receiver availability
     const success = await confirmReceiverAvailability(orderId, dateStrings);
     
@@ -198,7 +206,7 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       console.error("Failed to confirm receiver availability after update");
     }
     
-    return data;
+    return order;
   } catch (error) {
     console.error("Unexpected error in updateReceiverAvailability:", error);
     return null;
@@ -219,9 +227,14 @@ export const getSenderAvailability = async (orderId: string) => {
       return null;
     }
 
+    // Convert the jsonb array of dates to Date objects safely
+    const dates = Array.isArray(data.pickup_date) 
+      ? data.pickup_date.map(d => new Date(d)) 
+      : [];
+
     return {
       notes: data.sender_notes || "",
-      dates: Array.isArray(data.pickup_date) ? data.pickup_date.map(d => new Date(d)) : []
+      dates: dates
     };
   } catch (error) {
     console.error("Unexpected error fetching sender availability:", error);
@@ -244,9 +257,14 @@ export const getReceiverAvailability = async (orderId: string) => {
       return null;
     }
 
+    // Convert the jsonb array of dates to Date objects safely
+    const dates = Array.isArray(data.delivery_date) 
+      ? data.delivery_date.map(d => new Date(d)) 
+      : [];
+
     return {
       notes: data.receiver_notes || "",
-      dates: Array.isArray(data.delivery_date) ? data.delivery_date.map(d => new Date(d)) : []
+      dates: dates
     };
   } catch (error) {
     console.error("Unexpected error fetching receiver availability:", error);
