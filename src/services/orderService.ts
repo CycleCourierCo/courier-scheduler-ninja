@@ -264,8 +264,6 @@ export const updateOrderScheduledDates = async (
   return updateOrderSchedule(id, pickupDate, deliveryDate);
 };
 
-export { resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail };
-
 export const pollOrderUpdates = (
   orderId: string, 
   callback: (order: Order) => void,
