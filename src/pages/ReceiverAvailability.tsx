@@ -60,7 +60,10 @@ export default function ReceiverAvailability() {
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
-    getMinDate: () => new Date(), // Allow from current date
+    getMinDate: () => {
+      // This function will be overridden by the hook logic to use the earliest sender date
+      return new Date();
+    },
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
       return order.status === 'receiver_availability_confirmed' || 

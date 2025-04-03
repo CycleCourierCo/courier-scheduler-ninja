@@ -1,4 +1,3 @@
-
 import { useState, useEffect, FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -61,6 +60,26 @@ export const useAvailability = ({
         console.log("Order loaded successfully:", fetchedOrder.id, "Status:", fetchedOrder.status);
         setOrder(fetchedOrder);
 
+        // For receiver availability, set the minimum date to the earliest sender date if available
+        if (type === 'receiver' && fetchedOrder.pickupDate && Array.isArray(fetchedOrder.pickupDate) && fetchedOrder.pickupDate.length > 0) {
+          try {
+            // Find the earliest date selected by the sender
+            const senderDates = fetchedOrder.pickupDate.map(dateString => new Date(dateString));
+            const earliestSenderDate = new Date(Math.min(...senderDates.map(date => date.getTime())));
+            
+            console.log("Setting minimum date for receiver to earliest sender date:", earliestSenderDate);
+            // Set the minimum date to the earliest sender date
+            setMinDate(earliestSenderDate);
+          } catch (err) {
+            console.error("Error setting minimum date based on sender availability:", err);
+            // Fall back to default minimum date
+            setMinDate(getMinDate());
+          }
+        } else {
+          // Use the default minimum date for sender
+          setMinDate(getMinDate());
+        }
+
         // Check if the availability is already confirmed
         if (isAlreadyConfirmed(fetchedOrder)) {
           const alreadyConfirmedDates = type === 'sender' 
@@ -114,7 +133,7 @@ export const useAvailability = ({
     return () => {
       isMounted = false;
     };
-  }, [id, type, isAlreadyConfirmed, hasAttemptedLoad]);
+  }, [id, type, isAlreadyConfirmed, hasAttemptedLoad, getMinDate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

@@ -230,15 +230,6 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
       throw new Error(error.message);
     }
 
-    // Send emails to sender and receiver
-    try {
-      await sendOrderCreationEmailToSender(data.id);
-      await sendOrderNotificationToReceiver(data.id);
-    } catch (emailError) {
-      console.error("Error sending order emails:", emailError);
-      // Continue even if emails fail
-    }
-
     // Generate proper tracking number format
     try {
       const response = await supabase.functions.invoke("generate-tracking-numbers", {
@@ -253,6 +244,47 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
     } catch (trackingError) {
       console.error("Failed to generate tracking number:", trackingError);
       // Continue even if tracking number generation fails
+    }
+
+    // Send order creation email to sender
+    try {
+      const emailSuccess = await sendOrderCreationEmailToSender(data.id);
+      console.log("Order creation email sent to sender:", emailSuccess);
+    } catch (emailError) {
+      console.error("Error sending order creation email to sender:", emailError);
+      // Continue even if email fails
+    }
+
+    // Send sender availability email
+    try {
+      const baseUrl = window.location.origin;
+      console.log("Sending sender availability email with base URL:", baseUrl);
+      
+      // Create item from bike details
+      const item = {
+        name: `${data.bike_brand} ${data.bike_model}`.trim() || "Bicycle",
+        quantity: 1
+      };
+      
+      const senderAvailabilityResponse = await supabase.functions.invoke("send-email", {
+        body: {
+          to: data.sender.email,
+          name: data.sender.name,
+          orderId: data.id,
+          baseUrl,
+          emailType: "sender",
+          item: item
+        }
+      });
+      
+      if (senderAvailabilityResponse.error) {
+        console.error("Error sending sender availability email:", senderAvailabilityResponse.error);
+      } else {
+        console.log("Sender availability email sent successfully");
+      }
+    } catch (availabilityEmailError) {
+      console.error("Failed to send sender availability email:", availabilityEmailError);
+      // Continue even if email fails
     }
 
     return mapDbOrderToOrderType(data);
