@@ -125,8 +125,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     // Create timestamp for consistency
     const timestamp = new Date().toISOString();
 
-    // Generate a custom tracking number based on sender name and receiver zipcode
-    const trackingNumber = generateTrackingNumber(sender.name, receiver.address.zipCode);
+    // Generate a tracking number using the edge function
+    const trackingNumber = await generateTrackingNumber(sender.name, receiver.address.zipCode);
 
     const { data: order, error } = await supabase
       .from("orders")
@@ -169,7 +169,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,
-        tracking_number: trackingNumber, // Set the tracking number explicitly
+        tracking_number: trackingNumber, // Set the tracking number from the edge function
       })
       .select()
       .single();

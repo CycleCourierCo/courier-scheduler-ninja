@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -33,15 +34,39 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get all orders by default, but also allow filtering only those without proper tracking numbers
-    const reqBody = await req.json().catch(() => ({ forceAll: true }));
+    // Parse request body
+    const reqBody = await req.json().catch(() => ({}));
+    
+    // Handle single tracking number generation (no database update)
+    if (reqBody.generateSingle === true) {
+      console.log("Generating single tracking number");
+      const senderName = reqBody.senderName || "UNKNOWN";
+      const receiverZipCode = reqBody.receiverZipCode || "000";
+      
+      const trackingNumber = generateCustomOrderId(senderName, receiverZipCode);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          trackingNumber
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+    
+    // Get specific order ID if provided
+    const specificOrderId = reqBody.specificOrderId;
     const forceAll = reqBody.forceAll === true;
 
     // Build query for orders
     let query = supabase.from("orders").select("*");
     
-    // If not forcing all, only get orders with problematic tracking numbers
-    if (!forceAll) {
+    // If specific order ID is provided, only get that order
+    if (specificOrderId) {
+      query = query.eq("id", specificOrderId);
+    }
+    // If not forcing all and no specific ID, only get orders with problematic tracking numbers
+    else if (!forceAll) {
       query = query.or(
         "tracking_number.is.null,tracking_number.ilike.P:%,tracking_number.ilike.SD-%,tracking_number.not.ilike.CCC754%"
       );
