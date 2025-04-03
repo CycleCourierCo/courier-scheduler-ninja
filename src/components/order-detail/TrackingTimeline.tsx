@@ -48,8 +48,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       });
     }
     
-    // Create a map to track events by title to prevent duplicates
-    const eventMap = new Map();
+    // Create an object instead of Map to track events by title to prevent duplicates
+    const eventMap = {};
     
     // Always include Shipday tracking events if available
     const shipdayUpdates = order.trackingEvents?.shipday?.updates || [];
@@ -78,7 +78,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           }
           
           // Only add if we have a title and it's not a duplicate
-          if (title && !eventMap.has(title)) {
+          if (title && !eventMap[title]) {
             const event = {
               title: title || "Status Update",
               date: new Date(update.timestamp),
@@ -86,7 +86,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               description: update.description
             };
             events.push(event);
-            eventMap.set(title, event);
+            eventMap[title] = event;
           }
         } else {
           // Legacy handling for updates without description
@@ -121,7 +121,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           }
           
           // Only add if we have a title and it's not a duplicate
-          if (title && !eventMap.has(title)) {
+          if (title && !eventMap[title]) {
             const event = {
               title,
               date: new Date(update.timestamp),
@@ -129,7 +129,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               description
             };
             events.push(event);
-            eventMap.set(title, event);
+            eventMap[title] = event;
           }
         }
       });
@@ -138,7 +138,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     // If no shipday updates are found but we have specific status, add fallback events
     if (shipdayUpdates.length === 0) {
       // Status-based fallback timeline events (important for customer visibility)
-      if (order.status === "sender_availability_pending" && !eventMap.has("Awaiting Collection Dates")) {
+      if (order.status === "sender_availability_pending" && !eventMap["Awaiting Collection Dates"]) {
         const event = {
           title: "Awaiting Collection Dates",
           date: order.updatedAt || order.createdAt,
@@ -146,10 +146,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           description: "Waiting for sender to confirm availability dates"
         };
         events.push(event);
-        eventMap.set("Awaiting Collection Dates", event);
+        eventMap["Awaiting Collection Dates"] = event;
       }
       
-      if (order.status === "receiver_availability_pending" && !eventMap.has("Awaiting Delivery Dates")) {
+      if (order.status === "receiver_availability_pending" && !eventMap["Awaiting Delivery Dates"]) {
         const event = {
           title: "Awaiting Delivery Dates",
           date: order.updatedAt || order.createdAt,
@@ -157,10 +157,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           description: "Waiting for receiver to confirm availability dates"
         };
         events.push(event);
-        eventMap.set("Awaiting Delivery Dates", event);
+        eventMap["Awaiting Delivery Dates"] = event;
       }
       
-      if (order.status === "scheduled_dates_pending" && !eventMap.has("Scheduling in Progress")) {
+      if (order.status === "scheduled_dates_pending" && !eventMap["Scheduling in Progress"]) {
         const event = {
           title: "Scheduling in Progress",
           date: order.updatedAt || order.createdAt,
@@ -168,13 +168,13 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           description: "Transport team is scheduling your pickup and delivery"
         };
         events.push(event);
-        eventMap.set("Scheduling in Progress", event);
+        eventMap["Scheduling in Progress"] = event;
       }
     }
     
     // Add these status-based events regardless of Shipday updates
     // This ensures the collection steps remain visible even during delivery
-    if (order.status === "driver_to_collection" && !eventMap.has("Driver En Route to Collection")) {
+    if (order.status === "driver_to_collection" && !eventMap["Driver En Route to Collection"]) {
       const event = {
         title: "Driver En Route to Collection",
         date: order.updatedAt,
@@ -182,11 +182,11 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         description: "Driver is on the way to collect the bike"
       };
       events.push(event);
-      eventMap.set("Driver En Route to Collection", event);
+      eventMap["Driver En Route to Collection"] = event;
     }
     
     if ((order.status === "collected" || order.status === "driver_to_delivery" || order.status === "shipped" || order.status === "delivered") && 
-        !eventMap.has("Bike Collected")) {
+        !eventMap["Bike Collected"]) {
       const event = {
         title: "Bike Collected",
         date: order.updatedAt,
@@ -194,10 +194,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         description: "Bike has been collected from sender"
       };
       events.push(event);
-      eventMap.set("Bike Collected", event);
+      eventMap["Bike Collected"] = event;
     }
     
-    if (order.status === "driver_to_delivery" && !eventMap.has("Driver En Route to Delivery")) {
+    if (order.status === "driver_to_delivery" && !eventMap["Driver En Route to Delivery"]) {
       const event = {
         title: "Driver En Route to Delivery",
         date: order.updatedAt,
@@ -205,10 +205,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         description: "Driver is on the way to deliver the bike"
       };
       events.push(event);
-      eventMap.set("Driver En Route to Delivery", event);
+      eventMap["Driver En Route to Delivery"] = event;
     }
     
-    if (order.status === "shipped" && !eventMap.has("In Transit")) {
+    if (order.status === "shipped" && !eventMap["In Transit"]) {
       const event = {
         title: "In Transit",
         date: order.updatedAt,
@@ -216,10 +216,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         description: "Bike is in transit"
       };
       events.push(event);
-      eventMap.set("In Transit", event);
+      eventMap["In Transit"] = event;
     }
     
-    if (order.status === "delivered" && !eventMap.has("Delivered")) {
+    if (order.status === "delivered" && !eventMap["Delivered"]) {
       const event = {
         title: "Delivered",
         date: order.updatedAt,
@@ -227,7 +227,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         description: "Bike has been delivered to receiver"
       };
       events.push(event);
-      eventMap.set("Delivered", event);
+      eventMap["Delivered"] = event;
     }
     
     // Sort events by date
