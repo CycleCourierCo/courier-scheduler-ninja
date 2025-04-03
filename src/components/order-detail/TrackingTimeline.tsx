@@ -1,3 +1,4 @@
+
 import React from "react";
 import { format } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
@@ -100,10 +101,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             icon = <Check className="h-4 w-4 text-green-600" />;
           }
           
-          // Only add if we have a title and we haven't seen this event type before
-          // or if we're updating an event with a newer timestamp
-          if (title && (!eventMap[title] || 
-              new Date(update.timestamp).getTime() > new Date(eventMap[title].date).getTime())) {
+          // Only add if we have a title and we haven't seen this event type before,
+          // or if this is a newer event of the same type
+          if (title) {
             const event = {
               title: title,
               date: new Date(update.timestamp),
@@ -111,18 +111,18 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               description: update.description
             };
             
-            // If this is a new event, add it to the events array
             if (!eventMap[title]) {
+              // This is the first time we're seeing this event type
               events.push(event);
-            } else {
-              // Otherwise, update the existing event in place
+              eventMap[title] = event;
+            } else if (new Date(update.timestamp) > new Date(eventMap[title].date)) {
+              // We've already seen this event type, but this one is newer
               const index = events.findIndex(e => e.title === title);
               if (index !== -1) {
                 events[index] = event;
               }
+              eventMap[title] = event;
             }
-            
-            eventMap[title] = event;
           }
         } else {
           // Legacy handling for updates without description
@@ -140,7 +140,6 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               icon = <Map className="h-4 w-4 text-courier-600" />;
               description = "Driver is on the way to collect the bike";
             } else if (statusLower === "picked-up" || statusLower === "delivered" || statusLower === "already_delivered") {
-              // Handle both "picked-up" and "delivered" statuses for pickup
               title = "Bike Collected";
               hasBikeCollectedEvent = true;
               icon = <Check className="h-4 w-4 text-courier-600" />;
@@ -160,10 +159,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             }
           }
           
-          // Only add if we have a title and we haven't seen this event type before
-          // or if we're updating an event with a newer timestamp
-          if (title && (!eventMap[title] || 
-              new Date(update.timestamp).getTime() > new Date(eventMap[title].date).getTime())) {
+          // Only add if we have a title and this is a valid event
+          if (title) {
             const event = {
               title,
               date: new Date(update.timestamp),
@@ -171,18 +168,18 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               description
             };
             
-            // If this is a new event, add it to the events array
             if (!eventMap[title]) {
+              // This is the first time we're seeing this event type
               events.push(event);
-            } else {
-              // Otherwise, update the existing event in place
+              eventMap[title] = event;
+            } else if (new Date(update.timestamp) > new Date(eventMap[title].date)) {
+              // We've already seen this event type, but this one is newer
               const index = events.findIndex(e => e.title === title);
               if (index !== -1) {
                 events[index] = event;
               }
+              eventMap[title] = event;
             }
-            
-            eventMap[title] = event;
           }
         }
       });
@@ -225,8 +222,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       }
     }
     
-    // Always add these critical steps if they're missing and the order has progressed to or past these stages
-    // We'll only add them if we don't already have events for these stages (preserve original timestamps)
+    // Add critical steps only if they don't already exist and the order status indicates they should
+    // These will use the generic updatedAt timestamp, but only as a fallback when no Shipday event exists
     
     // Driver to Collection - add if status indicates this happened but no event exists yet
     if (!hasDriverToCollectionEvent && !eventMap["Driver En Route to Collection"] && 
@@ -235,9 +232,18 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
          order.status === "driver_to_delivery" || 
          order.status === "shipped" || 
          order.status === "delivered")) {
+      
+      // Find the most recent updatedAt timestamp before the next known event
+      let timestamp = order.updatedAt;
+      
+      if (eventMap["Bike Collected"]) {
+        // If we know when the bike was collected, this event must be before that
+        timestamp = new Date(new Date(eventMap["Bike Collected"].date).getTime() - 3600000); // 1 hour before
+      }
+      
       const event = {
         title: "Driver En Route to Collection",
-        date: order.updatedAt,
+        date: timestamp,
         icon: <Map className="h-4 w-4 text-courier-600" />,
         description: "Driver is on the way to collect the bike"
       };
@@ -251,9 +257,26 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
          order.status === "driver_to_delivery" || 
          order.status === "shipped" || 
          order.status === "delivered")) {
+      
+      // Find the appropriate timestamp
+      let timestamp = order.updatedAt;
+      
+      if (eventMap["Driver En Route to Collection"] && eventMap["Driver En Route to Delivery"]) {
+        // If we have both surrounding events, place this one in between
+        const collectionTime = new Date(eventMap["Driver En Route to Collection"].date).getTime();
+        const deliveryTime = new Date(eventMap["Driver En Route to Delivery"].date).getTime();
+        timestamp = new Date((collectionTime + deliveryTime) / 2);
+      } else if (eventMap["Driver En Route to Delivery"]) {
+        // If we only know when the driver went to delivery, this must be before that
+        timestamp = new Date(new Date(eventMap["Driver En Route to Delivery"].date).getTime() - 3600000); // 1 hour before
+      } else if (eventMap["Driver En Route to Collection"]) {
+        // If we only know when the driver went to collection, this must be after that
+        timestamp = new Date(new Date(eventMap["Driver En Route to Collection"].date).getTime() + 3600000); // 1 hour after
+      }
+      
       const event = {
         title: "Bike Collected",
-        date: order.updatedAt,
+        date: timestamp,
         icon: <Check className="h-4 w-4 text-courier-600" />,
         description: "Bike has been collected from sender"
       };
@@ -266,9 +289,26 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         (order.status === "driver_to_delivery" || 
          order.status === "shipped" || 
          order.status === "delivered")) {
+      
+      // Find the appropriate timestamp
+      let timestamp = order.updatedAt;
+      
+      if (eventMap["Bike Collected"] && eventMap["Delivered"]) {
+        // If we have both surrounding events, place this one in between
+        const collectedTime = new Date(eventMap["Bike Collected"].date).getTime();
+        const deliveredTime = new Date(eventMap["Delivered"].date).getTime();
+        timestamp = new Date((collectedTime + deliveredTime) / 2);
+      } else if (eventMap["Delivered"]) {
+        // If we only know when delivered, this must be before that
+        timestamp = new Date(new Date(eventMap["Delivered"].date).getTime() - 3600000); // 1 hour before
+      } else if (eventMap["Bike Collected"]) {
+        // If we only know when collected, this must be after that
+        timestamp = new Date(new Date(eventMap["Bike Collected"].date).getTime() + 3600000); // 1 hour after
+      }
+      
       const event = {
         title: "Driver En Route to Delivery",
-        date: order.updatedAt,
+        date: timestamp,
         icon: <Truck className="h-4 w-4 text-courier-600" />,
         description: "Driver is on the way to deliver the bike"
       };
