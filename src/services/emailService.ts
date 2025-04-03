@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 
@@ -375,16 +374,16 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
   }
 };
 
-export const resendReceiverAvailabilityEmail = async (id: string): Promise<boolean> => {
+export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    console.log("Starting to send receiver availability email for order ID:", id);
+    console.log("Starting to send sender availability email for order ID:", id);
     
     // Get the order details first
     const order = await getOrder(id);
     
-    // Ensure the order exists and has a receiver
-    if (!order || !order.receiver || !order.receiver.email) {
-      console.error("Order or receiver information not found for ID:", id);
+    // Ensure the order exists and has a sender
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", id);
       return false;
     }
     
@@ -399,31 +398,41 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
       price: 0
     };
     
-    console.log("Sending receiver email to:", order.receiver.email);
+    console.log("Sending sender availability email to:", order.sender.email);
     
-    // Send email to receiver with improved error handling
+    // Send email to sender with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.receiver.email,
-        name: order.receiver.name || "Receiver",
+        to: order.sender.email,
+        name: order.sender.name || "Sender",
         orderId: id,
         baseUrl,
-        emailType: "receiver",
+        emailType: "sender",
         item: item
       }
     });
     
     if (response.error) {
-      console.error("Error sending email to receiver:", response.error);
+      console.error("Error sending email to sender:", response.error);
       console.error("Response error details:", JSON.stringify(response.error, null, 2));
       return false;
     }
     
-    console.log("Email sent successfully to receiver:", order.receiver.email, "Response:", JSON.stringify(response.data));
+    console.log("Email sent successfully to sender:", order.sender.email, "Response:", JSON.stringify(response.data));
     return true;
   } catch (error) {
-    console.error("Failed to send email to receiver:", error);
+    console.error("Failed to send email to sender:", error);
     console.error("Error details:", JSON.stringify(error, null, 2));
+    return false;
+  }
+};
+
+export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Attempting to resend sender availability email for order ID:", id);
+    return await sendSenderAvailabilityEmail(id);
+  } catch (error) {
+    console.error("Error resending sender availability email:", error);
     return false;
   }
 };

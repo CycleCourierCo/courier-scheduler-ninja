@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
-import { sendOrderCreationEmailToSender, sendOrderNotificationToReceiver, resendReceiverAvailabilityEmail as resendReceiverAvailabilityEmailFunc } from "@/services/emailService";
+import { sendOrderCreationEmailToSender, sendOrderNotificationToReceiver, resendReceiverAvailabilityEmail as resendReceiverAvailabilityEmailFunc, sendSenderAvailabilityEmail } from "@/services/emailService";
 import { generateTrackingNumber } from "@/services/trackingService";
 
 // For backward compatibility with fetchOrderService
@@ -187,23 +187,37 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         console.log(`Sender email: ${sender.email}`);
         console.log(`Receiver email: ${receiver.email}`);
         
-        // First send to sender with explicit awaiting
+        // First send order confirmation to sender with explicit awaiting
         console.log("STEP 1: Sending confirmation email to sender...");
         const senderEmailResult = await sendOrderCreationEmailToSender(order.id);
-        console.log(`Sender email sent successfully: ${senderEmailResult}`);
+        console.log(`Sender confirmation email sent successfully: ${senderEmailResult}`);
         
-        // Then send to receiver only after sender email completes
-        console.log("STEP 2: Sending notification email to receiver...");
+        // Second, send sender availability email
+        console.log("STEP 2: Sending availability email to sender...");
+        const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
+        console.log(`Sender availability email sent successfully: ${senderAvailabilityResult}`);
+        
+        // Then send to receiver only after sender emails complete
+        console.log("STEP 3: Sending notification email to receiver...");
         const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
         console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
         
         console.log("===== EMAIL SENDING PROCESS COMPLETED =====");
-        return { sender: senderEmailResult, receiver: receiverEmailResult };
+        return { 
+          senderConfirmation: senderEmailResult, 
+          senderAvailability: senderAvailabilityResult,
+          receiver: receiverEmailResult 
+        };
       } catch (emailError) {
         console.error("===== EMAIL SENDING PROCESS FAILED =====");
         console.error("Error details:", emailError);
         // Do not throw to prevent blocking the order creation
-        return { sender: false, receiver: false, error: emailError };
+        return { 
+          senderConfirmation: false, 
+          senderAvailability: false,
+          receiver: false, 
+          error: emailError 
+        };
       }
     };
     
@@ -265,20 +279,7 @@ export const updateOrderScheduledDates = async (
 
 export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    console.log("Attempting to resend sender availability email for order:", id);
-    const order = await getOrder(id);
-    
-    if (!order || !order.sender || !order.sender.email) {
-      console.error("Order or sender information not found");
-      return false;
-    }
-    
-    // Logic for sender email resending would go here
-    // For now, we'll just return true to simulate success
-    // In a real implementation, you would call a function to send the email
-    
-    console.log("Successfully simulated resending sender email");
-    return true;
+    return await resendSenderAvailabilityEmailFunc(id);
   } catch (error) {
     console.error("Error resending sender availability email:", error);
     return false;
