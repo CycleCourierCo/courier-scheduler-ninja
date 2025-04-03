@@ -179,37 +179,47 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
     // Generate a tracking number
     const trackingNumber = `CCC${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`;
     
+    // Modified to use JSON structure for sender and receiver instead of flattened fields
     const { data, error } = await supabase
       .from("orders")
       .insert({
         tracking_number: trackingNumber,
-        sender_name: orderData.sender.name,
-        sender_email: orderData.sender.email,
-        sender_phone: orderData.sender.phone,
-        sender_address_street: orderData.sender.address.street,
-        sender_address_city: orderData.sender.address.city,
-        sender_address_state: orderData.sender.address.state,
-        sender_address_zip: orderData.sender.address.zipCode,
-        sender_address_country: orderData.sender.address.country,
-        sender_address_lat: orderData.sender.address.lat,
-        sender_address_lon: orderData.sender.address.lon,
-        receiver_name: orderData.receiver.name,
-        receiver_email: orderData.receiver.email,
-        receiver_phone: orderData.receiver.phone,
-        receiver_address_street: orderData.receiver.address.street,
-        receiver_address_city: orderData.receiver.address.city,
-        receiver_address_state: orderData.receiver.address.state,
-        receiver_address_zip: orderData.receiver.address.zipCode,
-        receiver_address_country: orderData.receiver.address.country,
-        receiver_address_lat: orderData.receiver.address.lat,
-        receiver_address_lon: orderData.receiver.address.lon,
+        sender: {
+          name: orderData.sender.name,
+          email: orderData.sender.email,
+          phone: orderData.sender.phone,
+          address: {
+            street: orderData.sender.address.street,
+            city: orderData.sender.address.city,
+            state: orderData.sender.address.state,
+            zipCode: orderData.sender.address.zipCode,
+            country: orderData.sender.address.country,
+            lat: orderData.sender.address.lat,
+            lon: orderData.sender.address.lon
+          }
+        },
+        receiver: {
+          name: orderData.receiver.name,
+          email: orderData.receiver.email,
+          phone: orderData.receiver.phone,
+          address: {
+            street: orderData.receiver.address.street,
+            city: orderData.receiver.address.city,
+            state: orderData.receiver.address.state,
+            zipCode: orderData.receiver.address.zipCode,
+            country: orderData.receiver.address.country,
+            lat: orderData.receiver.address.lat,
+            lon: orderData.receiver.address.lon
+          }
+        },
         bike_brand: orderData.bikeBrand,
         bike_model: orderData.bikeModel,
         customer_order_number: orderData.customerOrderNumber,
         needs_payment_on_collection: orderData.needsPaymentOnCollection,
         is_bike_swap: orderData.isBikeSwap,
         delivery_instructions: orderData.deliveryInstructions,
-        status: "created" as OrderStatus
+        status: "created" as OrderStatus,
+        user_id: (await supabase.auth.getSession()).data.session?.user.id || '' // Get current user ID
       })
       .select()
       .single();
@@ -543,3 +553,4 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
     return false;
   }
 };
+

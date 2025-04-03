@@ -1,7 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
-import { updateOrderScheduledDates } from "./updateOrderService";
+import { updateOrderScheduledDates } from "./orderService";
 import { areLocationsWithinRadius, getLocationName } from "@/utils/locationUtils";
 
 // Define types for our scheduling functionality
