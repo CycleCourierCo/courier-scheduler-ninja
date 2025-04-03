@@ -266,10 +266,17 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
         quantity: 1
       };
       
+      // TypeScript safeguards for sender object
+      const senderEmail = typeof data.sender === 'object' && data.sender ? 
+        (data.sender as any).email || '' : '';
+      
+      const senderName = typeof data.sender === 'object' && data.sender ? 
+        (data.sender as any).name || 'Sender' : 'Sender';
+      
       const senderAvailabilityResponse = await supabase.functions.invoke("send-email", {
         body: {
-          to: data.sender.email,
-          name: data.sender.name,
+          to: senderEmail,
+          name: senderName,
           orderId: data.id,
           baseUrl,
           emailType: "sender",
@@ -602,4 +609,3 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
     return false;
   }
 };
-
