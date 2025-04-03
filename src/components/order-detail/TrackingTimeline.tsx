@@ -1,11 +1,20 @@
 
 import React from "react";
 import { format } from "date-fns";
-import { Order, ShipdayUpdate } from "@/types/order";
+import { Order } from "@/types/order";
 import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
+}
+
+// Define the expected structure of a Shipday update
+interface ShipdayUpdate {
+  status: string;
+  timestamp: string;
+  orderId: string;
+  description?: string;
+  event?: string;
 }
 
 const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
@@ -52,8 +61,6 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     const shipdayUpdates = order.trackingEvents?.shipday?.updates || [];
     const pickupId = order.trackingEvents?.shipday?.pickup_id;
     const deliveryId = order.trackingEvents?.shipday?.delivery_id;
-    
-    console.log("Shipday tracking updates:", shipdayUpdates);
     
     if (shipdayUpdates.length > 0) {
       shipdayUpdates.forEach((update: ShipdayUpdate) => {

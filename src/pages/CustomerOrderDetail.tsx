@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Check, Clock, ClipboardEdit } from "lucide-react";
@@ -26,12 +27,6 @@ const CustomerOrderDetail = () => {
         const fetchedOrder = await getOrderById(id);
         
         if (fetchedOrder) {
-          console.log("Fetched order with tracking details:", 
-            JSON.stringify({
-              status: fetchedOrder.status,
-              trackingEvents: fetchedOrder.trackingEvents
-            }, null, 2)
-          );
           setOrder(fetchedOrder);
         } else {
           setError("Order not found");
@@ -45,22 +40,6 @@ const CustomerOrderDetail = () => {
     };
 
     fetchOrderDetails();
-    
-    const intervalId = setInterval(async () => {
-      if (id) {
-        try {
-          const updatedOrder = await getOrderById(id);
-          if (updatedOrder) {
-            console.log("Refreshed customer order data:", updatedOrder);
-            setOrder(updatedOrder);
-          }
-        } catch (err) {
-          console.error("Error refreshing customer order:", err);
-        }
-      }
-    }, 10000); // Poll every 10 seconds
-    
-    return () => clearInterval(intervalId);
   }, [id]);
 
   if (loading) {
