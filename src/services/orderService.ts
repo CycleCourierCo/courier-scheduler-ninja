@@ -230,13 +230,15 @@ export const createOrder = async (orderData: CreateOrderFormData): Promise<Order
       throw new Error(error.message);
     }
 
-    // Send emails to sender and receiver
+    // Send email only to sender
     try {
       await sendOrderCreationEmailToSender(data.id);
-      await sendOrderNotificationToReceiver(data.id);
+      console.log("Sender notification email sent successfully");
+      // We no longer send an email to the receiver at this point
+      // Will be sent after sender confirms availability
     } catch (emailError) {
-      console.error("Error sending order emails:", emailError);
-      // Continue even if emails fail
+      console.error("Error sending order creation email to sender:", emailError);
+      // Continue even if email fails
     }
 
     // Generate proper tracking number format
@@ -296,6 +298,25 @@ export const updateOrderStatus = async (
   }
 
   const mappedOrder = mapDbOrderToOrderType(data);
+  
+  // If sender confirms availability, send notification to receiver
+  if (status === "receiver_availability_pending") {
+    try {
+      console.log("Sender has confirmed availability for order:", id);
+      console.log("Sending notification to receiver...");
+      
+      // Now is the appropriate time to notify the receiver
+      const receiverEmailResult = await sendOrderNotificationToReceiver(id);
+      console.log("Receiver notification email result:", receiverEmailResult);
+      
+      if (!receiverEmailResult) {
+        console.error("Failed to send email to receiver");
+      }
+    } catch (emailError) {
+      console.error("Error sending notification email to receiver:", emailError);
+      // Don't throw here - we don't want to fail the order update if email fails
+    }
+  }
 
   // Send delivery confirmation emails if order status is "delivered"
   if (status === "delivered") {
