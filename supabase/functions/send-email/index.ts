@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
@@ -60,6 +59,18 @@ serve(async (req) => {
       return await handleDeliveryConfirmation(reqData.meta.orderId, resend);
     }
 
+    // Validate to field is present
+    if (!reqData.to) {
+      console.error('Missing required "to" field in email request');
+      return new Response(
+        JSON.stringify({ error: 'Missing required "to" field in email request' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
     // Prepare email options with default values
     const emailOptions = {
       from: reqData.from || DEFAULT_FROM_EMAIL,
@@ -85,7 +96,7 @@ serve(async (req) => {
       }
     }
     
-    console.log(`Sending email from: ${emailOptions.from} to: ${reqData.to}`);
+    console.log(`Sending email from: ${emailOptions.from} to: ${emailOptions.to}`);
     console.log(`Email subject: ${emailOptions.subject}`);
 
     // Attempt to send the email
@@ -124,8 +135,8 @@ serve(async (req) => {
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
-      }
-    );
+        }
+      );
   }
 });
 
@@ -144,6 +155,7 @@ async function generateEmailContent(data) {
   let order = null;
   if (data.orderId) {
     order = await getOrderDetails(data.orderId);
+    console.log("Order details retrieved:", JSON.stringify(order, null, 2));
   }
   
   // Generate content based on email type
@@ -541,6 +553,29 @@ async function handleDeliveryConfirmation(orderId, resend) {
       );
     }
     
+    // Ensure sender and receiver emails are present
+    if (!order.sender || !order.sender.email) {
+      console.error("Sender email is missing from order:", orderId);
+      return new Response(
+        JSON.stringify({ error: "Sender email is missing from order" }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+    
+    if (!order.receiver || !order.receiver.email) {
+      console.error("Receiver email is missing from order:", orderId);
+      return new Response(
+        JSON.stringify({ error: "Receiver email is missing from order" }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+    
     const trackingUrl = `https://cyclecourierco.com/tracking/${order.tracking_number}`;
     const itemName = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle";
     
@@ -551,7 +586,7 @@ async function handleDeliveryConfirmation(orderId, resend) {
       console.log("Sending delivery confirmation to sender:", order.sender.email);
       
       try {
-        const { data: emailContent } = await generateEmailContent({
+        const emailContent = await generateEmailContent({
           emailType: EMAIL_TEMPLATES.DELIVERY_CONFIRMATION,
           recipient: "sender",
           orderId: order.id,
@@ -562,7 +597,8 @@ async function handleDeliveryConfirmation(orderId, resend) {
           from: DEFAULT_FROM_EMAIL,
           to: order.sender.email,
           subject: emailContent.subject,
-          html: emailContent.html
+          html: emailContent.html,
+          text: emailContent.text
         });
         
         if (senderError) {
@@ -580,7 +616,7 @@ async function handleDeliveryConfirmation(orderId, resend) {
       console.log("Sending delivery confirmation to receiver:", order.receiver.email);
       
       try {
-        const { data: emailContent } = await generateEmailContent({
+        const emailContent = await generateEmailContent({
           emailType: EMAIL_TEMPLATES.DELIVERY_CONFIRMATION,
           recipient: "receiver",
           orderId: order.id,
@@ -591,7 +627,8 @@ async function handleDeliveryConfirmation(orderId, resend) {
           from: DEFAULT_FROM_EMAIL,
           to: order.receiver.email,
           subject: emailContent.subject,
-          html: emailContent.html
+          html: emailContent.html,
+          text: emailContent.text
         });
         
         if (receiverError) {
