@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
@@ -6,9 +5,7 @@ import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { 
   sendOrderCreationEmailToSender, 
   sendOrderNotificationToReceiver, 
-  resendReceiverAvailabilityEmail,
   sendSenderAvailabilityEmail,
-  resendSenderAvailabilityEmail,
   sendReceiverAvailabilityEmail,
   sendDeliveryConfirmationEmails
 } from "@/services/emailService";
@@ -78,7 +75,10 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
   try {
     const { data, error } = await supabase
       .from("orders")
-      .update({ status })
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
       .eq("id", id)
       .select()
       .single();
@@ -177,7 +177,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         needs_payment_on_collection: needsPaymentOnCollection,
         is_bike_swap: isBikeSwap,
         delivery_instructions: deliveryInstructions,
-        status: "sender_availability_pending", // Updated to match new workflow
+        status: "sender_availability_pending", // Ensure this is the correct initial status
         created_at: timestamp,
         updated_at: timestamp,
         tracking_number: trackingNumber,
@@ -190,49 +190,33 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw error;
     }
     
-    const sendEmails = async () => {
-      try {
-        console.log("===== STARTING EMAIL SENDING PROCESS =====");
-        console.log(`Order ID: ${order.id}`);
-        console.log(`Sender email: ${sender.email}`);
-        console.log(`Receiver email: ${receiver.email}`);
-        
-        console.log("STEP 1: Sending confirmation email to sender...");
-        const senderEmailResult = await sendOrderCreationEmailToSender(order.id);
-        console.log(`Sender confirmation email sent successfully: ${senderEmailResult}`);
-        
-        console.log("STEP 2: Sending availability email to sender...");
-        const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
-        console.log(`Sender availability email sent successfully: ${senderAvailabilityResult}`);
-        
-        console.log("STEP 3: Sending notification email to receiver...");
-        const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
-        console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
-        
-        console.log("===== EMAIL SENDING PROCESS COMPLETED =====");
-        return { 
-          senderConfirmation: senderEmailResult, 
-          senderAvailability: senderAvailabilityResult,
-          receiver: receiverEmailResult 
-        };
-      } catch (emailError) {
-        console.error("===== EMAIL SENDING PROCESS FAILED =====");
-        console.error("Error details:", emailError);
-        return { 
-          senderConfirmation: false, 
-          senderAvailability: false,
-          receiver: false, 
-          error: emailError 
-        };
-      }
-    };
-    
-    console.log("Starting email sending process in background");
-    sendEmails().then(results => {
-      console.log("Background email sending results:", results);
-    }).catch(err => {
-      console.error("Unexpected error in background email sending:", err);
-    });
+    // Process emails synchronously to ensure proper sequence
+    try {
+      console.log("===== STARTING EMAIL SENDING PROCESS =====");
+      console.log(`Order ID: ${order.id}`);
+      
+      // Step 1: Send order creation confirmation to sender
+      console.log("STEP 1: Sending confirmation email to sender...");
+      const senderEmailResult = await sendOrderCreationEmailToSender(order.id);
+      console.log(`Sender confirmation email sent successfully: ${senderEmailResult}`);
+      
+      // Step 2: Send availability email to sender
+      console.log("STEP 2: Sending availability email to sender...");
+      const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
+      console.log(`Sender availability email sent successfully: ${senderAvailabilityResult}`);
+      
+      // Step 3: Send notification to receiver
+      console.log("STEP 3: Sending notification email to receiver...");
+      const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
+      console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
+      
+      console.log("===== EMAIL SENDING PROCESS COMPLETED =====");
+    } catch (emailError) {
+      console.error("===== EMAIL SENDING PROCESS FAILED =====");
+      console.error("Error details:", emailError);
+      // Continue with order creation even if emails fail
+      console.log("Continuing with order creation despite email failure");
+    }
     
     return mapDbOrderToOrderType(order);
   } catch (error) {
@@ -299,4 +283,24 @@ export const pollOrderUpdates = (
   }, interval);
 
   return () => clearInterval(intervalId);
+};
+
+export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Resending sender availability email for order ID:", id);
+    return await sendSenderAvailabilityEmail(id);
+  } catch (error) {
+    console.error("Error resending sender availability email:", error);
+    return false;
+  }
+};
+
+export const resendReceiverAvailabilityEmail = async (id: string): Promise<boolean> => {
+  try {
+    console.log("Resending receiver availability email for order ID:", id);
+    return await sendReceiverAvailabilityEmail(id);
+  } catch (error) {
+    console.error("Error resending receiver availability email:", error);
+    return false;
+  }
 };

@@ -214,7 +214,7 @@ export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> 
         name: sender.name || "Sender",
         orderId: id,
         baseUrl,
-        emailType: "sender", // Using the string identifier to match the edge function
+        emailType: EmailTemplates.SENDER_AVAILABILITY,
         item: item
       }
     });
@@ -286,7 +286,7 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
         name: receiver.name || "Receiver",
         orderId: id,
         baseUrl,
-        emailType: "receiver", // Using the string identifier to match the edge function
+        emailType: EmailTemplates.RECEIVER_AVAILABILITY,
         item: item
       }
     });
