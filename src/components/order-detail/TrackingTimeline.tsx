@@ -48,7 +48,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       });
     }
     
-    // Add Shipday tracking events if available
+    // Always include Shipday tracking events if available
     const shipdayUpdates = order.trackingEvents?.shipday?.updates || [];
     const pickupId = order.trackingEvents?.shipday?.pickup_id;
     const deliveryId = order.trackingEvents?.shipday?.delivery_id;
@@ -122,8 +122,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           }
         }
       });
-    } else {
-      // Fall back to order status if no Shipday updates
+    }
+    
+    // If no shipday updates are found but we have specific status, add fallback events
+    if (shipdayUpdates.length === 0) {
       if (order.status === "driver_to_collection") {
         events.push({
           title: "Driver En Route to Collection",
@@ -186,6 +188,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
   };
 
   const trackingEvents = getTrackingEvents();
+
+  // For debugging
+  console.log("Order tracking events:", order.trackingEvents?.shipday);
+  console.log("Processed timeline events:", trackingEvents);
 
   return (
     <div>
