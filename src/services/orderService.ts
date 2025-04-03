@@ -7,7 +7,8 @@ import {
   sendOrderNotificationToReceiver, 
   resendReceiverAvailabilityEmail,
   sendSenderAvailabilityEmail,
-  resendSenderAvailabilityEmail
+  resendSenderAvailabilityEmail,
+  sendReceiverAvailabilityEmail
 } from "@/services/emailService";
 import { generateTrackingNumber } from "@/services/trackingService";
 
@@ -268,23 +269,7 @@ export const updateOrderScheduledDates = async (
   return updateOrderSchedule(id, pickupDate, deliveryDate);
 };
 
-export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
-  try {
-    return await resendSenderAvailabilityEmail(id);
-  } catch (error) {
-    console.error("Error resending sender availability email:", error);
-    return false;
-  }
-};
-
-export const resendReceiverAvailabilityEmail = async (id: string): Promise<boolean> => {
-  try {
-    return await resendReceiverAvailabilityEmail(id);
-  } catch (error) {
-    console.error("Error resending receiver availability email:", error);
-    return false;
-  }
-};
+export { resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail };
 
 export const pollOrderUpdates = (
   orderId: string, 
