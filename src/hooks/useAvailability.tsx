@@ -1,3 +1,4 @@
+
 import { useState, useEffect, FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -64,12 +65,20 @@ export const useAvailability = ({
         if (type === 'receiver' && fetchedOrder.pickupDate && Array.isArray(fetchedOrder.pickupDate) && fetchedOrder.pickupDate.length > 0) {
           try {
             // Find the earliest date selected by the sender
-            const senderDates = fetchedOrder.pickupDate.map(dateString => new Date(dateString));
-            const earliestSenderDate = new Date(Math.min(...senderDates.map(date => date.getTime())));
+            const senderDates = fetchedOrder.pickupDate
+              .filter(dateString => typeof dateString === 'string')
+              .map(dateString => new Date(dateString as string));
             
-            console.log("Setting minimum date for receiver to earliest sender date:", earliestSenderDate);
-            // Set the minimum date to the earliest sender date
-            setMinDate(earliestSenderDate);
+            if (senderDates.length > 0) {
+              const earliestSenderDate = new Date(Math.min(...senderDates.map(date => date.getTime())));
+              
+              console.log("Setting minimum date for receiver to earliest sender date:", earliestSenderDate);
+              // Set the minimum date to the earliest sender date
+              setMinDate(earliestSenderDate);
+            } else {
+              console.log("No valid sender dates found, using default minimum date");
+              setMinDate(getMinDate());
+            }
           } catch (err) {
             console.error("Error setting minimum date based on sender availability:", err);
             // Fall back to default minimum date
@@ -91,16 +100,20 @@ export const useAvailability = ({
             let formattedDates = "Unknown dates";
             
             if (Array.isArray(alreadyConfirmedDates)) {
-              formattedDates = alreadyConfirmedDates
-                .map(date => format(new Date(date), "PPP"))
-                .join(", ");
-            } else if (alreadyConfirmedDates instanceof Date) {
-              formattedDates = format(new Date(alreadyConfirmedDates), "PPP");
-            } else if (typeof alreadyConfirmedDates === 'string') {
-              try {
-                formattedDates = format(new Date(alreadyConfirmedDates), "PPP");
-              } catch (err) {
-                console.error("Failed to format date string:", alreadyConfirmedDates);
+              const validDates = alreadyConfirmedDates
+                .filter(date => date && typeof date === 'string')
+                .map(date => {
+                  try {
+                    return format(new Date(date as string), "PPP");
+                  } catch (e) {
+                    console.error("Failed to format date:", date);
+                    return null;
+                  }
+                })
+                .filter(Boolean); // Remove any null entries
+              
+              if (validDates.length > 0) {
+                formattedDates = validDates.join(", ");
               }
             }
             
