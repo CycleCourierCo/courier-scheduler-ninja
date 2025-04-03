@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -51,7 +50,6 @@ serve(async (req) => {
     const { data: orders, error } = await query;
 
     if (error) {
-      console.error("Error fetching orders:", error);
       return new Response(
         JSON.stringify({ error: error.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
@@ -80,7 +78,6 @@ serve(async (req) => {
           .eq("id", order.id);
 
         if (updateError) {
-          console.error(`Error updating order ${order.id}:`, updateError);
           results.push({ 
             id: order.id, 
             success: false, 
@@ -88,7 +85,6 @@ serve(async (req) => {
             oldTrackingNumber: order.tracking_number
           });
         } else {
-          console.log(`Successfully updated order ${order.id} with tracking number ${trackingNumber}`);
           results.push({ 
             id: order.id, 
             success: true, 
