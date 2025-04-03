@@ -170,6 +170,17 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       }
     }
     
+    // Always ensure we have the correct delivery status
+    // This ensures we always show the delivered status when order.status is "delivered"
+    if (order.status === "delivered" && !events.some(e => e.title === "Delivered")) {
+      events.push({
+        title: "Delivered",
+        date: order.updatedAt,
+        icon: <Check className="h-4 w-4 text-green-600" />,
+        description: "Bike has been delivered to receiver"
+      });
+    }
+    
     // Sort events by date
     return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
