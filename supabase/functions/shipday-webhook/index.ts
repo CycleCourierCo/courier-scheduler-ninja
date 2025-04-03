@@ -78,7 +78,8 @@ serve(async (req) => {
     if (isPickup) {
       if (statusLower === "on-the-way") {
         newStatus = "driver_to_collection";
-      } else if (statusLower === "picked-up") {
+      } else if (statusLower === "picked-up" || statusLower === "delivered") {
+        // Map both "picked-up" and "delivered" to "collected" for pickup orders
         newStatus = "collected";
       }
     } else {
@@ -88,6 +89,8 @@ serve(async (req) => {
         newStatus = "delivered";
       }
     }
+
+    console.log(`Mapping Shipday status "${status}" for ${isPickup ? "pickup" : "delivery"} to order status "${newStatus}"`);
 
     // Update tracking events
     const trackingEvents = order.tracking_events || {};

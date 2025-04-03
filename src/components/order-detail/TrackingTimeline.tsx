@@ -67,7 +67,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             title = "Driver En Route to Collection";
             icon = <Map className="h-4 w-4 text-courier-600" />;
             description = "Driver is on the way to collect the bike";
-          } else if (statusLower === "picked-up") {
+          } else if (statusLower === "picked-up" || statusLower === "delivered") {
+            // Handle both "picked-up" and "delivered" statuses for pickup
             title = "Bike Collected";
             icon = <Check className="h-4 w-4 text-courier-600" />;
             description = "Bike has been collected from sender";
