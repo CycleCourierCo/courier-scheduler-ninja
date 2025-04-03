@@ -242,14 +242,11 @@ serve(async (req) => {
     // Send delivery confirmation emails if status is "delivered"
     if (newStatus === "delivered") {
       try {
-        console.log("Sending delivery confirmation emails through existing email service for order:", dbOrder.id);
+        console.log("Sending delivery confirmation email through send-email function for order:", dbOrder.id);
         
-        // Call the send-email endpoint for sender
-        const senderEmailResponse = await supabase.functions.invoke("send-email", {
+        // Call the send-email endpoint for delivery confirmation
+        const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
-            to: "internal-notification@cyclecourierco.com",
-            subject: "Delivery Email Notification Request",
-            text: `Please send delivery confirmation emails for order ID: ${dbOrder.id}`,
             meta: {
               action: "delivery_confirmation",
               orderId: dbOrder.id
@@ -257,8 +254,8 @@ serve(async (req) => {
           }
         });
         
-        if (senderEmailResponse.error) {
-          console.error("Error triggering delivery confirmation emails:", senderEmailResponse.error);
+        if (emailResponse.error) {
+          console.error("Error triggering delivery confirmation emails:", emailResponse.error);
         } else {
           console.log("Successfully triggered delivery confirmation emails");
         }

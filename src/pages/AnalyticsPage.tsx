@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -20,9 +21,26 @@ import TopCustomersChart from "@/components/analytics/TopCustomersChart";
 import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import StatsCard from "@/components/analytics/StatsCard";
 import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, DollarSign } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const { user, userProfile } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if the user is an admin
+  useEffect(() => {
+    if (!user || !userProfile || userProfile.role !== "admin") {
+      toast.error("You do not have permission to access this page");
+      navigate("/dashboard");
+    }
+  }, [user, userProfile, navigate]);
+
+  // If not admin, don't load any data
+  if (!userProfile || userProfile.role !== "admin") {
+    return null; // Early return to prevent loading analytics data
+  }
 
   // Fetch orders for analytics
   const { data: orders = [], isLoading, error } = useQuery({
