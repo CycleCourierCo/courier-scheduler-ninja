@@ -1,12 +1,16 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
-import { sendOrderCreationEmailToSender, sendOrderNotificationToReceiver, resendReceiverAvailabilityEmail as resendReceiverAvailabilityEmailFunc, sendSenderAvailabilityEmail } from "@/services/emailService";
+import { 
+  sendOrderCreationEmailToSender, 
+  sendOrderNotificationToReceiver, 
+  resendReceiverAvailabilityEmail,
+  sendSenderAvailabilityEmail,
+  resendSenderAvailabilityEmail
+} from "@/services/emailService";
 import { generateTrackingNumber } from "@/services/trackingService";
 
-// For backward compatibility with fetchOrderService
 export const getOrder = async (id: string): Promise<Order | null> => {
   try {
     const { data, error } = await supabase
@@ -27,7 +31,6 @@ export const getOrder = async (id: string): Promise<Order | null> => {
   }
 };
 
-// Alias for getOrder to maintain compatibility
 export const getOrderById = getOrder;
 
 export const getPublicOrder = async (id: string): Promise<Order | null> => {
@@ -89,7 +92,6 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
   }
 };
 
-// Alias for updateOrderStatus for admin operations
 export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
@@ -116,16 +118,13 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       lon: receiverLon,
     } = receiver.address;
 
-    // Get current user ID from auth context
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       throw new Error("User not authenticated");
     }
 
-    // Create timestamp for consistency
     const timestamp = new Date().toISOString();
 
-    // Generate a tracking number using the edge function
     const trackingNumber = await generateTrackingNumber(sender.name, receiver.address.zipCode);
 
     const { data: order, error } = await supabase
@@ -169,7 +168,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,
-        tracking_number: trackingNumber, // Set the tracking number from the edge function
+        tracking_number: trackingNumber,
       })
       .select()
       .single();
@@ -179,7 +178,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw error;
     }
     
-    // Guaranteed sequential email sending with detailed logs
     const sendEmails = async () => {
       try {
         console.log("===== STARTING EMAIL SENDING PROCESS =====");
@@ -187,17 +185,14 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         console.log(`Sender email: ${sender.email}`);
         console.log(`Receiver email: ${receiver.email}`);
         
-        // First send order confirmation to sender with explicit awaiting
         console.log("STEP 1: Sending confirmation email to sender...");
         const senderEmailResult = await sendOrderCreationEmailToSender(order.id);
         console.log(`Sender confirmation email sent successfully: ${senderEmailResult}`);
         
-        // Second, send sender availability email
         console.log("STEP 2: Sending availability email to sender...");
         const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
         console.log(`Sender availability email sent successfully: ${senderAvailabilityResult}`);
         
-        // Then send to receiver only after sender emails complete
         console.log("STEP 3: Sending notification email to receiver...");
         const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
         console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
@@ -211,7 +206,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       } catch (emailError) {
         console.error("===== EMAIL SENDING PROCESS FAILED =====");
         console.error("Error details:", emailError);
-        // Do not throw to prevent blocking the order creation
         return { 
           senderConfirmation: false, 
           senderAvailability: false,
@@ -221,7 +215,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       }
     };
     
-    // Fire and forget, but with console tracking
     console.log("Starting email sending process in background");
     sendEmails().then(results => {
       console.log("Background email sending results:", results);
@@ -236,7 +229,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
   }
 };
 
-// Add the missing functions required by the imports in other files
 export const updateOrderSchedule = async (
   id: string,
   pickupDate: Date,
@@ -268,7 +260,6 @@ export const updateOrderSchedule = async (
   }
 };
 
-// Function needed by schedulingService
 export const updateOrderScheduledDates = async (
   id: string,
   pickupDate: Date,
@@ -279,7 +270,7 @@ export const updateOrderScheduledDates = async (
 
 export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    return await resendSenderAvailabilityEmailFunc(id);
+    return await resendSenderAvailabilityEmail(id);
   } catch (error) {
     console.error("Error resending sender availability email:", error);
     return false;
@@ -288,14 +279,13 @@ export const resendSenderAvailabilityEmail = async (id: string): Promise<boolean
 
 export const resendReceiverAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
-    return await resendReceiverAvailabilityEmailFunc(id);
+    return await resendReceiverAvailabilityEmail(id);
   } catch (error) {
     console.error("Error resending receiver availability email:", error);
     return false;
   }
 };
 
-// Add polling functionality for real-time updates
 export const pollOrderUpdates = (
   orderId: string, 
   callback: (order: Order) => void,
@@ -312,6 +302,5 @@ export const pollOrderUpdates = (
     }
   }, interval);
 
-  // Return a cleanup function
   return () => clearInterval(intervalId);
 };
