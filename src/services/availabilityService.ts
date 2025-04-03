@@ -227,10 +227,19 @@ export const getSenderAvailability = async (orderId: string) => {
       return null;
     }
 
-    // Convert the jsonb array of dates to Date objects safely
-    const dates = Array.isArray(data.pickup_date) 
-      ? data.pickup_date.map(d => new Date(d)) 
-      : [];
+    // Safely convert the JSON array to Date objects with type checking
+    const dates: Date[] = [];
+    if (Array.isArray(data.pickup_date)) {
+      for (const dateItem of data.pickup_date) {
+        if (typeof dateItem === 'string') {
+          try {
+            dates.push(new Date(dateItem));
+          } catch (e) {
+            console.error("Invalid date format in pickup_date:", dateItem);
+          }
+        }
+      }
+    }
 
     return {
       notes: data.sender_notes || "",
@@ -257,10 +266,19 @@ export const getReceiverAvailability = async (orderId: string) => {
       return null;
     }
 
-    // Convert the jsonb array of dates to Date objects safely
-    const dates = Array.isArray(data.delivery_date) 
-      ? data.delivery_date.map(d => new Date(d)) 
-      : [];
+    // Safely convert the JSON array to Date objects with type checking
+    const dates: Date[] = [];
+    if (Array.isArray(data.delivery_date)) {
+      for (const dateItem of data.delivery_date) {
+        if (typeof dateItem === 'string') {
+          try {
+            dates.push(new Date(dateItem));
+          } catch (e) {
+            console.error("Invalid date format in delivery_date:", dateItem);
+          }
+        }
+      }
+    }
 
     return {
       notes: data.receiver_notes || "",
