@@ -56,6 +56,12 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     const pickupId = order.trackingEvents?.shipday?.pickup_id;
     const deliveryId = order.trackingEvents?.shipday?.delivery_id;
     
+    // Flag to track if we've added critical tracking events from Shipday
+    let hasDriverToCollectionEvent = false;
+    let hasBikeCollectedEvent = false;
+    let hasDriverToDeliveryEvent = false;
+    let hasDeliveredEvent = false;
+    
     if (shipdayUpdates.length > 0) {
       shipdayUpdates.forEach((update: ShipdayUpdate) => {
         // If the update has a description, use that directly
@@ -65,15 +71,19 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           
           if (update.description.includes("way to collect")) {
             title = "Driver En Route to Collection";
+            hasDriverToCollectionEvent = true;
             icon = <Map className="h-4 w-4 text-courier-600" />;
           } else if (update.description.includes("collected the bike")) {
             title = "Bike Collected";
+            hasBikeCollectedEvent = true;
             icon = <Check className="h-4 w-4 text-courier-600" />;
           } else if (update.description.includes("way to deliver")) {
             title = "Driver En Route to Delivery";
+            hasDriverToDeliveryEvent = true;
             icon = <Truck className="h-4 w-4 text-courier-600" />;
           } else if (update.description.includes("delivered the bike")) {
             title = "Delivered";
+            hasDeliveredEvent = true;
             icon = <Check className="h-4 w-4 text-green-600" />;
           }
           
@@ -100,21 +110,25 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           if (isPickup) {
             if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
               title = "Driver En Route to Collection";
+              hasDriverToCollectionEvent = true;
               icon = <Map className="h-4 w-4 text-courier-600" />;
               description = "Driver is on the way to collect the bike";
             } else if (statusLower === "picked-up" || statusLower === "delivered" || statusLower === "already_delivered") {
               // Handle both "picked-up" and "delivered" statuses for pickup
               title = "Bike Collected";
+              hasBikeCollectedEvent = true;
               icon = <Check className="h-4 w-4 text-courier-600" />;
               description = "Bike has been collected from sender";
             }
           } else {
             if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
               title = "Driver En Route to Delivery";
+              hasDriverToDeliveryEvent = true;
               icon = <Truck className="h-4 w-4 text-courier-600" />;
               description = "Driver is on the way to deliver the bike";
             } else if (statusLower === "delivered" || statusLower === "already_delivered") {
               title = "Delivered";
+              hasDeliveredEvent = true;
               icon = <Check className="h-4 w-4 text-green-600" />;
               description = "Bike has been delivered to receiver";
             }
@@ -172,9 +186,14 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       }
     }
     
-    // Add these status-based events regardless of Shipday updates
-    // This ensures the collection steps remain visible even during delivery
-    if (order.status === "driver_to_collection" && !eventMap["Driver En Route to Collection"]) {
+    // Always add these critical steps if they're missing and the order has progressed to or past these stages
+    // Driver to Collection - add if status indicates this happened but no event exists yet
+    if (!hasDriverToCollectionEvent && 
+        (order.status === "driver_to_collection" || 
+         order.status === "collected" || 
+         order.status === "driver_to_delivery" || 
+         order.status === "shipped" || 
+         order.status === "delivered")) {
       const event = {
         title: "Driver En Route to Collection",
         date: order.updatedAt,
@@ -185,19 +204,27 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       eventMap["Driver En Route to Collection"] = event;
     }
     
-    if ((order.status === "collected" || order.status === "driver_to_delivery" || order.status === "shipped" || order.status === "delivered") && 
-        !eventMap["Bike Collected"]) {
+    // Bike Collected - add if status indicates this happened but no event exists yet
+    if (!hasBikeCollectedEvent && 
+        (order.status === "collected" || 
+         order.status === "driver_to_delivery" || 
+         order.status === "shipped" || 
+         order.status === "delivered")) {
       const event = {
         title: "Bike Collected",
         date: order.updatedAt,
-        icon: <MapPin className="h-4 w-4 text-courier-600" />,
+        icon: <Check className="h-4 w-4 text-courier-600" />,
         description: "Bike has been collected from sender"
       };
       events.push(event);
       eventMap["Bike Collected"] = event;
     }
     
-    if (order.status === "driver_to_delivery" && !eventMap["Driver En Route to Delivery"]) {
+    // Driver to Delivery - add if status indicates this happened but no event exists yet
+    if (!hasDriverToDeliveryEvent && 
+        (order.status === "driver_to_delivery" || 
+         order.status === "shipped" || 
+         order.status === "delivered")) {
       const event = {
         title: "Driver En Route to Delivery",
         date: order.updatedAt,
@@ -208,6 +235,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       eventMap["Driver En Route to Delivery"] = event;
     }
     
+    // In Transit - add for shipped status if not already present
     if (order.status === "shipped" && !eventMap["In Transit"]) {
       const event = {
         title: "In Transit",
@@ -219,7 +247,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       eventMap["In Transit"] = event;
     }
     
-    if (order.status === "delivered" && !eventMap["Delivered"]) {
+    // Delivered - add if status indicates this happened but no event exists yet
+    if (!hasDeliveredEvent && order.status === "delivered") {
       const event = {
         title: "Delivered",
         date: order.updatedAt,
