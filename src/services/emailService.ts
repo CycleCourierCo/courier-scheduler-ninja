@@ -97,7 +97,7 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
     };
 
     // Fix: Use the actual tracking number from the order object
-    const trackingNumber = order.trackingNumber || "Not available yet";
+    const trackingNumber = order.trackingNumber || id;
     const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
     
     console.log("About to send order creation email to sender:", order.sender.email);
@@ -117,7 +117,7 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
               <p><strong>Bicycle:</strong> ${item.name}</p>
               <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
             </div>
-            <p>We have sent you a separate email to arrange a collection date.</p>
+            <p><strong>We have sent you a separate email to arrange a collection date.</strong> Please check your inbox and confirm your availability as soon as possible.</p>
             <p>You can track your order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
@@ -126,7 +126,8 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
             <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
-            <p>Thank you,<br>The Cycle Courier Co. Team</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
           </div>
         `,
         from: "Ccc@notification.cyclecourierco.com"
@@ -187,7 +188,12 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
               <p><strong>Bicycle:</strong> ${item.name}</p>
               <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
             </div>
-            <p>We have contacted the sender to arrange a collection date. Once they confirm their availability, you will receive an email to confirm your availability for delivery.</p>
+            <p><strong>Next Steps:</strong></p>
+            <ol style="margin-bottom: 20px;">
+              <li>We have contacted the sender to arrange a collection date.</li>
+              <li>Once the sender confirms their availability, <strong>you will receive an email with a link to confirm your availability for delivery</strong>.</li>
+              <li>After both confirmations, we will schedule the pickup and delivery.</li>
+            </ol>
             <p>You can track the order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
@@ -206,6 +212,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     
     if (response.error) {
       console.error("Error sending order notification email to receiver:", response.error);
+      console.error("Response error details:", JSON.stringify(response.error, null, 2));
       return false;
     }
     
@@ -213,6 +220,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     return true;
   } catch (error) {
     console.error("Failed to send order notification email to receiver:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return false;
   }
 };

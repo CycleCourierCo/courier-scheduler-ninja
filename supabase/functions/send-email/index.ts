@@ -13,6 +13,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || "";
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -31,15 +32,19 @@ serve(async (req) => {
     
     const resend = new Resend(RESEND_API_KEY);
     
+    // Parse request data and log it
     const reqData = await req.json();
     console.log('Request data:', JSON.stringify(reqData, null, 2));
 
+    // Handle special actions
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
       console.log("Processing delivery confirmation action for order:", reqData.meta.orderId);
       return await handleDeliveryConfirmation(reqData.meta.orderId, resend);
     }
 
+    // Validate required fields
     if (!reqData.to) {
+      console.error('Missing required field: to');
       return new Response(
         JSON.stringify({ error: 'Missing required field: to' }),
         { 
@@ -56,6 +61,7 @@ serve(async (req) => {
       to: reqData.to,
     };
     
+    // Build email based on type
     if (reqData.emailType === 'sender' || reqData.emailType === 'receiver') {
       const baseUrl = reqData.baseUrl || '';
       const orderId = reqData.orderId || '';
@@ -111,24 +117,36 @@ The Cycle Courier Co. Team
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
     console.log(`Email subject: ${emailOptions.subject}`);
 
-    const { data, error } = await resend.emails.send(emailOptions);
+    // Attempt to send the email
+    try {
+      const { data, error } = await resend.emails.send(emailOptions);
 
-    if (error) {
-      console.error('Resend error:', error);
-      throw error;
-    }
-
-    console.log('Email sent successfully:', data);
-    
-    return new Response(
-      JSON.stringify({ data }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
+      if (error) {
+        console.error('Resend error:', error);
+        throw error;
       }
-    );
+
+      console.log('Email sent successfully:', data);
+      
+      return new Response(
+        JSON.stringify({ data, success: true }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    } catch (sendError) {
+      console.error('Error sending email via Resend:', sendError);
+      return new Response(
+        JSON.stringify({ error: sendError.message || 'Failed to send email via Resend API' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('General error in send-email function:', error);
     
     return new Response(
       JSON.stringify({ error: error.message || 'Failed to send email' }),

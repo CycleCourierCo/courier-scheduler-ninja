@@ -62,21 +62,37 @@ export const useAvailability = ({
         setOrder(fetchedOrder);
 
         // For receiver availability, set the minimum date to the earliest sender date if available
-        if (type === 'receiver' && fetchedOrder.pickupDate && Array.isArray(fetchedOrder.pickupDate) && fetchedOrder.pickupDate.length > 0) {
+        if (type === 'receiver' && fetchedOrder.pickupDate) {
           try {
-            // Find the earliest date selected by the sender
-            const senderDates = fetchedOrder.pickupDate
-              .filter(dateString => typeof dateString === 'string')
-              .map(dateString => new Date(dateString as string));
+            console.log("Processing pickup dates for receiver:", fetchedOrder.pickupDate);
             
-            if (senderDates.length > 0) {
-              const earliestSenderDate = new Date(Math.min(...senderDates.map(date => date.getTime())));
+            if (Array.isArray(fetchedOrder.pickupDate) && fetchedOrder.pickupDate.length > 0) {
+              // Filter valid dates and convert to Date objects
+              const senderDates = fetchedOrder.pickupDate
+                .filter(dateString => dateString && typeof dateString === 'string')
+                .map(dateString => {
+                  try {
+                    return new Date(dateString as string);
+                  } catch (e) {
+                    console.error("Invalid date format:", dateString);
+                    return null;
+                  }
+                })
+                .filter(date => date instanceof Date && !isNaN(date.getTime())) as Date[];
               
-              console.log("Setting minimum date for receiver to earliest sender date:", earliestSenderDate);
-              // Set the minimum date to the earliest sender date
-              setMinDate(earliestSenderDate);
+              if (senderDates.length > 0) {
+                // Get earliest date
+                const earliestSenderDate = new Date(Math.min(...senderDates.map(date => date.getTime())));
+                console.log("Earliest sender date found:", earliestSenderDate.toISOString());
+                
+                // Set the minimum date to the earliest sender date
+                setMinDate(earliestSenderDate);
+              } else {
+                console.log("No valid sender dates found, using default minimum date");
+                setMinDate(getMinDate());
+              }
             } else {
-              console.log("No valid sender dates found, using default minimum date");
+              console.log("Pickup date is not an array or is empty, using default minimum date");
               setMinDate(getMinDate());
             }
           } catch (err) {

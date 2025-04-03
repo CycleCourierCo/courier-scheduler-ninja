@@ -121,10 +121,13 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw new Error("User not authenticated");
     }
 
+    // Create timestamp for consistency
+    const timestamp = new Date().toISOString();
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
-        user_id: user.id, // Add user_id to satisfy the type requirement
+        user_id: user.id,
         sender: {
           name: sender.name,
           email: sender.email,
@@ -160,40 +163,51 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         is_bike_swap: isBikeSwap,
         delivery_instructions: deliveryInstructions,
         status: "created",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: timestamp,
+        updated_at: timestamp,
       })
       .select()
       .single();
     
     if (error) {
+      console.error("Error creating order:", error);
       throw error;
     }
     
-    // Improved email sending with better logging and error handling
+    // Guaranteed sequential email sending with detailed logs
     const sendEmails = async () => {
       try {
-        // First send to sender
-        console.log("Sending order creation email to sender:", order.id);
-        const senderEmailSent = await sendOrderCreationEmailToSender(order.id);
-        console.log("Sender email sent:", senderEmailSent);
+        console.log("===== STARTING EMAIL SENDING PROCESS =====");
+        console.log(`Order ID: ${order.id}`);
+        console.log(`Sender email: ${sender.email}`);
+        console.log(`Receiver email: ${receiver.email}`);
         
-        // Then send to receiver - with more detailed logging
-        console.log("Sending order notification to receiver:", order.id);
-        console.log("Receiver email:", receiver.email);
-        const receiverEmailSent = await sendOrderNotificationToReceiver(order.id);
-        console.log("Receiver email sent status:", receiverEmailSent);
+        // First send to sender with explicit awaiting
+        console.log("STEP 1: Sending confirmation email to sender...");
+        const senderEmailResult = await sendOrderCreationEmailToSender(order.id);
+        console.log(`Sender email sent successfully: ${senderEmailResult}`);
         
-        return { senderEmailSent, receiverEmailSent };
+        // Then send to receiver only after sender email completes
+        console.log("STEP 2: Sending notification email to receiver...");
+        const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
+        console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
+        
+        console.log("===== EMAIL SENDING PROCESS COMPLETED =====");
+        return { sender: senderEmailResult, receiver: receiverEmailResult };
       } catch (emailError) {
-        console.error("Error sending order creation emails:", emailError);
-        throw emailError; // Re-throw to capture in the outer catch
+        console.error("===== EMAIL SENDING PROCESS FAILED =====");
+        console.error("Error details:", emailError);
+        // Do not throw to prevent blocking the order creation
+        return { sender: false, receiver: false, error: emailError };
       }
     };
     
-    // Send emails but don't wait for them to complete
-    sendEmails().catch(err => {
-      console.error("Background email sending failed:", err);
+    // Fire and forget, but with console tracking
+    console.log("Starting email sending process in background");
+    sendEmails().then(results => {
+      console.log("Background email sending results:", results);
+    }).catch(err => {
+      console.error("Unexpected error in background email sending:", err);
     });
     
     return mapDbOrderToOrderType(order);
