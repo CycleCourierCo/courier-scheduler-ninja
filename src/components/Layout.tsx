@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -197,6 +197,36 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <p className="text-sm opacity-80">Cycorco Ltd T/A Cycle Courier Co.</p>
                 <p className="text-sm opacity-80">Company No: 16220087</p>
               </div>
+              <div className="mt-4 flex space-x-4">
+                <a 
+                  href="https://www.instagram.com/cyclecourierco" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-white hover:text-white/80 transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-white hover:text-white/80 transition-colors"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://www.trustpilot.com/review/cyclecourierco.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-white hover:text-white/80 transition-colors"
+                  aria-label="Trustpilot Reviews"
+                >
+                  <ExternalLink className="h-5 w-5" />
+                  <span className="sr-only">Trustpilot Reviews</span>
+                </a>
+              </div>
             </div>
             
             <div>
@@ -268,6 +298,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <FileText className="h-4 w-4 mr-1" />
                     Terms &amp; Conditions
                   </Link>
+                </li>
+                <li>
+                  <a 
+                    href="https://www.trustpilot.com/review/cyclecourierco.com" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Trustpilot Reviews
+                  </a>
                 </li>
               </ul>
             </div>
