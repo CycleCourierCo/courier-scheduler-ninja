@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink } from "lucide-react";
@@ -54,12 +53,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <img src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" alt="The Cycle Courier Co." className="h-12" />
           </Link>
           
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-6">
             {navLinks}
           </nav>
           
-          {/* Mobile Navigation - Moved to right side with theme toggle to the left */}
           <div className="flex items-center space-x-2 md:hidden">
             <ThemeToggle />
             
@@ -127,7 +124,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Sheet>
           </div>
           
-          {/* Desktop Right Side Controls */}
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
@@ -196,6 +192,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="mt-4 space-y-1">
                 <p className="text-sm opacity-80">Cycorco Ltd T/A Cycle Courier Co.</p>
                 <p className="text-sm opacity-80">Company No: 16220087</p>
+                <address className="text-sm opacity-80 not-italic">
+                  339 Haunch Lane<br />
+                  Birmingham<br />
+                  B13 0PL
+                </address>
               </div>
               <div className="mt-4 flex space-x-4">
                 <a 
@@ -242,16 +243,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <div className="flex items-start text-sm opacity-80">
                     <span className="mt-1 mr-2"><Phone className="h-4 w-4" /></span>
                     <span>+44 121 798 0767 (Call or WhatsApp)</span>
-                  </div>
-                </li>
-                <li>
-                  <div className="flex items-start text-sm opacity-80">
-                    <span className="mt-1 mr-2 opacity-0"><Mail className="h-4 w-4 invisible" /></span>
-                    <address className="not-italic">
-                      339 Haunch Lane<br />
-                      Birmingham<br />
-                      B13 0PL
-                    </address>
                   </div>
                 </li>
               </ul>
