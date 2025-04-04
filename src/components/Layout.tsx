@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink } from "lucide-react";
@@ -192,11 +193,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="mt-4 space-y-1">
                 <p className="text-sm opacity-80">Cycorco Ltd T/A Cycle Courier Co.</p>
                 <p className="text-sm opacity-80">Company No: 16220087</p>
-                <address className="text-sm opacity-80 not-italic">
-                  339 Haunch Lane<br />
-                  Birmingham<br />
-                  B13 0PL
-                </address>
+                <div className="text-sm opacity-80">
+                  <p>Company address:</p>
+                  <address className="not-italic">
+                    339 Haunch Lane<br />
+                    Birmingham<br />
+                    B13 0PL
+                  </address>
+                </div>
               </div>
               <div className="mt-4 flex space-x-4">
                 <a 
