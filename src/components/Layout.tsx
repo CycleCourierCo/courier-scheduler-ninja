@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -187,13 +187,46 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
       <footer className="bg-courier-500 text-white py-6">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">The Cycle Courier Co.</h3>
               <p className="text-sm opacity-80">
                 Eco-friendly bicycle courier services for businesses and individuals.
               </p>
+              <div className="mt-4 space-y-1">
+                <p className="text-sm opacity-80">Cycorco Ltd T/A Cycle Courier Co.</p>
+                <p className="text-sm opacity-80">Company No: 16220087</p>
+              </div>
             </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Contact Us</h3>
+              <ul className="space-y-2">
+                <li>
+                  <div className="flex items-start text-sm opacity-80">
+                    <span className="mt-1 mr-2"><Mail className="h-4 w-4" /></span>
+                    <span>info@cyclecourierco.com</span>
+                  </div>
+                </li>
+                <li>
+                  <div className="flex items-start text-sm opacity-80">
+                    <span className="mt-1 mr-2"><Phone className="h-4 w-4" /></span>
+                    <span>+44 121 798 0767 (Call or WhatsApp)</span>
+                  </div>
+                </li>
+                <li>
+                  <div className="flex items-start text-sm opacity-80">
+                    <span className="mt-1 mr-2 opacity-0"><Mail className="h-4 w-4 invisible" /></span>
+                    <address className="not-italic">
+                      339 Haunch Lane<br />
+                      Birmingham<br />
+                      B13 0PL
+                    </address>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            
             <div>
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
@@ -220,6 +253,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </li>
               </ul>
             </div>
+            
             <div>
               <h3 className="text-lg font-semibold mb-4">Legal</h3>
               <ul className="space-y-2">
