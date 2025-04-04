@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3 } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -186,8 +186,61 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </main>
       <footer className="bg-courier-500 text-white py-6">
-        <div className="container mx-auto px-4 text-center">
-          <p>&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">The Cycle Courier Co.</h3>
+              <p className="text-sm opacity-80">
+                Eco-friendly bicycle courier services for businesses and individuals.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                    Home
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/about" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                    <Info className="h-4 w-4 mr-1" />
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/tracking" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                    Track Order
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/create-order" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                    Create Order
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Legal</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/privacy" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                    <Shield className="h-4 w-4 mr-1" />
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                    <FileText className="h-4 w-4 mr-1" />
+                    Terms &amp; Conditions
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-white/20 mt-6 pt-6 text-center">
+            <p>&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
+          </div>
         </div>
       </footer>
     </div>

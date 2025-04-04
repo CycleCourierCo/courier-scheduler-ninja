@@ -21,6 +21,9 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import JobScheduling from "./pages/JobScheduling";
 import AccountApprovals from "./pages/AccountApprovals";
 import NotFound from "./pages/NotFound";
+import AboutPage from "./pages/AboutPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsPage from "./pages/TermsPage";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +84,9 @@ function App() {
             <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/tracking/:id" element={<TrackingPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/auth" element={<Navigate to="/auth/login" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
