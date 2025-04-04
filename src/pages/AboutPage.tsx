@@ -20,31 +20,33 @@ const AboutPage: React.FC = () => {
               />
             </div>
             
+            <p className="text-xl font-semibold text-courier-500 text-center">
+              Streamlining Bike Transport - Bikes Delivered Safely, Inspected Thoroughly, Hassle Free and Backed by Warranty!
+            </p>
+            
             <p className="text-lg">
-              The Cycle Courier Co. is a premium eco-friendly delivery service, providing fast, reliable and sustainable courier solutions for businesses and individuals across the city.
+              At The Cycle Courier Co. we're not just another courier service - we're redefining how bikes are transported across the country. Built by cyclists, for cyclists, we understand that every bike represents more than just a frame and wheels; it's a passion, an investment and a lifestyle. That's why we've combined our love for cycling with cutting-edge technology and industry expertise to create a game-changing solution for bike transportation.
             </p>
             
-            <h2 className="text-2xl font-semibold mt-6">Our Mission</h2>
-            <p>
-              We're on a mission to revolutionize urban delivery by providing zero-emission, efficient courier services while reducing traffic congestion and supporting local communities.
+            <p className="text-lg">
+              Whether you're a trade client shipping multiple bikes or a private buyer purchasing your dream ride, we've designed a service that delivers speed, security and peace of mind.
             </p>
             
-            <h2 className="text-2xl font-semibold mt-6">Our Values</h2>
-            <ul className="list-disc pl-6 space-y-2">
-              <li><span className="font-medium">Sustainability</span> - We're committed to reducing carbon emissions through our bicycle-based delivery network.</li>
-              <li><span className="font-medium">Reliability</span> - Our couriers are professionals who deliver on time, every time.</li>
-              <li><span className="font-medium">Community</span> - We employ local riders and support local businesses.</li>
-              <li><span className="font-medium">Innovation</span> - We continuously improve our technology to provide the best service possible.</li>
-            </ul>
+            <p className="text-lg">
+              With our specialist inspection service, we go the extra mile to ensure that bikes arrive in perfect condition, backed by a 3-month warranty for added confidence. Every bike we transport is fully insured to its value, so you can rest assured that your pride and joy is in safe hands.
+            </p>
             
-            <h2 className="text-2xl font-semibold mt-6">Our Team</h2>
-            <p>
-              Our team consists of passionate cyclists, logistics experts, and technology professionals all working together to provide exceptional delivery experiences.
+            <p className="text-lg">
+              Our high-tech platform brings a new level of transparency and convenience to bike delivery. From seamless job bookings to real-time tracking, our customers have complete visibility every step of the way. For trade clients, we've automated the delivery process to minimize effort and maximize efficiency, making us the ideal logistics partner for bike retailers and businesses.
+            </p>
+            
+            <p className="text-lg">
+              With Cytech-certified drivers, next-day and same-day delivery options and a relentless commitment to excellence, The Cycle Courier Co. is setting a new standard in bike transportation. By combining innovation, expertise, and a passion for cycling, we're revolutionizing the way bikes are delivered - safely, securely and with unparalleled customer care.
             </p>
             
             <h2 className="text-2xl font-semibold mt-6">Contact Us</h2>
             <p>
-              Have questions or want to learn more about our services? Please visit our <a href="/" className="text-courier-500 hover:underline">home page</a> to get in touch or call us at (555) 123-4567.
+              Have questions or want to learn more about our services? Please visit our <a href="/" className="text-courier-500 hover:underline">home page</a> to get in touch or call us at +44 121 798 0767.
             </p>
           </CardContent>
         </Card>
