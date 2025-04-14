@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -72,7 +71,7 @@ export function Sidebar({
     }
     
     links.push({
-      href: "/approvals",
+      href: "/account-approvals",
       icon: <Users className="h-5 w-5" />,
       label: "Account Approvals",
     });
