@@ -223,7 +223,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     return false;
   }
 };
-
+/**
 export const sendDeliveryConfirmationToSender = async (id: string): Promise<boolean> => {
   try {
     console.log("Sending delivery confirmation email to sender for order ID:", id);
@@ -373,7 +373,7 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
     return false;
   }
 };
-
+*/
 export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> => {
   try {
     console.log("Starting to send sender availability email for order ID:", id);
