@@ -105,28 +105,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) throw error;
         
         console.log("Retrieved session:", session ? "exists" : "null");
-        
+        setSession(session);
+        setUser(session?.user || null);
+
         if (session?.user) {
-          // Fetch user profile first to check approval status
-          const profile = await fetchUserProfile(session.user.id);
-          
-          // If business user and not approved, don't set the session
-          if (profile?.is_business && 
-              profile?.account_status !== 'approved' && 
-              profile?.role !== 'admin') {
-            console.log("Business account not approved, not setting session");
-            // Don't set session or user
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
-          } else {
-            // User is approved or not a business account, set session
-            setSession(session);
-            setUser(session.user);
-          }
-        } else {
-          setSession(session);
-          setUser(null);
+          await fetchUserProfile(session.user.id);
         }
       } catch (error) {
         console.error("Error loading user:", error);
@@ -138,48 +121,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setData();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("Auth state changed, session:", session ? "exists" : "null");
+      setSession(session);
+      setUser(session?.user || null);
       
       if (session?.user) {
-        // Check user approval status before setting session
-        const profile = await fetchUserProfile(session.user.id);
-        
-        if (profile?.is_business && 
-            profile?.account_status !== 'approved' && 
-            profile?.role !== 'admin') {
-          console.log("Business account not approved, signing out");
-          // Clear session and user
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setUserProfile(null);
-          
-          if (profile.account_status === 'pending') {
-            toast.info("Your business account is pending approval. We'll contact you soon.");
-          } else if (profile.account_status === 'rejected') {
-            toast.error("Your business account application has been rejected. Please contact support for more information.");
-          } else if (profile.account_status === 'suspended') {
-            toast.error("Your account has been suspended. Please contact support for assistance.");
-          } else {
-            toast.info("Your business account requires approval before you can sign in.");
-          }
-          
-          // Redirect to auth page
-          navigate("/auth");
-        } else {
-          // Set session and fetch profile data
-          setSession(session);
-          setUser(session.user);
-          setUserProfile(profile);
-        }
+        setTimeout(() => {
+          fetchUserProfile(session.user.id)
+            .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
+            .finally(() => setIsLoading(false));
+        }, 0);
       } else {
-        setSession(null);
-        setUser(null);
         setUserProfile(null);
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -197,7 +153,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = await fetchUserProfile(user.id);
         
         if (profile && profile.is_business && profile.account_status !== 'approved' && profile.role !== 'admin') {
-          console.log("Business account not approved, signing out");
           await supabase.auth.signOut();
           
           if (profile.account_status === 'pending') {
