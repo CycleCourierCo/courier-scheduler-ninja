@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
@@ -187,35 +188,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("Creating business account via Edge Function");
         
         // Use our Edge Function to create the business user
-        const response = await supabase.functions.invoke("create-business-user", {
-          body: {
-            email,
-            password,
-            userData: {
-              name,
-              ...metadata
+        try {
+          const response = await supabase.functions.invoke("create-business-user", {
+            body: {
+              email,
+              password,
+              userData: {
+                name,
+                ...metadata
+              }
             }
+          });
+          
+          console.log("Edge function response:", response);
+          
+          if (response.error) {
+            console.error("Edge function error:", response.error);
+            throw new Error(response.error.message || "Failed to create business account");
           }
-        });
-        
-        console.log("Edge function response:", response);
-        
-        if (response.error) {
-          console.error("Edge function error:", response.error);
-          throw new Error(response.error.message || "Failed to create business account");
+          
+          if (!response.data) {
+            console.error("No data returned from edge function");
+            throw new Error("Failed to create business account - no data returned");
+          }
+          
+          console.log("Business account created without automatic login");
+          
+          // Send confirmation email that account is pending approval
+          await sendBusinessAccountCreationEmail(email, name);
+          
+          return { data: response.data, isBusinessAccount: true };
+        } catch (err: any) {
+          console.error("Failed to create business user:", err);
+          toast.error(err.message || "Failed to create business account");
+          throw err;
         }
-        
-        if (!response.data) {
-          console.error("No data returned from edge function");
-          throw new Error("Failed to create business account - no data returned");
-        }
-        
-        console.log("Business account created without automatic login");
-        
-        // Send confirmation email that account is pending approval
-        await sendBusinessAccountCreationEmail(email, name);
-        
-        return { data: response.data, isBusinessAccount: true };
       } else {
         // For regular accounts, use normal signup with auto-login
         const { data, error } = await supabase.auth.signUp({

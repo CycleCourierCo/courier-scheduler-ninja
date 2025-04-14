@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.create-shipday-order]
 verify_jwt = false
+
+[functions.create-business-user]
+verify_jwt = false
