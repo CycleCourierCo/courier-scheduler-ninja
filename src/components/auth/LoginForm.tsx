@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,7 +21,8 @@ interface LoginFormProps {
 }
 
 const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading: authIsLoading } = useAuth();
+  const [localIsLoading, setLocalIsLoading] = useState(false);
   const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -32,11 +33,20 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     },
   });
 
+  // Reset local loading state when auth context loading state changes
+  useEffect(() => {
+    if (!authIsLoading) {
+      setLocalIsLoading(false);
+    }
+  }, [authIsLoading]);
+
   const onSubmit = async (data: LoginFormValues) => {
     try {
+      setLocalIsLoading(true);
       await signIn(data.email, data.password);
     } catch (error) {
       console.error("Login error:", error);
+      setLocalIsLoading(false);
     }
   };
 
@@ -53,6 +63,9 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     setForgotPasswordIsLoading(true);
     onForgotPassword(email);
   };
+
+  // Use the combined loading state for the button
+  const isButtonLoading = localIsLoading || authIsLoading;
 
   return (
     <Form {...form}>
@@ -88,9 +101,9 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         <Button 
           type="submit" 
           className="w-full bg-courier-600 hover:bg-courier-700" 
-          disabled={isLoading}
+          disabled={isButtonLoading}
         >
-          {isLoading ? "Signing in..." : "Sign in"}
+          {isButtonLoading ? "Signing in..." : "Sign in"}
         </Button>
         
         <div className="text-center mt-2">
