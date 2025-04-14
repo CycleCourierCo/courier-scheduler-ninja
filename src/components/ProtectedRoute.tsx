@@ -18,7 +18,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false,
   noB2CAccess = false
 }) => {
-  const { user, isLoading, userProfile } = useAuth();
+  const { user, isLoading, userProfile, signOut } = useAuth();
   const location = useLocation();
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
@@ -39,6 +39,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       setInitialLoadComplete(true);
     }
   }, [userProfile, isLoading]);
+
+  // Handle business users with non-approved accounts
+  useEffect(() => {
+    if (userProfile?.is_business && 
+        userProfile?.account_status !== 'approved' && 
+        userProfile?.role !== 'admin' &&
+        !location.pathname.includes('/auth')) {
+      
+      console.log("Business account not approved, signing out and redirecting to auth");
+      signOut();
+    }
+  }, [userProfile, location.pathname, signOut]);
 
   // 0. Public routes skip all authorization
   if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {

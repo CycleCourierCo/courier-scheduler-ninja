@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,10 +21,22 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, signOut, userProfile } = useAuth();
   const [open, setOpen] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   const closeSheet = () => setOpen(false);
 
   const isAdmin = userProfile?.role === 'admin';
+  
+  // Determine if user is authorized to access protected pages
+  useEffect(() => {
+    const authorized = 
+      !!user && 
+      (!userProfile?.is_business || 
+       userProfile?.account_status === 'approved' || 
+       userProfile?.role === 'admin');
+       
+    setIsAuthorized(authorized);
+  }, [user, userProfile]);
 
   const navLinks = (
     <>
@@ -34,12 +46,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Track Order
       </Link>
-      {user ? (
+      {isAuthorized ? (
         <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Create Order
         </Link>
       ) : (
-        <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        <Link to="/auth" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
         </Link>
       )}
@@ -72,7 +84,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
                   
-                  {user && (
+                  {isAuthorized && (
                     <>
                       <DropdownMenuSeparator className="my-2" />
                       <Link 
@@ -128,7 +140,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
-            {user && (
+            {user && isAuthorized ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
@@ -175,7 +187,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
