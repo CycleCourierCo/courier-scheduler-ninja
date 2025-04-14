@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { User, Building } from "lucide-react";
+import { toast } from "sonner";
 
 const addressSchema = z.object({
   address_line_1: z.string().min(1, "Address line 1 is required"),
@@ -45,6 +45,7 @@ interface RegisterFormProps {
 const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
   const [isBusinessAccount, setIsBusinessAccount] = useState(false);
   const { signUp, isLoading } = useAuth();
+  const [localLoading, setLocalLoading] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -72,6 +73,7 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
+      setLocalLoading(true);
       console.log("Starting registration process", data);
       console.log("Is business account:", data.is_business);
       
@@ -93,8 +95,11 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
       
       onSuccessfulRegistration(data.is_business);
       form.reset();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
+      toast.error(error.message || "Failed to register. Please try again.");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -303,9 +308,9 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
         <Button 
           type="submit" 
           className="w-full bg-courier-600 hover:bg-courier-700" 
-          disabled={isLoading}
+          disabled={isLoading || localLoading}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          {isLoading || localLoading ? "Creating Account..." : "Create Account"}
         </Button>
       </form>
     </Form>

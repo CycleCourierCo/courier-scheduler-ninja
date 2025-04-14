@@ -34,7 +34,9 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/auth/:mode" element={<Auth />} />
+            <Route path="/reset-password" element={<Auth />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
@@ -75,8 +77,8 @@ function App() {
                 <JobScheduling />
               </ProtectedRoute>
             } />
-            <Route path="/approvals" element={
-              <ProtectedRoute>
+            <Route path="/account-approvals" element={
+              <ProtectedRoute adminOnly={true}>
                 <AccountApprovals />
               </ProtectedRoute>
             } />
@@ -87,7 +89,6 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
-            <Route path="/auth" element={<Navigate to="/auth/login" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster position="top-right" closeButton richColors />

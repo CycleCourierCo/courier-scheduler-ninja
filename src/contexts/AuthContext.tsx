@@ -215,7 +215,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("Business account created without automatic login");
           
           // Send confirmation email that account is pending approval
-          await sendBusinessAccountCreationEmail(email, name);
+          try {
+            await sendBusinessAccountCreationEmail(email, name);
+          } catch (emailError) {
+            console.error("Failed to send confirmation email:", emailError);
+            // Don't throw here, as the account was created successfully
+          }
           
           return { data: response.data, isBusinessAccount: true };
         } catch (err: any) {
