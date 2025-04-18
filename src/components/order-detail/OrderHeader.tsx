@@ -25,7 +25,6 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   selectedStatus,
   onStatusChange,
 }) => {
-  // Updated status options with new driver statuses
   const statusOptions: { value: OrderStatus; label: string }[] = [
     { value: "created", label: "Created" },
     { value: "sender_availability_pending", label: "Sender Availability Pending" },
@@ -34,6 +33,8 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
     { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
     { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
     { value: "scheduled", label: "Scheduled" },
+    { value: "collection_scheduled", label: "Collection Scheduled" },
+    { value: "delivery_scheduled", label: "Delivery Scheduled" },
     { value: "driver_to_collection", label: "Driver to Collection" },
     { value: "collected", label: "Collected" },
     { value: "driver_to_delivery", label: "Driver to Delivery" },
