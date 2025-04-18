@@ -41,6 +41,14 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
 
   const isScheduled = Boolean(scheduledDate);
 
+  // Debug logging to see what date values we have
+  console.log(`${group.type} card for order ${firstOrder.id}:`, {
+    scheduledDate,
+    isScheduled,
+    pickupDate: firstOrder.scheduledPickupDate,
+    deliveryDate: firstOrder.scheduledDeliveryDate
+  });
+
   return (
     <Card 
       ref={dragRef} 
@@ -70,11 +78,11 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
             <div className="space-y-1">
-              {isScheduled ? (
+              {isScheduled && scheduledDate ? (
                 <>
                   <div>Scheduled for:</div>
                   <div className="font-medium text-green-600">
-                    {format(new Date(scheduledDate!), 'MMM d, yyyy h:mm a')}
+                    {format(new Date(scheduledDate), 'MMM d, yyyy h:mm a')}
                   </div>
                 </>
               ) : (
