@@ -21,8 +21,15 @@ declare module 'react-leaflet' {
     attribution?: string;
   }
 
+  export interface MarkerProps {
+    position: L.LatLngExpression;
+    children?: ReactNode;
+    key?: any;
+    icon?: L.Icon | L.DivIcon;
+  }
+
   export const MapContainer: React.FC<MapContainerProps>;
   export const TileLayer: React.FC<TileLayerProps>;
-  export const Marker: React.FC<{position: L.LatLngExpression, children?: ReactNode, key?: any}>;
+  export const Marker: React.FC<MarkerProps>;
   export const Popup: React.FC<{children?: ReactNode}>;
 }
