@@ -7,12 +7,12 @@ import StatusBadge from "@/components/StatusBadge";
 import { format } from "date-fns";
 import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { ContactInfo, Address } from "@/types/order";
+import { ContactInfo, Address, OrderStatus } from "@/types/order";
 
 // Define a type for the order data structure as it comes from the database
 interface OrderData {
   id: string;
-  status: string;
+  status: OrderStatus; // Use OrderStatus type from types/order.ts
   tracking_number: string;
   bike_brand: string | null;
   bike_model: string | null;
@@ -34,7 +34,15 @@ const JobScheduling = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as OrderData[];
+      
+      // Parse the sender and receiver JSON fields for each order
+      return data.map(order => ({
+        ...order,
+        // Ensure sender and receiver are properly typed
+        sender: order.sender as ContactInfo & { address: Address },
+        receiver: order.receiver as ContactInfo & { address: Address },
+        status: order.status as OrderStatus
+      })) as OrderData[];
     }
   });
 
