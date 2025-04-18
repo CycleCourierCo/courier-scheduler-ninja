@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -94,14 +93,4 @@
 .leaflet-popup-content {
   margin: 0;
   min-width: 200px;
-}
-
-/* Fix for marker icons */
-.leaflet-marker-icon {
-  background: none !important;
-}
-
-/* Fix for marker shadow */
-.leaflet-shadow-pane {
-  display: none;
 }
