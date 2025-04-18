@@ -1,50 +1,31 @@
-
-import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Popup, Marker } from 'react-leaflet';
-import { Card, CardContent } from '../ui/card';
-import 'leaflet/dist/leaflet.css';
-import { OrderData } from '@/pages/JobScheduling';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 
-// Define props interface for JobMap
-interface JobMapProps {
-  orders?: OrderData[];
-}
+type Location = {
+  address: string;
+  lat: number;
+  lng: number;
+};
 
-const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
-  // London coordinates as default
-  const defaultPosition: [number, number] = [51.505, -0.09];
+const locations: Location[] = [
+  { address: 'London', lat: 51.5074, lng: -0.1278 },
+  { address: 'Birmingham', lat: 52.4862, lng: -1.8904 },
+];
 
-  // Fix Leaflet's default icon issue
-  useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-    });
-  }, []);
-
+const MapComponent = () => {
   return (
-    <Card className="h-[600px] mb-8">
-      <CardContent className="p-0">
-        <div id="map-container" className="h-full w-full rounded-lg">
-          <MapContainer
-            center={defaultPosition}
-            zoom={13}
-            scrollWheelZoom={false}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {/* We'll add markers for orders here in the future */}
-          </MapContainer>
-        </div>
-      </CardContent>
-    </Card>
+    <MapContainer center={[52.4862, -1.8904]} zoom={6} style={{ height: '500px', width: '100%' }}>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {locations.map((loc, idx) => (
+        <Marker key={idx} position={[loc.lat, loc.lng]}>
+          <Popup>{loc.address}</Popup>
+        </Marker>
+      ))}
+    </MapContainer>
   );
 };
 
-export default JobMap;
+export default MapComponent;
