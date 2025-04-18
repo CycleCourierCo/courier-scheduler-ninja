@@ -1,5 +1,6 @@
+
 import React from "react";
-import { ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronRight, CheckCircle2, X } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,17 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
           {statusUpdating && (
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
           )}
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => onStatusChange('cancelled')}
+            disabled={statusUpdating || status === 'cancelled'}
+            className="flex items-center gap-2"
+          >
+            <X className="h-4 w-4" />
+            Cancel Order
+          </Button>
         </div>
         
         {status === 'scheduled' && (
