@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Card, CardContent } from '../ui/card';
 import { Address } from '@/types/order';
 import 'leaflet/dist/leaflet.css';
@@ -48,14 +48,12 @@ interface JobMapProps {
   orders: OrderData[];
 }
 
-const JobMap: React.FC<JobMapProps> = ({ orders }) => {
-  // Calculate center based on all markers or default to London
-  const defaultCenter: [number, number] = [51.505, -0.09];
-  const [map, setMap] = useState<L.Map | null>(null);
+// Create a MapBounds component to handle the bounds fitting
+const MapBounds: React.FC<{ orders: OrderData[] }> = ({ orders }) => {
+  const map = useMap();
   
-  // Set bounds when orders change
   useEffect(() => {
-    if (map && orders.length > 0) {
+    if (orders.length > 0) {
       const bounds: L.LatLngBoundsExpression = [];
       
       orders.forEach(order => {
@@ -71,28 +69,35 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
         map.fitBounds(bounds);
       }
     }
-  }, [map, orders]);
+  }, [orders, map]);
+  
+  return null;
+};
+
+const JobMap: React.FC<JobMapProps> = ({ orders }) => {
+  // Default center (will be adjusted by MapBounds)
+  const defaultCenter: [number, number] = [51.505, -0.09];
   
   return (
     <Card className="h-[600px] mb-8">
       <CardContent className="p-0">
         <MapContainer
-          center={defaultCenter}
+          defaultCenter={defaultCenter}
           zoom={11}
           className="h-full w-full rounded-lg"
           style={{ height: '100%', width: '100%' }}
-          ref={setMap}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          <MapBounds orders={orders} />
           {orders.map((order) => (
             <React.Fragment key={order.id}>
               {order.sender.address.lat && order.sender.address.lon && (
                 <Marker
-                  position={[order.sender.address.lat, order.sender.address.lon]}
-                  icon={collectionIcon}
+                  position={[order.sender.address.lat, order.sender.address.lon] as [number, number]}
+                  icon={collectionIcon as any}
                 >
                   <Popup>
                     <div className="p-2">
@@ -111,8 +116,8 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
               )}
               {order.receiver.address.lat && order.receiver.address.lon && (
                 <Marker
-                  position={[order.receiver.address.lat, order.receiver.address.lon]}
-                  icon={deliveryIcon}
+                  position={[order.receiver.address.lat, order.receiver.address.lon] as [number, number]}
+                  icon={deliveryIcon as any}
                 >
                   <Popup>
                     <div className="p-2">
