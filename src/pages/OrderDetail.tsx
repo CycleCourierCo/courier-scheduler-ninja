@@ -228,6 +228,26 @@ const OrderDetail = () => {
     }
   };
 
+  const handleCreateShipment = async () => {
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      const shipdayResponse = await createShipdayOrder(id);
+      
+      if (shipdayResponse) {
+        toast.success("Shipments created successfully");
+      } else {
+        toast.error("Failed to create shipments");
+      }
+    } catch (error) {
+      console.error("Error creating shipments:", error);
+      toast.error(`Failed to create shipments: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -350,6 +370,7 @@ const OrderDetail = () => {
                 <SchedulingButtons 
                   orderId={id as string}
                   onSchedule={handleScheduleOrder}
+                  onCreateShipment={handleCreateShipment}
                   onAdminSchedule={handleAdminScheduleOrder}
                   canSchedule={canSchedule}
                   isSubmitting={isSubmitting}
@@ -359,6 +380,10 @@ const OrderDetail = () => {
                   adminPickupDateSelected={!!pickupDatePicker}
                   adminDeliveryDateSelected={!!deliveryDatePicker}
                   showAdminControls={showAdminControls}
+                  scheduledDates={{
+                    pickup: order.scheduledPickupDate ? new Date(order.scheduledPickupDate) : null,
+                    delivery: order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate) : null
+                  }}
                 />
               </div>
             </div>
