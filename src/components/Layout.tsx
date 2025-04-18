@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink } from "lucide-react";
@@ -261,8 +260,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/about" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
-                    <Info className="h-4 w-4 mr-1" />
+                  <Link to="/about" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
                     About Us
                   </Link>
                 </li>
