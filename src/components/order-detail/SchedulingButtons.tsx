@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,30 +53,15 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
     try {
       setLocalIsSubmitting(true);
       
-      // First check if there's a date selected from the date dropdown
-      const { data: orderData, error: fetchError } = await supabase
-        .from('orders')
-        .select('pickup_date')
-        .eq('id', orderId)
-        .single();
-        
-      if (fetchError) throw fetchError;
-      
-      if (!orderData.pickup_date || !orderData.pickup_date.length) {
-        toast.error('Please select a pickup date first');
-        return;
-      }
-      
-      // Use the first available pickup date
-      const firstPickupDate = new Date(orderData.pickup_date[0]);
-      // Set time to 9:00 AM
-      firstPickupDate.setHours(9, 0, 0, 0);
+      // Create a date for today and set it to 9:00 AM
+      const scheduleDateTime = new Date();
+      scheduleDateTime.setHours(9, 0, 0, 0);
       
       // Update the order with the scheduled pickup date
       const { error: updateError } = await supabase
         .from('orders')
         .update({ 
-          scheduled_pickup_date: firstPickupDate.toISOString(),
+          scheduled_pickup_date: scheduleDateTime.toISOString(),
           status: 'collection_scheduled' as const
         })
         .eq('id', orderId);
@@ -99,30 +83,15 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
     try {
       setLocalIsSubmitting(true);
       
-      // First check if there's a date selected from the date dropdown
-      const { data: orderData, error: fetchError } = await supabase
-        .from('orders')
-        .select('delivery_date')
-        .eq('id', orderId)
-        .single();
-        
-      if (fetchError) throw fetchError;
-      
-      if (!orderData.delivery_date || !orderData.delivery_date.length) {
-        toast.error('Please select a delivery date first');
-        return;
-      }
-      
-      // Use the first available delivery date
-      const firstDeliveryDate = new Date(orderData.delivery_date[0]);
-      // Set time to 12:00 PM
-      firstDeliveryDate.setHours(12, 0, 0, 0);
+      // Create a date for today and set it to 12:00 PM
+      const scheduleDateTime = new Date();
+      scheduleDateTime.setHours(12, 0, 0, 0);
       
       // Update the order with the scheduled delivery date
       const { error: updateError } = await supabase
         .from('orders')
         .update({ 
-          scheduled_delivery_date: firstDeliveryDate.toISOString(),
+          scheduled_delivery_date: scheduleDateTime.toISOString(),
           status: 'delivery_scheduled' as const
         })
         .eq('id', orderId);
