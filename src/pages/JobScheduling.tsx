@@ -7,6 +7,21 @@ import StatusBadge from "@/components/StatusBadge";
 import { format } from "date-fns";
 import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { ContactInfo, Address } from "@/types/order";
+
+// Define a type for the order data structure as it comes from the database
+interface OrderData {
+  id: string;
+  status: string;
+  tracking_number: string;
+  bike_brand: string | null;
+  bike_model: string | null;
+  created_at: string;
+  sender: ContactInfo & { address: Address };
+  receiver: ContactInfo & { address: Address };
+  scheduled_pickup_date: string | null;
+  scheduled_delivery_date: string | null;
+}
 
 const JobScheduling = () => {
   const { data: orders, isLoading } = useQuery({
@@ -19,7 +34,7 @@ const JobScheduling = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as OrderData[];
     }
   });
 
@@ -60,7 +75,7 @@ const JobScheduling = () => {
                       <p><span className="font-medium">To:</span> {order.receiver.address.city}</p>
                     </div>
 
-                    {order.status === 'scheduled' && (
+                    {order.status === 'scheduled' && order.scheduled_pickup_date && order.scheduled_delivery_date && (
                       <div className="text-sm text-muted-foreground">
                         <p>Pickup: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy')}</p>
                         <p>Delivery: {format(new Date(order.scheduled_delivery_date), 'MMM d, yyyy')}</p>
