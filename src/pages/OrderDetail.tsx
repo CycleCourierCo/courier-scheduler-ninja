@@ -322,6 +322,7 @@ const OrderDetail = () => {
               Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
             </CardDescription>
           </CardHeader>
+          
           <CardContent className="space-y-4">
             {order.trackingNumber && (
               <div className="bg-muted p-3 rounded-md">
@@ -329,8 +330,8 @@ const OrderDetail = () => {
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <DateSelection 
                   title="Pickup Dates"
                   availableDates={order.pickupDate}
@@ -363,28 +364,25 @@ const OrderDetail = () => {
                   orderStatus={order.status}
                 />
               </div>
-              
-              <div className="space-y-4">
-                
-                <SchedulingButtons 
-                  orderId={id as string}
-                  onSchedule={handleScheduleOrder}
-                  onCreateShipment={handleCreateShipment}
-                  onAdminSchedule={handleAdminScheduleOrder}
-                  canSchedule={canSchedule}
-                  isSubmitting={isSubmitting}
-                  isScheduled={isScheduled}
-                  pickupDateSelected={!!selectedPickupDate}
-                  deliveryDateSelected={!!selectedDeliveryDate}
-                  adminPickupDateSelected={!!pickupDatePicker}
-                  adminDeliveryDateSelected={!!deliveryDatePicker}
-                  showAdminControls={showAdminControls}
-                  scheduledDates={{
-                    pickup: order.scheduledPickupDate ? new Date(order.scheduledPickupDate) : null,
-                    delivery: order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate) : null
-                  }}
-                />
-              </div>
+
+              <SchedulingButtons 
+                orderId={id as string}
+                onSchedule={handleScheduleOrder}
+                onCreateShipment={handleCreateShipment}
+                onAdminSchedule={handleAdminScheduleOrder}
+                canSchedule={canSchedule}
+                isSubmitting={isSubmitting}
+                isScheduled={isScheduled}
+                pickupDateSelected={!!selectedPickupDate}
+                deliveryDateSelected={!!selectedDeliveryDate}
+                adminPickupDateSelected={!!pickupDatePicker}
+                adminDeliveryDateSelected={!!deliveryDatePicker}
+                showAdminControls={showAdminControls}
+                scheduledDates={{
+                  pickup: order.scheduledPickupDate ? new Date(order.scheduledPickupDate) : null,
+                  delivery: order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate) : null
+                }}
+              />
             </div>
             
             <Separator className="my-6" />

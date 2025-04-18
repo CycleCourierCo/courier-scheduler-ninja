@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 interface SchedulingButtonsProps {
   orderId: string;
   onSchedule: () => void;
+  onCreateShipment?: () => void;  // Made optional
   onAdminSchedule: () => void;
   canSchedule: boolean;
   isSubmitting: boolean;
@@ -14,6 +15,10 @@ interface SchedulingButtonsProps {
   adminPickupDateSelected: boolean | undefined;
   adminDeliveryDateSelected: boolean | undefined;
   showAdminControls?: boolean;
+  scheduledDates?: {
+    pickup: Date | null;
+    delivery: Date | null;
+  };
 }
 
 const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
