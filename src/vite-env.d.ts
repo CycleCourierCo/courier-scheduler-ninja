@@ -1,27 +1,27 @@
 
 /// <reference types="vite/client" />
+/// <reference types="leaflet" />
 
-// Add react-leaflet type overrides
 declare module 'react-leaflet' {
   import * as L from 'leaflet';
-  import * as React from 'react';
+  import { ReactNode } from 'react';
 
-  export interface MapContainerProps extends React.DOMAttributes<HTMLDivElement> {
+  export interface MapContainerProps {
     center: L.LatLngExpression;
     zoom: number;
+    children?: ReactNode;
     scrollWheelZoom?: boolean;
-    style?: React.CSSProperties;
     className?: string;
-    id?: string;
+    style?: React.CSSProperties;
   }
 
-  export interface TileLayerProps extends React.DOMAttributes<HTMLDivElement> {
-    attribution: string;
+  export interface TileLayerProps {
     url: string;
+    attribution?: string;
   }
-  
+
   export const MapContainer: React.FC<MapContainerProps>;
   export const TileLayer: React.FC<TileLayerProps>;
-  export const Popup: React.FC<any>;
-  export const Marker: React.FC<any>;
+  export const Marker: React.FC<{position: L.LatLngExpression}>;
+  export const Popup: React.FC<{children?: ReactNode}>;
 }
