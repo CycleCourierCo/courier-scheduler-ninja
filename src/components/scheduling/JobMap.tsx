@@ -29,6 +29,8 @@ const extractLocations = (orders: OrderData[] = []) => {
     orderNumber: string;
   }[] = [];
   
+  console.log(`Extracting locations from ${orders.length} orders`);
+  
   orders.forEach(order => {
     // Add collection point
     if (order.sender.address.lat && order.sender.address.lon) {
@@ -39,6 +41,7 @@ const extractLocations = (orders: OrderData[] = []) => {
         type: 'collection',
         orderNumber: order.tracking_number || 'No tracking number'
       });
+      console.log(`Added collection point for order ${order.tracking_number}`);
     }
     
     // Add delivery point
@@ -50,8 +53,11 @@ const extractLocations = (orders: OrderData[] = []) => {
         type: 'delivery',
         orderNumber: order.tracking_number || 'No tracking number'
       });
+      console.log(`Added delivery point for order ${order.tracking_number}`);
     }
   });
+  
+  console.log(`Total locations extracted: ${locations.length}`);
   
   // If no locations found, use default location
   if (locations.length === 0) {
@@ -79,11 +85,23 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
         mapRef.current?.invalidateSize();
       }, 100);
     }
-  }, []);
+    
+    console.log(`JobMap received ${orders.length} orders`);
+  }, [orders]);
   
   const locations = extractLocations(orders);
-  const centerLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
-  const centerLng = locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length;
+  
+  // Calculate center only if we have locations
+  let centerLat = 51.5074; // Default to London
+  let centerLng = -0.1278;
+  
+  if (locations.length > 0) {
+    centerLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
+    centerLng = locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length;
+  }
+  
+  console.log(`Map center: ${centerLat}, ${centerLng}`);
+  console.log(`Number of locations to display: ${locations.length}`);
   
   // Create custom icons for collection and delivery
   const collectionIcon = new L.Icon({
@@ -107,7 +125,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   return (
     <div className="h-[400px] w-full mb-8 rounded-lg overflow-hidden border border-border" id="map-container">
       <MapContainer 
-        center={[centerLat || 52.4862, centerLng || -1.8904]} 
+        center={[centerLat, centerLng]} 
         zoom={6} 
         style={{ height: '100%', width: '100%' }}
         whenCreated={(map) => {
@@ -120,7 +138,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
         />
         {locations.map((loc, idx) => (
           <Marker 
-            key={`${loc.type}-${idx}`} 
+            key={`${loc.type}-${loc.orderNumber}-${idx}`} 
             position={[loc.lat, loc.lng]}
             icon={loc.type === 'collection' ? collectionIcon : deliveryIcon}
           >
