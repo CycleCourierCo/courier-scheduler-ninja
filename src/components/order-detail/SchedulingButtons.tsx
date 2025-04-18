@@ -1,8 +1,10 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import DualSchedulingForm from "@/components/scheduling/DualSchedulingForm";
 
 interface SchedulingButtonsProps {
+  orderId: string;
   onSchedule: () => void;
   onAdminSchedule: () => void;
   canSchedule: boolean;
@@ -16,6 +18,7 @@ interface SchedulingButtonsProps {
 }
 
 const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
+  orderId,
   onSchedule,
   onAdminSchedule,
   canSchedule,
@@ -31,20 +34,10 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
     <div className="space-y-4">
       {canSchedule && !isScheduled && (
         <div className="mt-6">
-          <Button 
-            onClick={onSchedule} 
-            disabled={!pickupDateSelected || !deliveryDateSelected || isSubmitting || isScheduled}
-            className="w-full"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                Scheduling Order...
-              </>
-            ) : (
-              "Schedule Order & Create Shipments"
-            )}
-          </Button>
+          <DualSchedulingForm 
+            orderId={orderId}
+            onScheduled={onSchedule}
+          />
         </div>
       )}
       
