@@ -346,6 +346,7 @@ const OrderDetail = () => {
                 </div>
                 
                 <SchedulingButtons 
+                  orderId={id as string}
                   onSchedule={handleScheduleOrder}
                   onAdminSchedule={handleAdminScheduleOrder}
                   canSchedule={canSchedule}
