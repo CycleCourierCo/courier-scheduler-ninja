@@ -20,7 +20,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       date: order.createdAt,
       icon: <Package className="h-4 w-4 text-courier-600" />,
       description: order.trackingNumber ? 
-        Order created with tracking number: ${order.trackingNumber} : 
+        `Order created with tracking number: ${order.trackingNumber}` : 
         "Order created successfully"
     });
     eventMap["Order Created"] = events[0];
