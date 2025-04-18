@@ -1,7 +1,5 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createShipdayOrder } from '@/services/shipdayService';
@@ -33,23 +31,20 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   onAdminSchedule,
   isSubmitting,
   isScheduled,
-  adminPickupDateSelected,
-  adminDeliveryDateSelected,
   showAdminControls = false,
   scheduledDates,
   orderStatus,
 }) => {
   const [localIsSubmitting, setLocalIsSubmitting] = useState(false);
-  const [showPickupForm, setShowPickupForm] = useState(false);
-  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
 
   // Check if pickup is ready to be scheduled
   const canSchedulePickup = !isScheduled && orderStatus !== 'collection_scheduled' && 
                           orderStatus !== 'driver_to_collection' && 
                           orderStatus !== 'collected';
 
-  // Determine if delivery can be scheduled (only after pickup is done)
-  const canScheduleDelivery = (orderStatus === 'collected') && !scheduledDates?.delivery;
+  // Determine if delivery can be scheduled (only after pickup is scheduled or completed)
+  const canScheduleDelivery = (orderStatus === 'collection_scheduled' || orderStatus === 'collected') && 
+                             !scheduledDates?.delivery;
 
   // Function to directly schedule collection without showing a form
   const handleDirectScheduleCollection = async () => {
@@ -80,7 +75,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
       setLocalIsSubmitting(false);
     }
   };
-  
+
   // Function to directly schedule delivery without showing a form
   const handleDirectScheduleDelivery = async () => {
     try {
