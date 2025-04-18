@@ -1,11 +1,12 @@
 
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Package } from "lucide-react";
 import { SchedulingGroup } from "@/services/schedulingService";
 import { useDraggable } from "@/hooks/useDraggable";
 import { extractOutwardCode } from "@/utils/locationUtils";
+import JobSchedulingForm from "./JobSchedulingForm";
+import { Badge } from "@/components/ui/badge";
 
 interface SchedulingCardProps {
   group: SchedulingGroup;
@@ -18,7 +19,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
     item: group,
   });
 
-  // The first order in the group to get representative data
+  // Get the first order in the group
   const firstOrder = group.orders[0];
   const isPickup = group.type === 'pickup';
   
@@ -31,6 +32,11 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
   
   // Extract postcode outward code for display
   const postcodeOutward = extractOutwardCode(contact.address.zipCode);
+
+  // Check if the job is scheduled
+  const isScheduled = isPickup 
+    ? firstOrder.scheduled_pickup_date 
+    : firstOrder.scheduled_delivery_date;
 
   return (
     <Card 
@@ -49,7 +55,13 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             {group.orders.length} orders
           </div>
         </CardTitle>
+        {isScheduled && (
+          <Badge variant="outline" className="w-fit">
+            {isPickup ? 'Collection' : 'Delivery'} scheduled
+          </Badge>
+        )}
       </CardHeader>
+      
       <CardContent className="pb-2">
         <div className="flex flex-col space-y-2 text-sm">
           <div className="flex items-center">
@@ -76,14 +88,15 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button 
-          onClick={() => onSchedule(group)} 
-          variant="outline" 
-          className="w-full"
-        >
-          Schedule {isPickup ? 'Collection' : 'Delivery'}
-        </Button>
+
+      <CardFooter className="flex flex-col">
+        {!isScheduled && (
+          <JobSchedulingForm 
+            orderId={firstOrder.id} 
+            type={group.type} 
+            onScheduled={() => onSchedule(group)}
+          />
+        )}
       </CardFooter>
     </Card>
   );
