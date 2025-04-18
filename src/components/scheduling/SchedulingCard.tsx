@@ -44,38 +44,22 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
   return (
     <Card 
       ref={dragRef} 
-      className={`w-full mb-4 cursor-move transition-all ${isDragging ? 'opacity-50' : 'opacity-100'}`}
+      className={`w-full mb-4 cursor-move transition-all ${isDragging ? 'opacity-50' : 'opacity-100'} ${isPickup ? 'bg-green-50' : 'bg-blue-50'}`}
     >
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center justify-between">
           <div className="flex items-center">
             <span className={`mr-2 w-3 h-3 rounded-full ${group.isOptimal ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-            <span>
-              {firstOrder.id.substring(0, 8)}
-            </span>
+            <span>{isPickup ? 'Collection' : 'Delivery'}</span>
           </div>
-          <div className="text-sm font-normal text-muted-foreground">
-            {group.orders.length} orders
-          </div>
+          {isScheduled && (
+            <Badge variant="outline" className="text-xs">Scheduled</Badge>
+          )}
         </CardTitle>
-        {isScheduled && (
-          <Badge variant="outline" className="w-fit flex items-center gap-2">
-            <Calendar className="w-3 h-3" />
-            {isPickup ? 'Collection' : 'Delivery'} on {format(new Date(scheduledDate!), 'MMM d, yyyy')}
-          </Badge>
-        )}
       </CardHeader>
       
       <CardContent className="pb-2">
         <div className="flex flex-col space-y-2 text-sm">
-          <div className="flex items-center">
-            <Package className="w-4 h-4 mr-2 text-muted-foreground" />
-            <span className="font-semibold">{bikeInfo}</span>
-          </div>
-          <div>
-            <span className="font-semibold">{contactType}: </span>
-            <span>{contact.name}</span>
-          </div>
           <div className="flex items-start">
             <MapPin className="w-4 h-4 mr-2 mt-1 text-muted-foreground" />
             <span>
@@ -85,10 +69,15 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-            <span>
-              {isPickup ? 'Pickup' : 'Delivery'} dates: 
-              <span className="font-semibold"> {isPickup ? group.dateRange.pickup.length : group.dateRange.delivery.length}</span>
-            </span>
+            <div>
+              <div>Available dates:</div>
+              <div className="text-muted-foreground">
+                {isPickup 
+                  ? (group.dateRange.pickup.length > 0 ? format(group.dateRange.pickup[0], 'MMM d, yyyy') : 'No dates available')
+                  : (group.dateRange.delivery.length > 0 ? format(group.dateRange.delivery[0], 'MMM d, yyyy') : 'No dates available')
+                }
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -99,6 +88,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             orderId={firstOrder.id} 
             type={group.type} 
             onScheduled={() => onSchedule(group)}
+            compact
           />
         )}
       </CardFooter>
