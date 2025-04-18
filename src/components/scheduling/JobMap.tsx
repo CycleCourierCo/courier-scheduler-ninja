@@ -1,22 +1,22 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Card, CardContent } from '../ui/card';
 import { Address } from '@/types/order';
 import 'leaflet/dist/leaflet.css';
-import { Icon, LatLngExpression } from 'leaflet';
+import L from 'leaflet';
 import { format } from 'date-fns';
 
 // Fix for the default marker icon issue in React-Leaflet
 // Create custom icons for collection and delivery
-const collectionIcon = new Icon({
+const collectionIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
 
-const deliveryIcon = new Icon({
+const deliveryIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -50,7 +50,28 @@ interface JobMapProps {
 
 const JobMap: React.FC<JobMapProps> = ({ orders }) => {
   // Calculate center based on all markers or default to London
-  const defaultCenter: LatLngExpression = [51.505, -0.09];
+  const defaultCenter: [number, number] = [51.505, -0.09];
+  const [map, setMap] = useState<L.Map | null>(null);
+  
+  // Set bounds when orders change
+  useEffect(() => {
+    if (map && orders.length > 0) {
+      const bounds: L.LatLngBoundsExpression = [];
+      
+      orders.forEach(order => {
+        if (order.sender.address.lat && order.sender.address.lon) {
+          bounds.push([order.sender.address.lat, order.sender.address.lon]);
+        }
+        if (order.receiver.address.lat && order.receiver.address.lon) {
+          bounds.push([order.receiver.address.lat, order.receiver.address.lon]);
+        }
+      });
+      
+      if (bounds.length > 0) {
+        map.fitBounds(bounds);
+      }
+    }
+  }, [map, orders]);
   
   return (
     <Card className="h-[600px] mb-8">
@@ -60,6 +81,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
           zoom={11}
           className="h-full w-full rounded-lg"
           style={{ height: '100%', width: '100%' }}
+          ref={setMap}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -69,7 +91,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
             <React.Fragment key={order.id}>
               {order.sender.address.lat && order.sender.address.lon && (
                 <Marker
-                  position={[order.sender.address.lat, order.sender.address.lon] as LatLngExpression}
+                  position={[order.sender.address.lat, order.sender.address.lon]}
                   icon={collectionIcon}
                 >
                   <Popup>
@@ -89,7 +111,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
               )}
               {order.receiver.address.lat && order.receiver.address.lon && (
                 <Marker
-                  position={[order.receiver.address.lat, order.receiver.address.lon] as LatLngExpression}
+                  position={[order.receiver.address.lat, order.receiver.address.lon]}
                   icon={deliveryIcon}
                 >
                   <Popup>
