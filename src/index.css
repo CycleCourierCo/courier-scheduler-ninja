@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -93,4 +94,19 @@
 .leaflet-popup-content {
   margin: 0;
   min-width: 200px;
+}
+
+/* Fix for Leaflet markers */
+.leaflet-default-icon-path {
+  background-image: url(https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png);
+}
+
+.leaflet-marker-shadow {
+  background-image: url(https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png);
+}
+
+#map-container .leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.5rem;
 }
