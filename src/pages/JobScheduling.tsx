@@ -153,7 +153,7 @@ const JobScheduling = () => {
                           <p className="text-xs text-muted-foreground">
                             {formatDates(order.pickup_date)}
                           </p>
-                          {order.scheduled_pickup_date(<p className="text-xs text-muted-foreground">Scheduled Date: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy')}</p>)}
+                          <p className="text-xs text-muted-foreground">Scheduled Date: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy')}</p>
                         </div>
                         
                         {!order.scheduled_pickup_date && (
