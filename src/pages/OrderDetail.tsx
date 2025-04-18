@@ -330,7 +330,7 @@ const OrderDetail = () => {
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <DateSelection 
                   title="Pickup Dates"
                   availableDates={order.pickupDate}
@@ -365,7 +365,6 @@ const OrderDetail = () => {
               </div>
               
               <div className="space-y-4">
-                
                 <SchedulingButtons 
                   orderId={id as string}
                   onSchedule={handleScheduleOrder}
