@@ -82,7 +82,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
     <Card className="h-[600px] mb-8">
       <CardContent className="p-0">
         <MapContainer
-          defaultCenter={defaultCenter}
+          center={defaultCenter}
           zoom={11}
           className="h-full w-full rounded-lg"
           style={{ height: '100%', width: '100%' }}
@@ -97,7 +97,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
               {order.sender.address.lat && order.sender.address.lon && (
                 <Marker
                   position={[order.sender.address.lat, order.sender.address.lon] as [number, number]}
-                  icon={collectionIcon as any}
+                  icon={collectionIcon}
                 >
                   <Popup>
                     <div className="p-2">
@@ -117,7 +117,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
               {order.receiver.address.lat && order.receiver.address.lon && (
                 <Marker
                   position={[order.receiver.address.lat, order.receiver.address.lon] as [number, number]}
-                  icon={deliveryIcon as any}
+                  icon={deliveryIcon}
                 >
                   <Popup>
                     <div className="p-2">
