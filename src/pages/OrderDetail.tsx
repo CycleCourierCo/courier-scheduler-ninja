@@ -98,27 +98,46 @@ const OrderDetail = () => {
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
       
+      const isDeliveryPhase = order?.status === 'collected';
+      
       const updatedOrder = await updateOrderSchedule(
         id, 
-        pickupDateTime, 
-        deliveryDateTime
+        isDeliveryPhase ? undefined : pickupDateTime,
+        isDeliveryPhase ? deliveryDateTime : undefined
       );
       
       if (!updatedOrder) {
         throw new Error("Failed to update order schedule");
       }
       
-      const shipdayResponse = await createShipdayOrder(id);
-      
-      if (shipdayResponse) {
-        setOrder(updatedOrder);
-        toast.success("Order has been scheduled and shipments created successfully");
-      } else {
-        toast.error("Failed to create shipments");
-      }
+      setOrder(updatedOrder);
+      toast.success(`${isDeliveryPhase ? 'Delivery' : 'Collection'} has been scheduled successfully`);
     } catch (error) {
       console.error("Error scheduling order:", error);
       toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateShipment = async () => {
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      const jobType = order?.status === 'collection_scheduled' ? 'pickup' : 'delivery';
+      
+      const shipdayResponse = await createShipdayOrder(id, jobType);
+      
+      if (shipdayResponse) {
+        toast.success(`${jobType === 'pickup' ? 'Collection' : 'Delivery'} shipment created successfully`);
+      } else {
+        toast.error(`Failed to create ${jobType} shipment`);
+      }
+    } catch (error) {
+      console.error("Error creating shipment:", error);
+      toast.error(`Failed to create shipment: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -298,6 +317,10 @@ const OrderDetail = () => {
             </CardTitle>
             <CardDescription>
               Created on {format(new Date(order.createdAt), "PPP")}
+              Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
+            </CardDescription>
+            <CardDescription>
+            Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -344,12 +367,13 @@ const OrderDetail = () => {
               
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <p>Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}</p>
+                  
                 </div>
                 
                 <SchedulingButtons 
                   orderId={id as string}
                   onSchedule={handleScheduleOrder}
+                  onCreateShipment={handleCreateShipment}
                   onAdminSchedule={handleAdminScheduleOrder}
                   canSchedule={canSchedule}
                   isSubmitting={isSubmitting}
@@ -359,6 +383,10 @@ const OrderDetail = () => {
                   adminPickupDateSelected={!!pickupDatePicker}
                   adminDeliveryDateSelected={!!deliveryDatePicker}
                   showAdminControls={showAdminControls}
+                  scheduledDates={{
+                    pickup: order.scheduledPickupDate ? new Date(order.scheduledPickupDate) : null,
+                    delivery: order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate) : null
+                  }}
                 />
               </div>
             </div>
