@@ -1,3 +1,4 @@
+
 import React from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -12,7 +13,7 @@ import { ArrowDown, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import JobMap from "@/components/scheduling/JobMap";
 
-interface OrderData {
+export interface OrderData {
   id: string;
   status: OrderStatus;
   tracking_number: string;
