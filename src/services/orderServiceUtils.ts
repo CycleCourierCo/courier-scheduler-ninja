@@ -1,22 +1,20 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { Order } from "@/types/order";
+import { Order, OrderStatus } from "@/types/order";
 
-// Helper function to map database schema to our Order type
 export const mapDbOrderToOrderType = (dbOrder: any): Order => {
-  return {
+  if (!dbOrder) {
+    throw new Error("Cannot map null or undefined database order");
+  }
+
+  console.log("Mapping DB order to Order type. Raw tracking events:", dbOrder.tracking_events);
+  
+  // Convert date strings to Date objects where applicable
+  const result: Order = {
     id: dbOrder.id,
     user_id: dbOrder.user_id,
     sender: dbOrder.sender,
     receiver: dbOrder.receiver,
-    pickupDate: dbOrder.pickup_date ? JSON.parse(JSON.stringify(dbOrder.pickup_date)) : undefined,
-    deliveryDate: dbOrder.delivery_date ? JSON.parse(JSON.stringify(dbOrder.delivery_date)) : undefined,
-    scheduledPickupDate: dbOrder.scheduled_pickup_date ? new Date(dbOrder.scheduled_pickup_date) : undefined,
-    scheduledDeliveryDate: dbOrder.scheduled_delivery_date ? new Date(dbOrder.scheduled_delivery_date) : undefined,
-    senderConfirmedAt: dbOrder.sender_confirmed_at ? new Date(dbOrder.sender_confirmed_at) : undefined,
-    receiverConfirmedAt: dbOrder.receiver_confirmed_at ? new Date(dbOrder.receiver_confirmed_at) : undefined,
-    scheduledAt: dbOrder.scheduled_at ? new Date(dbOrder.scheduled_at) : undefined,
-    status: dbOrder.status,
+    status: dbOrder.status as OrderStatus,
     createdAt: new Date(dbOrder.created_at),
     updatedAt: new Date(dbOrder.updated_at),
     trackingNumber: dbOrder.tracking_number,
@@ -27,12 +25,44 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     isBikeSwap: dbOrder.is_bike_swap,
     deliveryInstructions: dbOrder.delivery_instructions,
     senderNotes: dbOrder.sender_notes,
-    receiverNotes: dbOrder.receiver_notes
+    receiverNotes: dbOrder.receiver_notes,
+    // Handle optional date fields
+    trackingEvents: dbOrder.tracking_events
   };
+
+  // Add optional date fields only if they exist in the DB record
+  if (dbOrder.pickup_date) {
+    result.pickupDate = dbOrder.pickup_date;
+  }
+
+  if (dbOrder.delivery_date) {
+    result.deliveryDate = dbOrder.delivery_date;
+  }
+
+  if (dbOrder.scheduled_pickup_date) {
+    result.scheduledPickupDate = new Date(dbOrder.scheduled_pickup_date);
+  }
+
+  if (dbOrder.scheduled_delivery_date) {
+    result.scheduledDeliveryDate = new Date(dbOrder.scheduled_delivery_date);
+  }
+
+  if (dbOrder.sender_confirmed_at) {
+    result.senderConfirmedAt = new Date(dbOrder.sender_confirmed_at);
+  }
+
+  if (dbOrder.receiver_confirmed_at) {
+    result.receiverConfirmedAt = new Date(dbOrder.receiver_confirmed_at);
+  }
+
+  if (dbOrder.scheduled_at) {
+    result.scheduledAt = new Date(dbOrder.scheduled_at);
+  }
+
+  console.log("Mapped order tracking events:", result.trackingEvents);
+  return result;
 };
 
-// Get current user ID (for operations that need it)
-export const getCurrentUserId = () => {
-  const auth = supabase.auth.getSession();
-  return auth || null;
+export const doesOrderNeedDrivers = (order: Order): boolean => {
+  return order.status === 'scheduled' && !order.trackingEvents?.shipday;
 };
