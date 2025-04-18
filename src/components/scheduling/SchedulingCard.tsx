@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Package } from "lucide-react";
@@ -6,6 +7,7 @@ import { useDraggable } from "@/hooks/useDraggable";
 import { extractOutwardCode } from "@/utils/locationUtils";
 import JobSchedulingForm from "./JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 
 interface SchedulingCardProps {
   group: SchedulingGroup;
@@ -32,10 +34,12 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
   // Extract postcode outward code for display
   const postcodeOutward = extractOutwardCode(contact.address.zipCode);
 
-  // Check if the job is scheduled
-  const isScheduled = isPickup 
+  // Check if the job is scheduled and get the scheduled date
+  const scheduledDate = isPickup 
     ? firstOrder.scheduledPickupDate 
     : firstOrder.scheduledDeliveryDate;
+
+  const isScheduled = Boolean(scheduledDate);
 
   return (
     <Card 
@@ -55,8 +59,9 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
         </CardTitle>
         {isScheduled && (
-          <Badge variant="outline" className="w-fit">
-            {isPickup ? 'Collection' : 'Delivery'} scheduled
+          <Badge variant="outline" className="w-fit flex items-center gap-2">
+            <Calendar className="w-3 h-3" />
+            {isPickup ? 'Collection' : 'Delivery'} on {format(new Date(scheduledDate!), 'MMM d, yyyy')}
           </Badge>
         )}
       </CardHeader>
