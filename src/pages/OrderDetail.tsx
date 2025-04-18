@@ -364,7 +364,7 @@ const OrderDetail = () => {
                 />
               </div>
               
-              <div className="space-y-4">=
+              <div className="space-y-4">
                 
                 <SchedulingButtons 
                   orderId={id as string}
