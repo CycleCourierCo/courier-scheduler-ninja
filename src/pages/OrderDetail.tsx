@@ -98,27 +98,46 @@ const OrderDetail = () => {
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
       
+      const isDeliveryPhase = order?.status === 'collected';
+      
       const updatedOrder = await updateOrderSchedule(
         id, 
-        pickupDateTime, 
-        deliveryDateTime
+        isDeliveryPhase ? undefined : pickupDateTime,
+        isDeliveryPhase ? deliveryDateTime : undefined
       );
       
       if (!updatedOrder) {
         throw new Error("Failed to update order schedule");
       }
       
-      const shipdayResponse = await createShipdayOrder(id);
-      
-      if (shipdayResponse) {
-        setOrder(updatedOrder);
-        toast.success("Order has been scheduled and shipments created successfully");
-      } else {
-        toast.error("Failed to create shipments");
-      }
+      setOrder(updatedOrder);
+      toast.success(`${isDeliveryPhase ? 'Delivery' : 'Collection'} has been scheduled successfully`);
     } catch (error) {
       console.error("Error scheduling order:", error);
       toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateShipment = async () => {
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      const jobType = order?.status === 'collection_scheduled' ? 'pickup' : 'delivery';
+      
+      const shipdayResponse = await createShipdayOrder(id, jobType);
+      
+      if (shipdayResponse) {
+        toast.success(`${jobType === 'pickup' ? 'Collection' : 'Delivery'} shipment created successfully`);
+      } else {
+        toast.error(`Failed to create ${jobType} shipment`);
+      }
+    } catch (error) {
+      console.error("Error creating shipment:", error);
+      toast.error(`Failed to create shipment: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -225,26 +244,6 @@ const OrderDetail = () => {
       toast.error(`Failed to resend email: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsResendingEmail(prev => ({ ...prev, receiver: false }));
-    }
-  };
-
-  const handleCreateShipment = async () => {
-    if (!id) return;
-    
-    try {
-      setIsSubmitting(true);
-      const shipdayResponse = await createShipdayOrder(id);
-      
-      if (shipdayResponse) {
-        toast.success("Shipments created successfully");
-      } else {
-        toast.error("Failed to create shipments");
-      }
-    } catch (error) {
-      console.error("Error creating shipments:", error);
-      toast.error(`Failed to create shipments: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
