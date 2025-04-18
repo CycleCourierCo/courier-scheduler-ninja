@@ -12,12 +12,15 @@ import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
+import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
 
 const CustomerOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPickupForm, setShowPickupForm] = useState(false);
+  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -53,6 +56,17 @@ const CustomerOrderDetail = () => {
       return cleanup;
     }
   }, [order?.id]);
+
+  const handleScheduled = () => {
+    // Hide scheduling forms and refresh order data
+    setShowPickupForm(false);
+    setShowDeliveryForm(false);
+    if (id) {
+      getOrderById(id).then(updatedOrder => {
+        if (updatedOrder) setOrder(updatedOrder);
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -96,6 +110,14 @@ const CustomerOrderDetail = () => {
   };
 
   const itemName = `${order.bikeBrand || ""}`.trim();
+
+  // Check if pickup is ready to be scheduled
+  const canSchedulePickup = order.status !== 'collection_scheduled' && 
+                          order.status !== 'driver_to_collection' && 
+                          order.status !== 'collected';
+
+  // Determine if delivery can be scheduled (only after pickup is done)
+  const canScheduleDelivery = (order.status === 'collected') && !order.scheduledDeliveryDate;
 
   return (
     <Layout>
@@ -147,7 +169,29 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 ) : (
-                  <p>{formatDates(order.pickupDate)}</p>
+                  <div>
+                    <p>{formatDates(order.pickupDate)}</p>
+                    {canSchedulePickup && (
+                      <div className="mt-2">
+                        {showPickupForm ? (
+                          <JobSchedulingForm 
+                            orderId={order.id} 
+                            type="pickup"
+                            onScheduled={handleScheduled}
+                            compact={true}
+                          />
+                        ) : (
+                          <Button 
+                            onClick={() => setShowPickupForm(true)}
+                            size="sm"
+                            className="mt-2"
+                          >
+                            Schedule Collection
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
                 
                 <div className="flex items-center space-x-2">
@@ -164,7 +208,30 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 ) : (
-                  <p>{formatDates(order.deliveryDate)}</p>
+                  <div>
+                    <p>{formatDates(order.deliveryDate)}</p>
+                    {canScheduleDelivery && (
+                      <div className="mt-2">
+                        {showDeliveryForm ? (
+                          <JobSchedulingForm 
+                            orderId={order.id} 
+                            type="delivery"
+                            onScheduled={handleScheduled}
+                            compact={true}
+                          />
+                        ) : (
+                          <Button 
+                            onClick={() => setShowDeliveryForm(true)}
+                            size="sm"
+                            className="mt-2"
+                            disabled={!canScheduleDelivery}
+                          >
+                            Schedule Delivery
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               

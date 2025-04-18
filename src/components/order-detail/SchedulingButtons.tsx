@@ -1,5 +1,7 @@
-import React from "react";
+
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
 
 interface SchedulingButtonsProps {
   orderId: string;
@@ -22,6 +24,7 @@ interface SchedulingButtonsProps {
 }
 
 const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
+  orderId,
   onSchedule,
   onCreateShipment,
   onAdminSchedule,
@@ -33,6 +36,9 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   scheduledDates,
   orderStatus,
 }) => {
+  const [showPickupForm, setShowPickupForm] = useState(false);
+  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
+
   // Check if pickup is ready to be scheduled
   const canSchedulePickup = !isScheduled && orderStatus !== 'collection_scheduled' && 
                           orderStatus !== 'driver_to_collection' && 
@@ -41,26 +47,51 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   // Determine if delivery can be scheduled (only after pickup is done)
   const canScheduleDelivery = (orderStatus === 'collected') && !scheduledDates?.delivery;
 
+  const handleScheduleClick = (type: 'pickup' | 'delivery') => {
+    if (type === 'pickup') {
+      setShowPickupForm(!showPickupForm);
+      setShowDeliveryForm(false);
+    } else {
+      setShowDeliveryForm(!showDeliveryForm);
+      setShowPickupForm(false);
+    }
+  };
+
+  const handleScheduled = () => {
+    // Hide forms and trigger parent component refresh
+    setShowPickupForm(false);
+    setShowDeliveryForm(false);
+    onSchedule();
+  };
+
   return (
     <div className="space-y-4">
       {/* Pickup scheduling section */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Collection Phase</h3>
-        <Button 
-          onClick={onSchedule} 
-          disabled={!canSchedulePickup || isSubmitting}
-          className="w-full"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Collection...
-            </>
-          ) : (
-            "Schedule Collection"
-          )}
-        </Button>
+        {showPickupForm ? (
+          <JobSchedulingForm 
+            orderId={orderId}
+            type="pickup"
+            onScheduled={handleScheduled}
+          />
+        ) : (
+          <Button 
+            onClick={() => handleScheduleClick('pickup')} 
+            disabled={!canSchedulePickup || isSubmitting}
+            className="w-full"
+            variant="default"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                Scheduling Collection...
+              </>
+            ) : (
+              "Schedule Collection"
+            )}
+          </Button>
+        )}
         
         <Button 
           onClick={onCreateShipment} 
@@ -82,21 +113,29 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
       {/* Delivery scheduling section */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Delivery Phase</h3>
-        <Button 
-          onClick={onSchedule} 
-          disabled={!canScheduleDelivery || isSubmitting}
-          className="w-full"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Delivery...
-            </>
-          ) : (
-            "Schedule Delivery"
-          )}
-        </Button>
+        {showDeliveryForm ? (
+          <JobSchedulingForm 
+            orderId={orderId}
+            type="delivery"
+            onScheduled={handleScheduled}
+          />
+        ) : (
+          <Button 
+            onClick={() => handleScheduleClick('delivery')} 
+            disabled={!canScheduleDelivery || isSubmitting}
+            className="w-full"
+            variant="default"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                Scheduling Delivery...
+              </>
+            ) : (
+              "Schedule Delivery"
+            )}
+          </Button>
+        )}
         
         <Button 
           onClick={onCreateShipment} 
