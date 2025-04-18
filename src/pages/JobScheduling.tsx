@@ -74,7 +74,9 @@ const JobScheduling = () => {
           </div>
         ) : (
           <>
-            <JobMap orders={orders || []} />
+            <div className="mb-8">
+              <JobMap orders={orders || []} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {orders?.map((order) => (
                 <div key={order.id} className="space-y-4">

@@ -13,6 +13,7 @@ declare module 'react-leaflet' {
     scrollWheelZoom?: boolean;
     className?: string;
     style?: React.CSSProperties;
+    whenCreated?: (map: L.Map) => void;
   }
 
   export interface TileLayerProps {
@@ -22,6 +23,6 @@ declare module 'react-leaflet' {
 
   export const MapContainer: React.FC<MapContainerProps>;
   export const TileLayer: React.FC<TileLayerProps>;
-  export const Marker: React.FC<{position: L.LatLngExpression}>;
+  export const Marker: React.FC<{position: L.LatLngExpression, children?: ReactNode, key?: any}>;
   export const Popup: React.FC<{children?: ReactNode}>;
 }

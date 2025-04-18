@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -86,6 +87,7 @@
   z-index: 1;
   height: 100% !important;
   width: 100% !important;
+  position: relative !important;
 }
 
 .leaflet-popup-content-wrapper {
@@ -110,4 +112,11 @@
   height: 100%;
   width: 100%;
   border-radius: 0.5rem;
+  position: relative !important;
+  overflow: hidden;
+}
+
+#map-container {
+  position: relative;
+  overflow: hidden;
 }
