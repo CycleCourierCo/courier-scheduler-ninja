@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Package } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { SchedulingGroup } from "@/services/schedulingService";
 import { useDraggable } from "@/hooks/useDraggable";
 import { extractOutwardCode } from "@/utils/locationUtils";
@@ -69,14 +69,25 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-            <div>
-              <div>Available dates:</div>
-              <div className="text-muted-foreground">
-                {isPickup 
-                  ? (group.dateRange.pickup.length > 0 ? format(group.dateRange.pickup[0], 'MMM d, yyyy') : 'No dates available')
-                  : (group.dateRange.delivery.length > 0 ? format(group.dateRange.delivery[0], 'MMM d, yyyy') : 'No dates available')
-                }
-              </div>
+            <div className="space-y-1">
+              {isScheduled ? (
+                <>
+                  <div>Scheduled for:</div>
+                  <div className="font-medium text-green-600">
+                    {format(new Date(scheduledDate!), 'MMM d, yyyy h:mm a')}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>Available dates:</div>
+                  <div className="text-muted-foreground">
+                    {isPickup 
+                      ? (group.dateRange.pickup.length > 0 ? format(group.dateRange.pickup[0], 'MMM d, yyyy') : 'No dates available')
+                      : (group.dateRange.delivery.length > 0 ? format(group.dateRange.delivery[0], 'MMM d, yyyy') : 'No dates available')
+                    }
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
