@@ -50,12 +50,13 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       console.log("ID looks like a UUID, trying to fetch by id column");
       const { data, error } = await supabase
         .from("orders")
-        .select("*")
+        .select("*, tracking_events") // Make sure to include tracking_events even though it's part of * for clarity
         .eq("id", id)
         .single();
   
       if (!error && data) {
         console.log("Order data retrieved successfully by UUID:", data.id);
+        console.log("Raw tracking events from DB:", JSON.stringify(data.tracking_events, null, 2));
         return mapDbOrderToOrderType(data);
       }
     }
@@ -64,12 +65,13 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     console.log("Trying to fetch by tracking_number:", id);
     const { data: orderByTracking, error: trackingError } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, tracking_events") // Make sure to include tracking_events even though it's part of * for clarity
       .eq("tracking_number", id)
       .single();
     
     if (!trackingError && orderByTracking) {
       console.log("Order data retrieved successfully by tracking number:", orderByTracking.id);
+      console.log("Raw tracking events from DB:", JSON.stringify(orderByTracking.tracking_events, null, 2));
       return mapDbOrderToOrderType(orderByTracking);
     }
     
@@ -77,7 +79,7 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     console.log("Trying to fetch by customer_order_number:", id);
     const { data: orderByCustomId, error: customIdError } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, tracking_events") // Make sure to include tracking_events even though it's part of * for clarity
       .eq("customer_order_number", id)
       .single();
     
@@ -97,6 +99,7 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     }
 
     console.log("Order data retrieved successfully by custom ID:", orderByCustomId.id);
+    console.log("Raw tracking events from DB:", JSON.stringify(orderByCustomId.tracking_events, null, 2));
     return mapDbOrderToOrderType(orderByCustomId);
   } catch (err) {
     console.error("Unexpected error in getPublicOrder:", err);
