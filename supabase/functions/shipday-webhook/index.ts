@@ -9,7 +9,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight request
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -22,64 +21,34 @@ serve(async (req) => {
   }
 
   try {
-    // Debug: Log all headers for troubleshooting
-    const headersDebug: Record<string, string> = {};
-    req.headers.forEach((value, key) => {
-      headersDebug[key] = value;
-    });
-    console.log("Received headers:", JSON.stringify(headersDebug, null, 2));
-
-    // Check if we have SHIPDAY_WEBHOOK_TOKEN configured
+    console.log("Received headers:", Object.fromEntries(req.headers.entries()));
+    
     const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
-    
-    // TEMPORARY DEVELOPMENT MODE:
-    // During initial setup and testing, we'll accept all webhook calls
-    // IMPORTANT: In production, always enable token validation!
-    
-    // Set this to true to enable token validation once everything is set up
     const enforceTokenValidation = false;
     
     if (enforceTokenValidation && expectedToken) {
-      // Get token from the header Shipday is using
       const webhookToken = req.headers.get("x-webhook-token");
-      
       if (!webhookToken || webhookToken !== expectedToken) {
-        console.error("Invalid webhook token provided");
-        console.log(`Received: "${webhookToken}", Expected: "${expectedToken}"`);
-        
-        // Log the payload anyway for debugging
-        try {
-          const requestClone = req.clone();
-          const payload = await requestClone.json();
-          console.log("Rejected payload:", JSON.stringify(payload, null, 2));
-        } catch (e) {
-          console.error("Could not parse rejected payload:", e);
-        }
-        
+        console.error("Invalid webhook token");
         return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 401,
         });
       }
-    } else {
-      // In development mode, log that we're skipping token validation
-      console.log("DEVELOPMENT MODE: Skipping webhook token validation");
     }
 
     const payload = await req.json();
     console.log("Received Shipday webhook payload:", JSON.stringify(payload, null, 2));
 
-    // Extract the relevant information from the payload
-    const { order, order_status, event } = payload;
+    const { order, event } = payload;
     
-    if (!order || !order_status) {
+    if (!order) {
       return new Response(JSON.stringify({ error: "Missing required fields in payload" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
     }
 
-    // Check if this is a pickup or delivery job based on order number suffix
     const orderNumber = order.order_number;
     console.log("Order number from webhook:", orderNumber);
     
@@ -99,13 +68,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     );
 
-    // Find the order in the database based on Shipday pickup_id or delivery_id
     const shipdayOrderId = order.id.toString();
     console.log(`Looking for order with ${isPickup ? "shipday_pickup_id" : "shipday_delivery_id"} = ${shipdayOrderId}`);
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+      .select("id, status, tracking_events")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -114,21 +82,17 @@ serve(async (req) => {
       .limit(1);
 
     if (fetchError || !orders || orders.length === 0) {
-      console.error("Error fetching order or no order found:", fetchError);
-      console.error(`No order found with ${isPickup ? "shipday_pickup_id" : "shipday_delivery_id"} = ${shipdayOrderId}`);
-      
-      // Try fallback to tracking number if ID-based lookup failed
+      console.error("Error fetching order:", fetchError);
       const baseOrderNumber = orderNumber.replace(/-PICKUP$|-DELIVERY$/, "");
-      console.log("Fallback: Looking up by tracking number:", baseOrderNumber);
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+        .select("id, status, tracking_events")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
       if (fallbackError || !fallbackOrders || fallbackOrders.length === 0) {
-        console.error("Fallback lookup also failed:", fallbackError);
+        console.error("Fallback lookup failed:", fallbackError);
         return new Response(JSON.stringify({ error: "Order not found" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 404,
@@ -138,49 +102,54 @@ serve(async (req) => {
       console.log("Found order using fallback lookup:", fallbackOrders[0]);
       var dbOrder = fallbackOrders[0];
       
-      // Update the Shipday ID for future lookups
       if (isPickup && !dbOrder.shipday_pickup_id) {
         await supabase
           .from("orders")
           .update({ shipday_pickup_id: shipdayOrderId })
           .eq("id", dbOrder.id);
-        console.log(`Updated shipday_pickup_id to ${shipdayOrderId}`);
       } else if (isDelivery && !dbOrder.shipday_delivery_id) {
         await supabase
           .from("orders")
           .update({ shipday_delivery_id: shipdayOrderId })
           .eq("id", dbOrder.id);
-        console.log(`Updated shipday_delivery_id to ${shipdayOrderId}`);
       }
     } else {
       var dbOrder = orders[0];
-      console.log("Found order in database:", dbOrder);
     }
 
-    // Map Shipday status to application OrderStatus
+    // Map Shipday status to application OrderStatus based on event type
     let newStatus = dbOrder.status;
     let statusDescription = "";
 
-    // Handle status mapping based on Shipday event and order type
-    if (isPickup) {
-      if (order_status === "READY_TO_DELIVER" || event === "ORDER_ONTHEWAY") {
+    // Only process ORDER_ONTHEWAY and ORDER_POD_UPLOAD events
+    if (event === "ORDER_ONTHEWAY") {
+      if (isPickup) {
         newStatus = "driver_to_collection";
         statusDescription = "Driver is on the way to collect the bike";
-      } else if (order_status === "ALREADY_DELIVERED" || event === "ORDER_DELIVERED") {
-        newStatus = "collected";
-        statusDescription = "Driver has collected the bike";
-      }
-    } else if (isDelivery) {
-      if (order_status === "READY_TO_DELIVER" || event === "ORDER_ONTHEWAY") {
+      } else {
         newStatus = "driver_to_delivery";
         statusDescription = "Driver is on the way to deliver the bike";
-      } else if (order_status === "ALREADY_DELIVERED" || event === "ORDER_DELIVERED") {
+      }
+    } else if (event === "ORDER_POD_UPLOAD") {
+      if (isPickup) {
+        newStatus = "collected";
+        statusDescription = "Driver has collected the bike";
+      } else {
         newStatus = "delivered";
         statusDescription = "Driver has delivered the bike";
       }
+    } else {
+      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY or ORDER_POD_UPLOAD`);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Event ignored - not ORDER_ONTHEWAY or ORDER_POD_UPLOAD"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
-    console.log(`Mapping Shipday status "${order_status}" (event: ${event}) for ${isPickup ? "pickup" : "delivery"} to order status "${newStatus}"`);
+    console.log(`Mapping Shipday event "${event}" for ${isPickup ? "pickup" : "delivery"} to order status "${newStatus}"`);
     console.log(`Status description: "${statusDescription}"`);
 
     // Update tracking events
@@ -191,14 +160,11 @@ serve(async (req) => {
       updates: [],
     };
 
-    shipdayEvents.last_status = order_status;
-    shipdayEvents.last_updated = new Date().toISOString();
-    
     // Add the new update to the updates array
     shipdayEvents.updates = [
       ...(shipdayEvents.updates || []),
       {
-        status: order_status,
+        status: order.order_status,
         event: event,
         timestamp: new Date().toISOString(),
         orderId: shipdayOrderId,
@@ -209,16 +175,14 @@ serve(async (req) => {
     trackingEvents.shipday = shipdayEvents;
 
     // Update the order
-    const { data: updatedOrder, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from("orders")
       .update({
         status: newStatus,
         tracking_events: trackingEvents,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", dbOrder.id)
-      .select()
-      .single();
+      .eq("id", dbOrder.id);
 
     if (updateError) {
       console.error("Error updating order:", updateError);
@@ -236,16 +200,14 @@ serve(async (req) => {
       await updateJobStatuses(dbOrder.id, newStatus);
     } catch (jobError) {
       console.error("Error updating job statuses:", jobError);
-      // Continue with response even if job update fails
     }
 
     // Send delivery confirmation emails if status is "delivered"
     if (newStatus === "delivered") {
       try {
-        console.log("Sending delivery confirmation emails through existing email service for order:", dbOrder.id);
+        console.log("Sending delivery confirmation emails for order:", dbOrder.id);
         
-        // Call the send-email endpoint for sender
-        const senderEmailResponse = await supabase.functions.invoke("send-email", {
+        const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
             to: "internal-notification@cyclecourierco.com",
             subject: "Delivery Email Notification Request",
@@ -257,14 +219,13 @@ serve(async (req) => {
           }
         });
         
-        if (senderEmailResponse.error) {
-          console.error("Error triggering delivery confirmation emails:", senderEmailResponse.error);
+        if (emailResponse.error) {
+          console.error("Error triggering delivery confirmation emails:", emailResponse.error);
         } else {
           console.log("Successfully triggered delivery confirmation emails");
         }
       } catch (emailError) {
         console.error("Error sending delivery confirmation emails:", emailError);
-        // Continue with response even if email sending fails
       }
     }
 
@@ -294,7 +255,6 @@ async function updateJobStatuses(orderId: string, orderStatus: string): Promise<
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
   );
   
-  // Map order status to appropriate job statuses
   let collectionStatus: string | null = null;
   let deliveryStatus: string | null = null;
   
@@ -320,29 +280,23 @@ async function updateJobStatuses(orderId: string, orderStatus: string): Promise<
       deliveryStatus = 'completed';
       break;
     default:
-      return true; // No updates needed
+      return true;
   }
   
-  // Update collection job
   if (collectionStatus) {
     const { error: collectionError } = await supabase
       .from("jobs")
-      .update({ 
-        status: collectionStatus 
-      })
+      .update({ status: collectionStatus })
       .eq("order_id", orderId)
       .eq("type", 'collection');
     
     if (collectionError) throw collectionError;
   }
   
-  // Update delivery job
   if (deliveryStatus) {
     const { error: deliveryError } = await supabase
       .from("jobs")
-      .update({ 
-        status: deliveryStatus 
-      })
+      .update({ status: deliveryStatus })
       .eq("order_id", orderId)
       .eq("type", 'delivery');
     
