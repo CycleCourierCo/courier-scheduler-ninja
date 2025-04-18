@@ -1,4 +1,3 @@
-
 export type ContactInfo = {
   name: string;
   email: string;
@@ -30,7 +29,9 @@ export type OrderStatus =
   | 'driver_to_delivery' // New status
   | 'shipped' // Existing status, keep for compatibility
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'collection_scheduled'  // New status
+  | 'delivery_scheduled';    // New status
 
 export type ShipdayUpdate = {
   status: string;

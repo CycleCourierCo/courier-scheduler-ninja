@@ -44,8 +44,14 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({
 
       // Update only the specific job type in the order
       const updateData = type === 'pickup'
-        ? { scheduled_pickup_date: scheduleDateTime.toISOString() }
-        : { scheduled_delivery_date: scheduleDateTime.toISOString() };
+        ? { 
+            scheduled_pickup_date: scheduleDateTime.toISOString(),
+            status: 'collection_scheduled' as const
+          }
+        : { 
+            scheduled_delivery_date: scheduleDateTime.toISOString(),
+            status: 'delivery_scheduled' as const
+          };
       
       // Update the order with the scheduled date
       const { error: updateError } = await supabase
