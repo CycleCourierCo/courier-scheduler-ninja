@@ -59,6 +59,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
           center={defaultCenter}
           zoom={11}
           className="h-full w-full rounded-lg"
+          style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
