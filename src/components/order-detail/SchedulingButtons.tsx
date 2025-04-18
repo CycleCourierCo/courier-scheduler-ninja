@@ -2,6 +2,9 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { createShipdayOrder } from '@/services/shipdayService';
 
 interface SchedulingButtonsProps {
   orderId: string;
@@ -36,6 +39,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   scheduledDates,
   orderStatus,
 }) => {
+  const [localIsSubmitting, setLocalIsSubmitting] = useState(false);
   const [showPickupForm, setShowPickupForm] = useState(false);
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
 
@@ -47,21 +51,102 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   // Determine if delivery can be scheduled (only after pickup is done)
   const canScheduleDelivery = (orderStatus === 'collected') && !scheduledDates?.delivery;
 
-  const handleScheduleClick = (type: 'pickup' | 'delivery') => {
-    if (type === 'pickup') {
-      setShowPickupForm(!showPickupForm);
-      setShowDeliveryForm(false);
-    } else {
-      setShowDeliveryForm(!showDeliveryForm);
-      setShowPickupForm(false);
+  // Function to directly schedule collection without showing a form
+  const handleDirectScheduleCollection = async () => {
+    try {
+      setLocalIsSubmitting(true);
+      
+      // Create a default date (today) and time (9:00 AM)
+      const scheduleDateTime = new Date();
+      scheduleDateTime.setHours(9, 0, 0, 0);
+      
+      // Update the order with the scheduled pickup date
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          scheduled_pickup_date: scheduleDateTime.toISOString(),
+          status: 'collection_scheduled' as const
+        })
+        .eq('id', orderId);
+        
+      if (updateError) throw updateError;
+
+      toast.success('Collection scheduled successfully');
+      onSchedule(); // Refresh the parent component
+    } catch (error) {
+      console.error('Error scheduling collection:', error);
+      toast.error('Failed to schedule collection');
+    } finally {
+      setLocalIsSubmitting(false);
+    }
+  };
+  
+  // Function to directly schedule delivery without showing a form
+  const handleDirectScheduleDelivery = async () => {
+    try {
+      setLocalIsSubmitting(true);
+      
+      // Create a default date (today) and time (12:00 PM)
+      const scheduleDateTime = new Date();
+      scheduleDateTime.setHours(12, 0, 0, 0);
+      
+      // Update the order with the scheduled delivery date
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          scheduled_delivery_date: scheduleDateTime.toISOString(),
+          status: 'delivery_scheduled' as const
+        })
+        .eq('id', orderId);
+        
+      if (updateError) throw updateError;
+
+      toast.success('Delivery scheduled successfully');
+      onSchedule(); // Refresh the parent component
+    } catch (error) {
+      console.error('Error scheduling delivery:', error);
+      toast.error('Failed to schedule delivery');
+    } finally {
+      setLocalIsSubmitting(false);
     }
   };
 
-  const handleScheduled = () => {
-    // Hide forms and trigger parent component refresh
-    setShowPickupForm(false);
-    setShowDeliveryForm(false);
-    onSchedule();
+  // Function to handle shipment creation for collection
+  const handleCreateCollectionShipment = async () => {
+    try {
+      setLocalIsSubmitting(true);
+      const shipdayResponse = await createShipdayOrder(orderId, 'pickup');
+      
+      if (shipdayResponse) {
+        toast.success('Collection shipment created successfully');
+      } else {
+        toast.error('Failed to create collection shipment');
+      }
+    } catch (error) {
+      console.error('Error creating collection shipment:', error);
+      toast.error('Failed to create collection shipment');
+    } finally {
+      setLocalIsSubmitting(false);
+    }
+  };
+  
+  // Function to handle shipment creation for delivery
+  const handleCreateDeliveryShipment = async () => {
+    try {
+      setLocalIsSubmitting(true);
+      const shipdayResponse = await createShipdayOrder(orderId, 'delivery');
+      
+      if (shipdayResponse) {
+        toast.success('Delivery shipment created successfully');
+      } else {
+        toast.error('Failed to create delivery shipment');
+      }
+    } catch (error) {
+      console.error('Error creating delivery shipment:', error);
+      toast.error('Failed to create delivery shipment');
+    } finally {
+      setLocalIsSubmitting(false);
+    }
   };
 
   return (
@@ -69,37 +154,29 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
       {/* Pickup scheduling section */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Collection Phase</h3>
-        {showPickupForm ? (
-          <JobSchedulingForm 
-            orderId={orderId}
-            type="pickup"
-            onScheduled={handleScheduled}
-          />
-        ) : (
-          <Button 
-            onClick={() => handleScheduleClick('pickup')} 
-            disabled={!canSchedulePickup || isSubmitting}
-            className="w-full"
-            variant="default"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                Scheduling Collection...
-              </>
-            ) : (
-              "Schedule Collection"
-            )}
-          </Button>
-        )}
+        <Button 
+          onClick={handleDirectScheduleCollection} 
+          disabled={!canSchedulePickup || isSubmitting || localIsSubmitting}
+          className="w-full"
+          variant="default"
+        >
+          {(isSubmitting || localIsSubmitting) ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Scheduling Collection...
+            </>
+          ) : (
+            "Schedule Collection"
+          )}
+        </Button>
         
         <Button 
-          onClick={onCreateShipment} 
-          disabled={!scheduledDates?.pickup || isSubmitting}
+          onClick={handleCreateCollectionShipment} 
+          disabled={!scheduledDates?.pickup || isSubmitting || localIsSubmitting}
           className="w-full"
           variant="secondary"
         >
-          {isSubmitting ? (
+          {(isSubmitting || localIsSubmitting) ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
               Creating Collection Shipment...
@@ -113,37 +190,29 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
       {/* Delivery scheduling section */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Delivery Phase</h3>
-        {showDeliveryForm ? (
-          <JobSchedulingForm 
-            orderId={orderId}
-            type="delivery"
-            onScheduled={handleScheduled}
-          />
-        ) : (
-          <Button 
-            onClick={() => handleScheduleClick('delivery')} 
-            disabled={!canScheduleDelivery || isSubmitting}
-            className="w-full"
-            variant="default"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                Scheduling Delivery...
-              </>
-            ) : (
-              "Schedule Delivery"
-            )}
-          </Button>
-        )}
+        <Button 
+          onClick={handleDirectScheduleDelivery} 
+          disabled={!canScheduleDelivery || isSubmitting || localIsSubmitting}
+          className="w-full"
+          variant="default"
+        >
+          {(isSubmitting || localIsSubmitting) ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Scheduling Delivery...
+            </>
+          ) : (
+            "Schedule Delivery"
+          )}
+        </Button>
         
         <Button 
-          onClick={onCreateShipment} 
-          disabled={!scheduledDates?.delivery || isSubmitting}
+          onClick={handleCreateDeliveryShipment} 
+          disabled={!scheduledDates?.delivery || isSubmitting || localIsSubmitting}
           className="w-full"
           variant="secondary"
         >
-          {isSubmitting ? (
+          {(isSubmitting || localIsSubmitting) ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
               Creating Delivery Shipment...
@@ -159,11 +228,11 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
         <div className="mt-6 border-t pt-4">
           <Button 
             onClick={onAdminSchedule} 
-            disabled={!adminPickupDateSelected || !adminDeliveryDateSelected || isSubmitting}
+            disabled={!adminPickupDateSelected || !adminDeliveryDateSelected || isSubmitting || localIsSubmitting}
             className="w-full"
             variant="default"
           >
-            {isSubmitting ? (
+            {(isSubmitting || localIsSubmitting) ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
                 Scheduling Order...
