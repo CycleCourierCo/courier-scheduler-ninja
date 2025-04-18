@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createShipdayOrder } from '@/services/shipdayService';
+import { supabase } from "@/integrations/supabase/client";
 
 interface JobSchedulingFormProps {
   orderId: string;
@@ -41,14 +42,27 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({
       const scheduleDateTime = new Date(calendarDate);
       scheduleDateTime.setHours(hours, minutes);
 
-      // Call Shipday service to create the order
-      await createShipdayOrder(orderId);
+      // Update only the specific job type in the order
+      const updateData = type === 'pickup'
+        ? { scheduled_pickup_date: scheduleDateTime.toISOString() }
+        : { scheduled_delivery_date: scheduleDateTime.toISOString() };
+      
+      // Update the order with the scheduled date
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+        
+      if (updateError) throw updateError;
+
+      // Call Shipday service to create the order for only this job type
+      await createShipdayOrder(orderId, type);
 
       toast.success(`${type === 'pickup' ? 'Collection' : 'Delivery'} scheduled successfully`);
       onScheduled?.();
     } catch (error) {
-      console.error('Error scheduling job:', error);
-      toast.error('Failed to schedule job');
+      console.error(`Error scheduling ${type}:`, error);
+      toast.error(`Failed to schedule ${type === 'pickup' ? 'collection' : 'delivery'}`);
     } finally {
       setIsSubmitting(false);
     }

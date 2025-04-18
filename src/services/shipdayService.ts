@@ -7,13 +7,14 @@ import { toast } from "sonner";
  * Simplified version with only the required fields for MVP
  * 
  * @param orderId The ID of the order to create shipments for
+ * @param jobType Optional - specify 'pickup' or 'delivery' to create only that job type
  * @returns The response from the Shipday API
  */
-export const createShipdayOrder = async (orderId: string) => {
+export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | 'delivery') => {
   try {
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke("create-shipday-order", {
-      body: { orderId }
+      body: { orderId, jobType }
     });
 
     if (error) {
