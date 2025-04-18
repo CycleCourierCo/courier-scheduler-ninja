@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -27,31 +26,34 @@ const extractLocations = (orders: OrderData[] = []) => {
     lng: number;
     type: 'collection' | 'delivery';
     orderNumber: string;
+    date?: Date;  // Add date field
   }[] = [];
   
   console.log(`Extracting locations from ${orders.length} orders`);
   
   orders.forEach(order => {
-    // Add collection point
+    // Add collection point with scheduled pickup date
     if (order.sender.address.lat && order.sender.address.lon) {
       locations.push({
         address: `${order.sender.address.street}, ${order.sender.address.city}`,
         lat: order.sender.address.lat,
         lng: order.sender.address.lon,
         type: 'collection',
-        orderNumber: order.tracking_number || 'No tracking number'
+        orderNumber: order.tracking_number || 'No tracking number',
+        date: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date) : undefined
       });
       console.log(`Added collection point for order ${order.tracking_number}`);
     }
     
-    // Add delivery point
+    // Add delivery point with scheduled delivery date
     if (order.receiver.address.lat && order.receiver.address.lon) {
       locations.push({
         address: `${order.receiver.address.street}, ${order.receiver.address.city}`,
         lat: order.receiver.address.lat,
         lng: order.receiver.address.lon,
         type: 'delivery',
-        orderNumber: order.tracking_number || 'No tracking number'
+        orderNumber: order.tracking_number || 'No tracking number',
+        date: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined
       });
       console.log(`Added delivery point for order ${order.tracking_number}`);
     }
@@ -59,8 +61,21 @@ const extractLocations = (orders: OrderData[] = []) => {
   
   console.log(`Total locations extracted: ${locations.length}`);
   
+  // Sort locations by date if available
+  const sortedLocations = locations.sort((a, b) => {
+    // If both locations have dates, sort by date
+    if (a.date && b.date) {
+      return a.date.getTime() - b.date.getTime();
+    }
+    // If only one has a date, put the one with date first
+    if (a.date) return -1;
+    if (b.date) return 1;
+    // If neither has a date, maintain original order
+    return 0;
+  });
+  
   // If no locations found, use default location
-  if (locations.length === 0) {
+  if (sortedLocations.length === 0) {
     return [{
       address: 'London',
       lat: 51.5074,
@@ -70,7 +85,7 @@ const extractLocations = (orders: OrderData[] = []) => {
     }];
   }
   
-  return locations;
+  return sortedLocations;
 };
 
 const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
@@ -147,6 +162,11 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
                 <p className="font-semibold">{loc.type === 'collection' ? 'Collection Point' : 'Delivery Point'}</p>
                 <p className="text-sm text-muted-foreground">{loc.address}</p>
                 <p className="text-xs text-muted-foreground mt-1">Order: {loc.orderNumber}</p>
+                {loc.date && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(loc.date, 'PPP')}
+                  </p>
+                )}
               </div>
             </Popup>
           </Marker>
