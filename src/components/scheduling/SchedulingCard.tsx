@@ -90,8 +90,14 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
                   <div>Available dates:</div>
                   <div className="text-muted-foreground">
                     {isPickup 
-                      ? (group.dateRange.pickup.length > 0 ? format(group.dateRange.pickup[0], 'MMM d, yyyy') : 'No dates available')
-                      : (group.dateRange.delivery.length > 0 ? format(group.dateRange.delivery[0], 'MMM d, yyyy') : 'No dates available')
+                      ? (group.dateRange.pickup.length > 0 
+                          ? group.dateRange.pickup.map(date => 
+                              format(date, 'MMM d, yyyy h:mm a')).join(', ')
+                          : 'No dates available')
+                      : (group.dateRange.delivery.length > 0 
+                          ? group.dateRange.delivery.map(date => 
+                              format(date, 'MMM d, yyyy h:mm a')).join(', ')
+                          : 'No dates available')
                     }
                   </div>
                 </>
@@ -116,3 +122,4 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
 };
 
 export default SchedulingCard;
+
