@@ -1,4 +1,3 @@
-
 import React from "react";
 import { ChevronRight, CheckCircle2 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
@@ -32,13 +31,12 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
     { value: "receiver_availability_pending", label: "Receiver Availability Pending" },
     { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
     { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
-    { value: "scheduled", label: "Scheduled" },
     { value: "collection_scheduled", label: "Collection Scheduled" },
     { value: "delivery_scheduled", label: "Delivery Scheduled" },
+    { value: "scheduled", label: "Scheduled" },
     { value: "driver_to_collection", label: "Driver to Collection" },
     { value: "collected", label: "Collected" },
     { value: "driver_to_delivery", label: "Driver to Delivery" },
-    { value: "shipped", label: "Shipped" },
     { value: "delivered", label: "Delivered" },
     { value: "cancelled", label: "Cancelled" },
   ];
