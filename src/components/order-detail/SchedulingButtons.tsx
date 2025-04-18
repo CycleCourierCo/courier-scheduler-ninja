@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,17 +52,21 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   // Function to directly schedule collection without showing a form
   const handleDirectScheduleCollection = async () => {
     try {
+      if (!selectedDate) {
+        toast.error('Please select a pickup date first');
+        return;
+      }
+
       setLocalIsSubmitting(true);
       
-      // Create a date for today and set it to 9:00 AM
-      const scheduleDateTime = new Date();
-      scheduleDateTime.setHours(9, 0, 0, 0);
+      const selectedDateTime = new Date(selectedDate);
+      selectedDateTime.setHours(9, 0, 0, 0);
       
       // Update the order with the scheduled pickup date
       const { error: updateError } = await supabase
         .from('orders')
         .update({ 
-          scheduled_pickup_date: scheduleDateTime.toISOString(),
+          scheduled_pickup_date: selectedDateTime.toISOString(),
           status: 'collection_scheduled' as const
         })
         .eq('id', orderId);
