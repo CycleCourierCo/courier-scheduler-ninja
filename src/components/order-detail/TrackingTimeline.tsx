@@ -1,5 +1,6 @@
+
 import React from "react";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
 import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike } from "lucide-react";
 
@@ -7,12 +8,34 @@ interface TrackingTimelineProps {
   order: Order;
 }
 
-const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
-  const getTrackingEvents = () => {
-    const events = [];
+// Helper function to safely format dates
+const formatDate = (dateInput: Date | string | undefined): string => {
+  try {
+    if (!dateInput) return "Date unknown";
     
-    // Use a map to keep track of events by title to preserve the original timestamps
-    const eventMap = {};
+    // If it's a string, parse it first
+    const date = typeof dateInput === 'string' ? parseISO(dateInput) : dateInput;
+    
+    // Make sure the date is valid before formatting
+    if (!isValid(date)) {
+      console.warn("Invalid date encountered:", dateInput);
+      return "Invalid date";
+    }
+    
+    return format(date, "PPP 'at' p");
+  } catch (error) {
+    console.error("Error formatting date:", error, dateInput);
+    return "Date format error";
+  }
+};
+
+const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
+  console.log("TrackingTimeline rendering with order:", order.id);
+  console.log("TrackingTimeline tracking events:", JSON.stringify(order.trackingEvents, null, 2));
+
+  const getTrackingEvents = () => {
+    console.log("Getting tracking events for order:", order.id);
+    const events = [];
     
     // Add the creation event first (this always exists)
     events.push({
@@ -23,291 +46,218 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         `Order created with tracking number: ${order.trackingNumber}` : 
         "Order created successfully"
     });
-    eventMap["Order Created"] = events[0];
     
     // Add confirmation events with their original timestamps
     if (order.senderConfirmedAt) {
-      const event = {
+      events.push({
         title: "Collection Dates Chosen",
         date: order.senderConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
         description: "Collection dates have been confirmed"
-      };
-      events.push(event);
-      eventMap["Collection Dates Chosen"] = event;
+      });
     }
     
     if (order.receiverConfirmedAt) {
-      const event = {
+      events.push({
         title: "Delivery Dates Chosen",
         date: order.receiverConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
         description: "Delivery dates have been confirmed"
-      };
-      events.push(event);
-      eventMap["Delivery Dates Chosen"] = event;
+      });
     }
     
     if (order.scheduledAt) {
-      const event = {
+      events.push({
         title: "Transport Scheduled",
         date: order.scheduledAt,
         icon: <Calendar className="h-4 w-4 text-courier-600" />,
         description: "Transport manager has scheduled pickup and delivery"
-      };
-      events.push(event);
-      eventMap["Transport Scheduled"] = event;
-    }
-    
-    // Process Shipday tracking events if available
-    const shipdayUpdates = order.trackingEvents?.shipday?.updates || [];
-    const pickupId = order.trackingEvents?.shipday?.pickup_id;
-    const deliveryId = order.trackingEvents?.shipday?.delivery_id;
-    
-    // Flag to track if we've added critical tracking events from Shipday
-    let hasDriverToCollectionEvent = false;
-    let hasBikeCollectedEvent = false;
-    let hasDriverToDeliveryEvent = false;
-    let hasDeliveredEvent = false;
-    
-    if (shipdayUpdates.length > 0) {
-      // Process each update in chronological order to preserve timestamps
-      const sortedUpdates = [...shipdayUpdates].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      
-      sortedUpdates.forEach((update: ShipdayUpdate) => {
-        // If the update has a description, use that directly
-        if (update.description) {
-          let title = "";
-          let icon = <Truck className="h-4 w-4 text-courier-600" />;
-          
-          if (update.description.includes("way to collect")) {
-            title = "Driver En Route to Collection";
-            hasDriverToCollectionEvent = true;
-            icon = <Map className="h-4 w-4 text-courier-600" />;
-          } else if (update.description.includes("collected the bike")) {
-            title = "Bike Collected";
-            hasBikeCollectedEvent = true;
-            icon = <Check className="h-4 w-4 text-courier-600" />;
-          } else if (update.description.includes("way to deliver")) {
-            title = "Driver En Route to Delivery";
-            hasDriverToDeliveryEvent = true;
-            icon = <Truck className="h-4 w-4 text-courier-600" />;
-          } else if (update.description.includes("delivered the bike")) {
-            title = "Delivered";
-            hasDeliveredEvent = true;
-            icon = <Check className="h-4 w-4 text-green-600" />;
-          }
-          
-          // Only add if we have a title and we haven't seen this event type before
-          // or if we're updating an event with a newer timestamp
-          if (title && (!eventMap[title] || 
-              new Date(update.timestamp).getTime() > new Date(eventMap[title].date).getTime())) {
-            const event = {
-              title: title,
-              date: new Date(update.timestamp),
-              icon,
-              description: update.description
-            };
-            
-            // If this is a new event, add it to the events array
-            if (!eventMap[title]) {
-              events.push(event);
-            } else {
-              // Otherwise, update the existing event in place
-              const index = events.findIndex(e => e.title === title);
-              if (index !== -1) {
-                events[index] = event;
-              }
-            }
-            
-            eventMap[title] = event;
-          }
-        } else {
-          // Legacy handling for updates without description
-          const isPickup = update.orderId === pickupId;
-          const statusLower = update.status.toLowerCase();
-          
-          let title = "";
-          let icon = <Truck className="h-4 w-4 text-courier-600" />;
-          let description = "";
-          
-          if (isPickup) {
-            if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
-              title = "Driver En Route to Collection";
-              hasDriverToCollectionEvent = true;
-              icon = <Map className="h-4 w-4 text-courier-600" />;
-              description = "Driver is on the way to collect the bike";
-            } else if (statusLower === "picked-up" || statusLower === "delivered" || statusLower === "already_delivered") {
-              // Handle both "picked-up" and "delivered" statuses for pickup
-              title = "Bike Collected";
-              hasBikeCollectedEvent = true;
-              icon = <Check className="h-4 w-4 text-courier-600" />;
-              description = "Bike has been collected from sender";
-            }
-          } else {
-            if (statusLower === "on-the-way" || statusLower === "ready_to_deliver") {
-              title = "Driver En Route to Delivery";
-              hasDriverToDeliveryEvent = true;
-              icon = <Truck className="h-4 w-4 text-courier-600" />;
-              description = "Driver is on the way to deliver the bike";
-            } else if (statusLower === "delivered" || statusLower === "already_delivered") {
-              title = "Delivered";
-              hasDeliveredEvent = true;
-              icon = <Check className="h-4 w-4 text-green-600" />;
-              description = "Bike has been delivered to receiver";
-            }
-          }
-          
-          // Only add if we have a title and we haven't seen this event type before
-          // or if we're updating an event with a newer timestamp
-          if (title && (!eventMap[title] || 
-              new Date(update.timestamp).getTime() > new Date(eventMap[title].date).getTime())) {
-            const event = {
-              title,
-              date: new Date(update.timestamp),
-              icon,
-              description
-            };
-            
-            // If this is a new event, add it to the events array
-            if (!eventMap[title]) {
-              events.push(event);
-            } else {
-              // Otherwise, update the existing event in place
-              const index = events.findIndex(e => e.title === title);
-              if (index !== -1) {
-                events[index] = event;
-              }
-            }
-            
-            eventMap[title] = event;
-          }
-        }
       });
     }
     
-    // If no shipday updates are found but we have specific status, add fallback events
-    if (shipdayUpdates.length === 0) {
-      // Status-based fallback timeline events (important for customer visibility)
-      if (order.status === "sender_availability_pending" && !eventMap["Awaiting Collection Dates"]) {
-        const event = {
+    // Process Shipday tracking events if available
+    if (order.trackingEvents?.shipday?.updates && order.trackingEvents.shipday.updates.length > 0) {
+      console.log("Processing Shipday updates:", order.trackingEvents.shipday.updates);
+      
+      const shipdayUpdates = order.trackingEvents.shipday.updates;
+      const pickupId = order.trackingEvents.shipday.pickup_id?.toString();
+      const deliveryId = order.trackingEvents.shipday.delivery_id?.toString();
+      
+      console.log("Pickup ID:", pickupId, "Delivery ID:", deliveryId);
+      
+      // Track which events we've already added to avoid duplicates
+      const addedEventTypes = new Set();
+      
+      // Process each Shipday update
+      shipdayUpdates.forEach((update: ShipdayUpdate) => {
+        try {
+          console.log("Processing update:", update);
+          
+          // Only process ORDER_ONTHEWAY and ORDER_POD_UPLOAD events
+          if (update.event !== "ORDER_ONTHEWAY" && update.event !== "ORDER_POD_UPLOAD") {
+            console.log("Skipping non-tracking event:", update.event);
+            return;
+          }
+          
+          // Check if the update is for pickup or delivery
+          const isPickup = update.orderId === pickupId;
+          const isDelivery = update.orderId === deliveryId;
+          
+          console.log(`Update orderId: ${update.orderId}, isPickup: ${isPickup}, isDelivery: ${isDelivery}`);
+          
+          if (!isPickup && !isDelivery) {
+            console.warn("Update orderId doesn't match pickup or delivery ID:", update);
+            // For debugging, let's be more lenient and process it anyway
+            console.log("Attempting to process anyway based on event type");
+          }
+          
+          let title = "";
+          let icon = <Truck className="h-4 w-4 text-courier-600" />;
+          let description = update.description || "";
+          
+          // Determine the event title and icon based on the event type
+          if (update.event === "ORDER_ONTHEWAY") {
+            if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
+              title = "Driver En Route to Collection";
+              icon = <Map className="h-4 w-4 text-courier-600" />;
+              if (!description) description = "Driver is on the way to collect the bike";
+            } else {
+              title = "Driver En Route to Delivery";
+              icon = <Truck className="h-4 w-4 text-courier-600" />;
+              if (!description) description = "Driver is on the way to deliver the bike";
+            }
+          } else if (update.event === "ORDER_POD_UPLOAD") {
+            if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
+              title = "Bike Collected";
+              icon = <Check className="h-4 w-4 text-courier-600" />;
+              if (!description) description = "Bike has been collected from sender";
+            } else {
+              title = "Delivered";
+              icon = <Check className="h-4 w-4 text-green-600" />;
+              if (!description) description = "Bike has been delivered to receiver";
+            }
+          }
+          
+          console.log("Determined event title:", title);
+          
+          // Only add the event if we have a title and haven't already added this event type
+          if (title && !addedEventTypes.has(title) && update.timestamp) {
+            console.log(`Adding event: ${title} with timestamp: ${update.timestamp}`);
+            events.push({
+              title,
+              date: update.timestamp,
+              icon,
+              description
+            });
+            
+            addedEventTypes.add(title);
+          }
+        } catch (error) {
+          console.error("Error processing Shipday update:", error, update);
+        }
+      });
+    } else {
+      console.log("No Shipday updates found or updates array is empty");
+      console.log("order.trackingEvents:", order.trackingEvents);
+      console.log("order.trackingEvents?.shipday:", order.trackingEvents?.shipday);
+      
+      // Try to infer tracking events from order status
+      if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
+          order.status === "collected" || order.status === "delivered") {
+        
+        console.log("Inferring tracking events from order status:", order.status);
+        
+        if (order.status === "driver_to_collection" && !events.some(e => e.title === "Driver En Route to Collection")) {
+          events.push({
+            title: "Driver En Route to Collection",
+            date: order.updatedAt,
+            icon: <Map className="h-4 w-4 text-courier-600" />,
+            description: "Driver is on the way to collect the bike"
+          });
+        }
+        
+        if ((order.status === "collected" || order.status === "driver_to_delivery" || 
+             order.status === "delivered") && !events.some(e => e.title === "Bike Collected")) {
+          events.push({
+            title: "Bike Collected",
+            date: order.updatedAt,
+            icon: <Check className="h-4 w-4 text-courier-600" />,
+            description: "Bike has been collected from sender"
+          });
+        }
+        
+        if (order.status === "driver_to_delivery" && !events.some(e => e.title === "Driver En Route to Delivery")) {
+          events.push({
+            title: "Driver En Route to Delivery",
+            date: order.updatedAt,
+            icon: <Truck className="h-4 w-4 text-courier-600" />,
+            description: "Driver is on the way to deliver the bike"
+          });
+        }
+        
+        if (order.status === "delivered" && !events.some(e => e.title === "Delivered")) {
+          events.push({
+            title: "Delivered",
+            date: order.updatedAt,
+            icon: <Check className="h-4 w-4 text-green-600" />,
+            description: "Bike has been delivered to receiver"
+          });
+        }
+      }
+    }
+    
+    // Add fallback events based on order status if needed
+    if (events.length <= 2) { // If we only have creation and maybe scheduling events
+      if (order.status === "sender_availability_pending") {
+        events.push({
           title: "Awaiting Collection Dates",
           date: order.updatedAt || order.createdAt,
           icon: <Clock className="h-4 w-4 text-courier-600" />,
           description: "Waiting for sender to confirm availability dates"
-        };
-        events.push(event);
-        eventMap["Awaiting Collection Dates"] = event;
+        });
       }
       
-      if (order.status === "receiver_availability_pending" && !eventMap["Awaiting Delivery Dates"]) {
-        const event = {
+      if (order.status === "receiver_availability_pending") {
+        events.push({
           title: "Awaiting Delivery Dates",
           date: order.updatedAt || order.createdAt,
           icon: <Clock className="h-4 w-4 text-courier-600" />,
           description: "Waiting for receiver to confirm availability dates"
-        };
-        events.push(event);
-        eventMap["Awaiting Delivery Dates"] = event;
+        });
       }
       
-      if (order.status === "scheduled_dates_pending" && !eventMap["Scheduling in Progress"]) {
-        const event = {
+      if (order.status === "scheduled_dates_pending") {
+        events.push({
           title: "Scheduling in Progress",
           date: order.updatedAt || order.createdAt,
           icon: <Calendar className="h-4 w-4 text-courier-600" />,
           description: "Transport team is scheduling your pickup and delivery"
-        };
-        events.push(event);
-        eventMap["Scheduling in Progress"] = event;
+        });
       }
     }
     
-    // Always add these critical steps if they're missing and the order has progressed to or past these stages
-    // We'll only add them if we don't already have events for these stages (preserve original timestamps)
-    
-    // Driver to Collection - add if status indicates this happened but no event exists yet
-    if (!hasDriverToCollectionEvent && !eventMap["Driver En Route to Collection"] && 
-        (order.status === "driver_to_collection" || 
-         order.status === "collected" || 
-         order.status === "driver_to_delivery" || 
-         order.status === "shipped" || 
-         order.status === "delivered")) {
-      const event = {
-        title: "Driver En Route to Collection",
-        date: order.updatedAt,
-        icon: <Map className="h-4 w-4 text-courier-600" />,
-        description: "Driver is on the way to collect the bike"
-      };
-      events.push(event);
-      eventMap["Driver En Route to Collection"] = event;
-    }
-    
-    // Bike Collected - add if status indicates this happened but no event exists yet
-    if (!hasBikeCollectedEvent && !eventMap["Bike Collected"] && 
-        (order.status === "collected" || 
-         order.status === "driver_to_delivery" || 
-         order.status === "shipped" || 
-         order.status === "delivered")) {
-      const event = {
-        title: "Bike Collected",
-        date: order.updatedAt,
-        icon: <Check className="h-4 w-4 text-courier-600" />,
-        description: "Bike has been collected from sender"
-      };
-      events.push(event);
-      eventMap["Bike Collected"] = event;
-    }
-    
-    // Driver to Delivery - add if status indicates this happened but no event exists yet
-    if (!hasDriverToDeliveryEvent && !eventMap["Driver En Route to Delivery"] && 
-        (order.status === "driver_to_delivery" || 
-         order.status === "shipped" || 
-         order.status === "delivered")) {
-      const event = {
-        title: "Driver En Route to Delivery",
-        date: order.updatedAt,
-        icon: <Truck className="h-4 w-4 text-courier-600" />,
-        description: "Driver is on the way to deliver the bike"
-      };
-      events.push(event);
-      eventMap["Driver En Route to Delivery"] = event;
-    }
-    
-    // In Transit - add for shipped status if not already present
-    if (order.status === "shipped" && !eventMap["In Transit"]) {
-      const event = {
-        title: "In Transit",
-        date: order.updatedAt,
-        icon: <Truck className="h-4 w-4 text-courier-600" />,
-        description: "Bike is in transit"
-      };
-      events.push(event);
-      eventMap["In Transit"] = event;
-    }
-    
-    // Delivered - add if status indicates this happened but no event exists yet
-    if (!hasDeliveredEvent && !eventMap["Delivered"] && order.status === "delivered") {
-      const event = {
-        title: "Delivered",
-        date: order.updatedAt,
-        icon: <Check className="h-4 w-4 text-green-600" />,
-        description: "Bike has been delivered to receiver"
-      };
-      events.push(event);
-      eventMap["Delivered"] = event;
-    }
-    
     // Sort events by date
-    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return events.sort((a, b) => {
+      try {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        
+        if (isNaN(dateA) || isNaN(dateB)) {
+          console.warn("Invalid date encountered in final sorting:", { a: a.date, b: b.date });
+          return 0;
+        }
+        
+        return dateA - dateB;
+      } catch (error) {
+        console.error("Error in final sorting:", error);
+        return 0;
+      }
+    });
   };
 
   const trackingEvents = getTrackingEvents();
 
   // For debugging
-  console.log("Order tracking events:", order.trackingEvents?.shipday);
   console.log("Processed timeline events:", trackingEvents);
 
   return (
@@ -330,7 +280,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               <div>
                 <p className="font-medium text-gray-800">{event.title}</p>
                 <p className="text-sm text-gray-500">
-                  {format(new Date(event.date), "PPP 'at' p")}
+                  {formatDate(event.date)}
                 </p>
                 <p className="text-sm">{event.description}</p>
               </div>
