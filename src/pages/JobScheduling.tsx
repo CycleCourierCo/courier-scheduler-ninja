@@ -1,3 +1,4 @@
+
 import React from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +23,8 @@ interface OrderData {
   receiver: ContactInfo & { address: Address };
   scheduled_pickup_date: string | null;
   scheduled_delivery_date: string | null;
+  pickup_date: string[] | null;
+  delivery_date: string[] | null;
 }
 
 const JobScheduling = () => {
@@ -125,7 +128,7 @@ const JobScheduling = () => {
                           <p>Available dates:</p>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {formatDates(order.pickup_date as string[])}
+                          {formatDates(order.pickup_date)}
                         </p>
                       </div>
                     </CardContent>
@@ -141,7 +144,7 @@ const JobScheduling = () => {
                           <p>Available dates:</p>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {formatDates(order.delivery_date as string[])}
+                          {formatDates(order.delivery_date)}
                         </p>
                       </div>
                     </CardContent>
