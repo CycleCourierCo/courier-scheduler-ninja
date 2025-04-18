@@ -1,3 +1,4 @@
+
 import React from "react";
 import { format } from "date-fns";
 import { Calendar, Check } from "lucide-react";
@@ -49,8 +50,13 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     return format(new Date(dates), "PPP");
   };
 
-  // Update the scheduling check to not include collection_scheduled and delivery_scheduled
-  const isEffectivelyScheduled = isScheduled;
+  // Update the scheduling check to include all statuses where dates should be locked
+  const isEffectivelyScheduled = isScheduled || 
+    orderStatus === 'driver_to_collection' || 
+    orderStatus === 'collected' || 
+    orderStatus === 'driver_to_delivery' || 
+    orderStatus === 'delivered';
+
   const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
 
   return (
@@ -158,3 +164,4 @@ const DateSelection: React.FC<DateSelectionProps> = ({
 };
 
 export default DateSelection;
+
