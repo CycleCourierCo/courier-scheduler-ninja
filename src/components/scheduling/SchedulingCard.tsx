@@ -6,7 +6,6 @@ import { useDraggable } from "@/hooks/useDraggable";
 import { extractOutwardCode } from "@/utils/locationUtils";
 import JobSchedulingForm from "./JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
 
 interface SchedulingCardProps {
   group: SchedulingGroup;
@@ -19,21 +18,22 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
     item: group,
   });
 
+  // Get the first order in the group
   const firstOrder = group.orders[0];
   const isPickup = group.type === 'pickup';
   
+  // Get the contact info based on whether this is a pickup or delivery
   const contact = isPickup ? firstOrder.sender : firstOrder.receiver;
   const contactType = isPickup ? "Sender" : "Receiver";
   
+  // Get bike information
   const bikeInfo = `${firstOrder.bikeBrand || ""} ${firstOrder.bikeModel || ""}`.trim() || "Bike";
   
+  // Extract postcode outward code for display
   const postcodeOutward = extractOutwardCode(contact.address.zipCode);
 
+  // Check if the job is scheduled
   const isScheduled = isPickup 
-    ? firstOrder.scheduledPickupDate 
-    : firstOrder.scheduledDeliveryDate;
-
-  const scheduledDate = isPickup 
     ? firstOrder.scheduledPickupDate 
     : firstOrder.scheduledDeliveryDate;
 
@@ -55,16 +55,9 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
         </CardTitle>
         {isScheduled && (
-          <div className="flex flex-col gap-1">
-            <Badge variant="outline" className="w-fit">
-              {isPickup ? 'Collection' : 'Delivery'} scheduled
-            </Badge>
-            {scheduledDate && (
-              <span className="text-sm text-muted-foreground">
-                Scheduled for: {format(new Date(scheduledDate), 'PPP')}
-              </span>
-            )}
-          </div>
+          <Badge variant="outline" className="w-fit">
+            {isPickup ? 'Collection' : 'Delivery'} scheduled
+          </Badge>
         )}
       </CardHeader>
       
