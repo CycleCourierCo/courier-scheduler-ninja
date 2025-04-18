@@ -119,13 +119,6 @@ const JobScheduling = () => {
                               <p className="text-muted-foreground">{formatAddress(order.receiver.address)}</p>
                             </div>
                           </div>
-
-                          {order.status === 'scheduled' && order.scheduled_pickup_date && order.scheduled_delivery_date && (
-                            <div className="text-sm text-muted-foreground">
-                              <p>Pickup: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy')}</p>
-                              <p>Delivery: {format(new Date(order.scheduled_delivery_date), 'MMM d, yyyy')}</p>
-                            </div>
-                          )}
                         </div>
                       </CardContent>
                     </Card>
