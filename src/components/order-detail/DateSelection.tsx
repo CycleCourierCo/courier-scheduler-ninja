@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format } from "date-fns";
 import { Calendar, Check } from "lucide-react";
@@ -22,6 +21,7 @@ interface DateSelectionProps {
   isSubmitting: boolean;
   isScheduled: boolean;
   showAdminControls?: boolean;
+  orderStatus?: string; // Add this to check for collection_scheduled
 }
 
 const DateSelection: React.FC<DateSelectionProps> = ({
@@ -37,6 +37,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   isSubmitting,
   isScheduled,
   showAdminControls = false,
+  orderStatus, // New prop
 }) => {
   const formatDates = (dates: Date | Date[] | undefined) => {
     if (!dates) return "Not scheduled";
@@ -48,6 +49,8 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     return format(new Date(dates), "PPP");
   };
 
+  // Update the scheduling check to include collection_scheduled
+  const isEffectivelyScheduled = isScheduled || orderStatus === 'collection_scheduled' || orderStatus === 'delivery_scheduled';
   const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
 
   return (
@@ -57,7 +60,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         <h3 className="font-semibold">{title}</h3>
       </div>
       
-      {canSelectDate && !isScheduled ? (
+      {canSelectDate && !isEffectivelyScheduled ? (
         <div className="space-y-2">
           <p className="text-sm text-gray-500">Available dates:</p>
           <p>{formatDates(availableDates)}</p>

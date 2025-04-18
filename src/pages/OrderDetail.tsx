@@ -322,6 +322,7 @@ const OrderDetail = () => {
                   isSubmitting={isSubmitting}
                   isScheduled={isScheduled}
                   showAdminControls={showAdminControls}
+                  orderStatus={order.status}
                 />
                 
                 <DateSelection 
@@ -337,6 +338,7 @@ const OrderDetail = () => {
                   isSubmitting={isSubmitting}
                   isScheduled={isScheduled}
                   showAdminControls={showAdminControls}
+                  orderStatus={order.status}
                 />
               </div>
               
