@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Order, Address } from "@/types/order";
 import { toast } from "sonner";
@@ -19,12 +18,18 @@ export type Job = {
   preferred_date?: string[] | Json;
   created_at: Date;
   updated_at: Date;
+  lat?: number;
+  lon?: number;
 };
 
-// Format address to string for storage
-const formatAddress = (address: Address): string => {
-  const { street, city, state, zipCode, country } = address;
-  return `${street}, ${city}, ${state} ${zipCode}, ${country}`;
+// Format address to string and extract lat/lon
+const formatAddress = (address: Address): { addressString: string; lat?: number; lon?: number } => {
+  const { street, city, state, zipCode, country, lat, lon } = address;
+  return {
+    addressString: `${street}, ${city}, ${state} ${zipCode}, ${country}`,
+    lat,
+    lon
+  };
 };
 
 // Create jobs for an order after availability confirmation
@@ -48,6 +53,10 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
     const collectionId = crypto.randomUUID();
     const deliveryId = crypto.randomUUID();
     
+    // Format addresses with coordinates
+    const collectionAddress = formatAddress(order.sender.address);
+    const deliveryAddress = formatAddress(order.receiver.address);
+    
     // Format dates from the order
     const pickupDates = order.pickupDate instanceof Array ? 
       order.pickupDate.map(d => new Date(d).toISOString()) : 
@@ -57,27 +66,31 @@ export const createJobsForOrder = async (order: Order): Promise<boolean> => {
       order.deliveryDate.map(d => new Date(d).toISOString()) : 
       order.deliveryDate ? [new Date(order.deliveryDate).toISOString()] : [];
     
-    // Now we have a status field in the jobs table
+    // Now we have added lat and lon to the jobs table
     const { error: insertError } = await supabase
       .from("jobs")
       .insert([
         {
           id: collectionId,
           order_id: order.id,
-          location: formatAddress(order.sender.address),
+          location: collectionAddress.addressString,
           type: 'collection',
           status: 'pending',
           related_job_id: deliveryId,
-          preferred_date: pickupDates
+          preferred_date: pickupDates,
+          lat: collectionAddress.lat,
+          lon: collectionAddress.lon
         },
         {
           id: deliveryId,
           order_id: order.id,
-          location: formatAddress(order.receiver.address),
+          location: deliveryAddress.addressString,
           type: 'delivery',
           status: 'pending',
           related_job_id: collectionId,
-          preferred_date: deliveryDates
+          preferred_date: deliveryDates,
+          lat: deliveryAddress.lat,
+          lon: deliveryAddress.lon
         }
       ]);
     
