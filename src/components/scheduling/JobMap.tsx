@@ -1,11 +1,10 @@
 
 import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { OrderData } from '@/pages/JobScheduling';
 import { Card, CardContent } from '../ui/card';
-import { formatAddress } from '@/utils/locationUtils';
+import { Address } from '@/types/order';
 import 'leaflet/dist/leaflet.css';
-import { Icon } from 'leaflet';
+import { Icon, LatLngExpression } from 'leaflet';
 import { format } from 'date-fns';
 
 // Fix for the default marker icon issue in React-Leaflet
@@ -24,13 +23,34 @@ const deliveryIcon = new Icon({
   popupAnchor: [1, -34],
 });
 
+// Format address function to avoid importing from locationUtils
+const formatAddress = (address: Address): string => {
+  return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;
+};
+
+// Define the OrderData interface here rather than importing it
+interface OrderData {
+  id: string;
+  status: string;
+  tracking_number: string;
+  bike_brand: string | null;
+  bike_model: string | null;
+  created_at: string;
+  sender: { name: string; email: string; phone: string; address: Address };
+  receiver: { name: string; email: string; phone: string; address: Address };
+  scheduled_pickup_date: string | null;
+  scheduled_delivery_date: string | null;
+  pickup_date: string[] | null;
+  delivery_date: string[] | null;
+}
+
 interface JobMapProps {
   orders: OrderData[];
 }
 
 const JobMap: React.FC<JobMapProps> = ({ orders }) => {
   // Calculate center based on all markers or default to London
-  const defaultCenter = { lat: 51.505, lng: -0.09 };
+  const defaultCenter: LatLngExpression = [51.505, -0.09];
   
   return (
     <Card className="h-[600px] mb-8">
@@ -48,7 +68,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
             <React.Fragment key={order.id}>
               {order.sender.address.lat && order.sender.address.lon && (
                 <Marker
-                  position={[order.sender.address.lat, order.sender.address.lon]}
+                  position={[order.sender.address.lat, order.sender.address.lon] as LatLngExpression}
                   icon={collectionIcon}
                 >
                   <Popup>
@@ -68,7 +88,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders }) => {
               )}
               {order.receiver.address.lat && order.receiver.address.lon && (
                 <Marker
-                  position={[order.receiver.address.lat, order.receiver.address.lon]}
+                  position={[order.receiver.address.lat, order.receiver.address.lon] as LatLngExpression}
                   icon={deliveryIcon}
                 >
                   <Popup>
