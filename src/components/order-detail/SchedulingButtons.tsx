@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,8 +15,8 @@ interface SchedulingButtonsProps {
   isScheduled: boolean;
   pickupDateSelected: boolean;
   deliveryDateSelected: boolean;
-  adminPickupDateSelected: boolean | undefined;
-  adminDeliveryDateSelected: boolean | undefined;
+  adminPickupDateSelected?: boolean;
+  adminDeliveryDateSelected?: boolean;
   showAdminControls?: boolean;
   scheduledDates?: {
     pickup?: Date | null;
@@ -34,6 +35,8 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   showAdminControls = false,
   scheduledDates,
   orderStatus,
+  adminPickupDateSelected,
+  adminDeliveryDateSelected,
 }) => {
   const [localIsSubmitting, setLocalIsSubmitting] = useState(false);
 
