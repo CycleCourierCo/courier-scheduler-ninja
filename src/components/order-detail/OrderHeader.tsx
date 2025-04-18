@@ -1,6 +1,5 @@
-
 import React from "react";
-import { ChevronRight, CheckCircle2, X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -84,13 +83,6 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
             Cancel Order
           </Button>
         </div>
-        
-        {status === 'scheduled' && (
-          <Button variant="outline" className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
-            Mark as Dispatched
-          </Button>
-        )}
       </div>
     </div>
   );
