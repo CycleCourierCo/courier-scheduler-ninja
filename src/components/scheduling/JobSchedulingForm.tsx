@@ -14,9 +14,15 @@ interface JobSchedulingFormProps {
   orderId: string;
   type: 'pickup' | 'delivery';
   onScheduled?: () => void;
+  compact?: boolean;
 }
 
-const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({ orderId, type, onScheduled }) => {
+const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({ 
+  orderId, 
+  type, 
+  onScheduled,
+  compact = false
+}) => {
   const [calendarDate, setCalendarDate] = useState<Date>();
   const [timeValue, setTimeValue] = useState("09:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,20 +54,26 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({ orderId, type, on
     }
   };
 
+  const labelClass = compact ? "text-xs font-medium" : "text-sm font-medium";
+  const popoverButtonClass = compact 
+    ? "w-full h-8 py-1 justify-start text-left text-xs font-normal"
+    : "w-full justify-start text-left font-normal";
+  const buttonClass = compact ? "w-full h-8 text-xs py-1" : "w-full";
+
   return (
-    <div className="space-y-4 mt-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Select date:</label>
+    <div className={`space-y-${compact ? '2' : '4'} ${compact ? 'mt-2' : 'mt-4'}`}>
+      <div className="space-y-1">
+        <label className={labelClass}>Select date:</label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
               className={cn(
-                "w-full justify-start text-left font-normal",
+                popoverButtonClass,
                 !calendarDate && "text-muted-foreground"
               )}
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
+              <CalendarIcon className="mr-2 h-3 w-3" />
               {calendarDate ? format(calendarDate, "PPP") : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
@@ -77,22 +89,23 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({ orderId, type, on
         </Popover>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Select time:</label>
+      <div className="space-y-1">
+        <label className={labelClass}>Select time:</label>
         <Input
           type="time"
           value={timeValue}
           onChange={(e) => setTimeValue(e.target.value)}
-          className="w-full"
+          className={`w-full ${compact ? 'h-8 text-xs' : ''}`}
         />
       </div>
 
       <Button
         onClick={handleSchedule}
         disabled={isSubmitting || !calendarDate}
-        className="w-full"
+        className={buttonClass}
+        size={compact ? "sm" : "default"}
       >
-        {isSubmitting ? "Scheduling..." : `Schedule ${type === 'pickup' ? 'Collection' : 'Delivery'} & Create Shipment`}
+        {isSubmitting ? "Scheduling..." : `Schedule ${type === 'pickup' ? 'Collection' : 'Delivery'}`}
       </Button>
     </div>
   );

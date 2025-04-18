@@ -12,6 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowDown, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import JobMap from "@/components/scheduling/JobMap";
+import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export interface OrderData {
   id: string;
@@ -29,7 +32,7 @@ export interface OrderData {
 }
 
 const JobScheduling = () => {
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -56,6 +59,11 @@ const JobScheduling = () => {
   const formatDates = (dates: string[] | null) => {
     if (!dates || dates.length === 0) return "No dates available";
     return dates.map(date => format(new Date(date), 'MMM d, yyyy')).join(", ");
+  };
+
+  const handleScheduled = () => {
+    toast.success("Job scheduled successfully");
+    refetch();
   };
 
   return (
@@ -125,7 +133,12 @@ const JobScheduling = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <Card className="bg-green-50 hover:shadow-md transition-shadow">
                       <CardContent className="p-3 space-y-3">
-                        <h3 className="font-medium text-sm">Collection</h3>
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-medium text-sm">Collection</h3>
+                          {order.scheduled_pickup_date && (
+                            <Badge variant="outline" className="text-xs">Scheduled</Badge>
+                          )}
+                        </div>
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -136,12 +149,25 @@ const JobScheduling = () => {
                             {formatDates(order.pickup_date)}
                           </p>
                         </div>
+                        
+                        {!order.scheduled_pickup_date && (
+                          <JobSchedulingForm 
+                            orderId={order.id} 
+                            type="pickup" 
+                            onScheduled={handleScheduled}
+                          />
+                        )}
                       </CardContent>
                     </Card>
 
                     <Card className="bg-blue-50 hover:shadow-md transition-shadow">
                       <CardContent className="p-3 space-y-3">
-                        <h3 className="font-medium text-sm">Delivery</h3>
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-medium text-sm">Delivery</h3>
+                          {order.scheduled_delivery_date && (
+                            <Badge variant="outline" className="text-xs">Scheduled</Badge>
+                          )}
+                        </div>
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -152,6 +178,14 @@ const JobScheduling = () => {
                             {formatDates(order.delivery_date)}
                           </p>
                         </div>
+                        
+                        {!order.scheduled_delivery_date && (
+                          <JobSchedulingForm 
+                            orderId={order.id} 
+                            type="delivery" 
+                            onScheduled={handleScheduled}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   </div>
