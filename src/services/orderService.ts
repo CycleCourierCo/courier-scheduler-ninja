@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
+import { createJobsForOrder } from "./jobService";
 import { 
   sendOrderCreationEmailToSender, 
   sendOrderNotificationToReceiver, 
@@ -178,6 +179,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       console.error("Error creating order:", error);
       throw error;
     }
+
+    const orderWithJobs = mapDbOrderToOrderType(order);
+    await createJobsForOrder(orderWithJobs);
     
     const sendEmails = async () => {
       try {
