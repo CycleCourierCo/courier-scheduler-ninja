@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Package } from "lucide-react";
@@ -35,8 +34,8 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
 
   // Check if the job is scheduled
   const isScheduled = isPickup 
-    ? firstOrder.scheduled_pickup_date 
-    : firstOrder.scheduled_delivery_date;
+    ? firstOrder.scheduledPickupDate 
+    : firstOrder.scheduledDeliveryDate;
 
   return (
     <Card 
