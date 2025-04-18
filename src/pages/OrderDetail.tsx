@@ -317,10 +317,9 @@ const OrderDetail = () => {
             </CardTitle>
             <CardDescription>
               Created on {format(new Date(order.createdAt), "PPP")}
-              Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
             </CardDescription>
             <CardDescription>
-            Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
+              Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -365,10 +364,7 @@ const OrderDetail = () => {
                 />
               </div>
               
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  
-                </div>
+              <div className="space-y-4">=
                 
                 <SchedulingButtons 
                   orderId={id as string}
