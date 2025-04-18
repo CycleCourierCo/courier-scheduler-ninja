@@ -10,6 +10,7 @@ import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createShipdayOrder } from '@/services/shipdayService';
 import { supabase } from "@/integrations/supabase/client";
+import { OrderStatus } from "@/types/order";
 
 interface DualSchedulingFormProps {
   orderId: string;
@@ -44,13 +45,30 @@ const DualSchedulingForm: React.FC<DualSchedulingFormProps> = ({
       const scheduleDeliveryDateTime = new Date(deliveryDate);
       scheduleDeliveryDateTime.setHours(deliveryHours, deliveryMinutes);
 
-      // Update the order with both scheduled dates
+      // Get current order status
+      const { data: currentOrder } = await supabase
+        .from('orders')
+        .select('status')
+        .eq('id', orderId)
+        .single();
+
+      // Determine the new status based on current status and what's being scheduled
+      let newStatus: OrderStatus;
+      if (currentOrder?.status === 'collection_scheduled') {
+        newStatus = 'scheduled'; // Both are now scheduled
+      } else if (currentOrder?.status === 'delivery_scheduled') {
+        newStatus = 'scheduled'; // Both are now scheduled
+      } else {
+        newStatus = 'scheduled'; // Fresh scheduling
+      }
+
+      // Update the order with both scheduled dates and new status
       const { error: updateError } = await supabase
         .from('orders')
         .update({ 
           scheduled_pickup_date: schedulePickupDateTime.toISOString(),
           scheduled_delivery_date: scheduleDeliveryDateTime.toISOString(),
-          status: 'scheduled'
+          status: newStatus
         })
         .eq('id', orderId);
         
