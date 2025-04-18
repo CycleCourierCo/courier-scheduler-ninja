@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
+import { format } from 'date-fns';
 
 // Fix Leaflet icon issues
 const fixLeafletIcon = () => {
