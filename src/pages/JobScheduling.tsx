@@ -38,7 +38,12 @@ const JobScheduling = () => {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .in('status', ['scheduled_dates_pending', 'scheduled'])
+        .in('status', [
+          'scheduled_dates_pending', 
+          'scheduled', 
+          'collection_scheduled', 
+          'delivery_scheduled'
+        ])
         .order('created_at', { ascending: false });
       
       if (error) throw error;
