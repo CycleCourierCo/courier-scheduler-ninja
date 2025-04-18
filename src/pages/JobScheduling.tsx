@@ -1,4 +1,3 @@
-
 import React from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +10,7 @@ import { ContactInfo, Address, OrderStatus } from "@/types/order";
 import { Separator } from "@/components/ui/separator";
 import { ArrowDown, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
+import JobMap from "@/components/scheduling/JobMap";
 
 interface OrderData {
   id: string;
@@ -72,87 +72,90 @@ const JobScheduling = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {orders?.map((order) => (
-              <div key={order.id} className="space-y-4">
-                <Link to={`/orders/${order.id}`}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-4">
-                        <StatusBadge status={order.status} />
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(order.created_at), 'MMM d, yyyy')}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <p className="font-medium">{order.bike_brand} {order.bike_model}</p>
-                          <p className="text-sm text-muted-foreground">Order #{order.tracking_number}</p>
+          <>
+            <JobMap orders={orders || []} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {orders?.map((order) => (
+                <div key={order.id} className="space-y-4">
+                  <Link to={`/orders/${order.id}`}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <StatusBadge status={order.status} />
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(order.created_at), 'MMM d, yyyy')}
+                          </span>
                         </div>
                         
+                        <div className="space-y-4">
+                          <div>
+                            <p className="font-medium">{order.bike_brand} {order.bike_model}</p>
+                            <p className="text-sm text-muted-foreground">Order #{order.tracking_number}</p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="text-sm">
+                              <p className="font-medium mb-1">From:</p>
+                              <p className="text-muted-foreground">{formatAddress(order.sender.address)}</p>
+                            </div>
+                            <div className="text-sm">
+                              <p className="font-medium mb-1">To:</p>
+                              <p className="text-muted-foreground">{formatAddress(order.receiver.address)}</p>
+                            </div>
+                          </div>
+
+                          {order.status === 'scheduled' && order.scheduled_pickup_date && order.scheduled_delivery_date && (
+                            <div className="text-sm text-muted-foreground">
+                              <p>Pickup: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy')}</p>
+                              <p>Delivery: {format(new Date(order.scheduled_delivery_date), 'MMM d, yyyy')}</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+
+                  <div className="flex justify-center">
+                    <ArrowDown className="text-gray-400" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card className="bg-green-50 hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 space-y-3">
+                        <h3 className="font-medium text-sm">Collection</h3>
                         <div className="space-y-2">
-                          <div className="text-sm">
-                            <p className="font-medium mb-1">From:</p>
-                            <p className="text-muted-foreground">{formatAddress(order.sender.address)}</p>
+                          <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <p>Available dates:</p>
                           </div>
-                          <div className="text-sm">
-                            <p className="font-medium mb-1">To:</p>
-                            <p className="text-muted-foreground">{formatAddress(order.receiver.address)}</p>
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDates(order.pickup_date)}
+                          </p>
                         </div>
+                      </CardContent>
+                    </Card>
 
-                        {order.status === 'scheduled' && order.scheduled_pickup_date && order.scheduled_delivery_date && (
-                          <div className="text-sm text-muted-foreground">
-                            <p>Pickup: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy')}</p>
-                            <p>Delivery: {format(new Date(order.scheduled_delivery_date), 'MMM d, yyyy')}</p>
+                    <Card className="bg-blue-50 hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 space-y-3">
+                        <h3 className="font-medium text-sm">Delivery</h3>
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <p>Available dates:</p>
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <div className="flex justify-center">
-                  <ArrowDown className="text-gray-400" />
+                          <p className="text-xs text-muted-foreground">
+                            {formatDates(order.delivery_date)}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Card className="bg-green-50 hover:shadow-md transition-shadow">
-                    <CardContent className="p-3 space-y-3">
-                      <h3 className="font-medium text-sm">Collection</h3>
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <p>Available dates:</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDates(order.pickup_date)}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-blue-50 hover:shadow-md transition-shadow">
-                    <CardContent className="p-3 space-y-3">
-                      <h3 className="font-medium text-sm">Delivery</h3>
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <p>Available dates:</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDates(order.delivery_date)}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </Layout>
