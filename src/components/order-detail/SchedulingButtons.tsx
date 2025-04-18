@@ -23,6 +23,7 @@ interface SchedulingButtonsProps {
     delivery?: Date | null;
   };
   orderStatus?: string;
+  selectedDate?: string | null; // Added selectedDate prop
 }
 
 const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
@@ -37,6 +38,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   orderStatus,
   adminPickupDateSelected,
   adminDeliveryDateSelected,
+  selectedDate, // Add to the destructuring
 }) => {
   const [localIsSubmitting, setLocalIsSubmitting] = useState(false);
 

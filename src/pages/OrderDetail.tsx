@@ -383,6 +383,8 @@ const OrderDetail = () => {
                     pickup: order.scheduledPickupDate ? new Date(order.scheduledPickupDate) : null,
                     delivery: order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate) : null
                   }}
+                  orderStatus={order.status}
+                  selectedDate={selectedPickupDate}
                 />
               </div>
             </div>
