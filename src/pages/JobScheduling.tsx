@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,7 +29,7 @@ export interface OrderData {
   scheduled_delivery_date: string | null;
   pickup_date: string[] | null;
   delivery_date: string[] | null;
-  polygonSegment?: number;  // Added this property to the OrderData interface
+  polygonSegment?: number;
 }
 
 const JobScheduling = () => {
@@ -57,6 +57,14 @@ const JobScheduling = () => {
       })) as OrderData[];
     }
   });
+
+  // Debug logging to trace polygon segment assignment
+  useEffect(() => {
+    if (orders) {
+      console.log("Orders loaded with polygon segments:", 
+        orders.map(o => ({ id: o.id, polygonSegment: o.polygonSegment })));
+    }
+  }, [orders]);
 
   const formatAddress = (address: Address) => {
     return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;

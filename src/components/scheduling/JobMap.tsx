@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
@@ -62,18 +62,37 @@ const extractLocations = (orders: OrderData[] = []) => {
   
   console.log(`Extracting locations from ${orders.length} orders`);
   
+  // First, assign polygon segments to orders
   orders.forEach(order => {
+    // Check and assign segment for sender address
     if (order.sender.address.lat && order.sender.address.lon) {
-      const polygonSegment = getPolygonSegment(
+      const senderSegment = getPolygonSegment(
         order.sender.address.lat,
         order.sender.address.lon
       );
       
-      // Store the polygon segment in the order object for later reference
-      if (polygonSegment !== null) {
-        order.polygonSegment = polygonSegment;
+      // Store the polygon segment in the order object
+      if (senderSegment !== null) {
+        order.polygonSegment = senderSegment;
       }
+    }
+    
+    // Also check receiver address if sender doesn't have a segment
+    if (!order.polygonSegment && order.receiver.address.lat && order.receiver.address.lon) {
+      const receiverSegment = getPolygonSegment(
+        order.receiver.address.lat,
+        order.receiver.address.lon
+      );
       
+      if (receiverSegment !== null) {
+        order.polygonSegment = receiverSegment;
+      }
+    }
+  });
+  
+  // Now extract locations after segment assignment
+  orders.forEach(order => {
+    if (order.sender.address.lat && order.sender.address.lon) {
       locations.push({
         address: `${order.sender.address.street}, ${order.sender.address.city}`,
         lat: order.sender.address.lat,
@@ -81,21 +100,11 @@ const extractLocations = (orders: OrderData[] = []) => {
         type: 'collection',
         orderNumber: order.tracking_number || 'No tracking number',
         date: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date) : undefined,
-        polygonSegment
+        polygonSegment: order.polygonSegment
       });
     }
     
     if (order.receiver.address.lat && order.receiver.address.lon) {
-      const polygonSegment = getPolygonSegment(
-        order.receiver.address.lat,
-        order.receiver.address.lon
-      );
-      
-      // Store the polygon segment in the order object for later reference
-      if (polygonSegment !== null) {
-        order.polygonSegment = polygonSegment;
-      }
-      
       locations.push({
         address: `${order.receiver.address.street}, ${order.receiver.address.city}`,
         lat: order.receiver.address.lat,
@@ -103,7 +112,7 @@ const extractLocations = (orders: OrderData[] = []) => {
         type: 'delivery',
         orderNumber: order.tracking_number || 'No tracking number',
         date: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined,
-        polygonSegment
+        polygonSegment: order.polygonSegment
       });
     }
   });
@@ -131,6 +140,11 @@ const extractLocations = (orders: OrderData[] = []) => {
       orderNumber: 'Default'
     }];
   }
+  
+  console.log('Extracted locations with segments:', sortedLocations.map(loc => ({ 
+    address: loc.address, 
+    polygonSegment: loc.polygonSegment 
+  })));
   
   return sortedLocations;
 };
@@ -411,6 +425,12 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   }, [orders]);
   
   const locations = extractLocations(orders);
+  
+  // Debug logging
+  console.log('Orders with polygon segments:', orders.map(o => ({
+    id: o.id,
+    polygonSegment: o.polygonSegment
+  })));
   
   let centerLat = 51.5074; // Default to London
   let centerLng = -0.1278;
