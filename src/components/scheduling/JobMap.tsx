@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
@@ -403,11 +403,30 @@ export const segmentGeoJSON = {
   ]
 };
 
+// Define polygon style based on segment number
 const getPolygonStyle = (feature: any) => {
+  // Get the segment number from the properties
+  const segment = feature.properties.segment;
+  
+  // Define colors for each segment that match the badge colors
+  const segmentColors = {
+    1: '#8B5CF6', // Vivid Purple (p1-segment)
+    2: '#F97316', // Bright Orange (p2-segment)
+    3: '#0EA5E9', // Ocean Blue (p3-segment)
+    4: '#10B981', // Soft Green (p4-segment)
+    5: '#F43F5E', // Soft Pink (p5-segment)
+    6: '#14B8A6', // Teal (p6-segment)
+    7: '#6366F1', // Indigo (p7-segment)
+    8: '#EC4899'  // Pink (p8-segment)
+  };
+  
+  // Use the segment number to get the color, or default to blue
+  const color = segmentColors[segment as keyof typeof segmentColors] || '#3388ff';
+  
   return {
-    fillColor: '#3388ff',
+    fillColor: color,
     fillOpacity: 0.2,
-    color: '#3388ff',
+    color: color,
     weight: 2,
   };
 };
@@ -458,47 +477,6 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
     shadowSize: [41, 41]
   });
 
-  // Create a GeoJSON layer with labels
-  useEffect(() => {
-    if (mapRef.current) {
-      // Clear existing GeoJSON layers
-      mapRef.current.eachLayer((layer) => {
-        if (layer instanceof L.GeoJSON) {
-          mapRef.current?.removeLayer(layer);
-        }
-      });
-
-      // Add new GeoJSON layer with labels
-      const geoJsonLayer = L.geoJSON(segmentGeoJSON as any, {
-        style: getPolygonStyle,
-        onEachFeature: (feature, layer) => {
-          const segmentNumber = feature.properties.segment;
-          
-          // Type casting the layer to access getBounds
-          const polygonLayer = layer as L.Polygon;
-          const center = polygonLayer.getBounds().getCenter();
-          
-          // Count jobs in this polygon
-          const jobsInPolygon = locations.filter(
-            loc => loc.polygonSegment === segmentNumber
-          ).length;
-          
-          // Add a label with polygon number and job count
-          L.marker(center, {
-            icon: L.divIcon({
-              className: 'polygon-label',
-              html: `<div style="background: white; padding: 3px; border: 1px solid #666; border-radius: 3px;">
-                      P${segmentNumber}<br/>(${jobsInPolygon} jobs)
-                    </div>`,
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })
-          }).addTo(mapRef.current!);
-        }
-      }).addTo(mapRef.current);
-    }
-  }, [locations, mapRef.current]);
-
   return (
     <div className="h-[400px] w-full mb-8 rounded-lg overflow-hidden border border-border" id="map-container">
       <MapContainer 
@@ -512,6 +490,40 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        />
+        
+        {/* Add the GeoJSON polygons */}
+        <GeoJSON 
+          data={segmentGeoJSON}
+          style={getPolygonStyle}
+          onEachFeature={(feature, layer) => {
+            const segmentNumber = feature.properties.segment;
+            
+            // Type casting the layer to access getBounds
+            const polygonLayer = layer as L.Polygon;
+            const center = polygonLayer.getBounds().getCenter();
+            
+            // Count jobs in this polygon
+            const jobsInPolygon = locations.filter(
+              loc => loc.polygonSegment === segmentNumber
+            ).length;
+            
+            // Add popup with segment info
+            layer.bindPopup(`<strong>Polygon ${segmentNumber}</strong><br>${jobsInPolygon} jobs in this area`);
+            
+            // Create label for the polygon segment
+            const icon = L.divIcon({
+              className: 'polygon-label',
+              html: `<div style="background: white; padding: 3px; border: 1px solid #666; border-radius: 3px; font-weight: bold;">
+                      P${segmentNumber}<br/>(${jobsInPolygon} jobs)
+                    </div>`,
+              iconSize: [60, 40],
+              iconAnchor: [30, 20]
+            });
+            
+            // Add the label marker
+            L.marker(center, { icon }).addTo(layer.getPane() as HTMLElement);
+          }}
         />
         
         {locations.map((loc, idx) => (
