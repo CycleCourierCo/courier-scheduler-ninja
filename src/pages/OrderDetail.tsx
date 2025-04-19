@@ -127,6 +127,16 @@ const OrderDetail = () => {
       return;
     }
 
+    if (order?.scheduledPickupDate) {
+      const pickupDateTime = new Date(order.scheduledPickupDate);
+      const deliveryDateTime = new Date(selectedDeliveryDate);
+      
+      if (deliveryDateTime <= pickupDateTime) {
+        toast.error("Delivery date must be after the pickup date");
+        return;
+      }
+    }
+
     try {
       setIsSubmitting(true);
       
