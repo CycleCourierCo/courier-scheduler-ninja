@@ -9,6 +9,24 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
+// Helper function to safely format dates
+const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
+  if (!date) return "Not scheduled";
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) {
+      console.warn("Invalid date detected in DateSelection:", date);
+      return "Invalid date";
+    }
+    return format(dateObj, formatStr);
+  } catch (error) {
+    console.error("Error formatting date in DateSelection:", error, date);
+    return "Date error";
+  }
+};
+
 interface DateSelectionProps {
   title: string;
   availableDates?: Date | Date[];
@@ -44,10 +62,21 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     if (!dates) return "Not scheduled";
     
     if (Array.isArray(dates)) {
-      return dates.map(date => format(new Date(date), "PPP")).join(", ");
+      return dates
+        .filter(date => date) // Filter out null/undefined 
+        .map(date => {
+          try {
+            return safeFormat(date, "PPP");
+          } catch (err) {
+            console.error("Error formatting date in array:", err, date);
+            return null;
+          }
+        })
+        .filter(Boolean) // Filter out any failed formats
+        .join(", ") || "Not scheduled";
     }
     
-    return format(new Date(dates), "PPP");
+    return safeFormat(dates, "PPP");
   };
 
   // Extend the green background condition to include both collection_scheduled and delivery_scheduled
@@ -89,11 +118,13 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                 <SelectValue placeholder="Select a date" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(availableDates) && availableDates.map((date, index) => (
-                  <SelectItem key={index} value={new Date(date).toISOString()}>
-                    {format(new Date(date), "PPP")}
-                  </SelectItem>
-                ))}
+                {Array.isArray(availableDates) && availableDates
+                  .filter(date => date && !isNaN(new Date(date).getTime())) // Filter out invalid dates
+                  .map((date, index) => (
+                    <SelectItem key={index} value={new Date(date).toISOString()}>
+                      {safeFormat(date, "PPP")}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -116,15 +147,13 @@ const DateSelection: React.FC<DateSelectionProps> = ({
               <div className="flex items-center">
                 <Check className="h-4 w-4 text-green-600 mr-2" />
                 <p className="font-medium">
-                  {scheduledDate ? format(new Date(scheduledDate), "PPP 'at' p") : formatDates(availableDates)}
+                  {scheduledDate ? safeFormat(scheduledDate, "PPP 'at' p") : formatDates(availableDates)}
                 </p>
               </div>
             </div>
           ) : (
             <p>{formatDates(availableDates)}</p>
           )}
-          
-          {/* Remove admin controls since they're no longer needed */}
         </div>
       )}
     </div>

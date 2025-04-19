@@ -21,6 +21,22 @@ import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 
+const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
+  if (!date) return "";
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) {
+      console.warn("Invalid date detected:", date);
+      return "Invalid date";
+    }
+    return format(dateObj, formatStr);
+  } catch (error) {
+    console.error("Error formatting date:", error, date);
+    return "Date error";
+  }
+};
+
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
@@ -51,13 +67,31 @@ const OrderDetail = () => {
           setSelectedStatus(fetchedOrder.status);
           
           if (fetchedOrder.scheduledPickupDate) {
-            setSelectedPickupDate(new Date(fetchedOrder.scheduledPickupDate).toISOString());
-            setPickupDatePicker(new Date(fetchedOrder.scheduledPickupDate));
+            try {
+              const pickupDate = new Date(fetchedOrder.scheduledPickupDate);
+              if (!isNaN(pickupDate.getTime())) {
+                setSelectedPickupDate(pickupDate.toISOString());
+                setPickupDatePicker(pickupDate);
+              } else {
+                console.warn("Invalid scheduledPickupDate detected:", fetchedOrder.scheduledPickupDate);
+              }
+            } catch (err) {
+              console.error("Error parsing scheduledPickupDate:", err);
+            }
           }
           
           if (fetchedOrder.scheduledDeliveryDate) {
-            setSelectedDeliveryDate(new Date(fetchedOrder.scheduledDeliveryDate).toISOString());
-            setDeliveryDatePicker(new Date(fetchedOrder.scheduledDeliveryDate));
+            try {
+              const deliveryDate = new Date(fetchedOrder.scheduledDeliveryDate);
+              if (!isNaN(deliveryDate.getTime())) {
+                setSelectedDeliveryDate(deliveryDate.toISOString());
+                setDeliveryDatePicker(deliveryDate);
+              } else {
+                console.warn("Invalid scheduledDeliveryDate detected:", fetchedOrder.scheduledDeliveryDate);
+              }
+            } catch (err) {
+              console.error("Error parsing scheduledDeliveryDate:", err);
+            }
           }
         } else {
           setError("Order not found");
@@ -297,7 +331,6 @@ const OrderDetail = () => {
       setStatusUpdating(true);
       let updatedOrder;
       
-      // If status is being set to scheduled_dates_pending, reset scheduled dates
       if (newStatus === 'scheduled_dates_pending') {
         const { data, error } = await supabase
           .from('orders')
@@ -305,7 +338,7 @@ const OrderDetail = () => {
             status: newStatus,
             scheduled_pickup_date: null,
             scheduled_delivery_date: null,
-            scheduled_at: null  // Also reset the scheduled_at timestamp
+            scheduled_at: null
           })
           .eq('id', id)
           .select()
@@ -322,7 +355,6 @@ const OrderDetail = () => {
         setOrder(mappedOrder);
         setSelectedStatus(newStatus);
         
-        // Reset date pickers and selected dates if status is scheduled_dates_pending
         if (newStatus === 'scheduled_dates_pending') {
           setPickupDatePicker(undefined);
           setDeliveryDatePicker(undefined);
@@ -449,10 +481,10 @@ const OrderDetail = () => {
               />
             </CardTitle>
             <CardDescription>
-              Created on {format(new Date(order.createdAt), "PPP")}
+              Created on {safeFormat(order.createdAt, "PPP")}
             </CardDescription>
             <CardDescription>
-              Last Updated: {format(new Date(order.updatedAt), "PPP 'at' p")}
+              Last Updated: {safeFormat(order.updatedAt, "PPP 'at' p")}
             </CardDescription>
           </CardHeader>
           
