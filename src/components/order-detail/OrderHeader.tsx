@@ -1,6 +1,5 @@
-
 import React from "react";
-import { ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,6 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   selectedStatus,
   onStatusChange,
 }) => {
-  // Updated status options with new driver statuses
   const statusOptions: { value: OrderStatus; label: string }[] = [
     { value: "created", label: "Created" },
     { value: "sender_availability_pending", label: "Sender Availability Pending" },
@@ -33,11 +31,12 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
     { value: "receiver_availability_pending", label: "Receiver Availability Pending" },
     { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
     { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
+    { value: "collection_scheduled", label: "Collection Scheduled" },
+    { value: "delivery_scheduled", label: "Delivery Scheduled" },
     { value: "scheduled", label: "Scheduled" },
     { value: "driver_to_collection", label: "Driver to Collection" },
     { value: "collected", label: "Collected" },
     { value: "driver_to_delivery", label: "Driver to Delivery" },
-    { value: "shipped", label: "Shipped" },
     { value: "delivered", label: "Delivered" },
     { value: "cancelled", label: "Cancelled" },
   ];
@@ -72,14 +71,18 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
           {statusUpdating && (
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
           )}
-        </div>
-        
-        {status === 'scheduled' && (
-          <Button variant="outline" className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
-            Mark as Dispatched
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => onStatusChange('cancelled')}
+            disabled={statusUpdating || status === 'cancelled'}
+            className="flex items-center gap-2"
+          >
+            <X className="h-4 w-4" />
+            Cancel Order
           </Button>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <div className="flex justify-end space-x-2">
           {isAdmin && (
             <Button asChild variant="outline">
-              <Link to="/job-scheduling">
+              <Link to="/scheduling">
                 <Calendar className="mr-2 h-4 w-4" />
                 Job Scheduling
               </Link>

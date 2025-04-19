@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -53,7 +52,6 @@ const formatTimeOnly = (date: Date | null) => {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { 
       status: 204,
@@ -62,7 +60,6 @@ serve(async (req) => {
   }
 
   try {
-    // Parse request body
     let body;
     try {
       body = await req.json();
@@ -74,7 +71,7 @@ serve(async (req) => {
       );
     }
 
-    const { orderId } = body;
+    const { orderId, jobType } = body;
 
     if (!orderId) {
       return new Response(
@@ -147,7 +144,6 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
 
-    // Use the tracking number as the order reference
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
     const pickupOrderData: OrderRequest = {
@@ -180,96 +176,94 @@ serve(async (req) => {
       deliveryInstruction: deliveryInstructions
     };
 
-    console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
-    console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
-
     const authHeader = `Basic ${shipdayApiKey}`;
     
-    // Properly handle the pickup request with error handling
-    let pickupResponse;
-    let pickupResponseText;
-    let pickupResponseData;
+    let pickupResponse = null;
+    let pickupResponseData = null;
+    let deliveryResponse = null;
+    let deliveryResponseData = null;
     
-    try {
-      pickupResponse = await fetch("https://api.shipday.com/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": authHeader
-        },
-        body: JSON.stringify(pickupOrderData)
-      });
-      
-      pickupResponseText = await pickupResponse.text();
-      console.log(`Shipday pickup API response status: ${pickupResponse.status}`);
-      console.log(`Shipday pickup API response body: ${pickupResponseText}`);
+    const createPickup = !jobType || jobType === 'pickup';
+    const createDelivery = !jobType || jobType === 'delivery';
+    
+    if (createPickup && order.scheduled_pickup_date) {
+      console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
       
       try {
-        if (pickupResponseText) {
-          pickupResponseData = JSON.parse(pickupResponseText);
-        } else {
-          pickupResponseData = { status: pickupResponse.status };
+        const response = await fetch("https://api.shipday.com/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": authHeader
+          },
+          body: JSON.stringify(pickupOrderData)
+        });
+        
+        const responseText = await response.text();
+        console.log(`Shipday pickup API response status: ${response.status}`);
+        console.log(`Shipday pickup API response body: ${responseText}`);
+        
+        try {
+          pickupResponseData = responseText ? JSON.parse(responseText) : { status: response.status };
+        } catch (e) {
+          pickupResponseData = { 
+            rawResponse: responseText,
+            status: response.status,
+            parseError: e.message
+          };
         }
+        
+        pickupResponse = response;
       } catch (e) {
-        console.error("Error parsing pickup response:", e);
-        pickupResponseData = { 
-          rawResponse: pickupResponseText,
-          status: pickupResponse.status,
-          parseError: e.message
+        console.error("Error sending pickup request to Shipday:", e);
+        pickupResponseData = {
+          error: e.message,
+          networkError: true
         };
       }
-    } catch (e) {
-      console.error("Error sending pickup request to Shipday:", e);
-      pickupResponseData = {
-        error: e.message,
-        networkError: true
-      };
-      pickupResponse = { ok: false, status: 500 };
     }
-
-    // Similarly handle the delivery request with error handling
-    let deliveryResponse;
-    let deliveryResponseText;
-    let deliveryResponseData;
     
-    try {
-      deliveryResponse = await fetch("https://api.shipday.com/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": authHeader
-        },
-        body: JSON.stringify(deliveryOrderData)
-      });
-      
-      deliveryResponseText = await deliveryResponse.text();
-      console.log(`Shipday delivery API response status: ${deliveryResponse.status}`);
-      console.log(`Shipday delivery API response body: ${deliveryResponseText}`);
+    if (createDelivery && order.scheduled_delivery_date) {
+      console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
       
       try {
-        if (deliveryResponseText) {
-          deliveryResponseData = JSON.parse(deliveryResponseText);
-        } else {
-          deliveryResponseData = { status: deliveryResponse.status };
+        const response = await fetch("https://api.shipday.com/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": authHeader
+          },
+          body: JSON.stringify(deliveryOrderData)
+        });
+        
+        const responseText = await response.text();
+        console.log(`Shipday delivery API response status: ${response.status}`);
+        console.log(`Shipday delivery API response body: ${responseText}`);
+        
+        try {
+          deliveryResponseData = responseText ? JSON.parse(responseText) : { status: response.status };
+        } catch (e) {
+          deliveryResponseData = { 
+            rawResponse: responseText,
+            status: response.status,
+            parseError: e.message
+          };
         }
+        
+        deliveryResponse = response;
       } catch (e) {
-        console.error("Error parsing delivery response:", e);
-        deliveryResponseData = { 
-          rawResponse: deliveryResponseText,
-          status: deliveryResponse.status,
-          parseError: e.message
+        console.error("Error sending delivery request to Shipday:", e);
+        deliveryResponseData = {
+          error: e.message,
+          networkError: true
         };
       }
-    } catch (e) {
-      console.error("Error sending delivery request to Shipday:", e);
-      deliveryResponseData = {
-        error: e.message,
-        networkError: true
-      };
-      deliveryResponse = { ok: false, status: 500 };
     }
     
-    if ((!pickupResponse || !pickupResponse.ok) || (!deliveryResponse || !deliveryResponse.ok)) {
+    const pickupFailed = createPickup && order.scheduled_pickup_date && (!pickupResponse || !pickupResponse.ok);
+    const deliveryFailed = createDelivery && order.scheduled_delivery_date && (!deliveryResponse || !deliveryResponse.ok);
+    
+    if (pickupFailed || deliveryFailed) {
       return new Response(
         JSON.stringify({ 
           error: "Failed to create orders in Shipday", 
@@ -282,34 +276,50 @@ serve(async (req) => {
       );
     }
     
-    // Store the individual tracking numbers from Shipday
-    const shipdayPickupId = pickupResponseData?.orderId || 
+    const shipdayPickupId = createPickup && pickupResponseData ? 
+                           (pickupResponseData?.orderId || 
                            `SD-P-${pickupResponseData?.id}` || 
                            pickupResponseData?.trackingNumber || 
-                           `SD-P-${Date.now()}`;
+                           `SD-P-${Date.now()}`) : null;
     
-    const shipdayDeliveryId = deliveryResponseData?.orderId || 
+    const shipdayDeliveryId = createDelivery && deliveryResponseData ? 
+                             (deliveryResponseData?.orderId || 
                              `SD-D-${deliveryResponseData?.id}` || 
                              deliveryResponseData?.trackingNumber || 
-                             `SD-D-${Date.now()}`;
+                             `SD-D-${Date.now()}`) : null;
     
-    // Now store IDs in both tracking_events and the new dedicated columns
     const trackingEvents = order.tracking_events || {};
-    trackingEvents.shipday = {
-      pickup_id: shipdayPickupId,
-      delivery_id: shipdayDeliveryId,
-      created_at: new Date().toISOString()
-    };
+    
+    if (!trackingEvents.shipday) {
+      trackingEvents.shipday = {};
+    }
+    
+    if (createPickup && shipdayPickupId) {
+      trackingEvents.shipday.pickup_id = shipdayPickupId;
+    }
+    
+    if (createDelivery && shipdayDeliveryId) {
+      trackingEvents.shipday.delivery_id = shipdayDeliveryId;
+    }
+    
+    trackingEvents.shipday.created_at = new Date().toISOString();
 
-    // Update the order with both tracking_events JSON and the new dedicated columns
+    const updateData: Record<string, any> = {
+      tracking_events: trackingEvents,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (createPickup && shipdayPickupId) {
+      updateData.shipday_pickup_id = shipdayPickupId;
+    }
+    
+    if (createDelivery && shipdayDeliveryId) {
+      updateData.shipday_delivery_id = shipdayDeliveryId;
+    }
+
     const { error: updateError } = await supabase
       .from("orders")
-      .update({
-        tracking_events: trackingEvents,
-        shipday_pickup_id: shipdayPickupId,
-        shipday_delivery_id: shipdayDeliveryId,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq("id", orderId);
 
     if (updateError) {

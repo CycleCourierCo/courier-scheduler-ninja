@@ -43,7 +43,9 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          lat: number | null
           location: string
+          lon: number | null
           order_id: string
           preferred_date: Json | null
           related_job_id: string | null
@@ -54,7 +56,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          lat?: number | null
           location: string
+          lon?: number | null
           order_id: string
           preferred_date?: Json | null
           related_job_id?: string | null
@@ -65,7 +69,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          lat?: number | null
           location?: string
+          lon?: number | null
           order_id?: string
           preferred_date?: Json | null
           related_job_id?: string | null
@@ -348,6 +354,8 @@ export type Database = {
         | "driver_to_collection"
         | "collected"
         | "driver_to_delivery"
+        | "collection_scheduled"
+        | "delivery_scheduled"
       user_role: "admin" | "b2b_customer" | "b2c_customer"
     }
     CompositeTypes: {
@@ -480,6 +488,8 @@ export const Constants = {
         "driver_to_collection",
         "collected",
         "driver_to_delivery",
+        "collection_scheduled",
+        "delivery_scheduled",
       ],
       user_role: ["admin", "b2b_customer", "b2c_customer"],
     },

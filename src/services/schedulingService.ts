@@ -42,7 +42,9 @@ export const getPendingSchedulingOrders = async (): Promise<Order[]> => {
         "pending_approval", 
         "scheduled",
         "sender_availability_confirmed",
-        "receiver_availability_confirmed"
+        "receiver_availability_confirmed",
+        "collection_scheduled",
+        "delivery_scheduled"
       ])
       .order("created_at", { ascending: false });
 

@@ -30,7 +30,9 @@ export type OrderStatus =
   | 'driver_to_delivery' // New status
   | 'shipped' // Existing status, keep for compatibility
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'collection_scheduled'  // New status
+  | 'delivery_scheduled';    // New status
 
 export type ShipdayUpdate = {
   status: string;
@@ -64,6 +66,7 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
+  polygonSegment?: number;  // Added this property to the Order type
   trackingEvents?: {
     shipday?: {
       pickup_id?: string;

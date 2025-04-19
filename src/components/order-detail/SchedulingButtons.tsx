@@ -3,70 +3,87 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 
 interface SchedulingButtonsProps {
-  onSchedule: () => void;
-  onAdminSchedule: () => void;
-  canSchedule: boolean;
+  orderId: string;
+  onSchedulePickup: () => void;
+  onScheduleDelivery: () => void;
+  onScheduleBoth: () => void;
   isSubmitting: boolean;
   isScheduled: boolean;
   pickupDateSelected: boolean;
   deliveryDateSelected: boolean;
-  adminPickupDateSelected: boolean | undefined;
-  adminDeliveryDateSelected: boolean | undefined;
-  showAdminControls?: boolean;
+  status: string;
 }
 
 const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
-  onSchedule,
-  onAdminSchedule,
-  canSchedule,
+  onSchedulePickup,
+  onScheduleDelivery,
+  onScheduleBoth,
   isSubmitting,
   isScheduled,
   pickupDateSelected,
   deliveryDateSelected,
-  adminPickupDateSelected,
-  adminDeliveryDateSelected,
-  showAdminControls = false,
+  status,
 }) => {
+  const showDeliveryButton = status === 'scheduled_dates_pending' || status === 'collection_scheduled';
+  
+  if ((status !== 'scheduled_dates_pending' && status !== 'collection_scheduled') || isScheduled) {
+    return null;
+  }
+
   return (
     <div className="space-y-4">
-      {canSchedule && !isScheduled && (
-        <div className="mt-6">
-          <Button 
-            onClick={onSchedule} 
-            disabled={!pickupDateSelected || !deliveryDateSelected || isSubmitting || isScheduled}
-            className="w-full"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                Scheduling Order...
-              </>
-            ) : (
-              "Schedule Order & Create Shipments"
-            )}
-          </Button>
-        </div>
+      {status === 'scheduled_dates_pending' && (
+        <Button 
+          onClick={onSchedulePickup} 
+          disabled={!pickupDateSelected || isSubmitting}
+          className="w-full"
+          variant="default"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Scheduling Pickup...
+            </>
+          ) : (
+            "Schedule Pickup Date & Create Shipment"
+          )}
+        </Button>
       )}
-      
-      {/* Show admin scheduling controls if showAdminControls is true and order is not scheduled */}
-      {showAdminControls && !isScheduled && (
-        <div className="mt-6 border-t pt-4">
-          <Button 
-            onClick={onAdminSchedule} 
-            disabled={!adminPickupDateSelected || !adminDeliveryDateSelected || isSubmitting}
-            className="w-full"
-            variant="default"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                Scheduling Order...
-              </>
-            ) : (
-              "Admin: Schedule Order & Create Shipments"
-            )}
-          </Button>
-        </div>
+
+      {showDeliveryButton && (
+        <Button 
+          onClick={onScheduleDelivery} 
+          disabled={!deliveryDateSelected || isSubmitting}
+          className="w-full"
+          variant="default"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Scheduling Delivery...
+            </>
+          ) : (
+            "Schedule Delivery Date & Create Shipment"
+          )}
+        </Button>
+      )}
+
+      {status === 'scheduled_dates_pending' && (
+        <Button 
+          onClick={onScheduleBoth} 
+          disabled={!pickupDateSelected || !deliveryDateSelected || isSubmitting}
+          className="w-full"
+          variant="default"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Scheduling Order...
+            </>
+          ) : (
+            "Schedule Order & Create Shipment"
+          )}
+        </Button>
       )}
     </div>
   );

@@ -13,6 +13,24 @@ import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 
+// Helper function to safely format dates
+const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
+  if (!date) return "Not scheduled";
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    // Check if date is valid before formatting
+    if (isNaN(dateObj.getTime())) {
+      console.warn("Invalid date detected:", date);
+      return "Invalid date";
+    }
+    return format(dateObj, formatStr);
+  } catch (error) {
+    console.error("Error formatting date:", error, date);
+    return "Date error";
+  }
+};
+
 const CustomerOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
@@ -82,17 +100,28 @@ const CustomerOrderDetail = () => {
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return "Not scheduled";
-    return format(new Date(date), "PPP");
+    return safeFormat(date, "PPP");
   };
 
   const formatDates = (dates: Date | Date[] | undefined) => {
     if (!dates) return "Not scheduled";
     
     if (Array.isArray(dates)) {
-      return dates.map(date => format(new Date(date), "PPP")).join(", ");
+      return dates
+        .filter(date => date) // Filter out null/undefined
+        .map(date => {
+          try {
+            return safeFormat(date, "PPP");
+          } catch (err) {
+            console.error("Error formatting date in array:", err, date);
+            return "Invalid date";
+          }
+        })
+        .filter(Boolean) // Filter out any failed formats
+        .join(", ") || "Not scheduled";
     }
     
-    return format(new Date(dates), "PPP");
+    return safeFormat(dates, "PPP");
   };
 
   const itemName = `${order.bikeBrand || ""}`.trim();
@@ -120,7 +149,7 @@ const CustomerOrderDetail = () => {
               {order.bikeBrand} {order.bikeModel}
             </CardTitle>
             <CardDescription>
-              Created on {format(new Date(order.createdAt), "PPP")}
+              Created on {safeFormat(order.createdAt, "PPP")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -142,7 +171,7 @@ const CustomerOrderDetail = () => {
                   <div className="bg-green-50 p-2 rounded-md border border-green-200">
                     <div className="flex items-center">
                       <p className="font-medium">
-                        {format(new Date(order.scheduledPickupDate), "PPP")}
+                        {safeFormat(order.scheduledPickupDate, "PPP")}
                       </p>
                     </div>
                   </div>
@@ -159,7 +188,7 @@ const CustomerOrderDetail = () => {
                   <div className="bg-green-50 p-2 rounded-md border border-green-200">
                     <div className="flex items-center">
                       <p className="font-medium">
-                        {format(new Date(order.scheduledDeliveryDate), "PPP")}
+                        {safeFormat(order.scheduledDeliveryDate, "PPP")}
                       </p>
                     </div>
                   </div>
