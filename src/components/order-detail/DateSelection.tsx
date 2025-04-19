@@ -22,7 +22,7 @@ interface DateSelectionProps {
   isSubmitting: boolean;
   isScheduled: boolean;
   showAdminControls?: boolean;
-  orderStatus?: string; // Add this to check for collection_scheduled
+  orderStatus?: string;
 }
 
 const DateSelection: React.FC<DateSelectionProps> = ({
@@ -50,14 +50,19 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     return format(new Date(dates), "PPP");
   };
 
-  // Update the scheduling check to include all statuses where dates should be locked
-  const isEffectivelyScheduled = isScheduled || 
-    orderStatus === 'driver_to_collection' || 
-    orderStatus === 'collected' || 
-    orderStatus === 'driver_to_delivery' || 
-    orderStatus === 'delivered';
+  // Show green background for scheduled pickup date when status is collection_scheduled
+  const showScheduledStyle = isScheduled || 
+    (orderStatus === 'collection_scheduled' && title === "Pickup Dates") ||
+    (orderStatus === 'delivery_scheduled' && title === "Delivery Dates");
 
   const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
+
+  // Only prevent date selection for pickup when it's already scheduled
+  const preventPickupSelection = title === "Pickup Dates" && orderStatus === 'collection_scheduled';
+  // Only prevent date selection for delivery when it's already scheduled
+  const preventDeliverySelection = title === "Delivery Dates" && orderStatus === 'delivery_scheduled';
+  
+  const isDateSelectionDisabled = preventPickupSelection || preventDeliverySelection || isSubmitting;
 
   return (
     <div>
@@ -66,7 +71,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         <h3 className="font-semibold">{title}</h3>
       </div>
       
-      {canSelectDate && !isEffectivelyScheduled ? (
+      {canSelectDate && !showScheduledStyle ? (
         <div className="space-y-2">
           <p className="text-sm text-gray-500">Available dates:</p>
           <p>{formatDates(availableDates)}</p>
@@ -76,7 +81,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             <Select
               value={selectedDate || ""}
               onValueChange={setSelectedDate}
-              disabled={isSubmitting || isScheduled}
+              disabled={isDateSelectionDisabled}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a date" />
@@ -97,19 +102,19 @@ const DateSelection: React.FC<DateSelectionProps> = ({
               type="time"
               value={timeValue}
               onChange={(e) => setTimeValue(e.target.value)}
-              disabled={isSubmitting || isScheduled}
+              disabled={isDateSelectionDisabled}
               className="w-full"
             />
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {scheduledDate ? (
+          {scheduledDate || showScheduledStyle ? (
             <div className="bg-green-50 p-2 rounded-md border border-green-200">
               <div className="flex items-center">
                 <Check className="h-4 w-4 text-green-600 mr-2" />
                 <p className="font-medium">
-                  {format(new Date(scheduledDate), "PPP 'at' p")}
+                  {scheduledDate ? format(new Date(scheduledDate), "PPP 'at' p") : formatDates(availableDates)}
                 </p>
               </div>
             </div>
@@ -117,46 +122,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             <p>{formatDates(availableDates)}</p>
           )}
           
-          {/* Show admin controls if they are enabled and the order is not already fully scheduled */}
-          {showAdminControls && !isScheduled && (
-            <div className="space-y-2 border-t pt-4 mt-4">
-              <h4 className="text-sm font-medium">Admin: Set Date</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !calendarDate && "text-muted-foreground"
-                        )}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {calendarDate ? format(calendarDate, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={calendarDate}
-                        onSelect={setCalendarDate}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                <Input
-                  type="time"
-                  value={timeValue}
-                  onChange={(e) => setTimeValue(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-            </div>
-          )}
+          {/* Remove admin controls since they're no longer needed */}
         </div>
       )}
     </div>
@@ -164,4 +130,3 @@ const DateSelection: React.FC<DateSelectionProps> = ({
 };
 
 export default DateSelection;
-
