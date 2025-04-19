@@ -167,31 +167,42 @@ const OrderDetail = () => {
       return;
     }
 
+    const pickupDateTime = new Date(selectedPickupDate);
+    const deliveryDateTime = new Date(selectedDeliveryDate);
+
+    if (deliveryDateTime <= pickupDateTime) {
+      toast.error("Delivery date must be after the pickup date");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
-      const pickupDateTime = new Date(selectedPickupDate);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
       
-      const deliveryDateTime = new Date(selectedDeliveryDate);
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
       
-      const isDeliveryPhase = order?.status === 'collected';
-      
       const updatedOrder = await updateOrderSchedule(
         id, 
-        isDeliveryPhase ? undefined : pickupDateTime,
-        isDeliveryPhase ? deliveryDateTime : undefined
+        pickupDateTime,
+        deliveryDateTime
       );
       
       if (!updatedOrder) {
         throw new Error("Failed to update order schedule");
       }
+
+      const shipdayResponse = await createShipdayOrder(id);
       
-      setOrder(updatedOrder);
-      toast.success(`${isDeliveryPhase ? 'Delivery' : 'Collection'} has been scheduled successfully`);
+      if (shipdayResponse) {
+        setOrder(updatedOrder);
+        toast.success("Order has been scheduled and shipments created successfully");
+      } else {
+        setOrder(updatedOrder);
+        toast.warning("Order scheduled but failed to create shipments");
+      }
     } catch (error) {
       console.error("Error scheduling order:", error);
       toast.error(`Failed to schedule order: ${error instanceof Error ? error.message : "Unknown error"}`);
