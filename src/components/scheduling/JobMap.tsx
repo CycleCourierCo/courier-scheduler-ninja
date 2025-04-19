@@ -19,8 +19,8 @@ interface JobMapProps {
   orders?: OrderData[];
 }
 
-// Function to check if a point is inside a polygon
-const isPointInPolygon = (point: [number, number], polygon: number[][]) => {
+// Function to check if a point is inside a polygon - export it so it can be used elsewhere
+export const isPointInPolygon = (point: [number, number], polygon: number[][]) => {
   const x = point[0], y = point[1];
   let inside = false;
   
@@ -36,8 +36,8 @@ const isPointInPolygon = (point: [number, number], polygon: number[][]) => {
   return inside;
 };
 
-// Function to determine which polygon a location belongs to
-const getPolygonSegment = (lat: number, lng: number): number | null => {
+// Function to determine which polygon a location belongs to - export for reuse
+export const getPolygonSegment = (lat: number, lng: number): number | null => {
   for (let i = 0; i < segmentGeoJSON.features.length; i++) {
     const polygon = segmentGeoJSON.features[i].geometry.coordinates[0];
     if (isPointInPolygon([lng, lat], polygon)) {
@@ -148,7 +148,8 @@ const extractLocations = (orders: OrderData[] = []) => {
   return sortedLocations;
 };
 
-const segmentGeoJSON = {
+// Export the GeoJSON data for reuse
+export const segmentGeoJSON = {
   "type": "FeatureCollection",
   "features": [
     {

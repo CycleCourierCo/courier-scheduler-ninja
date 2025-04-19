@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -8,12 +9,13 @@ import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
 import { Separator } from "@/components/ui/separator";
-import { ArrowDown, Calendar } from "lucide-react";
+import { ArrowDown, Calendar, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import JobMap from "@/components/scheduling/JobMap";
 import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { isPointInPolygon } from "@/components/scheduling/JobMap";
 
 export interface OrderData {
   id: string;
@@ -30,6 +32,9 @@ export interface OrderData {
   delivery_date: string[] | null;
   polygonSegment?: number;
 }
+
+// Import the polygon data from JobMap to use for segment calculation
+import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 
 const JobScheduling = () => {
   const { data: orders, isLoading, refetch } = useQuery({
@@ -48,14 +53,51 @@ const JobScheduling = () => {
       
       if (error) throw error;
       
-      return data.map(order => ({
+      const mappedOrders = data.map(order => ({
         ...order,
         sender: order.sender as ContactInfo & { address: Address },
         receiver: order.receiver as ContactInfo & { address: Address },
         status: order.status as OrderStatus
       })) as OrderData[];
+
+      // Assign polygon segments to orders based on their locations
+      mappedOrders.forEach(order => {
+        // Try sender address first
+        if (order.sender.address.lat && order.sender.address.lon) {
+          order.polygonSegment = getPolygonSegment(
+            order.sender.address.lat,
+            order.sender.address.lon
+          );
+        }
+        
+        // If no segment found for sender, try receiver address
+        if (!order.polygonSegment && order.receiver.address.lat && order.receiver.address.lon) {
+          order.polygonSegment = getPolygonSegment(
+            order.receiver.address.lat,
+            order.receiver.address.lon
+          );
+        }
+      });
+      
+      console.log("Mapped orders with segments:", mappedOrders.map(o => ({
+        id: o.id, 
+        polygonSegment: o.polygonSegment
+      })));
+      
+      return mappedOrders;
     }
   });
+
+  // Function to determine which polygon a location belongs to
+  const getPolygonSegment = (lat: number, lng: number): number | null => {
+    for (let i = 0; i < segmentGeoJSON.features.length; i++) {
+      const polygon = segmentGeoJSON.features[i].geometry.coordinates[0];
+      if (isPointInPolygon([lng, lat], polygon)) {
+        return i + 1; // Segment numbers are 1-based
+      }
+    }
+    return null;
+  };
 
   // Debug logging to trace polygon segment assignment
   useEffect(() => {
@@ -153,7 +195,15 @@ const JobScheduling = () => {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
+                          <div className="flex items-start gap-1">
+                            <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
+                          </div>
+                          {order.sender.address.lat && order.sender.address.lon && (
+                            <p className="text-xs text-muted-foreground ml-4">
+                              Coordinates: {order.sender.address.lat.toFixed(4)}, {order.sender.address.lon.toFixed(4)}
+                            </p>
+                          )}
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             <p>Available dates:</p>
@@ -194,7 +244,15 @@ const JobScheduling = () => {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
+                          <div className="flex items-start gap-1">
+                            <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
+                          </div>
+                          {order.receiver.address.lat && order.receiver.address.lon && (
+                            <p className="text-xs text-muted-foreground ml-4">
+                              Coordinates: {order.receiver.address.lat.toFixed(4)}, {order.receiver.address.lon.toFixed(4)}
+                            </p>
+                          )}
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             <p>Available dates:</p>
