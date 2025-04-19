@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -68,6 +69,11 @@ const extractLocations = (orders: OrderData[] = []) => {
         order.sender.address.lon
       );
       
+      // Store the polygon segment in the order object for later reference
+      if (polygonSegment !== null) {
+        order.polygonSegment = polygonSegment;
+      }
+      
       locations.push({
         address: `${order.sender.address.street}, ${order.sender.address.city}`,
         lat: order.sender.address.lat,
@@ -84,6 +90,11 @@ const extractLocations = (orders: OrderData[] = []) => {
         order.receiver.address.lat,
         order.receiver.address.lon
       );
+      
+      // Store the polygon segment in the order object for later reference
+      if (polygonSegment !== null) {
+        order.polygonSegment = polygonSegment;
+      }
       
       locations.push({
         address: `${order.receiver.address.street}, ${order.receiver.address.city}`,

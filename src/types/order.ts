@@ -1,3 +1,4 @@
+
 export type ContactInfo = {
   name: string;
   email: string;
@@ -65,6 +66,7 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
+  polygonSegment?: number;  // Added this property to the Order type
   trackingEvents?: {
     shipday?: {
       pickup_id?: string;

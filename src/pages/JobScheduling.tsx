@@ -29,6 +29,7 @@ export interface OrderData {
   scheduled_delivery_date: string | null;
   pickup_date: string[] | null;
   delivery_date: string[] | null;
+  polygonSegment?: number;  // Added this property to the OrderData interface
 }
 
 const JobScheduling = () => {
