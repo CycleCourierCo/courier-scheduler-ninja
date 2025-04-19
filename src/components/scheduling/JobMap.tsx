@@ -521,8 +521,10 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
               iconAnchor: [30, 20]
             });
             
-            // Add the label marker
-            L.marker(center, { icon }).addTo(layer.getPane() as HTMLElement);
+            // Add the label marker - Fix the marker addition by using the map directly
+            if (mapRef.current) {
+              L.marker(center, { icon }).addTo(mapRef.current);
+            }
           }}
         />
         

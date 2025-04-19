@@ -28,8 +28,15 @@ declare module 'react-leaflet' {
     icon?: L.Icon | L.DivIcon;
   }
 
+  export interface GeoJSONProps {
+    data: any;
+    style?: (feature: any) => L.PathOptions;
+    onEachFeature?: (feature: any, layer: L.Layer) => void;
+  }
+
   export const MapContainer: React.FC<MapContainerProps>;
   export const TileLayer: React.FC<TileLayerProps>;
   export const Marker: React.FC<MarkerProps>;
   export const Popup: React.FC<{children?: ReactNode}>;
+  export const GeoJSON: React.FC<GeoJSONProps>;
 }
