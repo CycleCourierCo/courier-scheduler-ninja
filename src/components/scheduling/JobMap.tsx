@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
@@ -433,15 +433,78 @@ const getPolygonStyle = (feature: any) => {
 
 const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   const mapRef = useRef<L.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const polygonLabelsRef = useRef<L.Marker[]>([]);
+  
+  // Clear existing polygon labels when component unmounts or map is reset
+  const clearPolygonLabels = () => {
+    if (mapRef.current) {
+      polygonLabelsRef.current.forEach(marker => {
+        marker.remove();
+      });
+      polygonLabelsRef.current = [];
+    }
+  };
   
   useEffect(() => {
     fixLeafletIcon();
+    
+    // Clean up function to remove markers when component unmounts
+    return () => {
+      clearPolygonLabels();
+    };
+  }, []);
+  
+  // Effect to handle map invalidation when orders change
+  useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
         mapRef.current?.invalidateSize();
       }, 100);
     }
   }, [orders]);
+  
+  // Effect to add polygon labels once map is loaded
+  useEffect(() => {
+    if (mapLoaded && mapRef.current) {
+      // Clear any existing polygon labels first
+      clearPolygonLabels();
+      
+      // Add polygon labels
+      segmentGeoJSON.features.forEach(feature => {
+        const segmentNumber = feature.properties.segment;
+        
+        // Calculate the center point of the polygon
+        const polygonCoords = feature.geometry.coordinates[0].map(
+          coord => new L.LatLng(coord[1], coord[0])
+        );
+        const polygonLatLngs = L.latLngBounds(polygonCoords);
+        const center = polygonLatLngs.getCenter();
+        
+        // Count jobs in this polygon
+        const locations = extractLocations(orders);
+        const jobsInPolygon = locations.filter(
+          loc => loc.polygonSegment === segmentNumber
+        ).length;
+        
+        // Create label for the polygon segment
+        const icon = L.divIcon({
+          className: 'polygon-label',
+          html: `<div style="background: white; padding: 3px; border: 1px solid #666; border-radius: 3px; font-weight: bold;">
+                  P${segmentNumber}<br/>(${jobsInPolygon} jobs)
+                </div>`,
+          iconSize: [60, 40],
+          iconAnchor: [30, 20]
+        });
+        
+        // Add marker to the map
+        if (mapRef.current) {
+          const marker = L.marker(center, { icon }).addTo(mapRef.current);
+          polygonLabelsRef.current.push(marker);
+        }
+      });
+    }
+  }, [mapLoaded, orders]);
   
   const locations = extractLocations(orders);
   
@@ -485,6 +548,7 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
         style={{ height: '100%', width: '100%' }}
         whenCreated={(map) => {
           mapRef.current = map;
+          setMapLoaded(true);
         }}
       >
         <TileLayer
@@ -501,30 +565,14 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
             
             // Type casting the layer to access getBounds
             const polygonLayer = layer as L.Polygon;
-            const center = polygonLayer.getBounds().getCenter();
             
-            // Count jobs in this polygon
+            // Add popup with segment info
+            const locations = extractLocations(orders);
             const jobsInPolygon = locations.filter(
               loc => loc.polygonSegment === segmentNumber
             ).length;
             
-            // Add popup with segment info
             layer.bindPopup(`<strong>Polygon ${segmentNumber}</strong><br>${jobsInPolygon} jobs in this area`);
-            
-            // Create label for the polygon segment
-            const icon = L.divIcon({
-              className: 'polygon-label',
-              html: `<div style="background: white; padding: 3px; border: 1px solid #666; border-radius: 3px; font-weight: bold;">
-                      P${segmentNumber}<br/>(${jobsInPolygon} jobs)
-                    </div>`,
-              iconSize: [60, 40],
-              iconAnchor: [30, 20]
-            });
-            
-            // Add the label marker - Fix the marker addition by using the map directly
-            if (mapRef.current) {
-              L.marker(center, { icon }).addTo(mapRef.current);
-            }
           }}
         />
         
