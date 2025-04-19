@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format } from "date-fns";
 import { Calendar, Check } from "lucide-react";
@@ -50,12 +49,11 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     return format(new Date(dates), "PPP");
   };
 
-  // Show green background for scheduled pickup date when status is collection_scheduled
+  // Extend the green background condition to include both collection_scheduled and delivery_scheduled
   const showScheduledStyle = isScheduled || 
     (orderStatus === 'collection_scheduled' && title === "Pickup Dates") ||
+    (orderStatus === 'delivery_scheduled' && title === "Pickup Dates") ||
     (orderStatus === 'delivery_scheduled' && title === "Delivery Dates");
-
-  const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
 
   // Only prevent date selection for pickup when it's already scheduled
   const preventPickupSelection = title === "Pickup Dates" && orderStatus === 'collection_scheduled';
