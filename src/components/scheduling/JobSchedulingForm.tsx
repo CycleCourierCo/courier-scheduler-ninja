@@ -42,6 +42,23 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({
       const scheduleDateTime = new Date(calendarDate);
       scheduleDateTime.setHours(hours, minutes);
 
+      // If this is a delivery job, check if it's scheduled before pickup
+      if (type === 'delivery') {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('scheduled_pickup_date')
+          .eq('id', orderId)
+          .single();
+
+        if (order?.scheduled_pickup_date) {
+          const pickupDate = new Date(order.scheduled_pickup_date);
+          if (scheduleDateTime < pickupDate) {
+            toast.error("Delivery cannot be scheduled before collection");
+            return;
+          }
+        }
+      }
+
       // Update only the specific job type in the order
       const updateData = type === 'pickup'
         ? { 
