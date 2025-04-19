@@ -81,6 +81,86 @@ const OrderDetail = () => {
     }
   }, [order?.id]);
 
+  const handleSchedulePickup = async () => {
+    if (!id || !selectedPickupDate) {
+      toast.error("Please select pickup date");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const pickupDateTime = new Date(selectedPickupDate);
+      const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
+      pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      
+      const updatedOrder = await updateOrderSchedule(
+        id, 
+        pickupDateTime,
+        undefined
+      );
+      
+      if (!updatedOrder) {
+        throw new Error("Failed to update order schedule");
+      }
+
+      const shipdayResponse = await createShipdayOrder(id, 'pickup');
+      
+      if (shipdayResponse) {
+        setOrder(updatedOrder);
+        toast.success("Pickup has been scheduled and shipment created successfully");
+      } else {
+        setOrder(updatedOrder);
+        toast.warning("Pickup scheduled but failed to create shipment");
+      }
+    } catch (error) {
+      console.error("Error scheduling pickup:", error);
+      toast.error(`Failed to schedule pickup: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleScheduleDelivery = async () => {
+    if (!id || !selectedDeliveryDate) {
+      toast.error("Please select delivery date");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const deliveryDateTime = new Date(selectedDeliveryDate);
+      const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
+      deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      
+      const updatedOrder = await updateOrderSchedule(
+        id,
+        undefined,
+        deliveryDateTime
+      );
+      
+      if (!updatedOrder) {
+        throw new Error("Failed to update order schedule");
+      }
+
+      const shipdayResponse = await createShipdayOrder(id, 'delivery');
+      
+      if (shipdayResponse) {
+        setOrder(updatedOrder);
+        toast.success("Delivery has been scheduled and shipment created successfully");
+      } else {
+        setOrder(updatedOrder);
+        toast.warning("Delivery scheduled but failed to create shipment");
+      }
+    } catch (error) {
+      console.error("Error scheduling delivery:", error);
+      toast.error(`Failed to schedule delivery: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleScheduleOrder = async () => {
     if (!id || !selectedPickupDate || !selectedDeliveryDate) {
       toast.error("Please select both pickup and delivery dates");
@@ -367,21 +447,14 @@ const OrderDetail = () => {
 
               <SchedulingButtons 
                 orderId={id as string}
-                onSchedule={handleScheduleOrder}
-                onCreateShipment={handleCreateShipment}
-                onAdminSchedule={handleAdminScheduleOrder}
-                canSchedule={canSchedule}
+                onSchedulePickup={handleSchedulePickup}
+                onScheduleDelivery={handleScheduleDelivery}
+                onScheduleBoth={handleScheduleOrder}
                 isSubmitting={isSubmitting}
                 isScheduled={isScheduled}
                 pickupDateSelected={!!selectedPickupDate}
                 deliveryDateSelected={!!selectedDeliveryDate}
-                adminPickupDateSelected={!!pickupDatePicker}
-                adminDeliveryDateSelected={!!deliveryDatePicker}
-                showAdminControls={showAdminControls}
-                scheduledDates={{
-                  pickup: order.scheduledPickupDate ? new Date(order.scheduledPickupDate) : null,
-                  delivery: order.scheduledDeliveryDate ? new Date(order.scheduledDeliveryDate) : null
-                }}
+                status={order.status}
               />
             </div>
             

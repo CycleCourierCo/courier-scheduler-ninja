@@ -236,19 +236,35 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
 export const updateOrderSchedule = async (
   id: string,
-  pickupDate: Date,
-  deliveryDate: Date
+  pickupDate?: Date,
+  deliveryDate?: Date
 ): Promise<Order | null> => {
   try {
+    let status = 'scheduled';
+    if (pickupDate && !deliveryDate) {
+      status = 'collection_scheduled';
+    } else if (!pickupDate && deliveryDate) {
+      status = 'delivery_scheduled';
+    }
+
+    const updateData: any = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (pickupDate) {
+      updateData.scheduled_pickup_date = pickupDate.toISOString();
+    }
+    if (deliveryDate) {
+      updateData.scheduled_delivery_date = deliveryDate.toISOString();
+    }
+    if (pickupDate && deliveryDate) {
+      updateData.scheduled_at = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from("orders")
-      .update({
-        scheduled_pickup_date: pickupDate.toISOString(),
-        scheduled_delivery_date: deliveryDate.toISOString(),
-        status: "scheduled",
-        scheduled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();
