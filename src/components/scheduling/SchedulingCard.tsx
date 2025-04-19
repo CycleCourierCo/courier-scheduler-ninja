@@ -9,6 +9,19 @@ import JobSchedulingForm from "./JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
+// Create a type-safe helper function to get the correct badge variant
+const getPolygonBadgeVariant = (segment: number | undefined) => {
+  if (!segment) return undefined;
+  
+  // Ensure segment is between 1-8
+  const safeSegment = Math.min(Math.max(1, segment), 8);
+  
+  // Use type assertion to tell TypeScript this is a valid badge variant
+  return `p${safeSegment}-segment` as 
+    "p1-segment" | "p2-segment" | "p3-segment" | "p4-segment" | 
+    "p5-segment" | "p6-segment" | "p7-segment" | "p8-segment";
+};
+
 interface SchedulingCardProps {
   group: SchedulingGroup;
   onSchedule: (group: SchedulingGroup) => void;
@@ -49,6 +62,9 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
     deliveryDate: firstOrder.scheduledDeliveryDate
   });
 
+  // Get polygon badge variant using our type-safe helper
+  const badgeVariant = getPolygonBadgeVariant(firstOrder.polygonSegment);
+
   return (
     <Card 
       ref={dragRef} 
@@ -61,12 +77,12 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             <span>{isPickup ? 'Collection' : 'Delivery'}</span>
           </div>
           <div className="flex items-center gap-2">
-            {group.orders[0].polygonSegment && (
+            {firstOrder.polygonSegment && badgeVariant && (
               <Badge 
-                variant={`p${group.orders[0].polygonSegment}-segment`} 
+                variant={badgeVariant}
                 className="text-xs"
               >
-                P{group.orders[0].polygonSegment}
+                P{firstOrder.polygonSegment}
               </Badge>
             )}
             {isScheduled && (
@@ -132,4 +148,3 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
 };
 
 export default SchedulingCard;
-

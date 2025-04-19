@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,19 @@ export interface OrderData {
   delivery_date: string[] | null;
   polygonSegment?: number;
 }
+
+// Create a type-safe helper function to get the correct badge variant
+const getPolygonBadgeVariant = (segment: number | undefined) => {
+  if (!segment) return undefined;
+  
+  // Ensure segment is between 1-8
+  const safeSegment = Math.min(Math.max(1, segment), 8);
+  
+  // Use type assertion to tell TypeScript this is a valid badge variant
+  return `p${safeSegment}-segment` as 
+    "p1-segment" | "p2-segment" | "p3-segment" | "p4-segment" | 
+    "p5-segment" | "p6-segment" | "p7-segment" | "p8-segment";
+};
 
 const JobScheduling = () => {
   const { data: orders, isLoading, refetch } = useQuery({
@@ -178,7 +192,7 @@ const JobScheduling = () => {
                           <div className="flex items-center gap-2">
                             {order.polygonSegment && (
                               <Badge 
-                                variant={`p${order.polygonSegment}-segment`} 
+                                variant={getPolygonBadgeVariant(order.polygonSegment)}
                                 className="text-xs"
                               >
                                 P{order.polygonSegment}
@@ -230,7 +244,7 @@ const JobScheduling = () => {
                           <div className="flex items-center gap-2">
                             {order.polygonSegment && (
                               <Badge 
-                                variant={`p${order.polygonSegment}-segment`} 
+                                variant={getPolygonBadgeVariant(order.polygonSegment)}
                                 className="text-xs"
                               >
                                 P{order.polygonSegment}
