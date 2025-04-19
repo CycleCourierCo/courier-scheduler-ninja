@@ -18,6 +18,8 @@ import ContactDetails from "@/components/order-detail/ContactDetails";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import { pollOrderUpdates } from "@/services/orderService";
+import { supabase } from "@/integrations/supabase/client";
+import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -293,12 +295,37 @@ const OrderDetail = () => {
     
     try {
       setStatusUpdating(true);
-      const updatedOrder = await updateAdminOrderStatus(id, newStatus);
+      let updatedOrder;
+      
+      // If status is being set to scheduled_dates_pending, reset scheduled dates
+      if (newStatus === 'scheduled_dates_pending') {
+        const { data, error } = await supabase
+          .from('orders')
+          .update({ 
+            status: newStatus,
+            scheduled_pickup_date: null,
+            scheduled_delivery_date: null
+          })
+          .eq('id', id)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        updatedOrder = data;
+      } else {
+        updatedOrder = await updateAdminOrderStatus(id, newStatus);
+      }
       
       if (updatedOrder) {
-        setOrder(updatedOrder);
-        setSelectedStatus(updatedOrder.status);
+        setOrder(mapDbOrderToOrderType(updatedOrder));
+        setSelectedStatus(newStatus);
         toast.success(`Status updated to ${newStatus}`);
+        
+        // Reset date pickers if status is scheduled_dates_pending
+        if (newStatus === 'scheduled_dates_pending') {
+          setPickupDatePicker(undefined);
+          setDeliveryDatePicker(undefined);
+        }
       }
     } catch (error) {
       console.error("Error updating status:", error);
