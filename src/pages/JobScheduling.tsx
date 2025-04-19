@@ -134,9 +134,16 @@ const JobScheduling = () => {
                       <CardContent className="p-3 space-y-3">
                         <div className="flex justify-between items-center">
                           <h3 className="font-medium text-sm">Collection</h3>
-                          {order.scheduled_pickup_date && (
-                            <Badge variant="outline" className="text-xs">Scheduled</Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {order.polygonSegment && (
+                              <Badge variant="secondary" className="text-xs">
+                                P{order.polygonSegment}
+                              </Badge>
+                            )}
+                            {order.scheduled_pickup_date && (
+                              <Badge variant="outline" className="text-xs">Scheduled</Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
@@ -168,9 +175,16 @@ const JobScheduling = () => {
                       <CardContent className="p-3 space-y-3">
                         <div className="flex justify-between items-center">
                           <h3 className="font-medium text-sm">Delivery</h3>
-                          {order.scheduled_delivery_date && (
-                            <Badge variant="outline" className="text-xs">Scheduled</Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {order.polygonSegment && (
+                              <Badge variant="secondary" className="text-xs">
+                                P{order.polygonSegment}
+                              </Badge>
+                            )}
+                            {order.scheduled_delivery_date && (
+                              <Badge variant="outline" className="text-xs">Scheduled</Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
