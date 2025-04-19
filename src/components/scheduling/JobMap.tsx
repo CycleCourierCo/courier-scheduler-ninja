@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
@@ -89,6 +89,269 @@ const extractLocations = (orders: OrderData[] = []) => {
   return sortedLocations;
 };
 
+const segmentGeoJSON = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 1,
+        "bearing_start": 0.0,
+        "bearing_end": 45.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              -1.8904,
+              55.18416481775619
+            ],
+            [
+              1.3834377003453167,
+              54.35034468072543
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 2,
+        "bearing_start": 45.0,
+        "bearing_end": 90.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              1.3834377003453167,
+              54.35034468072543
+            ],
+            [
+              2.5345602214301945,
+              52.403551499812956
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 3,
+        "bearing_start": 90.0,
+        "bearing_end": 135.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              2.5345602214301945,
+              52.403551499812956
+            ],
+            [
+              1.1115894157212958,
+              50.539143784097334
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 4,
+        "bearing_start": 135.0,
+        "bearing_end": 180.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              1.1115894157212958,
+              50.539143784097334
+            ],
+            [
+              -1.8903999999999999,
+              49.78823518224381
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 5,
+        "bearing_start": 180.0,
+        "bearing_end": 225.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              -1.8903999999999999,
+              49.78823518224381
+            ],
+            [
+              -4.892389415721296,
+              50.539143784097334
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 6,
+        "bearing_start": 225.0,
+        "bearing_end": 270.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              -4.892389415721296,
+              50.539143784097334
+            ],
+            [
+              -6.315360221430195,
+              52.403551499812956
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 7,
+        "bearing_start": 270.0,
+        "bearing_end": 315.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              -6.315360221430195,
+              52.403551499812956
+            ],
+            [
+              -5.164237700345319,
+              54.35034468072543
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "segment": 8,
+        "bearing_start": 315.0,
+        "bearing_end": 360.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -1.8904,
+              52.4862
+            ],
+            [
+              -5.164237700345319,
+              54.35034468072543
+            ],
+            [
+              -1.8904000000000014,
+              55.18416481775619
+            ],
+            [
+              -1.8904,
+              52.4862
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+};
+
+const getPolygonStyle = (feature: any) => {
+  return {
+    fillColor: '#3388ff',
+    fillOpacity: 0.2,
+    color: '#3388ff',
+    weight: 2,
+  };
+};
+
 const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   const mapRef = useRef<L.Map | null>(null);
   
@@ -107,7 +370,6 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   
   const locations = extractLocations(orders);
   
-  // Calculate center only if we have locations
   let centerLat = 51.5074; // Default to London
   let centerLng = -0.1278;
   
@@ -119,7 +381,6 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   console.log(`Map center: ${centerLat}, ${centerLng}`);
   console.log(`Number of locations to display: ${locations.length}`);
   
-  // Create custom icons for collection and delivery
   const collectionIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -151,6 +412,10 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        />
+        <GeoJSON 
+          data={segmentGeoJSON}
+          style={getPolygonStyle}
         />
         {locations.map((loc, idx) => (
           <Marker 
