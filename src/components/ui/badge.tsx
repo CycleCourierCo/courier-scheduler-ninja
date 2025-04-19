@@ -20,6 +20,15 @@ const badgeVariants = cva(
         warning: "border-transparent bg-amber-500 text-white",
         progress: "border-transparent bg-courier-200 text-courier-800",
         active: "border-transparent bg-courier-600 text-white",
+        // New polygon segment color variants
+        "p1-segment": "border-transparent bg-[#8B5CF6] text-white", // Vivid Purple
+        "p2-segment": "border-transparent bg-[#F97316] text-white", // Bright Orange
+        "p3-segment": "border-transparent bg-[#0EA5E9] text-white", // Ocean Blue
+        "p4-segment": "border-transparent bg-[#10B981] text-white", // Soft Green
+        "p5-segment": "border-transparent bg-[#F43F5E] text-white", // Soft Pink
+        "p6-segment": "border-transparent bg-[#14B8A6] text-white", // Teal
+        "p7-segment": "border-transparent bg-[#6366F1] text-white", // Indigo
+        "p8-segment": "border-transparent bg-[#EC4899] text-white", // Pink
       },
     },
     defaultVariants: {
@@ -39,3 +48,4 @@ function Badge({ className, variant, ...props }: BadgeProps) {
 }
 
 export { Badge, badgeVariants }
+

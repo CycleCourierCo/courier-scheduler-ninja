@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +15,7 @@ import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { isPointInPolygon } from "@/components/scheduling/JobMap";
+import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 
 export interface OrderData {
   id: string;
@@ -32,9 +32,6 @@ export interface OrderData {
   delivery_date: string[] | null;
   polygonSegment?: number;
 }
-
-// Import the polygon data from JobMap to use for segment calculation
-import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 
 const JobScheduling = () => {
   const { data: orders, isLoading, refetch } = useQuery({
@@ -60,9 +57,7 @@ const JobScheduling = () => {
         status: order.status as OrderStatus
       })) as OrderData[];
 
-      // Assign polygon segments to orders based on their locations
       mappedOrders.forEach(order => {
-        // Try sender address first
         if (order.sender.address.lat && order.sender.address.lon) {
           order.polygonSegment = getPolygonSegment(
             order.sender.address.lat,
@@ -70,7 +65,6 @@ const JobScheduling = () => {
           );
         }
         
-        // If no segment found for sender, try receiver address
         if (!order.polygonSegment && order.receiver.address.lat && order.receiver.address.lon) {
           order.polygonSegment = getPolygonSegment(
             order.receiver.address.lat,
@@ -88,7 +82,6 @@ const JobScheduling = () => {
     }
   });
 
-  // Function to determine which polygon a location belongs to
   const getPolygonSegment = (lat: number, lng: number): number | null => {
     for (let i = 0; i < segmentGeoJSON.features.length; i++) {
       const polygon = segmentGeoJSON.features[i].geometry.coordinates[0];
@@ -99,7 +92,6 @@ const JobScheduling = () => {
     return null;
   };
 
-  // Debug logging to trace polygon segment assignment
   useEffect(() => {
     if (orders) {
       console.log("Orders loaded with polygon segments:", 
@@ -185,7 +177,10 @@ const JobScheduling = () => {
                           <h3 className="font-medium text-sm">Collection</h3>
                           <div className="flex items-center gap-2">
                             {order.polygonSegment && (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge 
+                                variant={`p${order.polygonSegment}-segment`} 
+                                className="text-xs"
+                              >
                                 P{order.polygonSegment}
                               </Badge>
                             )}
@@ -234,7 +229,10 @@ const JobScheduling = () => {
                           <h3 className="font-medium text-sm">Delivery</h3>
                           <div className="flex items-center gap-2">
                             {order.polygonSegment && (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge 
+                                variant={`p${order.polygonSegment}-segment`} 
+                                className="text-xs"
+                              >
                                 P{order.polygonSegment}
                               </Badge>
                             )}

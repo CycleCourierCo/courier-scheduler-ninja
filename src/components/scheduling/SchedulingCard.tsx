@@ -62,7 +62,10 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
           </div>
           <div className="flex items-center gap-2">
             {group.orders[0].polygonSegment && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge 
+                variant={`p${group.orders[0].polygonSegment}-segment`} 
+                className="text-xs"
+              >
                 P{group.orders[0].polygonSegment}
               </Badge>
             )}
