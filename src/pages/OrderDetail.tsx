@@ -304,7 +304,8 @@ const OrderDetail = () => {
           .update({ 
             status: newStatus,
             scheduled_pickup_date: null,
-            scheduled_delivery_date: null
+            scheduled_delivery_date: null,
+            scheduled_at: null  // Also reset the scheduled_at timestamp
           })
           .eq('id', id)
           .select()
@@ -317,15 +318,19 @@ const OrderDetail = () => {
       }
       
       if (updatedOrder) {
-        setOrder(mapDbOrderToOrderType(updatedOrder));
+        const mappedOrder = mapDbOrderToOrderType(updatedOrder);
+        setOrder(mappedOrder);
         setSelectedStatus(newStatus);
-        toast.success(`Status updated to ${newStatus}`);
         
-        // Reset date pickers if status is scheduled_dates_pending
+        // Reset date pickers and selected dates if status is scheduled_dates_pending
         if (newStatus === 'scheduled_dates_pending') {
           setPickupDatePicker(undefined);
           setDeliveryDatePicker(undefined);
+          setSelectedPickupDate(null);
+          setSelectedDeliveryDate(null);
         }
+        
+        toast.success(`Status updated to ${newStatus}`);
       }
     } catch (error) {
       console.error("Error updating status:", error);
