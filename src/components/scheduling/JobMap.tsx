@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
@@ -19,7 +19,35 @@ interface JobMapProps {
   orders?: OrderData[];
 }
 
-// Extract all collection and delivery locations from orders
+// Function to check if a point is inside a polygon
+const isPointInPolygon = (point: [number, number], polygon: number[][]) => {
+  const x = point[0], y = point[1];
+  let inside = false;
+  
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0], yi = polygon[i][1];
+    const xj = polygon[j][0], yj = polygon[j][1];
+    
+    const intersect = ((yi > y) !== (yj > y))
+        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  
+  return inside;
+};
+
+// Function to determine which polygon a location belongs to
+const getPolygonSegment = (lat: number, lng: number): number | null => {
+  for (let i = 0; i < segmentGeoJSON.features.length; i++) {
+    const polygon = segmentGeoJSON.features[i].geometry.coordinates[0];
+    if (isPointInPolygon([lng, lat], polygon)) {
+      return i + 1;
+    }
+  }
+  return null;
+};
+
+// Extract locations function updated to include polygon segment
 const extractLocations = (orders: OrderData[] = []) => {
   const locations: { 
     address: string; 
@@ -27,40 +55,47 @@ const extractLocations = (orders: OrderData[] = []) => {
     lng: number;
     type: 'collection' | 'delivery';
     orderNumber: string;
-    date?: Date;  // Add date field
+    date?: Date;
+    polygonSegment?: number;  // Add polygon segment
   }[] = [];
   
   console.log(`Extracting locations from ${orders.length} orders`);
   
   orders.forEach(order => {
-    // Add collection point with scheduled pickup date
     if (order.sender.address.lat && order.sender.address.lon) {
+      const polygonSegment = getPolygonSegment(
+        order.sender.address.lat,
+        order.sender.address.lon
+      );
+      
       locations.push({
         address: `${order.sender.address.street}, ${order.sender.address.city}`,
         lat: order.sender.address.lat,
         lng: order.sender.address.lon,
         type: 'collection',
         orderNumber: order.tracking_number || 'No tracking number',
-        date: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date) : undefined
+        date: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date) : undefined,
+        polygonSegment
       });
-      console.log(`Added collection point for order ${order.tracking_number}`);
     }
     
-    // Add delivery point with scheduled delivery date
     if (order.receiver.address.lat && order.receiver.address.lon) {
+      const polygonSegment = getPolygonSegment(
+        order.receiver.address.lat,
+        order.receiver.address.lon
+      );
+      
       locations.push({
         address: `${order.receiver.address.street}, ${order.receiver.address.city}`,
         lat: order.receiver.address.lat,
         lng: order.receiver.address.lon,
         type: 'delivery',
         orderNumber: order.tracking_number || 'No tracking number',
-        date: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined
+        date: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined,
+        polygonSegment
       });
-      console.log(`Added delivery point for order ${order.tracking_number}`);
     }
   });
-  
-  console.log(`Total locations extracted: ${locations.length}`);
   
   // Sort locations by date if available
   const sortedLocations = locations.sort((a, b) => {
@@ -357,15 +392,11 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   
   useEffect(() => {
     fixLeafletIcon();
-    
-    // Ensure map is rendered within bounds
     if (mapRef.current) {
       setTimeout(() => {
         mapRef.current?.invalidateSize();
       }, 100);
     }
-    
-    console.log(`JobMap received ${orders.length} orders`);
   }, [orders]);
   
   const locations = extractLocations(orders);
@@ -377,9 +408,6 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
     centerLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
     centerLng = locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length;
   }
-  
-  console.log(`Map center: ${centerLat}, ${centerLng}`);
-  console.log(`Number of locations to display: ${locations.length}`);
   
   const collectionIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -398,7 +426,45 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
     popupAnchor: [1, -34],
     shadowSize: [41, 41]
   });
-  
+
+  // Create a GeoJSON layer with labels
+  useEffect(() => {
+    if (mapRef.current) {
+      // Clear existing GeoJSON layers
+      mapRef.current.eachLayer((layer) => {
+        if (layer instanceof L.GeoJSON) {
+          mapRef.current?.removeLayer(layer);
+        }
+      });
+
+      // Add new GeoJSON layer with labels
+      L.geoJSON(segmentGeoJSON as any, {
+        style: getPolygonStyle,
+        onEachFeature: (feature, layer) => {
+          const segmentNumber = feature.properties.segment;
+          const center = layer.getBounds().getCenter();
+          
+          // Count jobs in this polygon
+          const jobsInPolygon = locations.filter(
+            loc => loc.polygonSegment === segmentNumber
+          ).length;
+          
+          // Add a label with polygon number and job count
+          L.marker(center, {
+            icon: L.divIcon({
+              className: 'polygon-label',
+              html: `<div style="background: white; padding: 3px; border: 1px solid #666; border-radius: 3px;">
+                      P${segmentNumber}<br/>(${jobsInPolygon} jobs)
+                    </div>`,
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            })
+          }).addTo(mapRef.current!);
+        }
+      }).addTo(mapRef.current);
+    }
+  }, [locations, mapRef.current]);
+
   return (
     <div className="h-[400px] w-full mb-8 rounded-lg overflow-hidden border border-border" id="map-container">
       <MapContainer 
@@ -414,9 +480,6 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         
-        {/* Add GeoJSON layer directly in the component tree */}
-        <GeoJSON data={segmentGeoJSON as any} style={getPolygonStyle} />
-        
         {locations.map((loc, idx) => (
           <Marker 
             key={`${loc.type}-${loc.orderNumber}-${idx}`} 
@@ -425,7 +488,10 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
           >
             <Popup>
               <div className="p-2">
-                <p className="font-semibold">{loc.type === 'collection' ? 'Collection Point' : 'Delivery Point'}</p>
+                <p className="font-semibold">
+                  {loc.type === 'collection' ? 'Collection Point' : 'Delivery Point'}
+                  {loc.polygonSegment && ` (P${loc.polygonSegment})`}
+                </p>
                 <p className="text-sm text-muted-foreground">{loc.address}</p>
                 <p className="text-xs text-muted-foreground mt-1">Order: {loc.orderNumber}</p>
                 {loc.date && (
