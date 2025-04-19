@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
@@ -398,6 +398,16 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
     popupAnchor: [1, -34],
     shadowSize: [41, 41]
   });
+
+  // Create a GeoJSON layer for polygons
+  const addPolygonLayer = (map: L.Map) => {
+    if (map) {
+      // Create and add the polygon layer with GeoJSON data
+      L.geoJSON(segmentGeoJSON as any, {
+        style: getPolygonStyle
+      }).addTo(map);
+    }
+  };
   
   return (
     <div className="h-[400px] w-full mb-8 rounded-lg overflow-hidden border border-border" id="map-container">
@@ -407,15 +417,13 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
         style={{ height: '100%', width: '100%' }}
         whenCreated={(map) => {
           mapRef.current = map;
+          // Add the GeoJSON polygon layer after map creation
+          addPolygonLayer(map);
         }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
-        <GeoJSON 
-          data={segmentGeoJSON}
-          style={getPolygonStyle}
         />
         {locations.map((loc, idx) => (
           <Marker 
