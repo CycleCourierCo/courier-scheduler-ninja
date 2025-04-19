@@ -60,9 +60,16 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             <span className={`mr-2 w-3 h-3 rounded-full ${group.isOptimal ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
             <span>{isPickup ? 'Collection' : 'Delivery'}</span>
           </div>
-          {isScheduled && (
-            <Badge variant="outline" className="text-xs">Scheduled</Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {group.orders[0].polygonSegment && (
+              <Badge variant="secondary" className="text-xs">
+                P{group.orders[0].polygonSegment}
+              </Badge>
+            )}
+            {isScheduled && (
+              <Badge variant="outline" className="text-xs">Scheduled</Badge>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       
