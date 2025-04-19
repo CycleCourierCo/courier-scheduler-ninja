@@ -1,3 +1,4 @@
+
 import React from "react";
 import { format } from "date-fns";
 import { Calendar, Check } from "lucide-react";
@@ -61,6 +62,9 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   const preventDeliverySelection = title === "Delivery Dates" && orderStatus === 'delivery_scheduled';
   
   const isDateSelectionDisabled = preventPickupSelection || preventDeliverySelection || isSubmitting;
+  
+  // Define the missing canSelectDate variable
+  const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
 
   return (
     <div>
