@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { isPointInPolygon } from "@/components/scheduling/JobMap";
 import { segmentGeoJSON } from "@/components/scheduling/JobMap";
+import PostcodePolygonSearch from "@/components/scheduling/PostcodePolygonSearch";
 
 export interface OrderData {
   id: string;
@@ -35,14 +35,11 @@ export interface OrderData {
   receiverPolygonSegment?: number;
 }
 
-// Create a type-safe helper function to get the correct badge variant
 const getPolygonBadgeVariant = (segment: number | undefined) => {
   if (!segment) return undefined;
   
-  // Ensure segment is between 1-8
   const safeSegment = Math.min(Math.max(1, segment), 8);
   
-  // Use type assertion to tell TypeScript this is a valid badge variant
   return `p${safeSegment}-segment` as 
     "p1-segment" | "p2-segment" | "p3-segment" | "p4-segment" | 
     "p5-segment" | "p6-segment" | "p7-segment" | "p8-segment";
@@ -72,9 +69,7 @@ const JobScheduling = () => {
         status: order.status as OrderStatus
       })) as OrderData[];
 
-      // Assign polygon segments separately for sender and receiver addresses
       mappedOrders.forEach(order => {
-        // Assign sender polygon segment if coordinates exist
         if (order.sender.address.lat && order.sender.address.lon) {
           order.senderPolygonSegment = getPolygonSegment(
             order.sender.address.lat,
@@ -82,7 +77,6 @@ const JobScheduling = () => {
           );
         }
         
-        // Assign receiver polygon segment if coordinates exist
         if (order.receiver.address.lat && order.receiver.address.lon) {
           order.receiverPolygonSegment = getPolygonSegment(
             order.receiver.address.lat,
@@ -105,7 +99,7 @@ const JobScheduling = () => {
     for (let i = 0; i < segmentGeoJSON.features.length; i++) {
       const polygon = segmentGeoJSON.features[i].geometry.coordinates[0];
       if (isPointInPolygon([lng, lat], polygon)) {
-        return i + 1; // Segment numbers are 1-based
+        return i + 1;
       }
     }
     return null;
@@ -145,6 +139,8 @@ const JobScheduling = () => {
             Manage and schedule deliveries
           </p>
         </DashboardHeader>
+
+        <PostcodePolygonSearch />
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
