@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -19,15 +18,16 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    // Check if date is valid before formatting
-    if (isNaN(dateObj.getTime())) {
+    
+    if (!dateObj || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected:", date);
       return "Invalid date";
     }
+    
     return format(dateObj, formatStr);
   } catch (error) {
     console.error("Error formatting date:", error, date);
-    return "Date error";
+    return "Date format error";
   }
 };
 
@@ -63,7 +63,6 @@ const CustomerOrderDetail = () => {
 
   useEffect(() => {
     if (order?.id) {
-      // Set up polling for updates
       const cleanup = pollOrderUpdates(order.id, (updatedOrder) => {
         setOrder(updatedOrder);
       }, 5000); // Poll every 5 seconds
@@ -108,7 +107,7 @@ const CustomerOrderDetail = () => {
     
     if (Array.isArray(dates)) {
       return dates
-        .filter(date => date) // Filter out null/undefined
+        .filter(date => date && !isNaN(new Date(date).getTime()))
         .map(date => {
           try {
             return safeFormat(date, "PPP");
@@ -117,7 +116,7 @@ const CustomerOrderDetail = () => {
             return "Invalid date";
           }
         })
-        .filter(Boolean) // Filter out any failed formats
+        .filter(Boolean)
         .join(", ") || "Not scheduled";
     }
     
@@ -198,7 +197,6 @@ const CustomerOrderDetail = () => {
               </div>
               
               <div className="space-y-4">
-                {/* Replace the custom tracking details with the TrackingTimeline component */}
                 <TrackingTimeline order={order} />
                 
                 <div className="mt-4">

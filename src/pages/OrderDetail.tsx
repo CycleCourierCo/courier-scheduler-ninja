@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { Order, OrderStatus } from "@/types/order";
@@ -26,10 +26,12 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(dateObj.getTime())) {
+    
+    if (!dateObj || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected:", date);
       return "Invalid date";
     }
+    
     return format(dateObj, formatStr);
   } catch (error) {
     console.error("Error formatting date:", error, date);

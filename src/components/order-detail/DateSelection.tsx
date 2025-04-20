@@ -1,6 +1,5 @@
-
 import React from "react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { Calendar, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,16 +13,19 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
   if (!date) return "Not scheduled";
   
   try {
+    // Parse string dates to Date objects
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
+    
+    // Check if date is valid before formatting
+    if (!dateObj || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected in DateSelection:", date);
       return "Invalid date";
     }
+    
     return format(dateObj, formatStr);
   } catch (error) {
     console.error("Error formatting date in DateSelection:", error, date);
-    return "Date error";
+    return "Date format error";
   }
 };
 
@@ -63,7 +65,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     
     if (Array.isArray(dates)) {
       return dates
-        .filter(date => date) // Filter out null/undefined 
+        .filter(date => date && !isNaN(new Date(date).getTime())) // Filter out invalid dates
         .map(date => {
           try {
             return safeFormat(date, "PPP");
@@ -120,11 +122,24 @@ const DateSelection: React.FC<DateSelectionProps> = ({
               <SelectContent>
                 {Array.isArray(availableDates) && availableDates
                   .filter(date => date && !isNaN(new Date(date).getTime())) // Filter out invalid dates
-                  .map((date, index) => (
-                    <SelectItem key={index} value={new Date(date).toISOString()}>
-                      {safeFormat(date, "PPP")}
-                    </SelectItem>
-                  ))}
+                  .map((date, index) => {
+                    try {
+                      // Validate date before using it
+                      const validDate = new Date(date);
+                      if (!isNaN(validDate.getTime())) {
+                        return (
+                          <SelectItem key={index} value={validDate.toISOString()}>
+                            {safeFormat(validDate, "PPP")}
+                          </SelectItem>
+                        );
+                      }
+                      return null;
+                    } catch (error) {
+                      console.error("Error processing date for select item:", error, date);
+                      return null;
+                    }
+                  })
+                  .filter(Boolean)} {/* Filter out any null items */}
               </SelectContent>
             </Select>
           </div>
