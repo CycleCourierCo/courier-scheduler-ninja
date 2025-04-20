@@ -47,7 +47,7 @@ export const getPolygonSegment = (lat: number, lng: number): number | null => {
   return null;
 };
 
-// Extract locations function updated to include polygon segment
+// Extract locations function updated to use separate sender and receiver polygon segments
 const extractLocations = (orders: OrderData[] = []) => {
   const locations: { 
     address: string; 
@@ -56,41 +56,13 @@ const extractLocations = (orders: OrderData[] = []) => {
     type: 'collection' | 'delivery';
     orderNumber: string;
     date?: Date;
-    polygonSegment?: number;  // Add polygon segment
+    polygonSegment?: number;
   }[] = [];
   
   console.log(`Extracting locations from ${orders.length} orders`);
   
-  // First, assign polygon segments to orders
   orders.forEach(order => {
-    // Check and assign segment for sender address
-    if (order.sender.address.lat && order.sender.address.lon) {
-      const senderSegment = getPolygonSegment(
-        order.sender.address.lat,
-        order.sender.address.lon
-      );
-      
-      // Store the polygon segment in the order object
-      if (senderSegment !== null) {
-        order.polygonSegment = senderSegment;
-      }
-    }
-    
-    // Also check receiver address if sender doesn't have a segment
-    if (!order.polygonSegment && order.receiver.address.lat && order.receiver.address.lon) {
-      const receiverSegment = getPolygonSegment(
-        order.receiver.address.lat,
-        order.receiver.address.lon
-      );
-      
-      if (receiverSegment !== null) {
-        order.polygonSegment = receiverSegment;
-      }
-    }
-  });
-  
-  // Now extract locations after segment assignment
-  orders.forEach(order => {
+    // Add sender location if coordinates exist
     if (order.sender.address.lat && order.sender.address.lon) {
       locations.push({
         address: `${order.sender.address.street}, ${order.sender.address.city}`,
@@ -99,10 +71,11 @@ const extractLocations = (orders: OrderData[] = []) => {
         type: 'collection',
         orderNumber: order.tracking_number || 'No tracking number',
         date: order.scheduled_pickup_date ? new Date(order.scheduled_pickup_date) : undefined,
-        polygonSegment: order.polygonSegment
+        polygonSegment: order.senderPolygonSegment
       });
     }
     
+    // Add receiver location if coordinates exist
     if (order.receiver.address.lat && order.receiver.address.lon) {
       locations.push({
         address: `${order.receiver.address.street}, ${order.receiver.address.city}`,
@@ -111,7 +84,7 @@ const extractLocations = (orders: OrderData[] = []) => {
         type: 'delivery',
         orderNumber: order.tracking_number || 'No tracking number',
         date: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined,
-        polygonSegment: order.polygonSegment
+        polygonSegment: order.receiverPolygonSegment
       });
     }
   });
@@ -511,7 +484,8 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   // Debug logging
   console.log('Orders with polygon segments:', orders.map(o => ({
     id: o.id,
-    polygonSegment: o.polygonSegment
+    senderPolygonSegment: o.senderPolygonSegment,
+    receiverPolygonSegment: o.receiverPolygonSegment
   })));
   
   let centerLat = 51.5074; // Default to London

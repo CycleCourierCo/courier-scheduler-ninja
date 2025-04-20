@@ -31,7 +31,8 @@ export interface OrderData {
   scheduled_delivery_date: string | null;
   pickup_date: string[] | null;
   delivery_date: string[] | null;
-  polygonSegment?: number;
+  senderPolygonSegment?: number;
+  receiverPolygonSegment?: number;
 }
 
 // Create a type-safe helper function to get the correct badge variant
@@ -71,16 +72,19 @@ const JobScheduling = () => {
         status: order.status as OrderStatus
       })) as OrderData[];
 
+      // Assign polygon segments separately for sender and receiver addresses
       mappedOrders.forEach(order => {
+        // Assign sender polygon segment if coordinates exist
         if (order.sender.address.lat && order.sender.address.lon) {
-          order.polygonSegment = getPolygonSegment(
+          order.senderPolygonSegment = getPolygonSegment(
             order.sender.address.lat,
             order.sender.address.lon
           );
         }
         
-        if (!order.polygonSegment && order.receiver.address.lat && order.receiver.address.lon) {
-          order.polygonSegment = getPolygonSegment(
+        // Assign receiver polygon segment if coordinates exist
+        if (order.receiver.address.lat && order.receiver.address.lon) {
+          order.receiverPolygonSegment = getPolygonSegment(
             order.receiver.address.lat,
             order.receiver.address.lon
           );
@@ -89,7 +93,8 @@ const JobScheduling = () => {
       
       console.log("Mapped orders with segments:", mappedOrders.map(o => ({
         id: o.id, 
-        polygonSegment: o.polygonSegment
+        senderPolygonSegment: o.senderPolygonSegment,
+        receiverPolygonSegment: o.receiverPolygonSegment
       })));
       
       return mappedOrders;
@@ -109,7 +114,11 @@ const JobScheduling = () => {
   useEffect(() => {
     if (orders) {
       console.log("Orders loaded with polygon segments:", 
-        orders.map(o => ({ id: o.id, polygonSegment: o.polygonSegment })));
+        orders.map(o => ({ 
+          id: o.id, 
+          senderPolygonSegment: o.senderPolygonSegment,
+          receiverPolygonSegment: o.receiverPolygonSegment
+        })));
     }
   }, [orders]);
 
@@ -190,12 +199,12 @@ const JobScheduling = () => {
                         <div className="flex justify-between items-center">
                           <h3 className="font-medium text-sm">Collection</h3>
                           <div className="flex items-center gap-2">
-                            {order.polygonSegment && (
+                            {order.senderPolygonSegment && (
                               <Badge 
-                                variant={getPolygonBadgeVariant(order.polygonSegment)}
+                                variant={getPolygonBadgeVariant(order.senderPolygonSegment)}
                                 className="text-xs"
                               >
-                                P{order.polygonSegment}
+                                P{order.senderPolygonSegment}
                               </Badge>
                             )}
                             {order.scheduled_pickup_date && (
@@ -242,12 +251,12 @@ const JobScheduling = () => {
                         <div className="flex justify-between items-center">
                           <h3 className="font-medium text-sm">Delivery</h3>
                           <div className="flex items-center gap-2">
-                            {order.polygonSegment && (
+                            {order.receiverPolygonSegment && (
                               <Badge 
-                                variant={getPolygonBadgeVariant(order.polygonSegment)}
+                                variant={getPolygonBadgeVariant(order.receiverPolygonSegment)}
                                 className="text-xs"
                               >
-                                P{order.polygonSegment}
+                                P{order.receiverPolygonSegment}
                               </Badge>
                             )}
                             {order.scheduled_delivery_date && (
