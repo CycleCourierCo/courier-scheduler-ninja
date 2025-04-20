@@ -7,6 +7,10 @@ import { Search } from "lucide-react";
 import { isPointInPolygon, segmentGeoJSON } from './JobMap';
 import { toast } from 'sonner';
 
+type PolygonSegmentVariant = 
+  | "p1-segment" | "p2-segment" | "p3-segment" | "p4-segment" 
+  | "p5-segment" | "p6-segment" | "p7-segment" | "p8-segment";
+
 const PostcodePolygonSearch = () => {
   const [postcode, setPostcode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,8 +57,23 @@ const PostcodePolygonSearch = () => {
     }
   };
 
-  const getPolygonBadgeVariant = (segment: number) => {
-    return `p${segment}-segment` as const;
+  const getPolygonBadgeVariant = (segment: number): PolygonSegmentVariant => {
+    // Ensure segment is within valid range (1-8)
+    const safeSegment = Math.min(Math.max(1, segment), 8);
+    
+    // Create a type-safe mapping
+    const variantMap: Record<number, PolygonSegmentVariant> = {
+      1: "p1-segment",
+      2: "p2-segment",
+      3: "p3-segment",
+      4: "p4-segment",
+      5: "p5-segment",
+      6: "p6-segment",
+      7: "p7-segment",
+      8: "p8-segment"
+    };
+    
+    return variantMap[safeSegment];
   };
 
   return (
