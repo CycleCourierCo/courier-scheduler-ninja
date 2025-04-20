@@ -236,23 +236,44 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       }
     }
     
-    // Sort events by date
-    return events.sort((a, b) => {
-      try {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        
-        if (isNaN(dateA) || isNaN(dateB)) {
-          console.warn("Invalid date encountered in final sorting:", { a: a.date, b: b.date });
-          return 0;
+    // Sort events by date, with additional validation
+    return events
+      .filter(event => {
+        // Filter out events with invalid dates
+        if (!event.date) {
+          console.warn("Event with no date found:", event.title);
+          return false;
         }
         
-        return dateA - dateB;
-      } catch (error) {
-        console.error("Error in final sorting:", error);
-        return 0;
-      }
-    });
+        try {
+          // Try to create a valid date object to check validity
+          const date = new Date(event.date);
+          if (isNaN(date.getTime())) {
+            console.warn("Invalid date in event:", event.title, event.date);
+            return false;
+          }
+          return true;
+        } catch (error) {
+          console.error("Error validating date in event:", event.title, event.date, error);
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        try {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          
+          if (isNaN(dateA) || isNaN(dateB)) {
+            console.warn("Invalid date encountered in final sorting:", { a: a.date, b: b.date });
+            return 0;
+          }
+          
+          return dateA - dateB;
+        } catch (error) {
+          console.error("Error in final sorting:", error);
+          return 0;
+        }
+      });
   };
 
   const trackingEvents = getTrackingEvents();
