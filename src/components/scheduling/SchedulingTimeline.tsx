@@ -4,7 +4,7 @@ import { format, addDays, subDays, isBefore } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, MapPinIcon } from "lucide-react";
+import { CalendarIcon, MapPinIcon, BoxIcon, PackageIcon } from "lucide-react";
 import { OrderData } from '@/pages/JobScheduling';
 
 type GroupedOrders = {
@@ -46,6 +46,7 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
       grouped[dateKey] = {};
     });
 
+    // First handle all scheduled orders (these have fixed dates)
     orders.forEach(order => {
       // For scheduled collections - always prioritize the scheduled date
       if (order.scheduled_pickup_date) {
@@ -61,7 +62,6 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
           }
           grouped[dateKey][segment].collections.push(order);
         }
-        return; // Skip adding to available dates since it's already scheduled
       }
       
       // For scheduled deliveries - always prioritize the scheduled date
@@ -78,10 +78,15 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
           }
           grouped[dateKey][segment].deliveries.push(order);
         }
-        return; // Skip adding to available dates since it's already scheduled
       }
-      
-      // Only process unscheduled orders past this point
+    });
+    
+    // Now handle unscheduled orders (these can be on multiple potential dates)
+    orders.forEach(order => {
+      // Skip already scheduled orders
+      if (order.scheduled_pickup_date || order.scheduled_delivery_date) {
+        return;
+      }
       
       // For unscheduled collections with available dates
       if (!order.scheduled_pickup_date && order.pickup_date) {
@@ -173,7 +178,10 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
                         
                         {jobs.collections.length > 0 && (
                           <div className="pl-4 space-y-2">
-                            <h4 className="font-medium">Collections</h4>
+                            <h4 className="font-medium flex items-center gap-2">
+                              <BoxIcon className="h-4 w-4" />
+                              Collections
+                            </h4>
                             {jobs.collections.map(order => (
                               <Card key={`collection-${order.id}`}>
                                 <CardContent className="p-4">
@@ -194,7 +202,10 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
                         
                         {jobs.deliveries.length > 0 && (
                           <div className="pl-4 space-y-2">
-                            <h4 className="font-medium">Deliveries</h4>
+                            <h4 className="font-medium flex items-center gap-2">
+                              <PackageIcon className="h-4 w-4" />
+                              Deliveries
+                            </h4>
                             {jobs.deliveries.map(order => (
                               <Card key={`delivery-${order.id}`}>
                                 <CardContent className="p-4">
