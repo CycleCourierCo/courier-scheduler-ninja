@@ -192,7 +192,7 @@ export const segmentGeoJSON = {
       "properties": {
         "segment": 3,
         "bearing_start": 90.0,
-        "bearing_end": 135.0
+        "bearing_end": 150.0
       },
       "geometry": {
         "type": "Polygon",
@@ -207,8 +207,8 @@ export const segmentGeoJSON = {
               52.403551499812956
             ],
             [
-              1.1115894157212958,
-              50.539143784097334
+              0.5,
+              50.2
             ],
             [
               -1.8904,
@@ -222,8 +222,8 @@ export const segmentGeoJSON = {
       "type": "Feature",
       "properties": {
         "segment": 4,
-        "bearing_start": 135.0,
-        "bearing_end": 180.0
+        "bearing_start": 150.0,
+        "bearing_end": 195.0
       },
       "geometry": {
         "type": "Polygon",
@@ -234,12 +234,12 @@ export const segmentGeoJSON = {
               52.4862
             ],
             [
-              1.1115894157212958,
-              50.539143784097334
+              0.5,
+              50.2
             ],
             [
-              -1.8903999999999999,
-              49.78823518224381
+              -2.5,
+              49.5
             ],
             [
               -1.8904,
@@ -253,8 +253,8 @@ export const segmentGeoJSON = {
       "type": "Feature",
       "properties": {
         "segment": 5,
-        "bearing_start": 180.0,
-        "bearing_end": 225.0
+        "bearing_start": 195.0,
+        "bearing_end": 240.0
       },
       "geometry": {
         "type": "Polygon",
@@ -265,12 +265,12 @@ export const segmentGeoJSON = {
               52.4862
             ],
             [
-              -1.8903999999999999,
-              49.78823518224381
+              -2.5,
+              49.5
             ],
             [
-              -4.892389415721296,
-              50.539143784097334
+              -5.0,
+              50.8
             ],
             [
               -1.8904,
