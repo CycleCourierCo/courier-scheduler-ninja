@@ -73,7 +73,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/scheduling" element={
-              <ProtectedRoute>
+              <ProtectedRoute adminOnly={true}>
                 <JobScheduling />
               </ProtectedRoute>
             } />
