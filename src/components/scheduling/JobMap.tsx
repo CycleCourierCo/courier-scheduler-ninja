@@ -254,7 +254,7 @@ export const segmentGeoJSON = {
       "properties": {
         "segment": 5,
         "bearing_start": 195.0,
-        "bearing_end": 255.0
+        "bearing_end": 270.0
       },
       "geometry": {
         "type": "Polygon",
@@ -284,7 +284,7 @@ export const segmentGeoJSON = {
       "type": "Feature",
       "properties": {
         "segment": 6,
-        "bearing_start": 255.0,
+        "bearing_start": 270.0,
         "bearing_end": 270.0
       },
       "geometry": {
@@ -316,7 +316,7 @@ export const segmentGeoJSON = {
       "properties": {
         "segment": 7,
         "bearing_start": 270.0,
-        "bearing_end": 265.0
+        "bearing_end": 300.0
       },
       "geometry": {
         "type": "Polygon",
@@ -346,7 +346,7 @@ export const segmentGeoJSON = {
       "type": "Feature",
       "properties": {
         "segment": 8,
-        "bearing_start": 265.0,
+        "bearing_start": 300.0,
         "bearing_end": 360.0
       },
       "geometry": {
