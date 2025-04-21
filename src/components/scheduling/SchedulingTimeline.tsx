@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, isBefore } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -47,37 +47,53 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
     });
 
     orders.forEach(order => {
-      // For scheduled orders
+      // For scheduled collections - always prioritize the scheduled date
       if (order.scheduled_pickup_date) {
         const dateKey = format(new Date(order.scheduled_pickup_date), 'yyyy-MM-dd');
-        if (!grouped[dateKey]) return;
         
-        const segment = order.senderPolygonSegment;
-        if (!segment) return;
-        
-        if (!grouped[dateKey][segment]) {
-          grouped[dateKey][segment] = { collections: [], deliveries: [] };
+        // Only process if the date is within our date range
+        if (grouped[dateKey]) {
+          const segment = order.senderPolygonSegment;
+          if (!segment) return;
+          
+          if (!grouped[dateKey][segment]) {
+            grouped[dateKey][segment] = { collections: [], deliveries: [] };
+          }
+          grouped[dateKey][segment].collections.push(order);
         }
-        grouped[dateKey][segment].collections.push(order);
+        return; // Skip adding to available dates since it's already scheduled
       }
       
+      // For scheduled deliveries - always prioritize the scheduled date
       if (order.scheduled_delivery_date) {
         const dateKey = format(new Date(order.scheduled_delivery_date), 'yyyy-MM-dd');
-        if (!grouped[dateKey]) return;
         
-        const segment = order.receiverPolygonSegment;
-        if (!segment) return;
-        
-        if (!grouped[dateKey][segment]) {
-          grouped[dateKey][segment] = { collections: [], deliveries: [] };
+        // Only process if the date is within our date range
+        if (grouped[dateKey]) {
+          const segment = order.receiverPolygonSegment;
+          if (!segment) return;
+          
+          if (!grouped[dateKey][segment]) {
+            grouped[dateKey][segment] = { collections: [], deliveries: [] };
+          }
+          grouped[dateKey][segment].deliveries.push(order);
         }
-        grouped[dateKey][segment].deliveries.push(order);
+        return; // Skip adding to available dates since it's already scheduled
       }
       
-      // For unscheduled orders with available dates
+      // Only process unscheduled orders past this point
+      
+      // For unscheduled collections with available dates
       if (!order.scheduled_pickup_date && order.pickup_date) {
         const pickupDates = Array.isArray(order.pickup_date) ? order.pickup_date : [order.pickup_date];
-        pickupDates.forEach(date => {
+        
+        // Filter for dates in the future or today
+        const futureDates = pickupDates.filter(date => {
+          const pickupDate = new Date(date);
+          return !isBefore(pickupDate, today) || format(pickupDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+        });
+        
+        futureDates.forEach(date => {
           const dateKey = format(new Date(date), 'yyyy-MM-dd');
           if (!grouped[dateKey]) return;
           
@@ -93,9 +109,17 @@ const SchedulingTimeline: React.FC<SchedulingTimelineProps> = ({ orders }) => {
         });
       }
       
+      // For unscheduled deliveries with available dates
       if (!order.scheduled_delivery_date && order.delivery_date) {
         const deliveryDates = Array.isArray(order.delivery_date) ? order.delivery_date : [order.delivery_date];
-        deliveryDates.forEach(date => {
+        
+        // Filter for dates in the future or today
+        const futureDates = deliveryDates.filter(date => {
+          const deliveryDate = new Date(date);
+          return !isBefore(deliveryDate, today) || format(deliveryDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+        });
+        
+        futureDates.forEach(date => {
           const dateKey = format(new Date(date), 'yyyy-MM-dd');
           if (!grouped[dateKey]) return;
           
