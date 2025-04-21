@@ -54,16 +54,22 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
 
   const isScheduled = Boolean(scheduledDate);
 
+  // Get the polygon segment based on whether it's pickup or delivery
+  const polygonSegment = isPickup 
+    ? firstOrder.senderPolygonSegment 
+    : firstOrder.receiverPolygonSegment;
+
   // Debug logging to see what date values we have
   console.log(`${group.type} card for order ${firstOrder.id}:`, {
     scheduledDate,
     isScheduled,
     pickupDate: firstOrder.scheduledPickupDate,
-    deliveryDate: firstOrder.scheduledDeliveryDate
+    deliveryDate: firstOrder.scheduledDeliveryDate,
+    polygonSegment
   });
 
   // Get polygon badge variant using our type-safe helper
-  const badgeVariant = getPolygonBadgeVariant(firstOrder.polygonSegment);
+  const badgeVariant = getPolygonBadgeVariant(polygonSegment);
 
   return (
     <Card 
@@ -77,12 +83,12 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             <span>{isPickup ? 'Collection' : 'Delivery'}</span>
           </div>
           <div className="flex items-center gap-2">
-            {firstOrder.polygonSegment && badgeVariant && (
+            {polygonSegment && badgeVariant && (
               <Badge 
                 variant={badgeVariant}
                 className="text-xs"
               >
-                P{firstOrder.polygonSegment}
+                P{polygonSegment}
               </Badge>
             )}
             {isScheduled && (

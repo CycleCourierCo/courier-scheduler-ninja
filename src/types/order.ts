@@ -66,7 +66,8 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
-  polygonSegment?: number;  // Added this property to the Order type
+  senderPolygonSegment?: number;  // Changed from polygonSegment to senderPolygonSegment
+  receiverPolygonSegment?: number; // Added receiverPolygonSegment for delivery addresses
   trackingEvents?: {
     shipday?: {
       pickup_id?: string;
