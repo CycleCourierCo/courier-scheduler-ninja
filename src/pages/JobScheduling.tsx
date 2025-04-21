@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { isPointInPolygon } from "@/components/scheduling/JobMap";
 import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 import PostcodePolygonSearch from "@/components/scheduling/PostcodePolygonSearch";
+import SchedulingTimeline from "@/components/scheduling/SchedulingTimeline";
 
 export interface OrderData {
   id: string;
@@ -151,6 +152,11 @@ const JobScheduling = () => {
             <div className="mb-8">
               <JobMap orders={orders || []} />
             </div>
+            
+            <div className="mb-8">
+              <SchedulingTimeline orders={orders || []} />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {orders?.map((order) => (
                 <div key={order.id} className="space-y-4">
