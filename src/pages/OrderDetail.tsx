@@ -40,20 +40,28 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
           dateObj = new Date(date);
         }
       } catch (parseError) {
-        console.warn("Failed to parse date string:", date, parseError);
+        console.warn("Failed to parse date string in OrderDetail:", date, parseError);
         return "Invalid date format";
       }
     } else {
       dateObj = date as Date;
     }
     
-    // Added more robust date validation
+    // Enhanced date validation to prevent Invalid time value errors
     if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected in OrderDetail:", date);
       return "Invalid date";
     }
     
-    return format(dateObj, formatStr);
+    // Additional safety check for invalid time values
+    try {
+      // This will throw if the date is invalid for toISOString
+      dateObj.toISOString();
+      return format(dateObj, formatStr);
+    } catch (timeError) {
+      console.error("Invalid time value in date object:", dateObj, timeError);
+      return "Invalid time";
+    }
   } catch (error) {
     console.error("Error formatting date in OrderDetail:", error, date);
     return "Date error";

@@ -40,8 +40,16 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
       return "Invalid date";
     }
     
-    // Only format if we have a valid date
-    return format(dateObj, formatStr);
+    // Additional safety check for invalid time values
+    try {
+      // This will throw if the date is invalid for toISOString
+      dateObj.toISOString();
+      // Only format if we have a valid date
+      return format(dateObj, formatStr);
+    } catch (timeError) {
+      console.error("Invalid time value in date object:", dateObj, timeError);
+      return "Invalid time";
+    }
   } catch (error) {
     console.error("Error formatting date in DateSelection:", error, date);
     return "Date format error";
