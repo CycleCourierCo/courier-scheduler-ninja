@@ -56,7 +56,9 @@ const JobScheduling = () => {
           'scheduled_dates_pending', 
           'scheduled', 
           'collection_scheduled', 
-          'delivery_scheduled'
+          'delivery_scheduled',
+          'driver_to_collection',
+          'driver_to_delivery'
         ])
         .order('created_at', { ascending: false });
       
