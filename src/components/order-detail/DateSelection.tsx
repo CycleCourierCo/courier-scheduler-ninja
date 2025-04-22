@@ -1,5 +1,5 @@
 import React from "react";
-import { format, isValid } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,16 +8,32 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
-// Helper function to safely format dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "Not scheduled";
   
   try {
-    // Parse string dates to Date objects
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (typeof date === 'string' && date.trim() === '') {
+      return "Not scheduled";
+    }
     
-    // Check if date is valid before formatting
-    if (!dateObj || isNaN(dateObj.getTime())) {
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      try {
+        if (date.includes('T') || date.includes('-')) {
+          dateObj = parseISO(date);
+        } else {
+          dateObj = new Date(date);
+        }
+      } catch (parseError) {
+        console.warn("Failed to parse date string:", date, parseError);
+        return "Invalid date format";
+      }
+    } else {
+      dateObj = date as Date;
+    }
+    
+    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected in DateSelection:", date);
       return "Invalid date";
     }
@@ -65,7 +81,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     
     if (Array.isArray(dates)) {
       return dates
-        .filter(date => date && !isNaN(new Date(date).getTime())) // Filter out invalid dates
+        .filter(d => d && (d instanceof Date) && !isNaN(new Date(d).getTime()))
         .map(date => {
           try {
             return safeFormat(date, "PPP");
@@ -74,27 +90,23 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             return null;
           }
         })
-        .filter(Boolean) // Filter out any failed formats
+        .filter(Boolean)
         .join(", ") || "Not scheduled";
     }
     
     return safeFormat(dates, "PPP");
   };
 
-  // Extend the green background condition to include both collection_scheduled and delivery_scheduled
   const showScheduledStyle = isScheduled || 
     (orderStatus === 'collection_scheduled' && title === "Pickup Dates") ||
     (orderStatus === 'delivery_scheduled' && title === "Pickup Dates") ||
     (orderStatus === 'delivery_scheduled' && title === "Delivery Dates");
 
-  // Only prevent date selection for pickup when it's already scheduled
   const preventPickupSelection = title === "Pickup Dates" && orderStatus === 'collection_scheduled';
-  // Only prevent date selection for delivery when it's already scheduled
   const preventDeliverySelection = title === "Delivery Dates" && orderStatus === 'delivery_scheduled';
   
   const isDateSelectionDisabled = preventPickupSelection || preventDeliverySelection || isSubmitting;
   
-  // Define the missing canSelectDate variable
   const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
 
   return (
@@ -121,10 +133,9 @@ const DateSelection: React.FC<DateSelectionProps> = ({
               </SelectTrigger>
               <SelectContent>
                 {Array.isArray(availableDates) && availableDates
-                  .filter(date => date && !isNaN(new Date(date).getTime())) // Filter out invalid dates
+                  .filter(date => date && !isNaN(new Date(date).getTime()))
                   .map((date, index) => {
                     try {
-                      // Validate date before using it
                       const validDate = new Date(date);
                       if (!isNaN(validDate.getTime())) {
                         return (
@@ -139,7 +150,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                       return null;
                     }
                   })
-                  .filter(Boolean)} {/* Filter out any null items */}
+                  .filter(Boolean)}
               </SelectContent>
             </Select>
           </div>

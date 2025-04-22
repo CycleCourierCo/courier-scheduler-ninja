@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin } from "lucide-react";
-import { format, isValid } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,43 @@ import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 
-// Helper function to safely format dates
+// Enhanced safe format function to better handle invalid dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "Not scheduled";
   
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    // Check for empty strings and return early
+    if (typeof date === 'string' && date.trim() === '') {
+      return "Not scheduled";
+    }
     
-    if (!dateObj || isNaN(dateObj.getTime())) {
+    // Parse the date object carefully
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      // Try to parse the date string, handling ISO format specifically
+      try {
+        // For ISO strings, use parseISO which is more reliable
+        if (date.includes('T') || date.includes('-')) {
+          dateObj = parseISO(date);
+        } else {
+          dateObj = new Date(date);
+        }
+      } catch (parseError) {
+        console.warn("Failed to parse date string:", date, parseError);
+        return "Invalid date format";
+      }
+    } else {
+      dateObj = date as Date;
+    }
+    
+    // Validate the date object
+    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected:", date);
       return "Invalid date";
     }
     
+    // If we got here, we have a valid date, so format it
     return format(dateObj, formatStr);
   } catch (error) {
     console.error("Error formatting date:", error, date);

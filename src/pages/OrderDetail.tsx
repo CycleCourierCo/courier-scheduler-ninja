@@ -25,9 +25,28 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
   if (!date) return "";
   
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (typeof date === 'string' && date.trim() === '') {
+      return "";
+    }
     
-    if (!dateObj || isNaN(dateObj.getTime())) {
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      try {
+        if (date.includes('T') || date.includes('-')) {
+          dateObj = parseISO(date);
+        } else {
+          dateObj = new Date(date);
+        }
+      } catch (parseError) {
+        console.warn("Failed to parse date string:", date, parseError);
+        return "Invalid date format";
+      }
+    } else {
+      dateObj = date as Date;
+    }
+    
+    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected:", date);
       return "Invalid date";
     }
