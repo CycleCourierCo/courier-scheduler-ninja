@@ -189,31 +189,49 @@ const OrderDetail = () => {
   };
 
   const handleScheduleDelivery = async () => {
-    if (!id || !selectedDeliveryDate) {
-      toast.error("Please select delivery date");
+    if (!id) {
+      toast.error("Order ID is missing");
       return;
-    }
-
-    if (order?.scheduledPickupDate) {
-      const pickupDateTime = new Date(order.scheduledPickupDate);
-      const deliveryDateTime = new Date(selectedDeliveryDate);
-      
-      if (deliveryDateTime <= pickupDateTime) {
-        toast.error("Delivery date must be after the pickup date");
-        return;
-      }
     }
 
     try {
       setIsSubmitting(true);
       
-      const deliveryDateTime = new Date(selectedDeliveryDate);
-      const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-      deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      let deliveryDateTime: Date;
+      
+      // Handle direct date picker for 'collected' status
+      if (order?.status === 'collected' && deliveryDatePicker) {
+        deliveryDateTime = new Date(deliveryDatePicker);
+        const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
+        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      } else if (selectedDeliveryDate) {
+        deliveryDateTime = new Date(selectedDeliveryDate);
+        const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
+        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      } else {
+        toast.error("Please select delivery date");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // For collected orders, reuse the existing pickup date
+      let pickupDateTime = undefined;
+      if (order?.status === 'collected' && order.scheduledPickupDate) {
+        pickupDateTime = new Date(order.scheduledPickupDate);
+      }
+
+      if (order?.scheduledPickupDate) {
+        const existingPickupDate = new Date(order.scheduledPickupDate);
+        if (deliveryDateTime <= existingPickupDate) {
+          toast.error("Delivery date must be after the pickup date");
+          setIsSubmitting(false);
+          return;
+        }
+      }
       
       const updatedOrder = await updateOrderSchedule(
         id,
-        undefined,
+        pickupDateTime, // Pass existing pickup date for collected orders
         deliveryDateTime
       );
       
@@ -471,12 +489,18 @@ const OrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
+  // Allow delivery scheduling when status is "collected"
   const canSchedule = (
-    order.status === 'scheduled_dates_pending' || 
-    order.status === 'pending_approval' || 
-    order.status === 'receiver_availability_confirmed'
-  ) && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
-    Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
+    order.status === 'scheduled_dates_pending' ||
+    order.status === 'pending_approval' ||
+    order.status === 'receiver_availability_confirmed' ||
+    order.status === 'collected'
+  ) && (
+    // For collected orders, we don't require available dates since we'll use direct date picker
+    order.status === 'collected' || 
+    (Array.isArray(order.pickupDate) && order.pickupDate.length > 0 &&
+    Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0)
+  );
 
   const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
 
@@ -571,6 +595,10 @@ const OrderDetail = () => {
                 pickupDateSelected={!!selectedPickupDate}
                 deliveryDateSelected={!!selectedDeliveryDate}
                 status={order.status}
+                deliveryDate={deliveryDatePicker}
+                setDeliveryDate={setDeliveryDatePicker}
+                deliveryTime={deliveryTime}
+                setDeliveryTime={setDeliveryTime}
               />
             </div>
             

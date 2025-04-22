@@ -109,12 +109,16 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     return safeFormat(dates, "PPP");
   };
 
+  // Show scheduled pickup date for collection_scheduled, collected, and delivery_scheduled (pickup dates)
   const showScheduledStyle = isScheduled || 
     (orderStatus === 'collection_scheduled' && title === "Pickup Dates") ||
+    (orderStatus === 'collected' && title === "Pickup Dates") || // Added 'collected' for pickup dates
     (orderStatus === 'delivery_scheduled' && title === "Pickup Dates") ||
     (orderStatus === 'delivery_scheduled' && title === "Delivery Dates");
 
-  const preventPickupSelection = title === "Pickup Dates" && orderStatus === 'collection_scheduled';
+  const preventPickupSelection = title === "Pickup Dates" && 
+    (orderStatus === 'collection_scheduled' || orderStatus === 'collected'); // Added 'collected'
+    
   const preventDeliverySelection = title === "Delivery Dates" && orderStatus === 'delivery_scheduled';
   
   const isDateSelectionDisabled = preventPickupSelection || preventDeliverySelection || isSubmitting;

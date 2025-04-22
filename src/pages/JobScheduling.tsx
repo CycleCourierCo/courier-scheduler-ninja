@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -109,6 +108,34 @@ const JobScheduling = () => {
     return null;
   };
 
+  const checkAndSetScheduledStatus = async (order: OrderData) => {
+    if (order.status === "scheduled") return;
+
+    if (order.scheduled_pickup_date && order.scheduled_delivery_date) {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "scheduled" })
+        .eq("id", order.id);
+      if (!error) {
+        toast.success("Order marked as scheduled!");
+        refetch();
+      } else {
+        toast.error("Error updating status to scheduled");
+      }
+    }
+  };
+
+  const handleScheduled = async (orderId?: string) => {
+    toast.success("Job scheduled successfully");
+    await refetch();
+    if (!orders) return;
+
+    if (orderId) {
+      const foundOrder = orders.find(o => o.id === orderId);
+      if (foundOrder) checkAndSetScheduledStatus(foundOrder);
+    }
+  };
+
   useEffect(() => {
     if (orders) {
       console.log("Orders loaded with polygon segments:", 
@@ -127,11 +154,6 @@ const JobScheduling = () => {
   const formatDates = (dates: string[] | null) => {
     if (!dates || dates.length === 0) return "No dates available";
     return dates.map(date => format(new Date(date), 'MMM d, yyyy')).join(", ");
-  };
-
-  const handleScheduled = () => {
-    toast.success("Job scheduled successfully");
-    refetch();
   };
 
   return (
@@ -240,7 +262,7 @@ const JobScheduling = () => {
                           <JobSchedulingForm 
                             orderId={order.id} 
                             type="pickup" 
-                            onScheduled={handleScheduled}
+                            onScheduled={() => handleScheduled(order.id)}
                           />
                         )}
                       </CardContent>
@@ -292,7 +314,7 @@ const JobScheduling = () => {
                           <JobSchedulingForm 
                             orderId={order.id} 
                             type="delivery" 
-                            onScheduled={handleScheduled}
+                            onScheduled={() => handleScheduled(order.id)}
                           />
                         )}
                       </CardContent>

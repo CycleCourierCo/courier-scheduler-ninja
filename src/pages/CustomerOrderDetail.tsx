@@ -200,11 +200,13 @@ const CustomerOrderDetail = () => {
                   <h3 className="font-semibold">Pickup Date</h3>
                 </div>
                 
-                {order.scheduledPickupDate ? (
+                {(order.scheduledPickupDate || order.status === 'collected') ? (
                   <div className="bg-green-50 p-2 rounded-md border border-green-200">
                     <div className="flex items-center">
                       <p className="font-medium">
-                        {safeFormat(order.scheduledPickupDate, "PPP")}
+                        {order.scheduledPickupDate 
+                          ? safeFormat(order.scheduledPickupDate, "PPP")
+                          : "Collection completed"}
                       </p>
                     </div>
                   </div>
