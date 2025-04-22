@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin } from "lucide-react";
@@ -35,23 +36,23 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
           dateObj = new Date(date);
         }
       } catch (parseError) {
-        console.warn("Failed to parse date string:", date, parseError);
+        console.warn("Failed to parse date string in CustomerOrderDetail:", date, parseError);
         return "Invalid date format";
       }
     } else {
       dateObj = date as Date;
     }
     
-    // Validate the date object
+    // Validate the date object more thoroughly
     if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-      console.warn("Invalid date detected:", date);
+      console.warn("Invalid date detected in CustomerOrderDetail:", date);
       return "Invalid date";
     }
     
     // If we got here, we have a valid date, so format it
     return format(dateObj, formatStr);
   } catch (error) {
-    console.error("Error formatting date:", error, date);
+    console.error("Error formatting date in CustomerOrderDetail:", error, date);
     return "Date format error";
   }
 };

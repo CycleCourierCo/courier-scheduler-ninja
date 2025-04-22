@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -46,14 +47,15 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
       dateObj = date as Date;
     }
     
+    // Added more robust date validation
     if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-      console.warn("Invalid date detected:", date);
+      console.warn("Invalid date detected in OrderDetail:", date);
       return "Invalid date";
     }
     
     return format(dateObj, formatStr);
   } catch (error) {
-    console.error("Error formatting date:", error, date);
+    console.error("Error formatting date in OrderDetail:", error, date);
     return "Date error";
   }
 };

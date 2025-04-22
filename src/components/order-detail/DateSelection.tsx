@@ -1,3 +1,4 @@
+
 import React from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Check } from "lucide-react";
@@ -26,18 +27,20 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
           dateObj = new Date(date);
         }
       } catch (parseError) {
-        console.warn("Failed to parse date string:", date, parseError);
+        console.warn("Failed to parse date string in DateSelection:", date, parseError);
         return "Invalid date format";
       }
     } else {
       dateObj = date as Date;
     }
     
+    // More thorough date validation
     if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date detected in DateSelection:", date);
       return "Invalid date";
     }
     
+    // Only format if we have a valid date
     return format(dateObj, formatStr);
   } catch (error) {
     console.error("Error formatting date in DateSelection:", error, date);
@@ -80,6 +83,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     if (!dates) return "Not scheduled";
     
     if (Array.isArray(dates)) {
+      // Filter out invalid dates before attempting to format them
       return dates
         .filter(d => d && (d instanceof Date) && !isNaN(new Date(d).getTime()))
         .map(date => {
@@ -107,7 +111,9 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   
   const isDateSelectionDisabled = preventPickupSelection || preventDeliverySelection || isSubmitting;
   
-  const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0;
+  // Improve validation of available dates array
+  const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0 && 
+    availableDates.some(date => date && !isNaN(new Date(date).getTime()));
 
   return (
     <div>
