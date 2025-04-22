@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -58,7 +59,8 @@ const JobScheduling = () => {
           'collection_scheduled', 
           'delivery_scheduled',
           'driver_to_collection',
-          'driver_to_delivery'
+          'driver_to_delivery',
+          'collected'
         ])
         .order('created_at', { ascending: false });
       
