@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -471,11 +470,13 @@ const OrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
+  // UPDATED: Allow delivery scheduling when status is "collected"
   const canSchedule = (
-    order.status === 'scheduled_dates_pending' || 
-    order.status === 'pending_approval' || 
-    order.status === 'receiver_availability_confirmed'
-  ) && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 && 
+    order.status === 'scheduled_dates_pending' ||
+    order.status === 'pending_approval' ||
+    order.status === 'receiver_availability_confirmed' ||
+    order.status === 'collected'
+  ) && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 &&
     Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0;
 
   const isScheduled = order.status === 'scheduled' || order.status === 'shipped' || order.status === 'delivered';
