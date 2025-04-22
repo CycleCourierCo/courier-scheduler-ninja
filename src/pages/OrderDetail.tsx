@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package } from "lucide-react";
@@ -25,16 +26,44 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
   if (!date) return "";
   
   try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (typeof date === 'string' && date.trim() === '') {
+      return "";
+    }
     
-    if (!dateObj || isNaN(dateObj.getTime())) {
-      console.warn("Invalid date detected:", date);
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      try {
+        if (date.includes('T') || date.includes('-')) {
+          dateObj = parseISO(date);
+        } else {
+          dateObj = new Date(date);
+        }
+      } catch (parseError) {
+        console.warn("Failed to parse date string in OrderDetail:", date, parseError);
+        return "Invalid date format";
+      }
+    } else {
+      dateObj = date as Date;
+    }
+    
+    // Enhanced date validation to prevent Invalid time value errors
+    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+      console.warn("Invalid date detected in OrderDetail:", date);
       return "Invalid date";
     }
     
-    return format(dateObj, formatStr);
+    // Additional safety check for invalid time values
+    try {
+      // This will throw if the date is invalid for toISOString
+      dateObj.toISOString();
+      return format(dateObj, formatStr);
+    } catch (timeError) {
+      console.error("Invalid time value in date object:", dateObj, timeError);
+      return "Invalid time";
+    }
   } catch (error) {
-    console.error("Error formatting date:", error, date);
+    console.error("Error formatting date in OrderDetail:", error, date);
     return "Date error";
   }
 };
