@@ -4,7 +4,7 @@ import { CreateOrderFormData } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { createJobsForOrder } from "./jobService";
 import { 
-  sendOrderCreationEmailToSender, 
+  sendOrderCreationConfirmationToUser,
   sendOrderNotificationToReceiver, 
   resendReceiverAvailabilityEmail,
   sendSenderAvailabilityEmail,
@@ -125,6 +125,30 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw new Error("User not authenticated");
     }
 
+    // -- Get user profile details for name/email --
+    // Prefer `user.user_metadata.name`, fall back to profile, fall back to email.
+    let userName: string | null = null;
+    let userEmail: string | null = null;
+    try {
+      userEmail = user.email;
+      userName = user.user_metadata?.name || null;
+
+      // Try profile if name is not there
+      if (!userName && user.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile && profile.name) {
+          userName = profile.name;
+        }
+      }
+    } catch (userErr) {
+      console.warn("Unable to fetch user profile name:", userErr);
+    }
+    if (!userName) userName = userEmail || "Customer";
+
     const timestamp = new Date().toISOString();
 
     const trackingNumber = await generateTrackingNumber(sender.name, receiver.address.zipCode);
@@ -185,26 +209,30 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     
     const sendEmails = async () => {
       try {
-        console.log("===== STARTING EMAIL SENDING PROCESS =====");
+        console.log("===== STARTING EMAIL SENDING PROCESS (TO USER) =====");
         console.log(`Order ID: ${order.id}`);
-        console.log(`Sender email: ${sender.email}`);
-        console.log(`Receiver email: ${receiver.email}`);
+        console.log(`User email: ${userEmail}`);
+        console.log(`Sender email: ${data.sender.email}`);
+        console.log(`Receiver email: ${data.receiver.email}`);
         
-        console.log("STEP 1: Sending confirmation email to sender...");
-        const senderEmailResult = await sendOrderCreationEmailToSender(order.id);
-        console.log(`Sender confirmation email sent successfully: ${senderEmailResult}`);
+        // 1. Confirmation email to user (not sender)
+        console.log("STEP 1: Sending confirmation email to user...");
+        const userEmailResult = await sendOrderCreationConfirmationToUser(order.id, userEmail!, userName!);
+        console.log(`User confirmation email sent successfully: ${userEmailResult}`);
         
+        // 2. Sender availability email as before
         console.log("STEP 2: Sending availability email to sender...");
         const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
         console.log(`Sender availability email sent successfully: ${senderAvailabilityResult}`);
         
+        // 3. Receiver notification email as before
         console.log("STEP 3: Sending notification email to receiver...");
         const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
         console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
         
         console.log("===== EMAIL SENDING PROCESS COMPLETED =====");
         return { 
-          senderConfirmation: senderEmailResult, 
+          userConfirmation: userEmailResult, 
           senderAvailability: senderAvailabilityResult,
           receiver: receiverEmailResult 
         };
@@ -212,7 +240,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         console.error("===== EMAIL SENDING PROCESS FAILED =====");
         console.error("Error details:", emailError);
         return { 
-          senderConfirmation: false, 
+          userConfirmation: false, 
           senderAvailability: false,
           receiver: false, 
           error: emailError 

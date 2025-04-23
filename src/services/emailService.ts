@@ -499,3 +499,69 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
     return false;
   }
 };
+
+// === NEW FUNCTION: Send confirmation to user (not sender/receiver) ===
+export const sendOrderCreationConfirmationToUser = async (
+  orderId: string,
+  email: string,
+  name: string
+): Promise<boolean> => {
+  try {
+    console.log("Sending order creation confirmation email to order creator (user) for order ID:", orderId);
+    if (!email) {
+      console.error("No user email provided for confirmation email!");
+      return false;
+    }
+    // Get order details for order/tracking number
+    const order = await getOrder(orderId);
+
+    const item = {
+      name: `${order?.bikeBrand || ""} ${order?.bikeModel || ""}`.trim() || "Bicycle",
+      quantity: 1,
+      price: 0
+    };
+
+    const trackingNumber = order?.trackingNumber || orderId;
+    const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
+
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: email,
+        subject: "Your Order Has Been Created - The Cycle Courier Co.",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${name},</h2>
+            <p>Thank you for creating your order with The Cycle Courier Co.</p>
+            <p>Your order has been successfully created. Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${item.name}</p>
+              <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+            </div>
+            <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
+            <p>You can track your order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track Your Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+
+    if (response.error) {
+      console.error("Error sending order creation confirmation email to user:", response.error);
+      return false;
+    }
+    console.log("Order confirmation email sent successfully to user:", email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send order creation confirmation email to user:", error);
+    return false;
+  }
+};
