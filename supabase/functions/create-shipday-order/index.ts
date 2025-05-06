@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -137,12 +138,21 @@ serve(async (req) => {
     console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
     console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
 
+    // Add bike information to the notes
+    const bikeInfo = order.bike_brand && order.bike_model 
+      ? `Bike: ${order.bike_brand} ${order.bike_model}` 
+      : order.bike_brand 
+        ? `Bike: ${order.bike_brand}` 
+        : order.bike_model 
+          ? `Bike: ${order.bike_model}` 
+          : '';
+
     const baseDeliveryInstructions = order.delivery_instructions || '';
     const senderNotes = order.sender_notes || '';
-    const pickupInstructions = [baseDeliveryInstructions, senderNotes].filter(Boolean).join(' | ');
+    const pickupInstructions = [bikeInfo, baseDeliveryInstructions, senderNotes].filter(Boolean).join(' | ');
     
     const receiverNotes = order.receiver_notes || '';
-    const deliveryInstructions = [baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
+    const deliveryInstructions = [bikeInfo, baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
 
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
