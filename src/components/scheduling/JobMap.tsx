@@ -1,14 +1,9 @@
-<think>
-
-</think>
-
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
 import { format } from 'date-fns';
-import { isCollectionCompleted, isDeliveryCompleted } from '@/services/trackingService';
 
 // Fix Leaflet icon issues
 const fixLeafletIcon = () => {
@@ -52,26 +47,6 @@ export const getPolygonSegment = (lat: number, lng: number): number | null => {
   return null;
 };
 
-// Function to check if an order should be shown on the map
-const shouldShowOrder = (status: string): boolean => {
-  const showStatuses = [
-    "created", 
-    "sender_availability_pending", 
-    "sender_availability_confirmed",
-    "receiver_availability_pending", 
-    "receiver_availability_confirmed",
-    "scheduled_dates_pending",
-    "pending_approval",
-    "scheduled",
-    "collection_scheduled",
-    "delivery_scheduled",
-    "driver_to_collection",
-    "collected",
-    "driver_to_delivery"
-  ];
-  return showStatuses.includes(status);
-};
-
 // Extract locations function updated to use separate sender and receiver polygon segments
 const extractLocations = (orders: OrderData[] = []) => {
   const locations: { 
@@ -87,15 +62,8 @@ const extractLocations = (orders: OrderData[] = []) => {
   console.log(`Extracting locations from ${orders.length} orders`);
   
   orders.forEach(order => {
-    // Only process orders that should be shown
-    if (!shouldShowOrder(order.status)) {
-      return;
-    }
-
-    // Add sender location if coordinates exist and collection is not completed
-    if (order.sender.address.lat && 
-        order.sender.address.lon && 
-        !isCollectionCompleted(order.status)) {
+    // Add sender location if coordinates exist
+    if (order.sender.address.lat && order.sender.address.lon) {
       locations.push({
         address: `${order.sender.address.street}, ${order.sender.address.city}`,
         lat: order.sender.address.lat,
@@ -107,10 +75,8 @@ const extractLocations = (orders: OrderData[] = []) => {
       });
     }
     
-    // Add receiver location if coordinates exist and not completed
-    if (order.receiver.address.lat && 
-        order.receiver.address.lon && 
-        !isDeliveryCompleted(order.status)) {
+    // Add receiver location if coordinates exist
+    if (order.receiver.address.lat && order.receiver.address.lon) {
       locations.push({
         address: `${order.receiver.address.street}, ${order.receiver.address.city}`,
         lat: order.receiver.address.lat,
@@ -518,7 +484,6 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
   // Debug logging
   console.log('Orders with polygon segments:', orders.map(o => ({
     id: o.id,
-    status: o.status,
     senderPolygonSegment: o.senderPolygonSegment,
     receiverPolygonSegment: o.receiverPolygonSegment
   })));
