@@ -1,9 +1,14 @@
+<think>
+
+</think>
+
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
 import { format } from 'date-fns';
+import { isCollectionCompleted, isDeliveryCompleted } from '@/services/trackingService';
 
 // Fix Leaflet icon issues
 const fixLeafletIcon = () => {
@@ -45,18 +50,6 @@ export const getPolygonSegment = (lat: number, lng: number): number | null => {
     }
   }
   return null;
-};
-
-// Function to check if collection is already completed based on order status
-const isCollectionCompleted = (status: string): boolean => {
-  const completedStatuses = ["driver_to_collection", "collected", "driver_to_delivery", "delivered"];
-  return completedStatuses.includes(status);
-};
-
-// Function to check if delivery is already completed based on order status
-const isDeliveryCompleted = (status: string): boolean => {
-  const completedStatuses = ["delivered"];
-  return completedStatuses.includes(status);
 };
 
 // Function to check if an order should be shown on the map

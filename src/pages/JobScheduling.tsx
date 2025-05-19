@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -53,6 +54,11 @@ const JobScheduling = () => {
         .from('orders')
         .select('*')
         .in('status', [
+          'created',
+          'sender_availability_pending',
+          'sender_availability_confirmed',
+          'receiver_availability_pending',
+          'receiver_availability_confirmed',
           'scheduled_dates_pending', 
           'scheduled', 
           'collection_scheduled', 
@@ -90,6 +96,7 @@ const JobScheduling = () => {
       
       console.log("Mapped orders with segments:", mappedOrders.map(o => ({
         id: o.id, 
+        status: o.status,
         senderPolygonSegment: o.senderPolygonSegment,
         receiverPolygonSegment: o.receiverPolygonSegment
       })));
@@ -141,6 +148,7 @@ const JobScheduling = () => {
       console.log("Orders loaded with polygon segments:", 
         orders.map(o => ({ 
           id: o.id, 
+          status: o.status,
           senderPolygonSegment: o.senderPolygonSegment,
           receiverPolygonSegment: o.receiverPolygonSegment
         })));
