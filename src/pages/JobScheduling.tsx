@@ -53,11 +53,6 @@ const JobScheduling = () => {
         .from('orders')
         .select('*')
         .in('status', [
-          'created',
-          'sender_availability_pending',
-          'sender_availability_confirmed',
-          'receiver_ailability_pending',
-          'receiver_availability_confirmed',
           'scheduled_dates_pending', 
           'scheduled', 
           'collection_scheduled', 
