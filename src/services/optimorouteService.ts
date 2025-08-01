@@ -25,10 +25,9 @@ interface OptimourouteOrder {
   blackoutDates?: any;
 }
 
-// Helper function to generate date restrictions in daterange format
+// Helper function to generate date restrictions
 const generateDateRestrictions = (order: Order) => {
-  let allowedDatesObj: any = {};
-  let blackoutDatesObj: any = {};
+  let allowedDatesObj: any = null;
   
   if (order.pickupDate || order.deliveryDate) {
     const allowedDates: string[] = [];
@@ -54,17 +53,13 @@ const generateDateRestrictions = (order: Order) => {
       }
     }
     
-    // Create daterange object for OptimoRoute (from earliest to latest allowed date)
+    // Return array of allowed dates (not object)
     if (allowedDates.length > 0) {
-      const sortedDates = allowedDates.sort();
-      allowedDatesObj = {
-        from: sortedDates[0],
-        to: sortedDates[sortedDates.length - 1]
-      };
+      allowedDatesObj = allowedDates;
     }
   }
   
-  return { allowedDatesObj, blackoutDatesObj };
+  return { allowedDatesObj };
 };
 
 // Convert internal order to OptimoRoute order format
@@ -73,7 +68,7 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
   const baseDate = new Date().toISOString().split('T')[0]; // Use today's date as default
   
   // Generate date restrictions
-  const { allowedDatesObj, blackoutDatesObj } = generateDateRestrictions(order);
+  const { allowedDatesObj } = generateDateRestrictions(order);
 
   // Check if the bike has been collected by examining tracking events
   const isCollected = order.status === 'collected' || order.status === 'driver_to_delivery' || order.status === 'delivered' ||
@@ -108,9 +103,6 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
     if (allowedDatesObj) {
       pickupOrder.allowedDates = allowedDatesObj;
     }
-    if (blackoutDatesObj) {
-      pickupOrder.blackoutDates = blackoutDatesObj;
-    }
     
     orders.push(pickupOrder);
   }
@@ -139,9 +131,6 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
     // Add date restrictions if available
     if (allowedDatesObj) {
       deliveryOrder.allowedDates = allowedDatesObj;
-    }
-    if (blackoutDatesObj) {
-      deliveryOrder.blackoutDates = blackoutDatesObj;
     }
     
     // Always add the order (coordinates are optional, address is required)
