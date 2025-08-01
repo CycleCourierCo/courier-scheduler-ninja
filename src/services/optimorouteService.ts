@@ -46,7 +46,7 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       notes: `Pickup for order ${order.trackingNumber}. Contact: ${order.sender.phone}. Bike: ${order.bikeBrand} ${order.bikeModel}`,
       customField1: order.id,
       customField2: "PICKUP",
-      operation: "CREATE"
+      operation: "SYNC"
     };
     
     // Only add if we have valid coordinates
@@ -75,7 +75,7 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       notes: `Delivery for order ${order.trackingNumber}. Bike: ${order.bikeBrand} ${order.bikeModel}. ${order.deliveryInstructions || ""}`,
       customField1: order.id,
       customField2: "DELIVERY",
-      operation: "CREATE"
+      operation: "SYNC"
     };
     
     // Only add if we have valid coordinates
