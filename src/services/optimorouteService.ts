@@ -43,7 +43,7 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
         longitude: order.sender.address.lon && order.sender.address.lon !== 0 ? order.sender.address.lon : undefined,
         notes: order.senderNotes || ""
       },
-      notes: `Pickup for order ${order.trackingNumber}. Bike: ${order.bikeBrand} ${order.bikeModel}`,
+      notes: `Pickup for order ${order.trackingNumber}. Contact: ${order.sender.phone}. Bike: ${order.bikeBrand} ${order.bikeModel}`,
       customField1: order.id,
       customField2: "PICKUP",
       operation: "SYNC"
@@ -151,13 +151,14 @@ export const syncOrdersToOptimoRoute = async (orders: Order[]): Promise<boolean>
           let chunkSuccesses = 0;
           let chunkErrors = 0;
           
-          if (result.results && Array.isArray(result.results)) {
-            result.results.forEach((orderResult: any, index: number) => {
+          if (result.orders && Array.isArray(result.orders)) {
+            result.orders.forEach((orderResult: any, index: number) => {
               if (orderResult.success) {
                 chunkSuccesses++;
+                console.log(`✓ Order ${orderResult.orderNo} created successfully with ID: ${orderResult.id}`);
               } else {
                 chunkErrors++;
-                console.warn(`Order ${chunk[index].orderNo} failed: ${orderResult.code} - ${orderResult.message}`);
+                console.warn(`✗ Order ${chunk[index].orderNo} failed: ${orderResult.code} - ${orderResult.message}`);
               }
             });
           } else {
