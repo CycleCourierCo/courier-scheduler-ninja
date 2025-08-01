@@ -25,7 +25,7 @@ interface OptimourouteOrder {
   blackoutDates?: any;
 }
 
-// Helper function to generate date restrictions
+// Helper function to generate date restrictions in daterange format
 const generateDateRestrictions = (order: Order) => {
   let allowedDatesObj: any = null;
   
@@ -53,9 +53,13 @@ const generateDateRestrictions = (order: Order) => {
       }
     }
     
-    // Return array of allowed dates (not object)
+    // Create daterange object for OptimoRoute (from earliest to latest allowed date)
     if (allowedDates.length > 0) {
-      allowedDatesObj = allowedDates;
+      const sortedDates = allowedDates.sort();
+      allowedDatesObj = {
+        from: sortedDates[0],
+        to: sortedDates[sortedDates.length - 1]
+      };
     }
   }
   
