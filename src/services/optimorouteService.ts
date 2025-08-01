@@ -95,8 +95,10 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
   // Generate date restrictions
   const { allowedDatesObj, blackoutDatesObj } = generateDateRestrictions(order);
 
-  // Create pickup order
-  if (order.sender?.address) {
+  // Create pickup order (only if not already collected)
+  const isCollected = order.status === 'collected' || order.status === 'driver_to_delivery' || order.status === 'delivered';
+  
+  if (order.sender?.address && !isCollected) {
     const pickupOrder: OptimourouteOrder = {
       orderNo: `${order.trackingNumber}-PICKUP`,
       date: baseDate,
@@ -124,7 +126,6 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       pickupOrder.blackoutDates = blackoutDatesObj;
     }
     
-    // Always add the order (coordinates are optional, address is required)
     orders.push(pickupOrder);
   }
 
