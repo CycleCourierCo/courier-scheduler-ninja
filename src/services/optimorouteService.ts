@@ -154,9 +154,22 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
 // Sync orders to OptimoRoute
 export const syncOrdersToOptimoRoute = async (orders: Order[]): Promise<boolean> => {
   try {
-    // Filter orders that should be synced (exclude specific statuses)
-    const excludedStatuses = ["scheduled", "driver_to_collection", "driver_to_delivery", "delivered", "cancelled"];
-    const eligibleOrders = orders.filter(order => !excludedStatuses.includes(order.status));
+    // Filter orders that should be synced (exclude specific statuses, but include collected bikes for delivery)
+    const excludedStatuses = ["scheduled", "delivered", "cancelled"];
+    const eligibleOrders = orders.filter(order => {
+      // Always exclude delivered and cancelled
+      if (["delivered", "cancelled"].includes(order.status)) {
+        return false;
+      }
+      
+      // Include collected bikes (they need delivery sync)
+      if (order.status === "collected") {
+        return true;
+      }
+      
+      // Exclude other specific statuses
+      return !excludedStatuses.includes(order.status);
+    });
 
     if (eligibleOrders.length === 0) {
       toast.info("No eligible orders to sync to OptimoRoute");
