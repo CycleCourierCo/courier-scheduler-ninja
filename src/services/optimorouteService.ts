@@ -13,8 +13,8 @@ interface OptimourouteOrder {
     locationNo?: string;
     address: string;
     locationName: string;
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
     notes?: string;
   };
   notes?: string;
@@ -39,8 +39,8 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
         locationNo: `PICKUP-${order.id}`,
         address: `${order.sender.address.street}, ${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}, ${order.sender.address.country}`,
         locationName: order.sender.name,
-        latitude: order.sender.address.lat || 0,
-        longitude: order.sender.address.lon || 0,
+        latitude: order.sender.address.lat && order.sender.address.lat !== 0 ? order.sender.address.lat : undefined,
+        longitude: order.sender.address.lon && order.sender.address.lon !== 0 ? order.sender.address.lon : undefined,
         notes: order.senderNotes || ""
       },
       notes: `Pickup for order ${order.trackingNumber}. Bike: ${order.bikeBrand} ${order.bikeModel}`,
@@ -48,7 +48,13 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       customField2: "PICKUP",
       operation: "SYNC"
     };
-    orders.push(pickupOrder);
+    
+    // Only add if we have valid coordinates
+    if (pickupOrder.location.latitude && pickupOrder.location.longitude) {
+      orders.push(pickupOrder);
+    } else {
+      console.warn(`Skipping pickup order ${order.trackingNumber} - missing valid coordinates`);
+    }
   }
 
   // Create delivery order
@@ -62,8 +68,8 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
         locationNo: `DELIVERY-${order.id}`,
         address: `${order.receiver.address.street}, ${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}, ${order.receiver.address.country}`,
         locationName: order.receiver.name,
-        latitude: order.receiver.address.lat || 0,
-        longitude: order.receiver.address.lon || 0,
+        latitude: order.receiver.address.lat && order.receiver.address.lat !== 0 ? order.receiver.address.lat : undefined,
+        longitude: order.receiver.address.lon && order.receiver.address.lon !== 0 ? order.receiver.address.lon : undefined,
         notes: order.receiverNotes || ""
       },
       notes: `Delivery for order ${order.trackingNumber}. Bike: ${order.bikeBrand} ${order.bikeModel}. ${order.deliveryInstructions || ""}`,
@@ -71,7 +77,13 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       customField2: "DELIVERY",
       operation: "SYNC"
     };
-    orders.push(deliveryOrder);
+    
+    // Only add if we have valid coordinates
+    if (deliveryOrder.location.latitude && deliveryOrder.location.longitude) {
+      orders.push(deliveryOrder);
+    } else {
+      console.warn(`Skipping delivery order ${order.trackingNumber} - missing valid coordinates`);
+    }
   }
 
   return orders;
@@ -132,22 +144,33 @@ export const syncOrdersToOptimoRoute = async (orders: Order[]): Promise<boolean>
         }
 
         const result = await response.json();
+        console.log("OptimoRoute response:", result);
         
         if (result.success) {
-          console.log(`Successfully synced chunk of ${chunk.length} orders`);
-          totalSynced += chunk.length;
+          // Count actual successes from individual order results
+          let chunkSuccesses = 0;
+          let chunkErrors = 0;
+          
+          if (result.results && Array.isArray(result.results)) {
+            result.results.forEach((orderResult: any, index: number) => {
+              if (orderResult.success) {
+                chunkSuccesses++;
+              } else {
+                chunkErrors++;
+                console.warn(`Order ${chunk[index].orderNo} failed: ${orderResult.code} - ${orderResult.message}`);
+              }
+            });
+          } else {
+            // If no individual results, assume all succeeded
+            chunkSuccesses = chunk.length;
+          }
+          
+          console.log(`Chunk result: ${chunkSuccesses} successful, ${chunkErrors} failed out of ${chunk.length} orders`);
+          totalSynced += chunkSuccesses;
+          totalErrors += chunkErrors;
         } else {
-          console.error("OptimoRoute sync failed:", result);
+          console.error("OptimoRoute sync failed for entire chunk:", result);
           totalErrors += chunk.length;
-        }
-
-        // Check individual order results if available
-        if (result.results) {
-          result.results.forEach((orderResult: any, index: number) => {
-            if (!orderResult.success && orderResult.code) {
-              console.warn(`Order ${chunk[index].orderNo} failed: ${orderResult.code} - ${orderResult.message}`);
-            }
-          });
         }
 
       } catch (error) {
