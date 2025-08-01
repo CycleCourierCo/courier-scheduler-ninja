@@ -21,12 +21,79 @@ interface OptimourouteOrder {
   customField1?: string;
   customField2?: string;
   operation?: "MERGE" | "SYNC" | "CREATE" | "UPDATE";
+  allowedDates?: any;
+  blackoutDates?: any;
 }
+
+// Helper function to generate date restrictions in object format
+const generateDateRestrictions = (order: Order) => {
+  let allowedDatesObj: any = null;
+  let blackoutDatesObj: any = null;
+  
+  if (order.pickupDate || order.deliveryDate) {
+    const allowedDates: string[] = [];
+    
+    // Add pickup and delivery dates as allowed dates
+    if (order.pickupDate) {
+      if (Array.isArray(order.pickupDate)) {
+        order.pickupDate.forEach(date => {
+          allowedDates.push(new Date(date).toISOString().split('T')[0]);
+        });
+      } else {
+        allowedDates.push(new Date(order.pickupDate).toISOString().split('T')[0]);
+      }
+    }
+    
+    if (order.deliveryDate) {
+      if (Array.isArray(order.deliveryDate)) {
+        order.deliveryDate.forEach(date => {
+          allowedDates.push(new Date(date).toISOString().split('T')[0]);
+        });
+      } else {
+        allowedDates.push(new Date(order.deliveryDate).toISOString().split('T')[0]);
+      }
+    }
+    
+    // Convert arrays to objects for OptimoRoute
+    if (allowedDates.length > 0) {
+      // Try different object formats that OptimoRoute might accept
+      allowedDatesObj = {
+        dates: allowedDates,
+        type: "include"
+      };
+    }
+    
+    // Generate blackout dates for the next 30 days excluding allowed dates
+    const blackoutDates: string[] = [];
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      if (!allowedDates.includes(dateStr)) {
+        blackoutDates.push(dateStr);
+      }
+    }
+    
+    if (blackoutDates.length > 0) {
+      blackoutDatesObj = {
+        dates: blackoutDates,
+        type: "exclude"
+      };
+    }
+  }
+  
+  return { allowedDatesObj, blackoutDatesObj };
+};
 
 // Convert internal order to OptimoRoute order format
 const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
   const orders: OptimourouteOrder[] = [];
   const baseDate = new Date().toISOString().split('T')[0]; // Use today's date as default
+  
+  // Generate date restrictions
+  const { allowedDatesObj, blackoutDatesObj } = generateDateRestrictions(order);
 
   // Create pickup order
   if (order.sender?.address) {
@@ -48,6 +115,14 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       customField2: "PICKUP",
       operation: "SYNC"
     };
+    
+    // Add date restrictions if available
+    if (allowedDatesObj) {
+      pickupOrder.allowedDates = allowedDatesObj;
+    }
+    if (blackoutDatesObj) {
+      pickupOrder.blackoutDates = blackoutDatesObj;
+    }
     
     // Always add the order (coordinates are optional, address is required)
     orders.push(pickupOrder);
@@ -73,6 +148,14 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
       customField2: "DELIVERY",
       operation: "SYNC"
     };
+    
+    // Add date restrictions if available
+    if (allowedDatesObj) {
+      deliveryOrder.allowedDates = allowedDatesObj;
+    }
+    if (blackoutDatesObj) {
+      deliveryOrder.blackoutDates = blackoutDatesObj;
+    }
     
     // Always add the order (coordinates are optional, address is required)
     orders.push(deliveryOrder);
