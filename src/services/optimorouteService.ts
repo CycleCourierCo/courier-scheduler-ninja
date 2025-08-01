@@ -95,9 +95,15 @@ const convertOrderToOptimoRouteFormat = (order: Order): OptimourouteOrder[] => {
   // Generate date restrictions
   const { allowedDatesObj, blackoutDatesObj } = generateDateRestrictions(order);
 
-  // Create pickup order (only if not already collected)
-  const isCollected = order.status === 'collected' || order.status === 'driver_to_delivery' || order.status === 'delivered';
+  // Check if the bike has been collected by examining tracking events
+  const isCollected = order.status === 'collected' || order.status === 'driver_to_delivery' || order.status === 'delivered' ||
+    order.trackingEvents?.shipday?.updates?.some(update => 
+      update.description?.toLowerCase().includes('collected') || 
+      update.description?.toLowerCase().includes('pickup') ||
+      update.event === 'ORDER_POD_UPLOAD' // Proof of delivery upload indicates collection
+    );
   
+  // Create pickup order (only if not already collected)
   if (order.sender?.address && !isCollected) {
     const pickupOrder: OptimourouteOrder = {
       orderNo: `${order.trackingNumber}-PICKUP`,
