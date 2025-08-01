@@ -25,10 +25,10 @@ interface OptimourouteOrder {
   blackoutDates?: any;
 }
 
-// Helper function to generate date restrictions in object format
+// Helper function to generate date restrictions in daterange format
 const generateDateRestrictions = (order: Order) => {
-  let allowedDatesObj: any = null;
-  let blackoutDatesObj: any = null;
+  let allowedDatesObj: any = {};
+  let blackoutDatesObj: any = {};
   
   if (order.pickupDate || order.deliveryDate) {
     const allowedDates: string[] = [];
@@ -54,32 +54,12 @@ const generateDateRestrictions = (order: Order) => {
       }
     }
     
-    // Convert arrays to objects for OptimoRoute
+    // Create daterange object for OptimoRoute (from earliest to latest allowed date)
     if (allowedDates.length > 0) {
-      // Try different object formats that OptimoRoute might accept
+      const sortedDates = allowedDates.sort();
       allowedDatesObj = {
-        dates: allowedDates,
-        type: "include"
-      };
-    }
-    
-    // Generate blackout dates for the next 30 days excluding allowed dates
-    const blackoutDates: string[] = [];
-    const today = new Date();
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      if (!allowedDates.includes(dateStr)) {
-        blackoutDates.push(dateStr);
-      }
-    }
-    
-    if (blackoutDates.length > 0) {
-      blackoutDatesObj = {
-        dates: blackoutDates,
-        type: "exclude"
+        from: sortedDates[0],
+        to: sortedDates[sortedDates.length - 1]
       };
     }
   }
