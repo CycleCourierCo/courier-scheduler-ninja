@@ -26,9 +26,10 @@ type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 interface ResetPasswordFormProps {
   onSubmit: (data: ResetPasswordFormValues) => Promise<void>;
   isLoading: boolean;
+  onBack?: () => void;
 }
 
-const ResetPasswordForm = ({ onSubmit, isLoading }: ResetPasswordFormProps) => {
+const ResetPasswordForm = ({ onSubmit, isLoading, onBack }: ResetPasswordFormProps) => {
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
@@ -88,6 +89,18 @@ const ResetPasswordForm = ({ onSubmit, isLoading }: ResetPasswordFormProps) => {
           >
             {isLoading ? "Updating Password..." : "Update Password"}
           </Button>
+          
+          {onBack && (
+            <Button 
+              type="button" 
+              variant="outline"
+              className="w-full" 
+              onClick={onBack}
+              disabled={isLoading}
+            >
+              Back to Login
+            </Button>
+          )}
         </form>
       </Form>
     </div>
