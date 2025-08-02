@@ -88,6 +88,11 @@ const Auth = () => {
     if (user && !isResettingPassword) {
       navigate("/dashboard");
     }
+    // Clear reset state when user logs out
+    if (!user && isResettingPassword) {
+      setIsResettingPassword(false);
+      setActiveTab("login");
+    }
   }, [user, navigate, isResettingPassword]);
 
   // Handle isPasswordReset flag from AuthContext
