@@ -27,9 +27,9 @@ const Index = () => {
   
   // Check for password reset hash in URL
   useEffect(() => {
-    if (window.location.hash && window.location.hash.includes('type=recovery')) {
+    if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token='))) {
       console.log("Password reset hash detected on homepage, redirecting to auth page");
-      navigate("/auth?tab=reset", { replace: true });
+      navigate("/auth?action=resetPassword", { replace: true });
       toast.info("Please set your new password");
     }
   }, [navigate]);
