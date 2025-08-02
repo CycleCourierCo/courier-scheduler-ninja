@@ -2,8 +2,9 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Calendar, Truck } from "lucide-react";
+import { Plus, Calendar, Truck, MapPin } from "lucide-react";
 import { syncOrdersToOptimoRoute } from "@/services/optimorouteService";
+import { syncOrdersToTrackPod } from "@/services/trackpodService";
 import { getOrders } from "@/services/orderService";
 import { toast } from "sonner";
 
@@ -19,10 +20,11 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userRole = null
 }) => {
   const isAdmin = userRole === 'admin';
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingOptimoRoute, setIsSyncingOptimoRoute] = useState(false);
+  const [isSyncingTrackPod, setIsSyncingTrackPod] = useState(false);
 
   const handleSyncToOptimoRoute = async () => {
-    setIsSyncing(true);
+    setIsSyncingOptimoRoute(true);
     try {
       toast.info("Starting OptimoRoute sync...");
       const orders = await getOrders();
@@ -31,7 +33,21 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       console.error("Error during OptimoRoute sync:", error);
       toast.error("Failed to sync orders to OptimoRoute");
     } finally {
-      setIsSyncing(false);
+      setIsSyncingOptimoRoute(false);
+    }
+  };
+
+  const handleSyncToTrackPod = async () => {
+    setIsSyncingTrackPod(true);
+    try {
+      toast.info("Starting Track-POD sync...");
+      const orders = await getOrders();
+      await syncOrdersToTrackPod(orders);
+    } catch (error) {
+      console.error("Error during Track-POD sync:", error);
+      toast.error("Failed to sync orders to Track-POD");
+    } finally {
+      setIsSyncingTrackPod(false);
     }
   };
 
@@ -58,10 +74,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <Button 
                 variant="outline" 
                 onClick={handleSyncToOptimoRoute}
-                disabled={isSyncing}
+                disabled={isSyncingOptimoRoute}
               >
                 <Truck className="mr-2 h-4 w-4" />
-                {isSyncing ? "Syncing..." : "Sync to OptimoRoute"}
+                {isSyncingOptimoRoute ? "Syncing..." : "Sync to OptimoRoute"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleSyncToTrackPod}
+                disabled={isSyncingTrackPod}
+              >
+                <MapPin className="mr-2 h-4 w-4" />
+                {isSyncingTrackPod ? "Syncing..." : "Sync to Track-POD"}
               </Button>
             </>
           )}
