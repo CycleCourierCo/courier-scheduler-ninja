@@ -106,7 +106,7 @@ const Auth = () => {
       // Get the base URL of the site
       const origin = window.location.origin;
       // Create redirect URL that will be recognized by our app
-      const redirectTo = `${origin}/reset-password`;
+      const redirectTo = `${origin}/auth?action=resetPassword`;
       
       console.log("Requesting password reset with redirect to:", redirectTo);
       
@@ -175,8 +175,22 @@ const Auth = () => {
     isResetEmailSent,
     isResettingPassword,
     hash: location.hash,
-    search: location.search
+    search: location.search,
+    isPasswordReset,
+    currentPath: location.pathname
   });
+
+  // Show current state in UI for debugging
+  if (process.env.NODE_ENV === 'development') {
+    console.log("=== DEBUG INFO ===");
+    console.log("Current path:", location.pathname);
+    console.log("Current hash:", location.hash);
+    console.log("Current search:", location.search);
+    console.log("Active tab:", activeTab);
+    console.log("Is resetting password:", isResettingPassword);
+    console.log("Is password reset (from context):", isPasswordReset);
+    console.log("Action param:", searchParams.get('action'));
+  }
 
   return (
     <Layout>
@@ -198,10 +212,16 @@ const Auth = () => {
               />
             ) : (
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="login">Login</TabsTrigger>
-                  <TabsTrigger value="register">Register</TabsTrigger>
-                </TabsList>
+                {!isResettingPassword ? (
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="login">Login</TabsTrigger>
+                    <TabsTrigger value="register">Register</TabsTrigger>
+                  </TabsList>
+                ) : (
+                  <TabsList className="grid w-full grid-cols-1 mb-6">
+                    <TabsTrigger value="reset">Reset Password</TabsTrigger>
+                  </TabsList>
+                )}
 
                 <TabsContent value="login">
                   {isResetEmailSent ? (
