@@ -149,7 +149,7 @@ const Auth = () => {
       
       // Clear URL hash and params after successful password reset
       if (window.history && window.history.replaceState) {
-        window.history.replaceState(null, '', window.location.pathname);
+        window.history.replaceState(null, '', '/auth');
       }
       
     } catch (error: any) {
@@ -157,6 +157,15 @@ const Auth = () => {
       toast.error(error.message || "Failed to update password");
     } finally {
       setResetPasswordLoading(false);
+    }
+  };
+
+  // Add a function to clear reset state when needed
+  const clearResetState = () => {
+    setIsResettingPassword(false);
+    setActiveTab("login");
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', '/auth');
     }
   };
 
@@ -242,6 +251,7 @@ const Auth = () => {
                   <ResetPasswordForm 
                     onSubmit={handlePasswordReset}
                     isLoading={resetPasswordLoading}
+                    onBack={clearResetState}
                   />
                 </TabsContent>
               </Tabs>
