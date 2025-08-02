@@ -106,7 +106,7 @@ const Auth = () => {
       // Get the base URL of the site
       const origin = window.location.origin;
       // Create redirect URL that will be recognized by our app
-      const redirectTo = `${origin}/reset-password`;
+      const redirectTo = `${origin}/auth?action=resetPassword`;
       
       console.log("Requesting password reset with redirect to:", redirectTo);
       
