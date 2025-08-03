@@ -11,33 +11,52 @@ import { toast } from "sonner";
  * @returns The response from the Shipday API
  */
 /**
- * Syncs multiple orders to Shipday
+ * Syncs multiple orders to Shipday with status-based filtering
  * @param orders Array of orders to sync to Shipday
  */
 export const syncOrdersToShipday = async (orders: any[]) => {
   try {
-    toast.info(`Starting Shipday sync for ${orders.length} orders...`);
+    // Filter orders based on status
+    const ordersToSync = orders.filter(order => order.status !== 'delivered');
+    
+    toast.info(`Starting Shipday sync for ${ordersToSync.length} orders...`);
     
     let successCount = 0;
     let errorCount = 0;
+    let skippedCount = orders.length - ordersToSync.length;
     
-    for (const order of orders) {
+    for (const order of ordersToSync) {
       try {
-        await createShipdayOrder(order.id);
-        successCount++;
+        // For collected orders, only create delivery
+        if (order.status === 'collected') {
+          await createShipdayOrder(order.id, 'delivery');
+          successCount++;
+        } else {
+          // For all other orders, create both pickup and delivery
+          await createShipdayOrder(order.id);
+          successCount++;
+        }
       } catch (error) {
         console.error(`Failed to sync order ${order.id} to Shipday:`, error);
         errorCount++;
       }
     }
     
-    if (errorCount === 0) {
-      toast.success(`Successfully synced ${successCount} orders to Shipday`);
-    } else {
-      toast.warning(`Synced ${successCount} orders to Shipday, ${errorCount} failed`);
+    let message = `Synced ${successCount} orders to Shipday`;
+    if (errorCount > 0) {
+      message += `, ${errorCount} failed`;
+    }
+    if (skippedCount > 0) {
+      message += `, ${skippedCount} skipped (delivered status)`;
     }
     
-    return { successCount, errorCount };
+    if (errorCount === 0) {
+      toast.success(message);
+    } else {
+      toast.warning(message);
+    }
+    
+    return { successCount, errorCount, skippedCount };
   } catch (error) {
     console.error("Error during Shipday bulk sync:", error);
     toast.error("Failed to sync orders to Shipday");
