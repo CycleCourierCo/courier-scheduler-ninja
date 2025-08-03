@@ -16,8 +16,10 @@ import { toast } from "sonner";
  */
 export const syncOrdersToShipday = async (orders: any[]) => {
   try {
-    // Filter orders based on status
-    const ordersToSync = orders.filter(order => order.status !== 'delivered');
+    // Filter orders based on status - exclude delivered and cancelled orders
+    const ordersToSync = orders.filter(order => 
+      order.status !== 'delivered' && order.status !== 'cancelled'
+    );
     
     toast.info(`Starting Shipday sync for ${ordersToSync.length} orders...`);
     
@@ -47,7 +49,7 @@ export const syncOrdersToShipday = async (orders: any[]) => {
       message += `, ${errorCount} failed`;
     }
     if (skippedCount > 0) {
-      message += `, ${skippedCount} skipped (delivered status)`;
+      message += `, ${skippedCount} skipped (delivered/cancelled status)`;
     }
     
     if (errorCount === 0) {
