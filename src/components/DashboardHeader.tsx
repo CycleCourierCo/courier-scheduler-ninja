@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Plus, Calendar, Truck, MapPin } from "lucide-react";
 import { syncOrdersToOptimoRoute } from "@/services/optimorouteService";
 import { syncOrdersToTrackPod } from "@/services/trackpodService";
+import { syncOrdersToShipday } from "@/services/shipdayService";
 import { getOrders } from "@/services/orderService";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const isAdmin = userRole === 'admin';
   const [isSyncingOptimoRoute, setIsSyncingOptimoRoute] = useState(false);
   const [isSyncingTrackPod, setIsSyncingTrackPod] = useState(false);
+  const [isSyncingShipday, setIsSyncingShipday] = useState(false);
 
   const handleSyncToOptimoRoute = async () => {
     setIsSyncingOptimoRoute(true);
@@ -48,6 +50,19 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       toast.error("Failed to sync orders to Track-POD");
     } finally {
       setIsSyncingTrackPod(false);
+    }
+  };
+
+  const handleSyncToShipday = async () => {
+    setIsSyncingShipday(true);
+    try {
+      const orders = await getOrders();
+      await syncOrdersToShipday(orders);
+    } catch (error) {
+      console.error("Error during Shipday sync:", error);
+      toast.error("Failed to sync orders to Shipday");
+    } finally {
+      setIsSyncingShipday(false);
     }
   };
 
@@ -86,6 +101,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               >
                 <MapPin className="mr-2 h-4 w-4" />
                 {isSyncingTrackPod ? "Syncing..." : "Sync to Track-POD"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleSyncToShipday}
+                disabled={isSyncingShipday}
+              >
+                <Truck className="mr-2 h-4 w-4" />
+                {isSyncingShipday ? "Syncing..." : "Sync to Shipday"}
               </Button>
             </>
           )}
