@@ -78,6 +78,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const abortController = new AbortController();
     setAbortControllers(prev => ({ ...prev, shipday: abortController }));
     setIsSyncingShipday(true);
+    console.log("Starting Shipday sync - button should be visible now");
     try {
       const orders = await getOrders();
       await syncOrdersToShipday(orders);
@@ -91,6 +92,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     } finally {
       setIsSyncingShipday(false);
       setAbortControllers(prev => ({ ...prev, shipday: undefined }));
+      console.log("Shipday sync completed - button should be hidden now");
     }
   };
 
@@ -104,6 +106,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   const isAnySyncing = isSyncingOptimoRoute || isSyncingTrackPod || isSyncingShipday;
+  console.log("Sync states:", { isSyncingOptimoRoute, isSyncingTrackPod, isSyncingShipday, isAnySyncing });
 
   return (
     <div className="flex flex-col space-y-4 pb-4">
@@ -154,6 +157,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   variant="destructive" 
                   onClick={handleStopAllSyncs}
                   size="sm"
+                  className="animate-pulse"
                 >
                   <X className="mr-2 h-4 w-4" />
                   Stop All Syncs
