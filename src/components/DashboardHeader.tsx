@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Calendar, Truck, MapPin } from "lucide-react";
+import { Plus, Calendar, Truck, MapPin, X } from "lucide-react";
 import { syncOrdersToOptimoRoute } from "@/services/optimorouteService";
 import { syncOrdersToTrackPod } from "@/services/trackpodService";
 import { syncOrdersToShipday } from "@/services/shipdayService";
@@ -24,47 +24,86 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const [isSyncingOptimoRoute, setIsSyncingOptimoRoute] = useState(false);
   const [isSyncingTrackPod, setIsSyncingTrackPod] = useState(false);
   const [isSyncingShipday, setIsSyncingShipday] = useState(false);
+  
+  // Abort controllers for cancelling sync operations
+  const [abortControllers, setAbortControllers] = useState<{
+    optimoRoute?: AbortController;
+    trackPod?: AbortController;
+    shipday?: AbortController;
+  }>({});
 
   const handleSyncToOptimoRoute = async () => {
+    const abortController = new AbortController();
+    setAbortControllers(prev => ({ ...prev, optimoRoute: abortController }));
     setIsSyncingOptimoRoute(true);
     try {
       toast.info("Starting OptimoRoute sync...");
       const orders = await getOrders();
       await syncOrdersToOptimoRoute(orders);
-    } catch (error) {
-      console.error("Error during OptimoRoute sync:", error);
-      toast.error("Failed to sync orders to OptimoRoute");
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        toast.info("OptimoRoute sync cancelled");
+      } else {
+        console.error("Error during OptimoRoute sync:", error);
+        toast.error("Failed to sync orders to OptimoRoute");
+      }
     } finally {
       setIsSyncingOptimoRoute(false);
+      setAbortControllers(prev => ({ ...prev, optimoRoute: undefined }));
     }
   };
 
   const handleSyncToTrackPod = async () => {
+    const abortController = new AbortController();
+    setAbortControllers(prev => ({ ...prev, trackPod: abortController }));
     setIsSyncingTrackPod(true);
     try {
       toast.info("Starting Track-POD sync...");
       const orders = await getOrders();
       await syncOrdersToTrackPod(orders);
-    } catch (error) {
-      console.error("Error during Track-POD sync:", error);
-      toast.error("Failed to sync orders to Track-POD");
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        toast.info("Track-POD sync cancelled");
+      } else {
+        console.error("Error during Track-POD sync:", error);
+        toast.error("Failed to sync orders to Track-POD");
+      }
     } finally {
       setIsSyncingTrackPod(false);
+      setAbortControllers(prev => ({ ...prev, trackPod: undefined }));
     }
   };
 
   const handleSyncToShipday = async () => {
+    const abortController = new AbortController();
+    setAbortControllers(prev => ({ ...prev, shipday: abortController }));
     setIsSyncingShipday(true);
     try {
       const orders = await getOrders();
       await syncOrdersToShipday(orders);
-    } catch (error) {
-      console.error("Error during Shipday sync:", error);
-      toast.error("Failed to sync orders to Shipday");
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        toast.info("Shipday sync cancelled");
+      } else {
+        console.error("Error during Shipday sync:", error);
+        toast.error("Failed to sync orders to Shipday");
+      }
     } finally {
       setIsSyncingShipday(false);
+      setAbortControllers(prev => ({ ...prev, shipday: undefined }));
     }
   };
+
+  const handleStopAllSyncs = () => {
+    Object.values(abortControllers).forEach(controller => {
+      if (controller) {
+        controller.abort();
+      }
+    });
+    toast.info("All sync operations cancelled");
+  };
+
+  const isAnySyncing = isSyncingOptimoRoute || isSyncingTrackPod || isSyncingShipday;
 
   return (
     <div className="flex flex-col space-y-4 pb-4">
@@ -110,6 +149,16 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 <Truck className="mr-2 h-4 w-4" />
                 {isSyncingShipday ? "Syncing..." : "Sync to Shipday"}
               </Button>
+              {isAnySyncing && (
+                <Button 
+                  variant="destructive" 
+                  onClick={handleStopAllSyncs}
+                  size="sm"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Stop All Syncs
+                </Button>
+              )}
             </>
           )}
           <Button asChild>
