@@ -43,7 +43,6 @@ interface RegisterFormProps {
 }
 
 const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
-  const [isBusinessAccount, setIsBusinessAccount] = useState(false);
   const { signUp, isLoading } = useAuth();
   const [localLoading, setLocalLoading] = useState(false);
 
@@ -55,7 +54,7 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
       phone: "+44",
       password: "",
       confirmPassword: "",
-      is_business: false,
+      is_business: true,
       company_name: "",
       website: "",
       address: {
@@ -66,10 +65,6 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
       }
     },
   });
-
-  useEffect(() => {
-    form.setValue("is_business", isBusinessAccount);
-  }, [isBusinessAccount, form]);
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
@@ -107,30 +102,11 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
-          <h3 className="text-lg font-medium text-center">Account Type</h3>
+          <h3 className="text-lg font-medium text-center">Business Registration</h3>
           <div className="flex flex-col items-center space-y-3">
-            <p className="text-sm text-muted-foreground text-center">Select your account type</p>
-            <div className="flex items-center justify-center w-full max-w-xs rounded-full bg-accent/30 p-1">
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
-                  !isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                }`}
-                onClick={() => setIsBusinessAccount(false)}
-              >
-                <User size={16} />
-                <span>Personal</span>
-              </button>
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full transition-all w-1/2 ${
-                  isBusinessAccount ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                }`}
-                onClick={() => setIsBusinessAccount(true)}
-              >
-                <Building size={16} />
-                <span>Business</span>
-              </button>
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Building size={16} />
+              <span className="text-sm">Business Account</span>
             </div>
           </div>
         </div>
@@ -180,38 +156,36 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
             />
           </div>
 
-          {isBusinessAccount && (
-            <div className="space-y-4 border p-4 rounded-md bg-accent/30">
-              <h3 className="font-medium">Business Information</h3>
-              <FormField
-                control={form.control}
-                name="company_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company/Trading Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Company Ltd or Trading Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <div className="space-y-4 border p-4 rounded-md bg-accent/30">
+            <h3 className="font-medium">Business Information</h3>
+            <FormField
+              control={form.control}
+              name="company_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company/Trading Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Company Ltd or Trading Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Website (optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          )}
+            <FormField
+              control={form.control}
+              name="website"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website (optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <div className="space-y-4 border p-4 rounded-md bg-accent/30">
             <h3 className="font-medium">Address Information</h3>
