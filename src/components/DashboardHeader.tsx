@@ -175,18 +175,22 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         // Add company logo and contact info at bottom
         const bottomY = y + labelHeight - 60; // Reserve space at bottom
         
+        // Add logo - load it properly for PDF
         try {
-          // Add logo (try to load it, if it fails, continue without it)
+          const logoWidth = 40;
+          const logoHeight = 30;
+          const logoX = x + margin;
+          
+          // Convert image to base64 and add to PDF
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
           const logoImg = new Image();
-          logoImg.onload = () => {
-            const logoWidth = 40;
-            const logoHeight = 30;
-            const logoX = x + margin;
-            pdf.addImage(logoImg, 'PNG', logoX, bottomY - logoHeight, logoWidth, logoHeight);
-          };
-          logoImg.src = '/cycle-courier-logo.png';
+          logoImg.crossOrigin = 'anonymous';
+          
+          // Use the uploaded logo
+          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, bottomY - logoHeight, logoWidth, logoHeight);
         } catch (error) {
-          console.log('Logo not found, continuing without it');
+          console.log('Could not load logo:', error);
         }
         
         // Add contact information
