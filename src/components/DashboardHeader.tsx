@@ -72,48 +72,37 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
   const generateLabels = async (orders: Order[]) => {
     try {
-      const pdf = new jsPDF('portrait', 'pt', 'letter');
+      // Create PDF with exact 4x6 inch page size for label printers
+      const labelWidth = 288; // 4 inches in points
+      const labelHeight = 432; // 6 inches in points
       
-      // 4x6 inch labels in points (72 points per inch)
-      const labelWidth = 288; // 4 inches
-      const labelHeight = 432; // 6 inches
+      const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       
       orders.forEach((order, index) => {
         if (index > 0) {
           pdf.addPage();
         }
 
-        // Center the label on the page
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const x = (pageWidth - labelWidth) / 2;
-        const y = (pageHeight - labelHeight) / 2;
-
-        // Draw label border
-        pdf.setDrawColor(0, 0, 0);
-        pdf.setLineWidth(1);
-        pdf.rect(x, y, labelWidth, labelHeight);
-        
-        // Add content with proper error handling
+        // No centering needed - use full page
         const margin = 15;
-        let currentY = y + margin + 20;
+        let currentY = margin + 20;
         
         // Tracking number
         pdf.setFontSize(14);
         pdf.setFont("helvetica", "bold");
         const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}`;
-        pdf.text(trackingText, x + margin, currentY);
+        pdf.text(trackingText, margin, currentY);
         currentY += 30;
         
         // Sender info
         pdf.setFontSize(10);
         pdf.setFont("helvetica", "bold");
-        pdf.text('FROM:', x + margin, currentY);
+        pdf.text('FROM:', margin, currentY);
         currentY += 15;
         
         pdf.setFont("helvetica", "normal");
         if (order.sender?.name) {
-          pdf.text(order.sender.name, x + margin, currentY);
+          pdf.text(order.sender.name, margin, currentY);
           currentY += 12;
         }
         
@@ -122,31 +111,31 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           if (address.street) {
             const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
             streetText.forEach(line => {
-              pdf.text(line, x + margin, currentY);
+              pdf.text(line, margin, currentY);
               currentY += 12;
             });
           }
           
           const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
           if (cityLine.length > 2) {
-            pdf.text(cityLine, x + margin, currentY);
+            pdf.text(cityLine, margin, currentY);
             currentY += 12;
           }
         }
         
         if (order.sender?.phone) {
-          pdf.text(order.sender.phone, x + margin, currentY);
+          pdf.text(order.sender.phone, margin, currentY);
           currentY += 25;
         }
         
         // Receiver info
         pdf.setFont("helvetica", "bold");
-        pdf.text('TO:', x + margin, currentY);
+        pdf.text('TO:', margin, currentY);
         currentY += 15;
         
         pdf.setFont("helvetica", "normal");
         if (order.receiver?.name) {
-          pdf.text(order.receiver.name, x + margin, currentY);
+          pdf.text(order.receiver.name, margin, currentY);
           currentY += 12;
         }
         
@@ -155,20 +144,20 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           if (address.street) {
             const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
             streetText.forEach(line => {
-              pdf.text(line, x + margin, currentY);
+              pdf.text(line, margin, currentY);
               currentY += 12;
             });
           }
           
           const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
           if (cityLine.length > 2) {
-            pdf.text(cityLine, x + margin, currentY);
+            pdf.text(cityLine, margin, currentY);
             currentY += 12;
           }
         }
         
         if (order.receiver?.phone) {
-          pdf.text(order.receiver.phone, x + margin, currentY);
+          pdf.text(order.receiver.phone, margin, currentY);
           currentY += 25;
         }
         
@@ -176,7 +165,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         try {
           const logoWidth = 50;
           const logoHeight = 40;
-          const logoX = x + (labelWidth - logoWidth) / 2; // Center the logo
+          const logoX = (labelWidth - logoWidth) / 2; // Center the logo
           
           pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
           currentY += logoHeight + 10;
@@ -186,7 +175,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           pdf.setFont("helvetica", "normal");
           const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
           const contactWidth = pdf.getTextWidth(contactText);
-          const contactX = x + (labelWidth - contactWidth) / 2; // Center the text
+          const contactX = (labelWidth - contactWidth) / 2; // Center the text
           pdf.text(contactText, contactX, currentY);
         } catch (error) {
           console.log('Could not load logo:', error);
