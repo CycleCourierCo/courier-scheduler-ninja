@@ -103,7 +103,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         pdf.setFont("helvetica", "bold");
         const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}`;
         pdf.text(trackingText, x + margin, currentY);
-        currentY += 25;
+        currentY += 30;
         
         // Sender info
         pdf.setFontSize(10);
@@ -139,6 +139,28 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           currentY += 25;
         }
         
+        // Add logo and contact info in center
+        try {
+          const logoWidth = 50;
+          const logoHeight = 40;
+          const logoX = x + (labelWidth - logoWidth) / 2; // Center the logo
+          
+          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+          currentY += logoHeight + 10;
+          
+          // Add contact information centered below logo
+          pdf.setFontSize(8);
+          pdf.setFont("helvetica", "normal");
+          const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
+          const contactWidth = pdf.getTextWidth(contactText);
+          const contactX = x + (labelWidth - contactWidth) / 2; // Center the text
+          pdf.text(contactText, contactX, currentY);
+          currentY += 25;
+        } catch (error) {
+          console.log('Could not load logo:', error);
+          currentY += 15; // Add some space even if logo fails
+        }
+        
         // Receiver info
         pdf.setFont("helvetica", "bold");
         pdf.text('TO:', x + margin, currentY);
@@ -169,35 +191,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         
         if (order.receiver?.phone) {
           pdf.text(order.receiver.phone, x + margin, currentY);
-          currentY += 15;
         }
-        
-        // Add company logo and contact info at bottom
-        const bottomY = y + labelHeight - 60; // Reserve space at bottom
-        
-        // Add logo - load it properly for PDF
-        try {
-          const logoWidth = 40;
-          const logoHeight = 30;
-          const logoX = x + margin;
-          
-          // Convert image to base64 and add to PDF
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const logoImg = new Image();
-          logoImg.crossOrigin = 'anonymous';
-          
-          // Use the uploaded logo
-          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, bottomY - logoHeight, logoWidth, logoHeight);
-        } catch (error) {
-          console.log('Could not load logo:', error);
-        }
-        
-        // Add contact information
-        pdf.setFontSize(8);
-        pdf.setFont("helvetica", "normal");
-        const contactY = bottomY - 5;
-        pdf.text('cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767', x + margin, contactY);
       });
 
       pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
