@@ -71,76 +71,136 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   const generateLabels = async (orders: Order[]) => {
-    const pdf = new jsPDF();
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    
-    // 4x6 inches = 288x432 points (72 points per inch)
-    const labelWidth = 288;
-    const labelHeight = 432;
-    
-    // Calculate how many labels fit per page
-    const labelsPerRow = Math.floor(pageWidth / labelWidth);
-    const labelsPerColumn = Math.floor(pageHeight / labelHeight);
-    const labelsPerPage = labelsPerRow * labelsPerColumn;
+    try {
+      const pdf = new jsPDF('portrait', 'pt', 'letter');
+      
+      // 4x6 inch labels in points (72 points per inch)
+      const labelWidth = 288; // 4 inches
+      const labelHeight = 432; // 6 inches
+      
+      orders.forEach((order, index) => {
+        if (index > 0) {
+          pdf.addPage();
+        }
 
-    orders.forEach((order, index) => {
-      if (index > 0 && index % labelsPerPage === 0) {
-        pdf.addPage();
+        // Center the label on the page
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const x = (pageWidth - labelWidth) / 2;
+        const y = (pageHeight - labelHeight) / 2;
+
+        // Draw label border
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(1);
+        pdf.rect(x, y, labelWidth, labelHeight);
+        
+        // Add content with proper error handling
+        const margin = 15;
+        let currentY = y + margin + 20;
+        
+        // Tracking number
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}`;
+        pdf.text(trackingText, x + margin, currentY);
+        currentY += 25;
+        
+        // Sender info
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "bold");
+        pdf.text('FROM:', x + margin, currentY);
+        currentY += 15;
+        
+        pdf.setFont("helvetica", "normal");
+        if (order.sender?.name) {
+          pdf.text(order.sender.name, x + margin, currentY);
+          currentY += 12;
+        }
+        
+        if (order.sender?.address) {
+          const address = order.sender.address;
+          if (address.street) {
+            const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+            streetText.forEach(line => {
+              pdf.text(line, x + margin, currentY);
+              currentY += 12;
+            });
+          }
+          
+          const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+          if (cityLine.length > 2) {
+            pdf.text(cityLine, x + margin, currentY);
+            currentY += 12;
+          }
+        }
+        
+        if (order.sender?.phone) {
+          pdf.text(order.sender.phone, x + margin, currentY);
+          currentY += 25;
+        }
+        
+        // Receiver info
+        pdf.setFont("helvetica", "bold");
+        pdf.text('TO:', x + margin, currentY);
+        currentY += 15;
+        
+        pdf.setFont("helvetica", "normal");
+        if (order.receiver?.name) {
+          pdf.text(order.receiver.name, x + margin, currentY);
+          currentY += 12;
+        }
+        
+        if (order.receiver?.address) {
+          const address = order.receiver.address;
+          if (address.street) {
+            const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+            streetText.forEach(line => {
+              pdf.text(line, x + margin, currentY);
+              currentY += 12;
+            });
+          }
+          
+          const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+          if (cityLine.length > 2) {
+            pdf.text(cityLine, x + margin, currentY);
+            currentY += 12;
+          }
+        }
+        
+        if (order.receiver?.phone) {
+          pdf.text(order.receiver.phone, x + margin, currentY);
+        }
+      });
+
+      pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      throw new Error(`PDF generation failed: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const splitText = (pdf: jsPDF, text: string, maxWidth: number): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const textWidth = pdf.getTextWidth(testLine);
+      
+      if (textWidth > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
       }
-
-      const labelIndex = index % labelsPerPage;
-      const row = Math.floor(labelIndex / labelsPerRow);
-      const col = labelIndex % labelsPerRow;
-      
-      const x = col * labelWidth;
-      const y = row * labelHeight;
-
-      // Draw label border
-      pdf.rect(x, y, labelWidth, labelHeight);
-      
-      // Add content
-      const margin = 10;
-      let currentY = y + margin + 15;
-      
-      // Tracking number
-      pdf.setFontSize(16);
-      pdf.setFont(undefined, 'bold');
-      pdf.text(`Tracking: ${order.trackingNumber || 'N/A'}`, x + margin, currentY);
-      currentY += 25;
-      
-      // Sender info
-      pdf.setFontSize(12);
-      pdf.setFont(undefined, 'bold');
-      pdf.text('FROM:', x + margin, currentY);
-      currentY += 15;
-      
-      pdf.setFont(undefined, 'normal');
-      pdf.text(order.sender.name, x + margin, currentY);
-      currentY += 12;
-      pdf.text(order.sender.address.street, x + margin, currentY);
-      currentY += 12;
-      pdf.text(`${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}`, x + margin, currentY);
-      currentY += 12;
-      pdf.text(order.sender.phone, x + margin, currentY);
-      currentY += 25;
-      
-      // Receiver info
-      pdf.setFont(undefined, 'bold');
-      pdf.text('TO:', x + margin, currentY);
-      currentY += 15;
-      
-      pdf.setFont(undefined, 'normal');
-      pdf.text(order.receiver.name, x + margin, currentY);
-      currentY += 12;
-      pdf.text(order.receiver.address.street, x + margin, currentY);
-      currentY += 12;
-      pdf.text(`${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}`, x + margin, currentY);
-      currentY += 12;
-      pdf.text(order.receiver.phone, x + margin, currentY);
     });
-
-    pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
   };
 
   return (
