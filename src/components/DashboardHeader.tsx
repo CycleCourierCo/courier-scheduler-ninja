@@ -169,7 +169,31 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         
         if (order.receiver?.phone) {
           pdf.text(order.receiver.phone, x + margin, currentY);
+          currentY += 15;
         }
+        
+        // Add company logo and contact info at bottom
+        const bottomY = y + labelHeight - 60; // Reserve space at bottom
+        
+        try {
+          // Add logo (try to load it, if it fails, continue without it)
+          const logoImg = new Image();
+          logoImg.onload = () => {
+            const logoWidth = 40;
+            const logoHeight = 30;
+            const logoX = x + margin;
+            pdf.addImage(logoImg, 'PNG', logoX, bottomY - logoHeight, logoWidth, logoHeight);
+          };
+          logoImg.src = '/cycle-courier-logo.png';
+        } catch (error) {
+          console.log('Logo not found, continuing without it');
+        }
+        
+        // Add contact information
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "normal");
+        const contactY = bottomY - 5;
+        pdf.text('cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767', x + margin, contactY);
       });
 
       pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
