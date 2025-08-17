@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Search, Filter, SortDesc, SortAsc } from "lucide-react";
+import { Search, Filter, SortDesc, SortAsc, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
@@ -10,6 +10,12 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 
 const statusOptions = [
   { value: "all", label: "All Statuses" },
@@ -33,12 +39,12 @@ const sortOptions = [
 
 interface OrderFiltersProps {
   onFilterChange: (filters: {
-    status: string;
+    status: string[];
     search: string;
     sortBy: string;
   }) => void;
   initialFilters?: {
-    status: string;
+    status: string[];
     search: string;
     sortBy: string;
   };
@@ -46,15 +52,19 @@ interface OrderFiltersProps {
 
 const OrderFilters: React.FC<OrderFiltersProps> = ({ 
   onFilterChange, 
-  initialFilters = { status: "all", search: "", sortBy: "created_desc" }
+  initialFilters = { status: [], search: "", sortBy: "created_desc" }
 }) => {
-  const [status, setStatus] = useState<string>(initialFilters.status);
+  const [status, setStatus] = useState<string[]>(initialFilters.status);
   const [search, setSearch] = useState<string>(initialFilters.search);
   const [sortBy, setSortBy] = useState<string>(initialFilters.sortBy);
+  const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
 
-  const handleStatusChange = (value: string) => {
-    setStatus(value);
-    onFilterChange({ status: value, search, sortBy });
+  const handleStatusToggle = (value: string) => {
+    const newStatus = status.includes(value)
+      ? status.filter(s => s !== value)
+      : [...status, value];
+    setStatus(newStatus);
+    onFilterChange({ status: newStatus, search, sortBy });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,11 +78,20 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   };
 
   const handleClearFilters = () => {
-    const defaultFilters = { status: "all", search: "", sortBy: "created_desc" };
+    const defaultFilters = { status: [], search: "", sortBy: "created_desc" };
     setStatus(defaultFilters.status);
     setSearch(defaultFilters.search);
     setSortBy(defaultFilters.sortBy);
     onFilterChange(defaultFilters);
+  };
+
+  const getStatusDisplayText = () => {
+    if (status.length === 0) return "All Statuses";
+    if (status.length === 1) {
+      const statusOption = statusOptions.find(opt => opt.value === status[0]);
+      return statusOption?.label || status[0];
+    }
+    return `${status.length} statuses selected`;
   };
 
   return (
@@ -81,7 +100,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
           <Input
-            placeholder="Search orders..."
+            placeholder="Search by customer name, order ID, bike details, or tracking number..."
             value={search}
             onChange={handleSearchChange}
             className="pl-10"
@@ -90,19 +109,60 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
         
         <div className="flex flex-col md:flex-row gap-3">
           <div className="w-full md:w-48">
-            <Select value={status} onValueChange={handleStatusChange}>
-              <SelectTrigger>
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={statusPopoverOpen} onOpenChange={setStatusPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={statusPopoverOpen}
+                  className="w-full justify-between"
+                >
+                  <div className="flex items-center">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <span className="truncate">{getStatusDisplayText()}</span>
+                  </div>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0">
+                <div className="p-4 space-y-2">
+                  <div className="text-sm font-medium mb-3">Filter by Status</div>
+                  {status.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {status.map((selectedStatus) => {
+                        const statusOption = statusOptions.find(opt => opt.value === selectedStatus);
+                        return (
+                          <Badge 
+                            key={selectedStatus} 
+                            variant="secondary" 
+                            className="text-xs cursor-pointer"
+                            onClick={() => handleStatusToggle(selectedStatus)}
+                          >
+                            {statusOption?.label}
+                            <span className="ml-1">×</span>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    {statusOptions.slice(1).map((option) => (
+                      <div
+                        key={option.value}
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-muted rounded-sm p-2"
+                        onClick={() => handleStatusToggle(option.value)}
+                      >
+                        <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center">
+                          {status.includes(option.value) && (
+                            <Check className="h-3 w-3" />
+                          )}
+                        </div>
+                        <span className="text-sm">{option.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           
           <div className="w-full md:w-48">
