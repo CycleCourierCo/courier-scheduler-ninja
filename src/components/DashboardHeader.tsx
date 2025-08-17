@@ -139,28 +139,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           currentY += 25;
         }
         
-        // Add logo and contact info in center
-        try {
-          const logoWidth = 50;
-          const logoHeight = 40;
-          const logoX = x + (labelWidth - logoWidth) / 2; // Center the logo
-          
-          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
-          currentY += logoHeight + 10;
-          
-          // Add contact information centered below logo
-          pdf.setFontSize(8);
-          pdf.setFont("helvetica", "normal");
-          const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
-          const contactWidth = pdf.getTextWidth(contactText);
-          const contactX = x + (labelWidth - contactWidth) / 2; // Center the text
-          pdf.text(contactText, contactX, currentY);
-          currentY += 25;
-        } catch (error) {
-          console.log('Could not load logo:', error);
-          currentY += 15; // Add some space even if logo fails
-        }
-        
         // Receiver info
         pdf.setFont("helvetica", "bold");
         pdf.text('TO:', x + margin, currentY);
@@ -191,6 +169,27 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         
         if (order.receiver?.phone) {
           pdf.text(order.receiver.phone, x + margin, currentY);
+          currentY += 25;
+        }
+        
+        // Add logo and contact info below receiver details
+        try {
+          const logoWidth = 50;
+          const logoHeight = 40;
+          const logoX = x + (labelWidth - logoWidth) / 2; // Center the logo
+          
+          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+          currentY += logoHeight + 10;
+          
+          // Add contact information centered below logo
+          pdf.setFontSize(8);
+          pdf.setFont("helvetica", "normal");
+          const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
+          const contactWidth = pdf.getTextWidth(contactText);
+          const contactX = x + (labelWidth - contactWidth) / 2; // Center the text
+          pdf.text(contactText, contactX, currentY);
+        } catch (error) {
+          console.log('Could not load logo:', error);
         }
       });
 
