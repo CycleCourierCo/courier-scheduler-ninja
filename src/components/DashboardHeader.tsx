@@ -2,12 +2,17 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Calendar, Truck, MapPin, X } from "lucide-react";
-import { syncOrdersToOptimoRoute } from "@/services/optimorouteService";
-import { syncOrdersToTrackPod } from "@/services/trackpodService";
-import { syncOrdersToShipday } from "@/services/shipdayService";
+import { Plus, Calendar, Printer } from "lucide-react";
 import { getOrders } from "@/services/orderService";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import jsPDF from 'jspdf';
+import type { Order } from "@/types/order";
 
 interface DashboardHeaderProps {
   children?: React.ReactNode;
@@ -21,92 +26,122 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userRole = null
 }) => {
   const isAdmin = userRole === 'admin';
-  const [isSyncingOptimoRoute, setIsSyncingOptimoRoute] = useState(false);
-  const [isSyncingTrackPod, setIsSyncingTrackPod] = useState(false);
-  const [isSyncingShipday, setIsSyncingShipday] = useState(false);
-  
-  // Abort controllers for cancelling sync operations
-  const [abortControllers, setAbortControllers] = useState<{
-    optimoRoute?: AbortController;
-    trackPod?: AbortController;
-    shipday?: AbortController;
-  }>({});
+  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const handleSyncToOptimoRoute = async () => {
-    const abortController = new AbortController();
-    setAbortControllers(prev => ({ ...prev, optimoRoute: abortController }));
-    setIsSyncingOptimoRoute(true);
+  const handlePrintLabels = async () => {
+    if (!selectedDate) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    
     try {
-      toast.info("Starting OptimoRoute sync...");
       const orders = await getOrders();
-      await syncOrdersToOptimoRoute(orders);
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        toast.info("OptimoRoute sync cancelled");
-      } else {
-        console.error("Error during OptimoRoute sync:", error);
-        toast.error("Failed to sync orders to OptimoRoute");
+      const scheduledOrders = orders.filter(order => {
+        const scheduledPickup = order.scheduledPickupDate;
+        const scheduledDelivery = order.scheduledDeliveryDate;
+        
+        if (!scheduledPickup && !scheduledDelivery) return false;
+        
+        const targetDate = format(selectedDate, 'yyyy-MM-dd');
+        const pickupDate = scheduledPickup ? format(new Date(scheduledPickup), 'yyyy-MM-dd') : null;
+        const deliveryDate = scheduledDelivery ? format(new Date(scheduledDelivery), 'yyyy-MM-dd') : null;
+        
+        return pickupDate === targetDate || deliveryDate === targetDate;
+      });
+
+      if (scheduledOrders.length === 0) {
+        toast.info("No orders scheduled for the selected date");
+        return;
       }
+
+      await generateLabels(scheduledOrders);
+      toast.success(`Generated labels for ${scheduledOrders.length} orders`);
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error generating labels:", error);
+      toast.error("Failed to generate labels");
     } finally {
-      setIsSyncingOptimoRoute(false);
-      setAbortControllers(prev => ({ ...prev, optimoRoute: undefined }));
+      setIsGeneratingPDF(false);
     }
   };
 
-  const handleSyncToTrackPod = async () => {
-    const abortController = new AbortController();
-    setAbortControllers(prev => ({ ...prev, trackPod: abortController }));
-    setIsSyncingTrackPod(true);
-    try {
-      toast.info("Starting Track-POD sync...");
-      const orders = await getOrders();
-      await syncOrdersToTrackPod(orders);
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        toast.info("Track-POD sync cancelled");
-      } else {
-        console.error("Error during Track-POD sync:", error);
-        toast.error("Failed to sync orders to Track-POD");
-      }
-    } finally {
-      setIsSyncingTrackPod(false);
-      setAbortControllers(prev => ({ ...prev, trackPod: undefined }));
-    }
-  };
+  const generateLabels = async (orders: Order[]) => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    // 4x6 inches = 288x432 points (72 points per inch)
+    const labelWidth = 288;
+    const labelHeight = 432;
+    
+    // Calculate how many labels fit per page
+    const labelsPerRow = Math.floor(pageWidth / labelWidth);
+    const labelsPerColumn = Math.floor(pageHeight / labelHeight);
+    const labelsPerPage = labelsPerRow * labelsPerColumn;
 
-  const handleSyncToShipday = async () => {
-    const abortController = new AbortController();
-    setAbortControllers(prev => ({ ...prev, shipday: abortController }));
-    setIsSyncingShipday(true);
-    console.log("Starting Shipday sync - button should be visible now");
-    try {
-      const orders = await getOrders();
-      await syncOrdersToShipday(orders);
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        toast.info("Shipday sync cancelled");
-      } else {
-        console.error("Error during Shipday sync:", error);
-        toast.error("Failed to sync orders to Shipday");
+    orders.forEach((order, index) => {
+      if (index > 0 && index % labelsPerPage === 0) {
+        pdf.addPage();
       }
-    } finally {
-      setIsSyncingShipday(false);
-      setAbortControllers(prev => ({ ...prev, shipday: undefined }));
-      console.log("Shipday sync completed - button should be hidden now");
-    }
-  };
 
-  const handleStopAllSyncs = () => {
-    Object.values(abortControllers).forEach(controller => {
-      if (controller) {
-        controller.abort();
-      }
+      const labelIndex = index % labelsPerPage;
+      const row = Math.floor(labelIndex / labelsPerRow);
+      const col = labelIndex % labelsPerRow;
+      
+      const x = col * labelWidth;
+      const y = row * labelHeight;
+
+      // Draw label border
+      pdf.rect(x, y, labelWidth, labelHeight);
+      
+      // Add content
+      const margin = 10;
+      let currentY = y + margin + 15;
+      
+      // Tracking number
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(`Tracking: ${order.trackingNumber || 'N/A'}`, x + margin, currentY);
+      currentY += 25;
+      
+      // Sender info
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('FROM:', x + margin, currentY);
+      currentY += 15;
+      
+      pdf.setFont(undefined, 'normal');
+      pdf.text(order.sender.name, x + margin, currentY);
+      currentY += 12;
+      pdf.text(order.sender.address.street, x + margin, currentY);
+      currentY += 12;
+      pdf.text(`${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}`, x + margin, currentY);
+      currentY += 12;
+      pdf.text(order.sender.phone, x + margin, currentY);
+      currentY += 25;
+      
+      // Receiver info
+      pdf.setFont(undefined, 'bold');
+      pdf.text('TO:', x + margin, currentY);
+      currentY += 15;
+      
+      pdf.setFont(undefined, 'normal');
+      pdf.text(order.receiver.name, x + margin, currentY);
+      currentY += 12;
+      pdf.text(order.receiver.address.street, x + margin, currentY);
+      currentY += 12;
+      pdf.text(`${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}`, x + margin, currentY);
+      currentY += 12;
+      pdf.text(order.receiver.phone, x + margin, currentY);
     });
-    toast.info("All sync operations cancelled");
-  };
 
-  const isAnySyncing = isSyncingOptimoRoute || isSyncingTrackPod || isSyncingShipday;
-  console.log("Sync states:", { isSyncingOptimoRoute, isSyncingTrackPod, isSyncingShipday, isAnySyncing });
+    pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
+  };
 
   return (
     <div className="flex flex-col space-y-4 pb-4">
@@ -128,41 +163,53 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   Job Scheduling
                 </Link>
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleSyncToOptimoRoute}
-                disabled={isSyncingOptimoRoute}
-              >
-                <Truck className="mr-2 h-4 w-4" />
-                {isSyncingOptimoRoute ? "Syncing..." : "Sync to OptimoRoute"}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleSyncToTrackPod}
-                disabled={isSyncingTrackPod}
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                {isSyncingTrackPod ? "Syncing..." : "Sync to Track-POD"}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleSyncToShipday}
-                disabled={isSyncingShipday}
-              >
-                <Truck className="mr-2 h-4 w-4" />
-                {isSyncingShipday ? "Syncing..." : "Sync to Shipday"}
-              </Button>
-              {isAnySyncing && (
-                <Button 
-                  variant="destructive" 
-                  onClick={handleStopAllSyncs}
-                  size="sm"
-                  className="animate-pulse"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Stop All Syncs
-                </Button>
-              )}
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print Labels
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Select Date for Labels</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => {
+                            setSelectedDate(date);
+                            setIsDatePickerOpen(false);
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      onClick={handlePrintLabels}
+                      disabled={!selectedDate || isGeneratingPDF}
+                      className="w-full"
+                    >
+                      {isGeneratingPDF ? "Generating..." : "Generate Labels"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </>
           )}
           <Button asChild>
