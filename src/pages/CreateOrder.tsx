@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Bike, PackageCheck, Truck } from "lucide-react";
+import { Bike, PackageCheck, Truck, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -79,6 +80,7 @@ const orderSchema = z.object({
 
 const CreateOrder = () => {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -257,6 +259,27 @@ const CreateOrder = () => {
     }
   };
 
+  const fillMyDetails = (prefix: "sender" | "receiver") => {
+    if (!userProfile) {
+      toast.error("Profile information not available");
+      return;
+    }
+
+    // Fill contact information
+    form.setValue(`${prefix}.name`, userProfile.name || "");
+    form.setValue(`${prefix}.email`, userProfile.email || "");
+    form.setValue(`${prefix}.phone`, userProfile.phone || "+44");
+
+    // Fill address information
+    form.setValue(`${prefix}.address.street`, userProfile.address_line_1 || "");
+    form.setValue(`${prefix}.address.city`, userProfile.city || "");
+    form.setValue(`${prefix}.address.state`, userProfile.address_line_2 || "");
+    form.setValue(`${prefix}.address.zipCode`, userProfile.postal_code || "");
+    form.setValue(`${prefix}.address.country`, "United Kingdom");
+
+    toast.success("Details filled from your profile");
+  };
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
@@ -325,7 +348,19 @@ const CreateOrder = () => {
 
                     <TabsContent value="sender" className="space-y-6 mt-0">
                       <div>
-                        <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-medium">Collection Contact Information</h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fillMyDetails("sender")}
+                            className="flex items-center gap-2"
+                          >
+                            <User className="h-4 w-4" />
+                            Fill in my details
+                          </Button>
+                        </div>
                         <ContactForm control={form.control} prefix="sender" />
                       </div>
 
@@ -359,7 +394,19 @@ const CreateOrder = () => {
 
                     <TabsContent value="receiver" className="space-y-6 mt-0">
                       <div>
-                        <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-medium">Delivery Contact Information</h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fillMyDetails("receiver")}
+                            className="flex items-center gap-2"
+                          >
+                            <User className="h-4 w-4" />
+                            Fill in my details
+                          </Button>
+                        </div>
                         <ContactForm control={form.control} prefix="receiver" />
                       </div>
 
