@@ -13,11 +13,15 @@ interface SchedulingButtonsProps {
   onSchedulePickup: () => void;
   onScheduleDelivery: () => void;
   onScheduleBoth: () => void;
+  onAdminScheduleBoth?: () => void; // New prop for admin scheduling with date picker
   isSubmitting: boolean;
   isScheduled: boolean;
   pickupDateSelected: boolean;
   deliveryDateSelected: boolean;
   status: string;
+  // Date picker props
+  pickupDatePicker?: Date;
+  deliveryDatePicker?: Date;
   // New props for direct date selection
   deliveryDate?: Date;
   setDeliveryDate?: (date: Date | undefined) => void;
@@ -29,11 +33,14 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   onSchedulePickup,
   onScheduleDelivery,
   onScheduleBoth,
+  onAdminScheduleBoth,
   isSubmitting,
   isScheduled,
   pickupDateSelected,
   deliveryDateSelected,
   status,
+  pickupDatePicker,
+  deliveryDatePicker,
   deliveryDate,
   setDeliveryDate,
   deliveryTime,
@@ -41,6 +48,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
 }) => {
   const showDeliveryButton = status === 'scheduled_dates_pending' || status === 'collection_scheduled' || status === 'collected';
   const showDirectDatePicker = status === 'collected' && !deliveryDateSelected && setDeliveryDate;
+  const showAdminScheduling = status === 'scheduled_dates_pending' && pickupDatePicker && deliveryDatePicker;
   
   if ((status !== 'scheduled_dates_pending' && status !== 'collection_scheduled' && status !== 'collected') || isScheduled) {
     return null;
@@ -48,7 +56,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
 
   return (
     <div className="space-y-4">
-      {status === 'scheduled_dates_pending' && (
+      {status === 'scheduled_dates_pending' && !showAdminScheduling && (
         <Button 
           onClick={onSchedulePickup} 
           disabled={!pickupDateSelected || isSubmitting}
@@ -62,6 +70,25 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
             </>
           ) : (
             "Schedule Pickup Date & Create Shipment"
+          )}
+        </Button>
+      )}
+
+      {/* Admin scheduling with date picker for scheduled_dates_pending */}
+      {showAdminScheduling && onAdminScheduleBoth && (
+        <Button 
+          onClick={onAdminScheduleBoth} 
+          disabled={!pickupDatePicker || !deliveryDatePicker || isSubmitting}
+          className="w-full bg-orange-600 hover:bg-orange-700"
+          variant="default"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Scheduling Order...
+            </>
+          ) : (
+            "Schedule Order (Admin Override) & Create Shipment"
           )}
         </Button>
       )}
@@ -127,7 +154,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
         </Button>
       )}
 
-      {status === 'scheduled_dates_pending' && (
+      {status === 'scheduled_dates_pending' && !showAdminScheduling && (
         <Button 
           onClick={onScheduleBoth} 
           disabled={!pickupDateSelected || !deliveryDateSelected || isSubmitting}

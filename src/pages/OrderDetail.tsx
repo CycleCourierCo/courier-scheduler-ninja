@@ -590,11 +590,14 @@ const OrderDetail = () => {
                 onSchedulePickup={handleSchedulePickup}
                 onScheduleDelivery={handleScheduleDelivery}
                 onScheduleBoth={handleScheduleOrder}
+                onAdminScheduleBoth={handleAdminScheduleOrder}
                 isSubmitting={isSubmitting}
                 isScheduled={isScheduled}
                 pickupDateSelected={!!selectedPickupDate}
                 deliveryDateSelected={!!selectedDeliveryDate}
                 status={order.status}
+                pickupDatePicker={pickupDatePicker}
+                deliveryDatePicker={deliveryDatePicker}
                 deliveryDate={deliveryDatePicker}
                 setDeliveryDate={setDeliveryDatePicker}
                 deliveryTime={deliveryTime}
