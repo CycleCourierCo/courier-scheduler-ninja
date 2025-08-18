@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_name: string
+          key_prefix: string
+          last_used_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_name: string
+          key_prefix: string
+          last_used_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_name?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drivers: {
         Row: {
           available_hours: number | null
@@ -314,6 +358,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_generate_api_key: {
+        Args: { customer_id: string; key_name: string }
+        Returns: {
+          api_key: string
+          key_id: string
+        }[]
+      }
+      admin_revoke_api_key: {
+        Args: { key_id: string }
+        Returns: boolean
+      }
       admin_update_account_status: {
         Args: { status: string; user_id: string }
         Returns: boolean
@@ -352,6 +407,10 @@ export type Database = {
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      verify_api_key: {
+        Args: { api_key: string }
+        Returns: string
       }
     }
     Enums: {

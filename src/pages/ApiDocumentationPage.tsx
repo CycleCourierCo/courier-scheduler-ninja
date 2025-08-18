@@ -30,7 +30,7 @@ const ApiDocumentationPage = () => {
               <div>
                 <h3 className="font-semibold mb-2">Base URL</h3>
                 <code className="bg-muted px-3 py-1 rounded text-sm">
-                  https://api.cyclecourierco.com/v1
+                  https://api.cyclecourierco.com/functions/v1
                 </code>
               </div>
               <div>
@@ -494,7 +494,7 @@ function verifyWebhook(payload, signature, secret) {
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`curl -X POST https://api.cyclecourierco.com/v1/orders \\
+{`curl -X POST https://api.cyclecourierco.com/functions/v1/orders \\
   -H "X-API-Key: your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: unique_request_id" \\
@@ -543,7 +543,7 @@ function verifyWebhook(payload, signature, secret) {
 async function createOrder(orderData) {
   try {
     const response = await axios.post(
-      'https://api.cyclecourierco.com/v1/orders',
+      'https://api.cyclecourierco.com/functions/v1/orders',
       orderData,
       {
         headers: {
@@ -582,7 +582,7 @@ def create_order(order_data, api_key):
     }
     
     response = requests.post(
-        'https://api.cyclecourierco.com/v1/orders',
+        'https://api.cyclecourierco.com/functions/v1/orders',
         json=order_data,
         headers=headers
     )

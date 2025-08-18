@@ -20,6 +20,7 @@ import UserProfile from "./pages/UserProfile";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import JobScheduling from "./pages/JobScheduling";
 import AccountApprovals from "./pages/AccountApprovals";
+import ApiKeysPage from "./pages/ApiKeysPage";
 import NotFound from "./pages/NotFound";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -81,6 +82,11 @@ function App() {
             <Route path="/account-approvals" element={
               <ProtectedRoute adminOnly={true}>
                 <AccountApprovals />
+              </ProtectedRoute>
+            } />
+            <Route path="/api-keys" element={
+              <ProtectedRoute adminOnly={true}>
+                <ApiKeysPage />
               </ProtectedRoute>
             } />
             <Route path="/sender-availability/:id" element={<SenderAvailability />} />
