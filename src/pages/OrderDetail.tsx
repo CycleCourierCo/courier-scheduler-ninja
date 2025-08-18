@@ -48,19 +48,38 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
     }
     
     // Enhanced date validation to prevent Invalid time value errors
-    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    if (!dateObj || !(dateObj instanceof Date)) {
       console.warn("Invalid date detected in OrderDetail:", date);
       return "Invalid date";
     }
     
-    // Additional safety check for invalid time values
+    // Check for NaN time value
+    const timeValue = dateObj.getTime();
+    if (isNaN(timeValue)) {
+      console.warn("NaN time value detected in OrderDetail:", date);
+      return "Invalid date";
+    }
+    
+    // Check for extreme date values that might cause issues
+    if (timeValue < -8640000000000000 || timeValue > 8640000000000000) {
+      console.warn("Extreme date value detected in OrderDetail:", date, timeValue);
+      return "Invalid date";
+    }
+    
+    // Additional safety check for invalid time values by testing toISOString
     try {
-      // This will throw if the date is invalid for toISOString
       dateObj.toISOString();
-      return format(dateObj, formatStr);
     } catch (timeError) {
       console.error("Invalid time value in date object:", dateObj, timeError);
       return "Invalid time";
+    }
+    
+    // Finally format the date
+    try {
+      return format(dateObj, formatStr);
+    } catch (formatError) {
+      console.error("Error formatting valid date:", dateObj, formatError);
+      return "Format error";
     }
   } catch (error) {
     console.error("Error formatting date in OrderDetail:", error, date);
