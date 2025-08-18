@@ -1,8 +1,10 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import PostcodeVerification from "./PostcodeVerification";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -30,6 +32,13 @@ const formatDate = (dateInput: Date | string | undefined): string => {
 };
 
 const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
+  const [verificationDialog, setVerificationDialog] = useState<{
+    isOpen: boolean;
+    type: "collection" | "delivery";
+    eventIndex: number;
+  }>({ isOpen: false, type: "collection", eventIndex: -1 });
+  const [verifiedPostcodes, setVerifiedPostcodes] = useState<Set<string>>(new Set());
+
   console.log("TrackingTimeline rendering with order:", order.id);
   console.log("TrackingTimeline tracking events:", JSON.stringify(order.trackingEvents, null, 2));
 
@@ -85,15 +94,63 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       
       console.log("Pickup ID:", pickupId, "Delivery ID:", deliveryId);
       
-      // Process each Shipday update (removed duplicate prevention to allow multiple of same event type)
+      // Process each Shipday update - group POD uploads with completed events
+      const processedUpdates: { [key: string]: any } = {};
       
-      // Process each Shipday update
+      // First pass: collect all updates and group POD uploads with their corresponding COMPLETED events
       shipdayUpdates.forEach((update: ShipdayUpdate) => {
+        const key = `${update.orderId}-${update.event}`;
+        
+        if (update.event === "ORDER_POD_UPLOAD") {
+          // Find the corresponding COMPLETED event for this orderId
+          const completedKey = `${update.orderId}-ORDER_COMPLETED`;
+          if (processedUpdates[completedKey]) {
+            // Merge POD data into the existing COMPLETED event
+            const existingEvent = processedUpdates[completedKey];
+            existingEvent.podUrls = update.podUrls || [];
+            existingEvent.signatureUrl = update.signatureUrl || null;
+            console.log(`Merged POD data into existing COMPLETED event for order ${update.orderId}`);
+          } else {
+            // Store POD data to be merged later when COMPLETED event is processed
+            processedUpdates[`${update.orderId}-POD_PENDING`] = {
+              podUrls: update.podUrls || [],
+              signatureUrl: update.signatureUrl || null
+            };
+            console.log(`Stored POD data for later merge for order ${update.orderId}`);
+          }
+          return; // Don't create a separate event for POD upload
+        }
+        
+        // For non-POD events, create the event and check for pending POD data
+        if (!processedUpdates[key]) {
+          processedUpdates[key] = {
+            ...update,
+            podUrls: update.podUrls || [],
+            signatureUrl: update.signatureUrl || null
+          };
+          
+          // If this is a COMPLETED event, check for pending POD data
+          if (update.event === "ORDER_COMPLETED") {
+            const podPendingKey = `${update.orderId}-POD_PENDING`;
+            if (processedUpdates[podPendingKey]) {
+              const podData = processedUpdates[podPendingKey];
+              const eventData = processedUpdates[key];
+              eventData.podUrls = podData.podUrls;
+              eventData.signatureUrl = podData.signatureUrl;
+              delete processedUpdates[podPendingKey]; // Clean up
+              console.log(`Merged pending POD data into COMPLETED event for order ${update.orderId}`);
+            }
+          }
+        }
+      });
+      
+      // Second pass: process the grouped updates to create timeline events
+      Object.values(processedUpdates).forEach((update: ShipdayUpdate) => {
         try {
           console.log("Processing update:", update);
           
-          // Process ORDER_ONTHEWAY, ORDER_POD_UPLOAD, ORDER_COMPLETED, and ORDER_FAILED events
-          if (update.event !== "ORDER_ONTHEWAY" && update.event !== "ORDER_POD_UPLOAD" && 
+          // Process ORDER_ONTHEWAY, ORDER_COMPLETED, and ORDER_FAILED events
+          if (update.event !== "ORDER_ONTHEWAY" && 
               update.event !== "ORDER_COMPLETED" && update.event !== "ORDER_FAILED") {
             console.log("Skipping non-tracking event:", update.event);
             return;
@@ -122,15 +179,15 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               icon = <Truck className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Driver is on the way to deliver the bike";
             }
-          } else if (update.event === "ORDER_POD_UPLOAD" || update.event === "ORDER_COMPLETED") {
+          } else if (update.event === "ORDER_COMPLETED") {
             if (isPickup) {
               title = "Bike Collected";
               icon = <Check className="h-4 w-4 text-courier-600" />;
-              if (!description) description = "Bike has been collected from sender";
+              if (!description) description = "Driver has collected the bike";
             } else if (isDelivery) {
               title = "Delivered";
               icon = <Check className="h-4 w-4 text-green-600" />;
-              if (!description) description = "Bike has been delivered to receiver";
+              if (!description) description = "Driver has delivered the bike";
             }
           } else if (update.event === "ORDER_FAILED") {
             if (isPickup) {
@@ -155,7 +212,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               icon,
               description,
               podUrls: update.podUrls,
-              signatureUrl: update.signatureUrl
+              signatureUrl: update.signatureUrl,
+              isPickup,
+              isDelivery
             });
           }
         } catch (error) {
@@ -287,6 +346,33 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
   // For debugging
   console.log("Processed timeline events:", trackingEvents);
 
+  const handlePostcodeVerification = (postcode: string) => {
+    const { type, eventIndex } = verificationDialog;
+    const key = `${type}-${eventIndex}`;
+    setVerifiedPostcodes(prev => new Set([...prev, key]));
+  };
+
+  const openVerificationDialog = (type: "collection" | "delivery", eventIndex: number) => {
+    setVerificationDialog({ isOpen: true, type, eventIndex });
+  };
+
+  const closeVerificationDialog = () => {
+    setVerificationDialog({ isOpen: false, type: "collection", eventIndex: -1 });
+  };
+
+  const isPostcodeVerified = (type: "collection" | "delivery", eventIndex: number) => {
+    const key = `${type}-${eventIndex}`;
+    return verifiedPostcodes.has(key);
+  };
+
+  const getExpectedPostcode = (type: "collection" | "delivery") => {
+    if (type === "collection") {
+      return order.sender?.address?.zipCode || "";
+    } else {
+      return order.receiver?.address?.zipCode || "";
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center space-x-2">
@@ -311,25 +397,93 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
                 </p>
                 <p className="text-sm">{event.description}</p>
                 
-                {/* Display POD images if available */}
+                {/* Display POD images if available with postcode protection */}
                 {(event as any).podUrls && (event as any).podUrls.length > 0 && (
                   <div className="mt-2">
                     <div className="flex items-center gap-1 mb-2">
                       <Image className="h-4 w-4 text-courier-600" />
                       <span className="text-sm font-medium text-gray-700">Proof of Delivery:</span>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {(event as any).podUrls.map((url: string, imgIndex: number) => (
+                    {(() => {
+                      const eventType = (event as any).isPickup ? "collection" : "delivery";
+                      const isVerified = isPostcodeVerified(eventType, index);
+                      
+                      if (!isVerified) {
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openVerificationDialog(eventType, index)}
+                            className="flex items-center gap-2"
+                          >
+                            <Lock className="h-4 w-4" />
+                            Verify {eventType} postcode to view images
+                          </Button>
+                        );
+                      }
+                      
+                      return (
+                        <div className="flex gap-2 flex-wrap">
+                          {(event as any).podUrls.map((url: string, imgIndex: number) => (
+                            <a 
+                              key={imgIndex}
+                              href={url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                            >
+                              <img 
+                                src={url} 
+                                alt={`POD ${imgIndex + 1}`}
+                                className="w-20 h-20 object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+                
+                {/* Display signature if available with postcode protection */}
+                {(event as any).signatureUrl && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-1 mb-2">
+                      <Image className="h-4 w-4 text-courier-600" />
+                      <span className="text-sm font-medium text-gray-700">Signature:</span>
+                    </div>
+                    {(() => {
+                      const eventType = (event as any).isPickup ? "collection" : "delivery";
+                      const isVerified = isPostcodeVerified(eventType, index);
+                      
+                      if (!isVerified) {
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openVerificationDialog(eventType, index)}
+                            className="flex items-center gap-2"
+                          >
+                            <Lock className="h-4 w-4" />
+                            Verify {eventType} postcode to view signature
+                          </Button>
+                        );
+                      }
+                      
+                      return (
                         <a 
-                          key={imgIndex}
-                          href={url} 
+                          href={(event as any).signatureUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                          className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow w-fit"
                         >
                           <img 
-                            src={url} 
-                            alt={`POD ${imgIndex + 1}`}
+                            src={(event as any).signatureUrl} 
+                            alt="Signature"
                             className="w-20 h-20 object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
@@ -337,34 +491,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
                             }}
                           />
                         </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Display signature if available */}
-                {(event as any).signatureUrl && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-1 mb-2">
-                      <Image className="h-4 w-4 text-courier-600" />
-                      <span className="text-sm font-medium text-gray-700">Signature:</span>
-                    </div>
-                    <a 
-                      href={(event as any).signatureUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow w-fit"
-                    >
-                      <img 
-                        src={(event as any).signatureUrl} 
-                        alt="Signature"
-                        className="w-20 h-20 object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </a>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -377,6 +505,15 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           <p>Waiting for the first update</p>
         </div>
       )}
+      
+      {/* Postcode Verification Dialog */}
+      <PostcodeVerification
+        isOpen={verificationDialog.isOpen}
+        onClose={closeVerificationDialog}
+        onVerify={handlePostcodeVerification}
+        type={verificationDialog.type}
+        expectedPostcode={getExpectedPostcode(verificationDialog.type)}
+      />
     </div>
   );
 };
