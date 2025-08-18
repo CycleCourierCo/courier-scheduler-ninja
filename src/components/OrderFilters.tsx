@@ -18,14 +18,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 const statusOptions = [
-  { value: "all", label: "All Statuses" },
   { value: "created", label: "Created" },
   { value: "sender_availability_pending", label: "Sender Availability Pending" },
+  { value: "sender_availability_confirmed", label: "Sender Availability Confirmed" },
   { value: "receiver_availability_pending", label: "Receiver Availability Pending" },
   { value: "receiver_availability_confirmed", label: "Receiver Availability Confirmed" },
+  { value: "scheduled_dates_pending", label: "Scheduled Dates Pending" },
+  { value: "pending_approval", label: "Pending Approval" },
   { value: "scheduled", label: "Scheduled" },
-  { value: "picked_up", label: "Picked Up" },
-  { value: "in_transit", label: "In Transit" },
+  { value: "collection_scheduled", label: "Collection Scheduled" },
+  { value: "driver_to_collection", label: "Driver to Collection" },
+  { value: "collected", label: "Collected" },
+  { value: "delivery_scheduled", label: "Delivery Scheduled" },
+  { value: "driver_to_delivery", label: "Driver to Delivery" },
+  { value: "shipped", label: "Shipped" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" }
 ];
@@ -145,7 +151,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                     </div>
                   )}
                   <div className="space-y-1">
-                    {statusOptions.slice(1).map((option) => (
+                    {statusOptions.map((option) => (
                       <div
                         key={option.value}
                         className="flex items-center space-x-2 cursor-pointer hover:bg-muted rounded-sm p-2"
