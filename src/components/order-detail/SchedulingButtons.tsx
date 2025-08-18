@@ -14,6 +14,8 @@ interface SchedulingButtonsProps {
   onScheduleDelivery: () => void;
   onScheduleBoth: () => void;
   onAdminScheduleBoth?: () => void; // New prop for admin scheduling with date picker
+  onAdminSchedulePickup?: () => void; // New prop for admin pickup only
+  onAdminScheduleDelivery?: () => void; // New prop for admin delivery only
   isSubmitting: boolean;
   isScheduled: boolean;
   pickupDateSelected: boolean;
@@ -34,6 +36,8 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   onScheduleDelivery,
   onScheduleBoth,
   onAdminScheduleBoth,
+  onAdminSchedulePickup,
+  onAdminScheduleDelivery,
   isSubmitting,
   isScheduled,
   pickupDateSelected,
@@ -75,22 +79,67 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
       )}
 
       {/* Admin scheduling with date picker for scheduled_dates_pending */}
-      {showAdminScheduling && onAdminScheduleBoth && (
-        <Button 
-          onClick={onAdminScheduleBoth} 
-          disabled={!pickupDatePicker || !deliveryDatePicker || isSubmitting}
-          className="w-full bg-orange-600 hover:bg-orange-700"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Order...
-            </>
-          ) : (
-            "Schedule Order (Admin Override) & Create Shipment"
+      {showAdminScheduling && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Admin Schedule Pickup Only */}
+            {onAdminSchedulePickup && (
+              <Button 
+                onClick={onAdminSchedulePickup} 
+                disabled={!pickupDatePicker || isSubmitting}
+                className="bg-orange-600 hover:bg-orange-700"
+                variant="default"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                    Scheduling...
+                  </>
+                ) : (
+                  "Schedule Collection (Admin)"
+                )}
+              </Button>
+            )}
+
+            {/* Admin Schedule Delivery Only */}
+            {onAdminScheduleDelivery && (
+              <Button 
+                onClick={onAdminScheduleDelivery} 
+                disabled={!deliveryDatePicker || isSubmitting}
+                className="bg-orange-600 hover:bg-orange-700"
+                variant="default"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                    Scheduling...
+                  </>
+                ) : (
+                  "Schedule Delivery (Admin)"
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Admin Schedule Both */}
+          {onAdminScheduleBoth && (
+            <Button 
+              onClick={onAdminScheduleBoth} 
+              disabled={!pickupDatePicker || !deliveryDatePicker || isSubmitting}
+              className="w-full bg-orange-700 hover:bg-orange-800"
+              variant="default"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                  Scheduling Order...
+                </>
+              ) : (
+                "Schedule Both Collection & Delivery (Admin)"
+              )}
+            </Button>
           )}
-        </Button>
+        </div>
       )}
 
       {showDirectDatePicker && (
