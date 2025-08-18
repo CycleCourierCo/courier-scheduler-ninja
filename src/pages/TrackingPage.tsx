@@ -182,12 +182,6 @@ const TrackingPage = () => {
                                 day: 'numeric'
                               })}
                             </p>
-                            <p className="text-sm text-blue-600">
-                              {new Date(order.scheduledPickupDate).toLocaleTimeString('en-GB', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
                           </div>
                         )}
                         
@@ -200,12 +194,6 @@ const TrackingPage = () => {
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
-                              })}
-                            </p>
-                            <p className="text-sm text-green-600">
-                              {new Date(order.scheduledDeliveryDate).toLocaleTimeString('en-GB', {
-                                hour: '2-digit',
-                                minute: '2-digit'
                               })}
                             </p>
                           </div>
