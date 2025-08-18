@@ -85,8 +85,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       
       console.log("Pickup ID:", pickupId, "Delivery ID:", deliveryId);
       
-      // Track which events we've already added to avoid duplicates
-      const addedEventTypes = new Set();
+      // Process each Shipday update (removed duplicate prevention to allow multiple of same event type)
       
       // Process each Shipday update
       shipdayUpdates.forEach((update: ShipdayUpdate) => {
@@ -100,17 +99,13 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             return;
           }
           
-          // Check if the update is for pickup or delivery
-          const isPickup = update.orderId === pickupId;
-          const isDelivery = update.orderId === deliveryId;
+          // Check if the update is for pickup or delivery based on orderId or description
+          const isPickup = update.orderId === pickupId || 
+                          (update.orderId !== deliveryId && update.description?.toLowerCase().includes("collect"));
+          const isDelivery = update.orderId === deliveryId || 
+                            (update.orderId !== pickupId && update.description?.toLowerCase().includes("deliver"));
           
           console.log(`Update orderId: ${update.orderId}, isPickup: ${isPickup}, isDelivery: ${isDelivery}`);
-          
-          if (!isPickup && !isDelivery) {
-            console.warn("Update orderId doesn't match pickup or delivery ID:", update);
-            // For debugging, let's be more lenient and process it anyway
-            console.log("Attempting to process anyway based on event type");
-          }
           
           let title = "";
           let icon = <Truck className="h-4 w-4 text-courier-600" />;
@@ -118,31 +113,31 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           
           // Determine the event title and icon based on the event type
           if (update.event === "ORDER_ONTHEWAY") {
-            if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
+            if (isPickup) {
               title = "Driver En Route to Collection";
               icon = <Map className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Driver is on the way to collect the bike";
-            } else {
+            } else if (isDelivery) {
               title = "Driver En Route to Delivery";
               icon = <Truck className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Driver is on the way to deliver the bike";
             }
           } else if (update.event === "ORDER_POD_UPLOAD" || update.event === "ORDER_COMPLETED") {
-            if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
+            if (isPickup) {
               title = "Bike Collected";
               icon = <Check className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Bike has been collected from sender";
-            } else {
+            } else if (isDelivery) {
               title = "Delivered";
               icon = <Check className="h-4 w-4 text-green-600" />;
               if (!description) description = "Bike has been delivered to receiver";
             }
           } else if (update.event === "ORDER_FAILED") {
-            if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
+            if (isPickup) {
               title = "Collection Failed";
               icon = <AlertCircle className="h-4 w-4 text-red-600" />;
               if (!description) description = "Collection attempt failed - rescheduling required";
-            } else {
+            } else if (isDelivery) {
               title = "Delivery Failed";
               icon = <AlertCircle className="h-4 w-4 text-red-600" />;
               if (!description) description = "Delivery attempt failed - rescheduling required";
@@ -151,8 +146,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           
           console.log("Determined event title:", title);
           
-          // Only add the event if we have a title and haven't already added this event type
-          if (title && !addedEventTypes.has(title) && update.timestamp) {
+          // Add the event if we have a title and timestamp
+          if (title && update.timestamp) {
             console.log(`Adding event: ${title} with timestamp: ${update.timestamp}`);
             events.push({
               title,
@@ -160,8 +155,6 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               icon,
               description
             });
-            
-            addedEventTypes.add(title);
           }
         } catch (error) {
           console.error("Error processing Shipday update:", error, update);
