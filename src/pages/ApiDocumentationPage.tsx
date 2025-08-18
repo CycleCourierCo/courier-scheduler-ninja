@@ -615,8 +615,7 @@ def create_order(order_data, api_key):
                   For technical support, API key requests, or integration assistance:
                 </p>
                 <p className="text-sm">
-                  <strong>Email:</strong> api-support@cyclecourier.com<br />
-                  <strong>Response Time:</strong> Within 24 hours on business days
+                  <strong>Email:</strong> info@cyclecourierco.com
                 </p>
               </div>
               
