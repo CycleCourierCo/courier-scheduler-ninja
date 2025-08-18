@@ -155,7 +155,8 @@ const CreateOrder = () => {
     const bikeQuantity = form.getValues("bikeQuantity");
     const bikes = form.getValues("bikes") || [];
     return bikeQuantity >= 1 && bikes.length === bikeQuantity && 
-           bikes.every(bike => bike.brand.trim() !== '' && bike.model.trim() !== '');
+           bikes.every(bike => bike && bike.brand && bike.model && 
+                             bike.brand.trim() !== '' && bike.model.trim() !== '');
   }, [detailsFields, form]);
 
   const isSenderValid = React.useMemo(() => {
