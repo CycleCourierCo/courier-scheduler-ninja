@@ -121,7 +121,7 @@ serve(async (req) => {
     let newStatus = dbOrder.status;
     let statusDescription = "";
 
-    // Only process ORDER_ONTHEWAY and ORDER_POD_UPLOAD events
+    // Only process ORDER_ONTHEWAY, ORDER_POD_UPLOAD, and ORDER_FAILED events
     if (event === "ORDER_ONTHEWAY") {
       if (isPickup) {
         newStatus = "driver_to_collection";
@@ -138,11 +138,19 @@ serve(async (req) => {
         newStatus = "delivered";
         statusDescription = "Driver has delivered the bike";
       }
+    } else if (event === "ORDER_FAILED") {
+      if (isPickup) {
+        newStatus = "scheduled_dates_pending";
+        statusDescription = "Collection attempted (date rescheduled)";
+      } else {
+        newStatus = "collected";
+        statusDescription = "Delivery attempted (date rescheduled)";
+      }
     } else {
-      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY or ORDER_POD_UPLOAD`);
+      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY, ORDER_POD_UPLOAD, or ORDER_FAILED`);
       return new Response(JSON.stringify({ 
         success: true, 
-        message: "Event ignored - not ORDER_ONTHEWAY or ORDER_POD_UPLOAD"
+        message: "Event ignored - not ORDER_ONTHEWAY, ORDER_POD_UPLOAD, or ORDER_FAILED"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -260,6 +268,10 @@ async function updateJobStatuses(orderId: string, orderStatus: string): Promise<
   
   switch (orderStatus) {
     case 'scheduled':
+      collectionStatus = 'scheduled';
+      deliveryStatus = 'scheduled';
+      break;
+    case 'scheduled_dates_pending':
       collectionStatus = 'scheduled';
       deliveryStatus = 'scheduled';
       break;
