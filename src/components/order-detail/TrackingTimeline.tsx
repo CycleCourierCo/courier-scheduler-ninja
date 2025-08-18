@@ -102,16 +102,40 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         const key = `${update.orderId}-${update.event}`;
         
         if (update.event === "ORDER_POD_UPLOAD") {
-          // Find the corresponding COMPLETED event for this orderId
-          const completedKey = `${update.orderId}-ORDER_COMPLETED`;
-          if (processedUpdates[completedKey]) {
-            // Merge POD data into the existing COMPLETED event
-            const existingEvent = processedUpdates[completedKey];
-            existingEvent.podUrls = update.podUrls || [];
-            existingEvent.signatureUrl = update.signatureUrl || null;
-            console.log(`Merged POD data into existing COMPLETED event for order ${update.orderId}`);
+          // Check if this POD upload describes a completion event (backwards compatibility)
+          const isCompletionEvent = update.description?.toLowerCase().includes("collected") || 
+                                   update.description?.toLowerCase().includes("delivered");
+          
+          if (isCompletionEvent) {
+            // Look for existing COMPLETED event for this orderId
+            const completedKey = `${update.orderId}-ORDER_COMPLETED`;
+            
+            if (processedUpdates[completedKey]) {
+              // Merge POD data into the existing COMPLETED event
+              const existingEvent = processedUpdates[completedKey];
+              existingEvent.podUrls = update.podUrls || [];
+              existingEvent.signatureUrl = update.signatureUrl || null;
+              console.log(`Merged POD data into existing COMPLETED event for order ${update.orderId}`);
+            } else {
+              // No COMPLETED event exists, treat this POD_UPLOAD as the completion event (backwards compatibility)
+              const completionKey = `${update.orderId}-COMPLETION`;
+              if (!processedUpdates[completionKey]) {
+                processedUpdates[completionKey] = {
+                  ...update,
+                  event: "ORDER_COMPLETED", // Convert POD_UPLOAD to COMPLETED for processing
+                  podUrls: update.podUrls || [],
+                  signatureUrl: update.signatureUrl || null
+                };
+                console.log(`Created completion event from POD_UPLOAD for order ${update.orderId} (backwards compatibility)`);
+              } else {
+                // Update existing completion event with POD data
+                const existingEvent = processedUpdates[completionKey];
+                existingEvent.podUrls = (existingEvent.podUrls || []).concat(update.podUrls || []);
+                if (update.signatureUrl) existingEvent.signatureUrl = update.signatureUrl;
+              }
+            }
           } else {
-            // Store POD data to be merged later when COMPLETED event is processed
+            // This is a regular POD upload, store for later merging
             processedUpdates[`${update.orderId}-POD_PENDING`] = {
               podUrls: update.podUrls || [],
               signatureUrl: update.signatureUrl || null
