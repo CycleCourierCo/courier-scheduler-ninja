@@ -121,7 +121,7 @@ serve(async (req) => {
     let newStatus = dbOrder.status;
     let statusDescription = "";
 
-    // Only process ORDER_ONTHEWAY, ORDER_COMPLETED, and ORDER_FAILED events
+    // Process ORDER_ONTHEWAY, ORDER_COMPLETED, ORDER_FAILED, and ORDER_POD_UPLOAD events
     if (event === "ORDER_ONTHEWAY") {
       if (isPickup) {
         newStatus = "driver_to_collection";
@@ -146,11 +146,16 @@ serve(async (req) => {
         newStatus = "collected";
         statusDescription = "Delivery attempted (date rescheduled)";
       }
+    } else if (event === "ORDER_POD_UPLOAD") {
+      // For POD upload events, don't change the status but update tracking with POD data
+      newStatus = dbOrder.status; // Keep current status
+      statusDescription = isPickup ? "Proof of collection uploaded" : "Proof of delivery uploaded";
+      console.log(`Processing POD upload for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
     } else {
-      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY, ORDER_COMPLETED, or ORDER_FAILED`);
+      console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 
         success: true, 
-        message: "Event ignored - not ORDER_ONTHEWAY, ORDER_COMPLETED, or ORDER_FAILED"
+        message: `Event ignored - unsupported event type: ${event}`
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -168,19 +173,57 @@ serve(async (req) => {
       updates: [],
     };
 
-    // Add the new update to the updates array
-    shipdayEvents.updates = [
-      ...(shipdayEvents.updates || []),
-      {
-        status: order.order_status,
-        event: event,
-        timestamp: new Date().toISOString(),
-        orderId: shipdayOrderId,
-        description: statusDescription,
-        podUrls: payload.pods || payload.order?.podUrls || [],
-        signatureUrl: payload.signatures?.[0] || payload.order?.signatureUrl || null
-      },
-    ];
+    // Extract POD URLs and signature URL from various places in payload
+    const podUrls = payload.pods || payload.order?.podUrls || [];
+    const signatureUrl = payload.signatures?.[0] || payload.order?.signatureUrl || null;
+
+    if (event === "ORDER_POD_UPLOAD") {
+      // For POD uploads, update the most recent matching event with POD data
+      const existingUpdates = shipdayEvents.updates || [];
+      let updatedExistingEvent = false;
+
+      // Find the most recent COMPLETED event for this order ID and update it with POD data
+      for (let i = existingUpdates.length - 1; i >= 0; i--) {
+        if (existingUpdates[i].orderId === shipdayOrderId && existingUpdates[i].event === "ORDER_COMPLETED") {
+          existingUpdates[i].podUrls = podUrls;
+          existingUpdates[i].signatureUrl = signatureUrl;
+          updatedExistingEvent = true;
+          console.log(`Updated existing COMPLETED event with POD data for order ${shipdayOrderId}`);
+          break;
+        }
+      }
+
+      // If no existing COMPLETED event found, create a new POD event
+      if (!updatedExistingEvent) {
+        shipdayEvents.updates = [
+          ...existingUpdates,
+          {
+            status: order.order_status,
+            event: event,
+            timestamp: new Date().toISOString(),
+            orderId: shipdayOrderId,
+            description: statusDescription,
+            podUrls: podUrls,
+            signatureUrl: signatureUrl
+          },
+        ];
+        console.log(`Created new POD event for order ${shipdayOrderId}`);
+      }
+    } else {
+      // For other events, add the new update to the updates array
+      shipdayEvents.updates = [
+        ...(shipdayEvents.updates || []),
+        {
+          status: order.order_status,
+          event: event,
+          timestamp: new Date().toISOString(),
+          orderId: shipdayOrderId,
+          description: statusDescription,
+          podUrls: podUrls,
+          signatureUrl: signatureUrl
+        },
+      ];
+    }
 
     trackingEvents.shipday = shipdayEvents;
 
