@@ -60,9 +60,13 @@ export type Order = {
   trackingNumber?: string;
   bikeBrand?: string;
   bikeModel?: string;
+  bikeQuantity?: number;
   customerOrderNumber?: string;
   needsPaymentOnCollection?: boolean;
+  paymentCollectionPhone?: string;
   isBikeSwap?: boolean;
+  isEbayOrder?: boolean;
+  collectionCode?: string;
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
@@ -108,10 +112,19 @@ export type CreateOrderFormData = {
       lon?: number;
     };
   };
-  bikeBrand: string;
-  bikeModel: string;
+  bikeQuantity: number;
+  bikes: Array<{
+    brand: string;
+    model: string;
+  }>;
   customerOrderNumber?: string;
   needsPaymentOnCollection: boolean;
+  paymentCollectionPhone?: string;
   isBikeSwap: boolean;
+  isEbayOrder: boolean;
+  collectionCode?: string;
   deliveryInstructions?: string;
+  // Legacy fields for backward compatibility
+  bikeBrand?: string;
+  bikeModel?: string;
 };

@@ -20,12 +20,18 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     trackingNumber: dbOrder.tracking_number,
     bikeBrand: dbOrder.bike_brand,
     bikeModel: dbOrder.bike_model,
+    bikeQuantity: dbOrder.bike_quantity || 1,
     customerOrderNumber: dbOrder.customer_order_number,
     needsPaymentOnCollection: dbOrder.needs_payment_on_collection,
+    paymentCollectionPhone: dbOrder.payment_collection_phone,
     isBikeSwap: dbOrder.is_bike_swap,
+    isEbayOrder: dbOrder.is_ebay_order || false,
+    collectionCode: dbOrder.collection_code,
     deliveryInstructions: dbOrder.delivery_instructions,
     senderNotes: dbOrder.sender_notes,
     receiverNotes: dbOrder.receiver_notes,
+    senderPolygonSegment: dbOrder.sender_polygon_segment,
+    receiverPolygonSegment: dbOrder.receiver_polygon_segment,
     // Handle optional date fields
     trackingEvents: dbOrder.tracking_events
   };

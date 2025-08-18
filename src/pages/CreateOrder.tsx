@@ -50,12 +50,31 @@ const orderSchema = z.object({
       lon: z.number().optional(),
     }),
   }),
-  bikeBrand: z.string().min(1, "Bike brand is required"),
-  bikeModel: z.string().min(1, "Bike model is required"),
+  bikeQuantity: z.number().min(1).max(8),
+  bikes: z.array(z.object({
+    brand: z.string().min(1, "Bike brand is required"),
+    model: z.string().min(1, "Bike model is required"),
+  })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
+  paymentCollectionPhone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX").optional().or(z.literal("")),
   isBikeSwap: z.boolean().default(false),
+  isEbayOrder: z.boolean().default(false),
+  collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
+  // Legacy fields for backward compatibility
+  bikeBrand: z.string().optional(),
+  bikeModel: z.string().optional(),
+}).refine((data) => {
+  if (data.isEbayOrder && !data.collectionCode) {
+    return false;
+  }
+  if (data.needsPaymentOnCollection && !data.paymentCollectionPhone) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Required fields missing for selected options",
 });
 
 const CreateOrder = () => {
@@ -94,17 +113,23 @@ const CreateOrder = () => {
           lon: undefined,
         },
       },
-      bikeBrand: "",
-      bikeModel: "",
+      bikeQuantity: 1,
+      bikes: [{ brand: "", model: "" }],
       customerOrderNumber: "",
       needsPaymentOnCollection: false,
+      paymentCollectionPhone: "",
       isBikeSwap: false,
+      isEbayOrder: false,
+      collectionCode: "",
       deliveryInstructions: "",
+      // Legacy fields for backward compatibility
+      bikeBrand: "",
+      bikeModel: "",
     },
     mode: "onChange",
   });
 
-  const detailsFields = form.watch(["bikeBrand", "bikeModel"]);
+  const detailsFields = form.watch(["bikeQuantity", "bikes"]);
   const senderFields = form.watch([
     "sender.name", 
     "sender.email", 
@@ -127,8 +152,11 @@ const CreateOrder = () => {
   ]);
 
   const isDetailsValid = React.useMemo(() => {
-    return detailsFields.every(field => field && String(field).trim() !== '');
-  }, [detailsFields]);
+    const bikeQuantity = form.getValues("bikeQuantity");
+    const bikes = form.getValues("bikes") || [];
+    return bikeQuantity >= 1 && bikes.length === bikeQuantity && 
+           bikes.every(bike => bike.brand.trim() !== '' && bike.model.trim() !== '');
+  }, [detailsFields, form]);
 
   const isSenderValid = React.useMemo(() => {
     const allFieldsFilled = senderFields.every(field => field && String(field).trim() !== '');
@@ -157,7 +185,18 @@ const CreateOrder = () => {
   const onSubmit = async (data: CreateOrderFormData) => {
     setIsSubmitting(true);
     try {
-      const order = await createOrder(data);
+      // Transform the new format to include legacy fields for backward compatibility
+      const transformedData = {
+        ...data,
+        bikeBrand: data.bikes[0]?.brand || '',
+        bikeModel: data.bikes[0]?.model || '',
+        // Process delivery instructions with collection code if eBay order
+        deliveryInstructions: data.isEbayOrder && data.collectionCode
+          ? `${data.deliveryInstructions || ''}\n\nCollection code: ${data.collectionCode}`.trim()
+          : data.deliveryInstructions || '',
+      };
+      
+      const order = await createOrder(transformedData);
       toast.success("Order created successfully!");
       navigate(`/dashboard`);
     } catch (error) {
@@ -169,7 +208,10 @@ const CreateOrder = () => {
   };
 
   const handleNextToSender = () => {
-    form.trigger(["bikeBrand", "bikeModel"]);
+    const bikes = form.getValues("bikes") || [];
+    const bikeQuantity = form.getValues("bikeQuantity");
+    
+    form.trigger(["bikeQuantity", "bikes"]);
     if (isDetailsValid) {
       setActiveTab("sender");
     } else {
