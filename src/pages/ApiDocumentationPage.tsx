@@ -5,10 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Code, Key, Zap, Globe, Shield, Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-
 const ApiDocumentationPage = () => {
-  return (
-    <Layout>
+  return <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-primary mb-2">API Documentation</h1>
@@ -87,7 +85,7 @@ const ApiDocumentationPage = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Required Headers</h4>
                   <pre className="bg-muted p-3 rounded text-sm">
-{`X-API-Key: your_api_key_here
+                  {`X-API-Key: your_api_key_here
 Content-Type: application/json
 Idempotency-Key: unique_request_id (optional)`}
                   </pre>
@@ -96,7 +94,7 @@ Idempotency-Key: unique_request_id (optional)`}
                 <div>
                   <h4 className="font-semibold mb-2">Request Body</h4>
                   <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`{
+                  {`{
   "sender": {
     "name": "John Smith",
     "email": "john@example.com",
@@ -157,7 +155,7 @@ Idempotency-Key: unique_request_id (optional)`}
                 <div>
                   <h4 className="font-semibold mb-2">Success Response (201 Created)</h4>
                   <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`{
+                  {`{
   "id": "ord_1234567890",
   "trackingNumber": "CC-TR-ABC123",
   "status": "created",
@@ -222,7 +220,7 @@ Idempotency-Key: unique_request_id (optional)`}
                 <div>
                   <h4 className="font-semibold mb-2">Example Response</h4>
                   <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`{
+                  {`{
   "id": "ord_1234567890",
   "trackingNumber": "CC-TR-ABC123",
   "status": "collected",
@@ -301,7 +299,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     <Badge variant="destructive">400</Badge>
                     <span className="ml-2 font-semibold">Bad Request</span>
                     <pre className="bg-muted p-3 rounded text-xs mt-2">
-{`{
+                    {`{
   "error": "validation_error",
   "message": "Invalid request data",
   "details": [
@@ -318,7 +316,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     <Badge variant="destructive">401</Badge>
                     <span className="ml-2 font-semibold">Unauthorized</span>
                     <pre className="bg-muted p-3 rounded text-xs mt-2">
-{`{
+                    {`{
   "error": "unauthorized",
   "message": "Invalid or missing API key"
 }`}
@@ -329,7 +327,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     <Badge variant="destructive">429</Badge>
                     <span className="ml-2 font-semibold">Rate Limited</span>
                     <pre className="bg-muted p-3 rounded text-xs mt-2">
-{`{
+                    {`{
   "error": "rate_limit_exceeded", 
   "message": "Too many requests",
   "retryAfter": 60
@@ -377,7 +375,7 @@ Idempotency-Key: unique_request_id (optional)`}
                 <div>
                   <h4 className="font-semibold mb-2">Webhook Payload Example</h4>
                   <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`{
+                  {`{
   "event": "order.status.updated",
   "timestamp": "2024-01-15T14:30:00.000Z",
   "data": {
@@ -399,7 +397,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     All webhooks include an HMAC SHA-256 signature in the <code>X-Webhook-Signature</code> header for verification.
                   </p>
                   <pre className="bg-muted p-3 rounded text-xs">
-{`const crypto = require('crypto');
+                  {`const crypto = require('crypto');
 
 function verifyWebhook(payload, signature, secret) {
   const expectedSignature = crypto
@@ -494,7 +492,7 @@ function verifyWebhook(payload, signature, secret) {
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`curl -X POST https://api.cyclecourierco.com/functions/v1/orders \\
+                {`curl -X POST https://api.cyclecourierco.com/functions/v1/orders \\
   -H "X-API-Key: your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: unique_request_id" \\
@@ -538,7 +536,7 @@ function verifyWebhook(payload, signature, secret) {
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`const axios = require('axios');
+                {`const axios = require('axios');
 
 async function createOrder(orderData) {
   try {
@@ -571,7 +569,7 @@ async function createOrder(orderData) {
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-{`import requests
+                {`import requests
 import time
 
 def create_order(order_data, api_key):
@@ -619,18 +617,11 @@ def create_order(order_data, api_key):
                 </p>
               </div>
               
-              <div>
-                <h4 className="font-semibold mb-2">Service Status</h4>
-                <p className="text-sm text-muted-foreground">
-                  Monitor API availability and planned maintenance at <strong>status.cyclecourier.com</strong>
-                </p>
-              </div>
+              
             </div>
           </CardContent>
         </Card>
       </div>
-    </Layout>
-  );
+    </Layout>;
 };
-
 export default ApiDocumentationPage;
