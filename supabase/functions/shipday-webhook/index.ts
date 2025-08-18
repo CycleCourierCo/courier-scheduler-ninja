@@ -121,7 +121,7 @@ serve(async (req) => {
     let newStatus = dbOrder.status;
     let statusDescription = "";
 
-    // Only process ORDER_ONTHEWAY, ORDER_POD_UPLOAD, and ORDER_FAILED events
+    // Only process ORDER_ONTHEWAY, ORDER_COMPLETED, and ORDER_FAILED events
     if (event === "ORDER_ONTHEWAY") {
       if (isPickup) {
         newStatus = "driver_to_collection";
@@ -130,7 +130,7 @@ serve(async (req) => {
         newStatus = "driver_to_delivery";
         statusDescription = "Driver is on the way to deliver the bike";
       }
-    } else if (event === "ORDER_POD_UPLOAD") {
+    } else if (event === "ORDER_COMPLETED") {
       if (isPickup) {
         newStatus = "collected";
         statusDescription = "Driver has collected the bike";
@@ -147,10 +147,10 @@ serve(async (req) => {
         statusDescription = "Delivery attempted (date rescheduled)";
       }
     } else {
-      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY, ORDER_POD_UPLOAD, or ORDER_FAILED`);
+      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY, ORDER_COMPLETED, or ORDER_FAILED`);
       return new Response(JSON.stringify({ 
         success: true, 
-        message: "Event ignored - not ORDER_ONTHEWAY, ORDER_POD_UPLOAD, or ORDER_FAILED"
+        message: "Event ignored - not ORDER_ONTHEWAY, ORDER_COMPLETED, or ORDER_FAILED"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
