@@ -293,6 +293,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 </li>
                 <li>
+                  <Link to="/api-docs" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    API Documentation
+                  </Link>
+                </li>
+                <li>
                   <a 
                     href="https://www.trustpilot.com/review/cyclecourierco.com" 
                     target="_blank" 
