@@ -8,7 +8,11 @@ interface ItemDetailsProps {
 }
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({ order }) => {
-  const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+  const quantity = order.bikeQuantity || 1;
+  const isMultipleBikes = quantity > 1;
+  const itemName = isMultipleBikes 
+    ? `${quantity} bikes` 
+    : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
   return (
     <div className="space-y-4">
@@ -18,7 +22,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order }) => {
       </div>
       <div className="bg-gray-50 p-3 rounded-md">
         <p><span className="font-medium">Item:</span> {itemName}</p>
-        <p><span className="font-medium">Quantity:</span> 1</p>
+        <p><span className="font-medium">Quantity:</span> {quantity}</p>
         {order.customerOrderNumber && (
           <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
         )}

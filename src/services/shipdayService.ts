@@ -10,6 +10,62 @@ import { toast } from "sonner";
  * @param jobType Optional - specify 'pickup' or 'delivery' to create only that job type
  * @returns The response from the Shipday API
  */
+/**
+ * Syncs multiple orders to Shipday with status-based filtering
+ * @param orders Array of orders to sync to Shipday
+ */
+export const syncOrdersToShipday = async (orders: any[]) => {
+  try {
+    // Filter orders based on status - exclude delivered and cancelled orders
+    const ordersToSync = orders.filter(order => 
+      order.status !== 'delivered' && order.status !== 'cancelled'
+    );
+    
+    toast.info(`Starting Shipday sync for ${ordersToSync.length} orders...`);
+    
+    let successCount = 0;
+    let errorCount = 0;
+    let skippedCount = orders.length - ordersToSync.length;
+    
+    for (const order of ordersToSync) {
+      try {
+        // For collected orders, only create delivery
+        if (order.status === 'collected') {
+          await createShipdayOrder(order.id, 'delivery');
+          successCount++;
+        } else {
+          // For all other orders, create both pickup and delivery
+          await createShipdayOrder(order.id);
+          successCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to sync order ${order.id} to Shipday:`, error);
+        errorCount++;
+      }
+    }
+    
+    let message = `Synced ${successCount} orders to Shipday`;
+    if (errorCount > 0) {
+      message += `, ${errorCount} failed`;
+    }
+    if (skippedCount > 0) {
+      message += `, ${skippedCount} skipped (delivered/cancelled status)`;
+    }
+    
+    if (errorCount === 0) {
+      toast.success(message);
+    } else {
+      toast.warning(message);
+    }
+    
+    return { successCount, errorCount, skippedCount };
+  } catch (error) {
+    console.error("Error during Shipday bulk sync:", error);
+    toast.error("Failed to sync orders to Shipday");
+    throw error;
+  }
+};
+
 export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | 'delivery') => {
   try {
     // Call the Supabase Edge Function

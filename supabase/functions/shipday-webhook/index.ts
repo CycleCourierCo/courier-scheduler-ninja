@@ -121,7 +121,7 @@ serve(async (req) => {
     let newStatus = dbOrder.status;
     let statusDescription = "";
 
-    // Only process ORDER_ONTHEWAY and ORDER_POD_UPLOAD events
+    // Process ORDER_ONTHEWAY, ORDER_COMPLETED, ORDER_FAILED, and ORDER_POD_UPLOAD events
     if (event === "ORDER_ONTHEWAY") {
       if (isPickup) {
         newStatus = "driver_to_collection";
@@ -130,7 +130,7 @@ serve(async (req) => {
         newStatus = "driver_to_delivery";
         statusDescription = "Driver is on the way to deliver the bike";
       }
-    } else if (event === "ORDER_POD_UPLOAD") {
+    } else if (event === "ORDER_COMPLETED") {
       if (isPickup) {
         newStatus = "collected";
         statusDescription = "Driver has collected the bike";
@@ -138,11 +138,24 @@ serve(async (req) => {
         newStatus = "delivered";
         statusDescription = "Driver has delivered the bike";
       }
+    } else if (event === "ORDER_FAILED") {
+      if (isPickup) {
+        newStatus = "scheduled_dates_pending";
+        statusDescription = "Collection attempted (date rescheduled)";
+      } else {
+        newStatus = "collected";
+        statusDescription = "Delivery attempted (date rescheduled)";
+      }
+    } else if (event === "ORDER_POD_UPLOAD") {
+      // For POD upload events, don't change the status but update tracking with POD data
+      newStatus = dbOrder.status; // Keep current status
+      statusDescription = isPickup ? "Proof of collection uploaded" : "Proof of delivery uploaded";
+      console.log(`Processing POD upload for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
     } else {
-      console.log(`Ignoring event: ${event} as it's not ORDER_ONTHEWAY or ORDER_POD_UPLOAD`);
+      console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 
         success: true, 
-        message: "Event ignored - not ORDER_ONTHEWAY or ORDER_POD_UPLOAD"
+        message: `Event ignored - unsupported event type: ${event}`
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -160,17 +173,57 @@ serve(async (req) => {
       updates: [],
     };
 
-    // Add the new update to the updates array
-    shipdayEvents.updates = [
-      ...(shipdayEvents.updates || []),
-      {
-        status: order.order_status,
-        event: event,
-        timestamp: new Date().toISOString(),
-        orderId: shipdayOrderId,
-        description: statusDescription
-      },
-    ];
+    // Extract POD URLs and signature URL from various places in payload
+    const podUrls = payload.pods || payload.order?.podUrls || [];
+    const signatureUrl = payload.signatures?.[0] || payload.order?.signatureUrl || null;
+
+    if (event === "ORDER_POD_UPLOAD") {
+      // For POD uploads, update the most recent matching event with POD data
+      const existingUpdates = shipdayEvents.updates || [];
+      let updatedExistingEvent = false;
+
+      // Find the most recent COMPLETED event for this order ID and update it with POD data
+      for (let i = existingUpdates.length - 1; i >= 0; i--) {
+        if (existingUpdates[i].orderId === shipdayOrderId && existingUpdates[i].event === "ORDER_COMPLETED") {
+          existingUpdates[i].podUrls = podUrls;
+          existingUpdates[i].signatureUrl = signatureUrl;
+          updatedExistingEvent = true;
+          console.log(`Updated existing COMPLETED event with POD data for order ${shipdayOrderId}`);
+          break;
+        }
+      }
+
+      // If no existing COMPLETED event found, create a new POD event
+      if (!updatedExistingEvent) {
+        shipdayEvents.updates = [
+          ...existingUpdates,
+          {
+            status: order.order_status,
+            event: event,
+            timestamp: new Date().toISOString(),
+            orderId: shipdayOrderId,
+            description: statusDescription,
+            podUrls: podUrls,
+            signatureUrl: signatureUrl
+          },
+        ];
+        console.log(`Created new POD event for order ${shipdayOrderId}`);
+      }
+    } else {
+      // For other events, add the new update to the updates array
+      shipdayEvents.updates = [
+        ...(shipdayEvents.updates || []),
+        {
+          status: order.order_status,
+          event: event,
+          timestamp: new Date().toISOString(),
+          orderId: shipdayOrderId,
+          description: statusDescription,
+          podUrls: podUrls,
+          signatureUrl: signatureUrl
+        },
+      ];
+    }
 
     trackingEvents.shipday = shipdayEvents;
 
@@ -260,6 +313,10 @@ async function updateJobStatuses(orderId: string, orderStatus: string): Promise<
   
   switch (orderStatus) {
     case 'scheduled':
+      collectionStatus = 'scheduled';
+      deliveryStatus = 'scheduled';
+      break;
+    case 'scheduled_dates_pending':
       collectionStatus = 'scheduled';
       deliveryStatus = 'scheduled';
       break;

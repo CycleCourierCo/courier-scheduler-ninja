@@ -181,7 +181,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       );
     }
     
-    const trackingUrl = `https://cyclecourierco.com/tracking/${order.tracking_number}`;
+    const trackingUrl = `https://booking.cyclecourierco.com/tracking/${order.tracking_number}`;
     const reviewLinks = {
       trustpilot: "https://www.trustpilot.com/review/cyclecourierco.com",
       facebook: "https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506"

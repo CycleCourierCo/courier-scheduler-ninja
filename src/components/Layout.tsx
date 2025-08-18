@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -101,14 +101,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         Your Profile
                       </Link>
                       {isAdmin && (
-                        <Link 
-                          to="/account-approvals" 
-                          onClick={closeSheet}
-                          className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                        >
-                          <Shield className="mr-2 h-4 w-4" />
-                          Account Approvals
-                        </Link>
+                        <>
+                          <Link 
+                            to="/account-approvals" 
+                            onClick={closeSheet}
+                            className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            Account Approvals
+                          </Link>
+                          <Link 
+                            to="/api-keys" 
+                            onClick={closeSheet}
+                            className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                          >
+                            <Key className="mr-2 h-4 w-4" />
+                            API Keys
+                          </Link>
+                        </>
                       )}
                       <button 
                         onClick={() => { signOut(); closeSheet(); }} 
@@ -160,12 +170,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
-                        <Shield className="mr-2 h-4 w-4" />
-                        <span>Account Approvals</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Account Approvals</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/api-keys" className="cursor-pointer flex w-full items-center">
+                          <Key className="mr-2 h-4 w-4" />
+                          <span>API Keys</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
@@ -290,6 +308,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Link to="/terms" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
                     <FileText className="h-4 w-4 mr-1" />
                     Terms &amp; Conditions
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/api-docs" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    API Documentation
                   </Link>
                 </li>
                 <li>

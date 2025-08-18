@@ -98,7 +98,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, customerOrderNumber, needsPaymentOnCollection, isBikeSwap, deliveryInstructions } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, isEbayOrder, collectionCode, deliveryInstructions } = data;
 
     const {
       street: senderStreet,
@@ -185,11 +185,15 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             lon: receiverLon,
           },
         },
-        bike_brand: bikeBrand,
-        bike_model: bikeModel,
+        bike_brand: bikeBrand || bikes?.[0]?.brand,
+        bike_model: bikeModel || bikes?.[0]?.model,
+        bike_quantity: bikeQuantity || 1,
         customer_order_number: customerOrderNumber,
         needs_payment_on_collection: needsPaymentOnCollection,
+        payment_collection_phone: paymentCollectionPhone,
         is_bike_swap: isBikeSwap,
+        is_ebay_order: isEbayOrder,
+        collection_code: collectionCode,
         delivery_instructions: deliveryInstructions,
         status: "created",
         created_at: timestamp,

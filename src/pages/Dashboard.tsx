@@ -18,7 +18,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [filters, setFilters] = useState({
-    status: "all",
+    status: [],
     search: "",
     sortBy: "created_desc"
   });
@@ -83,7 +83,7 @@ const Dashboard: React.FC = () => {
   }, [orders, filters]);
 
   const handleFilterChange = (newFilters: {
-    status: string;
+    status: string[];
     search: string;
     sortBy: string;
   }) => {
@@ -91,7 +91,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handleClearFilters = () => {
-    setFilters({ status: "all", search: "", sortBy: "created_desc" });
+    setFilters({ status: [], search: "", sortBy: "created_desc" });
   };
 
   if (loading) {

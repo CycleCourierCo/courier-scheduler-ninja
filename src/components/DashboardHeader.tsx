@@ -2,10 +2,17 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Calendar, Truck } from "lucide-react";
-import { syncOrdersToOptimoRoute } from "@/services/optimorouteService";
+import { Plus, Calendar, Printer } from "lucide-react";
 import { getOrders } from "@/services/orderService";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import jsPDF from 'jspdf';
+import type { Order } from "@/types/order";
 
 interface DashboardHeaderProps {
   children?: React.ReactNode;
@@ -19,20 +26,191 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userRole = null
 }) => {
   const isAdmin = userRole === 'admin';
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const handleSyncToOptimoRoute = async () => {
-    setIsSyncing(true);
-    try {
-      toast.info("Starting OptimoRoute sync...");
-      const orders = await getOrders();
-      await syncOrdersToOptimoRoute(orders);
-    } catch (error) {
-      console.error("Error during OptimoRoute sync:", error);
-      toast.error("Failed to sync orders to OptimoRoute");
-    } finally {
-      setIsSyncing(false);
+  const handlePrintLabels = async () => {
+    if (!selectedDate) {
+      toast.error("Please select a date");
+      return;
     }
+
+    setIsGeneratingPDF(true);
+    
+    try {
+      const orders = await getOrders();
+      const scheduledOrders = orders.filter(order => {
+        const scheduledPickup = order.scheduledPickupDate;
+        const scheduledDelivery = order.scheduledDeliveryDate;
+        
+        if (!scheduledPickup && !scheduledDelivery) return false;
+        
+        const targetDate = format(selectedDate, 'yyyy-MM-dd');
+        const pickupDate = scheduledPickup ? format(new Date(scheduledPickup), 'yyyy-MM-dd') : null;
+        const deliveryDate = scheduledDelivery ? format(new Date(scheduledDelivery), 'yyyy-MM-dd') : null;
+        
+        return pickupDate === targetDate || deliveryDate === targetDate;
+      });
+
+      if (scheduledOrders.length === 0) {
+        toast.info("No orders scheduled for the selected date");
+        return;
+      }
+
+      await generateLabels(scheduledOrders);
+      toast.success(`Generated labels for ${scheduledOrders.length} orders`);
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error generating labels:", error);
+      toast.error("Failed to generate labels");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const generateLabels = async (orders: Order[]) => {
+    try {
+      // Create PDF with exact 4x6 inch page size for label printers
+      const labelWidth = 288; // 4 inches in points
+      const labelHeight = 432; // 6 inches in points
+      
+      const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
+      
+      orders.forEach((order, index) => {
+        if (index > 0) {
+          pdf.addPage();
+        }
+
+        // No centering needed - use full page
+        const margin = 15;
+        let currentY = margin + 20;
+        
+        // Tracking number
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}`;
+        pdf.text(trackingText, margin, currentY);
+        currentY += 30;
+        
+        // Sender info
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "bold");
+        pdf.text('FROM:', margin, currentY);
+        currentY += 15;
+        
+        pdf.setFont("helvetica", "normal");
+        if (order.sender?.name) {
+          pdf.text(order.sender.name, margin, currentY);
+          currentY += 12;
+        }
+        
+        if (order.sender?.address) {
+          const address = order.sender.address;
+          if (address.street) {
+            const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+            streetText.forEach(line => {
+              pdf.text(line, margin, currentY);
+              currentY += 12;
+            });
+          }
+          
+          const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+          if (cityLine.length > 2) {
+            pdf.text(cityLine, margin, currentY);
+            currentY += 12;
+          }
+        }
+        
+        if (order.sender?.phone) {
+          pdf.text(order.sender.phone, margin, currentY);
+          currentY += 25;
+        }
+        
+        // Receiver info
+        pdf.setFont("helvetica", "bold");
+        pdf.text('TO:', margin, currentY);
+        currentY += 15;
+        
+        pdf.setFont("helvetica", "normal");
+        if (order.receiver?.name) {
+          pdf.text(order.receiver.name, margin, currentY);
+          currentY += 12;
+        }
+        
+        if (order.receiver?.address) {
+          const address = order.receiver.address;
+          if (address.street) {
+            const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+            streetText.forEach(line => {
+              pdf.text(line, margin, currentY);
+              currentY += 12;
+            });
+          }
+          
+          const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+          if (cityLine.length > 2) {
+            pdf.text(cityLine, margin, currentY);
+            currentY += 12;
+          }
+        }
+        
+        if (order.receiver?.phone) {
+          pdf.text(order.receiver.phone, margin, currentY);
+          currentY += 25;
+        }
+        
+        // Add logo and contact info below receiver details
+        try {
+          const logoWidth = 50;
+          const logoHeight = 40;
+          const logoX = (labelWidth - logoWidth) / 2; // Center the logo
+          
+          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+          currentY += logoHeight + 10;
+          
+          // Add contact information centered below logo
+          pdf.setFontSize(8);
+          pdf.setFont("helvetica", "normal");
+          const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
+          const contactWidth = pdf.getTextWidth(contactText);
+          const contactX = (labelWidth - contactWidth) / 2; // Center the text
+          pdf.text(contactText, contactX, currentY);
+        } catch (error) {
+          console.log('Could not load logo:', error);
+        }
+      });
+
+      pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      throw new Error(`PDF generation failed: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const splitText = (pdf: jsPDF, text: string, maxWidth: number): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const textWidth = pdf.getTextWidth(testLine);
+      
+      if (textWidth > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    });
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
   };
 
   return (
@@ -55,14 +233,53 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   Job Scheduling
                 </Link>
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleSyncToOptimoRoute}
-                disabled={isSyncing}
-              >
-                <Truck className="mr-2 h-4 w-4" />
-                {isSyncing ? "Syncing..." : "Sync to OptimoRoute"}
-              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print Labels
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Select Date for Labels</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => {
+                            setSelectedDate(date);
+                            setIsDatePickerOpen(false);
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      onClick={handlePrintLabels}
+                      disabled={!selectedDate || isGeneratingPDF}
+                      className="w-full"
+                    >
+                      {isGeneratingPDF ? "Generating..." : "Generate Labels"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </>
           )}
           <Button asChild>

@@ -1,14 +1,20 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
 
-[functions.shipday-webhook]
-verify_jwt = false
-
-[functions.generate-tracking-numbers]
+[functions.create-business-user]
 verify_jwt = false
 
 [functions.create-shipday-order]
 verify_jwt = false
 
-[functions.create-business-user]
+[functions.generate-tracking-numbers]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.shipday-webhook]
+verify_jwt = false
+
+[functions.orders]
 verify_jwt = false

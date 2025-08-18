@@ -28,13 +28,13 @@ export const sortOrders = (ordersToSort: Order[], sortBy: string) => {
 
 export const applyFiltersToOrders = (
   orders: Order[], 
-  filters: { status: string; search: string; sortBy: string }
+  filters: { status: string[]; search: string; sortBy: string }
 ) => {
   let result = [...orders];
   
   // Apply status filter
-  if (filters.status !== "all") {
-    result = result.filter(order => order.status === filters.status);
+  if (filters.status.length > 0) {
+    result = result.filter(order => filters.status.includes(order.status));
   }
   
   // Apply search filter
@@ -44,6 +44,7 @@ export const applyFiltersToOrders = (
       order.sender.name.toLowerCase().includes(searchLower) ||
       order.receiver.name.toLowerCase().includes(searchLower) ||
       order.id.toLowerCase().includes(searchLower) ||
+      (order.trackingNumber && order.trackingNumber.toLowerCase().includes(searchLower)) ||
       (order.bikeBrand && order.bikeBrand.toLowerCase().includes(searchLower)) ||
       (order.bikeModel && order.bikeModel.toLowerCase().includes(searchLower))
     );

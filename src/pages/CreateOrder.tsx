@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Bike, PackageCheck, Truck } from "lucide-react";
+import { Bike, PackageCheck, Truck, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -50,16 +51,36 @@ const orderSchema = z.object({
       lon: z.number().optional(),
     }),
   }),
-  bikeBrand: z.string().min(1, "Bike brand is required"),
-  bikeModel: z.string().min(1, "Bike model is required"),
+  bikeQuantity: z.number().min(1).max(8),
+  bikes: z.array(z.object({
+    brand: z.string().min(1, "Bike brand is required"),
+    model: z.string().min(1, "Bike model is required"),
+  })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
+  paymentCollectionPhone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX").optional().or(z.literal("")),
   isBikeSwap: z.boolean().default(false),
+  isEbayOrder: z.boolean().default(false),
+  collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
+  // Legacy fields for backward compatibility
+  bikeBrand: z.string().optional(),
+  bikeModel: z.string().optional(),
+}).refine((data) => {
+  if (data.isEbayOrder && !data.collectionCode) {
+    return false;
+  }
+  if (data.needsPaymentOnCollection && !data.paymentCollectionPhone) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Required fields missing for selected options",
 });
 
 const CreateOrder = () => {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -94,17 +115,23 @@ const CreateOrder = () => {
           lon: undefined,
         },
       },
-      bikeBrand: "",
-      bikeModel: "",
+      bikeQuantity: 1,
+      bikes: [{ brand: "", model: "" }],
       customerOrderNumber: "",
       needsPaymentOnCollection: false,
+      paymentCollectionPhone: "",
       isBikeSwap: false,
+      isEbayOrder: false,
+      collectionCode: "",
       deliveryInstructions: "",
+      // Legacy fields for backward compatibility
+      bikeBrand: "",
+      bikeModel: "",
     },
     mode: "onChange",
   });
 
-  const detailsFields = form.watch(["bikeBrand", "bikeModel"]);
+  const detailsFields = form.watch(["bikeQuantity", "bikes"]);
   const senderFields = form.watch([
     "sender.name", 
     "sender.email", 
@@ -127,8 +154,12 @@ const CreateOrder = () => {
   ]);
 
   const isDetailsValid = React.useMemo(() => {
-    return detailsFields.every(field => field && String(field).trim() !== '');
-  }, [detailsFields]);
+    const bikeQuantity = form.getValues("bikeQuantity");
+    const bikes = form.getValues("bikes") || [];
+    return bikeQuantity >= 1 && bikes.length === bikeQuantity && 
+           bikes.every(bike => bike && bike.brand && bike.model && 
+                             bike.brand.trim() !== '' && bike.model.trim() !== '');
+  }, [detailsFields, form]);
 
   const isSenderValid = React.useMemo(() => {
     const allFieldsFilled = senderFields.every(field => field && String(field).trim() !== '');
@@ -157,7 +188,36 @@ const CreateOrder = () => {
   const onSubmit = async (data: CreateOrderFormData) => {
     setIsSubmitting(true);
     try {
-      const order = await createOrder(data);
+      // Transform the new format to include legacy fields for backward compatibility
+      let deliveryInstructions = data.deliveryInstructions || '';
+      
+      // Add bike details when multiple bikes
+      if (data.bikes && data.bikes.length > 1) {
+        const bikeList = data.bikes
+          .map((bike, index) => `${index + 1}. ${bike.brand} ${bike.model}`)
+          .join('\n');
+        deliveryInstructions += `\n\nBikes to collect:\n${bikeList}`;
+      }
+      
+      // Add collection code for eBay orders
+      if (data.isEbayOrder && data.collectionCode) {
+        deliveryInstructions += `\n\nCollection code: ${data.collectionCode}`;
+      }
+      
+      // Add payment collection message when required
+      if (data.needsPaymentOnCollection && data.paymentCollectionPhone) {
+        deliveryInstructions += `\n\nPayment required when collecting, please call ${data.paymentCollectionPhone}`;
+      }
+      
+      const transformedData = {
+        ...data,
+        bikeBrand: data.bikes.length > 1 ? 'Multiple bikes' : (data.bikes[0]?.brand || ''),
+        bikeModel: data.bikes.length > 1 ? `${data.bikes.length} bikes` : (data.bikes[0]?.model || ''),
+        bikeQuantity: data.bikeQuantity,
+        deliveryInstructions: deliveryInstructions.trim(),
+      };
+      
+      const order = await createOrder(transformedData);
       toast.success("Order created successfully!");
       navigate(`/dashboard`);
     } catch (error) {
@@ -169,7 +229,10 @@ const CreateOrder = () => {
   };
 
   const handleNextToSender = () => {
-    form.trigger(["bikeBrand", "bikeModel"]);
+    const bikes = form.getValues("bikes") || [];
+    const bikeQuantity = form.getValues("bikeQuantity");
+    
+    form.trigger(["bikeQuantity", "bikes"]);
     if (isDetailsValid) {
       setActiveTab("sender");
     } else {
@@ -194,6 +257,63 @@ const CreateOrder = () => {
     } else {
       toast.error("Please fill in all required fields in Collection Information.");
     }
+  };
+
+  const fillMyDetails = (prefix: "sender" | "receiver") => {
+    if (!userProfile) {
+      toast.error("Profile information not available. Please complete your profile first.");
+      navigate("/profile");
+      return;
+    }
+
+    // Check if essential profile data is missing
+    const missingFields = [];
+    if (!userProfile.name) missingFields.push("name");
+    if (!userProfile.email) missingFields.push("email");
+    if (!userProfile.phone) missingFields.push("phone");
+    if (!userProfile.address_line_1) missingFields.push("address");
+
+    if (missingFields.length > 0) {
+      toast.error(`Please complete your profile first. Missing: ${missingFields.join(", ")}`);
+      navigate("/profile");
+      return;
+    }
+
+    // Format phone number to ensure +44 prefix
+    let formattedPhone = userProfile.phone || "";
+    if (formattedPhone && !formattedPhone.startsWith("+44")) {
+      // Remove any leading zeros and add +44
+      formattedPhone = formattedPhone.replace(/^0+/, "");
+      formattedPhone = `+44${formattedPhone}`;
+    }
+
+    // Fill contact information
+    form.setValue(`${prefix}.name`, userProfile.name);
+    form.setValue(`${prefix}.email`, userProfile.email);
+    form.setValue(`${prefix}.phone`, formattedPhone);
+
+    // Fill address information and trigger search
+    const fullAddress = `${userProfile.address_line_1}${userProfile.address_line_2 ? `, ${userProfile.address_line_2}` : ""}, ${userProfile.city || ""}, ${userProfile.postal_code || ""}`.trim();
+    
+    form.setValue(`${prefix}.address.street`, userProfile.address_line_1);
+    form.setValue(`${prefix}.address.city`, userProfile.city || "");
+    form.setValue(`${prefix}.address.state`, userProfile.address_line_2 || "");
+    form.setValue(`${prefix}.address.zipCode`, userProfile.postal_code || "");
+    form.setValue(`${prefix}.address.country`, "United Kingdom");
+
+    // Trigger address validation by searching for the address
+    if (fullAddress.length > 3) {
+      setTimeout(() => {
+        const addressForm = document.querySelector(`input[placeholder="Search for an address in the UK..."]`) as HTMLInputElement;
+        if (addressForm) {
+          addressForm.value = fullAddress;
+          addressForm.dispatchEvent(new Event('input', { bubbles: true }));
+          addressForm.focus();
+        }
+      }, 100);
+    }
+
+    toast.success("Details filled from your profile");
   };
 
   return (
@@ -264,7 +384,19 @@ const CreateOrder = () => {
 
                     <TabsContent value="sender" className="space-y-6 mt-0">
                       <div>
-                        <h3 className="text-lg font-medium mb-4">Collection Contact Information</h3>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-medium">Collection Contact Information</h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fillMyDetails("sender")}
+                            className="flex items-center gap-2"
+                          >
+                            <User className="h-4 w-4" />
+                            Fill in my details
+                          </Button>
+                        </div>
                         <ContactForm control={form.control} prefix="sender" />
                       </div>
 
@@ -298,7 +430,19 @@ const CreateOrder = () => {
 
                     <TabsContent value="receiver" className="space-y-6 mt-0">
                       <div>
-                        <h3 className="text-lg font-medium mb-4">Delivery Contact Information</h3>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-medium">Delivery Contact Information</h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fillMyDetails("receiver")}
+                            className="flex items-center gap-2"
+                          >
+                            <User className="h-4 w-4" />
+                            Fill in my details
+                          </Button>
+                        </div>
                         <ContactForm control={form.control} prefix="receiver" />
                       </div>
 

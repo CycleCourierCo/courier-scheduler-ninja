@@ -20,10 +20,12 @@ import UserProfile from "./pages/UserProfile";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import JobScheduling from "./pages/JobScheduling";
 import AccountApprovals from "./pages/AccountApprovals";
+import ApiKeysPage from "./pages/ApiKeysPage";
 import NotFound from "./pages/NotFound";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
+import ApiDocumentationPage from "./pages/ApiDocumentationPage";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +84,11 @@ function App() {
                 <AccountApprovals />
               </ProtectedRoute>
             } />
+            <Route path="/api-keys" element={
+              <ProtectedRoute adminOnly={true}>
+                <ApiKeysPage />
+              </ProtectedRoute>
+            } />
             <Route path="/sender-availability/:id" element={<SenderAvailability />} />
             <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
             <Route path="/tracking" element={<TrackingPage />} />
@@ -89,6 +96,7 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/api-docs" element={<ApiDocumentationPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster position="top-right" closeButton richColors />
