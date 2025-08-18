@@ -450,7 +450,7 @@ function verifyWebhook(payload, signature, secret) {
                 <div>
                   <h4 className="font-semibold mb-2">Request Process</h4>
                   <ol className="list-decimal list-inside space-y-1 text-sm">
-                    <li>Contact our API support team at <strong>api-support@cyclecourier.com</strong></li>
+                    <li>Contact our API support team at <strong>info@cyclecourierco.com</strong></li>
                     <li>Provide your business details and existing account information</li>
                     <li>Specify your intended use case and expected order volume</li>
                     <li>Include your webhook endpoint URL if you want real-time notifications</li>
