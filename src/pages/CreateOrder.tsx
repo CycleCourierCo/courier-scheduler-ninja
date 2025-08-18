@@ -187,14 +187,23 @@ const CreateOrder = () => {
     setIsSubmitting(true);
     try {
       // Transform the new format to include legacy fields for backward compatibility
+      let deliveryInstructions = data.deliveryInstructions || '';
+      
+      // Add collection code for eBay orders
+      if (data.isEbayOrder && data.collectionCode) {
+        deliveryInstructions += `\n\nCollection code: ${data.collectionCode}`;
+      }
+      
+      // Add payment collection message when required
+      if (data.needsPaymentOnCollection && data.paymentCollectionPhone) {
+        deliveryInstructions += `\n\nPayment required when collecting, please call ${data.paymentCollectionPhone}`;
+      }
+      
       const transformedData = {
         ...data,
         bikeBrand: data.bikes[0]?.brand || '',
         bikeModel: data.bikes[0]?.model || '',
-        // Process delivery instructions with collection code if eBay order
-        deliveryInstructions: data.isEbayOrder && data.collectionCode
-          ? `${data.deliveryInstructions || ''}\n\nCollection code: ${data.collectionCode}`.trim()
-          : data.deliveryInstructions || '',
+        deliveryInstructions: deliveryInstructions.trim(),
       };
       
       const order = await createOrder(transformedData);
