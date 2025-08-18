@@ -134,66 +134,14 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         <h3 className="font-semibold">{title}</h3>
       </div>
       
-      {/* Show customer selected dates if available */}
-      {canSelectDate && (
-        <div className="space-y-2 mb-4">
+      {/* Show customer date selection dropdown for scheduled_dates_pending and other statuses */}
+      {canSelectDate && !showScheduledStyle ? (
+        <div className="space-y-2">
           <p className="text-sm text-gray-500">Customer selected dates:</p>
           <p className="text-sm bg-blue-50 p-2 rounded border border-blue-200">{formatDates(availableDates)}</p>
-        </div>
-      )}
-      
-      {/* Show date picker for scheduled_dates_pending status */}
-      {orderStatus === 'scheduled_dates_pending' && showAdminControls && (
-        <div className="space-y-3 mb-4">
-          <p className="text-sm font-medium text-orange-700">Admin Date Selection:</p>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select new date:</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !calendarDate && "text-muted-foreground"
-                  )}
-                  disabled={isSubmitting}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {calendarDate ? format(calendarDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={calendarDate}
-                  onSelect={setCalendarDate}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium">Select time:</label>
-            <Input
-              type="time"
-              value={timeValue}
-              onChange={(e) => setTimeValue(e.target.value)}
-              disabled={isSubmitting}
-              className="w-full"
-            />
-          </div>
-        </div>
-      )}
-      
-      {canSelectDate && !showScheduledStyle && orderStatus !== 'scheduled_dates_pending' ? (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-500">Available dates:</p>
-          <p>{formatDates(availableDates)}</p>
           
           <div className="mt-2">
-            <label className="text-sm font-medium">Select date:</label>
+            <label className="text-sm font-medium">Select from customer dates:</label>
             <Select
               value={selectedDate || ""}
               onValueChange={setSelectedDate}
@@ -237,20 +185,64 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             />
           </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {scheduledDate || showScheduledStyle ? (
-            <div className="bg-green-50 p-2 rounded-md border border-green-200">
-              <div className="flex items-center">
-                <Check className="h-4 w-4 text-green-600 mr-2" />
-                <p className="font-medium">
-                  {scheduledDate ? safeFormat(scheduledDate, "PPP 'at' p") : formatDates(availableDates)}
-                </p>
-              </div>
-            </div>
-          ) : orderStatus !== 'scheduled_dates_pending' && (
-            <p>{formatDates(availableDates)}</p>
-          )}
+      ) : !showScheduledStyle && orderStatus !== 'scheduled_dates_pending' && (
+        <p>{formatDates(availableDates)}</p>
+      )}
+      
+      {/* Show date picker for scheduled_dates_pending status */}
+      {orderStatus === 'scheduled_dates_pending' && showAdminControls && (
+        <div className="space-y-3 mt-4 border-t pt-4">
+          <p className="text-sm font-medium text-orange-700">Admin Date Override:</p>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Select override date:</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !calendarDate && "text-muted-foreground"
+                  )}
+                  disabled={isSubmitting}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {calendarDate ? format(calendarDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={calendarDate}
+                  onSelect={setCalendarDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Select time:</label>
+            <Input
+              type="time"
+              value={timeValue}
+              onChange={(e) => setTimeValue(e.target.value)}
+              disabled={isSubmitting}
+              className="w-full"
+            />
+          </div>
+        </div>
+      )}
+      
+      {/* Show scheduled dates */}
+      {(scheduledDate || showScheduledStyle) && (
+        <div className="bg-green-50 p-2 rounded-md border border-green-200 mt-4">
+          <div className="flex items-center">
+            <Check className="h-4 w-4 text-green-600 mr-2" />
+            <p className="font-medium">
+              {scheduledDate ? safeFormat(scheduledDate, "PPP 'at' p") : formatDates(availableDates)}
+            </p>
+          </div>
         </div>
       )}
     </div>
