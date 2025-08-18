@@ -408,6 +408,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       verify_api_key: {
         Args: { api_key: string }
         Returns: string
