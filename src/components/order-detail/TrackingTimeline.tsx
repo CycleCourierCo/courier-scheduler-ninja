@@ -2,7 +2,7 @@
 import React from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -93,8 +93,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         try {
           console.log("Processing update:", update);
           
-          // Only process ORDER_ONTHEWAY and ORDER_POD_UPLOAD events
-          if (update.event !== "ORDER_ONTHEWAY" && update.event !== "ORDER_POD_UPLOAD") {
+          // Process ORDER_ONTHEWAY, ORDER_POD_UPLOAD, ORDER_COMPLETED, and ORDER_FAILED events
+          if (update.event !== "ORDER_ONTHEWAY" && update.event !== "ORDER_POD_UPLOAD" && 
+              update.event !== "ORDER_COMPLETED" && update.event !== "ORDER_FAILED") {
             console.log("Skipping non-tracking event:", update.event);
             return;
           }
@@ -126,7 +127,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               icon = <Truck className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Driver is on the way to deliver the bike";
             }
-          } else if (update.event === "ORDER_POD_UPLOAD") {
+          } else if (update.event === "ORDER_POD_UPLOAD" || update.event === "ORDER_COMPLETED") {
             if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
               title = "Bike Collected";
               icon = <Check className="h-4 w-4 text-courier-600" />;
@@ -135,6 +136,16 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               title = "Delivered";
               icon = <Check className="h-4 w-4 text-green-600" />;
               if (!description) description = "Bike has been delivered to receiver";
+            }
+          } else if (update.event === "ORDER_FAILED") {
+            if (isPickup || (!isPickup && !isDelivery && update.description?.includes("collect"))) {
+              title = "Collection Failed";
+              icon = <AlertCircle className="h-4 w-4 text-red-600" />;
+              if (!description) description = "Collection attempt failed - rescheduling required";
+            } else {
+              title = "Delivery Failed";
+              icon = <AlertCircle className="h-4 w-4 text-red-600" />;
+              if (!description) description = "Delivery attempt failed - rescheduling required";
             }
           }
           
