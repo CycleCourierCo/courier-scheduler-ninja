@@ -189,6 +189,14 @@ const CreateOrder = () => {
       // Transform the new format to include legacy fields for backward compatibility
       let deliveryInstructions = data.deliveryInstructions || '';
       
+      // Add bike details when multiple bikes
+      if (data.bikes && data.bikes.length > 1) {
+        const bikeList = data.bikes
+          .map((bike, index) => `${index + 1}. ${bike.brand} ${bike.model}`)
+          .join('\n');
+        deliveryInstructions += `\n\nBikes to collect:\n${bikeList}`;
+      }
+      
       // Add collection code for eBay orders
       if (data.isEbayOrder && data.collectionCode) {
         deliveryInstructions += `\n\nCollection code: ${data.collectionCode}`;
@@ -201,8 +209,9 @@ const CreateOrder = () => {
       
       const transformedData = {
         ...data,
-        bikeBrand: data.bikes[0]?.brand || '',
-        bikeModel: data.bikes[0]?.model || '',
+        bikeBrand: data.bikes.length > 1 ? 'Multiple bikes' : (data.bikes[0]?.brand || ''),
+        bikeModel: data.bikes.length > 1 ? `${data.bikes.length} bikes` : (data.bikes[0]?.model || ''),
+        bikeQuantity: data.bikeQuantity,
         deliveryInstructions: deliveryInstructions.trim(),
       };
       

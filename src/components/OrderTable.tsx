@@ -365,7 +365,14 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                         {order.bikeBrand && order.bikeModel ? (
                           <div className="flex items-center">
                             <Bike className="h-4 w-4 mr-1 text-gray-500" />
-                            <span>{order.bikeBrand} {order.bikeModel}</span>
+                            <span>
+                              {order.bikeBrand} {order.bikeModel}
+                              {order.bikeQuantity && order.bikeQuantity > 1 && (
+                                <span className="text-xs text-gray-500 ml-1">
+                                  (×{order.bikeQuantity})
+                                </span>
+                              )}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-gray-400">Not specified</span>
