@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,10 +88,12 @@ export default function ApiKeysPage() {
         .from('profiles')
         .select('id, name, email, company_name, role')
         .in('role', ['b2b_customer', 'b2c_customer'])
+        .eq('account_status', 'approved')
         .order('name');
 
       if (error) throw error;
       
+      console.log('Fetched customers:', data); // Debug log
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -152,211 +155,221 @@ export default function ApiKeysPage() {
 
   if (userProfile?.role !== 'admin') {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground">Access denied. Admin privileges required.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-muted-foreground">Access denied. Admin privileges required.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">API Key Management</h1>
-          <p className="text-muted-foreground">
-            Generate and manage API keys for customer accounts
-          </p>
+    <Layout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">API Key Management</h1>
+            <p className="text-muted-foreground">
+              Generate and manage API keys for customer accounts
+            </p>
+          </div>
+          
+          <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Generate API Key
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Generate New API Key</DialogTitle>
+                <DialogDescription>
+                  Create a new API key for a customer account. This key will allow them to create orders programmatically.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="customer">Customer</Label>
+                  <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                    <SelectTrigger className="bg-background border border-input">
+                      <SelectValue placeholder="Select a customer" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-input z-50">
+                      {customers.length === 0 ? (
+                        <SelectItem value="no-customers" disabled>
+                          No approved customers found
+                        </SelectItem>
+                      ) : (
+                        customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name || customer.email} 
+                            {customer.company_name && ` - ${customer.company_name}`}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="keyName">Key Name</Label>
+                  <Input
+                    id="keyName"
+                    placeholder="e.g., Production API, Test Environment"
+                    value={keyName}
+                    onChange={(e) => setKeyName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={generateApiKey}>
+                  Generate Key
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-        
-        <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Generate API Key
-            </Button>
-          </DialogTrigger>
+
+        {/* New API Key Display Dialog */}
+        <Dialog open={showNewKey} onOpenChange={setShowNewKey}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Generate New API Key</DialogTitle>
+              <DialogTitle>API Key Generated</DialogTitle>
               <DialogDescription>
-                Create a new API key for a customer account. This key will allow them to create orders programmatically.
+                Your API key has been generated. Copy it now as it won't be shown again.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="customer">Customer</Label>
-                <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.email})
-                        {customer.company_name && ` - ${customer.company_name}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="flex items-center justify-between">
+                  <code className="text-sm break-all">{newApiKey}</code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(newApiKey)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="keyName">Key Name</Label>
-                <Input
-                  id="keyName"
-                  placeholder="e.g., Production API, Test Environment"
-                  value={keyName}
-                  onChange={(e) => setKeyName(e.target.value)}
-                />
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Store this key securely. You won't be able to see it again.
+              </p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={generateApiKey}>
-                Generate Key
+              <Button onClick={() => setShowNewKey(false)}>
+                I've Copied the Key
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
-      {/* New API Key Display Dialog */}
-      <Dialog open={showNewKey} onOpenChange={setShowNewKey}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>API Key Generated</DialogTitle>
-            <DialogDescription>
-              Your API key has been generated. Copy it now as it won't be shown again.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <div className="flex items-center justify-between">
-                <code className="text-sm break-all">{newApiKey}</code>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(newApiKey)}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Active API Keys
+            </CardTitle>
+            <CardDescription>
+              Manage API keys for customer accounts. Keys allow programmatic access to create orders.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Store this key securely. You won't be able to see it again.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowNewKey(false)}>
-              I've Copied the Key
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5" />
-            Active API Keys
-          </CardTitle>
-          <CardDescription>
-            Manage API keys for customer accounts. Keys allow programmatic access to create orders.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Key Name</TableHead>
-                  <TableHead>Key Prefix</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Used</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {apiKeys.length === 0 ? (
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No API keys found. Generate one to get started.
-                    </TableCell>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Key Name</TableHead>
+                    <TableHead>Key Prefix</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Used</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ) : (
-                  apiKeys.map((key) => (
-                    <TableRow key={key.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{key.profile?.name}</div>
-                          <div className="text-sm text-muted-foreground">{key.profile?.email}</div>
-                          {key.profile?.company_name && (
-                            <div className="text-sm text-muted-foreground">{key.profile.company_name}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{key.key_name}</TableCell>
-                      <TableCell>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">{key.key_prefix}...</code>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={key.is_active ? 'default' : 'secondary'}>
-                          {key.is_active ? 'Active' : 'Revoked'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {key.last_used_at 
-                          ? format(new Date(key.last_used_at), 'MMM d, yyyy')
-                          : 'Never'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(key.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        {key.is_active && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to revoke this API key? This action cannot be undone and the customer will lose API access.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => revokeApiKey(key.id)}>
-                                  Revoke Key
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {apiKeys.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No API keys found. Generate one to get started.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                  ) : (
+                    apiKeys.map((key) => (
+                      <TableRow key={key.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{key.profile?.name}</div>
+                            <div className="text-sm text-muted-foreground">{key.profile?.email}</div>
+                            {key.profile?.company_name && (
+                              <div className="text-sm text-muted-foreground">{key.profile.company_name}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{key.key_name}</TableCell>
+                        <TableCell>
+                          <code className="text-sm bg-muted px-2 py-1 rounded">{key.key_prefix}...</code>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={key.is_active ? 'default' : 'secondary'}>
+                            {key.is_active ? 'Active' : 'Revoked'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {key.last_used_at 
+                            ? format(new Date(key.last_used_at), 'MMM d, yyyy')
+                            : 'Never'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(key.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          {key.is_active && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to revoke this API key? This action cannot be undone and the customer will lose API access.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => revokeApiKey(key.id)}>
+                                    Revoke Key
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
   );
 }
