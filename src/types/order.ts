@@ -40,6 +40,8 @@ export type ShipdayUpdate = {
   orderId: string;
   description?: string;
   event?: string;
+  podUrls?: string[];
+  signatureUrl?: string;
 };
 
 export type Order = {

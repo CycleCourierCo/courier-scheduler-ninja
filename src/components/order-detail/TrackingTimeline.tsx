@@ -2,7 +2,7 @@
 import React from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image } from "lucide-react";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -153,7 +153,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               title,
               date: update.timestamp,
               icon,
-              description
+              description,
+              podUrls: update.podUrls,
+              signatureUrl: update.signatureUrl
             });
           }
         } catch (error) {
@@ -308,6 +310,63 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
                   {formatDate(event.date)}
                 </p>
                 <p className="text-sm">{event.description}</p>
+                
+                {/* Display POD images if available */}
+                {(event as any).podUrls && (event as any).podUrls.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-1 mb-2">
+                      <Image className="h-4 w-4 text-courier-600" />
+                      <span className="text-sm font-medium text-gray-700">Proof of Delivery:</span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {(event as any).podUrls.map((url: string, imgIndex: number) => (
+                        <a 
+                          key={imgIndex}
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                        >
+                          <img 
+                            src={url} 
+                            alt={`POD ${imgIndex + 1}`}
+                            className="w-20 h-20 object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display signature if available */}
+                {(event as any).signatureUrl && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-1 mb-2">
+                      <Image className="h-4 w-4 text-courier-600" />
+                      <span className="text-sm font-medium text-gray-700">Signature:</span>
+                    </div>
+                    <a 
+                      href={(event as any).signatureUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow w-fit"
+                    >
+                      <img 
+                        src={(event as any).signatureUrl} 
+                        alt="Signature"
+                        className="w-20 h-20 object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           ))}

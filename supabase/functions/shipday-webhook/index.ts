@@ -176,7 +176,9 @@ serve(async (req) => {
         event: event,
         timestamp: new Date().toISOString(),
         orderId: shipdayOrderId,
-        description: statusDescription
+        description: statusDescription,
+        podUrls: payload.pods || payload.order?.podUrls || [],
+        signatureUrl: payload.signatures?.[0] || payload.order?.signatureUrl || null
       },
     ];
 
