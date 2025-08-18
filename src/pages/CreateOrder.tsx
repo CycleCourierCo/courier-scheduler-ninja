@@ -261,21 +261,57 @@ const CreateOrder = () => {
 
   const fillMyDetails = (prefix: "sender" | "receiver") => {
     if (!userProfile) {
-      toast.error("Profile information not available");
+      toast.error("Profile information not available. Please complete your profile first.");
+      navigate("/profile");
       return;
     }
 
-    // Fill contact information
-    form.setValue(`${prefix}.name`, userProfile.name || "");
-    form.setValue(`${prefix}.email`, userProfile.email || "");
-    form.setValue(`${prefix}.phone`, userProfile.phone || "+44");
+    // Check if essential profile data is missing
+    const missingFields = [];
+    if (!userProfile.name) missingFields.push("name");
+    if (!userProfile.email) missingFields.push("email");
+    if (!userProfile.phone) missingFields.push("phone");
+    if (!userProfile.address_line_1) missingFields.push("address");
 
-    // Fill address information
-    form.setValue(`${prefix}.address.street`, userProfile.address_line_1 || "");
+    if (missingFields.length > 0) {
+      toast.error(`Please complete your profile first. Missing: ${missingFields.join(", ")}`);
+      navigate("/profile");
+      return;
+    }
+
+    // Format phone number to ensure +44 prefix
+    let formattedPhone = userProfile.phone || "";
+    if (formattedPhone && !formattedPhone.startsWith("+44")) {
+      // Remove any leading zeros and add +44
+      formattedPhone = formattedPhone.replace(/^0+/, "");
+      formattedPhone = `+44${formattedPhone}`;
+    }
+
+    // Fill contact information
+    form.setValue(`${prefix}.name`, userProfile.name);
+    form.setValue(`${prefix}.email`, userProfile.email);
+    form.setValue(`${prefix}.phone`, formattedPhone);
+
+    // Fill address information and trigger search
+    const fullAddress = `${userProfile.address_line_1}${userProfile.address_line_2 ? `, ${userProfile.address_line_2}` : ""}, ${userProfile.city || ""}, ${userProfile.postal_code || ""}`.trim();
+    
+    form.setValue(`${prefix}.address.street`, userProfile.address_line_1);
     form.setValue(`${prefix}.address.city`, userProfile.city || "");
     form.setValue(`${prefix}.address.state`, userProfile.address_line_2 || "");
     form.setValue(`${prefix}.address.zipCode`, userProfile.postal_code || "");
     form.setValue(`${prefix}.address.country`, "United Kingdom");
+
+    // Trigger address validation by searching for the address
+    if (fullAddress.length > 3) {
+      setTimeout(() => {
+        const addressForm = document.querySelector(`input[placeholder="Search for an address in the UK..."]`) as HTMLInputElement;
+        if (addressForm) {
+          addressForm.value = fullAddress;
+          addressForm.dispatchEvent(new Event('input', { bubbles: true }));
+          addressForm.focus();
+        }
+      }, 100);
+    }
 
     toast.success("Details filled from your profile");
   };
