@@ -145,6 +145,44 @@ export type Database = {
           },
         ]
       }
+      order_comments: {
+        Row: {
+          admin_id: string
+          admin_name: string
+          comment: string
+          created_at: string
+          id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          admin_name: string
+          comment: string
+          created_at?: string
+          id?: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          admin_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_comments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           bike_brand: string | null

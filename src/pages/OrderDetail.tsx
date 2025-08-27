@@ -18,6 +18,7 @@ import ItemDetails from "@/components/order-detail/ItemDetails";
 import ContactDetails from "@/components/order-detail/ContactDetails";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
+import OrderComments from "@/components/order-detail/OrderComments";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
@@ -734,6 +735,10 @@ const OrderDetail = () => {
                 notes={order.receiverNotes}
               />
             </div>
+            
+            <Separator className="my-6" />
+            
+            <OrderComments orderId={order.id} />
           </CardContent>
           <CardFooter>
             <Button asChild>
