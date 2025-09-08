@@ -302,7 +302,7 @@ const handler = async (req: Request): Promise<Response> => {
       BillEmail: {
         Address: customerEmail
       },
-      TxnDate: new Date(invoiceData.endDate).toISOString().split('T')[0],
+      TxnDate: invoiceData.endDate.split('T')[0], // Use end date as invoice date
       ...(salesTermId && { SalesTermRef: { value: salesTermId } }),
       ...(nextDocNumber && { DocNumber: nextDocNumber })
     };
