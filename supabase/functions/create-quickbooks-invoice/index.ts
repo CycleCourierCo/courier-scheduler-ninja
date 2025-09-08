@@ -112,6 +112,50 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch tax codes, using default NON');
     }
 
+    // Query available items to find a valid service item
+    const itemsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Item WHERE Type='Service' AND Active=true`;
+    
+    let serviceItemId = "1"; // Default fallback
+    let serviceItemName = "Service";
+    
+    const itemsResponse = await fetch(itemsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (itemsResponse.ok) {
+      const itemsData = await itemsResponse.json();
+      console.log('Available service items:', itemsData);
+      
+      const items = itemsData.QueryResponse?.Item || [];
+      
+      // Look for the specific item 200000403 first
+      const targetItem = items.find((item: any) => item.Id === "200000403");
+      if (targetItem && targetItem.Active) {
+        serviceItemId = targetItem.Id;
+        serviceItemName = targetItem.Name;
+        console.log('Found target item 200000403:', targetItem);
+      } else {
+        // If target item not found, use the first available service item
+        const firstServiceItem = items.find((item: any) => 
+          item.Type === 'Service' && item.Active === true
+        );
+        
+        if (firstServiceItem) {
+          serviceItemId = firstServiceItem.Id;
+          serviceItemName = firstServiceItem.Name;
+          console.log('Using first available service item:', firstServiceItem);
+        } else {
+          console.log('No service items found, will use default');
+        }
+      }
+    } else {
+      console.warn('Failed to fetch items, using default service item');
+    }
+
     const lineItems = invoiceData.orders.map((order, index) => {
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
@@ -121,8 +165,8 @@ const handler = async (req: Request): Promise<Response> => {
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
           ItemRef: {
-            value: "200000403", // Service item ID
-            name: "Service"
+            value: serviceItemId, // Use the found service item ID
+            name: serviceItemName
           },
           Qty: 1,
           UnitPrice: 50.00,
