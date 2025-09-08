@@ -83,15 +83,17 @@ const handler = async (req: Request): Promise<Response> => {
       const receiverName = order.receiver?.name || 'Unknown Receiver';
       
       return {
-        line: index + 1,
-        item: {
-          itemId: "200000403",
-          name: `Bike Transport Service - ${order.tracking_number || order.id}`,
-          description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`,
-          quantity: 1,
-          unitPrice: 50.00 // Default price - would be configurable
+        Amount: 50.00, // Default price - would be configurable
+        DetailType: "SalesItemLineDetail",
+        SalesItemLineDetail: {
+          ItemRef: {
+            value: "1", // Default service item - would need to be configured
+            name: "Service"
+          },
+          Qty: 1,
+          UnitPrice: 50.00
         },
-        date: new Date(order.created_at).toISOString().split('T')[0]
+        Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
       };
     });
 
@@ -110,29 +112,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Invoice created:', invoice);
 
-    // Create invoice in QuickBooks
+    // Create invoice in QuickBooks using correct API format
     const quickbooksApiUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
     
     const quickbooksInvoice = {
-      Line: lineItems.map(item => ({
-        Amount: item.item.unitPrice,
-        DetailType: "SalesItemLineDetail",
-        SalesItemLineDetail: {
-          Item: {
-            value: "1", // Default service item - would need to be configured
-            name: "Service"
-          },
-          Qty: item.item.quantity,
-          UnitPrice: item.item.unitPrice
-        },
-        Description: item.item.description
-      })),
+      Line: lineItems,
       CustomerRef: {
         value: "1" // Would need to create/lookup customer in QuickBooks
-      },
-      TotalAmt: invoice.totalAmount,
-      DueDate: invoice.dueDate,
-      TxnDate: invoice.invoiceDate
+      }
     };
 
     const response = await fetch(quickbooksApiUrl, {
