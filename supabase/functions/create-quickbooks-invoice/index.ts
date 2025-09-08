@@ -302,7 +302,7 @@ const handler = async (req: Request): Promise<Response> => {
       BillEmail: {
         Address: customerEmail
       },
-      TxnDate: invoiceData.endDate.split('T')[0], // Use end date as invoice date
+      TxnDate: invoiceData.endDate, // Use exact end date
       ...(salesTermId && { SalesTermRef: { value: salesTermId } }),
       ...(nextDocNumber && { DocNumber: nextDocNumber })
     };
@@ -342,8 +342,8 @@ const handler = async (req: Request): Promise<Response> => {
         customer_id: invoiceData.customerId,
         customer_name: invoiceData.customerName,
         customer_email: invoiceData.customerEmail,
-        start_date: invoiceData.startDate.split('T')[0],
-        end_date: invoiceData.endDate.split('T')[0],
+        start_date: invoiceData.startDate,
+        end_date: invoiceData.endDate,
         order_count: invoiceData.orders.length,
         total_amount: invoice.totalAmount,
         quickbooks_invoice_id: invoiceId,
