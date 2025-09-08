@@ -20,19 +20,14 @@ type Customer = {
   accounts_email?: string;
 };
 
-type Job = {
+type InvoiceItem = {
   id: string;
-  order_id: string;
   created_at: string;
-  type: string;
-  location: string;
-  order?: {
-    tracking_number: string;
-    bike_brand: string;
-    bike_model: string;
-    sender: any;
-    receiver: any;
-  };
+  tracking_number: string;
+  bike_brand: string;
+  bike_model: string;
+  sender: any;
+  receiver: any;
 };
 
 export default function InvoicesPage() {
@@ -56,34 +51,32 @@ export default function InvoicesPage() {
     },
   });
 
-  const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
-    queryKey: ["jobs", selectedCustomer, startDate, endDate],
+  const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
+    queryKey: ["orders-for-invoice", selectedCustomer, startDate, endDate],
     queryFn: async () => {
       if (!selectedCustomer || !startDate || !endDate) return [];
       
-      console.log("Fetching jobs for:", { selectedCustomer, startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+      console.log("Fetching orders for invoice:", { selectedCustomer, startDate: startDate.toISOString(), endDate: endDate.toISOString() });
       
       const { data, error } = await supabase
-        .from("jobs")
+        .from("orders")
         .select(`
-          *,
-          order:orders!inner(
-            tracking_number,
-            bike_brand,
-            bike_model,
-            user_id,
-            sender,
-            receiver
-          )
+          id,
+          created_at,
+          tracking_number,
+          bike_brand,
+          bike_model,
+          sender,
+          receiver
         `)
-        .eq("order.user_id", selectedCustomer)
+        .eq("user_id", selectedCustomer)
         .gte("created_at", startDate.toISOString())
         .lte("created_at", endDate.toISOString())
         .order("created_at");
       
-      console.log("Jobs query result:", { data, error });
+      console.log("Orders query result:", { data, error });
       if (error) throw error;
-      return data as Job[];
+      return data as InvoiceItem[];
     },
     enabled: !!(selectedCustomer && startDate && endDate),
   });
@@ -94,15 +87,15 @@ export default function InvoicesPage() {
     selectedCustomer,
     startDate,
     endDate,
-    jobs,
-    jobsLength: jobs?.length,
+    orders,
+    ordersLength: orders?.length,
     selectedCustomerData,
     accountsEmail: selectedCustomerData?.accounts_email,
     isCreatingInvoice
   });
 
   const handleCreateInvoice = async () => {
-    if (!selectedCustomerData || !jobs || jobs.length === 0 || !startDate || !endDate) {
+    if (!selectedCustomerData || !orders || orders.length === 0 || !startDate || !endDate) {
       toast({
         title: "Missing Information",
         description: "Please select a customer, date range, and ensure there are jobs to invoice.",
@@ -130,7 +123,7 @@ export default function InvoicesPage() {
           customerName: selectedCustomerData.name,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-          jobs: jobs,
+          orders: orders,
         },
       });
 
@@ -238,37 +231,37 @@ export default function InvoicesPage() {
           </CardContent>
         </Card>
 
-        {/* Jobs Preview */}
-        {jobsError && (
+        {/* Orders Preview */}
+        {ordersError && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-destructive">Error Loading Jobs</CardTitle>
+              <CardTitle className="text-destructive">Error Loading Orders</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-destructive">{jobsError.message}</p>
+              <p className="text-destructive">{ordersError.message}</p>
             </CardContent>
           </Card>
         )}
 
-        {jobs && jobs.length > 0 && (
+        {orders && orders.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Jobs to Invoice ({jobs.length})</CardTitle>
+              <CardTitle>Orders to Invoice ({orders.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {jobs.map((job) => (
-                  <div key={job.id} className="flex justify-between items-center p-2 border rounded">
+                {orders.map((order) => (
+                  <div key={order.id} className="flex justify-between items-center p-2 border rounded">
                     <div>
                       <p className="font-medium">
-                        {job.order?.tracking_number} - {job.order?.bike_brand} {job.order?.bike_model}
+                        {order.tracking_number} - {order.bike_brand} {order.bike_model}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {job.order?.sender?.name} → {job.order?.receiver?.name}
+                        {order.sender?.name} → {order.receiver?.name}
                       </p>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {format(new Date(job.created_at), "MMM d, yyyy")}
+                      {format(new Date(order.created_at), "MMM d, yyyy")}
                     </div>
                   </div>
                 ))}
@@ -284,12 +277,12 @@ export default function InvoicesPage() {
               {!selectedCustomerData?.accounts_email && (
                 <p className="text-destructive">❌ Customer needs an accounts email address</p>
               )}
-              {jobsLoading && <p>🔄 Loading jobs...</p>}
-              {!jobsLoading && jobs && jobs.length === 0 && (
-                <p className="text-yellow-600">⚠️ No jobs found in selected date range</p>
+              {ordersLoading && <p>🔄 Loading orders...</p>}
+              {!ordersLoading && orders && orders.length === 0 && (
+                <p className="text-yellow-600">⚠️ No orders found in selected date range</p>
               )}
-              {!jobsLoading && jobs && jobs.length > 0 && selectedCustomerData?.accounts_email && (
-                <p className="text-green-600">✅ Ready to create invoice with {jobs.length} jobs</p>
+              {!ordersLoading && orders && orders.length > 0 && selectedCustomerData?.accounts_email && (
+                <p className="text-green-600">✅ Ready to create invoice with {orders.length} orders</p>
               )}
             </div>
           )}
@@ -301,8 +294,8 @@ export default function InvoicesPage() {
                 !selectedCustomer ||
                 !startDate ||
                 !endDate ||
-                !jobs ||
-                jobs.length === 0 ||
+                !orders ||
+                orders.length === 0 ||
                 !selectedCustomerData?.accounts_email ||
                 isCreatingInvoice
               }

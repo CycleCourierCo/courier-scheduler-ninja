@@ -12,16 +12,14 @@ interface InvoiceRequest {
   customerName: string;
   startDate: string;
   endDate: string;
-  jobs: Array<{
+  orders: Array<{
     id: string;
     created_at: string;
-    order?: {
-      tracking_number: string;
-      bike_brand: string;
-      bike_model: string;
-      sender: any;
-      receiver: any;
-    };
+    tracking_number: string;
+    bike_brand: string;
+    bike_model: string;
+    sender: any;
+    receiver: any;
   }>;
 }
 
@@ -78,21 +76,20 @@ const handler = async (req: Request): Promise<Response> => {
     // 2. Create the invoice via QuickBooks API
     // 3. Send the invoice email
 
-    const lineItems = invoiceData.jobs.map((job, index) => {
-      const order = job.order;
-      const senderName = order?.sender?.name || 'Unknown Sender';
-      const receiverName = order?.receiver?.name || 'Unknown Receiver';
+    const lineItems = invoiceData.orders.map((order, index) => {
+      const senderName = order.sender?.name || 'Unknown Sender';
+      const receiverName = order.receiver?.name || 'Unknown Receiver';
       
       return {
         line: index + 1,
         item: {
           itemId: "200000403",
-          name: `Bike Transport Service - ${order?.tracking_number || job.id}`,
-          description: `${order?.tracking_number || job.id} - ${order?.bike_brand || ''} ${order?.bike_model || ''} - ${senderName} → ${receiverName}`,
+          name: `Bike Transport Service - ${order.tracking_number || order.id}`,
+          description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`,
           quantity: 1,
           unitPrice: 50.00 // Default price - would be configurable
         },
-        date: new Date(job.created_at).toISOString().split('T')[0]
+        date: new Date(order.created_at).toISOString().split('T')[0]
       };
     });
 
