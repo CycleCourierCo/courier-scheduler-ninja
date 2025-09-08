@@ -117,6 +117,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     let serviceItemId = "1"; // Default fallback
     let serviceItemName = "Service";
+    let serviceItemPrice = 50.00; // Default fallback
     
     const itemsResponse = await fetch(itemsUrl, {
       method: 'GET',
@@ -137,6 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
       if (targetItem && targetItem.Active) {
         serviceItemId = targetItem.Id;
         serviceItemName = targetItem.Name;
+        serviceItemPrice = targetItem.UnitPrice || 50.00;
         console.log('Found target item 200000403:', targetItem);
       } else {
         // If target item not found, use the first available service item
@@ -147,6 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (firstServiceItem) {
           serviceItemId = firstServiceItem.Id;
           serviceItemName = firstServiceItem.Name;
+          serviceItemPrice = firstServiceItem.UnitPrice || 50.00;
           console.log('Using first available service item:', firstServiceItem);
         } else {
           console.log('No service items found, will use default');
@@ -156,12 +159,73 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch items, using default service item');
     }
 
+    // Query for sales terms to find "Net 15 days"
+    const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
+    
+    let salesTermId = null;
+    
+    const termsResponse = await fetch(termsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (termsResponse.ok) {
+      const termsData = await termsResponse.json();
+      console.log('Available terms:', termsData);
+      
+      const terms = termsData.QueryResponse?.Term || [];
+      const net15Term = terms.find((term: any) => 
+        term.Name?.toLowerCase().includes('net 15') || 
+        term.Name?.toLowerCase().includes('15 days') ||
+        (term.DueDays === 15)
+      );
+      
+      if (net15Term) {
+        salesTermId = net15Term.Id;
+        console.log('Using term:', net15Term.Name, 'with ID:', salesTermId);
+      }
+    } else {
+      console.warn('Failed to fetch terms');
+    }
+
+    // Query for the next invoice number
+    const invoicesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT DocNumber FROM Invoice ORDER BY DocNumber DESC MAXRESULTS 1`;
+    
+    let nextDocNumber = null;
+    
+    const invoicesResponse = await fetch(invoicesUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (invoicesResponse.ok) {
+      const invoicesData = await invoicesResponse.json();
+      console.log('Latest invoice:', invoicesData);
+      
+      const invoices = invoicesData.QueryResponse?.Invoice || [];
+      if (invoices.length > 0) {
+        const lastDocNumber = invoices[0].DocNumber;
+        const numericPart = parseInt(lastDocNumber.replace(/\D/g, '')) || 0;
+        nextDocNumber = (numericPart + 1).toString();
+        console.log('Next invoice number will be:', nextDocNumber);
+      }
+    } else {
+      console.warn('Failed to fetch latest invoice number');
+    }
+
     const lineItems = invoiceData.orders.map((order, index) => {
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
+      const serviceDate = new Date(order.created_at).toISOString().split('T')[0];
       
       return {
-        Amount: 50.00, // Default price - would be configurable
+        Amount: serviceItemPrice,
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
           ItemRef: {
@@ -169,10 +233,11 @@ const handler = async (req: Request): Promise<Response> => {
             name: serviceItemName
           },
           Qty: 1,
-          UnitPrice: 50.00,
+          UnitPrice: serviceItemPrice,
           TaxCodeRef: {
             value: nonTaxableCode // Use the fetched tax code
-          }
+          },
+          ServiceDate: serviceDate
         },
         Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
       };
@@ -188,7 +253,7 @@ const handler = async (req: Request): Promise<Response> => {
       dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 15 days from now
       terms: "15 days",
       lineItems: lineItems,
-      totalAmount: lineItems.length * 50.00
+      totalAmount: lineItems.reduce((sum, item) => sum + item.Amount, 0)
     };
 
     console.log('Invoice created:', invoice);
@@ -233,7 +298,10 @@ const handler = async (req: Request): Promise<Response> => {
       },
       BillEmail: {
         Address: customerEmail
-      }
+      },
+      TxnDate: new Date(invoiceData.endDate).toISOString().split('T')[0],
+      ...(salesTermId && { SalesTermRef: { value: salesTermId } }),
+      ...(nextDocNumber && { DocNumber: nextDocNumber })
     };
 
     const response = await fetch(quickbooksApiUrl, {
