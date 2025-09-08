@@ -98,7 +98,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, isEbayOrder, collectionCode, deliveryInstructions } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeModel, isEbayOrder, collectionCode, deliveryInstructions } = data;
 
     const {
       street: senderStreet,
@@ -210,6 +210,72 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
     const orderWithJobs = mapDbOrderToOrderType(order);
     await createJobsForOrder(orderWithJobs);
+    
+    // Create reverse order for part exchange
+    if (isBikeSwap && partExchangeBikeModel) {
+      try {
+        const reverseTrackingNumber = await generateTrackingNumber(receiver.name, sender.address.zipCode);
+        
+        const { data: reverseOrder, error: reverseError } = await supabase
+          .from("orders")
+          .insert({
+            user_id: user.id,
+            sender: {
+              name: receiver.name,
+              email: receiver.email,
+              phone: receiver.phone,
+              address: {
+                street: receiverStreet,
+                city: receiverCity,
+                state: receiverState,
+                zipCode: receiverZipCode,
+                country: receiverCountry,
+                lat: receiverLat,
+                lon: receiverLon,
+              },
+            },
+            receiver: {
+              name: sender.name,
+              email: sender.email,
+              phone: sender.phone,
+              address: {
+                street: senderStreet,
+                city: senderCity,
+                state: senderState,
+                zipCode: senderZipCode,
+                country: senderCountry,
+                lat: senderLat,
+                lon: senderLon,
+              },
+            },
+            bike_brand: partExchangeBikeModel.split(' ')[0] || 'Part Exchange',
+            bike_model: partExchangeBikeModel,
+            bike_quantity: 1,
+            customer_order_number: customerOrderNumber ? `${customerOrderNumber}-RETURN` : undefined,
+            needs_payment_on_collection: false,
+            is_bike_swap: false, // The reverse order is not itself a swap
+            is_ebay_order: false,
+            delivery_instructions: `Part exchange return for order ${trackingNumber}`,
+            status: 'created',
+            created_at: timestamp,
+            updated_at: timestamp,
+            tracking_number: reverseTrackingNumber,
+          })
+          .select()
+          .single();
+        
+        if (reverseError) {
+          console.error("Error creating reverse order for part exchange:", reverseError);
+        } else {
+          console.log("Reverse order created successfully for part exchange:", reverseOrder.id);
+          const reverseOrderWithJobs = mapDbOrderToOrderType(reverseOrder);
+          await createJobsForOrder(reverseOrderWithJobs);
+        }
+      } catch (reverseOrderError) {
+        console.error("Failed to create reverse order for part exchange:", reverseOrderError);
+        // Don't throw here - we don't want to fail the main order creation
+      }
+    }
     
     const sendEmails = async () => {
       try {

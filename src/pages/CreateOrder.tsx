@@ -60,6 +60,7 @@ const orderSchema = z.object({
   needsPaymentOnCollection: z.boolean().default(false),
   paymentCollectionPhone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX").optional().or(z.literal("")),
   isBikeSwap: z.boolean().default(false),
+  partExchangeBikeModel: z.string().optional(),
   isEbayOrder: z.boolean().default(false),
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
@@ -71,6 +72,9 @@ const orderSchema = z.object({
     return false;
   }
   if (data.needsPaymentOnCollection && !data.paymentCollectionPhone) {
+    return false;
+  }
+  if (data.isBikeSwap && !data.partExchangeBikeModel) {
     return false;
   }
   return true;
@@ -121,6 +125,7 @@ const CreateOrder = () => {
       needsPaymentOnCollection: false,
       paymentCollectionPhone: "",
       isBikeSwap: false,
+      partExchangeBikeModel: "",
       isEbayOrder: false,
       collectionCode: "",
       deliveryInstructions: "",

@@ -123,6 +123,7 @@ export type CreateOrderFormData = {
   needsPaymentOnCollection: boolean;
   paymentCollectionPhone?: string;
   isBikeSwap: boolean;
+  partExchangeBikeModel?: string;
   isEbayOrder: boolean;
   collectionCode?: string;
   deliveryInstructions?: string;
