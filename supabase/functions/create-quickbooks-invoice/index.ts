@@ -134,15 +134,18 @@ const handler = async (req: Request): Promise<Response> => {
       
       const items = itemsData.QueryResponse?.Item || [];
       
-      // Look for the specific item 200000403 first
-      const targetItem = items.find((item: any) => item.Id === "200000403");
-      if (targetItem && targetItem.Active) {
-        serviceItemId = targetItem.Id;
-        serviceItemName = targetItem.Name;
-        serviceItemPrice = targetItem.UnitPrice || 50.00;
-        console.log('Found target item 200000403:', targetItem);
+      // Look for "Collection and Delivery within England and Wales - Including B2B rebate" first
+      const preferredItem = items.find((item: any) => 
+        item.Name === "Collection and Delivery within England and Wales - Including B2B rebate" && item.Active === true
+      );
+      
+      if (preferredItem) {
+        serviceItemId = preferredItem.Id;
+        serviceItemName = preferredItem.Name;
+        serviceItemPrice = preferredItem.UnitPrice || 65.00;
+        console.log('Using preferred B2B rebate item:', preferredItem);
       } else {
-        // If target item not found, use the first available service item
+        // Fallback to first available service item
         const firstServiceItem = items.find((item: any) => 
           item.Type === 'Service' && item.Active === true
         );
