@@ -121,13 +121,13 @@ const handler = async (req: Request): Promise<Response> => {
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
           ItemRef: {
-            value: "1", // Default service item - would need to be configured
+            value: "200000403", // Updated service item ID
             name: "Service"
           },
           Qty: 1,
           UnitPrice: 50.00,
           TaxCodeRef: {
-            value: nonTaxableCode
+            value: "1" // No VAT
           }
         },
         Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
@@ -152,10 +152,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Create invoice in QuickBooks using correct API format
     const quickbooksApiUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
     
+    // Use accounts email to identify customer, fallback to regular email
+    const customerEmail = invoiceData.customerEmail;
+    
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: {
-        value: "1" // Would need to create/lookup customer in QuickBooks
+        value: "1" // Would need to create/lookup customer by accounts email
+      },
+      BillEmail: {
+        Address: customerEmail
       }
     };
 
