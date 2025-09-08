@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, FileText, Send, ExternalLink } from "lucide-react";
+import { CalendarIcon, FileText, Send, ExternalLink, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
@@ -28,6 +28,20 @@ type InvoiceItem = {
   bike_model: string;
   sender: any;
   receiver: any;
+};
+
+type InvoiceHistory = {
+  id: string;
+  customer_name: string;
+  customer_email: string;
+  start_date: string;
+  end_date: string;
+  order_count: number;
+  total_amount: number;
+  quickbooks_invoice_number: string;
+  quickbooks_invoice_url: string;
+  status: string;
+  created_at: string;
 };
 
 export default function InvoicesPage() {
@@ -64,6 +78,20 @@ export default function InvoicesPage() {
 
       if (error && error.code !== 'PGRST116') throw error;
       return data;
+    },
+  });
+
+  // Fetch invoice history
+  const { data: invoiceHistory, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
+    queryKey: ['invoice-history'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoice_history')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as InvoiceHistory[];
     },
   });
 
@@ -191,6 +219,9 @@ export default function InvoicesPage() {
         description: `QuickBooks invoice has been sent to ${selectedCustomerData.accounts_email}`,
       });
 
+      // Refetch invoice history to show the new invoice
+      refetchHistory();
+
     } catch (error: any) {
       console.error("Error creating invoice:", error);
       toast({
@@ -227,9 +258,81 @@ export default function InvoicesPage() {
             <div className="flex items-center gap-2 text-green-600">
               <div className="h-2 w-2 bg-green-600 rounded-full"></div>
               QuickBooks Connected
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+        
+        {/* Invoice History Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Invoice History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+              </div>
+            ) : invoiceHistory && invoiceHistory.length > 0 ? (
+              <div className="space-y-4">
+                {invoiceHistory.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium">{invoice.customer_name}</h4>
+                        {invoice.quickbooks_invoice_number && (
+                          <span className="text-sm text-muted-foreground">
+                            #{invoice.quickbooks_invoice_number}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {invoice.customer_email} • {invoice.order_count} orders • £{invoice.total_amount}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(invoice.start_date), "MMM d")} - {format(new Date(invoice.end_date), "MMM d, yyyy")} • 
+                        Created {format(new Date(invoice.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        invoice.status === 'created' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}>
+                        {invoice.status}
+                      </span>
+                      
+                      {invoice.quickbooks_invoice_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(invoice.quickbooks_invoice_url, '_blank')}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          View in QuickBooks
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No invoices created yet</p>
+                <p className="text-sm">Create your first invoice above to see it here</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
         <Card>
           <CardHeader>

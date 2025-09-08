@@ -88,6 +88,60 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_history: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_id: string
+          customer_name: string
+          end_date: string
+          id: string
+          order_count: number
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          quickbooks_invoice_url: string | null
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_id: string
+          customer_name: string
+          end_date: string
+          id?: string
+          order_count: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url?: string | null
+          start_date: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_id?: string
+          customer_name?: string
+          end_date?: string
+          id?: string
+          order_count?: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url?: string | null
+          start_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           created_at: string

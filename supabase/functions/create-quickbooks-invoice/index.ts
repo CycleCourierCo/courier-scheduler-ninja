@@ -177,6 +177,37 @@ const handler = async (req: Request): Promise<Response> => {
 
     const quickbooksResponse = await response.json();
     console.log('QuickBooks invoice created:', quickbooksResponse);
+
+    // Extract QuickBooks invoice details
+    const qbInvoice = quickbooksResponse.QueryResponse?.Invoice?.[0] || quickbooksResponse.Invoice;
+    const invoiceId = qbInvoice?.Id;
+    const invoiceNumber = qbInvoice?.DocNumber;
+    
+    // Generate QuickBooks invoice URL (for sandbox)
+    const invoiceUrl = `https://sandbox.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+
+    // Save invoice history to database
+    const { error: historyError } = await supabase
+      .from('invoice_history')
+      .insert({
+        user_id: user.id,
+        customer_id: invoiceData.customerId,
+        customer_name: invoiceData.customerName,
+        customer_email: invoiceData.customerEmail,
+        start_date: invoiceData.startDate.split('T')[0],
+        end_date: invoiceData.endDate.split('T')[0],
+        order_count: invoiceData.orders.length,
+        total_amount: invoice.totalAmount,
+        quickbooks_invoice_id: invoiceId,
+        quickbooks_invoice_number: invoiceNumber,
+        quickbooks_invoice_url: invoiceUrl,
+        status: 'created'
+      });
+
+    if (historyError) {
+      console.error('Error saving invoice history:', historyError);
+      // Don't fail the whole operation if history save fails
+    }
     
     return new Response(JSON.stringify({
       success: true,
