@@ -147,6 +147,7 @@ export default function InvoicesPage() {
         .eq("user_id", selectedCustomer)
         .gte("created_at", startDate.toISOString())
         .lte("created_at", endDate.toISOString())
+        .neq("status", "cancelled")
         .order("created_at");
       
       console.log("Orders query result:", { data, error });
