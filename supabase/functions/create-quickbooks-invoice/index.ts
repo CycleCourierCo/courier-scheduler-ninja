@@ -10,8 +10,8 @@ interface InvoiceRequest {
   customerId: string;
   customerEmail: string;
   customerName: string;
-  startDate: string;
-  endDate: string;
+  startDate: string; // Should be in YYYY-MM-DD format
+  endDate: string;   // Should be in YYYY-MM-DD format
   orders: Array<{
     id: string;
     created_at: string;
@@ -61,6 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const invoiceData: InvoiceRequest = await req.json();
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
+    console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
 
     // Get stored QuickBooks tokens for the current user
     const { data: tokenData, error: tokenError } = await supabase
@@ -252,7 +253,7 @@ const handler = async (req: Request): Promise<Response> => {
         name: invoiceData.customerName,
         email: invoiceData.customerEmail
       },
-      invoiceDate: new Date(invoiceData.endDate).toISOString().split('T')[0],
+      invoiceDate: invoiceData.endDate, // Use exact end date selected
       dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 15 days from now
       terms: "15 days",
       lineItems: lineItems,
