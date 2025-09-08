@@ -129,10 +129,10 @@ export const generateSingleOrderLabel = async (order: Order) => {
       // Logo - full width while maintaining aspect ratio
       try {
         const logoWidth = labelWidth - (2 * margin); // Full width minus margins
-        const logoHeight = logoWidth * 0.8; // Maintain aspect ratio
+        const logoHeight = logoWidth * 0.3; // Maintain aspect ratio
         const logoX = margin;
         
-        pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+        pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
         currentY += logoHeight + 10;
         
         // Tagline below logo
