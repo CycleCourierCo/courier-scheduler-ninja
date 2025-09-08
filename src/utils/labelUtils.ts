@@ -126,11 +126,11 @@ export const generateSingleOrderLabel = async (order: Order) => {
       pdf.text(contactText, contactX, currentY);
       currentY += 20;
       
-      // Logo - full width while maintaining aspect ratio
+      // Logo - square ratio and larger size
       try {
-        const logoWidth = labelWidth - (2 * margin); // Full width minus margins
-        const logoHeight = logoWidth * 0.3; // Maintain aspect ratio
-        const logoX = margin;
+        const logoWidth = (labelWidth - (2 * margin)) * 0.8; // 80% of available width
+        const logoHeight = logoWidth; // 1:1 ratio (square)
+        const logoX = (labelWidth - logoWidth) / 2; // Center the logo
         
         pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
         currentY += logoHeight + 10;
