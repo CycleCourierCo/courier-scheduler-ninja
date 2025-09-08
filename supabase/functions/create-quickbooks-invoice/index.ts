@@ -62,19 +62,21 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceData: InvoiceRequest = await req.json();
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
 
-    // Get OAuth access token for QuickBooks
-    const clientId = Deno.env.get('QUICKBOOKS_CLIENT_ID');
-    const clientSecret = Deno.env.get('QUICKBOOKS_CLIENT_SECRET');
-    
-    if (!clientId || !clientSecret) {
-      throw new Error('QuickBooks credentials not configured');
+    // Get stored QuickBooks tokens for the current user
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('quickbooks_tokens')
+      .select('access_token, refresh_token, expires_at, company_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (tokenError || !tokenData) {
+      throw new Error('QuickBooks not connected. Please connect to QuickBooks first.');
     }
 
-    // For now, we'll simulate the QuickBooks API call
-    // In a real implementation, you would:
-    // 1. Exchange OAuth tokens
-    // 2. Create the invoice via QuickBooks API
-    // 3. Send the invoice email
+    // Check if token is expired
+    if (new Date(tokenData.expires_at) <= new Date()) {
+      throw new Error('QuickBooks token expired. Please reconnect to QuickBooks.');
+    }
 
     const lineItems = invoiceData.orders.map((order, index) => {
       const senderName = order.sender?.name || 'Unknown Sender';
@@ -108,13 +110,55 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Invoice created:', invoice);
 
-    // TODO: Implement actual QuickBooks API integration
-    // For now, we'll just log the invoice and return success
+    // Create invoice in QuickBooks
+    const quickbooksApiUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
+    
+    const quickbooksInvoice = {
+      Line: lineItems.map(item => ({
+        Amount: item.item.unitPrice,
+        DetailType: "SalesItemLineDetail",
+        SalesItemLineDetail: {
+          Item: {
+            value: "1", // Default service item - would need to be configured
+            name: "Service"
+          },
+          Qty: item.item.quantity,
+          UnitPrice: item.item.unitPrice
+        },
+        Description: item.item.description
+      })),
+      CustomerRef: {
+        value: "1" // Would need to create/lookup customer in QuickBooks
+      },
+      TotalAmt: invoice.totalAmount,
+      DueDate: invoice.dueDate,
+      TxnDate: invoice.invoiceDate
+    };
+
+    const response = await fetch(quickbooksApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(quickbooksInvoice)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('QuickBooks API error:', errorText);
+      throw new Error(`Failed to create invoice in QuickBooks: ${errorText}`);
+    }
+
+    const quickbooksResponse = await response.json();
+    console.log('QuickBooks invoice created:', quickbooksResponse);
     
     return new Response(JSON.stringify({
       success: true,
       invoice: invoice,
-      message: `Invoice created for ${invoiceData.customerName} with ${lineItems.length} line items`
+      quickbooksInvoice: quickbooksResponse,
+      message: `Invoice created in QuickBooks for ${invoiceData.customerName} with ${lineItems.length} line items`
     }), {
       status: 200,
       headers: {

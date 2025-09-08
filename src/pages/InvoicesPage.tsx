@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, FileText, Send } from "lucide-react";
+import { CalendarIcon, FileText, Send, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
@@ -35,6 +35,8 @@ export default function InvoicesPage() {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isConnectingQuickBooks, setIsConnectingQuickBooks] = useState(false);
+  const [quickBooksConnected, setQuickBooksConnected] = useState(false);
   const { toast } = useToast();
 
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -50,6 +52,28 @@ export default function InvoicesPage() {
       return data as Customer[];
     },
   });
+
+  // Check QuickBooks connection status
+  const { data: quickBooksToken } = useQuery({
+    queryKey: ['quickbooks-token'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('quickbooks_tokens')
+        .select('expires_at')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (quickBooksToken && new Date(quickBooksToken.expires_at) > new Date()) {
+      setQuickBooksConnected(true);
+    } else {
+      setQuickBooksConnected(false);
+    }
+  }, [quickBooksToken]);
 
   const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ["orders-for-invoice", selectedCustomer, startDate, endDate],
@@ -83,6 +107,30 @@ export default function InvoicesPage() {
 
   const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
 
+  const handleConnectQuickBooks = async () => {
+    setIsConnectingQuickBooks(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('quickbooks-oauth-init');
+      
+      if (error) throw error;
+      
+      if (data?.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        throw new Error('No authorization URL received');
+      }
+    } catch (error: any) {
+      console.error('Error connecting to QuickBooks:', error);
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to connect to QuickBooks",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnectingQuickBooks(false);
+    }
+  };
+
   console.log("Debug invoice button state:", {
     selectedCustomer,
     startDate,
@@ -108,6 +156,15 @@ export default function InvoicesPage() {
       toast({
         title: "Missing Accounts Email",
         description: "Customer must have an accounts email address set up for invoicing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!quickBooksConnected) {
+      toast({
+        title: "QuickBooks Not Connected",
+        description: "Please connect to QuickBooks before creating invoices.",
         variant: "destructive",
       });
       return;
@@ -149,9 +206,29 @@ export default function InvoicesPage() {
   return (
     <Layout>
       <div className="container mx-auto p-6 space-y-8">
-        <div className="flex items-center gap-2">
-          <FileText className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Create Invoice</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold">Create Invoice</h1>
+          </div>
+          
+          {!quickBooksConnected && (
+            <Button 
+              onClick={handleConnectQuickBooks}
+              disabled={isConnectingQuickBooks}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {isConnectingQuickBooks ? 'Connecting...' : 'Connect to QuickBooks'}
+            </Button>
+          )}
+          
+          {quickBooksConnected && (
+            <div className="flex items-center gap-2 text-green-600">
+              <div className="h-2 w-2 bg-green-600 rounded-full"></div>
+              QuickBooks Connected
+            </div>
+          )}
         </div>
 
         <Card>
@@ -297,7 +374,8 @@ export default function InvoicesPage() {
                 !orders ||
                 orders.length === 0 ||
                 !selectedCustomerData?.accounts_email ||
-                isCreatingInvoice
+                isCreatingInvoice ||
+                !quickBooksConnected
               }
               className="flex items-center gap-2"
             >

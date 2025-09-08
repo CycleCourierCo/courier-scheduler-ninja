@@ -145,6 +145,33 @@ export type Database = {
           },
         ]
       }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_comments: {
         Row: {
           admin_id: string
@@ -353,6 +380,45 @@ export type Database = {
           table_preferences?: Json | null
           updated_at?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      quickbooks_tokens: {
+        Row: {
+          access_token: string
+          company_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string | null
+          scope: string | null
+          token_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          company_id?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          company_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
