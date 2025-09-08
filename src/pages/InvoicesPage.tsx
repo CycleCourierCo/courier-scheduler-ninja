@@ -56,10 +56,12 @@ export default function InvoicesPage() {
     },
   });
 
-  const { data: jobs, isLoading: jobsLoading } = useQuery({
+  const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
     queryKey: ["jobs", selectedCustomer, startDate, endDate],
     queryFn: async () => {
       if (!selectedCustomer || !startDate || !endDate) return [];
+      
+      console.log("Fetching jobs for:", { selectedCustomer, startDate: startDate.toISOString(), endDate: endDate.toISOString() });
       
       const { data, error } = await supabase
         .from("jobs")
@@ -79,6 +81,7 @@ export default function InvoicesPage() {
         .lte("created_at", endDate.toISOString())
         .order("created_at");
       
+      console.log("Jobs query result:", { data, error });
       if (error) throw error;
       return data as Job[];
     },
@@ -86,6 +89,17 @@ export default function InvoicesPage() {
   });
 
   const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
+
+  console.log("Debug invoice button state:", {
+    selectedCustomer,
+    startDate,
+    endDate,
+    jobs,
+    jobsLength: jobs?.length,
+    selectedCustomerData,
+    accountsEmail: selectedCustomerData?.accounts_email,
+    isCreatingInvoice
+  });
 
   const handleCreateInvoice = async () => {
     if (!selectedCustomerData || !jobs || jobs.length === 0 || !startDate || !endDate) {
@@ -225,6 +239,17 @@ export default function InvoicesPage() {
         </Card>
 
         {/* Jobs Preview */}
+        {jobsError && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-destructive">Error Loading Jobs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-destructive">{jobsError.message}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {jobs && jobs.length > 0 && (
           <Card>
             <CardHeader>
@@ -253,23 +278,40 @@ export default function InvoicesPage() {
         )}
 
         {/* Create Invoice Button */}
-        <div className="flex justify-end">
-          <Button
-            onClick={handleCreateInvoice}
-            disabled={
-              !selectedCustomer ||
-              !startDate ||
-              !endDate ||
-              !jobs ||
-              jobs.length === 0 ||
-              !selectedCustomerData?.accounts_email ||
-              isCreatingInvoice
-            }
-            className="flex items-center gap-2"
-          >
-            <Send className="h-4 w-4" />
-            {isCreatingInvoice ? "Creating Invoice..." : "Create QuickBooks Invoice"}
-          </Button>
+        <div className="space-y-4">
+          {selectedCustomer && startDate && endDate && (
+            <div className="text-sm text-muted-foreground">
+              {!selectedCustomerData?.accounts_email && (
+                <p className="text-destructive">❌ Customer needs an accounts email address</p>
+              )}
+              {jobsLoading && <p>🔄 Loading jobs...</p>}
+              {!jobsLoading && jobs && jobs.length === 0 && (
+                <p className="text-yellow-600">⚠️ No jobs found in selected date range</p>
+              )}
+              {!jobsLoading && jobs && jobs.length > 0 && selectedCustomerData?.accounts_email && (
+                <p className="text-green-600">✅ Ready to create invoice with {jobs.length} jobs</p>
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-end">
+            <Button
+              onClick={handleCreateInvoice}
+              disabled={
+                !selectedCustomer ||
+                !startDate ||
+                !endDate ||
+                !jobs ||
+                jobs.length === 0 ||
+                !selectedCustomerData?.accounts_email ||
+                isCreatingInvoice
+              }
+              className="flex items-center gap-2"
+            >
+              <Send className="h-4 w-4" />
+              {isCreatingInvoice ? "Creating Invoice..." : "Create QuickBooks Invoice"}
+            </Button>
+          </div>
         </div>
       </div>
     </Layout>
