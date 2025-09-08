@@ -60,7 +60,7 @@ const handler = async (req: Request): Promise<Response> => {
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
       });
 
-    // QuickBooks OAuth 2.0 authorization URL
+    // QuickBooks OAuth 2.0 authorization URL (Production)
     const baseUrl = 'https://appcenter.intuit.com/connect/oauth2';
     const redirectUri = 'https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/quickbooks-oauth-callback';
     

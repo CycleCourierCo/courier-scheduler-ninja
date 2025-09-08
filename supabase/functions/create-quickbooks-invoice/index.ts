@@ -79,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // First, fetch available tax codes from QuickBooks
-    const taxCodesUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode`;
+    const taxCodesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode`;
     
     const taxCodesResponse = await fetch(taxCodesUrl, {
       method: 'GET',
@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Invoice created:', invoice);
 
     // Create invoice in QuickBooks using correct API format
-    const quickbooksApiUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
+    const quickbooksApiUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
     
     // Use accounts email to identify customer, fallback to regular email
     const customerEmail = invoiceData.customerEmail;
@@ -189,8 +189,8 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
     
-    // Generate QuickBooks invoice URL (for sandbox)
-    const invoiceUrl = `https://sandbox.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+    // Generate QuickBooks invoice URL (for production)
+    const invoiceUrl = `https://c${tokenData.company_id}.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
     // Save invoice history to database
     const { error: historyError } = await supabase
