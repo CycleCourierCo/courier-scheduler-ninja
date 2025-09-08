@@ -78,6 +78,40 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('QuickBooks token expired. Please reconnect to QuickBooks.');
     }
 
+    // First, fetch available tax codes from QuickBooks
+    const taxCodesUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode`;
+    
+    const taxCodesResponse = await fetch(taxCodesUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    let nonTaxableCode = "NON"; // Default fallback
+    
+    if (taxCodesResponse.ok) {
+      const taxCodesData = await taxCodesResponse.json();
+      console.log('Available tax codes:', taxCodesData);
+      
+      // Look for a non-taxable tax code
+      const taxCodes = taxCodesData.QueryResponse?.TaxCode || [];
+      const nonTaxable = taxCodes.find((code: any) => 
+        code.Name?.toLowerCase().includes('non') || 
+        code.Name?.toLowerCase().includes('zero') ||
+        code.Name?.toLowerCase().includes('exempt') ||
+        code.TaxRateRef?.value === "0"
+      );
+      
+      if (nonTaxable) {
+        nonTaxableCode = nonTaxable.Id;
+        console.log('Using tax code:', nonTaxableCode, 'for', nonTaxable.Name);
+      }
+    } else {
+      console.warn('Failed to fetch tax codes, using default NON');
+    }
+
     const lineItems = invoiceData.orders.map((order, index) => {
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
@@ -93,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
           Qty: 1,
           UnitPrice: 50.00,
           TaxCodeRef: {
-            value: "NON" // NON = Not Applicable/Non-taxable
+            value: nonTaxableCode
           }
         },
         Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
