@@ -98,7 +98,7 @@ export default function InvoicesPage() {
     if (!selectedCustomerData || !orders || orders.length === 0 || !startDate || !endDate) {
       toast({
         title: "Missing Information",
-        description: "Please select a customer, date range, and ensure there are jobs to invoice.",
+        description: "Please select a customer, date range, and ensure there are orders to invoice.",
         variant: "destructive",
       });
       return;
