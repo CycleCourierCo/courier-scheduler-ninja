@@ -209,11 +209,14 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Latest invoice:', invoicesData);
       
       const invoices = invoicesData.QueryResponse?.Invoice || [];
-      if (invoices.length > 0) {
+      if (invoices.length > 0 && invoices[0].DocNumber) {
         const lastDocNumber = invoices[0].DocNumber;
         const numericPart = parseInt(lastDocNumber.replace(/\D/g, '')) || 0;
         nextDocNumber = (numericPart + 1).toString();
         console.log('Next invoice number will be:', nextDocNumber);
+      } else {
+        console.log('No previous invoices found or DocNumber missing, starting from 1');
+        nextDocNumber = "1";
       }
     } else {
       console.warn('Failed to fetch latest invoice number');
