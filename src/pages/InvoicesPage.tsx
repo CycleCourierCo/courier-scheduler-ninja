@@ -1,0 +1,277 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, FileText, Send } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import Layout from "@/components/Layout";
+
+type Customer = {
+  id: string;
+  name: string;
+  email: string;
+  accounts_email?: string;
+};
+
+type Job = {
+  id: string;
+  order_id: string;
+  created_at: string;
+  type: string;
+  location: string;
+  order?: {
+    tracking_number: string;
+    bike_brand: string;
+    bike_model: string;
+    sender: any;
+    receiver: any;
+  };
+};
+
+export default function InvoicesPage() {
+  const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const { toast } = useToast();
+
+  const { data: customers, isLoading: customersLoading } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, name, email, accounts_email")
+        .neq("role", "admin")
+        .order("name");
+      
+      if (error) throw error;
+      return data as Customer[];
+    },
+  });
+
+  const { data: jobs, isLoading: jobsLoading } = useQuery({
+    queryKey: ["jobs", selectedCustomer, startDate, endDate],
+    queryFn: async () => {
+      if (!selectedCustomer || !startDate || !endDate) return [];
+      
+      const { data, error } = await supabase
+        .from("jobs")
+        .select(`
+          *,
+          order:orders!inner(
+            tracking_number,
+            bike_brand,
+            bike_model,
+            user_id,
+            sender,
+            receiver
+          )
+        `)
+        .eq("order.user_id", selectedCustomer)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+        .order("created_at");
+      
+      if (error) throw error;
+      return data as Job[];
+    },
+    enabled: !!(selectedCustomer && startDate && endDate),
+  });
+
+  const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
+
+  const handleCreateInvoice = async () => {
+    if (!selectedCustomerData || !jobs || jobs.length === 0 || !startDate || !endDate) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a customer, date range, and ensure there are jobs to invoice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedCustomerData.accounts_email) {
+      toast({
+        title: "Missing Accounts Email",
+        description: "Customer must have an accounts email address set up for invoicing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingInvoice(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-quickbooks-invoice", {
+        body: {
+          customerId: selectedCustomer,
+          customerEmail: selectedCustomerData.accounts_email,
+          customerName: selectedCustomerData.name,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          jobs: jobs,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Invoice Created",
+        description: `QuickBooks invoice has been sent to ${selectedCustomerData.accounts_email}`,
+      });
+
+    } catch (error: any) {
+      console.error("Error creating invoice:", error);
+      toast({
+        title: "Error Creating Invoice",
+        description: error.message || "Failed to create QuickBooks invoice",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingInvoice(false);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="container mx-auto p-6 space-y-8">
+        <div className="flex items-center gap-2">
+          <FileText className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-bold">Create Invoice</h1>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Customer Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="customer">Select Customer</Label>
+              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a customer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customersLoading ? (
+                    <SelectItem value="loading" disabled>Loading customers...</SelectItem>
+                  ) : (
+                    customers?.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.email})
+                        {customer.accounts_email && " ✓"}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {selectedCustomerData && !selectedCustomerData.accounts_email && (
+                <p className="text-sm text-destructive">
+                  This customer needs an accounts email address for invoicing.
+                </p>
+              )}
+            </div>
+
+            {/* Date Range */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Jobs Preview */}
+        {jobs && jobs.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Jobs to Invoice ({jobs.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {jobs.map((job) => (
+                  <div key={job.id} className="flex justify-between items-center p-2 border rounded">
+                    <div>
+                      <p className="font-medium">
+                        {job.order?.tracking_number} - {job.order?.bike_brand} {job.order?.bike_model}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {job.order?.sender?.name} → {job.order?.receiver?.name}
+                      </p>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {format(new Date(job.created_at), "MMM d, yyyy")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Create Invoice Button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleCreateInvoice}
+            disabled={
+              !selectedCustomer ||
+              !startDate ||
+              !endDate ||
+              !jobs ||
+              jobs.length === 0 ||
+              !selectedCustomerData?.accounts_email ||
+              isCreatingInvoice
+            }
+            className="flex items-center gap-2"
+          >
+            <Send className="h-4 w-4" />
+            {isCreatingInvoice ? "Creating Invoice..." : "Create QuickBooks Invoice"}
+          </Button>
+        </div>
+      </div>
+    </Layout>
+  );
+}

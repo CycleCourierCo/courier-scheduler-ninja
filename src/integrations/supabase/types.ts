@@ -295,6 +295,7 @@ export type Database = {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
           city: string | null
@@ -315,6 +316,7 @@ export type Database = {
           account_status?:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
           city?: string | null
@@ -335,6 +337,7 @@ export type Database = {
           account_status?:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
           city?: string | null
@@ -417,6 +420,7 @@ export type Database = {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
           city: string | null
