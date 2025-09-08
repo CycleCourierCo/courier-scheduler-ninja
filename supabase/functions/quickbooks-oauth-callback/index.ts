@@ -106,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('state', state);
 
     // Redirect back to the application with success
-    const redirectUrl = 'https://preview--courier-scheduler-ninja.lovable.app/invoices?oauth=success';
+    const redirectUrl = 'https://booking.cyclecourierco.com/invoices?oauth=success';
 
     return new Response(null, {
       status: 302,
@@ -120,7 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error handling QuickBooks OAuth callback:', error);
     
     // Redirect back to frontend with error
-    const redirectUrl = `https://preview--courier-scheduler-ninja.lovable.app/invoices?oauth=error&message=${encodeURIComponent(error.message)}`;
+    const redirectUrl = `https://booking.cyclecourierco.com/invoices?oauth=error&message=${encodeURIComponent(error.message)}`;
 
     return new Response(null, {
       status: 302,
