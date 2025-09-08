@@ -149,16 +149,43 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Invoice created:', invoice);
 
+    // First, find the customer in QuickBooks by email
+    const customerEmail = invoiceData.customerEmail;
+    const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${customerEmail}'`;
+    
+    const customerResponse = await fetch(customerQueryUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    let customerId = null;
+    
+    if (customerResponse.ok) {
+      const customerData = await customerResponse.json();
+      const customers = customerData.QueryResponse?.Customer || [];
+      
+      if (customers.length > 0) {
+        customerId = customers[0].Id;
+        console.log('Found existing customer:', customerId, 'for email:', customerEmail);
+      } else {
+        console.log('No customer found for email:', customerEmail);
+        throw new Error(`Customer not found in QuickBooks for email: ${customerEmail}. Please create the customer first.`);
+      }
+    } else {
+      console.error('Failed to query customers:', await customerResponse.text());
+      throw new Error('Failed to query QuickBooks customers');
+    }
+
     // Create invoice in QuickBooks using correct API format
     const quickbooksApiUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
-    
-    // Use accounts email to identify customer, fallback to regular email
-    const customerEmail = invoiceData.customerEmail;
     
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: {
-        value: "1" // Would need to create/lookup customer by accounts email
+        value: customerId
       },
       BillEmail: {
         Address: customerEmail
