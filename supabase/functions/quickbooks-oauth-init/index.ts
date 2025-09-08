@@ -62,7 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // QuickBooks OAuth 2.0 authorization URL
     const baseUrl = 'https://appcenter.intuit.com/connect/oauth2';
-    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/quickbooks-oauth-callback`;
+    const redirectUri = 'https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/quickbooks-oauth-callback';
     
     const params = new URLSearchParams({
       'client_id': clientId,

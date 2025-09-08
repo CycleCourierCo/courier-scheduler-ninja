@@ -57,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Exchange authorization code for tokens
     const tokenUrl = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
-    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/quickbooks-oauth-callback`;
+    const redirectUri = 'https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/quickbooks-oauth-callback';
     
     const tokenParams = new URLSearchParams({
       'grant_type': 'authorization_code',
@@ -106,8 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('state', state);
 
     // Redirect back to the application with success
-    const frontendUrl = Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'sandbox.lovable.dev') || 'http://localhost:3000';
-    const redirectUrl = `${frontendUrl}/invoices?oauth=success`;
+    const redirectUrl = 'https://preview--courier-scheduler-ninja.lovable.app/invoices?oauth=success';
 
     return new Response(null, {
       status: 302,
@@ -121,8 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error handling QuickBooks OAuth callback:', error);
     
     // Redirect back to frontend with error
-    const frontendUrl = Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'sandbox.lovable.dev') || 'http://localhost:3000';
-    const redirectUrl = `${frontendUrl}/invoices?oauth=error&message=${encodeURIComponent(error.message)}`;
+    const redirectUrl = `https://preview--courier-scheduler-ninja.lovable.app/invoices?oauth=error&message=${encodeURIComponent(error.message)}`;
 
     return new Response(null, {
       status: 302,
