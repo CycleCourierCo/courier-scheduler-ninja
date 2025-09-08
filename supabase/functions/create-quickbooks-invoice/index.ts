@@ -332,7 +332,7 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceNumber = qbInvoice?.DocNumber;
     
     // Generate QuickBooks invoice URL (for production)
-    const invoiceUrl = `https://c${tokenData.company_id}.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+    const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
     // Save invoice history to database
     const { error: historyError } = await supabase
