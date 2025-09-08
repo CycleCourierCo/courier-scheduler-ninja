@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, FileText, Send, ExternalLink, Eye, Filter } from "lucide-react";
+import { CalendarIcon, FileText, Send, ExternalLink, Eye, Filter, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
@@ -180,6 +180,36 @@ export default function InvoicesPage() {
       });
     } finally {
       setIsConnectingQuickBooks(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm("Are you sure you want to delete this invoice? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('invoice_history')
+        .delete()
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Invoice Deleted",
+        description: "The invoice has been deleted successfully.",
+      });
+
+      // Refresh the invoice history
+      refetchHistory();
+    } catch (error: any) {
+      console.error('Error deleting invoice:', error);
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete invoice",
+        variant: "destructive",
+      });
     }
   };
 
@@ -583,6 +613,16 @@ export default function InvoicesPage() {
                           View in QuickBooks
                         </Button>
                       )}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteInvoice(invoice.id)}
+                        className="flex items-center gap-1 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}
