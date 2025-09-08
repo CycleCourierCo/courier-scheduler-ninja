@@ -121,13 +121,13 @@ const handler = async (req: Request): Promise<Response> => {
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
           ItemRef: {
-            value: "200000403", // Updated service item ID
+            value: "200000403", // Service item ID
             name: "Service"
           },
           Qty: 1,
           UnitPrice: 50.00,
           TaxCodeRef: {
-            value: "1" // No VAT
+            value: nonTaxableCode // Use the fetched tax code
           }
         },
         Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
