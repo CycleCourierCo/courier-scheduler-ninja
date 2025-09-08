@@ -128,7 +128,7 @@ export const generateSingleOrderLabel = async (order: Order) => {
       
       // Logo - square ratio and reduced size
       try {
-        const logoWidth = (labelWidth - (2 * margin)) * 0.6; // 60% of available width (reduced by 20%)
+        const logoWidth = (labelWidth - (2 * margin)) * 0.51; // 51% of available width (reduced by another 15%)
         const logoHeight = logoWidth; // 1:1 ratio (square)
         const logoX = (labelWidth - logoWidth) / 2; // Center the logo
         
