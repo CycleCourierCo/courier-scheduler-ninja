@@ -91,7 +91,10 @@ const handler = async (req: Request): Promise<Response> => {
             name: "Service"
           },
           Qty: 1,
-          UnitPrice: 50.00
+          UnitPrice: 50.00,
+          TaxCodeRef: {
+            value: "NON" // NON = Not Applicable/Non-taxable
+          }
         },
         Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
       };
