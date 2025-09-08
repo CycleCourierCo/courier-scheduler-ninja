@@ -98,7 +98,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeModel, isEbayOrder, collectionCode, deliveryInstructions } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, isEbayOrder, collectionCode, deliveryInstructions } = data;
 
     const {
       street: senderStreet,
@@ -212,7 +212,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     await createJobsForOrder(orderWithJobs);
     
     // Create reverse order for part exchange
-    if (isBikeSwap && partExchangeBikeModel) {
+    if (isBikeSwap && partExchangeBikeBrand && partExchangeBikeModel) {
       try {
         const reverseTrackingNumber = await generateTrackingNumber(receiver.name, sender.address.zipCode);
         
@@ -248,7 +248,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
                 lon: senderLon,
               },
             },
-            bike_brand: partExchangeBikeModel.split(' ')[0] || 'Part Exchange',
+            bike_brand: partExchangeBikeBrand,
             bike_model: partExchangeBikeModel,
             bike_quantity: 1,
             customer_order_number: customerOrderNumber ? `${customerOrderNumber}-RETURN` : undefined,

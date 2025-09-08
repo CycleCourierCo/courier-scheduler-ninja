@@ -138,22 +138,40 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
         />
 
         {isBikeSwap && (
-          <FormField
-            control={control}
-            name="partExchangeBikeModel"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Part Exchange Bike Model *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter the bike model to be part exchanged" {...field} />
-                </FormControl>
-                <FormDescription>
-                  The bike model that will be collected from the receiver and delivered back to the sender.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="space-y-4">
+            <FormField
+              control={control}
+              name="partExchangeBikeBrand"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Brand *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter the bike brand to be part exchanged" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    The bike brand that will be collected from the receiver and delivered back to the sender.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="partExchangeBikeModel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Model *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter the bike model to be part exchanged" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    The bike model that will be collected from the receiver and delivered back to the sender.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         )}
       </div>
     </div>
