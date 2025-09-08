@@ -41,26 +41,25 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     
     try {
       const orders = await getOrders();
+      // Only filter for collection/pickup dates
       const scheduledOrders = orders.filter(order => {
         const scheduledPickup = order.scheduledPickupDate;
-        const scheduledDelivery = order.scheduledDeliveryDate;
         
-        if (!scheduledPickup && !scheduledDelivery) return false;
+        if (!scheduledPickup) return false;
         
         const targetDate = format(selectedDate, 'yyyy-MM-dd');
-        const pickupDate = scheduledPickup ? format(new Date(scheduledPickup), 'yyyy-MM-dd') : null;
-        const deliveryDate = scheduledDelivery ? format(new Date(scheduledDelivery), 'yyyy-MM-dd') : null;
+        const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
         
-        return pickupDate === targetDate || deliveryDate === targetDate;
+        return pickupDate === targetDate;
       });
 
       if (scheduledOrders.length === 0) {
-        toast.info("No orders scheduled for the selected date");
+        toast.info("No collection orders scheduled for the selected date");
         return;
       }
 
       await generateLabels(scheduledOrders);
-      toast.success(`Generated labels for ${scheduledOrders.length} orders`);
+      toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error generating labels:", error);
@@ -77,112 +76,148 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       const labelHeight = 432; // 6 inches in points
       
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
+      let isFirstLabel = true;
       
-      orders.forEach((order, index) => {
-        if (index > 0) {
-          pdf.addPage();
-        }
+      orders.forEach((order) => {
+        const quantity = order.bikeQuantity || 1;
+        
+        // Generate labels based on bike quantity
+        for (let i = 0; i < quantity; i++) {
+          if (!isFirstLabel) {
+            pdf.addPage();
+          }
+          isFirstLabel = false;
 
-        // No centering needed - use full page
-        const margin = 15;
-        let currentY = margin + 20;
-        
-        // Tracking number
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}`;
-        pdf.text(trackingText, margin, currentY);
-        currentY += 30;
-        
-        // Sender info
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "bold");
-        pdf.text('FROM:', margin, currentY);
-        currentY += 15;
-        
-        pdf.setFont("helvetica", "normal");
-        if (order.sender?.name) {
-          pdf.text(order.sender.name, margin, currentY);
-          currentY += 12;
-        }
-        
-        if (order.sender?.address) {
-          const address = order.sender.address;
-          if (address.street) {
-            const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-            streetText.forEach(line => {
-              pdf.text(line, margin, currentY);
-              currentY += 12;
-            });
+          const margin = 15;
+          let currentY = margin + 20;
+          
+          // Tracking number
+          pdf.setFontSize(14);
+          pdf.setFont("helvetica", "bold");
+          const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}${quantity > 1 ? ` (${i + 1}/${quantity})` : ''}`;
+          pdf.text(trackingText, margin, currentY);
+          currentY += 30;
+          
+          // Bike details
+          if (order.bikeBrand || order.bikeModel || order.bikeQuantity) {
+            pdf.setFontSize(10);
+            pdf.setFont("helvetica", "bold");
+            pdf.text('ITEM:', margin, currentY);
+            currentY += 15;
+            
+            pdf.setFont("helvetica", "normal");
+            const isMultipleBikes = quantity > 1;
+            const itemName = isMultipleBikes 
+              ? `Bike ${i + 1} of ${quantity}` 
+              : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+            
+            if (!isMultipleBikes && order.bikeBrand && order.bikeModel) {
+              pdf.text(`${order.bikeBrand} ${order.bikeModel}`, margin, currentY);
+            } else {
+              pdf.text(itemName, margin, currentY);
+            }
+            currentY += 20;
           }
           
-          const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-          if (cityLine.length > 2) {
-            pdf.text(cityLine, margin, currentY);
+          // Sender info (FROM)
+          pdf.setFontSize(10);
+          pdf.setFont("helvetica", "bold");
+          pdf.text('FROM:', margin, currentY);
+          currentY += 15;
+          
+          pdf.setFont("helvetica", "normal");
+          if (order.sender?.name) {
+            pdf.text(order.sender.name, margin, currentY);
             currentY += 12;
           }
-        }
-        
-        if (order.sender?.phone) {
-          pdf.text(order.sender.phone, margin, currentY);
-          currentY += 25;
-        }
-        
-        // Receiver info
-        pdf.setFont("helvetica", "bold");
-        pdf.text('TO:', margin, currentY);
-        currentY += 15;
-        
-        pdf.setFont("helvetica", "normal");
-        if (order.receiver?.name) {
-          pdf.text(order.receiver.name, margin, currentY);
-          currentY += 12;
-        }
-        
-        if (order.receiver?.address) {
-          const address = order.receiver.address;
-          if (address.street) {
-            const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-            streetText.forEach(line => {
-              pdf.text(line, margin, currentY);
+          
+          if (order.sender?.address) {
+            const address = order.sender.address;
+            if (address.street) {
+              const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+              streetText.forEach(line => {
+                pdf.text(line, margin, currentY);
+                currentY += 12;
+              });
+            }
+            
+            const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+            if (cityLine.length > 2) {
+              pdf.text(cityLine, margin, currentY);
               currentY += 12;
-            });
+            }
           }
           
-          const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-          if (cityLine.length > 2) {
-            pdf.text(cityLine, margin, currentY);
+          if (order.sender?.phone) {
+            pdf.text(order.sender.phone, margin, currentY);
+            currentY += 25;
+          }
+          
+          // Receiver info (TO)
+          pdf.setFont("helvetica", "bold");
+          pdf.text('TO:', margin, currentY);
+          currentY += 15;
+          
+          pdf.setFont("helvetica", "normal");
+          if (order.receiver?.name) {
+            pdf.text(order.receiver.name, margin, currentY);
             currentY += 12;
           }
-        }
-        
-        if (order.receiver?.phone) {
-          pdf.text(order.receiver.phone, margin, currentY);
-          currentY += 25;
-        }
-        
-        // Add logo and contact info below receiver details
-        try {
-          const logoWidth = 50;
-          const logoHeight = 40;
-          const logoX = (labelWidth - logoWidth) / 2; // Center the logo
           
-          pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
-          currentY += logoHeight + 10;
+          if (order.receiver?.address) {
+            const address = order.receiver.address;
+            if (address.street) {
+              const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+              streetText.forEach(line => {
+                pdf.text(line, margin, currentY);
+                currentY += 12;
+              });
+            }
+            
+            const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+            if (cityLine.length > 2) {
+              pdf.text(cityLine, margin, currentY);
+              currentY += 12;
+            }
+          }
           
-          // Add contact information centered below logo
+          if (order.receiver?.phone) {
+            pdf.text(order.receiver.phone, margin, currentY);
+            currentY += 25;
+          }
+          
+          // Contact information and website
           pdf.setFontSize(8);
           pdf.setFont("helvetica", "normal");
           const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
           const contactWidth = pdf.getTextWidth(contactText);
-          const contactX = (labelWidth - contactWidth) / 2; // Center the text
+          const contactX = (labelWidth - contactWidth) / 2;
           pdf.text(contactText, contactX, currentY);
-        } catch (error) {
-          console.log('Could not load logo:', error);
+          currentY += 20;
+          
+          // Logo - square ratio and reduced size
+          try {
+            const logoWidth = (labelWidth - (2 * margin)) * 0.51; // 51% of available width (reduced by another 15%)
+            const logoHeight = logoWidth; // 1:1 ratio (square)
+            const logoX = (labelWidth - logoWidth) / 2; // Center the logo
+            
+            pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+            currentY += logoHeight + 10;
+            
+            // Tagline below logo
+            pdf.setFontSize(10);
+            pdf.setFont("helvetica", "normal");
+            const taglineText = 'Streamlining Bike Transport';
+            const taglineWidth = pdf.getTextWidth(taglineText);
+            const taglineX = (labelWidth - taglineWidth) / 2;
+            pdf.text(taglineText, taglineX, currentY);
+          } catch (error) {
+            console.log('Could not load logo:', error);
+          }
         }
       });
 
-      pdf.save(`shipping-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
+      pdf.save(`collection-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
     } catch (error) {
       console.error("PDF generation error:", error);
       throw new Error(`PDF generation failed: ${error.message || 'Unknown error'}`);
@@ -237,13 +272,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 <DialogTrigger asChild>
                   <Button variant="outline">
                     <Printer className="mr-2 h-4 w-4" />
-                    Print Labels
+                    Print Collection Labels
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Select Date for Labels</DialogTitle>
-                  </DialogHeader>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Select Date for Collection Labels</DialogTitle>
+                    </DialogHeader>
                   <div className="space-y-4">
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
@@ -275,7 +310,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                       disabled={!selectedDate || isGeneratingPDF}
                       className="w-full"
                     >
-                      {isGeneratingPDF ? "Generating..." : "Generate Labels"}
+                      {isGeneratingPDF ? "Generating..." : "Generate Collection Labels"}
                     </Button>
                   </div>
                 </DialogContent>

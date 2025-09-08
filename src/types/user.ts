@@ -17,4 +17,5 @@ export interface UserProfile {
   address_line_2: string | null;
   city: string | null;
   postal_code: string | null;
+  accounts_email: string | null;
 }

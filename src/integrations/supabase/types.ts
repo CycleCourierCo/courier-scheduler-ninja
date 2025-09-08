@@ -88,6 +88,60 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_history: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_id: string
+          customer_name: string
+          end_date: string
+          id: string
+          order_count: number
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          quickbooks_invoice_url: string | null
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_id: string
+          customer_name: string
+          end_date: string
+          id?: string
+          order_count: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url?: string | null
+          start_date: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_id?: string
+          customer_name?: string
+          end_date?: string
+          id?: string
+          order_count?: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url?: string | null
+          start_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           created_at: string
@@ -141,6 +195,71 @@ export type Database = {
             columns: ["related_job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_comments: {
+        Row: {
+          admin_id: string
+          admin_name: string
+          comment: string
+          created_at: string
+          id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          admin_name: string
+          comment: string
+          created_at?: string
+          id?: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          admin_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_comments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -257,6 +376,7 @@ export type Database = {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
           city: string | null
@@ -277,6 +397,7 @@ export type Database = {
           account_status?:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
           city?: string | null
@@ -297,6 +418,7 @@ export type Database = {
           account_status?:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
           city?: string | null
@@ -312,6 +434,45 @@ export type Database = {
           table_preferences?: Json | null
           updated_at?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      quickbooks_tokens: {
+        Row: {
+          access_token: string
+          company_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string | null
+          scope: string | null
+          token_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          company_id?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          company_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -379,6 +540,7 @@ export type Database = {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
             | null
+          accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
           city: string | null

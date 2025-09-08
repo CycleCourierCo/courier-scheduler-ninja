@@ -8,15 +8,21 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
 
   console.log("Mapping DB order to Order type. Raw tracking events:", dbOrder.tracking_events);
   
-  // Convert date strings to Date objects where applicable
+  // Convert date strings to Date objects where applicable with validation
+  const parseDate = (dateValue: any): Date => {
+    if (!dateValue) return new Date();
+    const parsedDate = new Date(dateValue);
+    return isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  };
+
   const result: Order = {
     id: dbOrder.id,
     user_id: dbOrder.user_id,
     sender: dbOrder.sender,
     receiver: dbOrder.receiver,
     status: dbOrder.status as OrderStatus,
-    createdAt: new Date(dbOrder.created_at),
-    updatedAt: new Date(dbOrder.updated_at),
+    createdAt: parseDate(dbOrder.created_at),
+    updatedAt: parseDate(dbOrder.updated_at),
     trackingNumber: dbOrder.tracking_number,
     bikeBrand: dbOrder.bike_brand,
     bikeModel: dbOrder.bike_model,
@@ -46,23 +52,23 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
   }
 
   if (dbOrder.scheduled_pickup_date) {
-    result.scheduledPickupDate = new Date(dbOrder.scheduled_pickup_date);
+    result.scheduledPickupDate = parseDate(dbOrder.scheduled_pickup_date);
   }
 
   if (dbOrder.scheduled_delivery_date) {
-    result.scheduledDeliveryDate = new Date(dbOrder.scheduled_delivery_date);
+    result.scheduledDeliveryDate = parseDate(dbOrder.scheduled_delivery_date);
   }
 
   if (dbOrder.sender_confirmed_at) {
-    result.senderConfirmedAt = new Date(dbOrder.sender_confirmed_at);
+    result.senderConfirmedAt = parseDate(dbOrder.sender_confirmed_at);
   }
 
   if (dbOrder.receiver_confirmed_at) {
-    result.receiverConfirmedAt = new Date(dbOrder.receiver_confirmed_at);
+    result.receiverConfirmedAt = parseDate(dbOrder.receiver_confirmed_at);
   }
 
   if (dbOrder.scheduled_at) {
-    result.scheduledAt = new Date(dbOrder.scheduled_at);
+    result.scheduledAt = parseDate(dbOrder.scheduled_at);
   }
 
   console.log("Mapped order tracking events:", result.trackingEvents);

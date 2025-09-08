@@ -118,6 +118,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             <Key className="mr-2 h-4 w-4" />
                             API Keys
                           </Link>
+                          <Link 
+                            to="/invoices" 
+                            onClick={closeSheet}
+                            className="flex items-center text-foreground hover:text-courier-500 transition-colors"
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Invoices
+                          </Link>
                         </>
                       )}
                       <button 
@@ -181,6 +189,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <Link to="/api-keys" className="cursor-pointer flex w-full items-center">
                           <Key className="mr-2 h-4 w-4" />
                           <span>API Keys</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/invoices" className="cursor-pointer flex w-full items-center">
+                          <FileText className="mr-2 h-4 w-4" />
+                          <span>Invoices</span>
                         </Link>
                       </DropdownMenuItem>
                     </>

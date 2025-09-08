@@ -24,6 +24,7 @@ const profileSchema = z.object({
   address_line_2: z.string().optional(),
   city: z.string().min(1, "City is required"),
   postal_code: z.string().min(1, "Postal code is required"),
+  accounts_email: z.string().email("Invalid email").optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -44,6 +45,7 @@ const UserProfile = () => {
       address_line_2: "",
       city: "",
       postal_code: "",
+      accounts_email: "",
     },
   });
 
@@ -281,6 +283,20 @@ const UserProfile = () => {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="accounts_email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Accounts Email (for invoicing)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" placeholder="accounts@company.com" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 

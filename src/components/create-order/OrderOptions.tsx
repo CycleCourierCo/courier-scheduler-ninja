@@ -21,6 +21,11 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     name: "isEbayOrder",
   });
 
+  const isBikeSwap = useWatch({
+    control,
+    name: "isBikeSwap",
+  });
+
   return (
     <div>
       <h3 className="text-lg font-medium mb-4">Order Options</h3>
@@ -116,10 +121,10 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
-                  Bike Swap
+                  Part Exchange
                 </FormLabel>
                 <FormDescription>
-                  Toggle if this order is a bike swap (exchanging one bike for another).
+                  Toggle if this order is a part exchange (collecting a bike and delivering another back).
                 </FormDescription>
               </div>
               <FormControl>
@@ -131,6 +136,43 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             </FormItem>
           )}
         />
+
+        {isBikeSwap && (
+          <div className="space-y-4">
+            <FormField
+              control={control}
+              name="partExchangeBikeBrand"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Brand *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter the bike brand to be part exchanged" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    The bike brand that will be collected from the receiver and delivered back to the sender.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="partExchangeBikeModel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Model *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter the bike model to be part exchanged" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    The bike model that will be collected from the receiver and delivered back to the sender.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import JobScheduling from "./pages/JobScheduling";
 import AccountApprovals from "./pages/AccountApprovals";
 import ApiKeysPage from "./pages/ApiKeysPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import NotFound from "./pages/NotFound";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -87,6 +88,11 @@ function App() {
             <Route path="/api-keys" element={
               <ProtectedRoute adminOnly={true}>
                 <ApiKeysPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/invoices" element={
+              <ProtectedRoute adminOnly={true}>
+                <InvoicesPage />
               </ProtectedRoute>
             } />
             <Route path="/sender-availability/:id" element={<SenderAvailability />} />
