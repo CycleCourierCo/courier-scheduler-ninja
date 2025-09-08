@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Package, Printer } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
 import { createShipdayOrder } from "@/services/shipdayService";
@@ -22,6 +22,7 @@ import OrderComments from "@/components/order-detail/OrderComments";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -632,14 +633,26 @@ const OrderDetail = () => {
                 <Package className="mr-2" />
                 {itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : ''}
               </div>
-              <EmailResendButtons 
-                needsSenderConfirmation={needsSenderConfirmation}
-                needsReceiverConfirmation={needsReceiverConfirmation}
-                isResendingSender={isResendingEmail.sender}
-                isResendingReceiver={isResendingEmail.receiver}
-                onResendSenderEmail={handleResendSenderEmail}
-                onResendReceiverEmail={handleResendReceiverEmail}
-              />
+              <div className="flex items-center space-x-2">
+                {order.scheduledPickupDate && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => generateSingleOrderLabel(order)}
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print Label
+                  </Button>
+                )}
+                <EmailResendButtons 
+                  needsSenderConfirmation={needsSenderConfirmation}
+                  needsReceiverConfirmation={needsReceiverConfirmation}
+                  isResendingSender={isResendingEmail.sender}
+                  isResendingReceiver={isResendingEmail.receiver}
+                  onResendSenderEmail={handleResendSenderEmail}
+                  onResendReceiverEmail={handleResendReceiverEmail}
+                />
+              </div>
             </CardTitle>
             <CardDescription>
               Created on {safeFormat(order.createdAt, "PPP")}
