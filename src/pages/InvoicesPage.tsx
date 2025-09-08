@@ -53,7 +53,7 @@ export default function InvoicesPage() {
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
   
   // Invoice history filters
-  const [historyCustomerFilter, setHistoryCustomerFilter] = useState<string>("");
+  const [historyCustomerFilter, setHistoryCustomerFilter] = useState<string>("all");
   const [historyStartDate, setHistoryStartDate] = useState<Date>();
   const [historyEndDate, setHistoryEndDate] = useState<Date>();
   
@@ -96,7 +96,7 @@ export default function InvoicesPage() {
         .select('*');
 
       // Apply customer filter
-      if (historyCustomerFilter) {
+      if (historyCustomerFilter && historyCustomerFilter !== "all") {
         query = query.eq('customer_id', historyCustomerFilter);
       }
 
@@ -464,7 +464,7 @@ export default function InvoicesPage() {
                       <SelectValue placeholder="All customers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All customers</SelectItem>
+                      <SelectItem value="all">All customers</SelectItem>
                       {customers?.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}
@@ -515,13 +515,13 @@ export default function InvoicesPage() {
                 </div>
               </div>
 
-              {(historyCustomerFilter || historyStartDate || historyEndDate) && (
+              {(historyCustomerFilter !== "all" || historyStartDate || historyEndDate) && (
                 <div className="mt-4">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setHistoryCustomerFilter("");
+                      setHistoryCustomerFilter("all");
                       setHistoryStartDate(undefined);
                       setHistoryEndDate(undefined);
                     }}
@@ -591,7 +591,7 @@ export default function InvoicesPage() {
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No invoices found</p>
                 <p className="text-sm">
-                  {(historyCustomerFilter || historyStartDate || historyEndDate) 
+                  {(historyCustomerFilter !== "all" || historyStartDate || historyEndDate) 
                     ? "Try adjusting your filters or create your first invoice above"
                     : "Create your first invoice above to see it here"
                   }
