@@ -195,9 +195,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           pdf.text(contactText, contactX, currentY);
           currentY += 20;
           
-          // Logo - square ratio and larger size
+          // Logo - square ratio and reduced size
           try {
-            const logoWidth = (labelWidth - (2 * margin)) * 0.8; // 80% of available width
+            const logoWidth = (labelWidth - (2 * margin)) * 0.6; // 60% of available width (reduced by 20%)
             const logoHeight = logoWidth; // 1:1 ratio (square)
             const logoX = (labelWidth - logoWidth) / 2; // Center the logo
             
