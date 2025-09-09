@@ -47,8 +47,8 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   
   // Validate dates when they change
   useEffect(() => {
-    if (dates.length > 0 && dates.length < 5) {
-      setValidationError("Please select at least 5 dates when you'll be available");
+    if (dates.length > 0 && dates.length < 7) {
+      setValidationError("Please select at least 7 dates when you'll be available");
     } else {
       setValidationError(null);
     }
@@ -73,6 +73,11 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   const defaultIsDateDisabled = (date: Date) => {
     // Disable dates before today
     if (isBefore(date, today)) {
+      return true;
+    }
+    
+    // Disable Fridays (day 5)
+    if (date.getDay() === 5) {
       return true;
     }
     
@@ -137,9 +142,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
               {dates.length > 0 ? (
                 <div className="space-y-2 flex-grow">
                   <p className="text-sm text-muted-foreground mb-2">
-                    {dates.length >= 5 
+                    {dates.length >= 7 
                       ? `You've selected ${dates.length} dates. Great!` 
-                      : `Please select at least ${5 - dates.length} more date${5 - dates.length > 1 ? 's' : ''}.`}
+                      : `Please select at least ${7 - dates.length} more date${7 - dates.length > 1 ? 's' : ''}.`}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {dates.map((date, index) => (
@@ -162,7 +167,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 </div>
               ) : (
                 <p className="text-muted-foreground italic flex-grow">
-                  No dates selected. Please select at least 5 dates when you'll be available.
+                  No dates selected. Please select at least 7 dates when you'll be available.
                 </p>
               )}
               
@@ -185,7 +190,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           <Button 
             type="submit" 
             className="w-full mt-4" 
-            disabled={dates.length < 5 || isSubmitting}
+            disabled={dates.length < 7 || isSubmitting}
           >
             {isSubmitting ? (
               <>
@@ -200,9 +205,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             )}
           </Button>
           
-          {dates.length < 5 && (
+          {dates.length < 7 && (
             <p className="text-sm text-center text-muted-foreground">
-              Please select at least 5 available dates to continue
+              Please select at least 7 available dates to continue
             </p>
           )}
         </CardContent>

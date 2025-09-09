@@ -42,6 +42,11 @@ export const useAvailability = ({
       return true;
     }
     
+    // Disable Fridays (day 5)
+    if (date.getDay() === 5) {
+      return true;
+    }
+    
     // For receiver, also disable dates before the earliest sender date
     if (type === 'receiver' && minDate) {
       const minDateCopy = new Date(minDate);
@@ -196,8 +201,8 @@ export const useAvailability = ({
       return;
     }
 
-    if (dates.length < 5) {
-      toast.error("Please select at least 5 dates when you'll be available");
+    if (dates.length < 7) {
+      toast.error("Please select at least 7 dates when you'll be available");
       return;
     }
 
