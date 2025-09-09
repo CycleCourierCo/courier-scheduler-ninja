@@ -10,8 +10,8 @@ interface InvoiceRequest {
   customerId: string;
   customerEmail: string;
   customerName: string;
-  startDate: string;
-  endDate: string;
+  startDate: string; // Should be in YYYY-MM-DD format
+  endDate: string;   // Should be in YYYY-MM-DD format
   orders: Array<{
     id: string;
     created_at: string;
@@ -61,6 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const invoiceData: InvoiceRequest = await req.json();
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
+    console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
 
     // Get stored QuickBooks tokens for the current user
     const { data: tokenData, error: tokenError } = await supabase
@@ -112,23 +113,138 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch tax codes, using default NON');
     }
 
+    // Query available items to find a valid service item
+    const itemsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Item WHERE Type='Service' AND Active=true`;
+    
+    let serviceItemId = "1"; // Default fallback
+    let serviceItemName = "Service";
+    let serviceItemPrice = 50.00; // Default fallback
+    
+    const itemsResponse = await fetch(itemsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (itemsResponse.ok) {
+      const itemsData = await itemsResponse.json();
+      console.log('Available service items:', itemsData);
+      
+      const items = itemsData.QueryResponse?.Item || [];
+      
+      // Look for "Collection and Delivery within England and Wales - Including B2B rebate" first
+      const preferredItem = items.find((item: any) => 
+        item.Name === "Collection and Delivery within England and Wales - Including B2B rebate" && item.Active === true
+      );
+      
+      if (preferredItem) {
+        serviceItemId = preferredItem.Id;
+        serviceItemName = preferredItem.Name;
+        serviceItemPrice = preferredItem.UnitPrice || 65.00;
+        console.log('Using preferred B2B rebate item:', preferredItem);
+      } else {
+        // Fallback to first available service item
+        const firstServiceItem = items.find((item: any) => 
+          item.Type === 'Service' && item.Active === true
+        );
+        
+        if (firstServiceItem) {
+          serviceItemId = firstServiceItem.Id;
+          serviceItemName = firstServiceItem.Name;
+          serviceItemPrice = firstServiceItem.UnitPrice || 50.00;
+          console.log('Using first available service item:', firstServiceItem);
+        } else {
+          console.log('No service items found, will use default');
+        }
+      }
+    } else {
+      console.warn('Failed to fetch items, using default service item');
+    }
+
+    // Query for sales terms to find "Net 15 days"
+    const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
+    
+    let salesTermId = null;
+    
+    const termsResponse = await fetch(termsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (termsResponse.ok) {
+      const termsData = await termsResponse.json();
+      console.log('Available terms:', termsData);
+      
+      const terms = termsData.QueryResponse?.Term || [];
+      const net15Term = terms.find((term: any) => 
+        term.Name?.toLowerCase().includes('net 15') || 
+        term.Name?.toLowerCase().includes('15 days') ||
+        (term.DueDays === 15)
+      );
+      
+      if (net15Term) {
+        salesTermId = net15Term.Id;
+        console.log('Using term:', net15Term.Name, 'with ID:', salesTermId);
+      }
+    } else {
+      console.warn('Failed to fetch terms');
+    }
+
+    // Query for the next invoice number
+    const invoicesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT DocNumber FROM Invoice ORDER BY DocNumber DESC MAXRESULTS 1`;
+    
+    let nextDocNumber = null;
+    
+    const invoicesResponse = await fetch(invoicesUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (invoicesResponse.ok) {
+      const invoicesData = await invoicesResponse.json();
+      console.log('Latest invoice:', invoicesData);
+      
+      const invoices = invoicesData.QueryResponse?.Invoice || [];
+      if (invoices.length > 0 && invoices[0].DocNumber) {
+        const lastDocNumber = invoices[0].DocNumber;
+        const numericPart = parseInt(lastDocNumber.replace(/\D/g, '')) || 0;
+        nextDocNumber = (numericPart + 1).toString();
+        console.log('Next invoice number will be:', nextDocNumber);
+      } else {
+        console.log('No previous invoices found or DocNumber missing, starting from 1');
+        nextDocNumber = "1";
+      }
+    } else {
+      console.warn('Failed to fetch latest invoice number');
+    }
+
     const lineItems = invoiceData.orders.map((order, index) => {
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
+      const serviceDate = new Date(order.created_at).toISOString().split('T')[0];
       
       return {
-        Amount: 50.00, // Default price - would be configurable
+        Amount: serviceItemPrice,
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
           ItemRef: {
-            value: "200000403", // Updated service item ID
-            name: "Service"
+            value: serviceItemId, // Use the found service item ID
+            name: serviceItemName
           },
           Qty: 1,
-          UnitPrice: 50.00,
+          UnitPrice: serviceItemPrice,
           TaxCodeRef: {
-            value: "1" // No VAT
-          }
+            value: nonTaxableCode // Use the fetched tax code
+          },
+          ServiceDate: serviceDate
         },
         Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
       };
@@ -140,29 +256,59 @@ const handler = async (req: Request): Promise<Response> => {
         name: invoiceData.customerName,
         email: invoiceData.customerEmail
       },
-      invoiceDate: new Date(invoiceData.endDate).toISOString().split('T')[0],
+      invoiceDate: invoiceData.endDate, // Use exact end date selected
       dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 15 days from now
       terms: "15 days",
       lineItems: lineItems,
-      totalAmount: lineItems.length * 50.00
+      totalAmount: lineItems.reduce((sum, item) => sum + item.Amount, 0)
     };
 
     console.log('Invoice created:', invoice);
 
+    // First, find the customer in QuickBooks by email
+    const customerEmail = invoiceData.customerEmail;
+    const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${customerEmail}'`;
+    
+    const customerResponse = await fetch(customerQueryUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    let customerId = null;
+    
+    if (customerResponse.ok) {
+      const customerData = await customerResponse.json();
+      const customers = customerData.QueryResponse?.Customer || [];
+      
+      if (customers.length > 0) {
+        customerId = customers[0].Id;
+        console.log('Found existing customer:', customerId, 'for email:', customerEmail);
+      } else {
+        console.log('No customer found for email:', customerEmail);
+        throw new Error(`Customer not found in QuickBooks for email: ${customerEmail}. Please create the customer first.`);
+      }
+    } else {
+      console.error('Failed to query customers:', await customerResponse.text());
+      throw new Error('Failed to query QuickBooks customers');
+    }
+
     // Create invoice in QuickBooks using correct API format
     const quickbooksApiUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
-    
-    // Use accounts email to identify customer, fallback to regular email
-    const customerEmail = invoiceData.customerEmail;
     
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: {
-        value: "1" // Would need to create/lookup customer by accounts email
+        value: customerId
       },
       BillEmail: {
         Address: customerEmail
-      }
+      },
+      TxnDate: invoiceData.endDate, // Use exact end date
+      ...(salesTermId && { SalesTermRef: { value: salesTermId } }),
+      ...(nextDocNumber && { DocNumber: nextDocNumber })
     };
 
     const response = await fetch(quickbooksApiUrl, {
@@ -190,7 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceNumber = qbInvoice?.DocNumber;
     
     // Generate QuickBooks invoice URL (for production)
-    const invoiceUrl = `https://c${tokenData.company_id}.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+    const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
     // Save invoice history to database
     const { error: historyError } = await supabase
@@ -200,8 +346,8 @@ const handler = async (req: Request): Promise<Response> => {
         customer_id: invoiceData.customerId,
         customer_name: invoiceData.customerName,
         customer_email: invoiceData.customerEmail,
-        start_date: invoiceData.startDate.split('T')[0],
-        end_date: invoiceData.endDate.split('T')[0],
+        start_date: invoiceData.startDate,
+        end_date: invoiceData.endDate,
         order_count: invoiceData.orders.length,
         total_amount: invoice.totalAmount,
         quickbooks_invoice_id: invoiceId,
