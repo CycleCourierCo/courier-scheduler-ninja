@@ -82,25 +82,13 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
   }
 
   return (
-    <div className="space-y-4">
-      {currentTimeslot && (
-        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-          <div className="flex items-center">
-            <Clock className="w-4 h-4 text-green-600 mr-2" />
-            <span className="text-sm font-medium text-green-800">
-              Current {type === "sender" ? "Collection" : "Delivery"} Window: {formatTimeslotWindow(currentTimeslot)}
-            </span>
-          </div>
-        </div>
-      )}
-      
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="flex items-center text-sm">
-            <Clock className="w-4 h-4 mr-2" />
-            {currentTimeslot ? "Update" : "Set"} {type === "sender" ? "Collection" : "Delivery"} Time Slot
-          </CardTitle>
-        </CardHeader>
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="flex items-center text-sm">
+          <Clock className="w-4 h-4 mr-2" />
+          {currentTimeslot ? "Update" : "Set"} {type === "sender" ? "Collection" : "Delivery"} Time Slot
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor={`${type}-time`}>
@@ -141,7 +129,6 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         )}
         </CardContent>
       </Card>
-    </div>
   );
 };
 
