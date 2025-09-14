@@ -172,13 +172,14 @@ Cycle Courier Co.`;
         console.log('Shipday API key not found - skipping Shipday update');
       } else {
         try {
-          // Check if this is the correct Shipday API endpoint format
-          const shipdayUrl = `https://api.shipday.com/orders/${shipdayId}`;
+          // Use the correct Shipday API endpoint
+          const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
           console.log('Shipday URL:', shipdayUrl);
           
           const requestBody = {
+            orderId: parseInt(shipdayId),
             expectedDeliveryDate: scheduledDate.split('T')[0],
-            deliveryEndTime: endTime
+            expectedDeliveryTime: endTime
           };
           console.log('Shipday request body:', requestBody);
 
