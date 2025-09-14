@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -114,6 +115,10 @@ Cycle Courier Co.`;
     }
 
     console.log('Sending WhatsApp message via 2chat...');
+
+    // Initialize Resend for email
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
     // Send WhatsApp message via 2chat API
     const twoChatApiKey = Deno.env.get('TWOCHAT_API_KEY');
@@ -242,10 +247,66 @@ Cycle Courier Co.`;
       console.log('No Shipday ID found - skipping Shipday update');
     }
 
+    // Send email notification
+    let emailResult = null;
+    if (resend && contact.email) {
+      console.log(`Sending email to ${contact.email}...`);
+      
+      try {
+        const emailSubject = recipientType === 'sender' 
+          ? `Your ${order.bike_brand || 'bike'} collection has been scheduled`
+          : `Your ${order.bike_brand || 'bike'} delivery has been scheduled`;
+
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Dear ${contact.name},</h2>
+            
+            <p>Your <strong>${order.bike_brand || 'bike'} ${order.bike_model || ''}</strong> ${recipientType === 'sender' ? 'Collection' : 'Delivery'} has been scheduled for:</p>
+            
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-size: 18px;"><strong>${formatDate(scheduledDate)}</strong></p>
+              <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
+            </div>
+            
+            <p>You will receive a text with a live tracking link once the driver is on their way.</p>
+            
+            ${recipientType === 'sender' ? `
+              <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
+                <p><strong>Collection Instructions:</strong></p>
+                <ul>
+                  <li>Please ensure the pedals have been removed from the bike and placed in a bag</li>
+                  <li>Any other accessories should also be in the bag</li>
+                  <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
+                </ul>
+              </div>
+            ` : ''}
+            
+            <p style="margin-top: 30px;">Thank you!</p>
+            <p><strong>Cycle Courier Co.</strong></p>
+          </div>
+        `;
+
+        emailResult = await resend.emails.send({
+          from: 'Cycle Courier Co. <notifications@resend.dev>',
+          to: [contact.email],
+          subject: emailSubject,
+          html: emailHtml
+        });
+
+        console.log('Email sent successfully:', emailResult);
+      } catch (emailError) {
+        console.error('Error sending email (non-critical):', emailError);
+        emailResult = { error: emailError.message };
+      }
+    } else {
+      console.log(resend ? 'No email address found - skipping email' : 'Resend not configured - skipping email');
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       message: 'Timeslot sent successfully',
       whatsappResult,
+      emailResult,
       shipdayStatus: shipdayId ? (shipdayResponse?.ok ? 'updated' : 'failed') : 'no_shipday_id',
       shipdayError: shipdayId && !shipdayResponse?.ok ? `Status ${shipdayResponse?.status}: ${shipdayResponse?.statusText}` : null
     }), {

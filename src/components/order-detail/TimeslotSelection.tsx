@@ -128,7 +128,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
           ) : (
             <>
               <MessageSquare className="w-4 h-4 mr-2" />
-              Send to {contact?.name} via WhatsApp
+              Send Timeslot
             </>
           )}
         </Button>
