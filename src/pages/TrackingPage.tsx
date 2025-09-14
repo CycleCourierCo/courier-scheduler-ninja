@@ -186,7 +186,13 @@ const TrackingPage = () => {
                             {order.pickupTimeslot && (
                               <div className="flex items-center text-blue-600">
                                 <Clock className="w-4 h-4 mr-2" />
-                                <span className="text-sm">Timeslot: {order.pickupTimeslot}</span>
+                                <span className="text-sm">Timeslot: {(() => {
+                                  const [hours, minutes] = order.pickupTimeslot.split(':').map(Number);
+                                  const startHour = Math.max(0, hours - 3);
+                                  const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                  const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                  return `${startTime} to ${endTime}`;
+                                })()}</span>
                               </div>
                             )}
                           </div>
@@ -207,7 +213,13 @@ const TrackingPage = () => {
                             {order.deliveryTimeslot && (
                               <div className="flex items-center text-green-600">
                                 <Clock className="w-4 h-4 mr-2" />
-                                <span className="text-sm">Timeslot: {order.deliveryTimeslot}</span>
+                                <span className="text-sm">Timeslot: {(() => {
+                                  const [hours, minutes] = order.deliveryTimeslot.split(':').map(Number);
+                                  const startHour = Math.max(0, hours - 3);
+                                  const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                  const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                  return `${startTime} to ${endTime}`;
+                                })()}</span>
                               </div>
                             )}
                           </div>

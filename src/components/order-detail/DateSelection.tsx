@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Calendar, Check, CalendarIcon } from "lucide-react";
@@ -70,6 +69,7 @@ interface DateSelectionProps {
   isScheduled: boolean;
   showAdminControls?: boolean;
   orderStatus?: string;
+  timeslot?: string;
 }
 
 const DateSelection: React.FC<DateSelectionProps> = ({
@@ -86,97 +86,67 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   isScheduled,
   showAdminControls = false,
   orderStatus,
+  timeslot
 }) => {
-  const formatDates = (dates: Date | Date[] | undefined) => {
-    if (!dates) return "Not scheduled";
-    
-    if (Array.isArray(dates)) {
-      // Filter out invalid dates before attempting to format them
-      return dates
-        .filter(d => d && (d instanceof Date) && !isNaN(new Date(d).getTime()))
-        .map(date => {
-          try {
-            return safeFormat(date, "PPP");
-          } catch (err) {
-            console.error("Error formatting date in array:", err, date);
-            return null;
-          }
-        })
-        .filter(Boolean)
-        .join(", ") || "Not scheduled";
-    }
-    
-    return safeFormat(dates, "PPP");
+  
+  // Handle date selection
+  const handleDateClick = (date: Date) => {
+    const isoDate = date.toISOString();
+    setSelectedDate(isoDate);
   };
 
-  // Show scheduled pickup date for collection_scheduled, collected, and delivery_scheduled (pickup dates)
-  const showScheduledStyle = isScheduled || 
-    (orderStatus === 'collection_scheduled' && title === "Pickup Dates") ||
-    (orderStatus === 'collected' && title === "Pickup Dates") || // Added 'collected' for pickup dates
-    (orderStatus === 'delivery_scheduled' && title === "Pickup Dates") ||
-    (orderStatus === 'delivery_scheduled' && title === "Delivery Dates");
-
-  const preventPickupSelection = title === "Pickup Dates" && 
-    (orderStatus === 'collection_scheduled' || orderStatus === 'collected'); // Added 'collected'
+  const formatDates = (dates: Date | Date[] | undefined): string => {
+    if (!dates) return "No dates available";
     
-  const preventDeliverySelection = title === "Delivery Dates" && orderStatus === 'delivery_scheduled';
+    const dateArray = Array.isArray(dates) ? dates : [dates];
+    
+    return dateArray.map(date => format(date, "PPP")).join(", ");
+  };
+
+  // Format timeslot as 3-hour window
+  const formatTimeslotWindow = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const startHour = Math.max(0, hours - 3);
+    const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    return `${startTime} to ${endTime}`;
+  };
+
+  const showScheduledStyle = !!(scheduledDate || (availableDates && selectedDate));
   
-  const isDateSelectionDisabled = preventPickupSelection || preventDeliverySelection || isSubmitting;
-  
-  // Improve validation of available dates array
-  const canSelectDate = Array.isArray(availableDates) && availableDates.length > 0 && 
-    availableDates.some(date => date && !isNaN(new Date(date).getTime()));
+  const isDateSelectionDisabled = orderStatus === 'scheduled_dates_pending' && showAdminControls;
 
   return (
-    <div>
-      <div className="flex items-center space-x-2">
-        <Calendar className="text-courier-600" />
-        <h3 className="font-semibold">{title}</h3>
-      </div>
+    <div className="space-y-3">
+      <h3 className="text-lg font-semibold flex items-center">
+        <Calendar className="mr-2" />
+        {title}
+      </h3>
       
-      {/* Show customer date selection dropdown for scheduled_dates_pending and other statuses */}
-      {canSelectDate && !showScheduledStyle ? (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-500">Customer selected dates:</p>
-          <p className="text-sm bg-blue-50 p-2 rounded border border-blue-200">{formatDates(availableDates)}</p>
-          
-          <div className="mt-2">
-            <label className="text-sm font-medium">Select from customer dates:</label>
-            <Select
-              value={selectedDate || ""}
-              onValueChange={setSelectedDate}
-              disabled={isDateSelectionDisabled}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a date" />
+      {!isScheduled && availableDates && !isDateSelectionDisabled && (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Select from available dates:</label>
+            <Select value={selectedDate || ""} onValueChange={setSelectedDate}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a date" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(availableDates) && availableDates
-                  .filter(date => date && !isNaN(new Date(date).getTime()))
-                  .map((date, index) => {
-                    try {
-                      const validDate = new Date(date);
-                      if (!isNaN(validDate.getTime())) {
-                        return (
-                          <SelectItem key={index} value={validDate.toISOString()}>
-                            {safeFormat(validDate, "PPP")}
-                          </SelectItem>
-                        );
-                      }
-                      return null;
-                    } catch (error) {
-                      console.error("Error processing date for select item:", error, date);
-                      return null;
-                    }
-                  })
-                  .filter(Boolean)}
+                {(Array.isArray(availableDates) ? availableDates : [availableDates]).map((date, index) => (
+                  <SelectItem key={index} value={date.toISOString()}>
+                    {format(date, "PPP")}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="mt-2">
-            <label className="text-sm font-medium">Select time:</label>
+
+          <div className="space-y-2">
+            <label htmlFor="time" className="text-sm font-medium">
+              Select time:
+            </label>
             <Input
+              id="time"
               type="time"
               value={timeValue}
               onChange={(e) => setTimeValue(e.target.value)}
@@ -185,7 +155,9 @@ const DateSelection: React.FC<DateSelectionProps> = ({
             />
           </div>
         </div>
-      ) : !showScheduledStyle && orderStatus !== 'scheduled_dates_pending' && (
+      )}
+      
+      {!showScheduledStyle && orderStatus !== 'scheduled_dates_pending' && (
         <p>{formatDates(availableDates)}</p>
       )}
       
@@ -239,9 +211,16 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         <div className="bg-green-50 p-2 rounded-md border border-green-200 mt-4">
           <div className="flex items-center">
             <Check className="h-4 w-4 text-green-600 mr-2" />
-            <p className="font-medium">
-              {scheduledDate ? safeFormat(scheduledDate, "PPP 'at' p") : formatDates(availableDates)}
-            </p>
+            <div className="flex flex-col">
+              <p className="font-medium">
+                {scheduledDate ? safeFormat(scheduledDate, "PPP") : formatDates(availableDates)}
+              </p>
+              {timeslot && (
+                <p className="text-sm text-green-700 mt-1">
+                  Timeslot: {formatTimeslotWindow(timeslot)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -701,6 +701,7 @@ const OrderDetail = () => {
                   isScheduled={isScheduled}
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
+                  timeslot={order.pickupTimeslot}
                 />
                 
                 <DateSelection 
@@ -717,6 +718,7 @@ const OrderDetail = () => {
                   isScheduled={isScheduled}
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
+                  timeslot={order.deliveryTimeslot}
                 />
               </div>
 

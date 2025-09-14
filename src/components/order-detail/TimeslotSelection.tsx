@@ -14,7 +14,8 @@ interface TimeslotSelectionProps {
 }
 
 const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, order }) => {
-  const [selectedTime, setSelectedTime] = useState<string>("18:00");
+  const existingTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
+  const [selectedTime, setSelectedTime] = useState<string>(existingTimeslot || "18:00");
   const [isSending, setIsSending] = useState(false);
 
   const handleSendTimeslot = async () => {
@@ -63,21 +64,43 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
     }
   };
 
+  // Format timeslot as 3-hour window
+  const formatTimeslotWindow = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const startHour = Math.max(0, hours - 3);
+    const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    return `${startTime} to ${endTime}`;
+  };
+
   const contact = type === "sender" ? order?.sender : order?.receiver;
   const scheduledDate = type === "sender" ? order?.scheduledPickupDate : order?.scheduledDeliveryDate;
+  const currentTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
 
   if (!scheduledDate) {
     return null;
   }
 
   return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="flex items-center text-sm">
-          <Clock className="w-4 h-4 mr-2" />
-          {type === "sender" ? "Collection" : "Delivery"} Time Slot
-        </CardTitle>
-      </CardHeader>
+    <div className="space-y-4">
+      {currentTimeslot && (
+        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+          <div className="flex items-center">
+            <Clock className="w-4 h-4 text-green-600 mr-2" />
+            <span className="text-sm font-medium text-green-800">
+              Current {type === "sender" ? "Collection" : "Delivery"} Window: {formatTimeslotWindow(currentTimeslot)}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="flex items-center text-sm">
+            <Clock className="w-4 h-4 mr-2" />
+            {currentTimeslot ? "Update" : "Set"} {type === "sender" ? "Collection" : "Delivery"} Time Slot
+          </CardTitle>
+        </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor={`${type}-time`}>
@@ -116,8 +139,9 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
             No phone number available for {type}
           </p>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
