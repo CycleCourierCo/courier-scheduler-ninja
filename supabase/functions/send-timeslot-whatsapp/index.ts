@@ -180,17 +180,21 @@ Cycle Courier Co.`;
           const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
           console.log('Shipday URL:', shipdayUrl);
           
-          // Format the delivery time properly (HH:MM:SS format) 
-          // Keep the time as-is since user selected local time
-          const expectedDeliveryTime = endTime.includes(':') && endTime.split(':').length === 2 
-            ? `${endTime}:00` 
-            : endTime;
+          // Convert user's local time to UTC for Shipday
+          // Assuming UK timezone (UTC+0 in winter, UTC+1 in summer)
+          const ukTimezoneOffset = new Date().getTimezoneOffset() === 0 ? 1 : 0; // 1 hour ahead if server is UTC
+          const adjustedHour = deliveryHour - ukTimezoneOffset;
+          const adjustedEndTime = `${adjustedHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+          
+          const expectedDeliveryTime = adjustedEndTime.includes(':') && adjustedEndTime.split(':').length === 2 
+            ? `${adjustedEndTime}:00` 
+            : adjustedEndTime;
           
           console.log(`User selected time: ${deliveryTime}`);
-          console.log(`Calculated endTime: ${endTime}`);
-          console.log(`Sending to Shipday - expectedDeliveryTime: ${expectedDeliveryTime}`);
+          console.log(`Server timezone offset: ${new Date().getTimezoneOffset()} minutes`);
+          console.log(`UK timezone adjustment: -${ukTimezoneOffset} hours`);
+          console.log(`Adjusted time for Shipday: ${expectedDeliveryTime}`);
           console.log(`Scheduled date: ${scheduledDate}`);
-          console.log(`Current timezone offset: ${new Date().getTimezoneOffset()} minutes`);
           
           // Use the same schema as create-shipday-order function
           const requestBody = {
