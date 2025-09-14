@@ -112,8 +112,25 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Generate tracking number
-      const trackingNumber = `CC${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+      // Generate tracking number using consistent format
+      function generateCustomOrderId(senderName: string, receiverZipCode: string): string {
+        const prefix = "CCC754";
+        const randomSequence = Math.floor(100000000 + Math.random() * 900000000).toString();
+        const senderInitials = senderName
+          .split(' ')
+          .map(word => word.charAt(0))
+          .join('')
+          .toUpperCase()
+          .substring(0, 2);
+        const zipCodeSuffix = receiverZipCode.substring(0, 2);
+        
+        return `${prefix}${randomSequence}${senderInitials}${zipCodeSuffix}`;
+      }
+
+      const trackingNumber = generateCustomOrderId(
+        body.sender.name || 'Unknown',
+        body.receiver.postcode || body.receiver.postal_code || '00'
+      )
 
       // Create order with user_id from API key
       const orderData = {
