@@ -5,12 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Code, Key, Zap, Globe, Shield, Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import ApiTester from '@/components/ApiTester';
 const ApiDocumentationPage = () => {
-  const { userProfile } = useAuth();
-  const isAdmin = userProfile?.role === 'admin';
-
   return <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
@@ -626,14 +621,6 @@ def create_order(order_data, api_key):
             </div>
           </CardContent>
         </Card>
-
-        {/* API Tester - Admin Only */}
-        {isAdmin && (
-          <>
-            <Separator className="my-8" />
-            <ApiTester />
-          </>
-        )}
       </div>
     </Layout>;
 };
