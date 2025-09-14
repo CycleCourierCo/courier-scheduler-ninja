@@ -176,10 +176,27 @@ Cycle Courier Co.`;
           const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
           console.log('Shipday URL:', shipdayUrl);
           
+          // Extract required data from order
+          const senderAddress = `${order.sender.address.street}, ${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}, ${order.sender.address.country}`;
+          const receiverAddress = `${order.receiver.address.street}, ${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}, ${order.receiver.address.country}`;
+          
           const requestBody = {
             orderId: parseInt(shipdayId),
+            orderNo: order.customer_order_number || order.tracking_number || shipdayId,
+            customerName: order.receiver.name,
+            customerAddress: receiverAddress,
+            customerEmail: order.receiver.email,
+            customerPhoneNumber: order.receiver.phone,
+            restaurantName: order.sender.name,
+            restaurantAddress: senderAddress,
+            restaurantPhoneNumber: order.sender.phone,
             expectedDeliveryDate: scheduledDate.split('T')[0],
-            expectedDeliveryTime: endTime
+            expectedDeliveryTime: endTime,
+            deliveryInstruction: order.delivery_instructions || '',
+            pickupLatitude: order.sender.address.lat || 0,
+            pickupLongitude: order.sender.address.lon || 0,
+            deliveryLatitude: order.receiver.address.lat || 0,
+            deliveryLongitude: order.receiver.address.lon || 0
           };
           console.log('Shipday request body:', requestBody);
 
