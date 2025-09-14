@@ -141,6 +141,7 @@ export default function InvoicesPage() {
           tracking_number,
           bike_brand,
           bike_model,
+          bike_quantity,
           sender,
           receiver
         `)
