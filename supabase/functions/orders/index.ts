@@ -161,6 +161,54 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Send availability emails to sender and receiver
+      console.log('Sending availability emails for new order:', order.id)
+      
+      try {
+        // Send sender availability email
+        if (body.sender && body.sender.email) {
+          const senderEmailResponse = await supabase.functions.invoke('send-email', {
+            body: {
+              to: body.sender.email,
+              emailType: 'sender',
+              orderId: order.id,
+              name: body.sender.name,
+              item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || 1 },
+              baseUrl: 'https://booking.cyclecourierco.com'
+            }
+          })
+          
+          if (senderEmailResponse.error) {
+            console.error('Failed to send sender email:', senderEmailResponse.error)
+          } else {
+            console.log('Sender availability email sent successfully')
+          }
+        }
+        
+        // Send receiver availability email
+        if (body.receiver && body.receiver.email) {
+          const receiverEmailResponse = await supabase.functions.invoke('send-email', {
+            body: {
+              to: body.receiver.email,
+              emailType: 'receiver', 
+              orderId: order.id,
+              name: body.receiver.name,
+              item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || 1 },
+              baseUrl: 'https://booking.cyclecourierco.com'
+            }
+          })
+          
+          if (receiverEmailResponse.error) {
+            console.error('Failed to send receiver email:', receiverEmailResponse.error)
+          } else {
+            console.log('Receiver availability email sent successfully')
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending availability emails:', emailError)
+        // Don't fail the order creation if emails fail
+      }
+
       return new Response(
         JSON.stringify({
           id: order.id,
