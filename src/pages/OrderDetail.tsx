@@ -19,6 +19,7 @@ import ContactDetails from "@/components/order-detail/ContactDetails";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
+import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
@@ -294,20 +295,35 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
-      pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      // Set dates without time (only date part)
+      const pickupDateOnly = new Date(pickupDateTime);
+      pickupDateOnly.setHours(0, 0, 0, 0);
       
-      const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-      deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      const deliveryDateOnly = new Date(deliveryDateTime);
+      deliveryDateOnly.setHours(0, 0, 0, 0);
       
       const updatedOrder = await updateOrderSchedule(
         id, 
-        pickupDateTime,
-        deliveryDateTime
+        pickupDateOnly,
+        deliveryDateOnly
       );
       
       if (!updatedOrder) {
         throw new Error("Failed to update order schedule");
+      }
+
+      // Save timeslots separately
+      const { error: timeslotError } = await supabase
+        .from('orders')
+        .update({ 
+          pickup_timeslot: pickupTime,
+          delivery_timeslot: deliveryTime 
+        })
+        .eq('id', id);
+
+      if (timeslotError) {
+        console.error("Error saving timeslots:", timeslotError);
+        // Continue anyway, main scheduling worked
       }
 
       const shipdayResponse = await createShipdayOrder(id);
@@ -685,6 +701,7 @@ const OrderDetail = () => {
                   isScheduled={isScheduled}
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
+                  timeslot={order.pickupTimeslot}
                 />
                 
                 <DateSelection 
@@ -701,6 +718,7 @@ const OrderDetail = () => {
                   isScheduled={isScheduled}
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
+                  timeslot={order.deliveryTimeslot}
                 />
               </div>
 
@@ -736,17 +754,31 @@ const OrderDetail = () => {
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <ContactDetails 
-                type="sender"
-                contact={order.sender}
-                notes={order.senderNotes}
-              />
+              <div className="space-y-4">
+                <ContactDetails 
+                  type="sender"
+                  contact={order.sender}
+                  notes={order.senderNotes}
+                />
+                <TimeslotSelection 
+                  type="sender"
+                  orderId={order.id}
+                  order={order}
+                />
+              </div>
               
-              <ContactDetails 
-                type="receiver"
-                contact={order.receiver}
-                notes={order.receiverNotes}
-              />
+              <div className="space-y-4">
+                <ContactDetails 
+                  type="receiver"
+                  contact={order.receiver}
+                  notes={order.receiverNotes}
+                />
+                <TimeslotSelection 
+                  type="receiver"
+                  orderId={order.id}
+                  order={order}
+                />
+              </div>
             </div>
             
             <Separator className="my-6" />

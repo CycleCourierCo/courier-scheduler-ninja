@@ -392,15 +392,25 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                       </div>
                     )}
                     {columnId === "scheduledPickup" && (
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                        <span>{formatDate(order.scheduledPickupDate)}</span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                          <span>{formatDate(order.scheduledPickupDate)}</span>
+                        </div>
+                        {order.pickupTimeslot && (
+                          <span className="text-xs text-muted-foreground ml-5">{order.pickupTimeslot}</span>
+                        )}
                       </div>
                     )}
                     {columnId === "scheduledDelivery" && (
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                        <span>{formatDate(order.scheduledDeliveryDate)}</span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                          <span>{formatDate(order.scheduledDeliveryDate)}</span>
+                        </div>
+                        {order.deliveryTimeslot && (
+                          <span className="text-xs text-muted-foreground ml-5">{order.deliveryTimeslot}</span>
+                        )}
                       </div>
                     )}
                     {columnId === "created" && format(new Date(order.createdAt), "PP")}
