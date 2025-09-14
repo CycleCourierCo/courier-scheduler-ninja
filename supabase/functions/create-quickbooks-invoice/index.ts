@@ -18,6 +18,7 @@ interface InvoiceRequest {
     tracking_number: string;
     bike_brand: string;
     bike_model: string;
+    bike_quantity: number;
     sender: any;
     receiver: any;
   }>;
@@ -230,16 +231,18 @@ const handler = async (req: Request): Promise<Response> => {
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
       const serviceDate = new Date(order.created_at).toISOString().split('T')[0];
+      const quantity = order.bike_quantity || 1;
+      const totalAmount = serviceItemPrice * quantity;
       
       return {
-        Amount: serviceItemPrice,
+        Amount: totalAmount,
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
           ItemRef: {
             value: serviceItemId, // Use the found service item ID
             name: serviceItemName
           },
-          Qty: 1,
+          Qty: quantity,
           UnitPrice: serviceItemPrice,
           TaxCodeRef: {
             value: nonTaxableCode // Use the fetched tax code
