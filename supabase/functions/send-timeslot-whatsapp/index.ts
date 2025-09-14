@@ -254,8 +254,8 @@ Cycle Courier Co.`;
       
       try {
         const emailSubject = recipientType === 'sender' 
-          ? `Your ${order.bike_brand || 'bike'} collection has been scheduled`
-          : `Your ${order.bike_brand || 'bike'} delivery has been scheduled`;
+          ? `Your ${order.bike_brand || 'bike'} collection has been scheduled - ${order.tracking_number}`
+          : `Your ${order.bike_brand || 'bike'} delivery has been scheduled - ${order.tracking_number}`;
 
         const emailHtml = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
