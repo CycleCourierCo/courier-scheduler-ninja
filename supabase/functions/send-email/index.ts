@@ -180,6 +180,22 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
         }
       );
     }
+
+    // Check if delivery confirmation emails have already been sent
+    if (order.delivery_confirmation_sent_at) {
+      console.log("Delivery confirmation emails already sent on:", order.delivery_confirmation_sent_at);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Delivery confirmation emails already sent",
+          alreadySent: true 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    }
     
     const trackingUrl = `https://booking.cyclecourierco.com/tracking/${order.tracking_number}`;
     const reviewLinks = {
@@ -292,6 +308,15 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       } catch (e) {
         console.error("Exception sending receiver email:", e);
       }
+    }
+    
+    // Mark delivery confirmation emails as sent if at least one was successful
+    if (senderSent || receiverSent) {
+      await supabase
+        .from("orders")
+        .update({ delivery_confirmation_sent_at: new Date().toISOString() })
+        .eq("id", orderId);
+      console.log("Marked delivery confirmation emails as sent for order:", orderId);
     }
     
     return new Response(
