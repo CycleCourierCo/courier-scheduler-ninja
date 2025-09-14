@@ -234,6 +234,8 @@ const handler = async (req: Request): Promise<Response> => {
       const quantity = order.bike_quantity || 1;
       const totalAmount = serviceItemPrice * quantity;
       
+      console.log(`Processing order ${order.id}: quantity=${quantity}, unitPrice=${serviceItemPrice}, total=${totalAmount}`);
+      
       return {
         Amount: totalAmount,
         DetailType: "SalesItemLineDetail",
