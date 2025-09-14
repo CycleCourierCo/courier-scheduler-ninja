@@ -41,7 +41,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
       }
 
       // Then send the WhatsApp message
-      const { error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
+      const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId,
           recipientType: type,
@@ -55,7 +55,18 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         return;
       }
 
-      toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`);
+      // Check Shipday status and show appropriate notification
+      if (data?.shipdayStatus === 'failed') {
+        toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`, {
+          description: `Note: Shipday update failed (${data.shipdayError}). The timeslot was saved but may need manual update in Shipday.`
+        });
+      } else if (data?.shipdayStatus === 'no_shipday_id') {
+        toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`, {
+          description: "Note: No Shipday order found to update."
+        });
+      } else {
+        toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`);
+      }
     } catch (error) {
       console.error("Error sending timeslot:", error);
       toast.error(`Failed to send timeslot: ${error instanceof Error ? error.message : "Unknown error"}`);

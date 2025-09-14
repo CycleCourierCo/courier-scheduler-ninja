@@ -162,6 +162,7 @@ Cycle Courier Co.`;
     }
 
     // Update Shipday order with delivery time if shipdayId exists
+    let shipdayResponse = null;
     const shipdayId = recipientType === 'sender' ? order.shipday_pickup_id : order.shipday_delivery_id;
     if (shipdayId) {
       console.log(`Updating Shipday order ${shipdayId} with delivery time...`);
@@ -181,7 +182,7 @@ Cycle Courier Co.`;
           };
           console.log('Shipday request body:', requestBody);
 
-          const shipdayResponse = await fetch(shipdayUrl, {
+          shipdayResponse = await fetch(shipdayUrl, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -213,7 +214,9 @@ Cycle Courier Co.`;
     return new Response(JSON.stringify({ 
       success: true,
       message: 'Timeslot sent successfully',
-      whatsappResult
+      whatsappResult,
+      shipdayStatus: shipdayId ? (shipdayResponse?.ok ? 'updated' : 'failed') : 'no_shipday_id',
+      shipdayError: shipdayId && !shipdayResponse?.ok ? `Status ${shipdayResponse?.status}: ${shipdayResponse?.statusText}` : null
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
