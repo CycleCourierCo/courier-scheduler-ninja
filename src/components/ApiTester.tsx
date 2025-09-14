@@ -20,7 +20,7 @@ const ApiTester = () => {
   const [activeTab, setActiveTab] = useState('create-order');
   const { toast } = useToast();
 
-  const baseUrl = 'https://api.cyclecourierco.com/functions/v1';
+  const baseUrl = 'https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1';
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
