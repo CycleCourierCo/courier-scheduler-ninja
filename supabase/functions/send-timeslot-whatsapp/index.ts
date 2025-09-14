@@ -124,6 +124,16 @@ Cycle Courier Co.`;
     // Clean phone number (remove + and non-digits)
     const cleanPhone = contact.phone.replace(/[^\d]/g, '');
     
+    // Get the from_number from environment variables
+    const fromNumber = Deno.env.get('TWOCHAT_FROM_NUMBER');
+    if (!fromNumber) {
+      console.error('2Chat from_number not configured');
+      return new Response(JSON.stringify({ error: '2Chat from_number not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const whatsappResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
       method: 'POST',
       headers: {
@@ -132,7 +142,7 @@ Cycle Courier Co.`;
       },
       body: JSON.stringify({
         to_number: `+${cleanPhone}`,
-        from_number: "+447533288061", // Your business WhatsApp number
+        from_number: fromNumber,
         text: message
       })
     });
