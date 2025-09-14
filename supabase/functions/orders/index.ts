@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
         body: {
           generateSingle: true,
           senderName: body.sender.name || 'Unknown',
-          receiverZipCode: body.receiver.address?.postal_code || body.receiver.postcode || body.receiver.postal_code || '00'
+          receiverZipCode: body.receiver.address?.zipCode || body.receiver.address?.postal_code || body.receiver.postcode || body.receiver.postal_code || '00'
         }
       })
       
