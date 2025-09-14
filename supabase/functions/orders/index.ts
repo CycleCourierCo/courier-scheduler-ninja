@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       const body = await req.json()
       
       // Validate required fields
-      const requiredFields = ['sender', 'receiver', 'bike_brand']
+      const requiredFields = ['sender', 'receiver']
       for (const field of requiredFields) {
         if (!body[field]) {
           return new Response(
@@ -57,6 +57,31 @@ Deno.serve(async (req) => {
             }
           )
         }
+      }
+
+      // Validate bikes array or individual bike fields
+      let bikeBrand = ''
+      let bikeModel = ''
+      
+      if (body.bikes && Array.isArray(body.bikes) && body.bikes.length > 0) {
+        // Handle bikes array format (from API documentation)
+        bikeBrand = body.bikes[0].brand || ''
+        bikeModel = body.bikes[0].model || ''
+      } else if (body.bike_brand) {
+        // Handle individual bike_brand/bike_model format
+        bikeBrand = body.bike_brand
+        bikeModel = body.bike_model || ''
+      } else {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Missing bike information. Provide either bikes array or bike_brand field', 
+            code: 'VALIDATION_ERROR' 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
       }
 
       // Validate sender and receiver have required fields
@@ -93,18 +118,18 @@ Deno.serve(async (req) => {
         user_id: userId,
         sender: body.sender,
         receiver: body.receiver,
-        bike_brand: body.bike_brand,
-        bike_model: body.bike_model || '',
-        bike_quantity: body.bike_quantity || 1,
-        is_bike_swap: body.is_bike_swap || false,
-        is_ebay_order: body.is_ebay_order || false,
-        collection_code: body.collection_code || null,
-        needs_payment_on_collection: body.needs_payment_on_collection || false,
-        payment_collection_phone: body.payment_collection_phone || null,
-        delivery_instructions: body.delivery_instructions || '',
-        sender_notes: body.sender_notes || '',
-        receiver_notes: body.receiver_notes || '',
-        customer_order_number: body.customer_order_number || null,
+        bike_brand: bikeBrand,
+        bike_model: bikeModel,
+        bike_quantity: body.bikeQuantity || body.bike_quantity || 1,
+        is_bike_swap: body.isBikeSwap || body.is_bike_swap || false,
+        is_ebay_order: body.isEbayOrder || body.is_ebay_order || false,
+        collection_code: body.collectionCode || body.collection_code || null,
+        needs_payment_on_collection: body.needsPaymentOnCollection || body.needs_payment_on_collection || false,
+        payment_collection_phone: body.paymentCollectionPhone || body.payment_collection_phone || null,
+        delivery_instructions: body.deliveryInstructions || body.delivery_instructions || '',
+        sender_notes: body.senderNotes || body.sender_notes || '',
+        receiver_notes: body.receiverNotes || body.receiver_notes || '',
+        customer_order_number: body.customerOrderNumber || body.customer_order_number || null,
         status: 'created',
         tracking_number: trackingNumber,
         pickup_date: body.pickup_date || null,
