@@ -19,6 +19,7 @@ import ContactDetails from "@/components/order-detail/ContactDetails";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
+import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
@@ -736,17 +737,31 @@ const OrderDetail = () => {
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <ContactDetails 
-                type="sender"
-                contact={order.sender}
-                notes={order.senderNotes}
-              />
+              <div className="space-y-4">
+                <ContactDetails 
+                  type="sender"
+                  contact={order.sender}
+                  notes={order.senderNotes}
+                />
+                <TimeslotSelection 
+                  type="sender"
+                  orderId={order.id}
+                  order={order}
+                />
+              </div>
               
-              <ContactDetails 
-                type="receiver"
-                contact={order.receiver}
-                notes={order.receiverNotes}
-              />
+              <div className="space-y-4">
+                <ContactDetails 
+                  type="receiver"
+                  contact={order.receiver}
+                  notes={order.receiverNotes}
+                />
+                <TimeslotSelection 
+                  type="receiver"
+                  orderId={order.id}
+                  order={order}
+                />
+              </div>
             </div>
             
             <Separator className="my-6" />
