@@ -184,7 +184,32 @@ Cycle Courier Co.`;
             })
           });
 
-          const shipdayResult = await shipdayResponse.json();
+          console.log('Shipday response status:', shipdayResponse.status);
+          console.log('Shipday response headers:', Object.fromEntries(shipdayResponse.headers));
+
+          // Handle different response types
+          let shipdayResult;
+          const contentType = shipdayResponse.headers.get('content-type');
+          
+          if (contentType && contentType.includes('application/json')) {
+            // Only try to parse JSON if content-type indicates JSON
+            const responseText = await shipdayResponse.text();
+            if (responseText.trim()) {
+              try {
+                shipdayResult = JSON.parse(responseText);
+              } catch (parseError) {
+                console.error('Failed to parse Shipday JSON response:', responseText);
+                shipdayResult = { error: 'Invalid JSON response', responseText };
+              }
+            } else {
+              shipdayResult = { message: 'Empty response from Shipday' };
+            }
+          } else {
+            // Handle non-JSON responses
+            const responseText = await shipdayResponse.text();
+            shipdayResult = { message: 'Non-JSON response', responseText };
+          }
+
           console.log('Shipday update response:', shipdayResult);
 
           if (!shipdayResponse.ok) {
