@@ -73,6 +73,10 @@ const serve_handler = async (req: Request): Promise<Response> => {
     const startHour = Math.max(0, deliveryHour - 3);
     const startTime = `${startHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
     const endTime = `${deliveryHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+    
+    console.log(`Original deliveryTime: ${deliveryTime}`);
+    console.log(`Parsed hour: ${deliveryHour}, minute: ${deliveryMinute}`);
+    console.log(`Time window: ${startTime} to ${endTime}`);
 
     // Format scheduled date
     const formatDate = (dateStr: string) => {
@@ -176,10 +180,17 @@ Cycle Courier Co.`;
           const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
           console.log('Shipday URL:', shipdayUrl);
           
-          // Format the delivery time properly (HH:MM:SS format)
+          // Format the delivery time properly (HH:MM:SS format) 
+          // Keep the time as-is since user selected local time
           const expectedDeliveryTime = endTime.includes(':') && endTime.split(':').length === 2 
             ? `${endTime}:00` 
             : endTime;
+          
+          console.log(`User selected time: ${deliveryTime}`);
+          console.log(`Calculated endTime: ${endTime}`);
+          console.log(`Sending to Shipday - expectedDeliveryTime: ${expectedDeliveryTime}`);
+          console.log(`Scheduled date: ${scheduledDate}`);
+          console.log(`Current timezone offset: ${new Date().getTimezoneOffset()} minutes`);
           
           // Use the same schema as create-shipday-order function
           const requestBody = {
