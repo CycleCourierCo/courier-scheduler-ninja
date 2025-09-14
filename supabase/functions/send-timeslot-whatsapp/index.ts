@@ -67,9 +67,7 @@ const serve_handler = async (req: Request): Promise<Response> => {
     }
 
     // Parse the delivery time to create time windows
-    const deliveryDateTime = new Date(deliveryTime);
-    const deliveryHour = deliveryDateTime.getHours();
-    const deliveryMinute = deliveryDateTime.getMinutes();
+    const [deliveryHour, deliveryMinute] = deliveryTime.split(':').map(Number);
     
     // Create time window: 3 hours before the latest time
     const startHour = Math.max(0, deliveryHour - 3);
@@ -126,14 +124,15 @@ Cycle Courier Co.`;
     // Clean phone number (remove + and non-digits)
     const cleanPhone = contact.phone.replace(/[^\d]/g, '');
     
-    const whatsappResponse = await fetch('https://api.2chat.co/open/whatsapp/send-message', {
+    const whatsappResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-User-API-Key': twoChatApiKey
       },
       body: JSON.stringify({
-        phone: cleanPhone,
+        to_number: `+${cleanPhone}`,
+        from_number: "+447533288061", // Your business WhatsApp number
         text: message
       })
     });
