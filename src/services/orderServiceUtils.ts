@@ -38,6 +38,8 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     receiverNotes: dbOrder.receiver_notes,
     senderPolygonSegment: dbOrder.sender_polygon_segment,
     receiverPolygonSegment: dbOrder.receiver_polygon_segment,
+    pickupTimeslot: dbOrder.pickup_timeslot,
+    deliveryTimeslot: dbOrder.delivery_timeslot,
     // Handle optional date fields
     trackingEvents: dbOrder.tracking_events
   };

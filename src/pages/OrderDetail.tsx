@@ -295,20 +295,35 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
-      pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      // Set dates without time (only date part)
+      const pickupDateOnly = new Date(pickupDateTime);
+      pickupDateOnly.setHours(0, 0, 0, 0);
       
-      const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-      deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      const deliveryDateOnly = new Date(deliveryDateTime);
+      deliveryDateOnly.setHours(0, 0, 0, 0);
       
       const updatedOrder = await updateOrderSchedule(
         id, 
-        pickupDateTime,
-        deliveryDateTime
+        pickupDateOnly,
+        deliveryDateOnly
       );
       
       if (!updatedOrder) {
         throw new Error("Failed to update order schedule");
+      }
+
+      // Save timeslots separately
+      const { error: timeslotError } = await supabase
+        .from('orders')
+        .update({ 
+          pickup_timeslot: pickupTime,
+          delivery_timeslot: deliveryTime 
+        })
+        .eq('id', id);
+
+      if (timeslotError) {
+        console.error("Error saving timeslots:", timeslotError);
+        // Continue anyway, main scheduling worked
       }
 
       const shipdayResponse = await createShipdayOrder(id);

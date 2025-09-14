@@ -26,6 +26,20 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
     try {
       setIsSending(true);
       
+      // First save the timeslot to the database
+      const updateField = type === "sender" ? "pickup_timeslot" : "delivery_timeslot";
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ [updateField]: selectedTime })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error("Error saving timeslot:", updateError);
+        toast.error(`Failed to save timeslot: ${updateError.message}`);
+        return;
+      }
+
+      // Then send the WhatsApp message
       const { error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId,

@@ -53,6 +53,8 @@ export type Order = {
   deliveryDate?: Date | Date[];
   scheduledPickupDate?: Date;
   scheduledDeliveryDate?: Date;
+  pickupTimeslot?: string;
+  deliveryTimeslot?: string;
   senderConfirmedAt?: Date;
   receiverConfirmedAt?: Date;
   scheduledAt?: Date;

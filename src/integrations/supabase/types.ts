@@ -274,12 +274,14 @@ export type Database = {
           customer_order_number: string | null
           delivery_date: Json | null
           delivery_instructions: string | null
+          delivery_timeslot: string | null
           id: string
           is_bike_swap: boolean | null
           is_ebay_order: boolean | null
           needs_payment_on_collection: boolean | null
           payment_collection_phone: string | null
           pickup_date: Json | null
+          pickup_timeslot: string | null
           receiver: Json
           receiver_confirmed_at: string | null
           receiver_notes: string | null
@@ -306,12 +308,14 @@ export type Database = {
           customer_order_number?: string | null
           delivery_date?: Json | null
           delivery_instructions?: string | null
+          delivery_timeslot?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_ebay_order?: boolean | null
           needs_payment_on_collection?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
+          pickup_timeslot?: string | null
           receiver: Json
           receiver_confirmed_at?: string | null
           receiver_notes?: string | null
@@ -338,12 +342,14 @@ export type Database = {
           customer_order_number?: string | null
           delivery_date?: Json | null
           delivery_instructions?: string | null
+          delivery_timeslot?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_ebay_order?: boolean | null
           needs_payment_on_collection?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
+          pickup_timeslot?: string | null
           receiver?: Json
           receiver_confirmed_at?: string | null
           receiver_notes?: string | null

@@ -7,7 +7,7 @@ import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
-import { ArrowLeft, Package, Calendar, Bike } from "lucide-react";
+import { ArrowLeft, Package, Calendar, Bike, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -174,28 +174,42 @@ const TrackingPage = () => {
                         {order.scheduledPickupDate && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p className="text-sm font-medium text-blue-900">Collection Date</p>
-                            <p className="text-blue-700">
+                            <div className="flex items-center text-blue-700 mb-2">
+                              <Calendar className="w-4 h-4 mr-2" />
                               {new Date(order.scheduledPickupDate).toLocaleDateString('en-GB', {
                                 weekday: 'long',
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
                               })}
-                            </p>
+                            </div>
+                            {order.pickupTimeslot && (
+                              <div className="flex items-center text-blue-600">
+                                <Clock className="w-4 h-4 mr-2" />
+                                <span className="text-sm">Timeslot: {order.pickupTimeslot}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                         
                         {order.scheduledDeliveryDate && (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <p className="text-sm font-medium text-green-900">Delivery Date</p>
-                            <p className="text-green-700">
+                            <div className="flex items-center text-green-700 mb-2">
+                              <Calendar className="w-4 h-4 mr-2" />
                               {new Date(order.scheduledDeliveryDate).toLocaleDateString('en-GB', {
                                 weekday: 'long',
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
                               })}
-                            </p>
+                            </div>
+                            {order.deliveryTimeslot && (
+                              <div className="flex items-center text-green-600">
+                                <Clock className="w-4 h-4 mr-2" />
+                                <span className="text-sm">Timeslot: {order.deliveryTimeslot}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
