@@ -168,59 +168,46 @@ Cycle Courier Co.`;
 
       const shipdayApiKey = Deno.env.get('SHIPDAY_API_KEY');
       if (!shipdayApiKey) {
-        console.error('Shipday API key not found');
-        // Continue anyway, WhatsApp was sent successfully
+        console.log('Shipday API key not found - skipping Shipday update');
       } else {
         try {
-          const shipdayResponse = await fetch(`https://api.shipday.com/orders/${shipdayId}`, {
+          // Check if this is the correct Shipday API endpoint format
+          const shipdayUrl = `https://api.shipday.com/orders/${shipdayId}`;
+          console.log('Shipday URL:', shipdayUrl);
+          
+          const requestBody = {
+            expectedDeliveryDate: scheduledDate.split('T')[0],
+            deliveryEndTime: endTime
+          };
+          console.log('Shipday request body:', requestBody);
+
+          const shipdayResponse = await fetch(shipdayUrl, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Basic ${btoa(shipdayApiKey + ':')}`
             },
-            body: JSON.stringify({
-              expectedDeliveryDate: scheduledDate.split('T')[0],
-              deliveryEndTime: endTime
-            })
+            body: JSON.stringify(requestBody)
           });
 
           console.log('Shipday response status:', shipdayResponse.status);
-          console.log('Shipday response headers:', Object.fromEntries(shipdayResponse.headers));
+          console.log('Shipday response status text:', shipdayResponse.statusText);
 
-          // Handle different response types
-          let shipdayResult;
-          const contentType = shipdayResponse.headers.get('content-type');
-          
-          if (contentType && contentType.includes('application/json')) {
-            // Only try to parse JSON if content-type indicates JSON
-            const responseText = await shipdayResponse.text();
-            if (responseText.trim()) {
-              try {
-                shipdayResult = JSON.parse(responseText);
-              } catch (parseError) {
-                console.error('Failed to parse Shipday JSON response:', responseText);
-                shipdayResult = { error: 'Invalid JSON response', responseText };
-              }
-            } else {
-              shipdayResult = { message: 'Empty response from Shipday' };
-            }
+          if (shipdayResponse.ok) {
+            console.log('Shipday order updated successfully');
           } else {
-            // Handle non-JSON responses
+            console.log(`Shipday update failed with status ${shipdayResponse.status}: ${shipdayResponse.statusText}`);
+            // Try to get response text for debugging
             const responseText = await shipdayResponse.text();
-            shipdayResult = { message: 'Non-JSON response', responseText };
-          }
-
-          console.log('Shipday update response:', shipdayResult);
-
-          if (!shipdayResponse.ok) {
-            console.error('Failed to update Shipday order:', shipdayResult);
-            // Continue anyway, WhatsApp was sent successfully
+            console.log('Shipday error response:', responseText);
           }
         } catch (shipdayError) {
-          console.error('Error updating Shipday order:', shipdayError);
-          // Continue anyway, WhatsApp was sent successfully
+          console.log('Error updating Shipday order (non-critical):', shipdayError);
+          // Don't fail the entire function for Shipday errors
         }
       }
+    } else {
+      console.log('No Shipday ID found - skipping Shipday update');
     }
 
     return new Response(JSON.stringify({ 
