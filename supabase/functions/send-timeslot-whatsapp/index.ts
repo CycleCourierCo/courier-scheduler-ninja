@@ -172,31 +172,29 @@ Cycle Courier Co.`;
         console.log('Shipday API key not found - skipping Shipday update');
       } else {
         try {
-          // Use the correct Shipday API endpoint
+          // Use the correct Shipday API endpoint and match the create-shipday-order schema
           const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
           console.log('Shipday URL:', shipdayUrl);
           
-          // Extract required data from order
-          const senderAddress = `${order.sender.address.street}, ${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}, ${order.sender.address.country}`;
-          const receiverAddress = `${order.receiver.address.street}, ${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}, ${order.receiver.address.country}`;
+          // Format the delivery time properly (HH:MM:SS format)
+          const expectedDeliveryTime = endTime.includes(':') && endTime.split(':').length === 2 
+            ? `${endTime}:00` 
+            : endTime;
           
+          // Use the same schema as create-shipday-order function
           const requestBody = {
-            orderId: parseInt(shipdayId),
-            orderNo: order.customer_order_number || order.tracking_number || shipdayId,
-            customerName: order.receiver.name,
-            customerAddress: receiverAddress,
-            customerEmail: order.receiver.email,
-            customerPhoneNumber: order.receiver.phone,
-            restaurantName: order.sender.name,
-            restaurantAddress: senderAddress,
-            restaurantPhoneNumber: order.sender.phone,
+            orderNumber: order.tracking_number || `${orderId.substring(0, 8)}-UPDATE`,
+            customerName: recipientType === 'sender' ? order.sender.name : order.receiver.name,
+            customerAddress: recipientType === 'sender' 
+              ? `${order.sender.address.street}, ${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}`
+              : `${order.receiver.address.street}, ${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}`,
+            customerEmail: recipientType === 'sender' ? order.sender.email : order.receiver.email,
+            customerPhoneNumber: recipientType === 'sender' ? order.sender.phone : order.receiver.phone,
+            restaurantName: "Cycle Courier Co.",
+            restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+            expectedDeliveryTime: expectedDeliveryTime,
             expectedDeliveryDate: scheduledDate.split('T')[0],
-            expectedDeliveryTime: endTime,
-            deliveryInstruction: order.delivery_instructions || '',
-            pickupLatitude: order.sender.address.lat || 0,
-            pickupLongitude: order.sender.address.lon || 0,
-            deliveryLatitude: order.receiver.address.lat || 0,
-            deliveryLongitude: order.receiver.address.lon || 0
+            deliveryInstruction: order.delivery_instructions || ''
           };
           console.log('Shipday request body:', requestBody);
 
@@ -204,7 +202,7 @@ Cycle Courier Co.`;
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Basic ${btoa(shipdayApiKey + ':')}`
+              'Authorization': `Basic ${shipdayApiKey}`
             },
             body: JSON.stringify(requestBody)
           });
