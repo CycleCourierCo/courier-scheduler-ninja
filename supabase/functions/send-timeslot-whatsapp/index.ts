@@ -287,7 +287,7 @@ Cycle Courier Co.`;
         `;
 
         emailResult = await resend.emails.send({
-          from: 'Cycle Courier Co. <notifications@resend.dev>',
+          from: "Ccc@notification.cyclecourierco.com",
           to: [contact.email],
           subject: emailSubject,
           html: emailHtml
