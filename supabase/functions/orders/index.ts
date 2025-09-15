@@ -183,51 +183,134 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Send availability emails to sender and receiver
-      console.log('Sending availability emails for new order:', order.id)
+      // Get user profile for confirmation email
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', userId)
+        .single()
+
+      const userName = userProfile?.name || userProfile?.email || 'Customer'
+      const userEmail = userProfile?.email
+
+      // Send emails following the exact same flow as normal order creation
+      console.log('===== STARTING EMAIL SENDING PROCESS (API ORDER) =====')
+      console.log('Order ID:', order.id)
+      console.log('User email:', userEmail)
+      console.log('Sender email:', body.sender.email)
+      console.log('Receiver email:', body.receiver.email)
       
       try {
-        // Send sender availability email
+        // 1. Order creation confirmation to the user who created the order (API key owner)
+        if (userEmail) {
+          console.log('STEP 1: Sending confirmation email to user...')
+          const userConfirmationResponse = await supabase.functions.invoke('send-email', {
+            body: {
+              to: userEmail,
+              subject: 'Your Order Has Been Created - The Cycle Courier Co.',
+              html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${userName},</h2>
+            <p>Thank you for creating your order with The Cycle Courier Co.</p>
+            <p>Your order has been successfully created. Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${`${bikeBrand} ${bikeModel}`.trim()}</p>
+              <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
+            </div>
+            <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
+            <p>You can track your order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track Your Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+              from: 'Ccc@notification.cyclecourierco.com'
+            }
+          })
+          
+          if (userConfirmationResponse.error) {
+            console.error('Failed to send user confirmation email:', userConfirmationResponse.error)
+          } else {
+            console.log('User confirmation email sent successfully')
+          }
+        }
+
+        // 2. Sender availability email 
         if (body.sender && body.sender.email) {
+          console.log('STEP 2: Sending availability email to sender...')
           const senderEmailResponse = await supabase.functions.invoke('send-email', {
             body: {
               to: body.sender.email,
               emailType: 'sender',
               orderId: order.id,
               name: body.sender.name,
-              item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || 1 },
+              item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || body.bike_quantity || 1 },
               baseUrl: 'https://booking.cyclecourierco.com'
             }
           })
           
           if (senderEmailResponse.error) {
-            console.error('Failed to send sender email:', senderEmailResponse.error)
+            console.error('Failed to send sender availability email:', senderEmailResponse.error)
           } else {
             console.log('Sender availability email sent successfully')
           }
         }
         
-        // Send receiver availability email
+        // 3. Receiver notification email (not availability email initially)
         if (body.receiver && body.receiver.email) {
+          console.log('STEP 3: Sending notification email to receiver...')
           const receiverEmailResponse = await supabase.functions.invoke('send-email', {
             body: {
               to: body.receiver.email,
-              emailType: 'receiver', 
-              orderId: order.id,
-              name: body.receiver.name,
-              item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || 1 },
-              baseUrl: 'https://booking.cyclecourierco.com'
+              subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
+              html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Hello ${body.receiver.name},</h2>
+            <p>A bicycle is being sent to you via The Cycle Courier Co.</p>
+            <p>Here are the details:</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${`${bikeBrand} ${bikeModel}`.trim()}</p>
+              <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
+            </div>
+            <p><strong>Next Steps:</strong></p>
+            <ol style="margin-bottom: 20px;">
+              <li>We have contacted the sender to arrange a collection date.</li>
+              <li>Once the sender confirms their availability, <strong>you will receive an email with a link to confirm your availability for delivery</strong>.</li>
+              <li>After both confirmations, we will schedule the pickup and delivery.</li>
+            </ol>
+            <p>You can track the order's progress by visiting:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Track This Order
+              </a>
+            </div>
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+            <p>Thank you for using our service.</p>
+            <p>The Cycle Courier Co. Team</p>
+          </div>
+        `,
+              from: 'Ccc@notification.cyclecourierco.com'
             }
           })
           
           if (receiverEmailResponse.error) {
-            console.error('Failed to send receiver email:', receiverEmailResponse.error)
+            console.error('Failed to send receiver notification email:', receiverEmailResponse.error)
           } else {
-            console.log('Receiver availability email sent successfully')
+            console.log('Receiver notification email sent successfully')
           }
         }
+        
+        console.log('===== EMAIL SENDING PROCESS COMPLETED =====')
       } catch (emailError) {
-        console.error('Error sending availability emails:', emailError)
+        console.error('===== EMAIL SENDING PROCESS FAILED =====')
+        console.error('Error sending emails:', emailError)
         // Don't fail the order creation if emails fail
       }
 
