@@ -396,6 +396,18 @@ const OrderDetail = () => {
     }
   };
 
+  const handleResetPickupDate = () => {
+    setPickupDatePicker(undefined);
+    setSelectedPickupDate(null);
+    toast.success("Collection date reset");
+  };
+
+  const handleResetDeliveryDate = () => {
+    setDeliveryDatePicker(undefined);
+    setSelectedDeliveryDate(null);
+    toast.success("Delivery date reset");
+  };
+
   const handleAddPickupToShipday = async () => {
     console.log("handleAddPickupToShipday called", { id, isSubmitting });
     if (!id) return;
@@ -854,6 +866,27 @@ const OrderDetail = () => {
                     className="w-full max-w-md"
                   >
                     {isSubmitting ? "Setting Dates..." : "Set Dates & Update Status"}
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleResetPickupDate}
+                    disabled={isSubmitting || !pickupDatePicker}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Reset Collection Date
+                  </Button>
+                  <Button 
+                    onClick={handleResetDeliveryDate}
+                    disabled={isSubmitting || !deliveryDatePicker}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Reset Delivery Date
                   </Button>
                 </div>
                 
