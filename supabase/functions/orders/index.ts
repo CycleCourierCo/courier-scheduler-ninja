@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
           }
         }
         
-        // 3. Receiver notification email (not availability email initially)
+        // 3. Receiver notification email (using proper email service)
         if (body.receiver && body.receiver.email) {
           console.log('STEP 3: Sending notification email to receiver...')
           const receiverEmailResponse = await supabase.functions.invoke('send-email', {
