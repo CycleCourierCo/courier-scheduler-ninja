@@ -399,12 +399,15 @@ const OrderDetail = () => {
   };
 
   const handleAddPickupToShipday = async () => {
+    console.log("handleAddPickupToShipday called", { id, isSubmitting });
     if (!id) return;
     
     try {
       setIsSubmitting(true);
+      console.log("About to call createShipdayOrder for pickup");
       
       const shipdayResponse = await createShipdayOrder(id, 'pickup');
+      console.log("Shipday pickup response:", shipdayResponse);
       
       if (shipdayResponse) {
         toast.success("Collection added to Shipday successfully");
@@ -420,12 +423,15 @@ const OrderDetail = () => {
   };
 
   const handleAddDeliveryToShipday = async () => {
+    console.log("handleAddDeliveryToShipday called", { id, isSubmitting });
     if (!id) return;
     
     try {
       setIsSubmitting(true);
+      console.log("About to call createShipdayOrder for delivery");
       
       const shipdayResponse = await createShipdayOrder(id, 'delivery');
+      console.log("Shipday delivery response:", shipdayResponse);
       
       if (shipdayResponse) {
         toast.success("Delivery added to Shipday successfully");
