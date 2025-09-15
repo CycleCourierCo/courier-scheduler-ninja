@@ -343,6 +343,82 @@ const OrderDetail = () => {
     }
   };
 
+  const handleSetDatesOnly = async () => {
+    if (!id || (!pickupDatePicker && !deliveryDatePicker)) {
+      toast.error("Please select at least one date");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      let pickupDateTime = undefined;
+      let deliveryDateTime = undefined;
+      
+      if (pickupDatePicker) {
+        pickupDateTime = new Date(pickupDatePicker);
+        const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
+        pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      }
+      
+      if (deliveryDatePicker) {
+        deliveryDateTime = new Date(deliveryDatePicker);
+        const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
+        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      }
+      
+      // Update dates and status without creating Shipday jobs
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          scheduled_pickup_date: pickupDateTime?.toISOString(),
+          scheduled_delivery_date: deliveryDateTime?.toISOString(),
+          pickup_timeslot: pickupTime,
+          delivery_timeslot: deliveryTime,
+          status: 'scheduled',
+          scheduled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      const mappedOrder = mapDbOrderToOrderType(data);
+      setOrder(mappedOrder);
+      setSelectedStatus('scheduled');
+      
+      toast.success("Dates set and status updated successfully");
+    } catch (error) {
+      console.error("Error setting dates:", error);
+      toast.error(`Failed to set dates: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddToShipday = async () => {
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      const shipdayResponse = await createShipdayOrder(id);
+      
+      if (shipdayResponse) {
+        toast.success("Order added to Shipday successfully");
+      } else {
+        toast.error("Failed to add order to Shipday");
+      }
+    } catch (error) {
+      console.error("Error adding to Shipday:", error);
+      toast.error(`Failed to add to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCreateShipment = async () => {
     if (!id) return;
     
@@ -742,6 +818,31 @@ const OrderDetail = () => {
                 deliveryTime={deliveryTime}
                 setDeliveryTime={setDeliveryTime}
               />
+              
+              {/* Admin Control Buttons */}
+              <div className="flex flex-col gap-2 mt-4">
+                <div className="flex justify-center">
+                  <Button 
+                    onClick={handleSetDatesOnly}
+                    disabled={isSubmitting || (!pickupDatePicker && !deliveryDatePicker)}
+                    variant="secondary"
+                    className="w-full max-w-md"
+                  >
+                    {isSubmitting ? "Setting Dates..." : "Set Dates & Update Status"}
+                  </Button>
+                </div>
+                
+                <div className="flex justify-center">
+                  <Button 
+                    onClick={handleAddToShipday}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full max-w-md"
+                  >
+                    {isSubmitting ? "Adding to Shipday..." : "Add to Shipday"}
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <Separator className="my-6" />
