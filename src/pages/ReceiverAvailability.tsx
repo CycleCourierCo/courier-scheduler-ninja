@@ -66,13 +66,8 @@ export default function ReceiverAvailability() {
       return new Date();
     },
     isAlreadyConfirmed: (order) => {
-      if (!order) return false;
-      return order.status === 'receiver_availability_confirmed' || 
-             order.status === 'scheduled_dates_pending' ||
-             order.status === 'pending_approval' || // Handle both status values
-             order.status === 'scheduled' ||
-             order.status === 'shipped' ||
-             order.status === 'delivered';
+      // Always allow users to set dates regardless of confirmation status
+      return false;
     }
   });
 
