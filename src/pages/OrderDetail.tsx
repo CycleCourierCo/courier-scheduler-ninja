@@ -343,6 +343,27 @@ const OrderDetail = () => {
     }
   };
 
+  const handleAddToShipday = async () => {
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      const shipdayResponse = await createShipdayOrder(id);
+      
+      if (shipdayResponse) {
+        toast.success("Order added to Shipday successfully");
+      } else {
+        toast.error("Failed to add order to Shipday");
+      }
+    } catch (error) {
+      console.error("Error adding to Shipday:", error);
+      toast.error(`Failed to add to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCreateShipment = async () => {
     if (!id) return;
     
@@ -742,6 +763,18 @@ const OrderDetail = () => {
                 deliveryTime={deliveryTime}
                 setDeliveryTime={setDeliveryTime}
               />
+              
+              {/* Add to Shipday Button */}
+              <div className="flex justify-center mt-4">
+                <Button 
+                  onClick={handleAddToShipday}
+                  disabled={isSubmitting}
+                  variant="outline"
+                  className="w-full max-w-md"
+                >
+                  {isSubmitting ? "Adding to Shipday..." : "Add to Shipday"}
+                </Button>
+              </div>
             </div>
             
             <Separator className="my-6" />
