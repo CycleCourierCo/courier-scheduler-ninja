@@ -349,36 +349,57 @@ const OrderDetail = () => {
       return;
     }
 
+    // Check if dates are already set and prevent changes
+    if (order?.scheduledPickupDate && pickupDatePicker) {
+      toast.error("Collection date is already set and cannot be changed");
+      return;
+    }
+    
+    if (order?.scheduledDeliveryDate && deliveryDatePicker) {
+      toast.error("Delivery date is already set and cannot be changed");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
       let pickupDateTime = undefined;
       let deliveryDateTime = undefined;
       
-      if (pickupDatePicker) {
+      // Only set pickup date if it's not already set
+      if (pickupDatePicker && !order?.scheduledPickupDate) {
         pickupDateTime = new Date(pickupDatePicker);
-        const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
-        pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+        pickupDateTime.setHours(0, 0, 0, 0);
       }
       
-      if (deliveryDatePicker) {
+      // Only set delivery date if it's not already set
+      if (deliveryDatePicker && !order?.scheduledDeliveryDate) {
         deliveryDateTime = new Date(deliveryDatePicker);
-        const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+        deliveryDateTime.setHours(0, 0, 0, 0);
       }
       
-      // Update dates and status without creating Shipday jobs
+      // Prepare update object with only the fields that should be updated
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+      
+      if (pickupDateTime) {
+        updateData.scheduled_pickup_date = pickupDateTime.toISOString();
+      }
+      
+      if (deliveryDateTime) {
+        updateData.scheduled_delivery_date = deliveryDateTime.toISOString();
+      }
+      
+      // Only update status if we're actually setting dates
+      if (pickupDateTime || deliveryDateTime) {
+        updateData.status = 'scheduled';
+        updateData.scheduled_at = new Date().toISOString();
+      }
+      
       const { data, error } = await supabase
         .from('orders')
-        .update({
-          scheduled_pickup_date: pickupDateTime?.toISOString(),
-          scheduled_delivery_date: deliveryDateTime?.toISOString(),
-          pickup_timeslot: pickupTime,
-          delivery_timeslot: deliveryTime,
-          status: 'scheduled',
-          scheduled_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -389,7 +410,7 @@ const OrderDetail = () => {
       setOrder(mappedOrder);
       setSelectedStatus('scheduled');
       
-      toast.success("Dates set and status updated successfully");
+      toast.success("Dates set successfully");
     } catch (error) {
       console.error("Error setting dates:", error);
       toast.error(`Failed to set dates: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -398,22 +419,71 @@ const OrderDetail = () => {
     }
   };
 
-  const handleAddToShipday = async () => {
+  const handleResetPickupDate = () => {
+    // Only allow reset if date is not already set in the order
+    if (order?.scheduledPickupDate) {
+      toast.error("Collection date is already set and cannot be changed");
+      return;
+    }
+    setPickupDatePicker(undefined);
+    setSelectedPickupDate(null);
+    toast.success("Collection date reset");
+  };
+
+  const handleResetDeliveryDate = () => {
+    // Only allow reset if date is not already set in the order
+    if (order?.scheduledDeliveryDate) {
+      toast.error("Delivery date is already set and cannot be changed");
+      return;
+    }
+    setDeliveryDatePicker(undefined);
+    setSelectedDeliveryDate(null);
+    toast.success("Delivery date reset");
+  };
+
+  const handleAddPickupToShipday = async () => {
+    console.log("handleAddPickupToShipday called", { id, isSubmitting });
     if (!id) return;
     
     try {
       setIsSubmitting(true);
+      console.log("About to call createShipdayOrder for pickup");
       
-      const shipdayResponse = await createShipdayOrder(id);
+      const shipdayResponse = await createShipdayOrder(id, 'pickup');
+      console.log("Shipday pickup response:", shipdayResponse);
       
       if (shipdayResponse) {
-        toast.success("Order added to Shipday successfully");
+        toast.success("Collection added to Shipday successfully");
       } else {
-        toast.error("Failed to add order to Shipday");
+        toast.error("Failed to add collection to Shipday");
       }
     } catch (error) {
-      console.error("Error adding to Shipday:", error);
-      toast.error(`Failed to add to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error("Error adding collection to Shipday:", error);
+      toast.error(`Failed to add collection to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddDeliveryToShipday = async () => {
+    console.log("handleAddDeliveryToShipday called", { id, isSubmitting });
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      console.log("About to call createShipdayOrder for delivery");
+      
+      const shipdayResponse = await createShipdayOrder(id, 'delivery');
+      console.log("Shipday delivery response:", shipdayResponse);
+      
+      if (shipdayResponse) {
+        toast.success("Delivery added to Shipday successfully");
+      } else {
+        toast.error("Failed to add delivery to Shipday");
+      }
+    } catch (error) {
+      console.error("Error adding delivery to Shipday:", error);
+      toast.error(`Failed to add delivery to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -824,7 +894,9 @@ const OrderDetail = () => {
                 <div className="flex justify-center">
                   <Button 
                     onClick={handleSetDatesOnly}
-                    disabled={isSubmitting || (!pickupDatePicker && !deliveryDatePicker)}
+                    disabled={isSubmitting || (!pickupDatePicker && !deliveryDatePicker) || 
+                             (pickupDatePicker && !!order?.scheduledPickupDate) ||
+                             (deliveryDatePicker && !!order?.scheduledDeliveryDate)}
                     variant="secondary"
                     className="w-full max-w-md"
                   >
@@ -832,14 +904,43 @@ const OrderDetail = () => {
                   </Button>
                 </div>
                 
-                <div className="flex justify-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    onClick={handleAddToShipday}
+                    onClick={handleResetPickupDate}
+                    disabled={isSubmitting || !pickupDatePicker || !!order?.scheduledPickupDate}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Reset Collection Date
+                  </Button>
+                  <Button 
+                    onClick={handleResetDeliveryDate}
+                    disabled={isSubmitting || !deliveryDatePicker || !!order?.scheduledDeliveryDate}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Reset Delivery Date
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleAddPickupToShipday}
                     disabled={isSubmitting}
                     variant="outline"
-                    className="w-full max-w-md"
+                    className="w-full"
                   >
-                    {isSubmitting ? "Adding to Shipday..." : "Add to Shipday"}
+                    {isSubmitting ? "Adding..." : "Add Collection to Shipday"}
+                  </Button>
+                  <Button 
+                    onClick={handleAddDeliveryToShipday}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Delivery to Shipday"}
                   </Button>
                 </div>
               </div>

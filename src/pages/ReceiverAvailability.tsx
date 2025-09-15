@@ -67,12 +67,9 @@ export default function ReceiverAvailability() {
     },
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
-      return order.status === 'receiver_availability_confirmed' || 
-             order.status === 'scheduled_dates_pending' ||
-             order.status === 'pending_approval' || // Handle both status values
-             order.status === 'scheduled' ||
-             order.status === 'shipped' ||
-             order.status === 'delivered';
+      // Only prevent if user has actually confirmed their own delivery dates
+      return (order.deliveryDate !== undefined && order.deliveryDate !== null && 
+              Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0);
     }
   });
 
