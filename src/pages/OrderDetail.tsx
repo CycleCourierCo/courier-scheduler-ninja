@@ -357,24 +357,22 @@ const OrderDetail = () => {
       
       if (pickupDatePicker) {
         pickupDateTime = new Date(pickupDatePicker);
-        const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
-        pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+        // Don't set hours/minutes - just use the date picker date as-is
+        pickupDateTime.setHours(0, 0, 0, 0);
       }
       
       if (deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
-        const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+        // Don't set hours/minutes - just use the date picker date as-is
+        deliveryDateTime.setHours(0, 0, 0, 0);
       }
       
-      // Update dates and status without creating Shipday jobs
+      // Update dates and status without creating Shipday jobs or setting timeslots
       const { data, error } = await supabase
         .from('orders')
         .update({
           scheduled_pickup_date: pickupDateTime?.toISOString(),
           scheduled_delivery_date: deliveryDateTime?.toISOString(),
-          pickup_timeslot: pickupTime,
-          delivery_timeslot: deliveryTime,
           status: 'scheduled',
           scheduled_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
