@@ -398,22 +398,43 @@ const OrderDetail = () => {
     }
   };
 
-  const handleAddToShipday = async () => {
+  const handleAddPickupToShipday = async () => {
     if (!id) return;
     
     try {
       setIsSubmitting(true);
       
-      const shipdayResponse = await createShipdayOrder(id);
+      const shipdayResponse = await createShipdayOrder(id, 'pickup');
       
       if (shipdayResponse) {
-        toast.success("Order added to Shipday successfully");
+        toast.success("Collection added to Shipday successfully");
       } else {
-        toast.error("Failed to add order to Shipday");
+        toast.error("Failed to add collection to Shipday");
       }
     } catch (error) {
-      console.error("Error adding to Shipday:", error);
-      toast.error(`Failed to add to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error("Error adding collection to Shipday:", error);
+      toast.error(`Failed to add collection to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddDeliveryToShipday = async () => {
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      const shipdayResponse = await createShipdayOrder(id, 'delivery');
+      
+      if (shipdayResponse) {
+        toast.success("Delivery added to Shipday successfully");
+      } else {
+        toast.error("Failed to add delivery to Shipday");
+      }
+    } catch (error) {
+      console.error("Error adding delivery to Shipday:", error);
+      toast.error(`Failed to add delivery to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -832,14 +853,22 @@ const OrderDetail = () => {
                   </Button>
                 </div>
                 
-                <div className="flex justify-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    onClick={handleAddToShipday}
+                    onClick={handleAddPickupToShipday}
                     disabled={isSubmitting}
                     variant="outline"
-                    className="w-full max-w-md"
+                    className="w-full"
                   >
-                    {isSubmitting ? "Adding to Shipday..." : "Add to Shipday"}
+                    {isSubmitting ? "Adding..." : "Add Collection to Shipday"}
+                  </Button>
+                  <Button 
+                    onClick={handleAddDeliveryToShipday}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Delivery to Shipday"}
                   </Button>
                 </div>
               </div>
