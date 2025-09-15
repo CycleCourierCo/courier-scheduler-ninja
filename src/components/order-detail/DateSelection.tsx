@@ -155,7 +155,8 @@ const DateSelection: React.FC<DateSelectionProps> = ({
 
   const showScheduledStyle = !!(scheduledDate || (availableDates && selectedDate));
   
-  const isDateSelectionDisabled = orderStatus === 'scheduled_dates_pending' && showAdminControls;
+  // Only disable normal date selection if we're showing admin override as the primary option
+  const isDateSelectionDisabled = false;
 
   return (
     <div className="space-y-3">
@@ -164,7 +165,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         {title}
       </h3>
       
-      {!isScheduled && availableDates && !isDateSelectionDisabled && (
+      {!isScheduled && availableDates && (
         <div className="space-y-3">
           <div className="space-y-2">
             <label className="text-sm font-medium">Select from available dates:</label>
