@@ -61,8 +61,10 @@ export default function SenderAvailability() {
     updateFunction: updateSenderAvailability,
     getMinDate: () => new Date(), // Allow from current date
     isAlreadyConfirmed: (order) => {
-      // Always allow users to set dates regardless of confirmation status
-      return false;
+      if (!order) return false;
+      // Only prevent if user has actually confirmed their own pickup dates
+      return (order.pickupDate !== undefined && order.pickupDate !== null && 
+              Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
     }
   });
 

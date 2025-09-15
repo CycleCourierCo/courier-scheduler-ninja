@@ -66,8 +66,10 @@ export default function ReceiverAvailability() {
       return new Date();
     },
     isAlreadyConfirmed: (order) => {
-      // Always allow users to set dates regardless of confirmation status
-      return false;
+      if (!order) return false;
+      // Only prevent if user has actually confirmed their own delivery dates
+      return (order.deliveryDate !== undefined && order.deliveryDate !== null && 
+              Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0);
     }
   });
 
