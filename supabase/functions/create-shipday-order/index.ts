@@ -117,12 +117,17 @@ serve(async (req) => {
     let scheduledPickupDate = null;
     let scheduledDeliveryDate = null;
     
+    // Use scheduled dates if available, otherwise default to 24 hours from now
     if (order.scheduled_pickup_date) {
       scheduledPickupDate = new Date(order.scheduled_pickup_date);
+    } else {
+      scheduledPickupDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
     }
     
     if (order.scheduled_delivery_date) {
       scheduledDeliveryDate = new Date(order.scheduled_delivery_date);
+    } else {
+      scheduledDeliveryDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
     }
     
     const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
@@ -196,7 +201,7 @@ serve(async (req) => {
     const createPickup = !jobType || jobType === 'pickup';
     const createDelivery = !jobType || jobType === 'delivery';
     
-    if (createPickup && order.scheduled_pickup_date) {
+    if (createPickup) {
       console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
       
       try {
@@ -233,7 +238,7 @@ serve(async (req) => {
       }
     }
     
-    if (createDelivery && order.scheduled_delivery_date) {
+    if (createDelivery) {
       console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
       
       try {
@@ -270,8 +275,8 @@ serve(async (req) => {
       }
     }
     
-    const pickupFailed = createPickup && order.scheduled_pickup_date && (!pickupResponse || !pickupResponse.ok);
-    const deliveryFailed = createDelivery && order.scheduled_delivery_date && (!deliveryResponse || !deliveryResponse.ok);
+    const pickupFailed = createPickup && (!pickupResponse || !pickupResponse.ok);
+    const deliveryFailed = createDelivery && (!deliveryResponse || !deliveryResponse.ok);
     
     if (pickupFailed || deliveryFailed) {
       return new Response(
