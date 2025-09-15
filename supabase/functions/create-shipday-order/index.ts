@@ -114,15 +114,23 @@ serve(async (req) => {
     
     const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
+    // Use default date (24 hours from now) if no scheduled dates exist
+    const defaultDateTime = new Date();
+    defaultDateTime.setHours(defaultDateTime.getHours() + 24);
+
     let scheduledPickupDate = null;
     let scheduledDeliveryDate = null;
     
     if (order.scheduled_pickup_date) {
       scheduledPickupDate = new Date(order.scheduled_pickup_date);
+    } else {
+      scheduledPickupDate = new Date(defaultDateTime);
     }
     
     if (order.scheduled_delivery_date) {
       scheduledDeliveryDate = new Date(order.scheduled_delivery_date);
+    } else {
+      scheduledDeliveryDate = new Date(defaultDateTime);
     }
     
     const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
@@ -196,7 +204,7 @@ serve(async (req) => {
     const createPickup = !jobType || jobType === 'pickup';
     const createDelivery = !jobType || jobType === 'delivery';
     
-    if (createPickup && order.scheduled_pickup_date) {
+    if (createPickup) {
       console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
       
       try {
@@ -233,7 +241,7 @@ serve(async (req) => {
       }
     }
     
-    if (createDelivery && order.scheduled_delivery_date) {
+    if (createDelivery) {
       console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
       
       try {
@@ -270,8 +278,8 @@ serve(async (req) => {
       }
     }
     
-    const pickupFailed = createPickup && order.scheduled_pickup_date && (!pickupResponse || !pickupResponse.ok);
-    const deliveryFailed = createDelivery && order.scheduled_delivery_date && (!deliveryResponse || !deliveryResponse.ok);
+    const pickupFailed = createPickup && (!pickupResponse || !pickupResponse.ok);
+    const deliveryFailed = createDelivery && (!deliveryResponse || !deliveryResponse.ok);
     
     if (pickupFailed || deliveryFailed) {
       return new Response(
