@@ -89,18 +89,59 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   timeslot
 }) => {
   
-  // Handle date selection
-  const handleDateClick = (date: Date) => {
-    const isoDate = date.toISOString();
-    setSelectedDate(isoDate);
+  // Handle date selection with better date conversion
+  const handleDateClick = (date: Date | any) => {
+    try {
+      let dateObj: Date;
+      
+      // Handle serialized date objects
+      if (date && typeof date === 'object' && date._type === "Date" && date.value?.iso) {
+        dateObj = parseISO(date.value.iso);
+      } else if (date && typeof date === 'object' && date.iso) {
+        dateObj = parseISO(date.iso);
+      } else if (date && typeof date === 'object' && date.value && typeof date.value === 'number') {
+        dateObj = new Date(date.value);
+      } else if (date instanceof Date) {
+        dateObj = date;
+      } else {
+        dateObj = new Date(date);
+      }
+      
+      const isoDate = dateObj.toISOString();
+      setSelectedDate(isoDate);
+    } catch (error) {
+      console.error("Error handling date selection:", error, date);
+    }
   };
 
-  const formatDates = (dates: Date | Date[] | undefined): string => {
+  const formatDates = (dates: Date | Date[] | any | undefined): string => {
     if (!dates) return "No dates available";
     
     const dateArray = Array.isArray(dates) ? dates : [dates];
     
-    return dateArray.map(date => format(date, "PPP")).join(", ");
+    return dateArray.map((date: any) => {
+      try {
+        let dateObj: Date;
+        
+        // Handle serialized date objects
+        if (date && typeof date === 'object' && date._type === "Date" && date.value?.iso) {
+          dateObj = parseISO(date.value.iso);
+        } else if (date && typeof date === 'object' && date.iso) {
+          dateObj = parseISO(date.iso);
+        } else if (date && typeof date === 'object' && date.value && typeof date.value === 'number') {
+          dateObj = new Date(date.value);
+        } else if (date instanceof Date) {
+          dateObj = date;
+        } else {
+          dateObj = new Date(date);
+        }
+        
+        return format(dateObj, "PPP");
+      } catch (error) {
+        console.error("Error formatting date:", error, date);
+        return "Invalid date";
+      }
+    }).join(", ");
   };
 
   // Format timeslot as 3-hour window
@@ -132,11 +173,43 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                 <SelectValue placeholder="Choose a date" />
               </SelectTrigger>
               <SelectContent>
-                {(Array.isArray(availableDates) ? availableDates : [availableDates]).map((date, index) => (
-                  <SelectItem key={index} value={date.toISOString()}>
-                    {format(date, "PPP")}
-                  </SelectItem>
-                ))}
+                {(Array.isArray(availableDates) ? availableDates : [availableDates]).map((date: any, index) => {
+                  try {
+                    let dateObj: Date;
+                    let isoValue: string;
+                    
+                    // Handle serialized date objects
+                    if (date && typeof date === 'object' && date._type === "Date" && date.value?.iso) {
+                      dateObj = parseISO(date.value.iso);
+                      isoValue = date.value.iso;
+                    } else if (date && typeof date === 'object' && date.iso) {
+                      dateObj = parseISO(date.iso);
+                      isoValue = date.iso;
+                    } else if (date && typeof date === 'object' && date.value && typeof date.value === 'number') {
+                      dateObj = new Date(date.value);
+                      isoValue = dateObj.toISOString();
+                    } else if (date instanceof Date) {
+                      dateObj = date;
+                      isoValue = date.toISOString();
+                    } else {
+                      dateObj = new Date(date);
+                      isoValue = dateObj.toISOString();
+                    }
+                    
+                    return (
+                      <SelectItem key={index} value={isoValue}>
+                        {format(dateObj, "PPP")}
+                      </SelectItem>
+                    );
+                  } catch (error) {
+                    console.error("Error processing date in select:", error, date);
+                    return (
+                      <SelectItem key={index} value={`error-${index}`}>
+                        Invalid date
+                      </SelectItem>
+                    );
+                  }
+                })}
               </SelectContent>
             </Select>
           </div>

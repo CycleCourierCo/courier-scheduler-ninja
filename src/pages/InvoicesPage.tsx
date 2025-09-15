@@ -101,10 +101,10 @@ export default function InvoicesPage() {
       }
 
       // Apply date filters
-      if (historyStartDate) {
+      if (historyStartDate && historyStartDate instanceof Date && !isNaN(historyStartDate.getTime())) {
         query = query.gte('created_at', historyStartDate.toISOString());
       }
-      if (historyEndDate) {
+      if (historyEndDate && historyEndDate instanceof Date && !isNaN(historyEndDate.getTime())) {
         const endOfDay = new Date(historyEndDate);
         endOfDay.setHours(23, 59, 59, 999);
         query = query.lte('created_at', endOfDay.toISOString());

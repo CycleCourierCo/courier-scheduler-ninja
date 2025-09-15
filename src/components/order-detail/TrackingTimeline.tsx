@@ -11,16 +11,44 @@ interface TrackingTimelineProps {
 }
 
 // Helper function to safely format dates
-const formatDate = (dateInput: Date | string | undefined): string => {
+const formatDate = (dateInput: Date | string | any): string => {
   try {
     if (!dateInput) return "Date unknown";
     
+    let date: Date;
+    
+    // Handle serialized date objects from console logs (React Query/serialization)
+    if (dateInput && typeof dateInput === 'object' && dateInput._type === "Date" && dateInput.value?.iso) {
+      console.log("Found serialized date object, using ISO string:", dateInput.value.iso);
+      date = parseISO(dateInput.value.iso);
+    }
+    // Handle regular objects that might have an iso property
+    else if (dateInput && typeof dateInput === 'object' && dateInput.iso) {
+      console.log("Found object with iso property:", dateInput.iso);
+      date = parseISO(dateInput.iso);
+    }
+    // Handle regular objects that might have a value property with timestamp
+    else if (dateInput && typeof dateInput === 'object' && dateInput.value && typeof dateInput.value === 'number') {
+      console.log("Found object with timestamp value:", dateInput.value);
+      date = new Date(dateInput.value);
+    }
     // If it's a string, parse it first
-    const date = typeof dateInput === 'string' ? parseISO(dateInput) : dateInput;
+    else if (typeof dateInput === 'string') {
+      date = parseISO(dateInput);
+    }
+    // If it's already a Date object
+    else if (dateInput instanceof Date) {
+      date = dateInput;
+    }
+    // Try to convert to Date as fallback
+    else {
+      console.log("Attempting fallback date conversion for:", dateInput);
+      date = new Date(dateInput);
+    }
     
     // Make sure the date is valid before formatting
     if (!isValid(date)) {
-      console.warn("Invalid date encountered:", dateInput);
+      console.warn("Invalid date encountered after processing:", dateInput, "processed to:", date);
       return "Invalid date";
     }
     
