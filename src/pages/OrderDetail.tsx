@@ -796,16 +796,14 @@ const OrderDetail = () => {
                 {itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : ''}
               </div>
               <div className="flex items-center space-x-2">
-                {order.scheduledPickupDate && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => generateSingleOrderLabel(order)}
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print Label
-                  </Button>
-                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => generateSingleOrderLabel(order)}
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Label
+                </Button>
                 <EmailResendButtons 
                   needsSenderConfirmation={needsSenderConfirmation}
                   needsReceiverConfirmation={needsReceiverConfirmation}

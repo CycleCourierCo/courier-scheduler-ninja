@@ -261,62 +261,60 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       {showActionButtons && (
         <div className="flex justify-end space-x-2">
           {isAdmin && (
-            <>
-              <Button asChild variant="outline">
-                <Link to="/scheduling">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Job Scheduling
-                </Link>
-              </Button>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print Collection Labels
-                  </Button>
-                </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Select Date for Collection Labels</DialogTitle>
-                    </DialogHeader>
-                  <div className="space-y-4">
-                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !selectedDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={(date) => {
-                            setSelectedDate(date);
-                            setIsDatePickerOpen(false);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <Button
-                      onClick={handlePrintLabels}
-                      disabled={!selectedDate || isGeneratingPDF}
-                      className="w-full"
-                    >
-                      {isGeneratingPDF ? "Generating..." : "Generate Collection Labels"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </>
+            <Button asChild variant="outline">
+              <Link to="/scheduling">
+                <Calendar className="mr-2 h-4 w-4" />
+                Job Scheduling
+              </Link>
+            </Button>
           )}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Printer className="mr-2 h-4 w-4" />
+                Print Collection Labels
+              </Button>
+            </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Select Date for Collection Labels</DialogTitle>
+                </DialogHeader>
+              <div className="space-y-4">
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        setIsDatePickerOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  onClick={handlePrintLabels}
+                  disabled={!selectedDate || isGeneratingPDF}
+                  className="w-full"
+                >
+                  {isGeneratingPDF ? "Generating..." : "Generate Collection Labels"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button asChild>
             <Link to="/create-order">
               <Plus className="mr-2 h-4 w-4" />
