@@ -69,8 +69,6 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
   const onSubmit = async (data: RegisterFormValues) => {
     try {
       setLocalLoading(true);
-      console.log("Starting registration process", data);
-      console.log("Is business account:", data.is_business);
       
       const metadata = {
         name: data.name,
@@ -84,14 +82,13 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
         postal_code: data.address.postal_code
       };
 
-      console.log("User metadata:", metadata);
+      
       
       await signUp(data.email, data.password, data.name, metadata);
       
       onSuccessfulRegistration(data.is_business);
       form.reset();
     } catch (error: any) {
-      console.error("Registration error:", error);
       toast.error(error.message || "Failed to register. Please try again.");
     } finally {
       setLocalLoading(false);

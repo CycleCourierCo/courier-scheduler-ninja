@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { toast } from "sonner";
@@ -28,6 +28,8 @@ const Dashboard: React.FC = () => {
     sortBy: "created_desc"
   });
   const { user } = useAuth();
+  const ordersRef = useRef<Order[]>([]);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -43,7 +45,6 @@ const Dashboard: React.FC = () => {
         if (error) throw error;
         setUserRole(data?.role || null);
       } catch (error) {
-        console.error("Error fetching user role:", error);
         toast.error("Failed to fetch user role");
       }
     };
@@ -51,36 +52,41 @@ const Dashboard: React.FC = () => {
     fetchUserRole();
   }, [user]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     if (!user) return;
+    
+    
     
     try {
       setLoading(true);
       const data = await getOrders();
       
+      let newOrders: Order[];
       // Only show all orders if the user is specifically an "admin"
       if (userRole === "admin") {
-        console.log("User is admin, showing all orders");
-        setOrders(data);
+        newOrders = data;
       } else {
-        console.log("User is not admin, filtering orders for user ID:", user.id);
         const filteredOrders = data.filter(order => order.user_id === user.id);
-        console.log("Filtered orders:", filteredOrders.length);
-        setOrders(filteredOrders);
+        newOrders = filteredOrders;
       }
+      
+      
+      ordersRef.current = newOrders;
+      setOrders(newOrders);
+      isInitialLoad.current = false;
     } catch (error) {
-      console.error("Error fetching orders:", error);
       toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // NO DEPENDENCIES - only recreated if component unmounts/mounts
 
+  // Fetch orders ONLY when userRole is determined for the first time
   useEffect(() => {
-    if (userRole !== null) {
+    if (userRole !== null && isInitialLoad.current) {
       fetchOrders();
     }
-  }, [user, userRole]);
+  }, [userRole]); // Only depend on userRole changing from null to a value
 
   // Apply filters when orders or filters change
   useEffect(() => {
@@ -99,12 +105,15 @@ const Dashboard: React.FC = () => {
     setCurrentPage(1);
   }, [filters]);
 
-  // Calculate pagination
+  // Calculate pagination with stable reference
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return filteredOrders.slice(startIndex, endIndex);
   }, [filteredOrders, currentPage, itemsPerPage]);
+
+  // Memoize userRole to prevent unnecessary re-renders
+  const stableUserRole = useMemo(() => userRole, [userRole]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage + 1;
@@ -160,7 +169,7 @@ const Dashboard: React.FC = () => {
           />
         ) : (
           <div className="space-y-4">
-            <OrderTable orders={paginatedOrders} userRole={userRole} />
+            <OrderTable orders={paginatedOrders} userRole={stableUserRole} />
             
             {/* Pagination Controls */}
             <div className="flex items-center justify-between border-t pt-4">
@@ -210,7 +219,7 @@ const Dashboard: React.FC = () => {
                       const showEllipsis = prevPage && page - prevPage > 1;
                       
                       return (
-                        <React.Fragment key={page}>
+                        <div key={page} className="flex items-center">
                           {showEllipsis && (
                             <span className="px-2 text-muted-foreground">...</span>
                           )}
@@ -222,7 +231,7 @@ const Dashboard: React.FC = () => {
                           >
                             {page}
                           </Button>
-                        </React.Fragment>
+                        </div>
                       );
                     })
                   }

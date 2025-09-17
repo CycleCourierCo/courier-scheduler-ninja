@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Eye, RefreshCcw, Bike, GripVertical, Calendar } from "lucide-react";
@@ -63,7 +63,7 @@ const DEFAULT_COLUMN_WIDTHS = {
   actions: 12,
 };
 
-const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
+const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
@@ -113,7 +113,7 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
     fetchUserPreferences();
   }, [user]);
 
-  // Fetch creator names for all orders
+  // Fetch creator names for all orders - memoized to avoid unnecessary API calls
   useEffect(() => {
     const fetchCreatorNames = async () => {
       // Get unique user IDs from all orders
@@ -121,27 +121,38 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
       
       if (userIds.length === 0) return;
       
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .in('id', userIds);
+      // Check if we already have all the names we need
+      setCreatorNames(current => {
+        const missingUserIds = userIds.filter(id => !current[id]);
+        if (missingUserIds.length === 0) return current;
         
-        if (error) {
-          console.error("Error fetching creator names:", error);
-          return;
-        }
+        // Fetch missing user names asynchronously
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('id, name, email')
+              .in('id', missingUserIds);
+            
+            if (error) {
+              console.error("Error fetching creator names:", error);
+              return;
+            }
+            
+            // Create a mapping of user ID to name, preserving existing names
+            const nameMap: Record<string, string> = { ...current };
+            data.forEach(profile => {
+              nameMap[profile.id] = profile.name || profile.email || 'Unknown user';
+            });
+            
+            setCreatorNames(nameMap);
+          } catch (error) {
+            console.error("Error fetching creator names:", error);
+          }
+        })();
         
-        // Create a mapping of user ID to name
-        const nameMap: Record<string, string> = {};
-        data.forEach(profile => {
-          nameMap[profile.id] = profile.name || profile.email || 'Unknown user';
-        });
-        
-        setCreatorNames(nameMap);
-      } catch (error) {
-        console.error("Error fetching creator names:", error);
-      }
+        return current;
+      });
     };
     
     fetchCreatorNames();
@@ -348,6 +359,12 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
                           to={`/orders/${order.id}`} 
                           className="hover:underline text-courier-600"
                           onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => {
+                            // Prevent any potential side effects when opening in new tab
+                            if (e.button === 1 || e.ctrlKey || e.metaKey) {
+                              e.stopPropagation();
+                            }
+                          }}
                         >
                           {order.trackingNumber || `${order.id.substring(0, 8)}...`}
                         </Link>
@@ -453,6 +470,6 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
       </div>
     </div>
   );
-};
+});
 
 export default OrderTable;

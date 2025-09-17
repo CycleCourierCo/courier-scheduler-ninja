@@ -6,7 +6,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     throw new Error("Cannot map null or undefined database order");
   }
 
-  console.log("Mapping DB order to Order type. Raw tracking events:", dbOrder.tracking_events);
+  
   
   // Convert date strings to Date objects where applicable with validation
   const parseDate = (dateValue: any): Date => {
@@ -73,7 +73,6 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     result.scheduledAt = parseDate(dbOrder.scheduled_at);
   }
 
-  console.log("Mapped order tracking events:", result.trackingEvents);
   return result;
 };
 

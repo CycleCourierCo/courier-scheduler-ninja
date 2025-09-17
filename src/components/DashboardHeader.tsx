@@ -62,7 +62,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
       setIsDialogOpen(false);
     } catch (error) {
-      console.error("Error generating labels:", error);
       toast.error("Failed to generate labels");
     } finally {
       setIsGeneratingPDF(false);
@@ -212,14 +211,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             const taglineX = (labelWidth - taglineWidth) / 2;
             pdf.text(taglineText, taglineX, currentY);
           } catch (error) {
-            console.log('Could not load logo:', error);
+            // Logo loading failed - continue without it
           }
         }
       });
 
       pdf.save(`collection-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
     } catch (error) {
-      console.error("PDF generation error:", error);
       throw new Error(`PDF generation failed: ${error.message || 'Unknown error'}`);
     }
   };

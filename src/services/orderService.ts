@@ -22,13 +22,11 @@ export const getOrder = async (id: string): Promise<Order | null> => {
       .single();
 
     if (error) {
-      console.error("Error fetching order:", error);
       return null;
     }
 
     return mapDbOrderToOrderType(data);
   } catch (error) {
-    console.error("Unexpected error fetching order:", error);
     return null;
   }
 };
@@ -44,13 +42,11 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       .single();
 
     if (error) {
-      console.error("Error fetching public order:", error);
       return null;
     }
 
     return mapDbOrderToOrderType(data);
   } catch (error) {
-    console.error("Unexpected error fetching public order:", error);
     return null;
   }
 };
@@ -62,13 +58,11 @@ export const getOrders = async (): Promise<Order[]> => {
       .select("*");
 
     if (error) {
-      console.error("Error fetching orders:", error);
       return [];
     }
 
     return data.map(mapDbOrderToOrderType);
   } catch (error) {
-    console.error("Unexpected error fetching orders:", error);
     return [];
   }
 };
@@ -83,13 +77,11 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
       .single();
 
     if (error) {
-      console.error("Error updating order status:", error);
       return null;
     }
 
     return mapDbOrderToOrderType(data);
   } catch (error) {
-    console.error("Unexpected error updating order status:", error);
     return null;
   }
 };
@@ -145,7 +137,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         }
       }
     } catch (userErr) {
-      console.warn("Unable to fetch user profile name:", userErr);
+      // Silently handle profile fetch errors
     }
     if (!userName) userName = userEmail || "Customer";
 
@@ -204,7 +196,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       .single();
     
     if (error) {
-      console.error("Error creating order:", error);
       throw error;
     }
 
@@ -264,51 +255,32 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           .select()
           .single();
         
-        if (reverseError) {
-          console.error("Error creating reverse order for part exchange:", reverseError);
-        } else {
-          console.log("Reverse order created successfully for part exchange:", reverseOrder.id);
+        if (!reverseError) {
           const reverseOrderWithJobs = mapDbOrderToOrderType(reverseOrder);
           await createJobsForOrder(reverseOrderWithJobs);
         }
       } catch (reverseOrderError) {
-        console.error("Failed to create reverse order for part exchange:", reverseOrderError);
         // Don't throw here - we don't want to fail the main order creation
       }
     }
     
     const sendEmails = async () => {
       try {
-        console.log("===== STARTING EMAIL SENDING PROCESS (TO USER) =====");
-        console.log(`Order ID: ${order.id}`);
-        console.log(`User email: ${userEmail}`);
-        console.log(`Sender email: ${data.sender.email}`);
-        console.log(`Receiver email: ${data.receiver.email}`);
-        
         // 1. Confirmation email to user (not sender)
-        console.log("STEP 1: Sending confirmation email to user...");
         const userEmailResult = await sendOrderCreationConfirmationToUser(order.id, userEmail!, userName!);
-        console.log(`User confirmation email sent successfully: ${userEmailResult}`);
         
         // 2. Sender availability email as before
-        console.log("STEP 2: Sending availability email to sender...");
         const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
-        console.log(`Sender availability email sent successfully: ${senderAvailabilityResult}`);
         
         // 3. Receiver notification email as before
-        console.log("STEP 3: Sending notification email to receiver...");
         const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
-        console.log(`Receiver email sent successfully: ${receiverEmailResult}`);
         
-        console.log("===== EMAIL SENDING PROCESS COMPLETED =====");
         return { 
           userConfirmation: userEmailResult, 
           senderAvailability: senderAvailabilityResult,
           receiver: receiverEmailResult 
         };
       } catch (emailError) {
-        console.error("===== EMAIL SENDING PROCESS FAILED =====");
-        console.error("Error details:", emailError);
         return { 
           userConfirmation: false, 
           senderAvailability: false,
@@ -318,16 +290,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       }
     };
     
-    console.log("Starting email sending process in background");
-    sendEmails().then(results => {
-      console.log("Background email sending results:", results);
-    }).catch(err => {
-      console.error("Unexpected error in background email sending:", err);
+    sendEmails().catch(() => {
+      // Handle errors silently in background
     });
     
     return mapDbOrderToOrderType(order);
   } catch (error) {
-    console.error("Error creating order:", error);
     throw error;
   }
 };
@@ -368,13 +336,11 @@ export const updateOrderSchedule = async (
       .single();
 
     if (error) {
-      console.error("Error scheduling order:", error);
       return null;
     }
 
     return mapDbOrderToOrderType(data);
   } catch (error) {
-    console.error("Unexpected error scheduling order:", error);
     return null;
   }
 };
@@ -401,7 +367,7 @@ export const pollOrderUpdates = (
         callback(updatedOrder);
       }
     } catch (error) {
-      console.error("Error polling for order updates:", error);
+      // Silently handle polling errors
     }
   }, interval);
 
