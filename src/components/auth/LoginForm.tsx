@@ -45,7 +45,6 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       setLocalLoading(true);
       await signIn(data.email, data.password);
     } catch (error) {
-      console.error("Login error:", error);
       setLocalLoading(false);
     }
   };

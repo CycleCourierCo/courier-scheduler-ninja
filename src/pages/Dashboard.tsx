@@ -45,7 +45,6 @@ const Dashboard: React.FC = () => {
         if (error) throw error;
         setUserRole(data?.role || null);
       } catch (error) {
-        console.error("Error fetching user role:", error);
         toast.error("Failed to fetch user role");
       }
     };
@@ -56,7 +55,7 @@ const Dashboard: React.FC = () => {
   const fetchOrders = useCallback(async () => {
     if (!user) return;
     
-    console.log("fetchOrders called ONCE on mount");
+    
     
     try {
       setLoading(true);
@@ -71,12 +70,11 @@ const Dashboard: React.FC = () => {
         newOrders = filteredOrders;
       }
       
-      console.log("Setting orders state ONCE");
+      
       ordersRef.current = newOrders;
       setOrders(newOrders);
       isInitialLoad.current = false;
     } catch (error) {
-      console.error("Error fetching orders:", error);
       toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);

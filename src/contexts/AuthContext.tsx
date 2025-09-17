@@ -30,9 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if URL has reset password token
   const checkForPasswordResetToken = () => {
-    console.log("Checking for password reset token...");
-    console.log("Current URL hash:", window.location.hash);
-    console.log("Current URL search:", window.location.search);
     
     // Check all possible token locations
     const hasToken = 
@@ -45,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (window.location.pathname.includes('/reset'));
       
     if (hasToken) {
-      console.log("Password reset token detected");
       setIsPasswordReset(true);
       return true;
     }
@@ -55,7 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      console.log("Fetching user profile for ID:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -63,15 +58,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (error) {
-        console.error("Error fetching user profile:", error);
         throw error;
       }
       
-      console.log("Fetched user profile:", data);
       setUserProfile(data);
       return data;
     } catch (error) {
-      console.error("Error fetching user profile:", error);
       return null;
     }
   };
@@ -95,7 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           window.location.pathname.includes('/auth') && window.location.search.includes('action=resetPassword');
           
         if (hasResetToken || isOnResetPage) {
-          console.log("Password reset flow detected");
           setIsPasswordReset(true);
           setIsLoading(false);
           return;
@@ -104,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
-        console.log("Retrieved session:", session ? "exists" : "null");
+        
         setSession(session);
         setUser(session?.user || null);
 
@@ -112,7 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await fetchUserProfile(session.user.id);
         }
       } catch (error) {
-        console.error("Error loading user:", error);
         toast.error("Error loading user session");
       } finally {
         setIsLoading(false);
@@ -122,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setData();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state changed, session:", session ? "exists" : "null");
       
       // Only update state if session actually changed
       if (session?.user?.id !== user?.id) {
@@ -133,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Only fetch profile if we don't have one or user changed
           if (!userProfile || userProfile.id !== session.user.id) {
             fetchUserProfile(session.user.id)
-              .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
+              .catch(() => {})
               .finally(() => setIsLoading(false));
           } else {
             setIsLoading(false);
@@ -178,7 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigate("/dashboard");
       }
     } catch (error: any) {
-      console.error("Error signing in:", error);
       toast.error(error.message || "Error signing in");
       throw error;
     } finally {
@@ -192,7 +180,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isBusinessAccount = metadata.is_business === 'true';
       
       if (isBusinessAccount) {
-        console.log("Creating business account via Edge Function");
         
         // Use our Edge Function to create the business user
         try {
@@ -207,31 +194,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           });
           
-          console.log("Edge function response:", response);
-          
           if (response.error) {
-            console.error("Edge function error:", response.error);
             throw new Error(response.error.message || "Failed to create business account");
           }
           
           if (!response.data) {
-            console.error("No data returned from edge function");
             throw new Error("Failed to create business account - no data returned");
           }
-          
-          console.log("Business account created without automatic login");
           
           // Send confirmation email that account is pending approval
           try {
             await sendBusinessAccountCreationEmail(email, name);
           } catch (emailError) {
-            console.error("Failed to send confirmation email:", emailError);
             // Don't throw here, as the account was created successfully
           }
           
           return { data: response.data, isBusinessAccount: true };
         } catch (err: any) {
-          console.error("Failed to create business user:", err);
           toast.error(err.message || "Failed to create business account");
           throw err;
         }
@@ -253,7 +232,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return data;
       }
     } catch (error: any) {
-      console.error("Error signing up:", error);
       toast.error(error.message || "Error signing up");
       throw error;
     } finally {
@@ -270,7 +248,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       navigate("/auth");
       toast.success("Signed out successfully");
     } catch (error: any) {
-      console.error("Error signing out:", error);
       toast.error(error.message || "Error signing out");
     } finally {
       setIsLoading(false);

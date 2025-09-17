@@ -63,11 +63,9 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       if (data && data.features && Array.isArray(data.features)) {
         setSuggestions(data.features);
       } else {
-        console.warn("Geoapify API response doesn't contain the expected features array:", data);
         setSuggestions([]);
       }
     } catch (error) {
-      console.error("Error fetching address suggestions:", error);
       setSuggestions([]);
     } finally {
       setLoading(false);
@@ -93,8 +91,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       ? `${houseNumber} ${street}`.trim() 
       : street.trim();
     
-    // Log the full suggestion to see what we're working with
-    console.log("Selected address suggestion:", suggestion.properties);
     
     // Set basic address fields
     setValue(`${prefix}.street`, fullStreetAddress);
@@ -109,12 +105,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       setValue(`${prefix}.lat`, suggestion.properties.lat);
       setValue(`${prefix}.lon`, suggestion.properties.lon);
       
-      console.log(`Stored coordinates for ${prefix}:`, {
-        lat: suggestion.properties.lat,
-        lon: suggestion.properties.lon
-      });
     } else {
-      console.warn("No coordinates found in the address suggestion");
       // Reset coordinates if none available
       setValue(`${prefix}.lat`, undefined);
       setValue(`${prefix}.lon`, undefined);
