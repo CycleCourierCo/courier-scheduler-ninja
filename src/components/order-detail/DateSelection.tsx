@@ -214,20 +214,6 @@ const DateSelection: React.FC<DateSelectionProps> = ({
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-2">
-            <label htmlFor="time" className="text-sm font-medium">
-              Select time:
-            </label>
-            <Input
-              id="time"
-              type="time"
-              value={timeValue}
-              onChange={(e) => setTimeValue(e.target.value)}
-              disabled={isDateSelectionDisabled}
-              className="w-full"
-            />
-          </div>
         </div>
       )}
       
@@ -265,17 +251,6 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                 />
               </PopoverContent>
             </Popover>
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium">Select time:</label>
-            <Input
-              type="time"
-              value={timeValue}
-              onChange={(e) => setTimeValue(e.target.value)}
-              disabled={isSubmitting}
-              className="w-full"
-            />
           </div>
         </div>
       )}

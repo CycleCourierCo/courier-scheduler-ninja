@@ -355,19 +355,23 @@ const OrderDetail = () => {
       // Check for pickup date from either dropdown selection or date picker
       if (selectedPickupDate) {
         pickupDateTime = new Date(selectedPickupDate);
-        pickupDateTime.setHours(parseInt(pickupTime.split(':')[0]), parseInt(pickupTime.split(':')[1]), 0, 0);
+        // Only set time to midnight for date-only updates
+        pickupDateTime.setHours(0, 0, 0, 0);
       } else if (pickupDatePicker) {
         pickupDateTime = new Date(pickupDatePicker);
-        pickupDateTime.setHours(parseInt(pickupTime.split(':')[0]), parseInt(pickupTime.split(':')[1]), 0, 0);
+        // Only set time to midnight for date-only updates
+        pickupDateTime.setHours(0, 0, 0, 0);
       }
       
       // Check for delivery date from either dropdown selection or date picker
       if (selectedDeliveryDate) {
         deliveryDateTime = new Date(selectedDeliveryDate);
-        deliveryDateTime.setHours(parseInt(deliveryTime.split(':')[0]), parseInt(deliveryTime.split(':')[1]), 0, 0);
+        // Only set time to midnight for date-only updates
+        deliveryDateTime.setHours(0, 0, 0, 0);
       } else if (deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
-        deliveryDateTime.setHours(parseInt(deliveryTime.split(':')[0]), parseInt(deliveryTime.split(':')[1]), 0, 0);
+        // Only set time to midnight for date-only updates
+        deliveryDateTime.setHours(0, 0, 0, 0);
       }
 
       if (!pickupDateTime && !deliveryDateTime) {
@@ -382,12 +386,18 @@ const OrderDetail = () => {
       
       if (pickupDateTime) {
         updateData.scheduled_pickup_date = pickupDateTime.toISOString();
-        updateData.pickup_timeslot = pickupTime;
+        // Only update timeslot if one doesn't exist
+        if (!order?.pickupTimeslot) {
+          updateData.pickup_timeslot = null;
+        }
       }
       
       if (deliveryDateTime) {
         updateData.scheduled_delivery_date = deliveryDateTime.toISOString();
-        updateData.delivery_timeslot = deliveryTime;
+        // Only update timeslot if one doesn't exist
+        if (!order?.deliveryTimeslot) {
+          updateData.delivery_timeslot = null;
+        }
       }
       
       const { data, error } = await supabase
