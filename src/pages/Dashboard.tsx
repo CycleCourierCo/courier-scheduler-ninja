@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // NO DEPENDENCIES - only recreated if component unmounts/mounts
+  }, [user, userRole]); // Add userRole dependency to get latest value
 
   // Fetch orders ONLY when userRole is determined for the first time
   useEffect(() => {
