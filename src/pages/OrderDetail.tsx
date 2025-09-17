@@ -895,7 +895,6 @@ const OrderDetail = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
                     onClick={handleResetPickupDate}
-                    disabled={isSubmitting}
                     variant="destructive"
                     size="sm"
                     className="w-full"
@@ -904,7 +903,6 @@ const OrderDetail = () => {
                   </Button>
                   <Button 
                     onClick={handleResetDeliveryDate}
-                    disabled={isSubmitting}
                     variant="destructive"
                     size="sm"
                     className="w-full"
