@@ -419,16 +419,78 @@ const OrderDetail = () => {
     }
   };
 
-  const handleResetPickupDate = () => {
-    setPickupDatePicker(undefined);
-    setSelectedPickupDate(null);
-    toast.success("Collection date reset");
+  const handleResetPickupDate = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          scheduled_pickup_date: null,
+          pickup_timeslot: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setPickupDatePicker(undefined);
+      setSelectedPickupDate(null);
+      setPickupTime("09:00");
+      
+      // Refresh order data
+      if (id) {
+        const updatedOrder = await getOrderById(id);
+        if (updatedOrder) {
+          setOrder(updatedOrder);
+        }
+      }
+      
+      toast.success("Collection date and timeslot reset");
+    } catch (error) {
+      console.error("Error resetting pickup date:", error);
+      toast.error("Failed to reset collection date");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleResetDeliveryDate = () => {
-    setDeliveryDatePicker(undefined);
-    setSelectedDeliveryDate(null);
-    toast.success("Delivery date reset");
+  const handleResetDeliveryDate = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          scheduled_delivery_date: null,
+          delivery_timeslot: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setDeliveryDatePicker(undefined);
+      setSelectedDeliveryDate(null);
+      setDeliveryTime("09:00");
+      
+      // Refresh order data
+      if (id) {
+        const updatedOrder = await getOrderById(id);
+        if (updatedOrder) {
+          setOrder(updatedOrder);
+        }
+      }
+      
+      toast.success("Delivery date and timeslot reset");
+    } catch (error) {
+      console.error("Error resetting delivery date:", error);
+      toast.error("Failed to reset delivery date");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAddPickupToShipday = async () => {
