@@ -268,13 +268,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </Link>
             </Button>
           )}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Printer className="mr-2 h-4 w-4" />
-                Print Collection Labels
-              </Button>
-            </DialogTrigger>
+          {isAdmin && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Collection Labels
+                </Button>
+              </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Select Date for Collection Labels</DialogTitle>
@@ -313,8 +314,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   {isGeneratingPDF ? "Generating..." : "Generate Collection Labels"}
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
           <Button asChild>
             <Link to="/create-order">
               <Plus className="mr-2 h-4 w-4" />
