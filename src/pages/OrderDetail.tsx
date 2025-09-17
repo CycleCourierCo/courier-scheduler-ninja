@@ -344,10 +344,7 @@ const OrderDetail = () => {
   };
 
   const handleSetDatesOnly = async () => {
-    if (!id || (!pickupDatePicker && !deliveryDatePicker)) {
-      toast.error("Please select at least one date");
-      return;
-    }
+    if (!id) return;
 
     try {
       setIsSubmitting(true);
@@ -355,19 +352,30 @@ const OrderDetail = () => {
       let pickupDateTime = undefined;
       let deliveryDateTime = undefined;
       
-      // Set pickup date if selected
-      if (pickupDatePicker) {
+      // Check for pickup date from either dropdown selection or date picker
+      if (selectedPickupDate) {
+        pickupDateTime = new Date(selectedPickupDate);
+        pickupDateTime.setHours(parseInt(pickupTime.split(':')[0]), parseInt(pickupTime.split(':')[1]), 0, 0);
+      } else if (pickupDatePicker) {
         pickupDateTime = new Date(pickupDatePicker);
         pickupDateTime.setHours(parseInt(pickupTime.split(':')[0]), parseInt(pickupTime.split(':')[1]), 0, 0);
       }
       
-      // Set delivery date if selected
-      if (deliveryDatePicker) {
+      // Check for delivery date from either dropdown selection or date picker
+      if (selectedDeliveryDate) {
+        deliveryDateTime = new Date(selectedDeliveryDate);
+        deliveryDateTime.setHours(parseInt(deliveryTime.split(':')[0]), parseInt(deliveryTime.split(':')[1]), 0, 0);
+      } else if (deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
         deliveryDateTime.setHours(parseInt(deliveryTime.split(':')[0]), parseInt(deliveryTime.split(':')[1]), 0, 0);
       }
+
+      if (!pickupDateTime && !deliveryDateTime) {
+        toast.error("Please select at least one date");
+        return;
+      }
       
-      // Prepare update object
+      // Prepare update object - ONLY update dates, no status changes
       const updateData: any = {
         updated_at: new Date().toISOString()
       };
@@ -382,12 +390,6 @@ const OrderDetail = () => {
         updateData.delivery_timeslot = deliveryTime;
       }
       
-      // Update status to scheduled if we're setting dates
-      if (pickupDateTime || deliveryDateTime) {
-        updateData.status = 'scheduled';
-        updateData.scheduled_at = new Date().toISOString();
-      }
-      
       const { data, error } = await supabase
         .from('orders')
         .update(updateData)
@@ -399,9 +401,8 @@ const OrderDetail = () => {
       
       const mappedOrder = mapDbOrderToOrderType(data);
       setOrder(mappedOrder);
-      setSelectedStatus('scheduled');
       
-      toast.success("Dates set successfully");
+      toast.success("Dates updated successfully");
     } catch (error) {
       console.error("Error setting dates:", error);
       toast.error(`Failed to set dates: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -934,7 +935,7 @@ const OrderDetail = () => {
                     variant="secondary"
                     className="w-full max-w-md"
                   >
-                    {isSubmitting ? "Setting Dates..." : "Set Dates & Update Status"}
+                    {isSubmitting ? "Setting Dates..." : "Set Dates"}
                   </Button>
                 </div>
                 
