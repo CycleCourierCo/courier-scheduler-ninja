@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Eye, RefreshCcw, Bike, GripVertical, Calendar } from "lucide-react";
@@ -63,7 +63,7 @@ const DEFAULT_COLUMN_WIDTHS = {
   actions: 12,
 };
 
-const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
+const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
@@ -453,6 +453,6 @@ const OrderTable: React.FC<OrderTableProps> = ({ orders, userRole }) => {
       </div>
     </div>
   );
-};
+});
 
 export default OrderTable;

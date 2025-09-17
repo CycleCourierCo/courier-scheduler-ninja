@@ -110,12 +110,15 @@ const Dashboard: React.FC = () => {
     setCurrentPage(1);
   }, [filters]);
 
-  // Calculate pagination
+  // Calculate pagination with stable reference
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return filteredOrders.slice(startIndex, endIndex);
   }, [filteredOrders, currentPage, itemsPerPage]);
+
+  // Memoize userRole to prevent unnecessary re-renders
+  const stableUserRole = useMemo(() => userRole, [userRole]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage + 1;
@@ -171,7 +174,7 @@ const Dashboard: React.FC = () => {
           />
         ) : (
           <div className="space-y-4">
-            <OrderTable orders={paginatedOrders} userRole={userRole} />
+            <OrderTable orders={paginatedOrders} userRole={stableUserRole} />
             
             {/* Pagination Controls */}
             <div className="flex items-center justify-between border-t pt-4">
