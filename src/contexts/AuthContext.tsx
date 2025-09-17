@@ -123,18 +123,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("Auth state changed, session:", session ? "exists" : "null");
-      setSession(session);
-      setUser(session?.user || null);
       
-      if (session?.user) {
-        setTimeout(() => {
-          fetchUserProfile(session.user.id)
-            .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
-            .finally(() => setIsLoading(false));
-        }, 0);
-      } else {
-        setUserProfile(null);
-        setIsLoading(false);
+      // Only update state if session actually changed
+      if (session?.user?.id !== user?.id) {
+        setSession(session);
+        setUser(session?.user || null);
+        
+        if (session?.user) {
+          // Only fetch profile if we don't have one or user changed
+          if (!userProfile || userProfile.id !== session.user.id) {
+            fetchUserProfile(session.user.id)
+              .catch(error => console.error("Error in onAuthStateChange profile fetch:", error))
+              .finally(() => setIsLoading(false));
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          setUserProfile(null);
+          setIsLoading(false);
+        }
       }
     });
 
