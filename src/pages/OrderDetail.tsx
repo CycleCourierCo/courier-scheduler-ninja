@@ -349,49 +349,40 @@ const OrderDetail = () => {
       return;
     }
 
-    // Check if dates are already set and prevent changes
-    if (order?.scheduledPickupDate && pickupDatePicker) {
-      toast.error("Collection date is already set and cannot be changed");
-      return;
-    }
-    
-    if (order?.scheduledDeliveryDate && deliveryDatePicker) {
-      toast.error("Delivery date is already set and cannot be changed");
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       
       let pickupDateTime = undefined;
       let deliveryDateTime = undefined;
       
-      // Only set pickup date if it's not already set
-      if (pickupDatePicker && !order?.scheduledPickupDate) {
+      // Set pickup date if selected
+      if (pickupDatePicker) {
         pickupDateTime = new Date(pickupDatePicker);
-        pickupDateTime.setHours(0, 0, 0, 0);
+        pickupDateTime.setHours(parseInt(pickupTime.split(':')[0]), parseInt(pickupTime.split(':')[1]), 0, 0);
       }
       
-      // Only set delivery date if it's not already set
-      if (deliveryDatePicker && !order?.scheduledDeliveryDate) {
+      // Set delivery date if selected
+      if (deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
-        deliveryDateTime.setHours(0, 0, 0, 0);
+        deliveryDateTime.setHours(parseInt(deliveryTime.split(':')[0]), parseInt(deliveryTime.split(':')[1]), 0, 0);
       }
       
-      // Prepare update object with only the fields that should be updated
+      // Prepare update object
       const updateData: any = {
         updated_at: new Date().toISOString()
       };
       
       if (pickupDateTime) {
         updateData.scheduled_pickup_date = pickupDateTime.toISOString();
+        updateData.pickup_timeslot = pickupTime;
       }
       
       if (deliveryDateTime) {
         updateData.scheduled_delivery_date = deliveryDateTime.toISOString();
+        updateData.delivery_timeslot = deliveryTime;
       }
       
-      // Only update status if we're actually setting dates
+      // Update status to scheduled if we're setting dates
       if (pickupDateTime || deliveryDateTime) {
         updateData.status = 'scheduled';
         updateData.scheduled_at = new Date().toISOString();
@@ -725,12 +716,7 @@ const OrderDetail = () => {
         setOrder(mappedOrder);
         setSelectedStatus(newStatus);
         
-        if (newStatus === 'scheduled_dates_pending') {
-          setPickupDatePicker(undefined);
-          setDeliveryDatePicker(undefined);
-          setSelectedPickupDate(null);
-          setSelectedDeliveryDate(null);
-        }
+        // Don't clear date pickers when changing status
         
         toast.success(`Status updated to ${newStatus}`);
       }
@@ -944,9 +930,7 @@ const OrderDetail = () => {
                 <div className="flex justify-center">
                   <Button 
                     onClick={handleSetDatesOnly}
-                    disabled={isSubmitting || (!pickupDatePicker && !deliveryDatePicker) || 
-                             (pickupDatePicker && !!order?.scheduledPickupDate) ||
-                             (deliveryDatePicker && !!order?.scheduledDeliveryDate)}
+                    disabled={isSubmitting}
                     variant="secondary"
                     className="w-full max-w-md"
                   >
