@@ -63,17 +63,19 @@ const Dashboard: React.FC = () => {
       let newOrders: Order[];
       // Only show all orders if the user is specifically an "admin"
       if (userRole === "admin") {
-        console.log("User is admin, showing all orders");
         newOrders = data;
       } else {
-        console.log("User is not admin, filtering orders for user ID:", user.id);
         const filteredOrders = data.filter(order => order.user_id === user.id);
-        console.log("Filtered orders:", filteredOrders.length);
         newOrders = filteredOrders;
       }
       
-      // Only update orders if they have actually changed
-      const ordersChanged = JSON.stringify(ordersRef.current) !== JSON.stringify(newOrders);
+      // Only update orders if they have actually changed using a more stable comparison
+      const orderIds = newOrders.map(o => o.id).sort().join(',');
+      const currentOrderIds = ordersRef.current.map(o => o.id).sort().join(',');
+      const statusMap = newOrders.map(o => `${o.id}:${o.status}`).sort().join(',');
+      const currentStatusMap = ordersRef.current.map(o => `${o.id}:${o.status}`).sort().join(',');
+      
+      const ordersChanged = orderIds !== currentOrderIds || statusMap !== currentStatusMap;
       if (ordersChanged || isInitialLoad.current) {
         ordersRef.current = newOrders;
         setOrders(newOrders);

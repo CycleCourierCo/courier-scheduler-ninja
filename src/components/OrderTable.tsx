@@ -113,7 +113,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
     fetchUserPreferences();
   }, [user]);
 
-  // Fetch creator names for all orders
+  // Fetch creator names for all orders - memoized to avoid unnecessary API calls
   useEffect(() => {
     const fetchCreatorNames = async () => {
       // Get unique user IDs from all orders
@@ -121,19 +121,23 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
       
       if (userIds.length === 0) return;
       
+      // Check if we already have all the names we need
+      const missingUserIds = userIds.filter(id => !creatorNames[id]);
+      if (missingUserIds.length === 0) return;
+      
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('id, name, email')
-          .in('id', userIds);
+          .in('id', missingUserIds);
         
         if (error) {
           console.error("Error fetching creator names:", error);
           return;
         }
         
-        // Create a mapping of user ID to name
-        const nameMap: Record<string, string> = {};
+        // Create a mapping of user ID to name, preserving existing names
+        const nameMap: Record<string, string> = { ...creatorNames };
         data.forEach(profile => {
           nameMap[profile.id] = profile.name || profile.email || 'Unknown user';
         });
@@ -145,7 +149,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
     };
     
     fetchCreatorNames();
-  }, [orders]);
+  }, [orders, creatorNames]);
 
   const handleColumnChange = (columns: string[]) => {
     // Filter out actions column for non-admin users
