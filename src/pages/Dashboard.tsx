@@ -56,7 +56,7 @@ const Dashboard: React.FC = () => {
   const fetchOrders = useCallback(async () => {
     if (!user) return;
     
-    console.log("fetchOrders called - user:", user.id, "userRole:", userRole);
+    console.log("fetchOrders called ONCE on mount");
     
     try {
       setLoading(true);
@@ -71,54 +71,24 @@ const Dashboard: React.FC = () => {
         newOrders = filteredOrders;
       }
       
-      // Only update orders if they have actually changed using a more stable comparison
-      const orderIds = newOrders.map(o => o.id).sort().join(',');
-      const currentOrderIds = ordersRef.current.map(o => o.id).sort().join(',');
-      const statusMap = newOrders.map(o => `${o.id}:${o.status}`).sort().join(',');
-      const currentStatusMap = ordersRef.current.map(o => `${o.id}:${o.status}`).sort().join(',');
-      
-      const ordersChanged = orderIds !== currentOrderIds || statusMap !== currentStatusMap;
-      console.log("Orders changed:", ordersChanged, "isInitialLoad:", isInitialLoad.current);
-      
-      if (ordersChanged || isInitialLoad.current) {
-        console.log("Updating orders state");
-        ordersRef.current = newOrders;
-        setOrders(newOrders);
-        isInitialLoad.current = false;
-      } else {
-        console.log("Skipping orders update - no changes detected");
-      }
+      console.log("Setting orders state ONCE");
+      ordersRef.current = newOrders;
+      setOrders(newOrders);
+      isInitialLoad.current = false;
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
     }
-  }, [user, userRole]);
+  }, []); // NO DEPENDENCIES - only recreated if component unmounts/mounts
 
+  // Fetch orders ONLY when userRole is determined for the first time
   useEffect(() => {
-    if (userRole !== null) {
+    if (userRole !== null && isInitialLoad.current) {
       fetchOrders();
     }
-  }, [fetchOrders]);
-
-  // Add window focus listener to prevent unnecessary fetches when switching tabs
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      // Only refetch if page becomes visible and we're not in the initial load
-      if (!document.hidden && !isInitialLoad.current) {
-        console.log("Page became visible, but skipping refetch to prevent unnecessary re-renders");
-        // Optionally uncomment the line below if you want to refetch on focus
-        // fetchOrders();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+  }, [userRole]); // Only depend on userRole changing from null to a value
 
   // Apply filters when orders or filters change
   useEffect(() => {
