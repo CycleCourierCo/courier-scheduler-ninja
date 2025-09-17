@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { toast } from "sonner";
@@ -28,6 +28,8 @@ const Dashboard: React.FC = () => {
     sortBy: "created_desc"
   });
   const { user } = useAuth();
+  const ordersRef = useRef<Order[]>([]);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -51,22 +53,31 @@ const Dashboard: React.FC = () => {
     fetchUserRole();
   }, [user]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     if (!user) return;
     
     try {
       setLoading(true);
       const data = await getOrders();
       
+      let newOrders: Order[];
       // Only show all orders if the user is specifically an "admin"
       if (userRole === "admin") {
         console.log("User is admin, showing all orders");
-        setOrders(data);
+        newOrders = data;
       } else {
         console.log("User is not admin, filtering orders for user ID:", user.id);
         const filteredOrders = data.filter(order => order.user_id === user.id);
         console.log("Filtered orders:", filteredOrders.length);
-        setOrders(filteredOrders);
+        newOrders = filteredOrders;
+      }
+      
+      // Only update orders if they have actually changed
+      const ordersChanged = JSON.stringify(ordersRef.current) !== JSON.stringify(newOrders);
+      if (ordersChanged || isInitialLoad.current) {
+        ordersRef.current = newOrders;
+        setOrders(newOrders);
+        isInitialLoad.current = false;
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -74,13 +85,13 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, userRole]);
 
   useEffect(() => {
     if (userRole !== null) {
       fetchOrders();
     }
-  }, [user, userRole]);
+  }, [fetchOrders]);
 
   // Apply filters when orders or filters change
   useEffect(() => {
