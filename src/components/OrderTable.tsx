@@ -122,34 +122,41 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
       if (userIds.length === 0) return;
       
       // Check if we already have all the names we need
-      const missingUserIds = userIds.filter(id => !creatorNames[id]);
-      if (missingUserIds.length === 0) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .in('id', missingUserIds);
+      setCreatorNames(current => {
+        const missingUserIds = userIds.filter(id => !current[id]);
+        if (missingUserIds.length === 0) return current;
         
-        if (error) {
-          console.error("Error fetching creator names:", error);
-          return;
-        }
+        // Fetch missing user names asynchronously
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('id, name, email')
+              .in('id', missingUserIds);
+            
+            if (error) {
+              console.error("Error fetching creator names:", error);
+              return;
+            }
+            
+            // Create a mapping of user ID to name, preserving existing names
+            const nameMap: Record<string, string> = { ...current };
+            data.forEach(profile => {
+              nameMap[profile.id] = profile.name || profile.email || 'Unknown user';
+            });
+            
+            setCreatorNames(nameMap);
+          } catch (error) {
+            console.error("Error fetching creator names:", error);
+          }
+        })();
         
-        // Create a mapping of user ID to name, preserving existing names
-        const nameMap: Record<string, string> = { ...creatorNames };
-        data.forEach(profile => {
-          nameMap[profile.id] = profile.name || profile.email || 'Unknown user';
-        });
-        
-        setCreatorNames(nameMap);
-      } catch (error) {
-        console.error("Error fetching creator names:", error);
-      }
+        return current;
+      });
     };
     
     fetchCreatorNames();
-  }, [orders, creatorNames]);
+  }, [orders]);
 
   const handleColumnChange = (columns: string[]) => {
     // Filter out actions column for non-admin users
