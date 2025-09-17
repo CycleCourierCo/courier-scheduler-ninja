@@ -33,7 +33,12 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log("Dashboard: No user found");
+        return;
+      }
+      
+      console.log("Dashboard: Current user:", user.id, user.email);
       
       try {
         const { data, error } = await supabase
@@ -43,8 +48,10 @@ const Dashboard: React.FC = () => {
           .single();
         
         if (error) throw error;
+        console.log("Dashboard: User role:", data?.role);
         setUserRole(data?.role || null);
       } catch (error) {
+        console.error("Dashboard: Failed to fetch user role:", error);
         toast.error("Failed to fetch user role");
       }
     };
@@ -53,20 +60,27 @@ const Dashboard: React.FC = () => {
   }, [user]);
 
   const fetchOrders = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("Dashboard: No user for fetchOrders");
+      return;
+    }
     
-    
+    console.log("Dashboard: Fetching orders for user role:", userRole);
     
     try {
       setLoading(true);
       const data = await getOrders();
+      console.log("Dashboard: Fetched", data.length, "orders from getOrders()");
       
       let newOrders: Order[];
       // Only show all orders if the user is specifically an "admin"
       if (userRole === "admin") {
+        console.log("Dashboard: User is admin, showing all orders");
         newOrders = data;
       } else {
+        console.log("Dashboard: User is not admin, filtering orders");
         const filteredOrders = data.filter(order => order.user_id === user.id);
+        console.log("Dashboard: Filtered to", filteredOrders.length, "orders");
         newOrders = filteredOrders;
       }
       
@@ -75,6 +89,7 @@ const Dashboard: React.FC = () => {
       setOrders(newOrders);
       isInitialLoad.current = false;
     } catch (error) {
+      console.error("Dashboard: Error fetching orders:", error);
       toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
