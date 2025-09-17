@@ -226,7 +226,7 @@ const Dashboard: React.FC = () => {
                       const showEllipsis = prevPage && page - prevPage > 1;
                       
                       return (
-                        <React.Fragment key={page}>
+                        <div key={page} className="flex items-center">
                           {showEllipsis && (
                             <span className="px-2 text-muted-foreground">...</span>
                           )}
@@ -238,7 +238,7 @@ const Dashboard: React.FC = () => {
                           >
                             {page}
                           </Button>
-                        </React.Fragment>
+                        </div>
                       );
                     })
                   }
