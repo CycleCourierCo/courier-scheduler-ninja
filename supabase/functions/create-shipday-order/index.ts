@@ -144,12 +144,12 @@ serve(async (req) => {
     console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
 
     // Add bike information to the notes
-    const bikeInfo = order.bike_brand && order.bike_model 
-      ? `Bike: ${order.bike_brand} ${order.bike_model}` 
-      : order.bike_brand 
-        ? `Bike: ${order.bike_brand}` 
-        : order.bike_model 
-          ? `Bike: ${order.bike_model}` 
+    const bikeInfo = order.bikeBrand && order.bikeModel 
+      ? `Bike: ${order.bikeBrand} ${order.bikeModel}` 
+      : order.bikeBrand 
+        ? `Bike: ${order.bikeBrand}` 
+        : order.bikeModel 
+          ? `Bike: ${order.bikeModel}` 
           : '';
 
     const baseDeliveryInstructions = order.delivery_instructions || '';

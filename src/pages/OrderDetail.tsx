@@ -420,22 +420,12 @@ const OrderDetail = () => {
   };
 
   const handleResetPickupDate = () => {
-    // Only allow reset if date is not already set in the order
-    if (order?.scheduledPickupDate) {
-      toast.error("Collection date is already set and cannot be changed");
-      return;
-    }
     setPickupDatePicker(undefined);
     setSelectedPickupDate(null);
     toast.success("Collection date reset");
   };
 
   const handleResetDeliveryDate = () => {
-    // Only allow reset if date is not already set in the order
-    if (order?.scheduledDeliveryDate) {
-      toast.error("Delivery date is already set and cannot be changed");
-      return;
-    }
     setDeliveryDatePicker(undefined);
     setSelectedDeliveryDate(null);
     toast.success("Delivery date reset");
@@ -905,7 +895,7 @@ const OrderDetail = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
                     onClick={handleResetPickupDate}
-                    disabled={isSubmitting || !pickupDatePicker || !!order?.scheduledPickupDate}
+                    disabled={isSubmitting}
                     variant="destructive"
                     size="sm"
                     className="w-full"
@@ -914,7 +904,7 @@ const OrderDetail = () => {
                   </Button>
                   <Button 
                     onClick={handleResetDeliveryDate}
-                    disabled={isSubmitting || !deliveryDatePicker || !!order?.scheduledDeliveryDate}
+                    disabled={isSubmitting}
                     variant="destructive"
                     size="sm"
                     className="w-full"
