@@ -82,11 +82,22 @@ const Dashboard: React.FC = () => {
     }
   }, [user, userRole]);
 
+  // Apply filters when orders or filters change
   useEffect(() => {
     const result = applyFiltersToOrders(orders, filters);
     setFilteredOrders(result);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [orders, filters]);
+    
+    // Validate current page is still valid after filtering
+    const newTotalPages = Math.ceil(result.length / itemsPerPage);
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    }
+  }, [orders, filters, currentPage, itemsPerPage]);
+
+  // Reset to first page only when filters change (not when orders update)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   // Calculate pagination
   const paginatedOrders = useMemo(() => {

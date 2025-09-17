@@ -344,21 +344,7 @@ const OrderDetail = () => {
   };
 
   const handleSetDatesOnly = async () => {
-    if (!id || (!pickupDatePicker && !deliveryDatePicker)) {
-      toast.error("Please select at least one date");
-      return;
-    }
-
-    // Check if dates are already set and prevent changes
-    if (order?.scheduledPickupDate && pickupDatePicker) {
-      toast.error("Collection date is already set and cannot be changed");
-      return;
-    }
-    
-    if (order?.scheduledDeliveryDate && deliveryDatePicker) {
-      toast.error("Delivery date is already set and cannot be changed");
-      return;
-    }
+    if (!id) return;
 
     try {
       setIsSubmitting(true);
@@ -366,35 +352,52 @@ const OrderDetail = () => {
       let pickupDateTime = undefined;
       let deliveryDateTime = undefined;
       
-      // Only set pickup date if it's not already set
-      if (pickupDatePicker && !order?.scheduledPickupDate) {
+      // Check for pickup date from either dropdown selection or date picker
+      if (selectedPickupDate) {
+        pickupDateTime = new Date(selectedPickupDate);
+        // Only set time to midnight for date-only updates
+        pickupDateTime.setHours(0, 0, 0, 0);
+      } else if (pickupDatePicker) {
         pickupDateTime = new Date(pickupDatePicker);
+        // Only set time to midnight for date-only updates
         pickupDateTime.setHours(0, 0, 0, 0);
       }
       
-      // Only set delivery date if it's not already set
-      if (deliveryDatePicker && !order?.scheduledDeliveryDate) {
+      // Check for delivery date from either dropdown selection or date picker
+      if (selectedDeliveryDate) {
+        deliveryDateTime = new Date(selectedDeliveryDate);
+        // Only set time to midnight for date-only updates
+        deliveryDateTime.setHours(0, 0, 0, 0);
+      } else if (deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
+        // Only set time to midnight for date-only updates
         deliveryDateTime.setHours(0, 0, 0, 0);
       }
+
+      if (!pickupDateTime && !deliveryDateTime) {
+        toast.error("Please select at least one date");
+        return;
+      }
       
-      // Prepare update object with only the fields that should be updated
+      // Prepare update object - ONLY update dates, no status changes
       const updateData: any = {
         updated_at: new Date().toISOString()
       };
       
       if (pickupDateTime) {
         updateData.scheduled_pickup_date = pickupDateTime.toISOString();
+        // Only update timeslot if one doesn't exist
+        if (!order?.pickupTimeslot) {
+          updateData.pickup_timeslot = null;
+        }
       }
       
       if (deliveryDateTime) {
         updateData.scheduled_delivery_date = deliveryDateTime.toISOString();
-      }
-      
-      // Only update status if we're actually setting dates
-      if (pickupDateTime || deliveryDateTime) {
-        updateData.status = 'scheduled';
-        updateData.scheduled_at = new Date().toISOString();
+        // Only update timeslot if one doesn't exist
+        if (!order?.deliveryTimeslot) {
+          updateData.delivery_timeslot = null;
+        }
       }
       
       const { data, error } = await supabase
@@ -408,9 +411,8 @@ const OrderDetail = () => {
       
       const mappedOrder = mapDbOrderToOrderType(data);
       setOrder(mappedOrder);
-      setSelectedStatus('scheduled');
       
-      toast.success("Dates set successfully");
+      toast.success("Dates updated successfully");
     } catch (error) {
       console.error("Error setting dates:", error);
       toast.error(`Failed to set dates: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -419,26 +421,78 @@ const OrderDetail = () => {
     }
   };
 
-  const handleResetPickupDate = () => {
-    // Only allow reset if date is not already set in the order
-    if (order?.scheduledPickupDate) {
-      toast.error("Collection date is already set and cannot be changed");
-      return;
+  const handleResetPickupDate = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          scheduled_pickup_date: null,
+          pickup_timeslot: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setPickupDatePicker(undefined);
+      setSelectedPickupDate(null);
+      setPickupTime("09:00");
+      
+      // Refresh order data
+      if (id) {
+        const updatedOrder = await getOrderById(id);
+        if (updatedOrder) {
+          setOrder(updatedOrder);
+        }
+      }
+      
+      toast.success("Collection date and timeslot reset");
+    } catch (error) {
+      console.error("Error resetting pickup date:", error);
+      toast.error("Failed to reset collection date");
+    } finally {
+      setIsSubmitting(false);
     }
-    setPickupDatePicker(undefined);
-    setSelectedPickupDate(null);
-    toast.success("Collection date reset");
   };
 
-  const handleResetDeliveryDate = () => {
-    // Only allow reset if date is not already set in the order
-    if (order?.scheduledDeliveryDate) {
-      toast.error("Delivery date is already set and cannot be changed");
-      return;
+  const handleResetDeliveryDate = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          scheduled_delivery_date: null,
+          delivery_timeslot: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setDeliveryDatePicker(undefined);
+      setSelectedDeliveryDate(null);
+      setDeliveryTime("09:00");
+      
+      // Refresh order data
+      if (id) {
+        const updatedOrder = await getOrderById(id);
+        if (updatedOrder) {
+          setOrder(updatedOrder);
+        }
+      }
+      
+      toast.success("Delivery date and timeslot reset");
+    } catch (error) {
+      console.error("Error resetting delivery date:", error);
+      toast.error("Failed to reset delivery date");
+    } finally {
+      setIsSubmitting(false);
     }
-    setDeliveryDatePicker(undefined);
-    setSelectedDeliveryDate(null);
-    toast.success("Delivery date reset");
   };
 
   const handleAddPickupToShipday = async () => {
@@ -673,12 +727,7 @@ const OrderDetail = () => {
         setOrder(mappedOrder);
         setSelectedStatus(newStatus);
         
-        if (newStatus === 'scheduled_dates_pending') {
-          setPickupDatePicker(undefined);
-          setDeliveryDatePicker(undefined);
-          setSelectedPickupDate(null);
-          setSelectedDeliveryDate(null);
-        }
+        // Don't clear date pickers when changing status
         
         toast.success(`Status updated to ${newStatus}`);
       }
@@ -892,20 +941,17 @@ const OrderDetail = () => {
                 <div className="flex justify-center">
                   <Button 
                     onClick={handleSetDatesOnly}
-                    disabled={isSubmitting || (!pickupDatePicker && !deliveryDatePicker) || 
-                             (pickupDatePicker && !!order?.scheduledPickupDate) ||
-                             (deliveryDatePicker && !!order?.scheduledDeliveryDate)}
+                    disabled={isSubmitting}
                     variant="secondary"
                     className="w-full max-w-md"
                   >
-                    {isSubmitting ? "Setting Dates..." : "Set Dates & Update Status"}
+                    {isSubmitting ? "Setting Dates..." : "Set Dates"}
                   </Button>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
                     onClick={handleResetPickupDate}
-                    disabled={isSubmitting || !pickupDatePicker || !!order?.scheduledPickupDate}
                     variant="destructive"
                     size="sm"
                     className="w-full"
@@ -914,7 +960,6 @@ const OrderDetail = () => {
                   </Button>
                   <Button 
                     onClick={handleResetDeliveryDate}
-                    disabled={isSubmitting || !deliveryDatePicker || !!order?.scheduledDeliveryDate}
                     variant="destructive"
                     size="sm"
                     className="w-full"
