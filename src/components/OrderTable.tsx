@@ -359,6 +359,12 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                           to={`/orders/${order.id}`} 
                           className="hover:underline text-courier-600"
                           onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => {
+                            // Prevent any potential side effects when opening in new tab
+                            if (e.button === 1 || e.ctrlKey || e.metaKey) {
+                              e.stopPropagation();
+                            }
+                          }}
                         >
                           {order.trackingNumber || `${order.id.substring(0, 8)}...`}
                         </Link>
