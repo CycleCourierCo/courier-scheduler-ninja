@@ -181,6 +181,8 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     
     console.log(`Updating receiver availability for order ${orderId}`);
     console.log(`Selected dates: ${dates.map(d => d.toISOString())}`);
+    console.log(`Notes: ${notes}`);
+    console.log(`Auth UID: ${JSON.stringify((await supabase.auth.getUser()).data.user?.id)}`);
     
     // Format dates as ISO strings
     const dateStrings = dates.map(date => date.toISOString());
@@ -201,6 +203,7 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     
     if (error) {
       console.error("Error updating receiver availability:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return null;
     }
     
