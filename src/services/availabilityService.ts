@@ -129,13 +129,14 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     // Format dates as ISO strings
     const dateStrings = dates.map(date => date.toISOString());
     
-    // Update the order with the pickup dates and notes
+    // Update the order with all sender availability data in one transaction
     const { data, error } = await supabase
       .from("orders")
       .update({
         pickup_date: dateStrings,
         sender_notes: notes.trim(),
         sender_confirmed_at: new Date().toISOString(),
+        status: "receiver_availability_pending",
         updated_at: new Date().toISOString()
       })
       .eq("id", orderId)
@@ -147,14 +148,21 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       return null;
     }
     
+    console.log("Sender availability confirmed. Proceeding to notify receiver.");
+    
     // Map the database response to our Order type
     const order = mapDbOrderToOrderType(data);
     
-    // Automatically confirm sender availability and update status
-    const success = await confirmSenderAvailability(orderId, dateStrings);
-    
-    if (!success) {
-      console.error("Failed to confirm sender availability after update");
+    // Send receiver availability email
+    try {
+      const emailSent = await resendReceiverAvailabilityEmail(orderId);
+      console.log("Receiver availability email sent:", emailSent);
+      
+      if (!emailSent) {
+        console.error("Failed to send receiver availability email");
+      }
+    } catch (emailError) {
+      console.error("Error sending receiver availability email:", emailError);
     }
     
     return order;
@@ -177,13 +185,14 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     // Format dates as ISO strings
     const dateStrings = dates.map(date => date.toISOString());
     
-    // Update the order with the delivery dates and notes
+    // Update the order with all receiver availability data in one transaction
     const { data, error } = await supabase
       .from("orders")
       .update({
         delivery_date: dateStrings,
         receiver_notes: notes.trim(),
         receiver_confirmed_at: new Date().toISOString(),
+        status: "scheduled_dates_pending",
         updated_at: new Date().toISOString()
       })
       .eq("id", orderId)
@@ -195,15 +204,10 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       return null;
     }
     
+    console.log("Receiver availability confirmed successfully");
+    
     // Map the database response to our Order type
     const order = mapDbOrderToOrderType(data);
-    
-    // Automatically confirm receiver availability
-    const success = await confirmReceiverAvailability(orderId, dateStrings);
-    
-    if (!success) {
-      console.error("Failed to confirm receiver availability after update");
-    }
     
     return order;
   } catch (error) {
