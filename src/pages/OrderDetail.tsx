@@ -606,13 +606,34 @@ const OrderDetail = () => {
       setIsSubmitting(true);
       
       // Create dates preserving the selected date without timezone shifts
+      console.log("=== ADMIN SCHEDULE ORDER DEBUG ===");
+      console.log("pickupDatePicker raw:", pickupDatePicker);
+      console.log("pickupDatePicker components:", {
+        year: pickupDatePicker.getFullYear(),
+        month: pickupDatePicker.getMonth(),
+        date: pickupDatePicker.getDate()
+      });
+      
       const pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate());
+      console.log("pickupDateTime after creation:", pickupDateTime);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      console.log("pickupDateTime after setting hours:", pickupDateTime);
+      console.log("pickupDateTime ISO:", pickupDateTime.toISOString());
+      
+      console.log("deliveryDatePicker raw:", deliveryDatePicker);
+      console.log("deliveryDatePicker components:", {
+        year: deliveryDatePicker.getFullYear(),
+        month: deliveryDatePicker.getMonth(),
+        date: deliveryDatePicker.getDate()
+      });
       
       const deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate());
+      console.log("deliveryDateTime after creation:", deliveryDateTime);
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      console.log("deliveryDateTime after setting hours:", deliveryDateTime);
+      console.log("deliveryDateTime ISO:", deliveryDateTime.toISOString());
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -651,9 +672,20 @@ const OrderDetail = () => {
       setIsSubmitting(true);
       
       // Create date preserving the selected date without timezone shifts
+      console.log("=== ADMIN SCHEDULE PICKUP DEBUG ===");
+      console.log("pickupDatePicker raw:", pickupDatePicker);
+      console.log("pickupDatePicker components:", {
+        year: pickupDatePicker.getFullYear(),
+        month: pickupDatePicker.getMonth(),
+        date: pickupDatePicker.getDate()
+      });
+      
       const pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate());
+      console.log("pickupDateTime after creation:", pickupDateTime);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      console.log("pickupDateTime after setting hours:", pickupDateTime);
+      console.log("pickupDateTime ISO:", pickupDateTime.toISOString());
       
       const updatedOrder = await updateOrderSchedule(
         id, 
