@@ -181,7 +181,7 @@ const OrderDetail = () => {
       
       const pickupDateTime = new Date(selectedPickupDate);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
-      pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      pickupDateTime.setUTCHours(pickupHours, pickupMinutes, 0);
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -225,11 +225,11 @@ const OrderDetail = () => {
       if (order?.status === 'collected' && deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
         const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+        deliveryDateTime.setUTCHours(deliveryHours, deliveryMinutes, 0);
       } else if (selectedDeliveryDate) {
         deliveryDateTime = new Date(selectedDeliveryDate);
         const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
-        deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+        deliveryDateTime.setUTCHours(deliveryHours, deliveryMinutes, 0);
       } else {
         toast.error("Please select delivery date");
         setIsSubmitting(false);
@@ -295,12 +295,12 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      // Set dates without time (only date part)
+      // Set dates to noon UTC to avoid timezone conversion issues
       const pickupDateOnly = new Date(pickupDateTime);
-      pickupDateOnly.setHours(0, 0, 0, 0);
+      pickupDateOnly.setUTCHours(12, 0, 0, 0);
       
       const deliveryDateOnly = new Date(deliveryDateTime);
-      deliveryDateOnly.setHours(0, 0, 0, 0);
+      deliveryDateOnly.setUTCHours(12, 0, 0, 0);
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -354,12 +354,12 @@ const OrderDetail = () => {
       // Check for pickup date from either dropdown selection or date picker
       if (selectedPickupDate) {
         pickupDateTime = new Date(selectedPickupDate);
-        // Only set time to midnight for date-only updates
-        pickupDateTime.setHours(0, 0, 0, 0);
+        // Set time to noon UTC to avoid timezone conversion issues
+        pickupDateTime.setUTCHours(12, 0, 0, 0);
       } else if (pickupDatePicker) {
         pickupDateTime = new Date(pickupDatePicker);
-        // Only set time to midnight for date-only updates
-        pickupDateTime.setHours(0, 0, 0, 0);
+        // Set time to noon UTC to avoid timezone conversion issues
+        pickupDateTime.setUTCHours(12, 0, 0, 0);
       }
 
       if (!pickupDateTime) {
@@ -410,12 +410,12 @@ const OrderDetail = () => {
       // Check for delivery date from either dropdown selection or date picker
       if (selectedDeliveryDate) {
         deliveryDateTime = new Date(selectedDeliveryDate);
-        // Only set time to midnight for date-only updates
-        deliveryDateTime.setHours(0, 0, 0, 0);
+        // Set time to noon UTC to avoid timezone conversion issues
+        deliveryDateTime.setUTCHours(12, 0, 0, 0);
       } else if (deliveryDatePicker) {
         deliveryDateTime = new Date(deliveryDatePicker);
-        // Only set time to midnight for date-only updates
-        deliveryDateTime.setHours(0, 0, 0, 0);
+        // Set time to noon UTC to avoid timezone conversion issues
+        deliveryDateTime.setUTCHours(12, 0, 0, 0);
       }
 
       if (!deliveryDateTime) {
