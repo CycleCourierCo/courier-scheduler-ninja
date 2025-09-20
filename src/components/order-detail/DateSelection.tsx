@@ -43,8 +43,9 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
     try {
       // This will throw if the date is invalid for toISOString
       dateObj.toISOString();
-      // Only format if we have a valid date
-      return format(dateObj, formatStr);
+      // For date display, create a new date in UTC to avoid timezone conversion
+      const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+      return format(utcDate, formatStr);
     } catch (timeError) {
       console.error("Invalid time value in date object:", dateObj, timeError);
       return "Invalid time";
@@ -199,7 +200,11 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                     
                     return (
                       <SelectItem key={index} value={isoValue}>
-                        {format(dateObj, "PPP")}
+                        {(() => {
+                          // For dropdown display, create a new date in UTC to avoid timezone conversion
+                          const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+                          return format(utcDate, "PPP");
+                        })()}
                       </SelectItem>
                     );
                   } catch (error) {

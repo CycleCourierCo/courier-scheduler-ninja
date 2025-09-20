@@ -294,7 +294,10 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return "Not scheduled";
-    return format(new Date(date), "PP");
+    const dateObj = new Date(date);
+    // For date display, create a new date in UTC to avoid timezone conversion
+    const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+    return format(utcDate, "PP");
   };
 
   // Determine cursor style for rows based on userRole
