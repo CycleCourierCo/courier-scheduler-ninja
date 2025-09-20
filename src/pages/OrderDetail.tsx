@@ -1023,7 +1023,13 @@ const OrderDetail = () => {
               <div className="flex flex-col gap-2 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    onClick={handleSetCollectionDate}
+                    onClick={() => {
+                      console.log("=== SET COLLECTION DATE BUTTON CLICKED ===");
+                      console.log("selectedPickupDate:", selectedPickupDate);
+                      console.log("pickupDatePicker:", pickupDatePicker);
+                      console.log("order.scheduledPickupDate:", order?.scheduledPickupDate);
+                      handleSetCollectionDate();
+                    }}
                     disabled={isSubmitting}
                     variant="secondary"
                     className="w-full"
