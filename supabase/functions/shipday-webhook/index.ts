@@ -262,9 +262,6 @@ serve(async (req) => {
         
         const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
-            to: "internal-notification@cyclecourierco.com",
-            subject: "Delivery Email Notification Request",
-            text: `Please send delivery confirmation emails for order ID: ${dbOrder.id}`,
             meta: {
               action: "delivery_confirmation",
               orderId: dbOrder.id

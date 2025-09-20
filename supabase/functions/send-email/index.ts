@@ -42,7 +42,7 @@ serve(async (req) => {
       return await handleDeliveryConfirmation(reqData.meta.orderId, resend);
     }
 
-    // Validate required fields
+    // Validate required fields for regular emails (not for delivery confirmation)
     if (!reqData.to) {
       console.error('Missing required field: to');
       return new Response(
