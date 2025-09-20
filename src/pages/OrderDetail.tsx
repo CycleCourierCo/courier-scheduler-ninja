@@ -107,6 +107,17 @@ const OrderDetail = () => {
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
 
+  // Reset conflicting states when switching between selection methods
+  const resetPickupStates = () => {
+    setSelectedPickupDate(null);
+    setPickupDatePicker(undefined);
+  };
+
+  const resetDeliveryStates = () => {
+    setSelectedDeliveryDate(null);
+    setDeliveryDatePicker(undefined);
+  };
+
   useEffect(() => {
     const fetchOrderDetails = async () => {
       if (!id) return;
@@ -978,6 +989,7 @@ const OrderDetail = () => {
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
                   timeslot={order.pickupTimeslot}
+                  onStateReset={resetPickupStates}
                 />
                 
                 <DateSelection 
@@ -995,6 +1007,7 @@ const OrderDetail = () => {
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
                   timeslot={order.deliveryTimeslot}
+                  onStateReset={resetDeliveryStates}
                 />
               </div>
 
