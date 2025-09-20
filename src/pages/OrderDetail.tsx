@@ -343,14 +343,13 @@ const OrderDetail = () => {
     }
   };
 
-  const handleSetDatesOnly = async () => {
+  const handleSetCollectionDate = async () => {
     if (!id) return;
 
     try {
       setIsSubmitting(true);
       
       let pickupDateTime = undefined;
-      let deliveryDateTime = undefined;
       
       // Check for pickup date from either dropdown selection or date picker
       if (selectedPickupDate) {
@@ -362,42 +361,21 @@ const OrderDetail = () => {
         // Only set time to midnight for date-only updates
         pickupDateTime.setHours(0, 0, 0, 0);
       }
-      
-      // Check for delivery date from either dropdown selection or date picker
-      if (selectedDeliveryDate) {
-        deliveryDateTime = new Date(selectedDeliveryDate);
-        // Only set time to midnight for date-only updates
-        deliveryDateTime.setHours(0, 0, 0, 0);
-      } else if (deliveryDatePicker) {
-        deliveryDateTime = new Date(deliveryDatePicker);
-        // Only set time to midnight for date-only updates
-        deliveryDateTime.setHours(0, 0, 0, 0);
-      }
 
-      if (!pickupDateTime && !deliveryDateTime) {
-        toast.error("Please select at least one date");
+      if (!pickupDateTime) {
+        toast.error("Please select a collection date");
         return;
       }
       
-      // Prepare update object - ONLY update dates, no status changes
+      // Prepare update object - ONLY update pickup date, no status changes
       const updateData: any = {
+        scheduled_pickup_date: pickupDateTime.toISOString(),
         updated_at: new Date().toISOString()
       };
       
-      if (pickupDateTime) {
-        updateData.scheduled_pickup_date = pickupDateTime.toISOString();
-        // Only update timeslot if one doesn't exist
-        if (!order?.pickupTimeslot) {
-          updateData.pickup_timeslot = null;
-        }
-      }
-      
-      if (deliveryDateTime) {
-        updateData.scheduled_delivery_date = deliveryDateTime.toISOString();
-        // Only update timeslot if one doesn't exist
-        if (!order?.deliveryTimeslot) {
-          updateData.delivery_timeslot = null;
-        }
+      // Only update timeslot if one doesn't exist
+      if (!order?.pickupTimeslot) {
+        updateData.pickup_timeslot = null;
       }
       
       const { data, error } = await supabase
@@ -412,10 +390,66 @@ const OrderDetail = () => {
       const mappedOrder = mapDbOrderToOrderType(data);
       setOrder(mappedOrder);
       
-      toast.success("Dates updated successfully");
+      toast.success("Collection date set successfully");
     } catch (error) {
-      console.error("Error setting dates:", error);
-      toast.error(`Failed to set dates: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error("Error setting collection date:", error);
+      toast.error(`Failed to set collection date: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSetDeliveryDate = async () => {
+    if (!id) return;
+
+    try {
+      setIsSubmitting(true);
+      
+      let deliveryDateTime = undefined;
+      
+      // Check for delivery date from either dropdown selection or date picker
+      if (selectedDeliveryDate) {
+        deliveryDateTime = new Date(selectedDeliveryDate);
+        // Only set time to midnight for date-only updates
+        deliveryDateTime.setHours(0, 0, 0, 0);
+      } else if (deliveryDatePicker) {
+        deliveryDateTime = new Date(deliveryDatePicker);
+        // Only set time to midnight for date-only updates
+        deliveryDateTime.setHours(0, 0, 0, 0);
+      }
+
+      if (!deliveryDateTime) {
+        toast.error("Please select a delivery date");
+        return;
+      }
+      
+      // Prepare update object - ONLY update delivery date, no status changes
+      const updateData: any = {
+        scheduled_delivery_date: deliveryDateTime.toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Only update timeslot if one doesn't exist
+      if (!order?.deliveryTimeslot) {
+        updateData.delivery_timeslot = null;
+      }
+      
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      const mappedOrder = mapDbOrderToOrderType(data);
+      setOrder(mappedOrder);
+      
+      toast.success("Delivery date set successfully");
+    } catch (error) {
+      console.error("Error setting delivery date:", error);
+      toast.error(`Failed to set delivery date: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -938,14 +972,22 @@ const OrderDetail = () => {
               
               {/* Admin Control Buttons */}
               <div className="flex flex-col gap-2 mt-4">
-                <div className="flex justify-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    onClick={handleSetDatesOnly}
+                    onClick={handleSetCollectionDate}
                     disabled={isSubmitting}
                     variant="secondary"
-                    className="w-full max-w-md"
+                    className="w-full"
                   >
-                    {isSubmitting ? "Setting Dates..." : "Set Dates"}
+                    {isSubmitting ? "Setting Collection Date..." : "Set Collection Date"}
+                  </Button>
+                  <Button 
+                    onClick={handleSetDeliveryDate}
+                    disabled={isSubmitting}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Setting Delivery Date..." : "Set Delivery Date"}
                   </Button>
                 </div>
                 

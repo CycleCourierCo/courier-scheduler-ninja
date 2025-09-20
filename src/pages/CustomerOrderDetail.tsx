@@ -197,7 +197,7 @@ const CustomerOrderDetail = () => {
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Calendar className="text-courier-600" />
-                  <h3 className="font-semibold">Pickup Date</h3>
+                  <h3 className="font-semibold">Scheduled Pickup Date</h3>
                 </div>
                 
                 {(order.scheduledPickupDate || order.status === 'collected') ? (
@@ -216,7 +216,7 @@ const CustomerOrderDetail = () => {
                 
                 <div className="flex items-center space-x-2">
                   <Calendar className="text-courier-600" />
-                  <h3 className="font-semibold">Delivery Date</h3>
+                  <h3 className="font-semibold">Scheduled Delivery Date</h3>
                 </div>
                 
                 {order.scheduledDeliveryDate ? (
