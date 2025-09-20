@@ -349,14 +349,32 @@ const OrderDetail = () => {
       
       let pickupDateTime = undefined;
       
+      console.log("=== SET COLLECTION DATE DEBUG ===");
+      console.log("selectedPickupDate:", selectedPickupDate);
+      console.log("pickupDatePicker:", pickupDatePicker);
+      
       // Check for pickup date from either dropdown selection or date picker
       if (selectedPickupDate) {
         const tempDate = new Date(selectedPickupDate);
+        console.log("Using selectedPickupDate, tempDate:", tempDate);
+        console.log("tempDate components:", {
+          year: tempDate.getFullYear(),
+          month: tempDate.getMonth(),
+          date: tempDate.getDate()
+        });
         // Create date using local constructor to preserve the selected date
         pickupDateTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 12, 0, 0, 0);
+        console.log("pickupDateTime after creation:", pickupDateTime);
       } else if (pickupDatePicker) {
+        console.log("Using pickupDatePicker:", pickupDatePicker);
+        console.log("pickupDatePicker components:", {
+          year: pickupDatePicker.getFullYear(),
+          month: pickupDatePicker.getMonth(),
+          date: pickupDatePicker.getDate()
+        });
         // Create date using UTC constructor to avoid timezone shifts
         pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate(), 12, 0, 0, 0);
+        console.log("pickupDateTime after creation:", pickupDateTime);
       }
 
       if (!pickupDateTime) {
