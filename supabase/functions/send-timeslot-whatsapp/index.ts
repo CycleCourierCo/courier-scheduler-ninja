@@ -213,7 +213,7 @@ Cycle Courier Co.`;
             restaurantName: "Cycle Courier Co.",
             restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
             expectedDeliveryTime: expectedDeliveryTime,
-            expectedDeliveryDate: scheduledDate.split('T')[0],
+            expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
             deliveryInstruction: order.delivery_instructions || ''
           };
           console.log('Shipday request body:', requestBody);

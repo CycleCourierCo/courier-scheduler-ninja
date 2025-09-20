@@ -107,6 +107,17 @@ const OrderDetail = () => {
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
 
+  // Reset conflicting states when switching between selection methods
+  const resetPickupStates = () => {
+    setSelectedPickupDate(null);
+    setPickupDatePicker(undefined);
+  };
+
+  const resetDeliveryStates = () => {
+    setSelectedDeliveryDate(null);
+    setDeliveryDatePicker(undefined);
+  };
+
   useEffect(() => {
     const fetchOrderDetails = async () => {
       if (!id) return;
@@ -295,12 +306,10 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      // Set dates to noon UTC to avoid timezone conversion issues
-      const pickupDateOnly = new Date(pickupDateTime);
-      pickupDateOnly.setUTCHours(12, 0, 0, 0);
+      // Create dates at noon in local timezone to preserve the selected date
+      const pickupDateOnly = new Date(pickupDateTime.getFullYear(), pickupDateTime.getMonth(), pickupDateTime.getDate(), 12, 0, 0, 0);
       
-      const deliveryDateOnly = new Date(deliveryDateTime);
-      deliveryDateOnly.setUTCHours(12, 0, 0, 0);
+      const deliveryDateOnly = new Date(deliveryDateTime.getFullYear(), deliveryDateTime.getMonth(), deliveryDateTime.getDate(), 12, 0, 0, 0);
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -351,15 +360,32 @@ const OrderDetail = () => {
       
       let pickupDateTime = undefined;
       
+      console.log("=== SET COLLECTION DATE DEBUG ===");
+      console.log("selectedPickupDate:", selectedPickupDate);
+      console.log("pickupDatePicker:", pickupDatePicker);
+      
       // Check for pickup date from either dropdown selection or date picker
       if (selectedPickupDate) {
-        pickupDateTime = new Date(selectedPickupDate);
-        // Set time to noon UTC to avoid timezone conversion issues
-        pickupDateTime.setUTCHours(12, 0, 0, 0);
+        const tempDate = new Date(selectedPickupDate);
+        console.log("Using selectedPickupDate, tempDate:", tempDate);
+        console.log("tempDate components:", {
+          year: tempDate.getFullYear(),
+          month: tempDate.getMonth(),
+          date: tempDate.getDate()
+        });
+        // Create date using local constructor to preserve the selected date
+        pickupDateTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 12, 0, 0, 0);
+        console.log("pickupDateTime after creation:", pickupDateTime);
       } else if (pickupDatePicker) {
-        pickupDateTime = new Date(pickupDatePicker);
-        // Set time to noon UTC to avoid timezone conversion issues
-        pickupDateTime.setUTCHours(12, 0, 0, 0);
+        console.log("Using pickupDatePicker:", pickupDatePicker);
+        console.log("pickupDatePicker components:", {
+          year: pickupDatePicker.getFullYear(),
+          month: pickupDatePicker.getMonth(),
+          date: pickupDatePicker.getDate()
+        });
+        // Create date using UTC constructor to avoid timezone shifts
+        pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate(), 12, 0, 0, 0);
+        console.log("pickupDateTime after creation:", pickupDateTime);
       }
 
       if (!pickupDateTime) {
@@ -409,13 +435,12 @@ const OrderDetail = () => {
       
       // Check for delivery date from either dropdown selection or date picker
       if (selectedDeliveryDate) {
-        deliveryDateTime = new Date(selectedDeliveryDate);
-        // Set time to noon UTC to avoid timezone conversion issues
-        deliveryDateTime.setUTCHours(12, 0, 0, 0);
+        const tempDate = new Date(selectedDeliveryDate);
+        // Create date using local constructor to preserve the selected date
+        deliveryDateTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 12, 0, 0, 0);
       } else if (deliveryDatePicker) {
-        deliveryDateTime = new Date(deliveryDatePicker);
-        // Set time to noon UTC to avoid timezone conversion issues
-        deliveryDateTime.setUTCHours(12, 0, 0, 0);
+        // Create date using UTC constructor to avoid timezone shifts
+        deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate(), 12, 0, 0, 0);
       }
 
       if (!deliveryDateTime) {
@@ -609,13 +634,35 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const pickupDateTime = new Date(pickupDatePicker);
+      // Create dates preserving the selected date without timezone shifts
+      console.log("=== ADMIN SCHEDULE ORDER DEBUG ===");
+      console.log("pickupDatePicker raw:", pickupDatePicker);
+      console.log("pickupDatePicker components:", {
+        year: pickupDatePicker.getFullYear(),
+        month: pickupDatePicker.getMonth(),
+        date: pickupDatePicker.getDate()
+      });
+      
+      const pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate());
+      console.log("pickupDateTime after creation:", pickupDateTime);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      console.log("pickupDateTime after setting hours:", pickupDateTime);
+      console.log("pickupDateTime ISO:", pickupDateTime.toISOString());
       
-      const deliveryDateTime = new Date(deliveryDatePicker);
+      console.log("deliveryDatePicker raw:", deliveryDatePicker);
+      console.log("deliveryDatePicker components:", {
+        year: deliveryDatePicker.getFullYear(),
+        month: deliveryDatePicker.getMonth(),
+        date: deliveryDatePicker.getDate()
+      });
+      
+      const deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate());
+      console.log("deliveryDateTime after creation:", deliveryDateTime);
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
+      console.log("deliveryDateTime after setting hours:", deliveryDateTime);
+      console.log("deliveryDateTime ISO:", deliveryDateTime.toISOString());
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -653,9 +700,21 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const pickupDateTime = new Date(pickupDatePicker);
+      // Create date preserving the selected date without timezone shifts
+      console.log("=== ADMIN SCHEDULE PICKUP DEBUG ===");
+      console.log("pickupDatePicker raw:", pickupDatePicker);
+      console.log("pickupDatePicker components:", {
+        year: pickupDatePicker.getFullYear(),
+        month: pickupDatePicker.getMonth(),
+        date: pickupDatePicker.getDate()
+      });
+      
+      const pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate());
+      console.log("pickupDateTime after creation:", pickupDateTime);
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
+      console.log("pickupDateTime after setting hours:", pickupDateTime);
+      console.log("pickupDateTime ISO:", pickupDateTime.toISOString());
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -693,7 +752,8 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const deliveryDateTime = new Date(deliveryDatePicker);
+      // Create date preserving the selected date without timezone shifts
+      const deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate());
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
       
@@ -929,6 +989,7 @@ const OrderDetail = () => {
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
                   timeslot={order.pickupTimeslot}
+                  onStateReset={resetPickupStates}
                 />
                 
                 <DateSelection 
@@ -946,6 +1007,7 @@ const OrderDetail = () => {
                   showAdminControls={showAdminControls}
                   orderStatus={order.status}
                   timeslot={order.deliveryTimeslot}
+                  onStateReset={resetDeliveryStates}
                 />
               </div>
 
@@ -974,7 +1036,13 @@ const OrderDetail = () => {
               <div className="flex flex-col gap-2 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    onClick={handleSetCollectionDate}
+                    onClick={() => {
+                      console.log("=== SET COLLECTION DATE BUTTON CLICKED ===");
+                      console.log("selectedPickupDate:", selectedPickupDate);
+                      console.log("pickupDatePicker:", pickupDatePicker);
+                      console.log("order.scheduledPickupDate:", order?.scheduledPickupDate);
+                      handleSetCollectionDate();
+                    }}
                     disabled={isSubmitting}
                     variant="secondary"
                     className="w-full"

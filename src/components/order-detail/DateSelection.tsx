@@ -71,6 +71,7 @@ interface DateSelectionProps {
   showAdminControls?: boolean;
   orderStatus?: string;
   timeslot?: string;
+  onStateReset?: () => void;
 }
 
 const DateSelection: React.FC<DateSelectionProps> = ({
@@ -87,7 +88,8 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   isScheduled,
   showAdminControls = false,
   orderStatus,
-  timeslot
+  timeslot,
+  onStateReset
 }) => {
   
   // Handle date selection with better date conversion
@@ -170,7 +172,11 @@ const DateSelection: React.FC<DateSelectionProps> = ({
         <div className="space-y-3">
           <div className="space-y-2">
             <label className="text-sm font-medium">Select from available dates:</label>
-            <Select value={selectedDate || ""} onValueChange={setSelectedDate}>
+            <Select value={selectedDate || ""} onValueChange={(value) => {
+              // Clear calendar date when using dropdown selection
+              setCalendarDate(undefined);
+              setSelectedDate(value);
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a date" />
               </SelectTrigger>
@@ -250,7 +256,11 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                 <CalendarComponent
                   mode="single"
                   selected={calendarDate}
-                  onSelect={setCalendarDate}
+                  onSelect={(date) => {
+                    // Clear dropdown selection when using calendar picker
+                    setSelectedDate(null);
+                    setCalendarDate(date);
+                  }}
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
                 />

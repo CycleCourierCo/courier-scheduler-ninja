@@ -147,10 +147,42 @@ serve(async (req) => {
         statusDescription = "Delivery attempted (date rescheduled)";
       }
     } else if (event === "ORDER_POD_UPLOAD") {
-      // For POD upload events, don't change the status but update tracking with POD data
-      newStatus = dbOrder.status; // Keep current status
-      statusDescription = isPickup ? "Proof of collection uploaded" : "Proof of delivery uploaded";
-      console.log(`Processing POD upload for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
+      // Check if this POD upload should be treated as completion
+      const existingUpdates = (dbOrder.tracking_events?.shipday?.updates || []);
+      const hasCompletionEvent = existingUpdates.some(update => 
+        update.orderId === shipdayOrderId && update.event === "ORDER_COMPLETED"
+      );
+      
+      // If no prior completion event exists, treat POD upload as completion
+      if (!hasCompletionEvent) {
+        if (isPickup) {
+          newStatus = "collected";
+          statusDescription = "Bike collected (proof uploaded)";
+        } else {
+          newStatus = "delivered";
+          statusDescription = "Bike delivered (proof uploaded)";
+        }
+        console.log(`POD upload treated as completion for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
+      } else {
+        // Keep current status if completion already recorded
+        newStatus = dbOrder.status;
+        statusDescription = isPickup ? "Proof of collection uploaded" : "Proof of delivery uploaded";
+        console.log(`Processing POD upload for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
+      }
+    } else if (event === "ORDER_ACCEPTED_AND_STARTED") {
+      // Handle driver acceptance and start
+      if (isPickup) {
+        newStatus = "driver_to_collection";
+        statusDescription = "Driver has accepted and started collection";
+      } else {
+        newStatus = "driver_to_delivery";
+        statusDescription = "Driver has accepted and started delivery";
+      }
+    } else if (event === "ORDER_ASSIGNED") {
+      // Handle driver assignment
+      statusDescription = isPickup ? "Driver assigned for collection" : "Driver assigned for delivery";
+      // Keep current status for assignment events
+      newStatus = dbOrder.status;
     } else {
       console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 
@@ -193,13 +225,16 @@ serve(async (req) => {
         }
       }
 
-      // If no existing COMPLETED event found, create a new POD event
+      // If no existing COMPLETED event found, create a new event
       if (!updatedExistingEvent) {
+        // If we're treating this POD upload as completion (newStatus changed), create a COMPLETED event
+        const eventType = (newStatus === "collected" || newStatus === "delivered") ? "ORDER_COMPLETED" : event;
+        
         shipdayEvents.updates = [
           ...existingUpdates,
           {
             status: order.order_status,
-            event: event,
+            event: eventType,
             timestamp: new Date().toISOString(),
             orderId: shipdayOrderId,
             description: statusDescription,
@@ -207,7 +242,7 @@ serve(async (req) => {
             signatureUrl: signatureUrl
           },
         ];
-        console.log(`Created new POD event for order ${shipdayOrderId}`);
+        console.log(`Created new ${eventType} event for order ${shipdayOrderId}`);
       }
     } else {
       // For other events, add the new update to the updates array
