@@ -295,12 +295,10 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      // Set dates to noon UTC to avoid timezone conversion issues
-      const pickupDateOnly = new Date(pickupDateTime);
-      pickupDateOnly.setUTCHours(12, 0, 0, 0);
+      // Create dates at noon in local timezone to preserve the selected date
+      const pickupDateOnly = new Date(pickupDateTime.getFullYear(), pickupDateTime.getMonth(), pickupDateTime.getDate(), 12, 0, 0, 0);
       
-      const deliveryDateOnly = new Date(deliveryDateTime);
-      deliveryDateOnly.setUTCHours(12, 0, 0, 0);
+      const deliveryDateOnly = new Date(deliveryDateTime.getFullYear(), deliveryDateTime.getMonth(), deliveryDateTime.getDate(), 12, 0, 0, 0);
       
       const updatedOrder = await updateOrderSchedule(
         id, 
@@ -353,13 +351,12 @@ const OrderDetail = () => {
       
       // Check for pickup date from either dropdown selection or date picker
       if (selectedPickupDate) {
-        pickupDateTime = new Date(selectedPickupDate);
-        // Set time to noon UTC to avoid timezone conversion issues
-        pickupDateTime.setUTCHours(12, 0, 0, 0);
+        const tempDate = new Date(selectedPickupDate);
+        // Create date using local constructor to preserve the selected date
+        pickupDateTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 12, 0, 0, 0);
       } else if (pickupDatePicker) {
-        pickupDateTime = new Date(pickupDatePicker);
-        // Set time to noon UTC to avoid timezone conversion issues
-        pickupDateTime.setUTCHours(12, 0, 0, 0);
+        // Create date using UTC constructor to avoid timezone shifts
+        pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate(), 12, 0, 0, 0);
       }
 
       if (!pickupDateTime) {
@@ -409,13 +406,12 @@ const OrderDetail = () => {
       
       // Check for delivery date from either dropdown selection or date picker
       if (selectedDeliveryDate) {
-        deliveryDateTime = new Date(selectedDeliveryDate);
-        // Set time to noon UTC to avoid timezone conversion issues
-        deliveryDateTime.setUTCHours(12, 0, 0, 0);
+        const tempDate = new Date(selectedDeliveryDate);
+        // Create date using local constructor to preserve the selected date
+        deliveryDateTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 12, 0, 0, 0);
       } else if (deliveryDatePicker) {
-        deliveryDateTime = new Date(deliveryDatePicker);
-        // Set time to noon UTC to avoid timezone conversion issues
-        deliveryDateTime.setUTCHours(12, 0, 0, 0);
+        // Create date using UTC constructor to avoid timezone shifts
+        deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate(), 12, 0, 0, 0);
       }
 
       if (!deliveryDateTime) {
