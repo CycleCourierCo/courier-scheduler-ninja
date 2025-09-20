@@ -200,7 +200,11 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                     
                     return (
                       <SelectItem key={index} value={isoValue}>
-                        {format(dateObj, "PPP")}
+                        {(() => {
+                          // For dropdown display, create a new date in UTC to avoid timezone conversion
+                          const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+                          return format(utcDate, "PPP");
+                        })()}
                       </SelectItem>
                     );
                   } catch (error) {
