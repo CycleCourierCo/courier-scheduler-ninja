@@ -605,11 +605,12 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const pickupDateTime = new Date(pickupDatePicker);
+      // Create dates preserving the selected date without timezone shifts
+      const pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate());
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
       
-      const deliveryDateTime = new Date(deliveryDatePicker);
+      const deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate());
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
       
@@ -649,7 +650,8 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const pickupDateTime = new Date(pickupDatePicker);
+      // Create date preserving the selected date without timezone shifts
+      const pickupDateTime = new Date(pickupDatePicker.getFullYear(), pickupDatePicker.getMonth(), pickupDatePicker.getDate());
       const [pickupHours, pickupMinutes] = pickupTime.split(':').map(Number);
       pickupDateTime.setHours(pickupHours, pickupMinutes, 0);
       
@@ -689,7 +691,8 @@ const OrderDetail = () => {
     try {
       setIsSubmitting(true);
       
-      const deliveryDateTime = new Date(deliveryDatePicker);
+      // Create date preserving the selected date without timezone shifts
+      const deliveryDateTime = new Date(deliveryDatePicker.getFullYear(), deliveryDatePicker.getMonth(), deliveryDatePicker.getDate());
       const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
       deliveryDateTime.setHours(deliveryHours, deliveryMinutes, 0);
       
