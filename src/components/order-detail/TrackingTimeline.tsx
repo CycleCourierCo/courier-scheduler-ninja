@@ -113,14 +113,17 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
     }
     
     // Process Shipday tracking events if available
-    if (order.trackingEvents?.shipday?.updates && order.trackingEvents.shipday.updates.length > 0) {
-      console.log("Processing Shipday updates:", order.trackingEvents.shipday.updates);
+    if (order.trackingEvents?.shipday) {
+      console.log("Shipday tracking data found:", order.trackingEvents.shipday);
       
-      const shipdayUpdates = order.trackingEvents.shipday.updates;
-      const pickupId = order.trackingEvents.shipday.pickup_id?.toString();
-      const deliveryId = order.trackingEvents.shipday.delivery_id?.toString();
-      
-      console.log("Pickup ID:", pickupId, "Delivery ID:", deliveryId);
+      if (order.trackingEvents.shipday.updates && order.trackingEvents.shipday.updates.length > 0) {
+        console.log("Processing Shipday updates:", order.trackingEvents.shipday.updates);
+        
+        const shipdayUpdates = order.trackingEvents.shipday.updates;
+        const pickupId = order.trackingEvents.shipday.pickup_id?.toString();
+        const deliveryId = order.trackingEvents.shipday.delivery_id?.toString();
+        
+        console.log("Pickup ID:", pickupId, "Delivery ID:", deliveryId);
       
       // Process each Shipday update - group POD uploads with completed events
       const processedUpdates: { [key: string]: any } = {};
@@ -273,16 +276,18 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           console.error("Error processing Shipday update:", error, update);
         }
       });
-    } else {
-      console.log("No Shipday updates found or updates array is empty");
-      console.log("order.trackingEvents:", order.trackingEvents);
-      console.log("order.trackingEvents?.shipday:", order.trackingEvents?.shipday);
+      } else {
+        console.log("No Shipday updates found or updates array is empty");
+        console.log("order.trackingEvents:", order.trackingEvents);
+        console.log("order.trackingEvents?.shipday:", order.trackingEvents?.shipday);
+      }
+    }
+    
+    // Try to infer tracking events from order status
+    if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
+        order.status === "collected" || order.status === "delivered") {
       
-      // Try to infer tracking events from order status
-      if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
-          order.status === "collected" || order.status === "delivered") {
-        
-        console.log("Inferring tracking events from order status:", order.status);
+      console.log("Inferring tracking events from order status:", order.status);
         
         if (order.status === "driver_to_collection" && !events.some(e => e.title === "Driver En Route to Collection")) {
           events.push({
@@ -321,7 +326,6 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
           });
         }
       }
-    }
     
     // Add fallback events based on order status if needed
     if (events.length <= 2) { // If we only have creation and maybe scheduling events
