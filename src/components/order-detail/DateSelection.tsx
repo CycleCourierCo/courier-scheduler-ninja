@@ -189,28 +189,23 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                     // Handle serialized date objects
                     if (date && typeof date === 'object' && date._type === "Date" && date.value?.iso) {
                       dateObj = parseISO(date.value.iso);
-                      isoValue = date.value.iso;
                     } else if (date && typeof date === 'object' && date.iso) {
                       dateObj = parseISO(date.iso);
-                      isoValue = date.iso;
                     } else if (date && typeof date === 'object' && date.value && typeof date.value === 'number') {
                       dateObj = new Date(date.value);
-                      isoValue = dateObj.toISOString();
                     } else if (date instanceof Date) {
                       dateObj = date;
-                      isoValue = date.toISOString();
                     } else {
                       dateObj = new Date(date);
-                      isoValue = dateObj.toISOString();
                     }
+                    
+                    // Create a UTC date for consistent handling (avoid timezone shifts)
+                    const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+                    isoValue = utcDate.toISOString();
                     
                     return (
                       <SelectItem key={index} value={isoValue}>
-                        {(() => {
-                          // For dropdown display, create a new date in UTC to avoid timezone conversion
-                          const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
-                          return format(utcDate, "PPP");
-                        })()}
+                        {format(utcDate, "PPP")}
                       </SelectItem>
                     );
                   } catch (error) {
