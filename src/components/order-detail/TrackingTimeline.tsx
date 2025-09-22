@@ -211,11 +211,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             return;
           }
           
-          // Check if the update is for pickup or delivery based on orderId or description
-          const isPickup = update.orderId === pickupId || 
-                          (update.orderId !== deliveryId && update.description?.toLowerCase().includes("collect"));
-          const isDelivery = update.orderId === deliveryId || 
-                            (update.orderId !== pickupId && update.description?.toLowerCase().includes("deliver"));
+          // Check if the update is for pickup or delivery based on orderId only
+          // Only show "driver on the way to collection" when event is ORDER_ONTHEWAY and orderId matches pickup_id
+          const isPickup = update.orderId === pickupId;
+          const isDelivery = update.orderId === deliveryId;
           
           console.log(`Update orderId: ${update.orderId}, isPickup: ${isPickup}, isDelivery: ${isDelivery}`);
           
