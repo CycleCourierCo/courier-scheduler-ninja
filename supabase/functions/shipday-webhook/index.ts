@@ -170,19 +170,19 @@ serve(async (req) => {
         console.log(`Processing POD upload for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
       }
     } else if (event === "ORDER_ACCEPTED_AND_STARTED") {
-      // Handle driver acceptance and start
-      if (isPickup) {
-        newStatus = "driver_to_collection";
-        statusDescription = "Driver has accepted and started collection";
-      } else {
-        newStatus = "driver_to_delivery";
-        statusDescription = "Driver has accepted and started delivery";
-      }
+      // Handle driver acceptance and start - keep current status, just log the event
+      statusDescription = isPickup ? "Driver has accepted and started collection" : "Driver has accepted and started delivery";
+      newStatus = dbOrder.status; // Don't change status
     } else if (event === "ORDER_ASSIGNED") {
-      // Handle driver assignment
-      statusDescription = isPickup ? "Driver assigned for collection" : "Driver assigned for delivery";
-      // Keep current status for assignment events
-      newStatus = dbOrder.status;
+      // Handle driver assignment - update status based on job type
+      if (isPickup) {
+        newStatus = "collection_scheduled";
+        statusDescription = "Driver assigned for collection";
+      } else {
+        newStatus = "delivery_scheduled";
+        statusDescription = "Driver assigned for delivery";
+      }
+    }
     } else {
       console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 
