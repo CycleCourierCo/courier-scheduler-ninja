@@ -201,7 +201,33 @@ Cycle Courier Co.`;
           console.log(`Adjusted time for Shipday: ${expectedDeliveryTime}`);
           console.log(`Scheduled date: ${scheduledDate}`);
           
-          // Use the same schema as create-shipday-order function
+          // Use the same comprehensive schema as create-shipday-order function
+          // Build comprehensive delivery instructions with all order details
+          const bikeInfo = order.bike_brand && order.bike_model 
+            ? `Bike: ${order.bike_brand} ${order.bike_model}` 
+            : order.bike_brand 
+              ? `Bike: ${order.bike_brand}` 
+              : order.bike_model 
+                ? `Bike: ${order.bike_model}` 
+                : '';
+
+          const orderDetails = [];
+          if (bikeInfo) orderDetails.push(bikeInfo);
+          if (order.customer_order_number) orderDetails.push(`Order #: ${order.customer_order_number}`);
+          if (order.collection_code) orderDetails.push(`eBay Code: ${order.collection_code}`);
+          if (order.needs_payment_on_collection) orderDetails.push('Payment required on collection');
+          if (order.is_ebay_order) orderDetails.push('eBay Order');
+          if (order.is_bike_swap) orderDetails.push('Bike Swap');
+          
+          const baseDeliveryInstructions = order.delivery_instructions || '';
+          const contextNotes = recipientType === 'sender' ? order.sender_notes : order.receiver_notes;
+          
+          const allInstructions = [
+            ...orderDetails,
+            baseDeliveryInstructions,
+            contextNotes
+          ].filter(Boolean).join(' | ');
+
           const requestBody = {
             orderNumber: order.tracking_number || `${orderId.substring(0, 8)}-UPDATE`,
             customerName: recipientType === 'sender' ? order.sender.name : order.receiver.name,
@@ -214,7 +240,7 @@ Cycle Courier Co.`;
             restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
             expectedDeliveryTime: expectedDeliveryTime,
             expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
-            deliveryInstruction: order.delivery_instructions || ''
+            deliveryInstruction: allInstructions
           };
           console.log('Shipday request body:', requestBody);
 

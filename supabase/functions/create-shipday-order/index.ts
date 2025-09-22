@@ -143,21 +143,38 @@ serve(async (req) => {
     console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
     console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
 
-    // Add bike information to the notes
-    const bikeInfo = order.bikeBrand && order.bikeModel 
-      ? `Bike: ${order.bikeBrand} ${order.bikeModel}` 
-      : order.bikeBrand 
-        ? `Bike: ${order.bikeBrand}` 
-        : order.bikeModel 
-          ? `Bike: ${order.bikeModel}` 
+    // Build comprehensive delivery instructions with all order details
+    const bikeInfo = order.bike_brand && order.bike_model 
+      ? `Bike: ${order.bike_brand} ${order.bike_model}` 
+      : order.bike_brand 
+        ? `Bike: ${order.bike_brand}` 
+        : order.bike_model 
+          ? `Bike: ${order.bike_model}` 
           : '';
+
+    // Build common order details array
+    const orderDetails = [];
+    if (bikeInfo) orderDetails.push(bikeInfo);
+    if (order.customer_order_number) orderDetails.push(`Order #: ${order.customer_order_number}`);
+    if (order.collection_code) orderDetails.push(`eBay Code: ${order.collection_code}`);
+    if (order.needs_payment_on_collection) orderDetails.push('Payment required on collection');
+    if (order.is_ebay_order) orderDetails.push('eBay Order');
+    if (order.is_bike_swap) orderDetails.push('Bike Swap');
 
     const baseDeliveryInstructions = order.delivery_instructions || '';
     const senderNotes = order.sender_notes || '';
-    const pickupInstructions = [bikeInfo, baseDeliveryInstructions, senderNotes].filter(Boolean).join(' | ');
+    const pickupInstructions = [
+      ...orderDetails,
+      baseDeliveryInstructions,
+      senderNotes
+    ].filter(Boolean).join(' | ');
     
     const receiverNotes = order.receiver_notes || '';
-    const deliveryInstructions = [bikeInfo, baseDeliveryInstructions, receiverNotes].filter(Boolean).join(' | ');
+    const deliveryInstructions = [
+      ...orderDetails,
+      baseDeliveryInstructions,
+      receiverNotes
+    ].filter(Boolean).join(' | ');
 
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
