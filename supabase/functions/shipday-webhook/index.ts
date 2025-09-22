@@ -182,7 +182,6 @@ serve(async (req) => {
         newStatus = "delivery_scheduled";
         statusDescription = "Driver assigned for delivery";
       }
-    }
     } else {
       console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 
