@@ -294,6 +294,21 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       // Handle errors silently in background
     });
     
+    // Create Shipday jobs automatically after order creation
+    const createShipdayJobs = async () => {
+      try {
+        const { createShipdayOrder } = await import('@/services/shipdayService');
+        await createShipdayOrder(order.id);
+      } catch (shipdayError) {
+        console.error('Failed to create Shipday jobs:', shipdayError);
+        // Don't fail the order creation if Shipday fails
+      }
+    };
+    
+    createShipdayJobs().catch(() => {
+      // Handle errors silently in background
+    });
+    
     return mapDbOrderToOrderType(order);
   } catch (error) {
     throw error;
