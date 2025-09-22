@@ -174,14 +174,9 @@ serve(async (req) => {
       statusDescription = isPickup ? "Driver has accepted and started collection" : "Driver has accepted and started delivery";
       newStatus = dbOrder.status; // Don't change status
     } else if (event === "ORDER_ASSIGNED") {
-      // Handle driver assignment - update status based on job type
-      if (isPickup) {
-        newStatus = "collection_scheduled";
-        statusDescription = "Driver assigned for collection";
-      } else {
-        newStatus = "delivery_scheduled";
-        statusDescription = "Driver assigned for delivery";
-      }
+      // Handle driver assignment - keep current status, just log the event
+      statusDescription = isPickup ? "Driver assigned for collection" : "Driver assigned for delivery";
+      newStatus = dbOrder.status; // Don't change status
     } else {
       console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 
