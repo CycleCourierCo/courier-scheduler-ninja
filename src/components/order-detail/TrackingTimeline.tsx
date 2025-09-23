@@ -436,21 +436,21 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
       </div>
       
       {trackingEvents.length > 0 ? (
-        <div className="space-y-3 mt-4">
+        <div className="space-y-3 mt-4 overflow-hidden">
           {trackingEvents.map((event, index) => (
-            <div key={index} className="relative pl-6 pb-3">
+            <div key={index} className="relative pl-6 pb-3 min-w-0">
               {index < trackingEvents.length - 1 && (
                 <div className="absolute top-2 left-[7px] h-full w-0.5 bg-gray-200" />
               )}
               <div className="absolute top-1 left-0 rounded-full bg-white">
                 {event.icon}
               </div>
-              <div>
-                <p className="font-medium text-gray-800">{event.title}</p>
-                <p className="text-sm text-gray-500">
+              <div className="min-w-0 overflow-hidden">
+                <p className="font-medium text-gray-800 break-words">{event.title}</p>
+                <p className="text-xs sm:text-sm text-gray-500 break-words">
                   {formatDate(event.date)}
                 </p>
-                <p className="text-sm">{event.description}</p>
+                <p className="text-xs sm:text-sm break-words">{event.description}</p>
                 
                 {/* Display POD images if available with postcode protection */}
                 {(event as any).podUrls && (event as any).podUrls.length > 0 && (
