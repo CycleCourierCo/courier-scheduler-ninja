@@ -186,18 +186,6 @@ const Layout: React.FC<LayoutProps> = ({
                   </address>
                 </div>
               </div>
-              <div className="mt-6 flex space-x-4">
-                <a href="https://www.instagram.com/cyclecourierco" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Instagram">
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Facebook">
-                  <Facebook className="h-5 w-5" />
-                </a>
-                <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Trustpilot Reviews">
-                  <ExternalLink className="h-5 w-5" />
-                  <span className="sr-only">Trustpilot Reviews</span>
-                </a>
-              </div>
             </div>
             
             <div>
@@ -216,6 +204,18 @@ const Layout: React.FC<LayoutProps> = ({
                   </div>
                 </li>
               </ul>
+              <div className="mt-6 flex space-x-4">
+                <a href="https://www.instagram.com/cyclecourierco" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Instagram">
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Facebook">
+                  <Facebook className="h-5 w-5" />
+                </a>
+                <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Trustpilot Reviews">
+                  <ExternalLink className="h-5 w-5" />
+                  <span className="sr-only">Trustpilot Reviews</span>
+                </a>
+              </div>
             </div>
             
             <div>
