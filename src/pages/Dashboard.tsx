@@ -187,8 +187,8 @@ const Dashboard: React.FC = () => {
             <OrderTable orders={paginatedOrders} userRole={stableUserRole} />
             
             {/* Pagination Controls */}
-            <div className="flex items-center justify-between border-t pt-4">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t pt-4 gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <div className="text-sm text-muted-foreground">
                   Showing {startIndex} to {endIndex} of {filteredOrders.length} orders
                 </div>
@@ -209,7 +209,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto">
                 <Button
                   variant="outline"
                   size="sm"

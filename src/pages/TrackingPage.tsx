@@ -137,23 +137,25 @@ const TrackingPage = () => {
               <CardContent className="pt-6">
                 <div className="grid gap-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h2 className="text-xl font-semibold flex items-center">
-                        <Package className="mr-2 h-5 w-5 text-courier-500" />
-                        {order.customerOrderNumber ? (
-                          `Order #${order.customerOrderNumber}`
-                        ) : (
-                          `Order #${order.trackingNumber || order.id.substring(0, 8)}`
-                        )}
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-xl font-semibold flex items-center break-words">
+                        <Package className="mr-2 h-5 w-5 text-courier-500 shrink-0" />
+                        <span className="break-words">
+                          {order.customerOrderNumber ? (
+                            `Order #${order.customerOrderNumber}`
+                          ) : (
+                            `Order #${order.trackingNumber || order.id.substring(0, 8)}`
+                          )}
+                        </span>
                       </h2>
-                      <p className="text-muted-foreground">Created on {new Date(order.createdAt).toLocaleDateString()}</p>
+                      <p className="text-muted-foreground break-words">Created on {new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                     
                     {/* Bike Details */}
                     {(order.bikeBrand || order.bikeModel) && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Bike className="mr-2 h-4 w-4" />
-                        <span>
+                      <div className="flex items-start text-sm text-muted-foreground gap-2 min-w-0">
+                        <Bike className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span className="break-words">
                           {order.bikeBrand} {order.bikeModel}
                           {order.bikeQuantity && order.bikeQuantity > 1 && (
                             <span className="ml-1">(×{order.bikeQuantity})</span>
@@ -170,60 +172,64 @@ const TrackingPage = () => {
                         <Calendar className="mr-2 h-4 w-4 text-courier-500" />
                         Scheduled Dates
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {order.scheduledPickupDate && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <p className="text-sm font-medium text-blue-900">Collection Date</p>
-                            <div className="flex items-center text-blue-700 mb-2">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {new Date(order.scheduledPickupDate).toLocaleDateString('en-GB', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </div>
-                            {order.pickupTimeslot && (
-                              <div className="flex items-center text-blue-600">
-                                <Clock className="w-4 h-4 mr-2" />
-                                <span className="text-sm">Timeslot: {(() => {
-                                  const [hours, minutes] = order.pickupTimeslot.split(':').map(Number);
-                                  const startHour = Math.max(0, hours - 3);
-                                  const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                  const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                  return `${startTime} to ${endTime}`;
-                                })()}</span>
-                              </div>
-                            )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {order.scheduledPickupDate && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 min-w-0">
+                        <p className="text-sm font-medium text-blue-900 break-words">Collection Date</p>
+                        <div className="flex items-start text-blue-700 mb-2 gap-2">
+                          <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
+                          <span className="text-sm break-words">
+                            {new Date(order.scheduledPickupDate).toLocaleDateString('en-GB', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        {order.pickupTimeslot && (
+                          <div className="flex items-start text-blue-600 gap-2">
+                            <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+                            <span className="text-sm break-words">Timeslot: {(() => {
+                              const [hours, minutes] = order.pickupTimeslot.split(':').map(Number);
+                              const startHour = Math.max(0, hours - 3);
+                              const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                              const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                              return `${startTime} to ${endTime}`;
+                            })()}</span>
                           </div>
                         )}
-                        
-                        {order.scheduledDeliveryDate && (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <p className="text-sm font-medium text-green-900">Delivery Date</p>
-                            <div className="flex items-center text-green-700 mb-2">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {new Date(order.scheduledDeliveryDate).toLocaleDateString('en-GB', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </div>
-                            {order.deliveryTimeslot && (
-                              <div className="flex items-center text-green-600">
-                                <Clock className="w-4 h-4 mr-2" />
-                                <span className="text-sm">Timeslot: {(() => {
-                                  const [hours, minutes] = order.deliveryTimeslot.split(':').map(Number);
-                                  const startHour = Math.max(0, hours - 3);
-                                  const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                  const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                  return `${startTime} to ${endTime}`;
-                                })()}</span>
-                              </div>
-                            )}
+                      </div>
+                    )}
+                    
+                    {order.scheduledDeliveryDate && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 min-w-0">
+                        <p className="text-sm font-medium text-green-900 break-words">Delivery Date</p>
+                        <div className="flex items-start text-green-700 mb-2 gap-2">
+                          <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
+                          <span className="text-sm break-words">
+                            {new Date(order.scheduledDeliveryDate).toLocaleDateString('en-GB', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        {order.deliveryTimeslot && (
+                          <div className="flex items-start text-green-600 gap-2">
+                            <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+                            <span className="text-sm break-words">Timeslot: {(() => {
+                              const [hours, minutes] = order.deliveryTimeslot.split(':').map(Number);
+                              const startHour = Math.max(0, hours - 3);
+                              const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                              const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                              return `${startTime} to ${endTime}`;
+                            })()}</span>
                           </div>
                         )}
+                      </div>
+                    )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-3 italic">
                         * These dates are provisional. You will receive a 3-hour timeslot when an exact date is scheduled in.
