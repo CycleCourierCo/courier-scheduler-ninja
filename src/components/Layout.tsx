@@ -3,50 +3,37 @@ import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
-
 interface LayoutProps {
   children: React.ReactNode;
 }
-
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, signOut, userProfile } = useAuth();
+const Layout: React.FC<LayoutProps> = ({
+  children
+}) => {
+  const {
+    user,
+    signOut,
+    userProfile
+  } = useAuth();
   const [open, setOpen] = useState(false);
-
   const closeSheet = () => setOpen(false);
-
   const isAdmin = userProfile?.role === 'admin';
-
-  const navLinks = (
-    <>
+  const navLinks = <>
       <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Home
       </Link>
       <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Track Order
       </Link>
-      {user ? (
-        <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+      {user ? <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Create Order
-        </Link>
-      ) : (
-        <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        </Link> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
-        </Link>
-      )}
-    </>
-  );
-
-  return (
-    <div className="min-h-screen flex flex-col">
+        </Link>}
+    </>;
+  return <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2 pl-4">
@@ -71,72 +58,42 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
                   
-                  {user && (
-                    <>
+                  {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      <Link 
-                        to="/dashboard" 
-                        onClick={closeSheet}
-                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                      >
+                      <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <Home className="mr-2 h-4 w-4" />
                         Dashboard
                       </Link>
-                      {isAdmin && (
-                        <Link 
-                          to="/analytics" 
-                          onClick={closeSheet}
-                          className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                        >
+                      {isAdmin && <Link to="/analytics" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <BarChart3 className="mr-2 h-4 w-4" />
                           Analytics
-                        </Link>
-                      )}
-                      <Link 
-                        to="/profile" 
-                        onClick={closeSheet}
-                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                      >
+                        </Link>}
+                      <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>
-                      {isAdmin && (
-                        <>
-                          <Link 
-                            to="/account-approvals" 
-                            onClick={closeSheet}
-                            className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                          >
+                      {isAdmin && <>
+                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
                           </Link>
-                          <Link 
-                            to="/api-keys" 
-                            onClick={closeSheet}
-                            className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                          >
+                          <Link to="/api-keys" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Key className="mr-2 h-4 w-4" />
                             API Keys
                           </Link>
-                          <Link 
-                            to="/invoices" 
-                            onClick={closeSheet}
-                            className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                          >
+                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <FileText className="mr-2 h-4 w-4" />
                             Invoices
                           </Link>
-                        </>
-                      )}
-                      <button 
-                        onClick={() => { signOut(); closeSheet(); }} 
-                        className="flex items-center text-foreground hover:text-courier-500 transition-colors"
-                      >
+                        </>}
+                      <button onClick={() => {
+                    signOut();
+                    closeSheet();
+                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <LogOut className="mr-2 h-4 w-4" />
                         Logout
                       </button>
-                    </>
-                  )}
+                    </>}
                 </div>
               </SheetContent>
             </Sheet>
@@ -145,8 +102,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
-            {user && (
-              <DropdownMenu>
+            {user && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <User className="h-5 w-5" />
@@ -163,22 +119,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span>Dashboard</span>
                     </Link>
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem asChild>
+                  {isAdmin && <DropdownMenuItem asChild>
                       <Link to="/analytics" className="cursor-pointer flex w-full items-center">
                         <BarChart3 className="mr-2 h-4 w-4" />
                         <span>Analytics</span>
                       </Link>
-                    </DropdownMenuItem>
-                  )}
+                    </DropdownMenuItem>}
                   <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Your Profile</span>
                     </Link>
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <>
+                  {isAdmin && <>
                       <DropdownMenuItem asChild>
                         <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
                           <Shield className="mr-2 h-4 w-4" />
@@ -197,16 +150,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                           <span>Invoices</span>
                         </Link>
                       </DropdownMenuItem>
-                    </>
-                  )}
+                    </>}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+              </DropdownMenu>}
           </div>
         </div>
       </header>
@@ -222,9 +173,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
               <h3 className="text-2xl font-bold mb-6">The Cycle Courier Co.</h3>
-              <p className="text-sm opacity-90 leading-relaxed">
-                Eco-friendly bicycle courier services for businesses and individuals.
-              </p>
+              
               <div className="mt-6 space-y-2">
                 <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>
                 <p className="text-sm opacity-90">Company No: 16220087</p>
@@ -238,31 +187,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
               </div>
               <div className="mt-6 flex space-x-4">
-                <a 
-                  href="https://www.instagram.com/cyclecourierco" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110"
-                  aria-label="Instagram"
-                >
+                <a href="https://www.instagram.com/cyclecourierco" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Instagram">
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a 
-                  href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110"
-                  aria-label="Facebook"
-                >
+                <a href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Facebook">
                   <Facebook className="h-5 w-5" />
                 </a>
-                <a 
-                  href="https://www.trustpilot.com/review/cyclecourierco.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110"
-                  aria-label="Trustpilot Reviews"
-                >
+                <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Trustpilot Reviews">
                   <ExternalLink className="h-5 w-5" />
                   <span className="sr-only">Trustpilot Reviews</span>
                 </a>
@@ -335,12 +266,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 </li>
                 <li>
-                  <a 
-                    href="https://www.trustpilot.com/review/cyclecourierco.com" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center"
-                  >
+                  <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Trustpilot Reviews
                   </a>
@@ -353,8 +279,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Layout;
