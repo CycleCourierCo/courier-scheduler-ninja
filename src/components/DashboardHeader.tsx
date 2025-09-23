@@ -200,7 +200,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             const logoHeight = logoWidth; // 1:1 ratio (square)
             const logoX = (labelWidth - logoWidth) / 2; // Center the logo
             
-            pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+            pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
             currentY += logoHeight + 10;
             
             // Tagline below logo
@@ -257,21 +257,23 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         </div>
       )}
       {showActionButtons && (
-        <div className="flex justify-end space-x-2">
+        <div className="flex flex-col sm:flex-row justify-end gap-2">
           {isAdmin && (
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link to="/scheduling">
                 <Calendar className="mr-2 h-4 w-4" />
-                Job Scheduling
+                <span className="hidden sm:inline">Job Scheduling</span>
+                <span className="sm:hidden">Scheduling</span>
               </Link>
             </Button>
           )}
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <Printer className="mr-2 h-4 w-4" />
-                  Print Collection Labels
+                  <span className="hidden sm:inline">Print Collection Labels</span>
+                  <span className="sm:hidden">Print Labels</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -315,7 +317,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </DialogContent>
             </Dialog>
           )}
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link to="/create-order">
               <Plus className="mr-2 h-4 w-4" />
               New Order

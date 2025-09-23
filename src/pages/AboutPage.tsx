@@ -1,11 +1,8 @@
-
 import React from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 const AboutPage: React.FC = () => {
-  return (
-    <Layout>
+  return <Layout>
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
@@ -13,11 +10,7 @@ const AboutPage: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center mb-8">
-              <img 
-                src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" 
-                alt="The Cycle Courier Co." 
-                className="h-32 object-contain"
-              />
+              <img src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" alt="The Cycle Courier Co." className="h-32 object-contain" />
             </div>
             
             <p className="text-xl font-semibold text-courier-500 text-center">
@@ -32,9 +25,7 @@ const AboutPage: React.FC = () => {
               Whether you're a trade client shipping multiple bikes or a private buyer purchasing your dream ride, we've designed a service that delivers speed, security and peace of mind.
             </p>
             
-            <p className="text-lg">
-              With our specialist inspection service, we go the extra mile to ensure that bikes arrive in perfect condition, backed by a 3-month warranty for added confidence. Every bike we transport is fully insured to its value, so you can rest assured that your pride and joy is in safe hands.
-            </p>
+            <p className="text-lg">With our specialist inspection service, we go the extra mile to ensure that bikes arrive in perfect condition. Every bike we transport is fully insured to its value, so you can rest assured that your pride and joy is in safe hands.</p>
             
             <p className="text-lg">
               Our high-tech platform brings a new level of transparency and convenience to bike delivery. From seamless job bookings to real-time tracking, our customers have complete visibility every step of the way. For trade clients, we've automated the delivery process to minimize effort and maximize efficiency, making us the ideal logistics partner for bike retailers and businesses.
@@ -51,8 +42,6 @@ const AboutPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </Layout>
-  );
+    </Layout>;
 };
-
 export default AboutPage;
