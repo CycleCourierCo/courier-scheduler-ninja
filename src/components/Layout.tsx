@@ -46,8 +46,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-accent">
-      <header className="sticky top-0 z-10 bg-background border-b border-border">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
             <img src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" alt="The Cycle Courier Co." className="h-12" />
@@ -210,35 +210,39 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4">
         {children}
       </main>
-      <footer className="bg-courier-500 text-white py-6">
-        <div className="container mx-auto px-4">
+      <footer className="relative bg-gradient-primary text-primary-foreground py-12 mt-20 overflow-hidden">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute top-10 right-10 w-64 h-64 bg-primary-glow/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 left-10 w-48 h-48 bg-primary-foreground/10 rounded-full blur-2xl"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">The Cycle Courier Co.</h3>
-              <p className="text-sm opacity-80">
+            <div className="space-y-4">
+              <h3 className="text-2xl font-bold mb-6">The Cycle Courier Co.</h3>
+              <p className="text-sm opacity-90 leading-relaxed">
                 Eco-friendly bicycle courier services for businesses and individuals.
               </p>
-              <div className="mt-4 space-y-1">
-                <p className="text-sm opacity-80">Cycorco Ltd T/A Cycle Courier Co.</p>
-                <p className="text-sm opacity-80">Company No: 16220087</p>
-                <div className="text-sm opacity-80">
-                  <p>Company address:</p>
-                  <address className="not-italic">
+              <div className="mt-6 space-y-2">
+                <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>
+                <p className="text-sm opacity-90">Company No: 16220087</p>
+                <div className="text-sm opacity-90">
+                  <p className="font-medium">Company address:</p>
+                  <address className="not-italic opacity-80">
                     339 Haunch Lane<br />
                     Birmingham<br />
                     B13 0PL
                   </address>
                 </div>
               </div>
-              <div className="mt-4 flex space-x-4">
+              <div className="mt-6 flex space-x-4">
                 <a 
                   href="https://www.instagram.com/cyclecourierco" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-white hover:text-white/80 transition-colors"
+                  className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110"
                   aria-label="Instagram"
                 >
                   <Instagram className="h-5 w-5" />
@@ -247,7 +251,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-white hover:text-white/80 transition-colors"
+                  className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110"
                   aria-label="Facebook"
                 >
                   <Facebook className="h-5 w-5" />
@@ -256,7 +260,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   href="https://www.trustpilot.com/review/cyclecourierco.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-white hover:text-white/80 transition-colors"
+                  className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110"
                   aria-label="Trustpilot Reviews"
                 >
                   <ExternalLink className="h-5 w-5" />
@@ -266,17 +270,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Contact Us</h3>
+              <h3 className="text-xl font-bold mb-6">Contact Us</h3>
               <ul className="space-y-2">
                 <li>
-                  <div className="flex items-start text-sm opacity-80">
-                    <span className="mt-1 mr-2"><Mail className="h-4 w-4" /></span>
+                  <div className="flex items-start text-sm opacity-90 hover:opacity-100 transition-opacity">
+                    <span className="mt-1 mr-3 p-2 bg-primary-foreground/10 rounded-lg"><Mail className="h-4 w-4" /></span>
                     <span>info@cyclecourierco.com</span>
                   </div>
                 </li>
                 <li>
-                  <div className="flex items-start text-sm opacity-80">
-                    <span className="mt-1 mr-2"><Phone className="h-4 w-4" /></span>
+                  <div className="flex items-start text-sm opacity-90 hover:opacity-100 transition-opacity">
+                    <span className="mt-1 mr-3 p-2 bg-primary-foreground/10 rounded-lg"><Phone className="h-4 w-4" /></span>
                     <span>+44 121 798 0767 (Call or WhatsApp)</span>
                   </div>
                 </li>
@@ -284,25 +288,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+              <h3 className="text-xl font-bold mb-6">Quick Links</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                  <Link to="/" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     Home
                   </Link>
                 </li>
                 <li>
-                  <Link to="/about" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                  <Link to="/about" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     About Us
                   </Link>
                 </li>
                 <li>
-                  <Link to="/tracking" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                  <Link to="/tracking" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     Track Order
                   </Link>
                 </li>
                 <li>
-                  <Link to="/create-order" className="text-sm opacity-80 hover:opacity-100 transition-opacity">
+                  <Link to="/create-order" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     Create Order
                   </Link>
                 </li>
@@ -310,7 +314,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Legal</h3>
+              <h3 className="text-xl font-bold mb-6">Legal</h3>
               <ul className="space-y-2">
                 <li>
                   <Link to="/privacy" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
@@ -344,8 +348,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </ul>
             </div>
           </div>
-          <div className="border-t border-white/20 mt-6 pt-6 text-center">
-            <p>&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
+          <div className="border-t border-primary-foreground/20 mt-12 pt-8 text-center">
+            <p className="text-sm opacity-90">&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
           </div>
         </div>
       </footer>
