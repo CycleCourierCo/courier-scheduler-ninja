@@ -34,7 +34,7 @@ const Index = () => {
   }, [navigate]);
   return <Layout>
       {/* Hero Section with stunning gradient background filling entire space */}
-      <section className="relative flex-1 min-h-[40vh] flex items-center justify-center overflow-hidden">
+      <section className="relative flex-1 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero opacity-90"></div>
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
