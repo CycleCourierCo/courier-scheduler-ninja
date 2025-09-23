@@ -213,7 +213,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="flex-1 flex flex-col">
         {children}
       </main>
-      <footer className="relative bg-gradient-primary text-primary-foreground py-12 mt-20 overflow-hidden">
+      <footer className="relative bg-gradient-primary text-primary-foreground py-12 overflow-hidden">
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="absolute top-10 right-10 w-64 h-64 bg-primary-glow/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-10 left-10 w-48 h-48 bg-primary-foreground/10 rounded-full blur-2xl"></div>
