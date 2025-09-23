@@ -34,7 +34,7 @@ const Index = () => {
   }, [navigate]);
   return <Layout>
       {/* Hero Section with stunning gradient background filling entire space */}
-      <section className="relative flex-1 flex items-center justify-center overflow-hidden">
+      <section className="relative flex-1 min-h-[calc(100vh-4rem-10rem)] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero opacity-90"></div>
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
@@ -43,8 +43,8 @@ const Index = () => {
         }}></div>
         </div>
         
-        <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex flex-col items-center space-y-8 text-center">
+        <div className="container px-4 md:px-6 relative z-10 mx-auto">
+          <div className="flex flex-col items-center space-y-8 text-center justify-center">
             <div className="space-y-6 animate-fade-in">
               <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-gradient">
                 Book your Bike 
@@ -55,7 +55,7 @@ const Index = () => {
 Fast, friendly and reliable courier services for your business needs</p>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{
+            <div className="flex flex-col sm:flex-row gap-4 animate-slide-up justify-center" style={{
             animationDelay: '0.3s'
           }}>
               {user ? <>

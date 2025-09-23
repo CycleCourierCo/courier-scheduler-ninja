@@ -210,7 +210,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 flex-1">
+      <main className="flex-1 flex flex-col">
         {children}
       </main>
       <footer className="relative bg-gradient-primary text-primary-foreground py-12 mt-20 overflow-hidden">
