@@ -49,11 +49,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex-1 flex justify-center md:justify-start md:pl-8">
-            <Link to="/" className="flex items-center space-x-2">
-              <img src="/cycle-courier-logo.png" alt="The Cycle Courier Co." className="h-40 w-auto hover:scale-105 transition-transform duration-200" />
-            </Link>
-          </div>
+          <Link to="/" className="flex items-center space-x-2 pl-4">
+            <img src="/cycle-courier-logo.png" alt="The Cycle Courier Co." className="h-20 w-auto hover:scale-105 transition-transform duration-200" />
+          </Link>
           
           <nav className="hidden md:flex space-x-6">
             {navLinks}
