@@ -50,7 +50,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <img src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" alt="The Cycle Courier Co." className="h-12" />
+            <img src="/cycle-courier-logo.png" alt="The Cycle Courier Co." className="h-12" />
           </Link>
           
           <nav className="hidden md:flex space-x-6">
