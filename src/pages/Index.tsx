@@ -33,8 +33,8 @@ const Index = () => {
     }
   }, [navigate]);
   return <Layout>
-      {/* Hero Section with stunning gradient background */}
-      <section className="relative py-24 md:py-32 overflow-hidden">
+      {/* Hero Section with stunning gradient background filling entire space */}
+      <section className="relative flex-1 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero opacity-90"></div>
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
@@ -80,12 +80,6 @@ Fast, friendly and reliable courier services for your business needs</p>
           </div>
         </div>
       </section>
-
-      {/* Features Section with beautiful cards */}
-      
-
-      {/* Call to Action Section */}
-      
     </Layout>;
 };
 export default Index;

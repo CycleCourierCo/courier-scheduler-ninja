@@ -132,7 +132,7 @@ export const generateSingleOrderLabel = async (order: Order) => {
         const logoHeight = logoWidth; // 1:1 ratio (square)
         const logoX = (labelWidth - logoWidth) / 2; // Center the logo
         
-        pdf.addImage('/lovable-uploads/5014f666-d8af-4495-bf27-b2cbabee592f.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+        pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
         currentY += logoHeight + 10;
         
         // Tagline below logo
