@@ -181,6 +181,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
+  const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
+  const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
+  const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
   const [startTime, setStartTime] = useState("09:00");
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
@@ -271,6 +274,28 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         toast.error('Invalid coordinates');
       }
     }
+  };
+
+  const openCoordinateDialog = (orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string) => {
+    setCoordinateJobToUpdate({ orderId, type, contactName, address });
+    setCoordinateInputs({ lat: '', lon: '' });
+    setShowCoordinateDialog(true);
+  };
+
+  const handleCoordinateUpdate = () => {
+    if (!coordinateJobToUpdate) return;
+    
+    const lat = parseFloat(coordinateInputs.lat.trim());
+    const lon = parseFloat(coordinateInputs.lon.trim());
+    
+    if (isNaN(lat) || isNaN(lon)) {
+      toast.error('Please enter valid numbers for coordinates');
+      return;
+    }
+    
+    updateAvailableJobCoordinates(coordinateJobToUpdate.orderId, coordinateJobToUpdate.type, lat, lon);
+    setShowCoordinateDialog(false);
+    setCoordinateJobToUpdate(null);
   };
 
   const formatAddress = (address: any) => {
@@ -628,17 +653,7 @@ Route Link: ${routeLink}`;
                             variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const lat = prompt('Enter latitude (e.g., 53.123456):');
-                              const lon = prompt('Enter longitude (e.g., -2.123456):');
-                              if (lat && lon) {
-                                const latNum = parseFloat(lat.trim());
-                                const lonNum = parseFloat(lon.trim());
-                                if (!isNaN(latNum) && !isNaN(lonNum)) {
-                                  updateAvailableJobCoordinates(job.orderId, job.type, latNum, lonNum);
-                                } else {
-                                  toast.error('Please enter valid numbers for coordinates');
-                                }
-                              }
+                              openCoordinateDialog(job.orderId, job.type, job.contactName, job.address);
                             }}
                             className="w-full flex items-center gap-1 text-orange-600 hover:text-orange-700"
                           >
@@ -756,6 +771,71 @@ Route Link: ${routeLink}`;
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Coordinate Update Dialog */}
+      <Dialog open={showCoordinateDialog} onOpenChange={setShowCoordinateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Coordinates</DialogTitle>
+          </DialogHeader>
+          {coordinateJobToUpdate && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{coordinateJobToUpdate.contactName}</p>
+                <p className="text-xs text-muted-foreground">{coordinateJobToUpdate.address}</p>
+                <Badge variant={coordinateJobToUpdate.type === 'pickup' ? 'default' : 'secondary'}>
+                  {coordinateJobToUpdate.type === 'pickup' ? 'Collection' : 'Delivery'}
+                </Badge>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium">Latitude</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="e.g., 53.123456"
+                    value={coordinateInputs.lat}
+                    onChange={(e) => setCoordinateInputs(prev => ({ ...prev, lat: e.target.value }))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Range: -90 to 90</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Longitude</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="e.g., -2.123456"
+                    value={coordinateInputs.lon}
+                    onChange={(e) => setCoordinateInputs(prev => ({ ...prev, lon: e.target.value }))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Range: -180 to 180</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowCoordinateDialog(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCoordinateUpdate}
+                  disabled={!coordinateInputs.lat || !coordinateInputs.lon}
+                  className="flex-1"
+                >
+                  Update
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
