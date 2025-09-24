@@ -19,6 +19,7 @@ interface BikesInStorageProps {
 
 export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLocation }: BikesInStorageProps) => {
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
+  const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [newBay, setNewBay] = useState("");
   const [newPosition, setNewPosition] = useState("");
 
@@ -45,11 +46,22 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
 
     onChangeLocation(editingAllocation.id, bayUpper, positionNum);
     setEditingAllocation(null);
+    setEditingOrderAllocations([]);
     setNewBay("");
     setNewPosition("");
   };
 
   const openEditDialog = (allocation: StorageAllocation) => {
+    // Find all allocations for this order
+    const orderAllocations = bikesInStorage
+      .filter(({ allocation: a }) => a.orderId === allocation.orderId)
+      .map(({ allocation }) => allocation)
+      .sort((a, b) => {
+        if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
+        return a.position - b.position;
+      });
+    
+    setEditingOrderAllocations(orderAllocations);
     setEditingAllocation(allocation);
     setNewBay(allocation.bay);
     setNewPosition(allocation.position.toString());
@@ -64,38 +76,71 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
     );
   }
 
-  // Sort by bay and position
-  const sortedBikes = [...bikesInStorage].sort((a, b) => {
-    if (a.allocation.bay !== b.allocation.bay) {
-      return a.allocation.bay.localeCompare(b.allocation.bay);
+  // Group bikes by order to show multiple positions for multi-bike orders
+  const groupedByOrder = bikesInStorage.reduce((acc, { allocation, order }) => {
+    if (!acc[allocation.orderId]) {
+      acc[allocation.orderId] = {
+        order,
+        allocations: []
+      };
     }
-    return a.allocation.position - b.allocation.position;
+    acc[allocation.orderId].allocations.push(allocation);
+    return acc;
+  }, {} as Record<string, { order: Order | undefined; allocations: StorageAllocation[] }>);
+
+  const sortedOrders = Object.entries(groupedByOrder).sort(([, a], [, b]) => {
+    // Sort by first allocation's bay and position
+    const aFirst = a.allocations[0];
+    const bFirst = b.allocations[0];
+    if (aFirst.bay !== bFirst.bay) {
+      return aFirst.bay.localeCompare(bFirst.bay);
+    }
+    return aFirst.position - bFirst.position;
   });
 
   return (
     <div className="space-y-3">
-      {sortedBikes.map(({ allocation, order }) => {
+      {sortedOrders.map(([orderId, { order, allocations }]) => {
+        const isMultiBike = allocations.length > 1;
+        
         return (
-          <Card key={allocation.id} className="p-3">
+          <Card key={orderId} className="p-3">
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="font-mono">
-                    {allocation.bay}{allocation.position}
-                  </Badge>
-                  <h4 className="font-medium text-sm">{allocation.customerName}</h4>
+                  {isMultiBike ? (
+                    <div className="flex flex-wrap gap-1">
+                      {allocations.map((allocation) => (
+                        <Badge key={allocation.id} variant="secondary" className="font-mono text-xs">
+                          {allocation.bay}{allocation.position}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <Badge variant="secondary" className="font-mono">
+                      {allocations[0].bay}{allocations[0].position}
+                    </Badge>
+                  )}
+                  <h4 className="font-medium text-sm">{allocations[0].customerName}</h4>
                 </div>
-                <Badge 
-                  variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
-                  className="text-xs"
-                >
-                  {order?.status || 'Unknown'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {isMultiBike && (
+                    <Badge variant="outline" className="text-xs">
+                      {allocations.length} bikes
+                    </Badge>
+                  )}
+                  <Badge 
+                    variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
+                    className="text-xs"
+                  >
+                    {order?.status || 'Unknown'}
+                  </Badge>
+                </div>
               </div>
               
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium">
-                  {allocation.bikeBrand} {allocation.bikeModel}
+                  {allocations[0].bikeBrand} {allocations[0].bikeModel}
                 </p>
                 {order && (
                   <>
@@ -109,25 +154,28 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
                   </>
                 )}
                 <p className="text-xs mt-1">
-                  Stored: {format(allocation.allocatedAt, 'MMM dd, yyyy HH:mm')}
+                  Stored: {format(allocations[0].allocatedAt, 'MMM dd, yyyy HH:mm')}
                 </p>
                 <div className="flex gap-2 mt-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => openEditDialog(allocation)}
+                    onClick={() => openEditDialog(allocations[0])}
                     className="h-7 text-xs flex-1"
                   >
                     <Edit className="h-3 w-3 mr-1" />
-                    Change Location
+                    {isMultiBike ? 'Manage Locations' : 'Change Location'}
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => onRemoveFromStorage(allocation.id)}
+                    onClick={() => {
+                      // Remove all allocations for this order
+                      allocations.forEach(allocation => onRemoveFromStorage(allocation.id));
+                    }}
                     className="h-7 text-xs flex-1 bg-green-600 hover:bg-green-700 text-white"
                   >
                     <Truck className="h-3 w-3 mr-1" />
-                    Load onto Van
+                    Load All onto Van
                   </Button>
                 </div>
               </div>
@@ -137,15 +185,49 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
       })}
       
       {/* Change Location Dialog */}
-      <Dialog open={!!editingAllocation} onOpenChange={(open) => !open && setEditingAllocation(null)}>
-        <DialogContent>
+      <Dialog open={!!editingAllocation} onOpenChange={(open) => {
+        if (!open) {
+          setEditingAllocation(null);
+          setEditingOrderAllocations([]);
+        }
+      }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Change Storage Location</DialogTitle>
+            <DialogTitle>
+              {editingOrderAllocations.length > 1 ? 'Manage Storage Locations' : 'Change Storage Location'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {editingAllocation && (
-              <div className="text-sm text-muted-foreground">
-                Moving: <strong>{editingAllocation.customerName}</strong> - {editingAllocation.bikeBrand} {editingAllocation.bikeModel}
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  Order: <strong>{editingAllocation.customerName}</strong> - {editingAllocation.bikeBrand} {editingAllocation.bikeModel}
+                </div>
+                
+                {editingOrderAllocations.length > 1 && (
+                  <div className="p-3 bg-muted/20 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Current Locations:</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {editingOrderAllocations.map((allocation, index) => (
+                        <div key={allocation.id} className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-mono">
+                            {allocation.bay}{allocation.position}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Bike {index + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-sm font-medium">
+                  {editingOrderAllocations.length > 1 
+                    ? `Changing location for bike currently at ${editingAllocation.bay}${editingAllocation.position}:` 
+                    : 'New location:'
+                  }
+                </div>
               </div>
             )}
             <div className="flex gap-3 items-end">

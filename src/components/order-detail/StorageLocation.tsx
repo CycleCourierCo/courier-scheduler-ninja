@@ -29,12 +29,12 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
       }));
       setAllAllocations(allocations);
       
-      // Find allocation for this order
-      const allocation = allocations.find((a: StorageAllocation) => a.orderId === order.id);
-      if (allocation) {
-        setCurrentAllocation(allocation);
-        setBay(allocation.bay);
-        setPosition(allocation.position.toString());
+      // Find allocations for this order (there might be multiple for multi-bike orders)
+      const orderAllocations = allocations.filter((a: StorageAllocation) => a.orderId === order.id);
+      if (orderAllocations.length > 0) {
+        setCurrentAllocation(orderAllocations[0]); // Set the first one for form defaults
+        setBay(orderAllocations[0].bay);
+        setPosition(orderAllocations[0].position.toString());
       }
     }
   }, [order.id]);
@@ -99,9 +99,11 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
   };
 
   const handleRemove = () => {
-    if (!currentAllocation) return;
+    // Remove all allocations for this order
+    const orderAllocations = allAllocations.filter(a => a.orderId === order.id);
+    if (orderAllocations.length === 0) return;
 
-    const updatedAllocations = allAllocations.filter(a => a.id !== currentAllocation.id);
+    const updatedAllocations = allAllocations.filter(a => a.orderId !== order.id);
     setAllAllocations(updatedAllocations);
     setCurrentAllocation(null);
     setBay("");
@@ -110,7 +112,8 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
     // Save to localStorage
     localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
     
-    toast.success("Bike removed from storage");
+    const isMultiple = orderAllocations.length > 1;
+    toast.success(`${isMultiple ? 'All bikes' : 'Bike'} removed from storage`);
   };
 
   // Check if order has been collected
@@ -133,6 +136,12 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
     return null;
   }
 
+  // Get all allocations for this order
+  const orderAllocations = allAllocations.filter(a => a.orderId === order.id);
+  const bikeQuantity = order.bikeQuantity || 1;
+  const isMultiBike = bikeQuantity > 1;
+  const hasAllocations = orderAllocations.length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -142,36 +151,68 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {currentAllocation ? (
+        {hasAllocations ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
-                {currentAllocation.bay}{currentAllocation.position}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                Stored: {currentAllocation.allocatedAt.toLocaleDateString()} at {currentAllocation.allocatedAt.toLocaleTimeString()}
-              </span>
+              {isMultiBike ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Storage Locations:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {orderAllocations
+                      .sort((a, b) => {
+                        if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
+                        return a.position - b.position;
+                      })
+                      .map((allocation, index) => (
+                        <Badge key={allocation.id} variant="secondary" className="font-mono text-sm px-2 py-1">
+                          {allocation.bay}{allocation.position}
+                        </Badge>
+                      ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {orderAllocations.length} of {bikeQuantity} bikes allocated
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
+                    {orderAllocations[0].bay}{orderAllocations[0].position}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Stored: {orderAllocations[0].allocatedAt.toLocaleDateString()} at {orderAllocations[0].allocatedAt.toLocaleTimeString()}
+                  </span>
+                </>
+              )}
             </div>
             
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">
-                Bay {currentAllocation.bay}, Position {currentAllocation.position}
-              </span>
-            </div>
+            {!isMultiBike && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">
+                  Bay {orderAllocations[0].bay}, Position {orderAllocations[0].position}
+                </span>
+              </div>
+            )}
+            
+            {isMultiBike && (
+              <div className="text-sm text-muted-foreground">
+                First bike stored: {orderAllocations[0].allocatedAt.toLocaleDateString()} at {orderAllocations[0].allocatedAt.toLocaleTimeString()}
+              </div>
+            )}
             
             <Button 
               variant="destructive" 
               size="sm" 
               onClick={handleRemove}
             >
-              Remove from Storage
+              Remove {isMultiBike ? 'All' : ''} from Storage
             </Button>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               This bike has been collected but not yet allocated to storage.
+              {isMultiBike && ` (${bikeQuantity} bikes need allocation)`}
             </div>
             
             <div className="flex gap-3 items-end">
