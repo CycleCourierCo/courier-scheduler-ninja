@@ -992,126 +992,111 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
     setIsSendingTimeslots(true);
     try {
-      // Group jobs by contact (sender/receiver)
-      const jobsByContact = new Map<string, typeof jobsAtLocation>();
+      if (jobsAtLocation.length === 0 || !jobsAtLocation[0].estimatedTime) return;
+      
+      // Get the primary contact (first job's contact - could be pickup or delivery)
+      const primaryJob = jobsAtLocation[0];
+      const deliveryTime = `${primaryJob.estimatedTime}:00`;
+      
+      // Create datetime from selected date and estimated time
+      const [jobHours, jobMinutes] = primaryJob.estimatedTime.split(':').map(Number);
+      const scheduledDateTime = new Date(selectedDate);
+      scheduledDateTime.setHours(jobHours, jobMinutes, 0, 0);
+      
+      // Separate ALL deliveries and collections at this location
+      const deliveries: string[] = [];
+      const collections: string[] = [];
       
       jobsAtLocation.forEach(job => {
-        const contactKey = `${job.contactName}-${job.type}`;
-        if (!jobsByContact.has(contactKey)) {
-          jobsByContact.set(contactKey, []);
+        const brand = job.orderData?.bike_brand || 'Unknown Brand';
+        const model = job.orderData?.bike_model || 'Unknown Model';
+        const bikeInfo = `${brand} ${model}`;
+        
+        if (job.type === 'delivery') {
+          deliveries.push(bikeInfo);
+        } else if (job.type === 'pickup') {
+          collections.push(bikeInfo);
         }
-        jobsByContact.get(contactKey)!.push(job);
       });
-
-      // Send one message per contact with consolidated bike info
-      const promises = Array.from(jobsByContact.entries()).map(async ([contactKey, jobs]) => {
-        if (jobs.length === 0 || !jobs[0].estimatedTime) return;
+      
+      // Format timeslot window (original time + 3 hours)
+      const [windowHours, windowMinutes] = primaryJob.estimatedTime.split(':').map(Number);
+      const endHour = Math.min(23, windowHours + 3);
+      const startTime = `${windowHours.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
+      const endTime = `${endHour.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
+      const timeWindow = `${startTime} and ${endTime}`;
+      
+      // Format date
+      const formattedDate = format(selectedDate, 'EEEE d MMMM yyyy');
+      
+      // Create custom message following the requested format - send to primary contact
+      let message = `Dear ${primaryJob.contactName},\n\n`;
+      message += `We are due to be with you on ${formattedDate} between ${timeWindow} for the following deliveries and collections.\n\n`;
+      
+      if (deliveries.length > 0) {
+        message += `Deliveries: ${deliveries.join(', ')}\n`;
+      }
+      if (collections.length > 0) {
+        message += `Collections: ${collections.join(', ')}\n`;
+      }
+      
+      message += `\nYou will receive a text with a live tracking link once the driver is on his way.\n\n`;
+      message += `Please ensure the pedals have been removed from the bikes we are collecting and are in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.\n\n`;
+      message += `Thank you!\nCycle Courier Co.`;
+      
+      // Update ALL jobs at this location
+      for (const job of jobsAtLocation) {
+        const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+        const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
         
-        const firstJob = jobs[0];
-        const deliveryTime = `${firstJob.estimatedTime}:00`;
-        
-        // Create datetime from selected date and estimated time
-        const [jobHours, jobMinutes] = firstJob.estimatedTime.split(':').map(Number);
-        const scheduledDateTime = new Date(selectedDate);
-        scheduledDateTime.setHours(jobHours, jobMinutes, 0, 0);
-        
-        // Separate deliveries and collections
-        const deliveries: string[] = [];
-        const collections: string[] = [];
-        
-        jobs.forEach(job => {
-          const brand = job.orderData?.bike_brand || 'Unknown Brand';
-          const model = job.orderData?.bike_model || 'Unknown Model';
-          const bikeInfo = `${brand} ${model}`;
+        // Update timeslot and scheduled date
+        await supabase
+          .from('orders')
+          .update({ 
+            [updateField]: deliveryTime,
+            [dateField]: scheduledDateTime.toISOString()
+          })
+          .eq('id', job.orderId);
           
-          if (job.type === 'delivery') {
-            deliveries.push(bikeInfo);
-          } else if (job.type === 'pickup') {
-            collections.push(bikeInfo);
-          }
-        });
-        
-        // Format timeslot window (original time + 3 hours)
-        const [windowHours, windowMinutes] = firstJob.estimatedTime.split(':').map(Number);
-        const endHour = Math.min(23, windowHours + 3);
-        const startTime = `${windowHours.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
-        const endTime = `${endHour.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
-        const timeWindow = `${startTime} and ${endTime}`;
-        
-        // Format date
-        const formattedDate = format(selectedDate, 'EEEE d MMMM yyyy');
-        
-        // Create custom message following the requested format
-        let message = `Dear ${firstJob.contactName},\n\n`;
-        message += `We are due to be with you on ${formattedDate} between ${timeWindow} for the following deliveries and collections.\n\n`;
-        
-        if (deliveries.length > 0) {
-          message += `Deliveries: ${deliveries.join(', ')}\n`;
-        }
-        if (collections.length > 0) {
-          message += `Collections: ${collections.join(', ')}\n`;
-        }
-        
-        message += `\nYou will receive a text with a live tracking link once the driver is on his way.\n\n`;
-        message += `Please ensure the pedals have been removed from the bikes we are collecting and are in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.\n\n`;
-        message += `Thank you!\nCycle Courier Co.`;
-        
-        // Update all jobs for this contact
-        for (const job of jobs) {
-          const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
-          const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+        // Update status
+        let newStatus: any = 'scheduled';
+        if (job.type === 'pickup') {
+          newStatus = "collection_scheduled";
+        } else if (job.type === 'delivery') {
+          const order = job.orderData;
+          const pickupDate = order?.scheduled_pickup_date;
           
-          // Update timeslot and scheduled date
-          await supabase
-            .from('orders')
-            .update({ 
-              [updateField]: deliveryTime,
-              [dateField]: scheduledDateTime.toISOString()
-            })
-            .eq('id', job.orderId);
+          if (pickupDate && scheduledDateTime) {
+            const pickupDateOnly = new Date(pickupDate).toDateString();
+            const deliveryDateOnly = scheduledDateTime.toDateString();
             
-          // Update status
-          let newStatus: any = 'scheduled';
-          if (job.type === 'pickup') {
-            newStatus = "collection_scheduled";
-          } else if (job.type === 'delivery') {
-            const order = job.orderData;
-            const pickupDate = order?.scheduled_pickup_date;
-            
-            if (pickupDate && scheduledDateTime) {
-              const pickupDateOnly = new Date(pickupDate).toDateString();
-              const deliveryDateOnly = scheduledDateTime.toDateString();
-              
-              if (pickupDateOnly === deliveryDateOnly) {
-                newStatus = "scheduled";
-              } else {
-                newStatus = "delivery_scheduled";
-              }
+            if (pickupDateOnly === deliveryDateOnly) {
+              newStatus = "scheduled";
             } else {
               newStatus = "delivery_scheduled";
             }
+          } else {
+            newStatus = "delivery_scheduled";
           }
-          
-          await supabase
-            .from('orders')
-            .update({ status: newStatus })
-            .eq('id', job.orderId);
         }
         
-        // Send single WhatsApp message for the first job (represents all jobs for this contact)
-        return supabase.functions.invoke('send-timeslot-whatsapp', {
-          body: {
-            orderId: firstJob.orderId,
-            recipientType: firstJob.type === 'pickup' ? 'sender' : 'receiver',
-            deliveryTime,
-            customMessage: message
-          }
-        });
+        await supabase
+          .from('orders')
+          .update({ status: newStatus })
+          .eq('id', job.orderId);
+      }
+      
+      // Send ONE consolidated message to the primary contact
+      await supabase.functions.invoke('send-timeslot-whatsapp', {
+        body: {
+          orderId: primaryJob.orderId,
+          recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+          deliveryTime,
+          customMessage: message
+        }
       });
 
-      await Promise.all(promises);
-      const uniqueContacts = jobsByContact.size;
-      toast.success(`Consolidated timeslots sent to ${uniqueContacts} contact(s) for ${jobsAtLocation.length} jobs at this location`);
+      toast.success(`Consolidated timeslot sent for ${jobsAtLocation.length} jobs at this location`);
     } catch (error) {
       console.error('Error sending grouped timeslots:', error);
       toast.error('Failed to send some timeslots');
