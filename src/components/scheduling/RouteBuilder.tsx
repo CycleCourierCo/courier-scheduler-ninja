@@ -10,6 +10,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
+import { z } from "zod";
+
+// Coordinate validation schema
+const coordinateSchema = z.object({
+  lat: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
+  lon: z.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180")
+});
 
 interface SelectedJob {
   orderId: string;
@@ -172,6 +179,7 @@ const JobItem: React.FC<JobItemProps> = ({
 
 const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
+  const [orderList, setOrderList] = useState<OrderData[]>(orders);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
@@ -189,7 +197,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       lon?: number;
     }> = [];
     
-    orders.forEach(order => {
+    orderList.forEach(order => {
       // Add pickup job if not scheduled
       if (!order.scheduled_pickup_date) {
         jobs.push({
@@ -220,6 +228,49 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     });
     
     return jobs;
+  };
+
+  const updateAvailableJobCoordinates = (orderId: string, type: 'pickup' | 'delivery', lat: number, lon: number) => {
+    try {
+      // Validate coordinates
+      coordinateSchema.parse({ lat, lon });
+      
+      const updatedOrders = orderList.map(order => {
+        if (order.id === orderId) {
+          const updatedOrder = { ...order };
+          if (type === 'pickup') {
+            updatedOrder.sender = {
+              ...updatedOrder.sender,
+              address: {
+                ...updatedOrder.sender.address,
+                lat,
+                lon
+              }
+            };
+          } else {
+            updatedOrder.receiver = {
+              ...updatedOrder.receiver,
+              address: {
+                ...updatedOrder.receiver.address,
+                lat,
+                lon
+              }
+            };
+          }
+          return updatedOrder;
+        }
+        return order;
+      });
+      
+      setOrderList(updatedOrders);
+      toast.success('Coordinates updated successfully');
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.issues[0].message);
+      } else {
+        toast.error('Invalid coordinates');
+      }
+    }
   };
 
   const formatAddress = (address: any) => {
@@ -542,10 +593,9 @@ Route Link: ${routeLink}`;
               return (
                 <Card 
                   key={`${job.orderId}-${job.type}`}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
+                  className={`transition-all hover:shadow-md ${
                     isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
                   } ${!hasCoordinates ? 'border-orange-500 bg-orange-50' : ''}`}
-                  onClick={() => toggleJobSelection(job)}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
@@ -569,9 +619,46 @@ Route Link: ${routeLink}`;
                         Order: {job.order.bike_brand} {job.order.bike_model}
                       </p>
                       {!hasCoordinates && (
-                        <Badge variant="outline" className="text-orange-600 border-orange-500">
-                          Missing coordinates
-                        </Badge>
+                        <div className="space-y-2">
+                          <Badge variant="outline" className="text-orange-600 border-orange-500">
+                            Missing coordinates
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const lat = prompt('Enter latitude (e.g., 53.123456):');
+                              const lon = prompt('Enter longitude (e.g., -2.123456):');
+                              if (lat && lon) {
+                                const latNum = parseFloat(lat.trim());
+                                const lonNum = parseFloat(lon.trim());
+                                if (!isNaN(latNum) && !isNaN(lonNum)) {
+                                  updateAvailableJobCoordinates(job.orderId, job.type, latNum, lonNum);
+                                } else {
+                                  toast.error('Please enter valid numbers for coordinates');
+                                }
+                              }
+                            }}
+                            className="w-full flex items-center gap-1 text-orange-600 hover:text-orange-700"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                            Update Coordinates
+                          </Button>
+                        </div>
+                      )}
+                      {hasCoordinates && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleJobSelection(job);
+                          }}
+                          className={`w-full ${isSelected ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                          variant={isSelected ? "default" : "outline"}
+                        >
+                          {isSelected ? 'Remove from Route' : 'Add to Route'}
+                        </Button>
                       )}
                     </div>
                   </CardContent>
