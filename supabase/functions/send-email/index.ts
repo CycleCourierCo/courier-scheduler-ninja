@@ -56,9 +56,18 @@ serve(async (req) => {
 
     const from = reqData.from || "Ccc@notification.cyclecourierco.com";
     
-    const emailOptions = {
+    // Initialize email options with proper typing for Resend API
+    const emailOptions: {
+      from: string;
+      to: string[];
+      subject: string;
+      html?: string;
+      text: string;
+    } = {
       from,
-      to: reqData.to,
+      to: [reqData.to],
+      subject: 'Notification from The Cycle Courier Co.',
+      text: 'Default email content',
     };
     
     // Build email based on type
@@ -108,7 +117,7 @@ The Cycle Courier Co. Team
       `;
     } else {
       emailOptions.subject = reqData.subject || 'Notification from The Cycle Courier Co.';
-      emailOptions.text = reqData.text || '';
+      emailOptions.text = reqData.text || 'No content provided';
       if (reqData.html) {
         emailOptions.html = reqData.html;
       }
@@ -138,8 +147,8 @@ The Cycle Courier Co. Team
     } catch (sendError) {
       console.error('Error sending email via Resend:', sendError);
       return new Response(
-        JSON.stringify({ error: sendError.message || 'Failed to send email via Resend API' }),
-        { 
+        JSON.stringify({ error: sendError instanceof Error ? sendError.message : 'Failed to send email via Resend API' }),
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500
         }
@@ -149,8 +158,8 @@ The Cycle Courier Co. Team
     console.error('General error in send-email function:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to send email' }),
-      { 
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to send email' }),
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
       }
@@ -334,8 +343,8 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
   } catch (error) {
     console.error("Error in handleDeliveryConfirmation:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to send delivery confirmation emails" }),
-      { 
+      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send delivery confirmation emails" }),
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
       }

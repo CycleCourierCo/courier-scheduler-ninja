@@ -325,7 +325,7 @@ Cycle Courier Co.`;
         console.log('Email sent successfully:', emailResult);
       } catch (emailError) {
         console.error('Error sending email (non-critical):', emailError);
-        emailResult = { error: emailError.message };
+        emailResult = { error: emailError instanceof Error ? emailError.message : 'Unknown email error' };
       }
     } else {
       console.log(resend ? 'No email address found - skipping email' : 'Resend not configured - skipping email');

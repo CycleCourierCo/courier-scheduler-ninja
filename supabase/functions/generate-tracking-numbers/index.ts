@@ -128,7 +128,7 @@ serve(async (req) => {
         results.push({ 
           id: order.id, 
           success: false, 
-          error: err.message,
+          error: err instanceof Error ? err.message : 'Unknown error',
           oldTrackingNumber: order.tracking_number
         });
       }
@@ -146,7 +146,7 @@ serve(async (req) => {
     console.error("Error processing request:", err);
     
     return new Response(
-      JSON.stringify({ error: err.message || "Internal server error" }),
+      JSON.stringify({ error: err instanceof Error ? err.message : "Internal server error" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
