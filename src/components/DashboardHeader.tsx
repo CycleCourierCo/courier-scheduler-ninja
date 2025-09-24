@@ -302,13 +302,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Printer className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Print Collection Labels</span>
+                  <span className="hidden sm:inline">Print Delivery Labels</span>
                   <span className="sm:hidden">Print Labels</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Select Date for Collection Labels</DialogTitle>
+                  <DialogTitle>Select Date for Delivery Labels</DialogTitle>
                 </DialogHeader>
               <div className="space-y-4">
                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
