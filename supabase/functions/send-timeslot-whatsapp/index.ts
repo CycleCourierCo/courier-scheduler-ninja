@@ -190,9 +190,11 @@ Cycle Courier Co.`;
           console.log('Shipday URL:', shipdayUrl);
           
           // Convert user's local time to UTC for Shipday
+          // Use the END time of the timeslot (estimated arrival + 3 hours)
+          const endHour = Math.min(23, deliveryHour + 3);
           // Assuming UK timezone (UTC+0 in winter, UTC+1 in summer)
           const ukTimezoneOffset = new Date().getTimezoneOffset() === 0 ? 1 : 0; // 1 hour ahead if server is UTC
-          const adjustedHour = deliveryHour - ukTimezoneOffset;
+          const adjustedHour = endHour - ukTimezoneOffset;
           const adjustedEndTime = `${adjustedHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
           
           const expectedDeliveryTime = adjustedEndTime.includes(':') && adjustedEndTime.split(':').length === 2 
