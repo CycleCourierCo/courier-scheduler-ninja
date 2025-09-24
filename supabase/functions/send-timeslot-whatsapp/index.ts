@@ -295,7 +295,7 @@ Cycle Courier Co.`;
           // For grouped messages, format the custom message with proper styling
           const lines = customMessage.split('\n\n');
           let emailContent = '';
-          let foundCollectionInstructions = false;
+          let hasCollections = customMessage.includes('Collections:');
           
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -308,22 +308,24 @@ Cycle Courier Co.`;
               emailContent += `<p><strong>${line}</strong></p>\n`;
             } else if (line.includes('You will receive a text')) {
               emailContent += `<p>${line}</p>\n`;
-            } else if (line.includes('Please ensure the pedals') || foundCollectionInstructions) {
-              // Skip the old collection instructions text as we'll replace it with formatted version
-              foundCollectionInstructions = true;
+              
+              // Add collection instructions right after tracking message if there are collections
+              if (hasCollections) {
+                emailContent += `
+                  <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+                    <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+                      <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bikes we are collecting and placed in a secure bag</li>
+                      <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+                      <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
+                    </ul>
+                  </div>
+                `;
+              }
+            } else if (line.includes('Please ensure the pedals')) {
+              // Skip the original collection instructions text as we've replaced it with formatted version
               continue;
             } else if (line === 'Thank you!') {
-              // Insert the formatted collection instructions before thank you
-              emailContent += `
-                <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
-                  <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
-                  <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
-                    <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bikes we are collecting and placed in a secure bag</li>
-                    <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
-                    <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
-                  </ul>
-                </div>
-              `;
               emailContent += `<p style="margin-top: 30px; font-weight: bold;">${line}</p>\n`;
             } else if (line === 'Cycle Courier Co.') {
               emailContent += `<p style="margin-top: 10px;"><strong>${line}</strong></p>\n`;
