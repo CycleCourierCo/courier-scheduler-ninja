@@ -129,7 +129,16 @@ const JobItem: React.FC<JobItemProps> = ({
                       return 0;
                     });
                     
-                    let runningBikeCount = bikeCount;
+                    // Calculate the actual starting bike count for this grouped stop
+                    // bikeCount is the final count AFTER the entire stop, so work backwards
+                    const totalDeliveries = groupedJobs
+                      .filter(j => j.type === 'delivery')
+                      .reduce((sum, j) => sum + (j.orderData?.bike_quantity || 1), 0);
+                    const totalPickups = groupedJobs
+                      .filter(j => j.type === 'pickup')
+                      .reduce((sum, j) => sum + (j.orderData?.bike_quantity || 1), 0);
+                    
+                    let runningBikeCount = bikeCount + totalDeliveries - totalPickups;
                     
                     return sortedJobs.map((groupedJob, idx) => {
                       const quantity = groupedJob.orderData?.bike_quantity || 1;
