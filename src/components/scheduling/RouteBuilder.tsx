@@ -1011,21 +1011,50 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         const deliveryTime = `${firstJob.estimatedTime}:00`;
         
         // Create datetime from selected date and estimated time
-        const [hours, minutes] = firstJob.estimatedTime.split(':').map(Number);
+        const [jobHours, jobMinutes] = firstJob.estimatedTime.split(':').map(Number);
         const scheduledDateTime = new Date(selectedDate);
-        scheduledDateTime.setHours(hours, minutes, 0, 0);
+        scheduledDateTime.setHours(jobHours, jobMinutes, 0, 0);
         
-        // Collect bike brands and models for all jobs for this contact
-        const bikeInfo = jobs
-          .map(job => {
-            const brand = job.orderData?.bike_brand || 'Unknown Brand';
-            const model = job.orderData?.bike_model || 'Unknown Model';
-            return `${brand} ${model}`;
-          })
-          .filter((info, index, arr) => arr.indexOf(info) === index) // Remove duplicates
-          .join(', ');
+        // Separate deliveries and collections
+        const deliveries: string[] = [];
+        const collections: string[] = [];
         
-        const message = `Multiple ${firstJob.type === 'pickup' ? 'collections' : 'deliveries'} at this location. Bikes: ${bikeInfo}`;
+        jobs.forEach(job => {
+          const brand = job.orderData?.bike_brand || 'Unknown Brand';
+          const model = job.orderData?.bike_model || 'Unknown Model';
+          const bikeInfo = `${brand} ${model}`;
+          
+          if (job.type === 'delivery') {
+            deliveries.push(bikeInfo);
+          } else if (job.type === 'pickup') {
+            collections.push(bikeInfo);
+          }
+        });
+        
+        // Format timeslot window (original time + 3 hours)
+        const [windowHours, windowMinutes] = firstJob.estimatedTime.split(':').map(Number);
+        const endHour = Math.min(23, windowHours + 3);
+        const startTime = `${windowHours.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
+        const endTime = `${endHour.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
+        const timeWindow = `${startTime} and ${endTime}`;
+        
+        // Format date
+        const formattedDate = format(selectedDate, 'EEEE d MMMM yyyy');
+        
+        // Create custom message following the requested format
+        let message = `Dear ${firstJob.contactName},\n\n`;
+        message += `We are due to be with you on ${formattedDate} between ${timeWindow} for the following deliveries and collections.\n\n`;
+        
+        if (deliveries.length > 0) {
+          message += `Deliveries: ${deliveries.join(', ')}\n`;
+        }
+        if (collections.length > 0) {
+          message += `Collections: ${collections.join(', ')}\n`;
+        }
+        
+        message += `\nYou will receive a text with a live tracking link once the driver is on his way.\n\n`;
+        message += `Please ensure the pedals have been removed from the bikes we are collecting and are in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.\n\n`;
+        message += `Thank you!\nCycle Courier Co.`;
         
         // Update all jobs for this contact
         for (const job of jobs) {
