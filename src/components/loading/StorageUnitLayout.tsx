@@ -24,43 +24,41 @@ export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps
 
   return (
     <div className="w-full overflow-x-auto">
-      <div className="min-w-[600px] space-y-4">
-        <div className="flex gap-6 justify-center">
-          {bays.map((bay) => (
-            <div key={bay} className="flex flex-col items-center">
-              <div className="text-center font-bold text-lg mb-2 text-primary">
-                Bay {bay}
-              </div>
-              <Card className="p-2 bg-muted/20">
-                <div className="flex flex-col gap-1">
-                  {positions.map((position) => {
-                    const occupied = isOccupied(bay, position);
-                    const allocation = getAllocation(bay, position);
-                    
-                    return (
-                      <div
-                        key={`${bay}-${position}`}
-                        className={cn(
-                          "w-12 h-8 flex items-center justify-center text-xs font-medium rounded border-2 transition-colors",
-                          occupied 
-                            ? "bg-red-500 text-white border-red-600" 
-                            : "bg-green-100 border-green-300 text-green-800 hover:bg-green-200"
-                        )}
-                        title={
-                          occupied 
-                            ? `${allocation?.customerName} - ${allocation?.bikeBrand} ${allocation?.bikeModel}`
-                            : `Available: ${bay}${position}`
-                        }
-                      >
-                        {position}
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
+      <div className="min-w-[900px] space-y-3">
+        {bays.map((bay) => (
+          <div key={bay} className="flex items-center gap-4">
+            <div className="w-16 text-center font-bold text-lg text-primary">
+              Bay {bay}
             </div>
-          ))}
-        </div>
+            <Card className="flex-1 p-2 bg-muted/20">
+              <div className="flex gap-1">
+                {positions.map((position) => {
+                  const occupied = isOccupied(bay, position);
+                  const allocation = getAllocation(bay, position);
+                  
+                  return (
+                    <div
+                      key={`${bay}-${position}`}
+                      className={cn(
+                        "w-8 h-8 flex items-center justify-center text-xs font-medium rounded border-2 transition-colors",
+                        occupied 
+                          ? "bg-red-500 text-white border-red-600" 
+                          : "bg-green-100 border-green-300 text-green-800 hover:bg-green-200"
+                      )}
+                      title={
+                        occupied 
+                          ? `${allocation?.customerName} - ${allocation?.bikeBrand} ${allocation?.bikeModel}`
+                          : `Available: ${bay}${position}`
+                      }
+                    >
+                      {position}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+        ))}
         
         <div className="flex gap-4 justify-center text-sm">
           <div className="flex items-center gap-2">
