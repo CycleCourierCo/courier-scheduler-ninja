@@ -311,11 +311,42 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     return jobs;
   };
 
-  const updateAvailableJobCoordinates = (orderId: string, type: 'pickup' | 'delivery', lat: number, lon: number) => {
+  const updateAvailableJobCoordinates = async (orderId: string, type: 'pickup' | 'delivery', lat: number, lon: number) => {
     try {
       // Validate coordinates
       coordinateSchema.parse({ lat, lon });
       
+      // Update in database
+      const addressField = type === 'pickup' ? 'sender' : 'receiver';
+      const { data: existingOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select(addressField)
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Failed to fetch existing order');
+      }
+
+      const updatedAddress = {
+        ...existingOrder[addressField],
+        address: {
+          ...existingOrder[addressField].address,
+          lat,
+          lon
+        }
+      };
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ [addressField]: updatedAddress })
+        .eq('id', orderId);
+
+      if (updateError) {
+        throw new Error('Failed to update coordinates in database');
+      }
+
+      // Update local state
       const updatedOrders = orderList.map(order => {
         if (order.id === orderId) {
           const updatedOrder = { ...order };
@@ -349,7 +380,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       if (error instanceof z.ZodError) {
         toast.error(error.issues[0].message);
       } else {
-        toast.error('Invalid coordinates');
+        toast.error('Failed to update coordinates: ' + (error as Error).message);
       }
     }
   };
@@ -458,14 +489,23 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     setSelectedJobs(updatedJobs);
   };
 
-  const updateCoordinates = (jobToUpdate: SelectedJob, lat: number, lon: number) => {
-    const updatedJobs = selectedJobs.map(job => 
-      (job.orderId === jobToUpdate.orderId && job.type === jobToUpdate.type) 
-        ? { ...job, lat, lon }
-        : job
-    );
-    setSelectedJobs(updatedJobs);
-    toast.success('Coordinates updated successfully');
+  const updateCoordinates = async (jobToUpdate: SelectedJob, lat: number, lon: number) => {
+    try {
+      // Only update database for pickup/delivery jobs, not breaks
+      if (jobToUpdate.type !== 'break') {
+        await updateAvailableJobCoordinates(jobToUpdate.orderId, jobToUpdate.type, lat, lon);
+      }
+      
+      // Update selected jobs list
+      const updatedJobs = selectedJobs.map(job => 
+        (job.orderId === jobToUpdate.orderId && job.type === jobToUpdate.type) 
+          ? { ...job, lat, lon }
+          : job
+      );
+      setSelectedJobs(updatedJobs);
+    } catch (error) {
+      // Error already handled in updateAvailableJobCoordinates
+    }
   };
 
   const roundTimeToNext5Minutes = (date: Date): Date => {
