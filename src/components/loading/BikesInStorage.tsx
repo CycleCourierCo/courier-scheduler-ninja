@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit } from "lucide-react";
-import { format } from "date-fns";
+import { Package, MapPin, Truck, Edit, Clock } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 
 interface BikesInStorageProps {
@@ -161,6 +161,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
     <div className="space-y-3">
       {sortedOrders.map(([orderId, { order, allocations }]) => {
         const isMultiBike = allocations.length > 1;
+        const daysInStorage = differenceInDays(new Date(), allocations[0].allocatedAt);
         
         return (
           <Card key={orderId} className="p-3">
@@ -183,6 +184,13 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
                   <h4 className="font-medium text-sm">{allocations[0].customerName}</h4>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={daysInStorage > 7 ? "destructive" : daysInStorage > 3 ? "default" : "secondary"}
+                    className="text-xs flex items-center gap-1"
+                  >
+                    <Clock className="h-3 w-3" />
+                    {daysInStorage} {daysInStorage === 1 ? 'day' : 'days'}
+                  </Badge>
                   {isMultiBike && (
                     <Badge variant="outline" className="text-xs">
                       {allocations.length} bikes
