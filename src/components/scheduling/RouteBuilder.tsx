@@ -18,6 +18,8 @@ interface SelectedJob {
   order: number;
   estimatedTime?: string;
   actualTime?: string;
+  lat?: number;
+  lon?: number;
 }
 
 interface RouteBuilderProps {
@@ -32,7 +34,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
 
   const getJobsFromOrders = () => {
-    const jobs: Array<{ orderId: string; type: 'pickup' | 'delivery'; address: string; contactName: string; phoneNumber: string; order: OrderData }> = [];
+    const jobs: Array<{ 
+      orderId: string; 
+      type: 'pickup' | 'delivery'; 
+      address: string; 
+      contactName: string; 
+      phoneNumber: string; 
+      order: OrderData;
+      lat?: number;
+      lon?: number;
+    }> = [];
     
     orders.forEach(order => {
       // Add pickup job if not scheduled
@@ -43,7 +54,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           address: formatAddress(order.sender.address),
           contactName: order.sender.name,
           phoneNumber: order.sender.phone,
-          order
+          order,
+          lat: order.sender.address.lat,
+          lon: order.sender.address.lon
         });
       }
       
@@ -55,7 +68,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           address: formatAddress(order.receiver.address),
           contactName: order.receiver.name,
           phoneNumber: order.receiver.phone,
-          order
+          order,
+          lat: order.receiver.address.lat,
+          lon: order.receiver.address.lon
         });
       }
     });
@@ -88,7 +103,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         address: job.address,
         contactName: job.contactName,
         phoneNumber: job.phoneNumber,
-        order: selectedJobs.length + 1
+        order: selectedJobs.length + 1,
+        lat: job.lat,
+        lon: job.lon
       };
       setSelectedJobs(prev => [...prev, newJob]);
     }
@@ -97,7 +114,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const calculateTimeslots = async () => {
     if (selectedJobs.length === 0) return;
 
-    const baseAddress = "Lawden Road, Birmingham, West Midlands, B10 0AD, United Kingdom";
+    // Check for missing coordinates
+    const jobsWithoutCoords = selectedJobs.filter(job => !job.lat || !job.lon);
+    if (jobsWithoutCoords.length > 0) {
+      const addressList = jobsWithoutCoords.map(job => `${job.contactName} (${job.address})`).join('\n');
+      toast.error(`Missing coordinates for addresses:\n${addressList}\n\nPlease ensure all addresses have latitude/longitude coordinates.`);
+      return;
+    }
+
+    const baseCoords = { lat: 52.4858, lon: -1.8936 }; // Birmingham coordinates for Lawden Road
     
     try {
       const updatedJobs = [];
@@ -108,12 +133,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         
         if (i === 0) {
           // First job - calculate travel time from base to first location
-          const travelTime = await calculateTravelTime(baseAddress, job.address);
+          const travelTime = await calculateTravelTime(baseCoords, { lat: job.lat!, lon: job.lon! });
           currentTime = new Date(currentTime.getTime() + travelTime * 60000);
         } else {
           // Calculate travel time from previous job to current job
           const previousJob = selectedJobs[i - 1];
-          const travelTime = await calculateTravelTime(previousJob.address, job.address);
+          const travelTime = await calculateTravelTime(
+            { lat: previousJob.lat!, lon: previousJob.lon! }, 
+            { lat: job.lat!, lon: job.lon! }
+          );
           // Add travel time + 15 minutes service time from previous job
           currentTime = new Date(currentTime.getTime() + (travelTime + 15) * 60000);
         }
@@ -147,7 +175,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }
   };
 
-  const calculateTravelTime = async (fromAddress: string, toAddress: string): Promise<number> => {
+  const calculateTravelTime = async (fromCoords: { lat: number; lon: number }, toCoords: { lat: number; lon: number }): Promise<number> => {
     try {
       const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
       if (!apiKey) {
@@ -155,11 +183,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         return 15; // Default 15 minutes
       }
 
-      const waypoints = `${fromAddress}|${toAddress}`;
-      const url = `https://api.geoapify.com/v1/routing?waypoints=${encodeURIComponent(waypoints)}&mode=light_truck&type=balanced&format=json&apiKey=${apiKey}`;
+      // Format waypoints as lat,lon pairs separated by pipe
+      const waypoints = `${fromCoords.lat},${fromCoords.lon}|${toCoords.lat},${toCoords.lon}`;
+      const url = `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=light_truck&type=balanced&format=json&apiKey=${apiKey}`;
       
       const response = await fetch(url);
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Geoapify API error:', response.status, errorData);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
@@ -274,13 +305,14 @@ Route Link: ${routeLink}`;
             {availableJobs.map((job, index) => {
               const isSelected = selectedJobs.some(j => j.orderId === job.orderId && j.type === job.type);
               const selectedOrder = selectedJobs.find(j => j.orderId === job.orderId && j.type === job.type)?.order;
+              const hasCoordinates = job.lat && job.lon;
               
               return (
                 <Card 
                   key={`${job.orderId}-${job.type}`}
                   className={`cursor-pointer transition-all hover:shadow-md ${
                     isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
-                  }`}
+                  } ${!hasCoordinates ? 'border-orange-500 bg-orange-50' : ''}`}
                   onClick={() => toggleJobSelection(job)}
                 >
                   <CardContent className="p-4">
@@ -304,6 +336,11 @@ Route Link: ${routeLink}`;
                       <p className="text-xs text-muted-foreground">
                         Order: {job.order.bike_brand} {job.order.bike_model}
                       </p>
+                      {!hasCoordinates && (
+                        <Badge variant="outline" className="text-orange-600 border-orange-500">
+                          Missing coordinates
+                        </Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
