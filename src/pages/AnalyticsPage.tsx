@@ -52,7 +52,7 @@ const AnalyticsPage = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto py-8">
+      <div className="container px-4 py-6 md:px-6 mx-auto">
         <h1 className="text-3xl font-bold mb-8">Order Analytics</h1>
         
         {isLoading ? (

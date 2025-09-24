@@ -41,7 +41,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     
     try {
       const orders = await getOrders();
-      // Only filter for collection/pickup dates
+      // Filter for collection/pickup dates for the labels
       const scheduledOrders = orders.filter(order => {
         const scheduledPickup = order.scheduledPickupDate;
         
@@ -53,12 +53,24 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         return pickupDate === targetDate;
       });
 
+      // Get delivery orders for the loading list
+      const deliveryOrders = orders.filter(order => {
+        const scheduledDelivery = order.scheduledDeliveryDate;
+        
+        if (!scheduledDelivery) return false;
+        
+        const targetDate = format(selectedDate, 'yyyy-MM-dd');
+        const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
+        
+        return deliveryDate === targetDate;
+      });
+
       if (scheduledOrders.length === 0) {
         toast.info("No collection orders scheduled for the selected date");
         return;
       }
 
-      await generateLabels(scheduledOrders);
+      await generateLabels(scheduledOrders, deliveryOrders);
       toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
       setIsDialogOpen(false);
     } catch (error) {
@@ -68,7 +80,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     }
   };
 
-  const generateLabels = async (orders: Order[]) => {
+  const generateLabels = async (orders: Order[], deliveryOrders: Order[]) => {
     try {
       // Create PDF with exact 4x6 inch page size for label printers
       const labelWidth = 288; // 4 inches in points
@@ -77,15 +89,45 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       let isFirstLabel = true;
       
+      // Generate loading list as first label
+      const margin = 15;
+      let currentY = margin + 20;
+      
+      // Title
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text('DELIVERY LOADING LIST', margin, currentY);
+      currentY += 25;
+      
+      // Date
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Date: ${format(selectedDate!, 'dd/MM/yyyy')}`, margin, currentY);
+      currentY += 25;
+      
+      // Simple bullet point list for delivery bikes
+      pdf.setFontSize(10);
+      deliveryOrders.forEach((order) => {
+        const quantity = order.bikeQuantity || 1;
+        
+        for (let i = 0; i < quantity; i++) {
+          const customerName = order.receiver?.name || 'Unknown Customer';
+          const bikeBrand = order.bikeBrand || 'Unknown';
+          const bikeModel = order.bikeModel || 'Bike';
+          const bikeInfo = `${bikeBrand} ${bikeModel}`.trim();
+          
+          pdf.text(`• ${bikeInfo} - ${customerName}`, margin, currentY);
+          currentY += 15;
+        }
+      });
+      
+      // Now generate individual collection labels
       orders.forEach((order) => {
         const quantity = order.bikeQuantity || 1;
         
         // Generate labels based on bike quantity
         for (let i = 0; i < quantity; i++) {
-          if (!isFirstLabel) {
-            pdf.addPage();
-          }
-          isFirstLabel = false;
+          pdf.addPage();
 
           const margin = 15;
           let currentY = margin + 20;

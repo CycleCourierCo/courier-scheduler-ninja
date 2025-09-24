@@ -213,17 +213,19 @@ const AccountApprovals = () => {
 
   return (
     <Layout>
-      <DashboardHeader>
-        <div className="flex items-center">
-          <Shield size={28} className="mr-2" />
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Account Approvals</h2>
-            <p className="text-muted-foreground">
-              Manage business account applications
-            </p>
+      <div className="container px-4 py-6 md:px-6 mx-auto">
+        <DashboardHeader>
+          <div className="flex items-center">
+            <Shield size={28} className="mr-2" />
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Account Approvals</h2>
+              <p className="text-muted-foreground">
+                Manage business account applications
+              </p>
+            </div>
           </div>
-        </div>
-      </DashboardHeader>
+        </DashboardHeader>
+      </div>
       
       <div className="container px-4 py-6 md:px-6">
         <Card className="overflow-hidden shadow-md">

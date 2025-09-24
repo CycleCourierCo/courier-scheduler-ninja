@@ -291,7 +291,7 @@ export default function InvoicesPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto p-6 space-y-8">
+      <div className="container px-4 py-6 md:px-6 mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-8 w-8 text-primary" />

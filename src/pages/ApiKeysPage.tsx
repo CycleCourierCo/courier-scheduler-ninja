@@ -156,7 +156,7 @@ export default function ApiKeysPage() {
   if (userProfile?.role !== 'admin') {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8">
+        <div className="container px-4 py-6 md:px-6 mx-auto">
           <Card>
             <CardContent className="pt-6">
               <p className="text-muted-foreground">Access denied. Admin privileges required.</p>
@@ -169,7 +169,7 @@ export default function ApiKeysPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container px-4 py-6 md:px-6 mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">API Key Management</h1>
