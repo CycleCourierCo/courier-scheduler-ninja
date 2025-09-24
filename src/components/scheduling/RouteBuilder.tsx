@@ -244,11 +244,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     setStartingBikes(optimalStarting);
   }, [selectedJobs]);
 
-  // Helper function to calculate bike count for a given job index
+  // Helper function to calculate bike count AFTER a given job is completed
   const calculateBikeCountAtJob = (jobIndex: number): number => {
     let bikeCount = startingBikes;
     
-    for (let i = 0; i < jobIndex; i++) {
+    // Include the current job (jobIndex) in the calculation to show count AFTER this stop
+    for (let i = 0; i <= jobIndex; i++) {
       const job = selectedJobs[i];
       if (job.type === 'delivery') {
         // After a delivery, subtract 1 bike
