@@ -281,15 +281,31 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const calculateOptimalStartingBikes = (): number => {
     if (selectedJobs.length === 0) return 0;
     
-    // Sum up the bike quantities for all deliveries in the route
-    const totalBikesForDeliveries = selectedJobs
-      .filter(job => job.type === 'delivery')
-      .reduce((total, job) => {
-        const quantity = job.orderData?.bike_quantity || 1;
-        return total + quantity;
-      }, 0);
+    // Group jobs by order ID to identify orders with both pickup and delivery
+    const orderGroups: { [orderId: string]: SelectedJob[] } = {};
+    selectedJobs.forEach(job => {
+      if (!orderGroups[job.orderId]) {
+        orderGroups[job.orderId] = [];
+      }
+      orderGroups[job.orderId].push(job);
+    });
     
-    return totalBikesForDeliveries;
+    // Only count deliveries that don't have a corresponding pickup in the same route
+    let startingBikes = 0;
+    Object.values(orderGroups).forEach(jobs => {
+      const hasPickup = jobs.some(job => job.type === 'pickup');
+      const deliveryJobs = jobs.filter(job => job.type === 'delivery');
+      
+      // If this order doesn't have a pickup in the route, count its delivery bikes
+      if (!hasPickup) {
+        deliveryJobs.forEach(job => {
+          const quantity = job.orderData?.bike_quantity || 1;
+          startingBikes += quantity;
+        });
+      }
+    });
+    
+    return startingBikes;
   };
 
   // Auto-update starting bikes when route changes
