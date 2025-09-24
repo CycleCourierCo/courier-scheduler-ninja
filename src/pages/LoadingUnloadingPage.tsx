@@ -104,46 +104,45 @@ const LoadingUnloadingPage = () => {
     return { allocation, order };
   }).filter(item => item.order); // Only include if order still exists
 
-  const handleAllocateStorage = (orderId: string, bay: string, position: number, bikeIndex: number) => {
+  const handleAllocateStorage = (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    // Check if the bay/position is already occupied
-    const isOccupied = storageAllocations.some(
-      allocation => allocation.bay === bay && allocation.position === position
-    );
+    // Check if any bay/position is already occupied
+    for (const allocation of allocationsToMake) {
+      const isOccupied = storageAllocations.some(
+        existing => existing.bay === allocation.bay && existing.position === allocation.position
+      );
 
-    if (isOccupied) {
-      toast.error(`Bay ${bay}${position} is already occupied`);
-      return;
+      if (isOccupied) {
+        toast.error(`Bay ${allocation.bay}${allocation.position} is already occupied`);
+        return;
+      }
     }
 
-    const newAllocation: StorageAllocation = {
+    // Create all new allocations
+    const newAllocations: StorageAllocation[] = allocationsToMake.map(allocation => ({
       id: crypto.randomUUID(),
       orderId,
-      bay,
-      position,
+      bay: allocation.bay,
+      position: allocation.position,
       bikeBrand: order.bikeBrand,
       bikeModel: order.bikeModel,
       customerName: order.sender.name,
       allocatedAt: new Date(),
-      bikeIndex // Add bike index to track which bike this is
-    };
+      bikeIndex: allocation.bikeIndex
+    }));
 
-    const updatedAllocations = [...storageAllocations, newAllocation];
+    const updatedAllocations = [...storageAllocations, ...newAllocations];
     setStorageAllocations(updatedAllocations);
     
     // Save to localStorage
     localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
     
     const bikeQuantity = order.bikeQuantity || 1;
-    const allocatedCount = updatedAllocations.filter(a => a.orderId === orderId).length;
+    const totalAllocatedCount = updatedAllocations.filter(a => a.orderId === orderId).length;
     
-    if (allocatedCount >= bikeQuantity) {
-      toast.success(`All ${bikeQuantity} bike(s) allocated for this order`);
-    } else {
-      toast.success(`Bike ${bikeIndex + 1} allocated to bay ${bay}${position} (${allocatedCount}/${bikeQuantity} bikes allocated)`);
-    }
+    toast.success(`Successfully allocated ${allocationsToMake.length} bike(s). Total: ${totalAllocatedCount}/${bikeQuantity} bikes allocated for this order.`);
   };
 
   const handleRemoveFromStorage = (allocationId: string) => {
@@ -156,6 +155,33 @@ const LoadingUnloadingPage = () => {
     localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
     
     toast.success('Bike loaded onto van and removed from storage');
+  };
+
+  const handleChangeLocation = (allocationId: string, newBay: string, newPosition: number) => {
+    // Check if the new bay/position is already occupied
+    const isOccupied = storageAllocations.some(
+      allocation => 
+        allocation.bay === newBay && 
+        allocation.position === newPosition &&
+        allocation.id !== allocationId // Don't count the current allocation
+    );
+
+    if (isOccupied) {
+      toast.error(`Bay ${newBay}${newPosition} is already occupied`);
+      return;
+    }
+
+    const updatedAllocations = storageAllocations.map(allocation =>
+      allocation.id === allocationId
+        ? { ...allocation, bay: newBay, position: newPosition }
+        : allocation
+    );
+    setStorageAllocations(updatedAllocations);
+    
+    // Save to localStorage
+    localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
+    
+    toast.success(`Bike moved to bay ${newBay}${newPosition}`);
   };
 
   if (loading) {
@@ -220,6 +246,7 @@ const LoadingUnloadingPage = () => {
               <BikesInStorage 
                 bikesInStorage={bikesInStorage}
                 onRemoveFromStorage={handleRemoveFromStorage}
+                onChangeLocation={handleChangeLocation}
               />
             </CardContent>
           </Card>

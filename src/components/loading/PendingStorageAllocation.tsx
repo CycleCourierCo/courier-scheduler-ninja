@@ -12,7 +12,7 @@ import { Package, MapPin } from "lucide-react";
 interface PendingStorageAllocationProps {
   collectedBikes: Order[];
   storageAllocations: StorageAllocation[];
-  onAllocateStorage: (orderId: string, bay: string, position: number, bikeIndex: number) => void;
+  onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
 }
 
 export const PendingStorageAllocation = ({ 
@@ -36,35 +36,60 @@ export const PendingStorageAllocation = ({
     }));
   };
 
-  const handleAllocate = (orderId: string, bikeIndex: number) => {
-    const key = `${orderId}-${bikeIndex}`;
-    const allocation = allocations[key];
-    if (!allocation?.bay || !allocation?.position) {
-      toast.error("Please enter both bay and position");
-      return;
-    }
-
-    const bay = allocation.bay.toUpperCase();
-    const position = parseInt(allocation.position);
-
-    // Validate bay (A-D)
-    if (!['A', 'B', 'C', 'D'].includes(bay)) {
-      toast.error("Bay must be A, B, C, or D");
-      return;
-    }
-
-    // Validate position (1-15)
-    if (isNaN(position) || position < 1 || position > 15) {
-      toast.error("Position must be between 1 and 15");
-      return;
-    }
-
-    onAllocateStorage(orderId, bay, position, bikeIndex);
+  const handleAllocateAll = (orderId: string, bikeQuantity: number, allocatedCount: number) => {
+    const remainingToAllocate = bikeQuantity - allocatedCount;
+    const allocationsToMake: { bay: string; position: number; bikeIndex: number }[] = [];
     
-    // Clear the input after successful allocation
+    // Collect all allocations for this order
+    for (let i = 0; i < remainingToAllocate; i++) {
+      const bikeIndex = allocatedCount + i;
+      const key = `${orderId}-${bikeIndex}`;
+      const allocation = allocations[key];
+      
+      if (!allocation?.bay || !allocation?.position) {
+        toast.error(`Please enter bay and position for all bikes (missing for bike ${bikeIndex + 1})`);
+        return;
+      }
+
+      const bay = allocation.bay.toUpperCase();
+      const position = parseInt(allocation.position);
+
+      // Validate bay (A-D)
+      if (!['A', 'B', 'C', 'D'].includes(bay)) {
+        toast.error(`Bay must be A, B, C, or D (bike ${bikeIndex + 1})`);
+        return;
+      }
+
+      // Validate position (1-15)
+      if (isNaN(position) || position < 1 || position > 15) {
+        toast.error(`Position must be between 1 and 15 (bike ${bikeIndex + 1})`);
+        return;
+      }
+
+      allocationsToMake.push({ bay, position, bikeIndex });
+    }
+
+    // Check for duplicate positions within this allocation
+    const positionSet = new Set();
+    for (const alloc of allocationsToMake) {
+      const positionKey = `${alloc.bay}${alloc.position}`;
+      if (positionSet.has(positionKey)) {
+        toast.error(`Cannot allocate multiple bikes to the same position: ${alloc.bay}${alloc.position}`);
+        return;
+      }
+      positionSet.add(positionKey);
+    }
+
+    onAllocateStorage(orderId, allocationsToMake);
+    
+    // Clear all inputs for this order after successful allocation
     setAllocations(prev => {
       const newAllocations = { ...prev };
-      delete newAllocations[key];
+      for (let i = 0; i < remainingToAllocate; i++) {
+        const bikeIndex = allocatedCount + i;
+        const key = `${orderId}-${bikeIndex}`;
+        delete newAllocations[key];
+      }
       return newAllocations;
     });
   };
@@ -129,7 +154,7 @@ export const PendingStorageAllocation = ({
                         </span>
                       </div>
                       
-                      <div className="flex gap-2 items-end">
+                      <div className="flex gap-2">
                         <div className="flex-1">
                           <Label htmlFor={`bay-${key}`} className="text-xs">Bay (A-D)</Label>
                           <Input
@@ -154,18 +179,24 @@ export const PendingStorageAllocation = ({
                             className="text-center"
                           />
                         </div>
-                        <Button 
-                          onClick={() => handleAllocate(bike.id, bikeIndex)}
-                          size="sm"
-                          disabled={!allocations[key]?.bay || !allocations[key]?.position}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Allocate
-                        </Button>
                       </div>
                     </div>
                   );
                 })}
+                
+                {/* Single allocate button for all bikes */}
+                <Button 
+                  onClick={() => handleAllocateAll(bike.id, bikeQuantity, allocatedCount)}
+                  size="sm"
+                  disabled={!Array.from({ length: remainingToAllocate }, (_, index) => {
+                    const bikeIndex = allocatedCount + index;
+                    const key = `${bike.id}-${bikeIndex}`;
+                    return allocations[key]?.bay && allocations[key]?.position;
+                  }).every(Boolean)}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  Allocate All {remainingToAllocate} Bike{remainingToAllocate > 1 ? 's' : ''}
+                </Button>
               </div>
             </CardContent>
           </Card>
