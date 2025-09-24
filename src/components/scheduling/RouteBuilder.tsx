@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, Send, Route } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useDraggable } from "@/hooks/useDraggable";
+import { useDroppable } from "@/hooks/useDroppable";
 
 interface SelectedJob {
   orderId: string;
-  type: 'pickup' | 'delivery';
+  type: 'pickup' | 'delivery' | 'break';
   address: string;
   contactName: string;
   phoneNumber: string;
@@ -20,6 +22,8 @@ interface SelectedJob {
   actualTime?: string;
   lat?: number;
   lon?: number;
+  breakDuration?: number; // Duration in minutes for breaks
+  breakType?: 'lunch' | 'stop';
 }
 
 interface RouteBuilderProps {
@@ -99,7 +103,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     } else {
       const newJob: SelectedJob = {
         orderId: job.orderId,
-        type: job.type,
+        type: job.type as 'pickup' | 'delivery',
         address: job.address,
         contactName: job.contactName,
         phoneNumber: job.phoneNumber,
@@ -111,11 +115,64 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }
   };
 
+  const reorderJobs = (dragIndex: number, hoverIndex: number) => {
+    const reorderedJobs = [...selectedJobs];
+    const draggedJob = reorderedJobs[dragIndex];
+    reorderedJobs.splice(dragIndex, 1);
+    reorderedJobs.splice(hoverIndex, 0, draggedJob);
+    
+    // Update order numbers
+    const updatedJobs = reorderedJobs.map((job, index) => ({
+      ...job,
+      order: index + 1
+    }));
+    
+    setSelectedJobs(updatedJobs);
+  };
+
+  const addBreak = (afterIndex: number, breakType: 'lunch' | 'stop') => {
+    const newBreak: SelectedJob = {
+      orderId: `break-${Date.now()}`,
+      type: 'break',
+      address: breakType === 'lunch' ? 'Lunch Break' : 'Stop Break',
+      contactName: breakType === 'lunch' ? 'Lunch Break' : 'Stop Break',
+      phoneNumber: '',
+      order: afterIndex + 2,
+      breakDuration: breakType === 'lunch' ? 60 : 15, // 60 min for lunch, 15 min for stop
+      breakType
+    };
+
+    const updatedJobs = [...selectedJobs];
+    updatedJobs.splice(afterIndex + 1, 0, newBreak);
+    
+    // Update order numbers for all jobs after the inserted break
+    const reorderedJobs = updatedJobs.map((job, index) => ({
+      ...job,
+      order: index + 1
+    }));
+    
+    setSelectedJobs(reorderedJobs);
+  };
+
+  const removeJob = (jobToRemove: SelectedJob) => {
+    const updatedJobs = selectedJobs
+      .filter(job => !(job.orderId === jobToRemove.orderId && job.type === jobToRemove.type))
+      .map((job, index) => ({
+        ...job,
+        order: index + 1
+      }));
+    setSelectedJobs(updatedJobs);
+    }
+  };
+
   const calculateTimeslots = async () => {
     if (selectedJobs.length === 0) return;
 
+    // Filter out breaks for coordinate validation and routing
+    const routeJobs = selectedJobs.filter(job => job.type !== 'break');
+
     // Check for missing coordinates
-    const jobsWithoutCoords = selectedJobs.filter(job => !job.lat || !job.lon);
+    const jobsWithoutCoords = routeJobs.filter(job => !job.lat || !job.lon);
     if (jobsWithoutCoords.length > 0) {
       const addressList = jobsWithoutCoords.map(job => `${job.contactName} (${job.address})`).join('\n');
       toast.error(`Missing coordinates for addresses:\n${addressList}\n\nPlease ensure all addresses have latitude/longitude coordinates.`);
@@ -127,29 +184,34 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     try {
       const updatedJobs = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
+      let lastLocationCoords = baseCoords;
       
       for (let i = 0; i < selectedJobs.length; i++) {
         const job = selectedJobs[i];
         
-        if (i === 0) {
-          // First job - calculate travel time from base to first location
-          const travelTime = await calculateTravelTime(baseCoords, { lat: job.lat!, lon: job.lon! });
-          currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+        if (job.type === 'break') {
+          // For breaks, just add the break duration
+          currentTime = new Date(currentTime.getTime() + (job.breakDuration || 15) * 60000);
+          updatedJobs.push({
+            ...job,
+            estimatedTime: currentTime.toTimeString().slice(0, 5)
+          });
         } else {
-          // Calculate travel time from previous job to current job
-          const previousJob = selectedJobs[i - 1];
-          const travelTime = await calculateTravelTime(
-            { lat: previousJob.lat!, lon: previousJob.lon! }, 
-            { lat: job.lat!, lon: job.lon! }
-          );
-          // Add travel time + 15 minutes service time from previous job
-          currentTime = new Date(currentTime.getTime() + (travelTime + 15) * 60000);
+          // For regular jobs, calculate travel time
+          const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+          currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+          
+          // Add 15 minutes service time for each job
+          currentTime = new Date(currentTime.getTime() + 15 * 60000);
+          
+          updatedJobs.push({
+            ...job,
+            estimatedTime: currentTime.toTimeString().slice(0, 5)
+          });
+          
+          // Update last location for next calculation
+          lastLocationCoords = { lat: job.lat!, lon: job.lon! };
         }
-        
-        updatedJobs.push({
-          ...job,
-          estimatedTime: currentTime.toTimeString().slice(0, 5)
-        });
       }
 
       setSelectedJobs(updatedJobs);
@@ -397,46 +459,167 @@ Route Link: ${routeLink}`;
               </div>
 
               {selectedJobs.map((job, index) => (
-                <div key={`${job.orderId}-${job.type}`} className="flex items-center justify-between p-3 bg-background border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline">#{job.order}</Badge>
-                    <div>
-                      <p className="text-sm font-medium">{job.contactName}</p>
-                      <p className="text-xs text-muted-foreground">{job.address}</p>
-                      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                        {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {job.estimatedTime && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {job.estimatedTime}
-                      </Badge>
-                    )}
-                    <Button
-                      size="sm"
-                      onClick={() => sendTimeslot(job)}
-                      disabled={isSendingTimeslots || !job.estimatedTime}
-                      className="flex items-center gap-1"
-                    >
-                      <Send className="h-3 w-3" />
-                      Send
-                    </Button>
-                  </div>
-                </div>
+                <JobItem 
+                  key={`${job.orderId}-${job.type}-${job.order}`}
+                  job={job}
+                  index={index}
+                  onReorder={reorderJobs}
+                  onAddBreak={addBreak}
+                  onRemove={removeJob}
+                  onSendTimeslot={sendTimeslot}
+                  isSendingTimeslots={isSendingTimeslots}
+                />
               ))}
 
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                 <MapPin className="h-4 w-4" />
                 <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
               </div>
+              
+              <div className="flex gap-2 mt-4">
+                <Button 
+                  onClick={() => addBreak(selectedJobs.length - 1, 'lunch')} 
+                  variant="outline" 
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Coffee className="h-3 w-3" />
+                  Add Lunch Break
+                </Button>
+                <Button 
+                  onClick={() => addBreak(selectedJobs.length - 1, 'stop')} 
+                  variant="outline" 
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Stop Break
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+};
+
+// JobItem component for drag and drop functionality
+interface JobItemProps {
+  job: SelectedJob;
+  index: number;
+  onReorder: (dragIndex: number, hoverIndex: number) => void;
+  onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
+  onRemove: (job: SelectedJob) => void;
+  onSendTimeslot: (job: SelectedJob) => void;
+  isSendingTimeslots: boolean;
+}
+
+const JobItem: React.FC<JobItemProps> = ({ 
+  job, 
+  index, 
+  onReorder, 
+  onAddBreak, 
+  onRemove, 
+  onSendTimeslot, 
+  isSendingTimeslots 
+}) => {
+  const { dragRef, isDragging } = useDraggable({
+    type: 'job',
+    item: { job, index }
+  });
+
+  const { dropRef } = useDroppable({
+    accept: 'job',
+    onDrop: (item: { job: SelectedJob; index: number }) => {
+      if (item.index !== index) {
+        onReorder(item.index, index);
+      }
+    }
+  });
+
+  // Combine refs for drag and drop
+  const combinedRef = (el: HTMLDivElement | null) => {
+    if (dragRef) dragRef.current = el;
+    if (dropRef) dropRef.current = el;
+  };
+
+  return (
+    <div className="space-y-2">
+      <div 
+        ref={combinedRef}
+        className={`flex items-center justify-between p-3 bg-background border rounded-lg transition-opacity ${
+          isDragging ? 'opacity-50' : ''
+        } hover:shadow-md cursor-move`}
+      >
+        <div className="flex items-center gap-3">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+          <Badge variant="outline">#{job.order}</Badge>
+          <div>
+            <p className="text-sm font-medium">{job.contactName}</p>
+            <p className="text-xs text-muted-foreground">{job.address}</p>
+            {job.type === 'break' ? (
+              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
+              </Badge>
+            ) : (
+              <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
+                {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+              </Badge>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {job.estimatedTime && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {job.estimatedTime}
+            </Badge>
+          )}
+          
+          {job.type !== 'break' && (
+            <Button
+              size="sm"
+              onClick={() => onSendTimeslot(job)}
+              disabled={isSendingTimeslots || !job.estimatedTime}
+              className="flex items-center gap-1"
+            >
+              <Send className="h-3 w-3" />
+              Send
+            </Button>
+          )}
+          
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRemove(job)}
+            className="text-red-600 hover:text-red-700"
+          >
+            ×
+          </Button>
+        </div>
+      </div>
+      
+      {/* Add break buttons after each job */}
+      <div className="flex gap-1 ml-8">
+        <Button 
+          onClick={() => onAddBreak(index, 'lunch')} 
+          variant="ghost" 
+          size="sm"
+          className="text-xs h-6 px-2"
+        >
+          + Lunch
+        </Button>
+        <Button 
+          onClick={() => onAddBreak(index, 'stop')} 
+          variant="ghost" 
+          size="sm"
+          className="text-xs h-6 px-2"
+        >
+          + Stop
+        </Button>
+      </div>
     </div>
   );
 };
