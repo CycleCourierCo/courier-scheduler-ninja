@@ -620,7 +620,8 @@ Route Link: ${routeLink}`;
                   key={`${job.orderId}-${job.type}`}
                   className={`transition-all hover:shadow-md ${
                     isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
-                  } ${!hasCoordinates ? 'border-orange-500 bg-orange-50' : ''}`}
+                  } ${!hasCoordinates ? 'border-orange-500 bg-orange-50' : 'cursor-pointer hover:bg-accent/50'}`}
+                  onClick={hasCoordinates ? () => toggleJobSelection(job) : undefined}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
@@ -661,19 +662,6 @@ Route Link: ${routeLink}`;
                             Update Coordinates
                           </Button>
                         </div>
-                      )}
-                      {hasCoordinates && (
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleJobSelection(job);
-                          }}
-                          className={`w-full ${isSelected ? 'bg-red-500 hover:bg-red-600' : ''}`}
-                          variant={isSelected ? "default" : "outline"}
-                        >
-                          {isSelected ? 'Remove from Route' : 'Add to Route'}
-                        </Button>
                       )}
                     </div>
                   </CardContent>
