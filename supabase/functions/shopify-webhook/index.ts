@@ -262,7 +262,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error processing Shopify webhook:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      message: error.message 
+      message: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }

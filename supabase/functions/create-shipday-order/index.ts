@@ -241,7 +241,7 @@ serve(async (req) => {
           pickupResponseData = { 
             rawResponse: responseText,
             status: response.status,
-            parseError: e.message
+            parseError: e instanceof Error ? e.message : 'Parse error'
           };
         }
         
@@ -249,7 +249,7 @@ serve(async (req) => {
       } catch (e) {
         console.error("Error sending pickup request to Shipday:", e);
         pickupResponseData = {
-          error: e.message,
+          error: e instanceof Error ? e.message : 'Network error',
           networkError: true
         };
       }
@@ -278,7 +278,7 @@ serve(async (req) => {
           deliveryResponseData = { 
             rawResponse: responseText,
             status: response.status,
-            parseError: e.message
+            parseError: e instanceof Error ? e.message : 'Parse error'
           };
         }
         
@@ -286,7 +286,7 @@ serve(async (req) => {
       } catch (e) {
         console.error("Error sending delivery request to Shipday:", e);
         deliveryResponseData = {
-          error: e.message,
+          error: e instanceof Error ? e.message : 'Network error',
           networkError: true
         };
       }
@@ -377,7 +377,7 @@ serve(async (req) => {
     console.error("Error processing request:", err);
     
     return new Response(
-      JSON.stringify({ error: err.message || "Internal server error" }),
+      JSON.stringify({ error: err instanceof Error ? err.message : "Internal server error" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }

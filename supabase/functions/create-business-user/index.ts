@@ -65,7 +65,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to create business user',
+        error: error instanceof Error ? error.message : 'Failed to create business user',
         success: false 
       }),
       { 

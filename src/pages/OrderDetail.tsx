@@ -15,6 +15,7 @@ import OrderHeader from "@/components/order-detail/OrderHeader";
 import DateSelection from "@/components/order-detail/DateSelection";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
+import { StorageLocation } from "@/components/order-detail/StorageLocation";
 import ContactDetails from "@/components/order-detail/ContactDetails";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
@@ -1106,7 +1107,10 @@ const OrderDetail = () => {
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ItemDetails order={order} />
+              <div className="space-y-6">
+                <ItemDetails order={order} />
+                <StorageLocation order={order} />
+              </div>
               <TrackingTimeline order={order} />
             </div>
             

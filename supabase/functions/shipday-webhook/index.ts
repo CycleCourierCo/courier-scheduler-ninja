@@ -73,7 +73,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -87,7 +87,7 @@ serve(async (req) => {
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
@@ -102,12 +102,12 @@ serve(async (req) => {
       console.log("Found order using fallback lookup:", fallbackOrders[0]);
       var dbOrder = fallbackOrders[0];
       
-      if (isPickup && !dbOrder.shipday_pickup_id) {
+      if (isPickup && !(dbOrder as any).shipday_pickup_id) {
         await supabase
           .from("orders")
           .update({ shipday_pickup_id: shipdayOrderId })
           .eq("id", dbOrder.id);
-      } else if (isDelivery && !dbOrder.shipday_delivery_id) {
+      } else if (isDelivery && !(dbOrder as any).shipday_delivery_id) {
         await supabase
           .from("orders")
           .update({ shipday_delivery_id: shipdayOrderId })
@@ -149,7 +149,7 @@ serve(async (req) => {
     } else if (event === "ORDER_POD_UPLOAD") {
       // Check if this POD upload should be treated as completion
       const existingUpdates = (dbOrder.tracking_events?.shipday?.updates || []);
-      const hasCompletionEvent = existingUpdates.some(update => 
+      const hasCompletionEvent = existingUpdates.some((update: any) => 
         update.orderId === shipdayOrderId && update.event === "ORDER_COMPLETED"
       );
       
@@ -213,6 +213,7 @@ serve(async (req) => {
         if (existingUpdates[i].orderId === shipdayOrderId && existingUpdates[i].event === "ORDER_COMPLETED") {
           existingUpdates[i].podUrls = podUrls;
           existingUpdates[i].signatureUrl = signatureUrl;
+          existingUpdates[i].driverName = payload.carrier?.name || existingUpdates[i].driverName;
           updatedExistingEvent = true;
           console.log(`Updated existing COMPLETED event with POD data for order ${shipdayOrderId}`);
           break;
@@ -233,7 +234,8 @@ serve(async (req) => {
             orderId: shipdayOrderId,
             description: statusDescription,
             podUrls: podUrls,
-            signatureUrl: signatureUrl
+            signatureUrl: signatureUrl,
+            driverName: payload.carrier?.name || null
           },
         ];
         console.log(`Created new ${eventType} event for order ${shipdayOrderId}`);
@@ -249,7 +251,8 @@ serve(async (req) => {
           orderId: shipdayOrderId,
           description: statusDescription,
           podUrls: podUrls,
-          signatureUrl: signatureUrl
+          signatureUrl: signatureUrl,
+          driverName: payload.carrier?.name || null
         },
       ];
     }
@@ -320,7 +323,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("Error processing webhook:", err);
-    return new Response(JSON.stringify({ error: "Internal server error", details: err.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error", details: err instanceof Error ? err.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

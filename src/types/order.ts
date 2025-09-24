@@ -42,6 +42,7 @@ export type ShipdayUpdate = {
   event?: string;
   podUrls?: string[];
   signatureUrl?: string;
+  driverName?: string;
 };
 
 export type Order = {
@@ -76,6 +77,9 @@ export type Order = {
   receiverNotes?: string;
   senderPolygonSegment?: number;  // Changed from polygonSegment to senderPolygonSegment
   receiverPolygonSegment?: number; // Added receiverPolygonSegment for delivery addresses
+  storage_locations?: any; // Add storage_locations field for database storage
+  loaded_onto_van?: boolean; // Track if bikes have been loaded onto van
+  loaded_onto_van_at?: Date; // Track when bikes were loaded onto van
   trackingEvents?: {
     shipday?: {
       pickup_id?: string;

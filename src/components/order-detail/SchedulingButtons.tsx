@@ -87,43 +87,32 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
         {/* Delivery Date Picker */}
         {setDeliveryDatePicker && (
           <div className="space-y-3 bg-gray-50 p-3 rounded-md">
-            <p className="text-sm font-medium">Select delivery date and time:</p>
-            <div className="flex gap-2 flex-col sm:flex-row">
-              <div className="flex-grow">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !deliveryDatePicker && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {deliveryDatePicker ? format(deliveryDatePicker, "PPP") : <span>Pick delivery date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={deliveryDatePicker}
-                      onSelect={setDeliveryDatePicker}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="w-full sm:w-32">
-                <Input
-                  type="time"
-                  value={deliveryTime}
-                  onChange={(e) => setDeliveryTime && setDeliveryTime(e.target.value)}
-                  className="w-full"
-                  placeholder="Delivery time"
-                />
-              </div>
+            <p className="text-sm font-medium">Select delivery date:</p>
+            <div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !deliveryDatePicker && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {deliveryDatePicker ? format(deliveryDatePicker, "PPP") : <span>Pick delivery date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={deliveryDatePicker}
+                    onSelect={setDeliveryDatePicker}
+                    initialFocus
+                    disabled={(date) => date < new Date()}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}

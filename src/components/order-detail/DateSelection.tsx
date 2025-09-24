@@ -150,9 +150,9 @@ const DateSelection: React.FC<DateSelectionProps> = ({
   // Format timeslot as 3-hour window
   const formatTimeslotWindow = (time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
-    const startHour = Math.max(0, hours - 3);
-    const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const endHour = Math.min(23, hours + 3);
+    const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     return `${startTime} to ${endTime}`;
   };
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -73,6 +73,14 @@ const Layout: React.FC<LayoutProps> = ({
                         Your Profile
                       </Link>
                       {isAdmin && <>
+                          <Link to="/loading" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Package className="mr-2 h-4 w-4" />
+                            Loading & Storage
+                          </Link>
+                          <Link to="/job-scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Calendar className="mr-2 h-4 w-4" />
+                            Job Scheduling
+                          </Link>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
@@ -132,6 +140,18 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/loading" className="cursor-pointer flex w-full items-center">
+                          <Package className="mr-2 h-4 w-4" />
+                          <span>Loading & Storage</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/job-scheduling" className="cursor-pointer flex w-full items-center">
+                          <Calendar className="mr-2 h-4 w-4" />
+                          <span>Job Scheduling</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
                           <Shield className="mr-2 h-4 w-4" />

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@4.0.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +11,7 @@ interface TimeslotRequest {
   orderId: string;
   recipientType: 'sender' | 'receiver';
   deliveryTime: string;
+  customMessage?: string; // Optional custom message for grouped locations
 }
 
 const serve_handler = async (req: Request): Promise<Response> => {
@@ -20,7 +21,7 @@ const serve_handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { orderId, recipientType, deliveryTime }: TimeslotRequest = await req.json();
+    const { orderId, recipientType, deliveryTime, customMessage }: TimeslotRequest = await req.json();
 
     console.log(`Processing timeslot request for order ${orderId}, type: ${recipientType}, time: ${deliveryTime}`);
 
@@ -70,10 +71,10 @@ const serve_handler = async (req: Request): Promise<Response> => {
     // Parse the delivery time to create time windows
     const [deliveryHour, deliveryMinute] = deliveryTime.split(':').map(Number);
     
-    // Create time window: 3 hours before the latest time
-    const startHour = Math.max(0, deliveryHour - 3);
-    const startTime = `${startHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
-    const endTime = `${deliveryHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+    // Create time window: original time + 3 hours (corrected from previous -3 hours bug)
+    const endHour = Math.min(23, deliveryHour + 3);
+    const startTime = `${deliveryHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+    const endTime = `${endHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
     
     console.log(`Original deliveryTime: ${deliveryTime}`);
     console.log(`Parsed hour: ${deliveryHour}, minute: ${deliveryMinute}`);
@@ -90,9 +91,12 @@ const serve_handler = async (req: Request): Promise<Response> => {
       });
     };
 
-    // Create message based on recipient type
+    // Create message based on recipient type or use custom message
     let message: string;
-    if (recipientType === 'sender') {
+    if (customMessage) {
+      // Use the provided custom message (for grouped deliveries/collections)
+      message = customMessage;
+    } else if (recipientType === 'sender') {
       message = `Dear ${contact.name},
 
 Your ${order.bike_brand || 'bike'} ${order.bike_model || ''} Collection has been scheduled for ${formatDate(scheduledDate)} between ${startTime} and ${endTime}.
@@ -186,9 +190,11 @@ Cycle Courier Co.`;
           console.log('Shipday URL:', shipdayUrl);
           
           // Convert user's local time to UTC for Shipday
+          // Use the END time of the timeslot (estimated arrival + 3 hours)
+          const endHour = Math.min(23, deliveryHour + 3);
           // Assuming UK timezone (UTC+0 in winter, UTC+1 in summer)
           const ukTimezoneOffset = new Date().getTimezoneOffset() === 0 ? 1 : 0; // 1 hour ahead if server is UTC
-          const adjustedHour = deliveryHour - ukTimezoneOffset;
+          const adjustedHour = endHour - ukTimezoneOffset;
           const adjustedEndTime = `${adjustedHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
           
           const expectedDeliveryTime = adjustedEndTime.includes(':') && adjustedEndTime.split(':').length === 2 
@@ -279,38 +285,93 @@ Cycle Courier Co.`;
       console.log(`Sending email to ${contact.email}...`);
       
       try {
-        const emailSubject = recipientType === 'sender' 
-          ? `Your ${order.bike_brand || 'bike'} collection has been scheduled - ${order.tracking_number}`
-          : `Your ${order.bike_brand || 'bike'} delivery has been scheduled - ${order.tracking_number}`;
+        const emailSubject = customMessage 
+          ? "Your Bike Deliveries and Collections have been Scheduled"
+          : recipientType === 'sender' 
+            ? `Your ${order.bike_brand || 'bike'} collection has been scheduled - ${order.tracking_number}`
+            : `Your ${order.bike_brand || 'bike'} delivery has been scheduled - ${order.tracking_number}`;
 
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Dear ${contact.name},</h2>
+        let emailHtml: string;
+        
+        if (customMessage) {
+          // For grouped messages, format the custom message with proper styling
+          const lines = customMessage.split('\n\n');
+          let emailContent = '';
+          let hasCollections = customMessage.includes('Collections:');
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
             
-            <p>Your <strong>${order.bike_brand || 'bike'} ${order.bike_model || ''}</strong> ${recipientType === 'sender' ? 'Collection' : 'Delivery'} has been scheduled for:</p>
+            if (line.startsWith('Dear ')) {
+              emailContent += `<h2>${line}</h2>\n`;
+            } else if (line.includes('We are due to be with you')) {
+              emailContent += `<p>${line}</p>\n`;
+            } else if (line.includes('Deliveries:') || line.includes('Collections:')) {
+              emailContent += `<p><strong>${line}</strong></p>\n`;
+            } else if (line.includes('You will receive a text')) {
+              emailContent += `<p>${line}</p>\n`;
+              
+              // Add collection instructions right after tracking message if there are collections
+              if (hasCollections) {
+                emailContent += `
+                  <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+                    <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+                      <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bikes we are collecting and placed in a secure bag</li>
+                      <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+                      <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
+                    </ul>
+                  </div>
+                `;
+              }
+            } else if (line.includes('Please ensure the pedals')) {
+              // Skip the original collection instructions text as we've replaced it with formatted version
+              continue;
+            } else if (line === 'Thank you!') {
+              emailContent += `<p style="margin-top: 30px; font-weight: bold;">${line}</p>\n`;
+            } else if (line === 'Cycle Courier Co.') {
+              emailContent += `<p style="margin-top: 10px;"><strong>${line}</strong></p>\n`;
+            } else if (line) {
+              emailContent += `<p>${line}</p>\n`;
+            }
+          }
             
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0; font-size: 18px;"><strong>${formatDate(scheduledDate)}</strong></p>
-              <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
+          emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+              ${emailContent}
             </div>
-            
-            <p>You will receive a text with a live tracking link once the driver is on their way.</p>
-            
-            ${recipientType === 'sender' ? `
-              <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
-                <p><strong>Collection Instructions:</strong></p>
-                <ul>
-                  <li>Please ensure the pedals have been removed from the bike and placed in a bag</li>
-                  <li>Any other accessories should also be in the bag</li>
-                  <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
-                </ul>
+          `;
+        } else {
+          // Single job message format
+          emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Dear ${contact.name},</h2>
+              
+              <p>Your <strong>${order.bike_brand || 'bike'} ${order.bike_model || ''}</strong> ${recipientType === 'sender' ? 'Collection' : 'Delivery'} has been scheduled for:</p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 18px;"><strong>${formatDate(scheduledDate)}</strong></p>
+                <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
               </div>
-            ` : ''}
-            
-            <p style="margin-top: 30px;">Thank you!</p>
-            <p><strong>Cycle Courier Co.</strong></p>
-          </div>
-        `;
+              
+              <p>You will receive a text with a live tracking link once the driver is on their way.</p>
+              
+              ${recipientType === 'sender' ? `
+                <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+                  <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+                  <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+                    <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bike and placed in a secure bag</li>
+                    <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+                    <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <p style="margin-top: 30px;">Thank you!</p>
+              <p><strong>Cycle Courier Co.</strong></p>
+            </div>
+          `;
+        }
 
         emailResult = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
@@ -322,7 +383,7 @@ Cycle Courier Co.`;
         console.log('Email sent successfully:', emailResult);
       } catch (emailError) {
         console.error('Error sending email (non-critical):', emailError);
-        emailResult = { error: emailError.message };
+        emailResult = { error: emailError instanceof Error ? emailError.message : 'Unknown email error' };
       }
     } else {
       console.log(resend ? 'No email address found - skipping email' : 'Resend not configured - skipping email');

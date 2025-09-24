@@ -25,7 +25,9 @@ const Dashboard: React.FC = () => {
   const [filters, setFilters] = useState({
     status: [],
     search: "",
-    sortBy: "created_desc"
+    sortBy: "created_desc",
+    dateFrom: undefined as Date | undefined,
+    dateTo: undefined as Date | undefined
   });
   const { user } = useAuth();
   const ordersRef = useRef<Order[]>([]);
@@ -138,12 +140,14 @@ const Dashboard: React.FC = () => {
     status: string[];
     search: string;
     sortBy: string;
+    dateFrom: Date | undefined;
+    dateTo: Date | undefined;
   }) => {
     setFilters(newFilters);
   };
 
   const handleClearFilters = () => {
-    setFilters({ status: [], search: "", sortBy: "created_desc" });
+    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined });
   };
 
   const handlePageChange = (page: number) => {
@@ -168,14 +172,12 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
-        <DashboardHeader showActionButtons={true} userRole={userRole} />
+        <DashboardHeader />
         
-        <div className="flex justify-between items-center">
-          <OrderFilters 
-            onFilterChange={handleFilterChange} 
-            initialFilters={filters}
-          />
-        </div>
+        <OrderFilters 
+          onFilterChange={handleFilterChange} 
+          initialFilters={filters}
+        />
 
         {filteredOrders.length === 0 ? (
           <EmptyOrdersState 

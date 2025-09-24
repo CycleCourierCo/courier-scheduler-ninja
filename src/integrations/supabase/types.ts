@@ -279,6 +279,8 @@ export type Database = {
           id: string
           is_bike_swap: boolean | null
           is_ebay_order: boolean | null
+          loaded_onto_van: boolean | null
+          loaded_onto_van_at: string | null
           needs_payment_on_collection: boolean | null
           payment_collection_phone: string | null
           pickup_date: Json | null
@@ -295,6 +297,7 @@ export type Database = {
           shipday_delivery_id: string | null
           shipday_pickup_id: string | null
           status: Database["public"]["Enums"]["order_status"]
+          storage_locations: Json | null
           tracking_events: Json | null
           tracking_number: string | null
           updated_at: string
@@ -314,6 +317,8 @@ export type Database = {
           id?: string
           is_bike_swap?: boolean | null
           is_ebay_order?: boolean | null
+          loaded_onto_van?: boolean | null
+          loaded_onto_van_at?: string | null
           needs_payment_on_collection?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
@@ -330,6 +335,7 @@ export type Database = {
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
           status: Database["public"]["Enums"]["order_status"]
+          storage_locations?: Json | null
           tracking_events?: Json | null
           tracking_number?: string | null
           updated_at?: string
@@ -349,6 +355,8 @@ export type Database = {
           id?: string
           is_bike_swap?: boolean | null
           is_ebay_order?: boolean | null
+          loaded_onto_van?: boolean | null
+          loaded_onto_van_at?: string | null
           needs_payment_on_collection?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
@@ -365,6 +373,7 @@ export type Database = {
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          storage_locations?: Json | null
           tracking_events?: Json | null
           tracking_number?: string | null
           updated_at?: string

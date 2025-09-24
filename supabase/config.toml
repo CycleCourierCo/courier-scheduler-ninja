@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.quickbooks-oauth-callback]
 verify_jwt = false
+
+[functions.send-timeslip-whatsapp]
+verify_jwt = false

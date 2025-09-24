@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         return new Response(
           JSON.stringify({ 
-            error: error.message, 
+            error: error instanceof Error ? error.message : 'Validation error', 
             code: 'VALIDATION_ERROR' 
           }),
           { 

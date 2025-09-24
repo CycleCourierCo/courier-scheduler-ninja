@@ -54,7 +54,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     
     setLoading(true);
     try {
-      const apiKey = "06b0c657cdcb466889f61736b5bb56c3";
+      const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
       const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(text)}&filter=countrycode:gb&apiKey=${apiKey}`;
       
       const response = await fetch(url, { method: "GET" });
