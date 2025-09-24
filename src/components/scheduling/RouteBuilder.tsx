@@ -284,6 +284,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     setSelectedJobs(updatedJobs);
   };
 
+  const roundTimeToNext5Minutes = (date: Date): Date => {
+    const minutes = date.getMinutes();
+    const roundedMinutes = Math.ceil(minutes / 5) * 5;
+    const newDate = new Date(date);
+    
+    if (roundedMinutes === 60) {
+      newDate.setHours(newDate.getHours() + 1);
+      newDate.setMinutes(0);
+    } else {
+      newDate.setMinutes(roundedMinutes);
+    }
+    
+    return newDate;
+  };
+
   const calculateTimeslots = async () => {
     if (selectedJobs.length === 0) return;
 
@@ -311,10 +326,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         if (job.type === 'break') {
           // For breaks, just add the break duration
           currentTime = new Date(currentTime.getTime() + (job.breakDuration || 15) * 60000);
+          const roundedBreakTime = roundTimeToNext5Minutes(currentTime);
           updatedJobs.push({
             ...job,
-            estimatedTime: currentTime.toTimeString().slice(0, 5)
+            estimatedTime: roundedBreakTime.toTimeString().slice(0, 5)
           });
+          currentTime = roundedBreakTime; // Update current time to rounded time
         } else {
           // For regular jobs, calculate travel time
           const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
@@ -323,13 +340,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           // Add 15 minutes service time for each job
           currentTime = new Date(currentTime.getTime() + 15 * 60000);
           
+          // Round to next 5-minute increment
+          const roundedJobTime = roundTimeToNext5Minutes(currentTime);
+          
           updatedJobs.push({
             ...job,
-            estimatedTime: currentTime.toTimeString().slice(0, 5)
+            estimatedTime: roundedJobTime.toTimeString().slice(0, 5)
           });
           
-          // Update last location for next calculation
+          // Update last location for next calculation and use rounded time
           lastLocationCoords = { lat: job.lat!, lon: job.lon! };
+          currentTime = roundedJobTime;
         }
       }
 
