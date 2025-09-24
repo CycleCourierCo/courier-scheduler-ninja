@@ -281,10 +281,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const calculateOptimalStartingBikes = (): number => {
     if (selectedJobs.length === 0) return 0;
     
-    // Start with the total number of deliveries in the route
-    const totalDeliveries = selectedJobs.filter(job => job.type === 'delivery').length;
+    // Sum up the bike quantities for all deliveries in the route
+    const totalBikesForDeliveries = selectedJobs
+      .filter(job => job.type === 'delivery')
+      .reduce((total, job) => {
+        const quantity = job.orderData?.bike_quantity || 1;
+        return total + quantity;
+      }, 0);
     
-    return totalDeliveries;
+    return totalBikesForDeliveries;
   };
 
   // Auto-update starting bikes when route changes
