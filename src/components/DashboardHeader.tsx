@@ -77,15 +77,68 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       let isFirstLabel = true;
       
+      // Generate loading list as first label
+      const margin = 15;
+      let currentY = margin + 20;
+      
+      // Title
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text('DELIVERY LOADING LIST', margin, currentY);
+      currentY += 25;
+      
+      // Date
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Date: ${format(selectedDate!, 'dd/MM/yyyy')}`, margin, currentY);
+      currentY += 25;
+      
+      // List all bikes for delivery
+      pdf.setFontSize(10);
+      orders.forEach((order, orderIndex) => {
+        const quantity = order.bikeQuantity || 1;
+        
+        for (let i = 0; i < quantity; i++) {
+          if (currentY > labelHeight - 50) {
+            pdf.addPage();
+            currentY = margin + 20;
+          }
+          
+          pdf.setFont("helvetica", "bold");
+          pdf.text(`${orderIndex + 1}.${quantity > 1 ? `${i + 1}` : ''}`, margin, currentY);
+          
+          pdf.setFont("helvetica", "normal");
+          const customerName = order.receiver?.name || 'Unknown Customer';
+          const bikeBrand = order.bikeBrand || 'Unknown';
+          const bikeModel = order.bikeModel || 'Bike';
+          const bikeInfo = `${bikeBrand} ${bikeModel}`.trim();
+          const trackingNumber = order.trackingNumber || 'N/A';
+          
+          pdf.text(`Customer: ${customerName}`, margin + 20, currentY);
+          currentY += 12;
+          pdf.text(`Bike: ${bikeInfo}`, margin + 20, currentY);
+          currentY += 12;
+          pdf.text(`Tracking: ${trackingNumber}`, margin + 20, currentY);
+          currentY += 18;
+        }
+      });
+      
+      // Contact info at bottom of loading list
+      currentY = Math.max(currentY + 15, labelHeight - 60);
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "normal");
+      const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
+      const contactWidth = pdf.getTextWidth(contactText);
+      const contactX = (labelWidth - contactWidth) / 2;
+      pdf.text(contactText, contactX, currentY);
+      
+      // Now generate individual labels
       orders.forEach((order) => {
         const quantity = order.bikeQuantity || 1;
         
         // Generate labels based on bike quantity
         for (let i = 0; i < quantity; i++) {
-          if (!isFirstLabel) {
-            pdf.addPage();
-          }
-          isFirstLabel = false;
+          pdf.addPage();
 
           const margin = 15;
           let currentY = margin + 20;
