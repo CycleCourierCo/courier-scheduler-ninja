@@ -260,44 +260,15 @@ const LoadingUnloadingPage = () => {
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       let isFirstLabel = true;
       
-      // Generate loading list as first label
-      const margin = 15;
-      let currentY = margin + 20;
-      
-      // Title
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      pdf.text('DELIVERY LOADING LIST', margin, currentY);
-      currentY += 25;
-      
-      // Date
-      pdf.setFontSize(12);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`Date: ${format(selectedDate!, 'dd/MM/yyyy')}`, margin, currentY);
-      currentY += 25;
-      
-      // Simple bullet point list for delivery bikes
-      pdf.setFontSize(10);
-      deliveryOrders.forEach((order) => {
-        const quantity = order.bikeQuantity || 1;
-        
-        for (let i = 0; i < quantity; i++) {
-          const customerName = order.receiver?.name || 'Unknown Customer';
-          const bikeBrand = order.bikeBrand || 'Unknown';
-          const bikeModel = order.bikeModel || 'Bike';
-          const bikeInfo = `${bikeBrand} ${bikeModel}`.trim();
-          
-          pdf.text(`• ${bikeInfo} - ${customerName}`, margin, currentY);
-          currentY += 15;
-        }
-      });
-      
       // Individual collection labels
       orders.forEach((order) => {
         const quantity = order.bikeQuantity || 1;
         
         for (let i = 0; i < quantity; i++) {
-          pdf.addPage();
+          if (!isFirstLabel) {
+            pdf.addPage();
+          }
+          isFirstLabel = false;
 
           const margin = 15;
           let currentY = margin + 20;
