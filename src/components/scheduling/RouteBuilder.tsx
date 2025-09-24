@@ -232,25 +232,29 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const calculateOptimalStartingBikes = (): number => {
     if (selectedJobs.length === 0) return 0;
     
-    // Work backwards through the route to find minimum starting bikes needed
-    let bikeCount = 0;
+    // Work forwards through the route to track bike requirements
+    let currentBikes = 0;
     let maxBikesNeeded = 0;
     
-    // Work backwards through the route
-    for (let i = selectedJobs.length - 1; i >= 0; i--) {
+    // For each job, calculate how many bikes we need before executing it
+    for (let i = 0; i < selectedJobs.length; i++) {
       const job = selectedJobs[i];
+      
       if (job.type === 'delivery') {
-        // Before a delivery, we need one more bike
-        bikeCount += 1;
+        // Before a delivery, we need to have one bike to deliver
+        currentBikes += 1;
+        maxBikesNeeded = Math.max(maxBikesNeeded, currentBikes);
+        // After delivery, we have one less bike
+        currentBikes -= 1;
       } else if (job.type === 'pickup') {
-        // Before a pickup, we need one less bike (will pick up during route)
-        bikeCount -= 1;
+        // Before pickup, we don't need extra bikes
+        // After pickup, we have one more bike
+        currentBikes += 1;
       }
-      // Track the maximum bikes needed at any point
-      maxBikesNeeded = Math.max(maxBikesNeeded, bikeCount);
+      // Breaks don't affect bike count
     }
     
-    return Math.max(0, maxBikesNeeded);
+    return maxBikesNeeded;
   };
 
   // Auto-update starting bikes when route changes
