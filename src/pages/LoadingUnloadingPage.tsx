@@ -590,6 +590,9 @@ const LoadingUnloadingPage = () => {
                         
                         {getBikesNeedingLoading(selectedLoadingDate).map((order) => {
                           const quantity = order.bikeQuantity || 1;
+                          // Find storage allocations for this order
+                          const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+                          
                           return (
                             <Card key={order.id} className="p-3">
                               <div className="space-y-2">
@@ -597,16 +600,42 @@ const LoadingUnloadingPage = () => {
                                   <div className="font-medium">
                                     {order.receiver?.name || 'Unknown Customer'}
                                   </div>
-                                  {quantity > 1 && (
-                                    <div className="text-xs bg-muted px-2 py-1 rounded">
-                                      {quantity} bikes
-                                    </div>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    {quantity > 1 && (
+                                      <div className="text-xs bg-muted px-2 py-1 rounded">
+                                        {quantity} bikes
+                                      </div>
+                                    )}
+                                    {orderAllocations.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {orderAllocations
+                                          .sort((a, b) => {
+                                            if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
+                                            return a.position - b.position;
+                                          })
+                                          .map((allocation) => (
+                                            <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
+                                              {allocation.bay}{allocation.position}
+                                            </div>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                   <div>{order.bikeBrand} {order.bikeModel}</div>
                                   <div>Tracking: {order.trackingNumber}</div>
                                   <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
+                                  {orderAllocations.length === 0 && (
+                                    <div className="text-red-600 font-medium mt-1">
+                                      ⚠️ Not yet allocated to storage
+                                    </div>
+                                  )}
+                                  {orderAllocations.length > 0 && orderAllocations.length < quantity && (
+                                    <div className="text-orange-600 font-medium mt-1">
+                                      ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </Card>
