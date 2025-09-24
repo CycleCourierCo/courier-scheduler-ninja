@@ -973,6 +973,49 @@ const OrderDetail = () => {
             )}
             
             <div className="space-y-4">
+              {/* Scheduled Dates Display */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Collection Date</h3>
+                  {order.scheduledPickupDate ? (
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="font-medium">
+                        Scheduled: {safeFormat(new Date(order.scheduledPickupDate), "PPP")}
+                      </p>
+                      {order.pickupTimeslot && (
+                        <p className="text-sm text-muted-foreground">
+                          Time: {order.pickupTimeslot}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <p className="text-muted-foreground">No collection date scheduled</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Delivery Date</h3>
+                  {order.scheduledDeliveryDate ? (
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="font-medium">
+                        Scheduled: {safeFormat(new Date(order.scheduledDeliveryDate), "PPP")}
+                      </p>
+                      {order.deliveryTimeslot && (
+                        <p className="text-sm text-muted-foreground">
+                          Time: {order.deliveryTimeslot}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <p className="text-muted-foreground">No delivery date scheduled</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <SchedulingButtons
                 orderId={id as string}
                 onSchedulePickup={handleSchedulePickup}
