@@ -71,10 +71,10 @@ const serve_handler = async (req: Request): Promise<Response> => {
     // Parse the delivery time to create time windows
     const [deliveryHour, deliveryMinute] = deliveryTime.split(':').map(Number);
     
-    // Create time window: 3 hours before the latest time
-    const startHour = Math.max(0, deliveryHour - 3);
-    const startTime = `${startHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
-    const endTime = `${deliveryHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+    // Create time window: original time + 3 hours (corrected from previous -3 hours bug)
+    const endHour = Math.min(23, deliveryHour + 3);
+    const startTime = `${deliveryHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+    const endTime = `${endHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
     
     console.log(`Original deliveryTime: ${deliveryTime}`);
     console.log(`Parsed hour: ${deliveryHour}, minute: ${deliveryMinute}`);
@@ -290,28 +290,32 @@ Cycle Courier Co.`;
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>Dear ${contact.name},</h2>
             
-            <p>Your <strong>${order.bike_brand || 'bike'} ${order.bike_model || ''}</strong> ${recipientType === 'sender' ? 'Collection' : 'Delivery'} has been scheduled for:</p>
-            
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0; font-size: 18px;"><strong>${formatDate(scheduledDate)}</strong></p>
-              <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
-            </div>
-            
-            <p>You will receive a text with a live tracking link once the driver is on their way.</p>
-            
-            ${recipientType === 'sender' ? `
-              <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
-                <p><strong>Collection Instructions:</strong></p>
-                <ul>
-                  <li>Please ensure the pedals have been removed from the bike and placed in a bag</li>
-                  <li>Any other accessories should also be in the bag</li>
-                  <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
-                </ul>
+            ${customMessage ? `
+              <div style="white-space: pre-line;">${customMessage.replace(/\n/g, '<br>')}</div>
+            ` : `
+              <p>Your <strong>${order.bike_brand || 'bike'} ${order.bike_model || ''}</strong> ${recipientType === 'sender' ? 'Collection' : 'Delivery'} has been scheduled for:</p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 18px;"><strong>${formatDate(scheduledDate)}</strong></p>
+                <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
               </div>
-            ` : ''}
-            
-            <p style="margin-top: 30px;">Thank you!</p>
-            <p><strong>Cycle Courier Co.</strong></p>
+              
+              <p>You will receive a text with a live tracking link once the driver is on their way.</p>
+              
+              ${recipientType === 'sender' ? `
+                <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
+                  <p><strong>Collection Instructions:</strong></p>
+                  <ul>
+                    <li>Please ensure the pedals have been removed from the bike and placed in a bag</li>
+                    <li>Any other accessories should also be in the bag</li>
+                    <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <p style="margin-top: 30px;">Thank you!</p>
+              <p><strong>Cycle Courier Co.</strong></p>
+            `}
           </div>
         `;
 
