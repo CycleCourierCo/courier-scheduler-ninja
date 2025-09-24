@@ -584,24 +584,8 @@ const LoadingUnloadingPage = () => {
   };
 
   const handleLoadOntoVan = (orderId: string) => {
-    // Find all storage allocations for this order
-    const orderAllocations = storageAllocations.filter(a => a.orderId === orderId);
-    
-    if (orderAllocations.length === 0) {
-      toast.error("No bikes found in storage for this order");
-      return;
-    }
-
-    // Remove all allocations for this order (load all bikes onto van)
-    const updatedAllocations = storageAllocations.filter(
-      allocation => allocation.orderId !== orderId
-    );
-    setStorageAllocations(updatedAllocations);
-    
-    // Save to localStorage
-    localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
-    
-    toast.success(`Successfully loaded ${orderAllocations.length} bike(s) onto van`);
+    // Use the existing database-updating function for consistency
+    handleRemoveAllBikesFromOrder(orderId);
   };
 
   if (loading) {

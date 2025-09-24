@@ -14,7 +14,7 @@ interface RemoveBikesDialogProps {
   onOpenChange: (open: boolean) => void;
   bikesForDelivery: Order[];
   storageAllocations: StorageAllocation[];
-  onRemoveFromStorage: (allocationIds: string[]) => void;
+  onRemoveAllBikesFromOrder: (orderId: string) => void;
 }
 
 export const RemoveBikesDialog = ({
@@ -22,46 +22,48 @@ export const RemoveBikesDialog = ({
   onOpenChange,
   bikesForDelivery,
   storageAllocations,
-  onRemoveFromStorage,
+  onRemoveAllBikesFromOrder,
 }: RemoveBikesDialogProps) => {
-  const [selectedAllocations, setSelectedAllocations] = useState<string[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
 
   const getAllocationForOrder = (orderId: string) => {
     return storageAllocations.find(allocation => allocation.orderId === orderId);
   };
 
-  const handleSelectAllocation = (allocationId: string, checked: boolean) => {
+  const handleSelectOrder = (orderId: string, checked: boolean) => {
     if (checked) {
-      setSelectedAllocations(prev => [...prev, allocationId]);
+      setSelectedOrders(prev => [...prev, orderId]);
     } else {
-      setSelectedAllocations(prev => prev.filter(id => id !== allocationId));
+      setSelectedOrders(prev => prev.filter(id => id !== orderId));
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allAllocationIds = bikesForDelivery
-        .map(bike => getAllocationForOrder(bike.id)?.id)
-        .filter(Boolean) as string[];
-      setSelectedAllocations(allAllocationIds);
+      const allOrderIds = bikesForDelivery.map(bike => bike.id);
+      setSelectedOrders(allOrderIds);
     } else {
-      setSelectedAllocations([]);
+      setSelectedOrders([]);
     }
   };
 
   const handleLoadOntoVan = () => {
-    if (selectedAllocations.length === 0) {
+    if (selectedOrders.length === 0) {
       toast.error("Please select at least one bike to load");
       return;
     }
 
-    onRemoveFromStorage(selectedAllocations);
-    setSelectedAllocations([]);
+    // Load all selected orders
+    selectedOrders.forEach(orderId => {
+      onRemoveAllBikesFromOrder(orderId);
+    });
+    
+    setSelectedOrders([]);
     onOpenChange(false);
   };
 
   const allSelected = bikesForDelivery.length > 0 && 
-    selectedAllocations.length === bikesForDelivery.filter(bike => getAllocationForOrder(bike.id)).length;
+    selectedOrders.length === bikesForDelivery.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,7 +98,7 @@ export const RemoveBikesDialog = ({
                   </label>
                 </div>
                 <Badge variant="outline">
-                  {selectedAllocations.length} selected
+                  {selectedOrders.length} selected
                 </Badge>
               </div>
 
@@ -105,7 +107,7 @@ export const RemoveBikesDialog = ({
                   const allocation = getAllocationForOrder(bike.id);
                   if (!allocation) return null;
 
-                  const isSelected = selectedAllocations.includes(allocation.id);
+                  const isSelected = selectedOrders.includes(bike.id);
 
                   return (
                     <Card key={bike.id} className={`transition-colors ${isSelected ? 'ring-2 ring-primary' : ''}`}>
@@ -114,7 +116,7 @@ export const RemoveBikesDialog = ({
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={(checked) => 
-                              handleSelectAllocation(allocation.id, checked as boolean)
+                              handleSelectOrder(bike.id, checked as boolean)
                             }
                             className="mt-1"
                           />
@@ -158,9 +160,9 @@ export const RemoveBikesDialog = ({
                 </Button>
                 <Button 
                   onClick={handleLoadOntoVan}
-                  disabled={selectedAllocations.length === 0}
+                  disabled={selectedOrders.length === 0}
                 >
-                  Load {selectedAllocations.length} Bike(s) onto Van
+                  Load {selectedOrders.length} Bike(s) onto Van
                 </Button>
               </div>
             </>
