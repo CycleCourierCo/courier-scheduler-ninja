@@ -138,13 +138,14 @@ export const PendingStorageAllocation = ({
                     {(() => {
                       // Find driver name from tracking events
                       const collectionEvent = bike.trackingEvents?.shipday?.updates?.find(
-                        (update: any) => update.event === 'ORDER_COMPLETED' && update.orderId === bike.trackingEvents?.shipday?.pickup_id
+                        (update: any) => update.event === 'ORDER_COMPLETED' && 
+                        update.orderId?.toString() === bike.trackingEvents?.shipday?.pickup_id?.toString()
                       );
                       const driverName = collectionEvent?.driverName;
                       
                       if (driverName) {
                         return (
-                          <Badge variant="default" className="text-xs bg-blue-600">
+                          <Badge variant="default" className="text-xs bg-blue-600 text-white">
                             In {driverName} Van
                           </Badge>
                         );

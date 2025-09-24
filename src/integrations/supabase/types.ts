@@ -295,6 +295,7 @@ export type Database = {
           shipday_delivery_id: string | null
           shipday_pickup_id: string | null
           status: Database["public"]["Enums"]["order_status"]
+          storage_locations: Json | null
           tracking_events: Json | null
           tracking_number: string | null
           updated_at: string
@@ -330,6 +331,7 @@ export type Database = {
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
           status: Database["public"]["Enums"]["order_status"]
+          storage_locations?: Json | null
           tracking_events?: Json | null
           tracking_number?: string | null
           updated_at?: string
@@ -365,6 +367,7 @@ export type Database = {
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          storage_locations?: Json | null
           tracking_events?: Json | null
           tracking_number?: string | null
           updated_at?: string

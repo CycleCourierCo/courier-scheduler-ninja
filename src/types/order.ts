@@ -77,6 +77,7 @@ export type Order = {
   receiverNotes?: string;
   senderPolygonSegment?: number;  // Changed from polygonSegment to senderPolygonSegment
   receiverPolygonSegment?: number; // Added receiverPolygonSegment for delivery addresses
+  storage_locations?: any; // Add storage_locations field for database storage
   trackingEvents?: {
     shipday?: {
       pickup_id?: string;

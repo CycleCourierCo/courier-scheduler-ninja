@@ -53,16 +53,24 @@ const LoadingUnloadingPage = () => {
         const ordersData = await getOrders();
         setOrders(ordersData);
         
-        // Fetch storage allocations from localStorage for now
-        // In a real app, this would be from a database
-        const savedAllocations = localStorage.getItem('storageAllocations');
-        if (savedAllocations) {
-          const allocations = JSON.parse(savedAllocations);
-          setStorageAllocations(allocations.map((a: any) => ({
-            ...a,
-            allocatedAt: new Date(a.allocatedAt)
-          })));
-        }
+        // Fetch storage allocations from orders' storage_locations field
+        const allAllocations: StorageAllocation[] = [];
+        ordersData.forEach(order => {
+          if (order.storage_locations) {
+            const orderAllocations = Array.isArray(order.storage_locations) 
+              ? order.storage_locations 
+              : [order.storage_locations];
+            
+            orderAllocations.forEach((allocation: any) => {
+              allAllocations.push({
+                ...allocation,
+                allocatedAt: new Date(allocation.allocatedAt)
+              });
+            });
+          }
+        });
+        
+        setStorageAllocations(allAllocations);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load data');
@@ -626,20 +634,59 @@ const LoadingUnloadingPage = () => {
                                     )}
                                   </div>
                                 </div>
-                                <div className="text-sm text-muted-foreground">
-                                  <div>{order.bikeBrand} {order.bikeModel}</div>
-                                  <div>Tracking: {order.trackingNumber}</div>
-                                  <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                  {orderAllocations.length === 0 && (
-                                    <div className="text-red-600 font-medium mt-1">
-                                      ⚠️ Not yet allocated to storage
-                                    </div>
-                                  )}
-                                  {orderAllocations.length > 0 && orderAllocations.length < quantity && (
-                                    <div className="text-orange-600 font-medium mt-1">
-                                      ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
-                                    </div>
-                                  )}
+                                 <div className="text-sm text-muted-foreground">
+                                   <div>{order.bikeBrand} {order.bikeModel}</div>
+                                   <div>Tracking: {order.trackingNumber}</div>
+                                   <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
+                                   {(() => {
+                                     // Show who needs to load onto van (delivery driver)
+                                     const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
+                                       (update: any) => update.event === 'ORDER_ASSIGNED' && 
+                                       update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
+                                     );
+                                     const deliveryDriverName = deliveryEvent?.driverName;
+                                     
+                                     if (deliveryDriverName) {
+                                       return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
+                                     }
+                                     return null;
+                                   })()}
+                                   {orderAllocations.length === 0 && (
+                                     <div className="text-red-600 font-medium mt-1">
+                                       ⚠️ Not yet allocated to storage
+                                       {(() => {
+                                         // Show driver name if available
+                                         const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                           (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                           update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                         );
+                                         const driverName = collectionEvent?.driverName;
+                                         
+                                         if (driverName) {
+                                           return <div className="text-blue-600 font-medium">In {driverName} Van</div>;
+                                         }
+                                         return null;
+                                       })()}
+                                     </div>
+                                   )}
+                                   {orderAllocations.length > 0 && orderAllocations.length < quantity && (
+                                     <div className="text-orange-600 font-medium mt-1">
+                                       ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
+                                       {(() => {
+                                         // Show driver name if available
+                                         const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                           (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                           update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                         );
+                                         const driverName = collectionEvent?.driverName;
+                                         
+                                         if (driverName) {
+                                           return <div className="text-blue-600 font-medium">Collected by {driverName}</div>;
+                                         }
+                                         return null;
+                                       })()}
+                                     </div>
+                                   )}
                                 </div>
                                 <div className="mt-3 pt-3 border-t">
                                   <Button 

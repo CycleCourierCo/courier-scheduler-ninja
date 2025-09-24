@@ -8,6 +8,7 @@ import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
 import { MapPin, Package } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StorageLocationProps {
   order: Order;
@@ -19,40 +20,43 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
   const [allAllocations, setAllAllocations] = useState<StorageAllocation[]>([]);
 
   useEffect(() => {
-    // Load storage allocations from localStorage
-    const savedAllocations = localStorage.getItem('storageAllocations');
-    if (savedAllocations) {
-      const allocations = JSON.parse(savedAllocations).map((a: any) => ({
-        ...a,
-        allocatedAt: new Date(a.allocatedAt)
-      }));
-      setAllAllocations(allocations);
-      
-      // Find allocations for this order (there might be multiple for multi-bike orders)
-      const orderAllocations = allocations.filter((a: StorageAllocation) => a.orderId === order.id);
-      const bikeQuantity = order.bikeQuantity || 1;
-      
-      // Initialize form arrays
-      const newBays = Array(bikeQuantity).fill('');
-      const newPositions = Array(bikeQuantity).fill('');
-      
-      // Fill existing allocations
-      orderAllocations.forEach((allocation, index) => {
-        if (index < bikeQuantity) {
-          newBays[index] = allocation.bay;
-          newPositions[index] = allocation.position.toString();
-        }
-      });
-      
-      setBays(newBays);
-      setPositions(newPositions);
-    } else {
-      // Initialize empty arrays
-      const bikeQuantity = order.bikeQuantity || 1;
-      setBays(Array(bikeQuantity).fill(''));
-      setPositions(Array(bikeQuantity).fill(''));
-    }
-  }, [order.id, order.bikeQuantity]);
+    const loadStorageAllocations = () => {
+      // Load from order's storage_locations field
+      const storageLocations = order.storage_locations as StorageAllocation[] | null;
+      if (storageLocations && storageLocations.length > 0) {
+        const allocations = storageLocations.map((a: any) => ({
+          ...a,
+          allocatedAt: new Date(a.allocatedAt)
+        }));
+        setAllAllocations(allocations);
+        
+        const bikeQuantity = order.bikeQuantity || 1;
+        
+        // Initialize form arrays
+        const newBays = Array(bikeQuantity).fill('');
+        const newPositions = Array(bikeQuantity).fill('');
+        
+        // Fill existing allocations
+        allocations.forEach((allocation, index) => {
+          if (index < bikeQuantity) {
+            newBays[index] = allocation.bay;
+            newPositions[index] = allocation.position.toString();
+          }
+        });
+        
+        setBays(newBays);
+        setPositions(newPositions);
+      } else {
+        // Initialize empty arrays
+        const bikeQuantity = order.bikeQuantity || 1;
+        setBays(Array(bikeQuantity).fill(''));
+        setPositions(Array(bikeQuantity).fill(''));
+        setAllAllocations([]);
+      }
+    };
+
+    loadStorageAllocations();
+  }, [order.id, order.bikeQuantity, order.storage_locations]);
 
   const handleAllocate = () => {
     const bikeQuantity = order.bikeQuantity || 1;
@@ -120,36 +124,67 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
       });
     }
 
-    // Remove existing allocations for this order
-    const updatedAllocations = allAllocations.filter(a => a.orderId !== order.id);
-    const finalAllocations = [...updatedAllocations, ...newAllocations];
-    
-    setAllAllocations(finalAllocations);
-    
-    // Save to localStorage
-    localStorage.setItem('storageAllocations', JSON.stringify(finalAllocations));
-    
-    toast.success(`${bikeQuantity > 1 ? 'All bikes' : 'Bike'} allocated to storage`);
+    // Update the order with new storage locations
+    const updateOrder = async () => {
+      try {
+        // Convert Date objects to ISO strings for JSON storage
+        const allocationsForDb = newAllocations.map(allocation => ({
+          ...allocation,
+          allocatedAt: allocation.allocatedAt.toISOString()
+        }));
+
+        const { error } = await supabase
+          .from('orders')
+          .update({ storage_locations: allocationsForDb })
+          .eq('id', order.id);
+
+        if (error) {
+          console.error('Error updating storage locations:', error);
+          toast.error('Failed to save storage allocation');
+          return;
+        }
+
+        setAllAllocations(newAllocations);
+        toast.success(`${bikeQuantity > 1 ? 'All bikes' : 'Bike'} allocated to storage`);
+      } catch (error) {
+        console.error('Error updating storage locations:', error);
+        toast.error('Failed to save storage allocation');
+      }
+    };
+
+    updateOrder();
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
     // Remove all allocations for this order
     const orderAllocations = allAllocations.filter(a => a.orderId === order.id);
     if (orderAllocations.length === 0) return;
 
-    const updatedAllocations = allAllocations.filter(a => a.orderId !== order.id);
-    setAllAllocations(updatedAllocations);
-    
-    // Reset form arrays
-    const bikeQuantity = order.bikeQuantity || 1;
-    setBays(Array(bikeQuantity).fill(''));
-    setPositions(Array(bikeQuantity).fill(''));
-    
-    // Save to localStorage
-    localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
-    
-    const isMultiple = orderAllocations.length > 1;
-    toast.success(`${isMultiple ? 'All bikes' : 'Bike'} removed from storage`);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ storage_locations: null })
+        .eq('id', order.id);
+
+      if (error) {
+        console.error('Error removing storage locations:', error);
+        toast.error('Failed to remove storage allocation');
+        return;
+      }
+
+      setAllAllocations([]);
+      
+      // Reset form arrays
+      const bikeQuantity = order.bikeQuantity || 1;
+      setBays(Array(bikeQuantity).fill(''));
+      setPositions(Array(bikeQuantity).fill(''));
+      
+      const isMultiple = orderAllocations.length > 1;
+      toast.success(`${isMultiple ? 'All bikes' : 'Bike'} removed from storage`);
+    } catch (error) {
+      console.error('Error removing storage locations:', error);
+      toast.error('Failed to remove storage allocation');
+    }
   };
 
   // Check if order has been collected
