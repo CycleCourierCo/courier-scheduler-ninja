@@ -14,10 +14,11 @@ import { toast } from "sonner";
 interface BikesInStorageProps {
   bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
   onRemoveFromStorage: (allocationId: string) => void;
+  onRemoveAllBikesFromOrder: (orderId: string) => void;
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
 }
 
-export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLocation }: BikesInStorageProps) => {
+export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation }: BikesInStorageProps) => {
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [newBays, setNewBays] = useState<string[]>([]);
@@ -253,13 +254,18 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
                   <Button
                     size="sm"
                     onClick={() => {
-                      // Remove all allocations for this order
-                      allocations.forEach(allocation => onRemoveFromStorage(allocation.id));
+                      if (isMultiBike) {
+                        // Remove all bikes for this order at once
+                        onRemoveAllBikesFromOrder(orderId);
+                      } else {
+                        // Single bike - use existing function
+                        onRemoveFromStorage(allocations[0].id);
+                      }
                     }}
                     className="h-7 text-xs flex-1 bg-green-600 hover:bg-green-700 text-white"
                   >
                     <Truck className="h-3 w-3 mr-1" />
-                    Load All onto Van
+                    {isMultiBike ? `Load All ${allocations.length} onto Van` : 'Load onto Van'}
                   </Button>
                 </div>
               </div>

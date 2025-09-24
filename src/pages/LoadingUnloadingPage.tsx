@@ -248,6 +248,38 @@ const LoadingUnloadingPage = () => {
     }
   };
 
+  const handleRemoveAllBikesFromOrder = async (orderId: string) => {
+    // Find all allocations for this order
+    const orderAllocations = storageAllocations.filter(a => a.orderId === orderId);
+    if (orderAllocations.length === 0) return;
+
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    try {
+      // Remove all storage locations for this order
+      const { error } = await supabase
+        .from('orders')
+        .update({ storage_locations: null })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error removing all storage locations:', error);
+        toast.error('Failed to remove bikes from storage');
+        return;
+      }
+
+      // Refresh data from database to ensure UI reflects the saved state
+      await fetchData();
+      
+      const bikeCount = orderAllocations.length;
+      toast.success(`${bikeCount} bike(s) loaded onto van and removed from storage`);
+    } catch (error) {
+      console.error('Error removing all storage locations:', error);
+      toast.error('Failed to remove bikes from storage');
+    }
+  };
+
   const handleChangeLocation = async (allocationId: string, newBay: string, newPosition: number) => {
     // Find the allocation to update
     const allocationToUpdate = storageAllocations.find(a => a.id === allocationId);
@@ -849,6 +881,7 @@ const LoadingUnloadingPage = () => {
               <BikesInStorage 
                 bikesInStorage={bikesInStorage}
                 onRemoveFromStorage={handleRemoveFromStorage}
+                onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
                 onChangeLocation={handleChangeLocation}
               />
             </CardContent>
