@@ -13,9 +13,6 @@ interface SchedulingButtonsProps {
   onSchedulePickup: () => void;
   onScheduleDelivery: () => void;
   onScheduleBoth: () => void;
-  onAdminScheduleBoth?: () => void; // New prop for admin scheduling with date picker
-  onAdminSchedulePickup?: () => void; // New prop for admin pickup only
-  onAdminScheduleDelivery?: () => void; // New prop for admin delivery only
   isSubmitting: boolean;
   isScheduled: boolean;
   pickupDateSelected: boolean;
@@ -24,10 +21,11 @@ interface SchedulingButtonsProps {
   // Date picker props
   pickupDatePicker?: Date;
   deliveryDatePicker?: Date;
-  // New props for direct date selection
-  deliveryDate?: Date;
-  setDeliveryDate?: (date: Date | undefined) => void;
+  setPickupDatePicker?: (date: Date | undefined) => void;
+  setDeliveryDatePicker?: (date: Date | undefined) => void;
+  pickupTime: string;
   deliveryTime: string;
+  setPickupTime?: (time: string) => void;
   setDeliveryTime?: (time: string) => void;
 }
 
@@ -35,9 +33,6 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   onSchedulePickup,
   onScheduleDelivery,
   onScheduleBoth,
-  onAdminScheduleBoth,
-  onAdminSchedulePickup,
-  onAdminScheduleDelivery,
   isSubmitting,
   isScheduled,
   pickupDateSelected,
@@ -45,18 +40,61 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   status,
   pickupDatePicker,
   deliveryDatePicker,
-  deliveryDate,
-  setDeliveryDate,
+  setPickupDatePicker,
+  setDeliveryDatePicker,
+  pickupTime,
   deliveryTime,
+  setPickupTime,
   setDeliveryTime,
 }) => {
-  // Always show the date picker regardless of status
-  const showDirectDatePicker = setDeliveryDate;
-  
   return (
     <div className="space-y-4">
-      {/* Always show date picker */}
-      {showDirectDatePicker && (
+      {/* Collection Date Picker */}
+      {setPickupDatePicker && (
+        <div className="space-y-3 bg-gray-50 p-3 rounded-md">
+          <p className="text-sm font-medium">Select collection date and time:</p>
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <div className="flex-grow">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !pickupDatePicker && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {pickupDatePicker ? format(pickupDatePicker, "PPP") : <span>Pick collection date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={pickupDatePicker}
+                    onSelect={setPickupDatePicker}
+                    initialFocus
+                    disabled={(date) => date < new Date()}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="w-full sm:w-32">
+              <Input
+                type="time"
+                value={pickupTime}
+                onChange={(e) => setPickupTime && setPickupTime(e.target.value)}
+                className="w-full"
+                placeholder="Collection time"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Date Picker */}
+      {setDeliveryDatePicker && (
         <div className="space-y-3 bg-gray-50 p-3 rounded-md">
           <p className="text-sm font-medium">Select delivery date and time:</p>
           <div className="flex gap-2 flex-col sm:flex-row">
@@ -67,18 +105,18 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !deliveryDate && "text-muted-foreground"
+                      !deliveryDatePicker && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick delivery date</span>}
+                    {deliveryDatePicker ? format(deliveryDatePicker, "PPP") : <span>Pick delivery date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={deliveryDate}
-                    onSelect={setDeliveryDate}
+                    selected={deliveryDatePicker}
+                    onSelect={setDeliveryDatePicker}
                     initialFocus
                     disabled={(date) => date < new Date()}
                     className={cn("p-3 pointer-events-auto")}
