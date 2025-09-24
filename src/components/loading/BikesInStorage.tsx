@@ -33,7 +33,7 @@ export const BikesInStorage = ({ storageAllocations, orders }: BikesInStoragePro
   });
 
   return (
-    <div className="space-y-3 max-h-96 overflow-y-auto">
+    <div className="space-y-3">{/* Removed max-h-96 overflow-y-auto */}
       {sortedAllocations.map((allocation) => {
         const order = getOrderForAllocation(allocation);
         
