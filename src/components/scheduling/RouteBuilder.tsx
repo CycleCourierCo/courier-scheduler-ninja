@@ -228,6 +228,37 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
 
+  // Calculate optimal starting bike count based on route
+  const calculateOptimalStartingBikes = (): number => {
+    if (selectedJobs.length === 0) return 0;
+    
+    // Work backwards through the route to find minimum starting bikes needed
+    let bikeCount = 0;
+    let maxBikesNeeded = 0;
+    
+    // Work backwards through the route
+    for (let i = selectedJobs.length - 1; i >= 0; i--) {
+      const job = selectedJobs[i];
+      if (job.type === 'delivery') {
+        // Before a delivery, we need one more bike
+        bikeCount += 1;
+      } else if (job.type === 'pickup') {
+        // Before a pickup, we need one less bike (will pick up during route)
+        bikeCount -= 1;
+      }
+      // Track the maximum bikes needed at any point
+      maxBikesNeeded = Math.max(maxBikesNeeded, bikeCount);
+    }
+    
+    return Math.max(0, maxBikesNeeded);
+  };
+
+  // Auto-update starting bikes when route changes
+  React.useEffect(() => {
+    const optimalStarting = calculateOptimalStartingBikes();
+    setStartingBikes(optimalStarting);
+  }, [selectedJobs]);
+
   // Helper function to calculate bike count for a given job index
   const calculateBikeCountAtJob = (jobIndex: number): number => {
     let bikeCount = startingBikes;
@@ -437,6 +468,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         lon: job.lon
       };
       setSelectedJobs(prev => [...prev, newJob]);
+      // Starting bikes will auto-update via useEffect
     }
   };
 
@@ -453,6 +485,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }));
     
     setSelectedJobs(updatedJobs);
+    // Starting bikes will auto-update via useEffect
   };
 
   const addBreak = (afterIndex: number, breakType: 'lunch' | 'stop') => {
@@ -477,6 +510,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }));
     
     setSelectedJobs(reorderedJobs);
+    // Starting bikes will auto-update via useEffect
   };
 
   const removeJob = (jobToRemove: SelectedJob) => {
@@ -487,6 +521,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         order: index + 1
       }));
     setSelectedJobs(updatedJobs);
+    // Starting bikes will auto-update via useEffect
   };
 
   const updateCoordinates = async (jobToUpdate: SelectedJob, lat: number, lon: number) => {
