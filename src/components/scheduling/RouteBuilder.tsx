@@ -25,6 +25,7 @@ interface SelectedJob {
   contactName: string;
   phoneNumber: string;
   order: number;
+  orderData?: OrderData; // The full order data for accessing bikeQuantity
   estimatedTime?: string;
   actualTime?: string;
   lat?: number;
@@ -300,11 +301,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     for (let i = 0; i <= jobIndex; i++) {
       const job = selectedJobs[i];
       if (job.type === 'delivery') {
-        // After a delivery, subtract 1 bike
-        bikeCount -= 1;
+        // After a delivery, subtract the bike quantity for this order
+        const quantity = job.orderData?.bike_quantity || 1;
+        bikeCount -= quantity;
       } else if (job.type === 'pickup') {
-        // After a pickup, add 1 bike
-        bikeCount += 1;
+        // After a pickup, add the bike quantity for this order
+        const quantity = job.orderData?.bike_quantity || 1;
+        bikeCount += quantity;
       }
       // Breaks don't affect bike count
     }
@@ -318,11 +321,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     
     for (const job of selectedJobs) {
       if (job.type === 'delivery') {
-        // After a delivery, subtract 1 bike
-        bikeCount -= 1;
+        // After a delivery, subtract the bike quantity for this order
+        const quantity = job.orderData?.bike_quantity || 1;
+        bikeCount -= quantity;
       } else if (job.type === 'pickup') {
-        // After a pickup, add 1 bike
-        bikeCount += 1;
+        // After a pickup, add the bike quantity for this order
+        const quantity = job.orderData?.bike_quantity || 1;
+        bikeCount += quantity;
       }
     }
     
@@ -494,6 +499,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         type: job.type as 'pickup' | 'delivery',
         address: job.address,
         contactName: job.contactName,
+        orderData: job.order, // Include the full order data
         phoneNumber: job.phoneNumber,
         order: selectedJobs.length + 1,
         lat: job.lat,
