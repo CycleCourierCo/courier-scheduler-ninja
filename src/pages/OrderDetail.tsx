@@ -973,45 +973,7 @@ const OrderDetail = () => {
             )}
             
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <DateSelection 
-                  title="Pickup Dates"
-                  availableDates={order.pickupDate}
-                  scheduledDate={order.scheduledPickupDate}
-                  selectedDate={selectedPickupDate}
-                  setSelectedDate={setSelectedPickupDate}
-                  timeValue={pickupTime}
-                  setTimeValue={setPickupTime}
-                  calendarDate={pickupDatePicker}
-                  setCalendarDate={setPickupDatePicker}
-                  isSubmitting={isSubmitting}
-                  isScheduled={isScheduled}
-                  showAdminControls={showAdminControls}
-                  orderStatus={order.status}
-                  timeslot={order.pickupTimeslot}
-                  onStateReset={resetPickupStates}
-                />
-                
-                <DateSelection 
-                  title="Delivery Dates"
-                  availableDates={order.deliveryDate}
-                  scheduledDate={order.scheduledDeliveryDate}
-                  selectedDate={selectedDeliveryDate}
-                  setSelectedDate={setSelectedDeliveryDate}
-                  timeValue={deliveryTime}
-                  setTimeValue={setDeliveryTime}
-                  calendarDate={deliveryDatePicker}
-                  setCalendarDate={setDeliveryDatePicker}
-                  isSubmitting={isSubmitting}
-                  isScheduled={isScheduled}
-                  showAdminControls={showAdminControls}
-                  orderStatus={order.status}
-                  timeslot={order.deliveryTimeslot}
-                  onStateReset={resetDeliveryStates}
-                />
-              </div>
-
-              <SchedulingButtons 
+              <SchedulingButtons
                 orderId={id as string}
                 onSchedulePickup={handleSchedulePickup}
                 onScheduleDelivery={handleScheduleDelivery}
