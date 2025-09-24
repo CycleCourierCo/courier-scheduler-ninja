@@ -185,7 +185,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
       // Format waypoints as lat,lon pairs separated by pipe
       const waypoints = `${fromCoords.lat},${fromCoords.lon}|${toCoords.lat},${toCoords.lon}`;
-      const url = `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=light_truck&type=balanced&format=json&apiKey=${apiKey}`;
+      const url = `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=light_truck&type=balanced&traffic=approximated&format=json&apiKey=${apiKey}`;
       
       const response = await fetch(url);
       if (!response.ok) {
