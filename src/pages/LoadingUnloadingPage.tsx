@@ -118,18 +118,29 @@ const LoadingUnloadingPage = () => {
   };
 
   // Get bikes that need storage allocation (collected but not delivered, not cancelled, and no storage allocation)
-  const collectedBikes = orders.filter(order => 
-    hasBeenCollected(order) && 
-    !hasBeenDelivered(order) &&
-    order.status !== 'cancelled' &&
-    !storageAllocations.some(allocation => allocation.orderId === order.id)
-  );
+  const collectedBikes = orders.filter(order => {
+    const hasCollection = hasBeenCollected(order);
+    const hasDelivery = hasBeenDelivered(order);
+    const isCancelled = order.status === 'cancelled';
+    const hasStorage = storageAllocations.some(allocation => allocation.orderId === order.id);
+    
+    console.log(`Order ${order.id}: collected=${hasCollection}, delivered=${hasDelivery}, cancelled=${isCancelled}, hasStorage=${hasStorage}`);
+    
+    return hasCollection && !hasDelivery && !isCancelled && !hasStorage;
+  });
 
   // Get all bikes that have storage allocations (regardless of delivery status)
   const bikesInStorage = storageAllocations.map(allocation => {
     const order = orders.find(o => o.id === allocation.orderId);
+    console.log('Mapping allocation:', allocation, 'Found order:', order);
     return { allocation, order };
-  }).filter(item => item.order); // Only include if order still exists
+  }).filter(item => {
+    const hasOrder = !!item.order;
+    console.log('Filtering item:', item, 'Has order:', hasOrder);
+    return hasOrder;
+  });
+
+  console.log('Final bikesInStorage:', bikesInStorage);
 
   const handleAllocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
     const order = orders.find(o => o.id === orderId);
