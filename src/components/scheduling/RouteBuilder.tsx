@@ -3,14 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3 } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
 import { z } from "zod";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Coordinate validation schema
 const coordinateSchema = z.object({
@@ -306,6 +311,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
   const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
   const [startTime, setStartTime] = useState("09:00");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [startingBikes, setStartingBikes] = useState<number>(0);
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
@@ -871,6 +877,64 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     try {
       const deliveryTime = `${job.estimatedTime}:00`;
       
+      // Create datetime from selected date and estimated time
+      const [hours, minutes] = job.estimatedTime.split(':').map(Number);
+      const scheduledDateTime = new Date(selectedDate);
+      scheduledDateTime.setHours(hours, minutes, 0, 0);
+      
+      // First save the timeslot and scheduled date to the database
+      const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+      const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+      
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          [updateField]: deliveryTime,
+          [dateField]: scheduledDateTime.toISOString()
+        })
+        .eq('id', job.orderId);
+
+      if (updateError) {
+        console.error("Error saving timeslot:", updateError);
+        toast.error(`Failed to save timeslot: ${updateError.message}`);
+        return;
+      }
+
+      // Update order status like in TimeslotSelection component
+      let newStatus: any = 'scheduled'; // Default status
+      if (job.type === 'pickup') {
+        newStatus = "collection_scheduled";
+      } else if (job.type === 'delivery') {
+        // Check if delivery is on same date as collection
+        const order = job.orderData;
+        const pickupDate = order?.scheduled_pickup_date;
+        
+        if (pickupDate && scheduledDateTime) {
+          const pickupDateOnly = new Date(pickupDate).toDateString();
+          const deliveryDateOnly = scheduledDateTime.toDateString();
+          
+          if (pickupDateOnly === deliveryDateOnly) {
+            newStatus = "scheduled";
+          } else {
+            newStatus = "delivery_scheduled";
+          }
+        } else {
+          newStatus = "delivery_scheduled";
+        }
+      }
+
+      // Update the order status
+      const { error: statusUpdateError } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', job.orderId);
+
+      if (statusUpdateError) {
+        console.error("Error updating order status:", statusUpdateError);
+        toast.error(`Failed to update order status: ${statusUpdateError.message}`);
+        return;
+      }
+      
       // Check if this is a grouped location and send enhanced message
       let message = '';
       if (job.isGroupedLocation && job.locationGroupId) {
@@ -883,7 +947,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         }
       }
       
-      await supabase.functions.invoke('send-timeslot-whatsapp', {
+      const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId: job.orderId,
           recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
@@ -892,10 +956,27 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         }
       });
 
-      toast.success(`Timeslot sent to ${job.contactName}${job.isGroupedLocation ? ' (grouped location)' : ''}`);
+      if (error) {
+        console.error("Error sending timeslot:", error);
+        toast.error(`Failed to send timeslot: ${error.message}`);
+        return;
+      }
+
+      // Check Shipday status and show appropriate notification like in TimeslotSelection
+      if (data?.shipdayStatus === 'failed') {
+        toast.success(`Timeslot sent to ${job.contactName} via WhatsApp successfully!`, {
+          description: `Note: Shipday update failed (${data.shipdayError}). The timeslot was saved but may need manual update in Shipday.`
+        });
+      } else if (data?.shipdayStatus === 'no_shipday_id') {
+        toast.success(`Timeslot sent to ${job.contactName} via WhatsApp successfully!`, {
+          description: "Note: No Shipday order found to update."
+        });
+      } else {
+        toast.success(`Timeslot sent to ${job.contactName}${job.isGroupedLocation ? ' (grouped location)' : ''} successfully!`);
+      }
     } catch (error) {
       console.error('Error sending timeslot:', error);
-      toast.error('Failed to send timeslot');
+      toast.error(`Failed to send timeslot: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSendingTimeslots(false);
     }
@@ -911,16 +992,88 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
     setIsSendingTimeslots(true);
     try {
-      const promises = jobsAtLocation.map(async (job) => {
-        if (!job.estimatedTime) return;
+      // Group jobs by contact (sender/receiver)
+      const jobsByContact = new Map<string, typeof jobsAtLocation>();
+      
+      jobsAtLocation.forEach(job => {
+        const contactKey = `${job.contactName}-${job.type}`;
+        if (!jobsByContact.has(contactKey)) {
+          jobsByContact.set(contactKey, []);
+        }
+        jobsByContact.get(contactKey)!.push(job);
+      });
+
+      // Send one message per contact with consolidated bike info
+      const promises = Array.from(jobsByContact.entries()).map(async ([contactKey, jobs]) => {
+        if (jobs.length === 0 || !jobs[0].estimatedTime) return;
         
-        const deliveryTime = `${job.estimatedTime}:00`;
-        const message = `Multiple ${job.type === 'pickup' ? 'collections' : 'deliveries'} at this location (${jobsAtLocation.length} total stops)`;
+        const firstJob = jobs[0];
+        const deliveryTime = `${firstJob.estimatedTime}:00`;
         
+        // Create datetime from selected date and estimated time
+        const [hours, minutes] = firstJob.estimatedTime.split(':').map(Number);
+        const scheduledDateTime = new Date(selectedDate);
+        scheduledDateTime.setHours(hours, minutes, 0, 0);
+        
+        // Collect bike brands and models for all jobs for this contact
+        const bikeInfo = jobs
+          .map(job => {
+            const brand = job.orderData?.bike_brand || 'Unknown Brand';
+            const model = job.orderData?.bike_model || 'Unknown Model';
+            return `${brand} ${model}`;
+          })
+          .filter((info, index, arr) => arr.indexOf(info) === index) // Remove duplicates
+          .join(', ');
+        
+        const message = `Multiple ${firstJob.type === 'pickup' ? 'collections' : 'deliveries'} at this location. Bikes: ${bikeInfo}`;
+        
+        // Update all jobs for this contact
+        for (const job of jobs) {
+          const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+          const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+          
+          // Update timeslot and scheduled date
+          await supabase
+            .from('orders')
+            .update({ 
+              [updateField]: deliveryTime,
+              [dateField]: scheduledDateTime.toISOString()
+            })
+            .eq('id', job.orderId);
+            
+          // Update status
+          let newStatus: any = 'scheduled';
+          if (job.type === 'pickup') {
+            newStatus = "collection_scheduled";
+          } else if (job.type === 'delivery') {
+            const order = job.orderData;
+            const pickupDate = order?.scheduled_pickup_date;
+            
+            if (pickupDate && scheduledDateTime) {
+              const pickupDateOnly = new Date(pickupDate).toDateString();
+              const deliveryDateOnly = scheduledDateTime.toDateString();
+              
+              if (pickupDateOnly === deliveryDateOnly) {
+                newStatus = "scheduled";
+              } else {
+                newStatus = "delivery_scheduled";
+              }
+            } else {
+              newStatus = "delivery_scheduled";
+            }
+          }
+          
+          await supabase
+            .from('orders')
+            .update({ status: newStatus })
+            .eq('id', job.orderId);
+        }
+        
+        // Send single WhatsApp message for the first job (represents all jobs for this contact)
         return supabase.functions.invoke('send-timeslot-whatsapp', {
           body: {
-            orderId: job.orderId,
-            recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
+            orderId: firstJob.orderId,
+            recipientType: firstJob.type === 'pickup' ? 'sender' : 'receiver',
             deliveryTime,
             customMessage: message
           }
@@ -928,7 +1081,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       });
 
       await Promise.all(promises);
-      toast.success(`Timeslots sent to all customers at this location (${jobsAtLocation.length} messages)`);
+      const uniqueContacts = jobsByContact.size;
+      toast.success(`Consolidated timeslots sent to ${uniqueContacts} contact(s) for ${jobsAtLocation.length} jobs at this location`);
     } catch (error) {
       console.error('Error sending grouped timeslots:', error);
       toast.error('Failed to send some timeslots');
@@ -1093,14 +1247,45 @@ Route Link: ${routeLink}`;
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Start Time:</label>
-              <Input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-32"
-              />
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Start Time:</Label>
+                <Input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Date:</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-48 justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
               <Button onClick={calculateTimeslots} size="sm">
                 Recalculate
               </Button>
