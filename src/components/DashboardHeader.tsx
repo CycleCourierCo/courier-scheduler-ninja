@@ -30,24 +30,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       )}
       {showActionButtons && (
         <div className="flex flex-col sm:flex-row justify-end gap-2">
-          {isAdmin && (
-            <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link to="/scheduling">
-                <Calendar className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Job Scheduling</span>
-                <span className="sm:hidden">Scheduling</span>
-              </Link>
-            </Button>
-          )}
-          {isAdmin && (
-            <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link to="/loading">
-                <Truck className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Loading & Unloading</span>
-                <span className="sm:hidden">Loading</span>
-              </Link>
-            </Button>
-          )}
           <Button asChild className="w-full sm:w-auto">
             <Link to="/create-order">
               <Plus className="mr-2 h-4 w-4" />
