@@ -27,7 +27,6 @@ export type StorageAllocation = {
 const LoadingUnloadingPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [storageAllocations, setStorageAllocations] = useState<StorageAllocation[]>([]);
-  const [showRemoveBikesDialog, setShowRemoveBikesDialog] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,17 +56,17 @@ const LoadingUnloadingPage = () => {
     fetchData();
   }, []);
 
-  // Get collected bikes that need storage allocation
+  // Get bikes that need storage allocation (collected or on way to delivery, but no storage allocation)
   const collectedBikes = orders.filter(order => 
-    order.status === 'collected' && 
+    (order.status === 'collected' || order.status === 'driver_to_delivery') && 
     !storageAllocations.some(allocation => allocation.orderId === order.id)
   );
 
-  // Get bikes due for delivery (scheduled for delivery)
-  const bikesForDelivery = orders.filter(order => 
-    (order.status === 'scheduled' || order.status === 'delivery_scheduled') &&
-    storageAllocations.some(allocation => allocation.orderId === order.id)
-  );
+  // Get all bikes that have storage allocations (regardless of delivery status)
+  const bikesInStorage = storageAllocations.map(allocation => {
+    const order = orders.find(o => o.id === allocation.orderId);
+    return { allocation, order };
+  }).filter(item => item.order); // Only include if order still exists
 
   const handleAllocateStorage = (orderId: string, bay: string, position: number) => {
     const order = orders.find(o => o.id === orderId);
@@ -103,16 +102,16 @@ const LoadingUnloadingPage = () => {
     toast.success(`Bike allocated to bay ${bay}${position}`);
   };
 
-  const handleRemoveFromStorage = (allocationIds: string[]) => {
+  const handleRemoveFromStorage = (allocationId: string) => {
     const updatedAllocations = storageAllocations.filter(
-      allocation => !allocationIds.includes(allocation.id)
+      allocation => allocation.id !== allocationId
     );
     setStorageAllocations(updatedAllocations);
     
     // Save to localStorage
     localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
     
-    toast.success(`${allocationIds.length} bike(s) removed from storage`);
+    toast.success('Bike loaded onto van and removed from storage');
   };
 
   if (loading) {
@@ -128,18 +127,11 @@ const LoadingUnloadingPage = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <div className="flex items-center gap-3">
             <Truck className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Loading & Unloading</h1>
           </div>
-          <Button 
-            onClick={() => setShowRemoveBikesDialog(true)}
-            variant="outline"
-            disabled={bikesForDelivery.length === 0}
-          >
-            Remove Bikes from Storage
-          </Button>
         </div>
 
         {/* Storage Unit Layout */}
@@ -177,26 +169,17 @@ const LoadingUnloadingPage = () => {
             <CardHeader>
               <CardTitle>Bikes in Storage</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {storageAllocations.length} bike(s) currently in storage
+                {bikesInStorage.length} bike(s) currently in storage
               </p>
             </CardHeader>
             <CardContent>
               <BikesInStorage 
-                storageAllocations={storageAllocations}
-                orders={orders}
+                bikesInStorage={bikesInStorage}
+                onRemoveFromStorage={handleRemoveFromStorage}
               />
             </CardContent>
           </Card>
         </div>
-
-        {/* Remove Bikes Dialog */}
-        <RemoveBikesDialog
-          open={showRemoveBikesDialog}
-          onOpenChange={setShowRemoveBikesDialog}
-          bikesForDelivery={bikesForDelivery}
-          storageAllocations={storageAllocations}
-          onRemoveFromStorage={handleRemoveFromStorage}
-        />
       </div>
     </Layout>
   );

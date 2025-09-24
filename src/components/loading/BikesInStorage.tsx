@@ -1,21 +1,18 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin } from "lucide-react";
+import { Package, MapPin, Truck } from "lucide-react";
 import { format } from "date-fns";
 
 interface BikesInStorageProps {
-  storageAllocations: StorageAllocation[];
-  orders: Order[];
+  bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
+  onRemoveFromStorage: (allocationId: string) => void;
 }
 
-export const BikesInStorage = ({ storageAllocations, orders }: BikesInStorageProps) => {
-  const getOrderForAllocation = (allocation: StorageAllocation) => {
-    return orders.find(order => order.id === allocation.orderId);
-  };
-
-  if (storageAllocations.length === 0) {
+export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage }: BikesInStorageProps) => {
+  if (bikesInStorage.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -24,18 +21,17 @@ export const BikesInStorage = ({ storageAllocations, orders }: BikesInStoragePro
     );
   }
 
-  // Sort allocations by bay and position
-  const sortedAllocations = [...storageAllocations].sort((a, b) => {
-    if (a.bay !== b.bay) {
-      return a.bay.localeCompare(b.bay);
+  // Sort by bay and position
+  const sortedBikes = [...bikesInStorage].sort((a, b) => {
+    if (a.allocation.bay !== b.allocation.bay) {
+      return a.allocation.bay.localeCompare(b.allocation.bay);
     }
-    return a.position - b.position;
+    return a.allocation.position - b.allocation.position;
   });
 
   return (
     <div className="space-y-3">{/* Removed max-h-96 overflow-y-auto */}
-      {sortedAllocations.map((allocation) => {
-        const order = getOrderForAllocation(allocation);
+      {sortedBikes.map(({ allocation, order }) => {
         
         return (
           <Card key={allocation.id} className="p-3">
@@ -47,12 +43,23 @@ export const BikesInStorage = ({ storageAllocations, orders }: BikesInStoragePro
                   </Badge>
                   <h4 className="font-medium text-sm">{allocation.customerName}</h4>
                 </div>
-                <Badge 
-                  variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
-                  className="text-xs"
-                >
-                  {order?.status || 'Unknown'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
+                    className="text-xs"
+                  >
+                    {order?.status || 'Unknown'}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onRemoveFromStorage(allocation.id)}
+                    className="h-6 text-xs"
+                  >
+                    <Truck className="h-3 w-3 mr-1" />
+                    Load
+                  </Button>
+                </div>
               </div>
               
               <div className="text-sm text-muted-foreground">
