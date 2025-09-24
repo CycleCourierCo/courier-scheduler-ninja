@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Calendar, Printer } from "lucide-react";
+import { Plus, Calendar, Printer, Truck } from "lucide-react";
 import { getOrders } from "@/services/orderService";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -306,6 +306,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 <Calendar className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Job Scheduling</span>
                 <span className="sm:hidden">Scheduling</span>
+              </Link>
+            </Button>
+          )}
+          {isAdmin && (
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link to="/loading">
+                <Truck className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Loading & Unloading</span>
+                <span className="sm:hidden">Loading</span>
               </Link>
             </Button>
           )}

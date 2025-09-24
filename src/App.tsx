@@ -27,6 +27,7 @@ import AboutPage from "./pages/AboutPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
 import ApiDocumentationPage from "./pages/ApiDocumentationPage";
+import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +94,11 @@ function App() {
             <Route path="/invoices" element={
               <ProtectedRoute adminOnly={true}>
                 <InvoicesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/loading" element={
+              <ProtectedRoute adminOnly={true}>
+                <LoadingUnloadingPage />
               </ProtectedRoute>
             } />
             <Route path="/sender-availability/:id" element={<SenderAvailability />} />
