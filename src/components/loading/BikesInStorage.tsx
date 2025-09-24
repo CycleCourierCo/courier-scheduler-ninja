@@ -43,23 +43,12 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage }: BikesInS
                   </Badge>
                   <h4 className="font-medium text-sm">{allocation.customerName}</h4>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
-                    className="text-xs"
-                  >
-                    {order?.status || 'Unknown'}
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onRemoveFromStorage(allocation.id)}
-                    className="h-6 text-xs"
-                  >
-                    <Truck className="h-3 w-3 mr-1" />
-                    Load
-                  </Button>
-                </div>
+                <Badge 
+                  variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
+                  className="text-xs"
+                >
+                  {order?.status || 'Unknown'}
+                </Badge>
               </div>
               
               <div className="text-sm text-muted-foreground">
@@ -80,6 +69,14 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage }: BikesInS
                 <p className="text-xs mt-1">
                   Stored: {format(allocation.allocatedAt, 'MMM dd, yyyy HH:mm')}
                 </p>
+                <Button
+                  size="sm"
+                  onClick={() => onRemoveFromStorage(allocation.id)}
+                  className="h-7 text-xs mt-2 w-full bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Truck className="h-3 w-3 mr-1" />
+                  Load onto Van
+                </Button>
               </div>
             </CardContent>
           </Card>

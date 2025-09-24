@@ -56,9 +56,43 @@ const LoadingUnloadingPage = () => {
     fetchData();
   }, []);
 
-  // Get bikes that need storage allocation (collected or on way to delivery, but no storage allocation)
+  // Helper function to check if order has been collected based on tracking events
+  const hasBeenCollected = (order: Order) => {
+    // Check order status first
+    if (order.status === 'collected' || order.status === 'driver_to_delivery') {
+      return true;
+    }
+    
+    // Check tracking events for collection indicators
+    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
+    return trackingUpdates.some(update => 
+      update.description?.toLowerCase().includes('collected') || 
+      update.description?.toLowerCase().includes('pickup') ||
+      update.event === 'ORDER_POD_UPLOAD' ||
+      update.status?.toLowerCase().includes('collected')
+    );
+  };
+
+  // Helper function to check if order has been delivered
+  const hasBeenDelivered = (order: Order) => {
+    // Check order status first
+    if (order.status === 'delivered') {
+      return true;
+    }
+    
+    // Check tracking events for delivery indicators
+    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
+    return trackingUpdates.some(update => 
+      update.description?.toLowerCase().includes('delivered') || 
+      update.event === 'DELIVERY_POD_UPLOAD' ||
+      update.status?.toLowerCase().includes('delivered')
+    );
+  };
+
+  // Get bikes that need storage allocation (collected but not delivered, and no storage allocation)
   const collectedBikes = orders.filter(order => 
-    (order.status === 'collected' || order.status === 'driver_to_delivery') && 
+    hasBeenCollected(order) && 
+    !hasBeenDelivered(order) &&
     !storageAllocations.some(allocation => allocation.orderId === order.id)
   );
 
