@@ -89,22 +89,85 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     if (selectedJobs.length === 0) return;
 
     const baseAddress = "Lawden Road, B100AD";
-    const addresses = [baseAddress, ...selectedJobs.map(job => job.address), baseAddress];
     
-    // Mock travel time calculation (in real app, use Google Maps API)
-    const updatedJobs = selectedJobs.map((job, index) => {
-      const startDateTime = new Date(`2024-01-01 ${startTime}`);
-      const travelTimeMinutes = (index + 1) * 15; // Mock 15 minutes between stops
-      const arrivalTime = new Date(startDateTime.getTime() + travelTimeMinutes * 60000);
+    try {
+      const updatedJobs = [];
+      let currentTime = new Date(`2024-01-01 ${startTime}`);
       
-      return {
-        ...job,
-        estimatedTime: arrivalTime.toTimeString().slice(0, 5)
-      };
-    });
+      for (let i = 0; i < selectedJobs.length; i++) {
+        const job = selectedJobs[i];
+        
+        if (i === 0) {
+          // First job - calculate travel time from base to first location
+          const travelTime = await calculateTravelTime(baseAddress, job.address);
+          currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+        } else {
+          // Calculate travel time from previous job to current job
+          const previousJob = selectedJobs[i - 1];
+          const travelTime = await calculateTravelTime(previousJob.address, job.address);
+          // Add travel time + 15 minutes service time from previous job
+          currentTime = new Date(currentTime.getTime() + (travelTime + 15) * 60000);
+        }
+        
+        updatedJobs.push({
+          ...job,
+          estimatedTime: currentTime.toTimeString().slice(0, 5)
+        });
+      }
 
-    setSelectedJobs(updatedJobs);
-    setShowTimeslotDialog(true);
+      setSelectedJobs(updatedJobs);
+      setShowTimeslotDialog(true);
+    } catch (error) {
+      console.error('Error calculating timeslots:', error);
+      toast.error('Failed to calculate timeslots. Please try again.');
+      
+      // Fallback to mock calculation
+      const updatedJobs = selectedJobs.map((job, index) => {
+        const startDateTime = new Date(`2024-01-01 ${startTime}`);
+        const travelTimeMinutes = (index + 1) * 15; // Mock 15 minutes between stops
+        const arrivalTime = new Date(startDateTime.getTime() + travelTimeMinutes * 60000);
+        
+        return {
+          ...job,
+          estimatedTime: arrivalTime.toTimeString().slice(0, 5)
+        };
+      });
+
+      setSelectedJobs(updatedJobs);
+      setShowTimeslotDialog(true);
+    }
+  };
+
+  const calculateTravelTime = async (fromAddress: string, toAddress: string): Promise<number> => {
+    try {
+      const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+      if (!apiKey) {
+        console.warn('Geoapify API key not found, using default travel time');
+        return 15; // Default 15 minutes
+      }
+
+      const waypoints = `${fromAddress}|${toAddress}`;
+      const url = `https://api.geoapify.com/v1/routing?waypoints=${encodeURIComponent(waypoints)}&mode=light_truck&type=balanced&format=json&apiKey=${apiKey}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        // Return travel time in minutes
+        const travelTimeSeconds = data.results[0].time || 900; // Default 15 minutes if not found
+        return Math.ceil(travelTimeSeconds / 60);
+      } else {
+        console.warn('No route found, using default travel time');
+        return 15; // Default 15 minutes
+      }
+    } catch (error) {
+      console.error('Error calculating travel time:', error);
+      return 15; // Default 15 minutes on error
+    }
   };
 
   const sendTimeslot = async (job: SelectedJob) => {

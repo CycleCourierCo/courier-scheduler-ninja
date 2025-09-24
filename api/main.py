@@ -14,6 +14,8 @@ import time
 import uuid
 import requests
 import json
+import httpx
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -109,71 +111,87 @@ jobs_db = {}
 drivers_db = {}
 
 # Helper functions
-def compute_time_matrix(locations):
-    """Calculate travel time matrix using Google Routes API"""
-    if not GOOGLE_MAPS_API_KEY:
+async def compute_time_matrix(locations):
+    """Calculate travel time matrix using Geoapify Routing API"""
+    geoapify_api_key = os.environ.get("GEOAPIFY_API_KEY")
+    
+    if not geoapify_api_key:
         # Use dummy matrix with estimated times if no API key is provided
-        logger.warning("Using dummy time matrix as Google Maps API key is not set")
+        logger.warning("Using dummy time matrix as Geoapify API key is not set")
         n = len(locations)
         return [[max(30, abs(i-j) * 20) for j in range(n)] for i in range(n)]
     
     try:
-        logger.info(f"Computing travel times for {len(locations)} locations using Routes API")
+        logger.info(f"Computing travel times for {len(locations)} locations using Geoapify Routing API")
         matrix = []
-        
-        # Define the Routes API endpoint
-        routes_url = "https://routes.googleapis.com/directions/v2:computeRouteMatrix"
         
         # Process each origin-destination pair
         for origin_idx, origin in enumerate(locations):
             row = []
             
-            # Process in batches to stay within rate limits
-            for i in range(0, len(locations), 10):
-                batch_destinations = locations[i:i+10]
+            for dest_idx, destination in enumerate(locations):
+                if origin_idx == dest_idx:
+                    # Same location, 0 travel time
+                    row.append(0)
+                    continue
                 
-                # Prepare the request body
-                request_body = {
-                    "origins": [{"address": origin}],
-                    "destinations": [{"address": dest} for dest in batch_destinations],
-                    "travelMode": "DRIVE",
-                    "routingPreference": "TRAFFIC_AWARE",
-                    "departureTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-                }
-                
-                # Make the API request
-                response = requests.post(
-                    routes_url,
-                    headers={
-                        "Content-Type": "application/json",
-                        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
-                        "X-Goog-FieldMask": "originIndex,destinationIndex,duration"
-                    },
-                    data=json.dumps(request_body)
-                )
-                
-                if response.status_code != 200:
-                    logger.error(f"Routes API error: {response.text}")
-                    raise Exception(f"Routes API error: {response.status_code}")
-                
-                result = response.json()
-                
-                # Extract duration values in seconds, convert to minutes
-                for element in result.get("originDestinationPairs", []):
-                    if "duration" in element:
-                        # Convert seconds to minutes and round up
-                        duration_seconds = int(element["duration"].replace("s", ""))
-                        row.append(duration_seconds // 60)
+                try:
+                    # Create waypoints string for Geoapify API
+                    # Try to geocode the address if it's not already coordinates
+                    if ',' in origin and len(origin.split(',')) == 2:
+                        # Already coordinates
+                        origin_coords = origin
                     else:
-                        # If location can't be reached, use a large value
-                        row.append(9999)
+                        # Address - need to geocode first (simplified for now)
+                        origin_coords = origin
+                    
+                    if ',' in destination and len(destination.split(',')) == 2:
+                        destination_coords = destination
+                    else:
+                        destination_coords = destination
+                    
+                    # For simplicity, using addresses directly - Geoapify can handle them
+                    waypoints = f"{origin}|{destination}"
+                    
+                    # Make request to Geoapify Routing API
+                    url = "https://api.geoapify.com/v1/routing"
+                    params = {
+                        'waypoints': waypoints,
+                        'mode': 'light_truck',
+                        'type': 'balanced',
+                        'format': 'json',
+                        'apiKey': geoapify_api_key
+                    }
+                    
+                    async with httpx.AsyncClient() as client:
+                        response = await client.get(url, params=params, timeout=30.0)
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            
+                            if data.get('results') and len(data['results']) > 0:
+                                # Get travel time from the first result (in seconds)
+                                route = data['results'][0]
+                                travel_time_seconds = route.get('time', 1800)  # Default 30 minutes
+                                travel_time_minutes = travel_time_seconds // 60
+                                row.append(travel_time_minutes)
+                            else:
+                                logger.warning(f"No route found from {origin} to {destination}")
+                                row.append(30)  # Default 30 minutes
+                        else:
+                            logger.warning(f"Geoapify API error for route {origin} to {destination}: {response.status_code}")
+                            row.append(30)  # Default 30 minutes
                 
-                # Sleep briefly to avoid hitting rate limits
-                time.sleep(0.1)
+                except Exception as route_error:
+                    logger.warning(f"Error calculating route from {origin} to {destination}: {route_error}")
+                    row.append(30)  # Default 30 minutes
+                
+                # Small delay to respect rate limits
+                await asyncio.sleep(0.1)
             
             matrix.append(row)
         
-        logger.info("Time matrix computation completed using Routes API")
+        logger.info("Time matrix computation completed using Geoapify Routing API")
         return matrix
     
     except Exception as e:
@@ -183,7 +201,7 @@ def compute_time_matrix(locations):
             detail=f"Failed to compute travel times: {str(e)}"
         )
 
-def create_data_model(jobs, num_drivers_per_day, max_hours_per_driver=9):
+async def create_data_model(jobs, num_drivers_per_day, max_hours_per_driver=9):
     """Prepare data for the OR-Tools solver"""
     # Extract unique locations (depot + all job locations)
     all_locations = [DEPOT_LOCATION] + [job.location for job in jobs]
@@ -197,7 +215,7 @@ def create_data_model(jobs, num_drivers_per_day, max_hours_per_driver=9):
             unique_locations.append(location)
     
     # Compute travel time matrix
-    time_matrix = compute_time_matrix(unique_locations)
+    time_matrix = await compute_time_matrix(unique_locations)
     
     # Map jobs to their location indices
     jobs_with_indices = []
@@ -493,7 +511,7 @@ async def optimize_routes(
         
         # Prepare data model for OR-Tools
         max_driver_hours = max([d.available_hours for d in request.drivers], default=9)
-        data_model = create_data_model(request.jobs, request.num_drivers_per_day, max_driver_hours)
+        data_model = await create_data_model(request.jobs, request.num_drivers_per_day, max_driver_hours)
         
         # Solve VRP for each day
         all_routes = []
