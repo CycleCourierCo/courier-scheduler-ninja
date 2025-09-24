@@ -30,6 +30,126 @@ interface RouteBuilderProps {
   orders: OrderData[];
 }
 
+// JobItem component interface and component for drag and drop functionality
+interface JobItemProps {
+  job: SelectedJob;
+  index: number;
+  onReorder: (dragIndex: number, hoverIndex: number) => void;
+  onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
+  onRemove: (job: SelectedJob) => void;
+  onSendTimeslot: (job: SelectedJob) => void;
+  isSendingTimeslots: boolean;
+}
+
+const JobItem: React.FC<JobItemProps> = ({ 
+  job, 
+  index, 
+  onReorder, 
+  onAddBreak, 
+  onRemove, 
+  onSendTimeslot, 
+  isSendingTimeslots 
+}) => {
+  const { dragRef, isDragging } = useDraggable({
+    type: 'job',
+    item: { job, index }
+  });
+
+  const { dropRef } = useDroppable({
+    accept: 'job',
+    onDrop: (item: { job: SelectedJob; index: number }) => {
+      if (item.index !== index) {
+        onReorder(item.index, index);
+      }
+    }
+  });
+
+  // Combine refs for drag and drop
+  const combinedRef = (el: HTMLDivElement | null) => {
+    if (dragRef) dragRef.current = el;
+    if (dropRef) dropRef.current = el;
+  };
+
+  return (
+    <div className="space-y-2">
+      <div 
+        ref={combinedRef}
+        className={`flex items-center justify-between p-3 bg-background border rounded-lg transition-opacity ${
+          isDragging ? 'opacity-50' : ''
+        } hover:shadow-md cursor-move`}
+      >
+        <div className="flex items-center gap-3">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+          <Badge variant="outline">#{job.order}</Badge>
+          <div>
+            <p className="text-sm font-medium">{job.contactName}</p>
+            <p className="text-xs text-muted-foreground">{job.address}</p>
+            {job.type === 'break' ? (
+              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
+              </Badge>
+            ) : (
+              <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
+                {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+              </Badge>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {job.estimatedTime && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {job.estimatedTime}
+            </Badge>
+          )}
+          
+          {job.type !== 'break' && (
+            <Button
+              size="sm"
+              onClick={() => onSendTimeslot(job)}
+              disabled={isSendingTimeslots || !job.estimatedTime}
+              className="flex items-center gap-1"
+            >
+              <Send className="h-3 w-3" />
+              Send
+            </Button>
+          )}
+          
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRemove(job)}
+            className="text-red-600 hover:text-red-700"
+          >
+            ×
+          </Button>
+        </div>
+      </div>
+      
+      {/* Add break buttons after each job */}
+      <div className="flex gap-1 ml-8">
+        <Button 
+          onClick={() => onAddBreak(index, 'lunch')} 
+          variant="ghost" 
+          size="sm"
+          className="text-xs h-6 px-2"
+        >
+          + Lunch
+        </Button>
+        <Button 
+          onClick={() => onAddBreak(index, 'stop')} 
+          variant="ghost" 
+          size="sm"
+          className="text-xs h-6 px-2"
+        >
+          + Stop
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
@@ -500,126 +620,6 @@ Route Link: ${routeLink}`;
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-};
-
-// JobItem component for drag and drop functionality
-interface JobItemProps {
-  job: SelectedJob;
-  index: number;
-  onReorder: (dragIndex: number, hoverIndex: number) => void;
-  onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
-  onRemove: (job: SelectedJob) => void;
-  onSendTimeslot: (job: SelectedJob) => void;
-  isSendingTimeslots: boolean;
-}
-
-const JobItem: React.FC<JobItemProps> = ({ 
-  job, 
-  index, 
-  onReorder, 
-  onAddBreak, 
-  onRemove, 
-  onSendTimeslot, 
-  isSendingTimeslots 
-}) => {
-  const { dragRef, isDragging } = useDraggable({
-    type: 'job',
-    item: { job, index }
-  });
-
-  const { dropRef } = useDroppable({
-    accept: 'job',
-    onDrop: (item: { job: SelectedJob; index: number }) => {
-      if (item.index !== index) {
-        onReorder(item.index, index);
-      }
-    }
-  });
-
-  // Combine refs for drag and drop
-  const combinedRef = (el: HTMLDivElement | null) => {
-    if (dragRef) dragRef.current = el;
-    if (dropRef) dropRef.current = el;
-  };
-
-  return (
-    <div className="space-y-2">
-      <div 
-        ref={combinedRef}
-        className={`flex items-center justify-between p-3 bg-background border rounded-lg transition-opacity ${
-          isDragging ? 'opacity-50' : ''
-        } hover:shadow-md cursor-move`}
-      >
-        <div className="flex items-center gap-3">
-          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-          <Badge variant="outline">#{job.order}</Badge>
-          <div>
-            <p className="text-sm font-medium">{job.contactName}</p>
-            <p className="text-xs text-muted-foreground">{job.address}</p>
-            {job.type === 'break' ? (
-              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
-                {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
-              </Badge>
-            ) : (
-              <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-              </Badge>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {job.estimatedTime && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {job.estimatedTime}
-            </Badge>
-          )}
-          
-          {job.type !== 'break' && (
-            <Button
-              size="sm"
-              onClick={() => onSendTimeslot(job)}
-              disabled={isSendingTimeslots || !job.estimatedTime}
-              className="flex items-center gap-1"
-            >
-              <Send className="h-3 w-3" />
-              Send
-            </Button>
-          )}
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onRemove(job)}
-            className="text-red-600 hover:text-red-700"
-          >
-            ×
-          </Button>
-        </div>
-      </div>
-      
-      {/* Add break buttons after each job */}
-      <div className="flex gap-1 ml-8">
-        <Button 
-          onClick={() => onAddBreak(index, 'lunch')} 
-          variant="ghost" 
-          size="sm"
-          className="text-xs h-6 px-2"
-        >
-          + Lunch
-        </Button>
-        <Button 
-          onClick={() => onAddBreak(index, 'stop')} 
-          variant="ghost" 
-          size="sm"
-          className="text-xs h-6 px-2"
-        >
-          + Stop
-        </Button>
-      </div>
     </div>
   );
 };
