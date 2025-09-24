@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@4.0.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +11,7 @@ interface TimeslotRequest {
   orderId: string;
   recipientType: 'sender' | 'receiver';
   deliveryTime: string;
+  customMessage?: string; // Optional custom message for grouped locations
 }
 
 const serve_handler = async (req: Request): Promise<Response> => {
@@ -20,7 +21,7 @@ const serve_handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { orderId, recipientType, deliveryTime }: TimeslotRequest = await req.json();
+    const { orderId, recipientType, deliveryTime, customMessage }: TimeslotRequest = await req.json();
 
     console.log(`Processing timeslot request for order ${orderId}, type: ${recipientType}, time: ${deliveryTime}`);
 
@@ -97,6 +98,7 @@ const serve_handler = async (req: Request): Promise<Response> => {
 
 Your ${order.bike_brand || 'bike'} ${order.bike_model || ''} Collection has been scheduled for ${formatDate(scheduledDate)} between ${startTime} and ${endTime}.
 
+${customMessage ? `\n${customMessage}\n` : ''}
 You will receive a text with a live tracking link once the driver is on his way.
 
 Please ensure the pedals have been removed from the bike and in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.
@@ -108,6 +110,7 @@ Cycle Courier Co.`;
 
 Your ${order.bike_brand || 'bike'} ${order.bike_model || ''} Delivery has been scheduled for ${formatDate(scheduledDate)} between ${startTime} and ${endTime}.
 
+${customMessage ? `\n${customMessage}\n` : ''}
 You will receive a text with a live tracking link once the driver is on his way.
 
 Thank you!

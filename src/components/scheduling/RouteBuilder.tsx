@@ -31,6 +31,9 @@ interface SelectedJob {
   lon?: number;
   breakDuration?: number; // Duration in minutes for breaks
   breakType?: 'lunch' | 'stop';
+  locationGroupId?: string; // Groups jobs at the same location
+  isGroupedLocation?: boolean; // Indicates if this job is part of a grouped location
+  groupOrder?: number; // Order within the group at the same location
 }
 
 interface RouteBuilderProps {
@@ -45,8 +48,10 @@ interface JobItemProps {
   onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
   onRemove: (job: SelectedJob) => void;
   onSendTimeslot: (job: SelectedJob) => void;
+  onSendGroupedTimeslots?: (locationGroupId: string) => void;
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
   isSendingTimeslots: boolean;
+  allJobs: SelectedJob[]; // To check for grouped locations
 }
 
 const JobItem: React.FC<JobItemProps> = ({ 
@@ -56,8 +61,10 @@ const JobItem: React.FC<JobItemProps> = ({
   onAddBreak, 
   onRemove, 
   onSendTimeslot, 
+  onSendGroupedTimeslots,
   onUpdateCoordinates,
-  isSendingTimeslots 
+  isSendingTimeslots,
+  allJobs
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
@@ -93,15 +100,22 @@ const JobItem: React.FC<JobItemProps> = ({
           <div>
             <p className="text-sm font-medium">{job.contactName}</p>
             <p className="text-xs text-muted-foreground">{job.address}</p>
-            {job.type === 'break' ? (
-              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
-                {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
-              </Badge>
-            ) : (
-              <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-              </Badge>
-            )}
+            <div className="flex gap-1 flex-wrap">
+              {job.type === 'break' ? (
+                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                  {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
+                </Badge>
+              ) : (
+                <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
+                  {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+                </Badge>
+              )}
+              {job.isGroupedLocation && (
+                <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800">
+                  📍 Stop {job.groupOrder} at this location
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         
@@ -132,15 +146,31 @@ const JobItem: React.FC<JobItemProps> = ({
           )}
           
           {job.type !== 'break' && (job.lat && job.lon) && (
-            <Button
-              size="sm"
-              onClick={() => onSendTimeslot(job)}
-              disabled={isSendingTimeslots || !job.estimatedTime}
-              className="flex items-center gap-1"
-            >
-              <Send className="h-3 w-3" />
-              Send
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                onClick={() => onSendTimeslot(job)}
+                disabled={isSendingTimeslots || !job.estimatedTime}
+                className="flex items-center gap-1"
+              >
+                <Send className="h-3 w-3" />
+                Send
+              </Button>
+              
+              {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
+               allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
+                  disabled={isSendingTimeslots || !job.estimatedTime}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                >
+                  <Send className="h-3 w-3" />
+                  Send Group
+                </Button>
+              )}
+            </div>
           )}
           
           <Button
@@ -405,11 +435,91 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     return newDate;
   };
 
+  // Helper function to check if two coordinates are the same location (within 50 meters)
+  const isSameLocation = (coords1: { lat: number; lon: number }, coords2: { lat: number; lon: number }): boolean => {
+    const earthRadius = 6371000; // Earth's radius in meters
+    const lat1Rad = coords1.lat * Math.PI / 180;
+    const lat2Rad = coords2.lat * Math.PI / 180;
+    const deltaLatRad = (coords2.lat - coords1.lat) * Math.PI / 180;
+    const deltaLonRad = (coords2.lon - coords1.lon) * Math.PI / 180;
+
+    const a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+      Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+      Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = earthRadius * c;
+
+    return distance <= 50; // Within 50 meters
+  };
+
+  // Helper function to group jobs by location
+  const groupJobsByLocation = (jobs: SelectedJob[]): SelectedJob[] => {
+    const routeJobs = jobs.filter(job => job.type !== 'break');
+    const breaks = jobs.filter(job => job.type === 'break');
+    const groupedJobs: SelectedJob[] = [];
+    
+    // Group jobs by location
+    const locationGroups: { [key: string]: SelectedJob[] } = {};
+    
+    routeJobs.forEach(job => {
+      if (!job.lat || !job.lon) return;
+      
+      // Find existing group with same location
+      let groupId = null;
+      for (const [existingGroupId, existingJobs] of Object.entries(locationGroups)) {
+        const firstJobInGroup = existingJobs[0];
+        if (firstJobInGroup.lat && firstJobInGroup.lon && 
+            isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) {
+          groupId = existingGroupId;
+          break;
+        }
+      }
+      
+      // Create new group if no existing group found
+      if (!groupId) {
+        groupId = `location-${job.lat}-${job.lon}-${Date.now()}`;
+        locationGroups[groupId] = [];
+      }
+      
+      // Add job to group with group metadata
+      const jobWithGroup: SelectedJob = {
+        ...job,
+        locationGroupId: groupId,
+        isGroupedLocation: true,
+        groupOrder: locationGroups[groupId].length + 1
+      };
+      
+      locationGroups[groupId].push(jobWithGroup);
+    });
+    
+    // Rebuild the jobs list maintaining original order but with group information
+    let breakIndex = 0;
+    jobs.forEach(job => {
+      if (job.type === 'break') {
+        groupedJobs.push(job);
+      } else {
+        // Find the job in the location groups
+        for (const group of Object.values(locationGroups)) {
+          const groupedJob = group.find(gj => gj.orderId === job.orderId && gj.type === job.type);
+          if (groupedJob) {
+            groupedJobs.push(groupedJob);
+            break;
+          }
+        }
+      }
+    });
+    
+    return groupedJobs;
+  };
+
   const calculateTimeslots = async () => {
     if (selectedJobs.length === 0) return;
 
+    // Group jobs by location first
+    const groupedJobs = groupJobsByLocation(selectedJobs);
+
     // Filter out breaks for coordinate validation and routing
-    const routeJobs = selectedJobs.filter(job => job.type !== 'break');
+    const routeJobs = groupedJobs.filter(job => job.type !== 'break');
 
     // Check for missing coordinates
     const jobsWithoutCoords = routeJobs.filter(job => !job.lat || !job.lon);
@@ -425,9 +535,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       const updatedJobs = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
       let lastLocationCoords = baseCoords;
+      let processedLocationGroups = new Set<string>();
       
-      for (let i = 0; i < selectedJobs.length; i++) {
-        const job = selectedJobs[i];
+      for (let i = 0; i < groupedJobs.length; i++) {
+        const job = groupedJobs[i];
         
         if (job.type === 'break') {
           // For breaks, just add the break duration
@@ -437,26 +548,46 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             ...job,
             estimatedTime: roundedBreakTime.toTimeString().slice(0, 5)
           });
-          currentTime = roundedBreakTime; // Update current time to rounded time
+          currentTime = roundedBreakTime;
         } else {
-          // For regular jobs, calculate travel time
-          const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
-          currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+          // Check if this is a grouped location and if we've already calculated travel time for this group
+          const isNewLocation = !job.locationGroupId || !processedLocationGroups.has(job.locationGroupId);
           
-          // Round to next 5-minute increment for arrival time
-          const roundedJobTime = roundTimeToNext5Minutes(currentTime);
-          
-          updatedJobs.push({
-            ...job,
-            estimatedTime: roundedJobTime.toTimeString().slice(0, 5)
-          });
-          
-          // Add 15 minutes service time AFTER setting the arrival time for this job
-          // This affects the start time of the NEXT job
-          currentTime = new Date(roundedJobTime.getTime() + 15 * 60000);
-          
-          // Update last location for next calculation
-          lastLocationCoords = { lat: job.lat!, lon: job.lon! };
+          if (isNewLocation) {
+            // Calculate travel time only for the first job at this location
+            const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+            currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+            
+            // Round to next 5-minute increment for arrival time
+            const roundedJobTime = roundTimeToNext5Minutes(currentTime);
+            
+            // Mark this location group as processed
+            if (job.locationGroupId) {
+              processedLocationGroups.add(job.locationGroupId);
+            }
+            
+            // Update last location for next calculation
+            lastLocationCoords = { lat: job.lat!, lon: job.lon! };
+            
+            // Set the arrival time for this job
+            updatedJobs.push({
+              ...job,
+              estimatedTime: roundedJobTime.toTimeString().slice(0, 5)
+            });
+            
+            // Add 15 minutes service time for this job
+            currentTime = new Date(roundedJobTime.getTime() + 15 * 60000);
+          } else {
+            // This is a subsequent job at the same location - same arrival time, but add service time
+            const arrivalTime = new Date(currentTime.getTime() - 15 * 60000); // Subtract the service time from previous job
+            updatedJobs.push({
+              ...job,
+              estimatedTime: arrivalTime.toTimeString().slice(0, 5)
+            });
+            
+            // Add 15 minutes service time for this additional job
+            currentTime = new Date(currentTime.getTime() + 15 * 60000);
+          }
         }
       }
 
@@ -525,18 +656,67 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     try {
       const deliveryTime = `${job.estimatedTime}:00`;
       
+      // Check if this is a grouped location and send enhanced message
+      let message = '';
+      if (job.isGroupedLocation && job.locationGroupId) {
+        const jobsAtSameLocation = selectedJobs.filter(j => 
+          j.locationGroupId === job.locationGroupId && j.type !== 'break'
+        );
+        
+        if (jobsAtSameLocation.length > 1) {
+          message = `Multiple ${job.type === 'pickup' ? 'collections' : 'deliveries'} scheduled at this location (${jobsAtSameLocation.length} total)`;
+        }
+      }
+      
       await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId: job.orderId,
           recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
-          deliveryTime
+          deliveryTime,
+          customMessage: message
         }
       });
 
-      toast.success(`Timeslot sent to ${job.contactName}`);
+      toast.success(`Timeslot sent to ${job.contactName}${job.isGroupedLocation ? ' (grouped location)' : ''}`);
     } catch (error) {
       console.error('Error sending timeslot:', error);
       toast.error('Failed to send timeslot');
+    } finally {
+      setIsSendingTimeslots(false);
+    }
+  };
+
+  // New function to send timeslots for all jobs at a grouped location
+  const sendGroupedTimeslots = async (locationGroupId: string) => {
+    const jobsAtLocation = selectedJobs.filter(job => 
+      job.locationGroupId === locationGroupId && job.type !== 'break'
+    );
+    
+    if (jobsAtLocation.length === 0) return;
+
+    setIsSendingTimeslots(true);
+    try {
+      const promises = jobsAtLocation.map(async (job) => {
+        if (!job.estimatedTime) return;
+        
+        const deliveryTime = `${job.estimatedTime}:00`;
+        const message = `Multiple ${job.type === 'pickup' ? 'collections' : 'deliveries'} at this location (${jobsAtLocation.length} total stops)`;
+        
+        return supabase.functions.invoke('send-timeslot-whatsapp', {
+          body: {
+            orderId: job.orderId,
+            recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
+            deliveryTime,
+            customMessage: message
+          }
+        });
+      });
+
+      await Promise.all(promises);
+      toast.success(`Timeslots sent to all customers at this location (${jobsAtLocation.length} messages)`);
+    } catch (error) {
+      console.error('Error sending grouped timeslots:', error);
+      toast.error('Failed to send some timeslots');
     } finally {
       setIsSendingTimeslots(false);
     }
@@ -727,8 +907,10 @@ Route Link: ${routeLink}`;
                   onAddBreak={addBreak}
                   onRemove={removeJob}
                   onSendTimeslot={sendTimeslot}
+                  onSendGroupedTimeslots={sendGroupedTimeslots}
                   onUpdateCoordinates={updateCoordinates}
                   isSendingTimeslots={isSendingTimeslots}
+                  allJobs={selectedJobs}
                 />
               ))}
 
