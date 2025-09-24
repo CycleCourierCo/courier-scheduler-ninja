@@ -22,6 +22,7 @@ export type StorageAllocation = {
   bikeModel?: string;
   customerName: string;
   allocatedAt: Date;
+  bikeIndex?: number; // Track which bike this is for multi-bike orders
 };
 
 const LoadingUnloadingPage = () => {
@@ -89,10 +90,11 @@ const LoadingUnloadingPage = () => {
     );
   };
 
-  // Get bikes that need storage allocation (collected but not delivered, and no storage allocation)
+  // Get bikes that need storage allocation (collected but not delivered, not cancelled, and no storage allocation)
   const collectedBikes = orders.filter(order => 
     hasBeenCollected(order) && 
     !hasBeenDelivered(order) &&
+    order.status !== 'cancelled' &&
     !storageAllocations.some(allocation => allocation.orderId === order.id)
   );
 
@@ -102,7 +104,7 @@ const LoadingUnloadingPage = () => {
     return { allocation, order };
   }).filter(item => item.order); // Only include if order still exists
 
-  const handleAllocateStorage = (orderId: string, bay: string, position: number) => {
+  const handleAllocateStorage = (orderId: string, bay: string, position: number, bikeIndex: number) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -124,7 +126,8 @@ const LoadingUnloadingPage = () => {
       bikeBrand: order.bikeBrand,
       bikeModel: order.bikeModel,
       customerName: order.sender.name,
-      allocatedAt: new Date()
+      allocatedAt: new Date(),
+      bikeIndex // Add bike index to track which bike this is
     };
 
     const updatedAllocations = [...storageAllocations, newAllocation];
@@ -133,7 +136,14 @@ const LoadingUnloadingPage = () => {
     // Save to localStorage
     localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
     
-    toast.success(`Bike allocated to bay ${bay}${position}`);
+    const bikeQuantity = order.bikeQuantity || 1;
+    const allocatedCount = updatedAllocations.filter(a => a.orderId === orderId).length;
+    
+    if (allocatedCount >= bikeQuantity) {
+      toast.success(`All ${bikeQuantity} bike(s) allocated for this order`);
+    } else {
+      toast.success(`Bike ${bikeIndex + 1} allocated to bay ${bay}${position} (${allocatedCount}/${bikeQuantity} bikes allocated)`);
+    }
   };
 
   const handleRemoveFromStorage = (allocationId: string) => {
