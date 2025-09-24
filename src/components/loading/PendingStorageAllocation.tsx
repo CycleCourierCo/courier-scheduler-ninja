@@ -135,6 +135,22 @@ export const PendingStorageAllocation = ({
                     <Badge variant="outline" className="text-xs">
                       {remainingToAllocate} remaining to allocate
                     </Badge>
+                    {(() => {
+                      // Find driver name from tracking events
+                      const collectionEvent = bike.trackingEvents?.shipday?.updates?.find(
+                        (update: any) => update.event === 'ORDER_COMPLETED' && update.orderId === bike.trackingEvents?.shipday?.pickup_id
+                      );
+                      const driverName = collectionEvent?.driverName;
+                      
+                      if (driverName) {
+                        return (
+                          <Badge variant="default" className="text-xs bg-blue-600">
+                            In {driverName} Van
+                          </Badge>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </div>

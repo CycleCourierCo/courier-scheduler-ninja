@@ -42,6 +42,7 @@ export type ShipdayUpdate = {
   event?: string;
   podUrls?: string[];
   signatureUrl?: string;
+  driverName?: string;
 };
 
 export type Order = {

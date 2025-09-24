@@ -194,6 +194,22 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
                   >
                     {order?.status || 'Unknown'}
                   </Badge>
+                  {(() => {
+                    // Find driver name from tracking events
+                    const collectionEvent = order?.trackingEvents?.shipday?.updates?.find(
+                      (update: any) => update.event === 'ORDER_COMPLETED' && update.orderId === order.trackingEvents?.shipday?.pickup_id
+                    );
+                    const driverName = collectionEvent?.driverName;
+                    
+                    if (driverName) {
+                      return (
+                        <Badge variant="default" className="text-xs bg-blue-600">
+                          Collected by {driverName}
+                        </Badge>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
               

@@ -213,6 +213,7 @@ serve(async (req) => {
         if (existingUpdates[i].orderId === shipdayOrderId && existingUpdates[i].event === "ORDER_COMPLETED") {
           existingUpdates[i].podUrls = podUrls;
           existingUpdates[i].signatureUrl = signatureUrl;
+          existingUpdates[i].driverName = payload.carrier?.name || existingUpdates[i].driverName;
           updatedExistingEvent = true;
           console.log(`Updated existing COMPLETED event with POD data for order ${shipdayOrderId}`);
           break;
@@ -233,7 +234,8 @@ serve(async (req) => {
             orderId: shipdayOrderId,
             description: statusDescription,
             podUrls: podUrls,
-            signatureUrl: signatureUrl
+            signatureUrl: signatureUrl,
+            driverName: payload.carrier?.name || null
           },
         ];
         console.log(`Created new ${eventType} event for order ${shipdayOrderId}`);
@@ -249,7 +251,8 @@ serve(async (req) => {
           orderId: shipdayOrderId,
           description: statusDescription,
           podUrls: podUrls,
-          signatureUrl: signatureUrl
+          signatureUrl: signatureUrl,
+          driverName: payload.carrier?.name || null
         },
       ];
     }
