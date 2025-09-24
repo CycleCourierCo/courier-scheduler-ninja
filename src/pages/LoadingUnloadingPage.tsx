@@ -47,38 +47,40 @@ const LoadingUnloadingPage = () => {
   const [isLoadingDatePickerOpen, setIsLoadingDatePickerOpen] = useState(false);
   const [isLoadingListDialogOpen, setIsLoadingListDialogOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const ordersData = await getOrders();
-        setOrders(ordersData);
-        
-        // Fetch storage allocations from orders' storage_locations field
-        const allAllocations: StorageAllocation[] = [];
-        ordersData.forEach(order => {
-          if (order.storage_locations) {
-            const orderAllocations = Array.isArray(order.storage_locations) 
-              ? order.storage_locations 
-              : [order.storage_locations];
-            
-            orderAllocations.forEach((allocation: any) => {
-              allAllocations.push({
-                ...allocation,
-                allocatedAt: new Date(allocation.allocatedAt)
-              });
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const ordersData = await getOrders();
+      setOrders(ordersData);
+      
+      // Fetch storage allocations from orders' storage_locations field
+      const allAllocations: StorageAllocation[] = [];
+      ordersData.forEach(order => {
+        if (order.storage_locations) {
+          const orderAllocations = Array.isArray(order.storage_locations) 
+            ? order.storage_locations 
+            : [order.storage_locations];
+          
+          orderAllocations.forEach((allocation: any) => {
+            allAllocations.push({
+              ...allocation,
+              allocatedAt: new Date(allocation.allocatedAt)
             });
-          }
-        });
-        
-        setStorageAllocations(allAllocations);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
+          });
+        }
+      });
+      
+      console.log('Storage allocations loaded:', allAllocations);
+      setStorageAllocations(allAllocations);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -180,14 +182,13 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Update local state
-      const updatedAllocations = [...storageAllocations, ...newAllocations];
-      setStorageAllocations(updatedAllocations);
+      // Refresh data from database to ensure UI reflects the saved state
+      await fetchData();
       
       const bikeQuantity = order.bikeQuantity || 1;
-      const totalAllocatedCount = updatedAllocations.filter(a => a.orderId === orderId).length;
+      const updatedCount = newAllocations.length;
       
-      toast.success(`Successfully allocated ${allocationsToMake.length} bike(s). Total: ${totalAllocatedCount}/${bikeQuantity} bikes allocated for this order.`);
+      toast.success(`Successfully allocated ${updatedCount} bike(s) to storage.`);
     } catch (error) {
       console.error('Error updating storage locations:', error);
       toast.error('Failed to save storage allocation');
@@ -218,11 +219,8 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Update local state
-      const updatedLocalAllocations = storageAllocations.filter(
-        allocation => allocation.id !== allocationId
-      );
-      setStorageAllocations(updatedLocalAllocations);
+      // Refresh data from database to ensure UI reflects the saved state
+      await fetchData();
       
       toast.success('Bike loaded onto van and removed from storage');
     } catch (error) {
@@ -272,13 +270,8 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Update local state
-      const updatedLocalAllocations = storageAllocations.map(allocation =>
-        allocation.id === allocationId
-          ? { ...allocation, bay: newBay, position: newPosition }
-          : allocation
-      );
-      setStorageAllocations(updatedLocalAllocations);
+      // Refresh data from database to ensure UI reflects the saved state
+      await fetchData();
       
       toast.success(`Bike moved to bay ${newBay}${newPosition}`);
     } catch (error) {
