@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { isPointInPolygon } from "@/components/scheduling/JobMap";
 import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 import PostcodePolygonSearch from "@/components/scheduling/PostcodePolygonSearch";
+import RouteBuilder from "@/components/scheduling/RouteBuilder";
 
 export interface OrderData {
   id: string;
@@ -52,15 +53,7 @@ const JobScheduling = () => {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .in('status', [
-          'scheduled_dates_pending', 
-          'scheduled', 
-          'collection_scheduled', 
-          'delivery_scheduled',
-          'driver_to_collection',
-          'driver_to_delivery',
-          'collected'
-        ])
+        .not('status', 'in', '(cancelled,delivered)')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -176,6 +169,10 @@ const JobScheduling = () => {
           <>
             <div className="mb-8">
               <JobMap orders={orders || []} />
+            </div>
+            
+            <div className="mb-8">
+              <RouteBuilder orders={orders || []} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {orders?.map((order) => (
