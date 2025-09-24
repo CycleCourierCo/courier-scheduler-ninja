@@ -113,26 +113,26 @@ export const PendingStorageAllocation = ({
         if (remainingToAllocate <= 0) return null; // All bikes already allocated
         
         return (
-          <Card key={bike.id} className="p-4">
-            <CardContent className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <h4 className="font-semibold">{bike.sender.name}</h4>
-                  <p className="text-sm text-muted-foreground">
+          <Card key={bike.id} className="p-2 sm:p-4">
+            <CardContent className="space-y-4 p-0">
+              <div className="flex flex-col space-y-2 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
+                <div className="space-y-2 min-w-0 flex-1">
+                  <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
                     {bike.bikeBrand} {bike.bikeModel}
                   </p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    {bike.sender.address.city}, {bike.sender.address.zipCode}
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{bike.sender.address.city}, {bike.sender.address.zipCode}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Tracking: {bike.trackingNumber}
+                    Tracking: <span className="font-mono">{bike.trackingNumber}</span>
                   </p>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
                       {bikeQuantity} bike{bikeQuantity > 1 ? 's' : ''} total
                     </Badge>
-                    <Badge variant="outline">
+                    <Badge variant="outline" className="text-xs">
                       {remainingToAllocate} remaining to allocate
                     </Badge>
                   </div>
@@ -146,16 +146,16 @@ export const PendingStorageAllocation = ({
                   const key = `${bike.id}-${bikeIndex}`;
                   
                   return (
-                    <div key={key} className="border rounded-lg p-3 bg-muted/10">
+                    <div key={key} className="border rounded-lg p-2 sm:p-3 bg-muted/10">
                       <div className="flex items-center gap-2 mb-2">
-                        <Package className="h-4 w-4" />
-                        <span className="text-sm font-medium">
+                        <Package className="h-4 w-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium">
                           Bike {bikeIndex + 1} of {bikeQuantity}
                         </span>
                       </div>
                       
-                      <div className="flex gap-2">
-                        <div className="flex-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
                           <Label htmlFor={`bay-${key}`} className="text-xs">Bay (A-D)</Label>
                           <Input
                             id={`bay-${key}`}
@@ -163,10 +163,10 @@ export const PendingStorageAllocation = ({
                             onChange={(e) => handleBayChange(key, e.target.value)}
                             placeholder="A"
                             maxLength={1}
-                            className="text-center uppercase"
+                            className="text-center uppercase h-8 sm:h-9"
                           />
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <Label htmlFor={`position-${key}`} className="text-xs">Position (1-15)</Label>
                           <Input
                             id={`position-${key}`}
@@ -176,7 +176,7 @@ export const PendingStorageAllocation = ({
                             type="number"
                             min="1"
                             max="15"
-                            className="text-center"
+                            className="text-center h-8 sm:h-9"
                           />
                         </div>
                       </div>
@@ -193,7 +193,7 @@ export const PendingStorageAllocation = ({
                     const key = `${bike.id}-${bikeIndex}`;
                     return allocations[key]?.bay && allocations[key]?.position;
                   }).every(Boolean)}
-                  className="w-full bg-green-600 hover:bg-green-700"
+                  className="w-full bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
                 >
                   Allocate All {remainingToAllocate} Bike{remainingToAllocate > 1 ? 's' : ''}
                 </Button>
