@@ -122,7 +122,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       return;
     }
 
-    const baseCoords = { lat: 52.4858, lon: -1.8936 }; // Birmingham coordinates for Lawden Road
+    const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Birmingham coordinates for Lawden Road, B10 0AD
     
     try {
       const updatedJobs = [];
