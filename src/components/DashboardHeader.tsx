@@ -41,8 +41,20 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     
     try {
       const orders = await getOrders();
-      // Filter for delivery dates
+      // Filter for collection/pickup dates for the labels
       const scheduledOrders = orders.filter(order => {
+        const scheduledPickup = order.scheduledPickupDate;
+        
+        if (!scheduledPickup) return false;
+        
+        const targetDate = format(selectedDate, 'yyyy-MM-dd');
+        const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
+        
+        return pickupDate === targetDate;
+      });
+
+      // Get delivery orders for the loading list
+      const deliveryOrders = orders.filter(order => {
         const scheduledDelivery = order.scheduledDeliveryDate;
         
         if (!scheduledDelivery) return false;
@@ -54,12 +66,12 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       });
 
       if (scheduledOrders.length === 0) {
-        toast.info("No delivery orders scheduled for the selected date");
+        toast.info("No collection orders scheduled for the selected date");
         return;
       }
 
-      await generateLabels(scheduledOrders);
-      toast.success(`Generated delivery labels for ${scheduledOrders.length} orders`);
+      await generateLabels(scheduledOrders, deliveryOrders);
+      toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
       setIsDialogOpen(false);
     } catch (error) {
       toast.error("Failed to generate labels");
@@ -68,7 +80,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     }
   };
 
-  const generateLabels = async (orders: Order[]) => {
+  const generateLabels = async (orders: Order[], deliveryOrders: Order[]) => {
     try {
       // Create PDF with exact 4x6 inch page size for label printers
       const labelWidth = 288; // 4 inches in points
@@ -93,9 +105,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       pdf.text(`Date: ${format(selectedDate!, 'dd/MM/yyyy')}`, margin, currentY);
       currentY += 25;
       
-      // Simple bullet point list
+      // Simple bullet point list for delivery bikes
       pdf.setFontSize(10);
-      orders.forEach((order) => {
+      deliveryOrders.forEach((order) => {
         const quantity = order.bikeQuantity || 1;
         
         for (let i = 0; i < quantity; i++) {
@@ -109,7 +121,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         }
       });
       
-      // Now generate individual labels
+      // Now generate individual collection labels
       orders.forEach((order) => {
         const quantity = order.bikeQuantity || 1;
         
@@ -302,13 +314,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Printer className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Print Delivery Labels</span>
+                  <span className="hidden sm:inline">Print Collection Labels</span>
                   <span className="sm:hidden">Print Labels</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Select Date for Delivery Labels</DialogTitle>
+                  <DialogTitle>Select Date for Collection Labels</DialogTitle>
                 </DialogHeader>
               <div className="space-y-4">
                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
