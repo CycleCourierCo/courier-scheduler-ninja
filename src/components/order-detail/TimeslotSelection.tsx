@@ -40,6 +40,41 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         return;
       }
 
+      // Determine the new status based on timeslot type and dates
+      let newStatus = order.status;
+      if (type === "sender") {
+        newStatus = "collection_scheduled";
+      } else if (type === "receiver") {
+        // Check if delivery is on same date as collection
+        const pickupDate = order?.scheduledPickupDate;
+        const deliveryDate = order?.scheduledDeliveryDate;
+        
+        if (pickupDate && deliveryDate) {
+          const pickupDateOnly = new Date(pickupDate).toDateString();
+          const deliveryDateOnly = new Date(deliveryDate).toDateString();
+          
+          if (pickupDateOnly === deliveryDateOnly) {
+            newStatus = "scheduled";
+          } else {
+            newStatus = "delivery_scheduled";
+          }
+        } else {
+          newStatus = "delivery_scheduled";
+        }
+      }
+
+      // Update the order status
+      const { error: statusUpdateError } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (statusUpdateError) {
+        console.error("Error updating order status:", statusUpdateError);
+        toast.error(`Failed to update order status: ${statusUpdateError.message}`);
+        return;
+      }
+
       // Then send the WhatsApp message
       const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {

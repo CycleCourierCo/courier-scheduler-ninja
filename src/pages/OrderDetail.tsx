@@ -973,52 +973,54 @@ const OrderDetail = () => {
             )}
             
             <div className="space-y-4">
+              {/* Scheduled Dates Display */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <DateSelection 
-                  title="Pickup Dates"
-                  availableDates={order.pickupDate}
-                  scheduledDate={order.scheduledPickupDate}
-                  selectedDate={selectedPickupDate}
-                  setSelectedDate={setSelectedPickupDate}
-                  timeValue={pickupTime}
-                  setTimeValue={setPickupTime}
-                  calendarDate={pickupDatePicker}
-                  setCalendarDate={setPickupDatePicker}
-                  isSubmitting={isSubmitting}
-                  isScheduled={isScheduled}
-                  showAdminControls={showAdminControls}
-                  orderStatus={order.status}
-                  timeslot={order.pickupTimeslot}
-                  onStateReset={resetPickupStates}
-                />
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Collection Date</h3>
+                  {order.scheduledPickupDate ? (
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="font-medium">
+                        Scheduled: {safeFormat(new Date(order.scheduledPickupDate), "PPP")}
+                      </p>
+                      {order.pickupTimeslot && (
+                        <p className="text-sm text-muted-foreground">
+                          Time: {order.pickupTimeslot}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <p className="text-muted-foreground">No collection date scheduled</p>
+                    </div>
+                  )}
+                </div>
                 
-                <DateSelection 
-                  title="Delivery Dates"
-                  availableDates={order.deliveryDate}
-                  scheduledDate={order.scheduledDeliveryDate}
-                  selectedDate={selectedDeliveryDate}
-                  setSelectedDate={setSelectedDeliveryDate}
-                  timeValue={deliveryTime}
-                  setTimeValue={setDeliveryTime}
-                  calendarDate={deliveryDatePicker}
-                  setCalendarDate={setDeliveryDatePicker}
-                  isSubmitting={isSubmitting}
-                  isScheduled={isScheduled}
-                  showAdminControls={showAdminControls}
-                  orderStatus={order.status}
-                  timeslot={order.deliveryTimeslot}
-                  onStateReset={resetDeliveryStates}
-                />
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Delivery Date</h3>
+                  {order.scheduledDeliveryDate ? (
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="font-medium">
+                        Scheduled: {safeFormat(new Date(order.scheduledDeliveryDate), "PPP")}
+                      </p>
+                      {order.deliveryTimeslot && (
+                        <p className="text-sm text-muted-foreground">
+                          Time: {order.deliveryTimeslot}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <p className="text-muted-foreground">No delivery date scheduled</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <SchedulingButtons 
+              <SchedulingButtons
                 orderId={id as string}
                 onSchedulePickup={handleSchedulePickup}
                 onScheduleDelivery={handleScheduleDelivery}
                 onScheduleBoth={handleScheduleOrder}
-                onAdminScheduleBoth={handleAdminScheduleOrder}
-                onAdminSchedulePickup={handleAdminSchedulePickup}
-                onAdminScheduleDelivery={handleAdminScheduleDelivery}
                 isSubmitting={isSubmitting}
                 isScheduled={isScheduled}
                 pickupDateSelected={!!selectedPickupDate}
@@ -1026,9 +1028,11 @@ const OrderDetail = () => {
                 status={order.status}
                 pickupDatePicker={pickupDatePicker}
                 deliveryDatePicker={deliveryDatePicker}
-                deliveryDate={deliveryDatePicker}
-                setDeliveryDate={setDeliveryDatePicker}
+                setPickupDatePicker={setPickupDatePicker}
+                setDeliveryDatePicker={setDeliveryDatePicker}
+                pickupTime={pickupTime}
                 deliveryTime={deliveryTime}
+                setPickupTime={setPickupTime}
                 setDeliveryTime={setDeliveryTime}
               />
               
