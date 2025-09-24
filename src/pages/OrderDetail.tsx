@@ -1031,6 +1031,71 @@ const OrderDetail = () => {
                 setDeliveryTime={setDeliveryTime}
               />
               
+              {/* Admin Control Buttons */}
+              <div className="flex flex-col gap-2 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    onClick={() => {
+                      console.log("=== SET COLLECTION DATE BUTTON CLICKED ===");
+                      console.log("selectedPickupDate:", selectedPickupDate);
+                      console.log("pickupDatePicker:", pickupDatePicker);
+                      console.log("order.scheduledPickupDate:", order?.scheduledPickupDate);
+                      handleSetCollectionDate();
+                    }}
+                    disabled={isSubmitting}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Setting Collection Date..." : "Set Collection Date"}
+                  </Button>
+                  <Button 
+                    onClick={handleSetDeliveryDate}
+                    disabled={isSubmitting}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Setting Delivery Date..." : "Set Delivery Date"}
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleResetPickupDate}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Reset Collection Date
+                  </Button>
+                  <Button 
+                    onClick={handleResetDeliveryDate}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Reset Delivery Date
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleAddPickupToShipday}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Collection to Shipday"}
+                  </Button>
+                  <Button 
+                    onClick={handleAddDeliveryToShipday}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Delivery to Shipday"}
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <Separator className="my-6" />
