@@ -279,6 +279,8 @@ export type Database = {
           id: string
           is_bike_swap: boolean | null
           is_ebay_order: boolean | null
+          loaded_onto_van: boolean | null
+          loaded_onto_van_at: string | null
           needs_payment_on_collection: boolean | null
           payment_collection_phone: string | null
           pickup_date: Json | null
@@ -315,6 +317,8 @@ export type Database = {
           id?: string
           is_bike_swap?: boolean | null
           is_ebay_order?: boolean | null
+          loaded_onto_van?: boolean | null
+          loaded_onto_van_at?: string | null
           needs_payment_on_collection?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
@@ -351,6 +355,8 @@ export type Database = {
           id?: string
           is_bike_swap?: boolean | null
           is_ebay_order?: boolean | null
+          loaded_onto_van?: boolean | null
+          loaded_onto_van_at?: string | null
           needs_payment_on_collection?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null

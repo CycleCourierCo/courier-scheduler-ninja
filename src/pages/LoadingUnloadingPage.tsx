@@ -131,10 +131,11 @@ const LoadingUnloadingPage = () => {
     const hasDelivery = hasBeenDelivered(order);
     const isCancelled = order.status === 'cancelled';
     const hasStorage = storageAllocations.some(allocation => allocation.orderId === order.id);
+    const isLoadedOntoVan = order.loaded_onto_van;
     
-    console.log(`Order ${order.id}: collected=${hasCollection}, delivered=${hasDelivery}, cancelled=${isCancelled}, hasStorage=${hasStorage}`);
+    console.log(`Order ${order.id}: collected=${hasCollection}, delivered=${hasDelivery}, cancelled=${isCancelled}, hasStorage=${hasStorage}, loadedOntoVan=${isLoadedOntoVan}`);
     
-    return hasCollection && !hasDelivery && !isCancelled && !hasStorage;
+    return hasCollection && !hasDelivery && !isCancelled && !hasStorage && !isLoadedOntoVan;
   });
 
   // Get all bikes that have storage allocations (regardless of delivery status)
@@ -257,10 +258,15 @@ const LoadingUnloadingPage = () => {
     if (!order) return;
 
     try {
-      // Remove all storage locations for this order
+      // Remove all storage locations for this order and mark as loaded onto van
       const { error } = await supabase
         .from('orders')
-        .update({ storage_locations: null })
+        .update({ 
+          storage_locations: null,
+          loaded_onto_van: true,
+          loaded_onto_van_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
         .eq('id', orderId);
 
       if (error) {
@@ -569,6 +575,9 @@ const LoadingUnloadingPage = () => {
       
       const targetDate = format(date, 'yyyy-MM-dd');
       const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
+      
+      // Exclude if already loaded onto van
+      if (order.loaded_onto_van) return false;
       
       // If collection and delivery are on the same day, exclude from loading list
       // as driver will collect it on their route
