@@ -283,34 +283,58 @@ Cycle Courier Co.`;
       console.log(`Sending email to ${contact.email}...`);
       
       try {
-        const emailSubject = recipientType === 'sender' 
-          ? `Your ${order.bike_brand || 'bike'} collection has been scheduled - ${order.tracking_number}`
-          : `Your ${order.bike_brand || 'bike'} delivery has been scheduled - ${order.tracking_number}`;
+        const emailSubject = customMessage 
+          ? "Your Bike Deliveries and Collections have been Scheduled"
+          : recipientType === 'sender' 
+            ? `Your ${order.bike_brand || 'bike'} collection has been scheduled - ${order.tracking_number}`
+            : `Your ${order.bike_brand || 'bike'} delivery has been scheduled - ${order.tracking_number}`;
 
         let emailHtml: string;
         
         if (customMessage) {
           // For grouped messages, format the custom message with proper styling
-          const formattedCustomMessage = customMessage
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/\n/g, '<br>')
-            .replace(/Deliveries:/g, '<strong>Deliveries:</strong>')
-            .replace(/Collections:/g, '<strong>Collections:</strong>')
-            .replace(/Thank you!/g, '<p style="margin-top: 30px;">Thank you!</p>')
-            .replace(/Cycle Courier Co\./g, '<p><strong>Cycle Courier Co.</strong></p>');
+          const lines = customMessage.split('\n\n');
+          let emailContent = '';
+          let foundCollectionInstructions = false;
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            if (line.startsWith('Dear ')) {
+              emailContent += `<h2>${line}</h2>\n`;
+            } else if (line.includes('We are due to be with you')) {
+              emailContent += `<p>${line}</p>\n`;
+            } else if (line.includes('Deliveries:') || line.includes('Collections:')) {
+              emailContent += `<p><strong>${line}</strong></p>\n`;
+            } else if (line.includes('You will receive a text')) {
+              emailContent += `<p>${line}</p>\n`;
+            } else if (line.includes('Please ensure the pedals') || foundCollectionInstructions) {
+              // Skip the old collection instructions text as we'll replace it with formatted version
+              foundCollectionInstructions = true;
+              continue;
+            } else if (line === 'Thank you!') {
+              // Insert the formatted collection instructions before thank you
+              emailContent += `
+                <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+                  <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+                  <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+                    <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bikes we are collecting and placed in a secure bag</li>
+                    <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+                    <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
+                  </ul>
+                </div>
+              `;
+              emailContent += `<p style="margin-top: 30px; font-weight: bold;">${line}</p>\n`;
+            } else if (line === 'Cycle Courier Co.') {
+              emailContent += `<p style="margin-top: 10px;"><strong>${line}</strong></p>\n`;
+            } else if (line) {
+              emailContent += `<p>${line}</p>\n`;
+            }
+          }
             
           emailHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <p>${formattedCustomMessage}</p>
-              
-              <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
-                <p><strong>Collection Instructions:</strong></p>
-                <ul>
-                  <li>Please ensure the pedals have been removed from the bikes we are collecting and placed in a bag</li>
-                  <li>Any other accessories should also be in the bag</li>
-                  <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
-                </ul>
-              </div>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+              ${emailContent}
             </div>
           `;
         } else {
@@ -329,12 +353,12 @@ Cycle Courier Co.`;
               <p>You will receive a text with a live tracking link once the driver is on their way.</p>
               
               ${recipientType === 'sender' ? `
-                <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
-                  <p><strong>Collection Instructions:</strong></p>
-                  <ul>
-                    <li>Please ensure the pedals have been removed from the bike and placed in a bag</li>
-                    <li>Any other accessories should also be in the bag</li>
-                    <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
+                <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+                  <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+                  <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+                    <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bike and placed in a secure bag</li>
+                    <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+                    <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
                   </ul>
                 </div>
               ` : ''}
