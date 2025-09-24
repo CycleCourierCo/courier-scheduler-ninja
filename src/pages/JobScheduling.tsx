@@ -25,6 +25,7 @@ export interface OrderData {
   tracking_number: string;
   bike_brand: string | null;
   bike_model: string | null;
+  bike_quantity: number | null;
   created_at: string;
   sender: ContactInfo & { address: Address };
   receiver: ContactInfo & { address: Address };

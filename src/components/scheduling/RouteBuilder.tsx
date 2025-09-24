@@ -40,7 +40,7 @@ interface RouteBuilderProps {
   orders: OrderData[];
 }
 
-// JobItem component interface and component for drag and drop functionality
+  // JobItem component interface and component for drag and drop functionality
 interface JobItemProps {
   job: SelectedJob;
   index: number;
@@ -52,6 +52,8 @@ interface JobItemProps {
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
   isSendingTimeslots: boolean;
   allJobs: SelectedJob[]; // To check for grouped locations
+  bikeCount: number; // Current bike count at this stop
+  startingBikes: number; // Starting bike count
 }
 
 const JobItem: React.FC<JobItemProps> = ({ 
@@ -64,7 +66,9 @@ const JobItem: React.FC<JobItemProps> = ({
   onSendGroupedTimeslots,
   onUpdateCoordinates,
   isSendingTimeslots,
-  allJobs
+  allJobs,
+  bikeCount,
+  startingBikes
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
@@ -113,6 +117,11 @@ const JobItem: React.FC<JobItemProps> = ({
               {job.isGroupedLocation && (
                 <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800">
                   📍 Stop {job.groupOrder} at this location
+                </Badge>
+              )}
+              {job.type !== 'break' && (
+                <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                  🚲 {bikeCount} bikes
                 </Badge>
               )}
             </div>
@@ -215,8 +224,47 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
   const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
   const [startTime, setStartTime] = useState("09:00");
+  const [startingBikes, setStartingBikes] = useState<number>(0);
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
+
+  // Helper function to calculate bike count for a given job index
+  const calculateBikeCountAtJob = (jobIndex: number): number => {
+    let bikeCount = startingBikes;
+    
+    for (let i = 0; i < jobIndex; i++) {
+      const job = selectedJobs[i];
+      if (job.type === 'pickup') {
+        // Find the order to get bike quantity
+        const order = orderList.find(o => o.id === job.orderId);
+        bikeCount += order?.bike_quantity || 1;
+      } else if (job.type === 'delivery') {
+        // Find the order to get bike quantity
+        const order = orderList.find(o => o.id === job.orderId);
+        bikeCount -= order?.bike_quantity || 1;
+      }
+      // Breaks don't affect bike count
+    }
+    
+    return bikeCount;
+  };
+
+  // Calculate final bike count
+  const calculateFinalBikeCount = (): number => {
+    let bikeCount = startingBikes;
+    
+    for (const job of selectedJobs) {
+      if (job.type === 'pickup') {
+        const order = orderList.find(o => o.id === job.orderId);
+        bikeCount += order?.bike_quantity || 1;
+      } else if (job.type === 'delivery') {
+        const order = orderList.find(o => o.id === job.orderId);
+        bikeCount -= order?.bike_quantity || 1;
+      }
+    }
+    
+    return bikeCount;
+  };
 
   const getJobsFromOrders = () => {
     const jobs: Array<{ 
@@ -896,6 +944,9 @@ Route Link: ${routeLink}`;
                 <MapPin className="h-4 w-4" />
                 <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
                 <Badge variant="outline">{startTime}</Badge>
+                <Badge variant="outline" className="bg-green-100 text-green-800">
+                  🚲 {startingBikes} bikes
+                </Badge>
               </div>
 
               {selectedJobs.map((job, index) => (
@@ -911,12 +962,17 @@ Route Link: ${routeLink}`;
                   onUpdateCoordinates={updateCoordinates}
                   isSendingTimeslots={isSendingTimeslots}
                   allJobs={selectedJobs}
+                  bikeCount={calculateBikeCountAtJob(index)}
+                  startingBikes={startingBikes}
                 />
               ))}
 
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                 <MapPin className="h-4 w-4" />
                 <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
+                <Badge variant="outline" className="bg-green-100 text-green-800">
+                  🚲 {calculateFinalBikeCount()} bikes
+                </Badge>
               </div>
               
               <div className="flex gap-2 mt-4">
