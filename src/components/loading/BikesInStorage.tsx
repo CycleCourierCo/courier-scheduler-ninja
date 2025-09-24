@@ -20,35 +20,90 @@ interface BikesInStorageProps {
 export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLocation }: BikesInStorageProps) => {
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
-  const [newBay, setNewBay] = useState("");
-  const [newPosition, setNewPosition] = useState("");
+  const [newBays, setNewBays] = useState<string[]>([]);
+  const [newPositions, setNewPositions] = useState<string[]>([]);
 
   const handleChangeLocation = () => {
-    if (!editingAllocation || !newBay || !newPosition) {
-      toast.error("Please enter both bay and position");
-      return;
+    if (!editingOrderAllocations.length) return;
+
+    const isMultiBike = editingOrderAllocations.length > 1;
+
+    if (isMultiBike) {
+      // Validate all fields are filled for multi-bike
+      for (let i = 0; i < editingOrderAllocations.length; i++) {
+        if (!newBays[i] || !newPositions[i]) {
+          toast.error(`Please enter bay and position for bike ${i + 1}`);
+          return;
+        }
+      }
+
+      // Validate all entries
+      const bayPositionSet = new Set<string>();
+      for (let i = 0; i < editingOrderAllocations.length; i++) {
+        const bayUpper = newBays[i].toUpperCase();
+        const positionNum = parseInt(newPositions[i]);
+
+        // Validate bay (A-D)
+        if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
+          toast.error(`Bike ${i + 1}: Bay must be A, B, C, or D`);
+          return;
+        }
+
+        // Validate position (1-15)
+        if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
+          toast.error(`Bike ${i + 1}: Position must be between 1 and 15`);
+          return;
+        }
+
+        const bayPositionKey = `${bayUpper}${positionNum}`;
+        
+        // Check for duplicates within this order
+        if (bayPositionSet.has(bayPositionKey)) {
+          toast.error(`Duplicate position: Bay ${bayUpper}${positionNum}`);
+          return;
+        }
+        bayPositionSet.add(bayPositionKey);
+      }
+
+      // Update all bike locations
+      editingOrderAllocations.forEach((allocation, index) => {
+        const bayUpper = newBays[index].toUpperCase();
+        const positionNum = parseInt(newPositions[index]);
+        onChangeLocation(allocation.id, bayUpper, positionNum);
+      });
+
+      toast.success(`Updated locations for all ${editingOrderAllocations.length} bikes`);
+    } else {
+      // Single bike logic
+      if (!newBays[0] || !newPositions[0]) {
+        toast.error("Please enter both bay and position");
+        return;
+      }
+
+      const bayUpper = newBays[0].toUpperCase();
+      const positionNum = parseInt(newPositions[0]);
+
+      // Validate bay (A-D)
+      if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
+        toast.error("Bay must be A, B, C, or D");
+        return;
+      }
+
+      // Validate position (1-15)
+      if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
+        toast.error("Position must be between 1 and 15");
+        return;
+      }
+
+      onChangeLocation(editingOrderAllocations[0].id, bayUpper, positionNum);
+      toast.success("Location updated successfully");
     }
 
-    const bayUpper = newBay.toUpperCase();
-    const positionNum = parseInt(newPosition);
-
-    // Validate bay (A-D)
-    if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
-      toast.error("Bay must be A, B, C, or D");
-      return;
-    }
-
-    // Validate position (1-15)
-    if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
-      toast.error("Position must be between 1 and 15");
-      return;
-    }
-
-    onChangeLocation(editingAllocation.id, bayUpper, positionNum);
+    // Reset dialog
     setEditingAllocation(null);
     setEditingOrderAllocations([]);
-    setNewBay("");
-    setNewPosition("");
+    setNewBays([]);
+    setNewPositions([]);
   };
 
   const openEditDialog = (allocation: StorageAllocation) => {
@@ -63,8 +118,12 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
     
     setEditingOrderAllocations(orderAllocations);
     setEditingAllocation(allocation);
-    setNewBay(allocation.bay);
-    setNewPosition(allocation.position.toString());
+    
+    // Initialize arrays with current values
+    const bays = orderAllocations.map(a => a.bay);
+    const positions = orderAllocations.map(a => a.position.toString());
+    setNewBays(bays);
+    setNewPositions(positions);
   };
 
   if (bikesInStorage.length === 0) {
@@ -189,6 +248,8 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
         if (!open) {
           setEditingAllocation(null);
           setEditingOrderAllocations([]);
+          setNewBays([]);
+          setNewPositions([]);
         }
       }}>
         <DialogContent className="max-w-md">
@@ -204,68 +265,107 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onChangeLo
                   Order: <strong>{editingAllocation.customerName}</strong> - {editingAllocation.bikeBrand} {editingAllocation.bikeModel}
                 </div>
                 
-                {editingOrderAllocations.length > 1 && (
-                  <div className="p-3 bg-muted/20 rounded-lg">
-                    <div className="text-sm font-medium mb-2">Current Locations:</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {editingOrderAllocations.map((allocation, index) => (
-                        <div key={allocation.id} className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-mono">
-                            {allocation.bay}{allocation.position}
+                {editingOrderAllocations.length > 1 ? (
+                  <div className="space-y-4">
+                    <div className="text-sm font-medium">Update all bike locations:</div>
+                    
+                    {editingOrderAllocations.map((allocation, index) => (
+                      <div key={allocation.id} className="border rounded-lg p-3 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          <span className="font-medium">Bike {index + 1} of {editingOrderAllocations.length}</span>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            Currently: {allocation.bay}{allocation.position}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Bike {index + 1}
-                          </span>
                         </div>
-                      ))}
+                        
+                        <div className="flex gap-3 items-end">
+                          <div className="flex-1">
+                            <Label htmlFor={`new-bay-${index}`} className="text-sm">Bay (A-D)</Label>
+                            <Input
+                              id={`new-bay-${index}`}
+                              value={newBays[index] || ''}
+                              onChange={(e) => {
+                                const updatedBays = [...newBays];
+                                updatedBays[index] = e.target.value.toUpperCase();
+                                setNewBays(updatedBays);
+                              }}
+                              placeholder="A"
+                              maxLength={1}
+                              className="text-center uppercase"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position (1-15)</Label>
+                            <Input
+                              id={`new-position-${index}`}
+                              value={newPositions[index] || ''}
+                              onChange={(e) => {
+                                const updatedPositions = [...newPositions];
+                                updatedPositions[index] = e.target.value;
+                                setNewPositions(updatedPositions);
+                              }}
+                              placeholder="1"
+                              type="number"
+                              min="1"
+                              max="15"
+                              className="text-center"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">New location:</div>
+                    <div className="flex gap-3 items-end">
+                      <div className="flex-1">
+                        <Label htmlFor="new-bay" className="text-sm">Bay (A-D)</Label>
+                        <Input
+                          id="new-bay"
+                          value={newBays[0] || ''}
+                          onChange={(e) => setNewBays([e.target.value.toUpperCase()])}
+                          placeholder="A"
+                          maxLength={1}
+                          className="text-center uppercase"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label htmlFor="new-position" className="text-sm">Position (1-15)</Label>
+                        <Input
+                          id="new-position"
+                          value={newPositions[0] || ''}
+                          onChange={(e) => setNewPositions([e.target.value])}
+                          placeholder="1"
+                          type="number"
+                          min="1"
+                          max="15"
+                          className="text-center"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
-                
-                <div className="text-sm font-medium">
-                  {editingOrderAllocations.length > 1 
-                    ? `Changing location for bike currently at ${editingAllocation.bay}${editingAllocation.position}:` 
-                    : 'New location:'
-                  }
-                </div>
               </div>
             )}
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <Label htmlFor="new-bay" className="text-sm">Bay (A-D)</Label>
-                <Input
-                  id="new-bay"
-                  value={newBay}
-                  onChange={(e) => setNewBay(e.target.value.toUpperCase())}
-                  placeholder="A"
-                  maxLength={1}
-                  className="text-center uppercase"
-                />
-              </div>
-              <div className="flex-1">
-                <Label htmlFor="new-position" className="text-sm">Position (1-15)</Label>
-                <Input
-                  id="new-position"
-                  value={newPosition}
-                  onChange={(e) => setNewPosition(e.target.value)}
-                  placeholder="1"
-                  type="number"
-                  min="1"
-                  max="15"
-                  className="text-center"
-                />
-              </div>
-            </div>
             <div className="flex gap-2 pt-4">
               <Button variant="outline" onClick={() => setEditingAllocation(null)} className="flex-1">
                 Cancel
               </Button>
               <Button 
                 onClick={handleChangeLocation}
-                disabled={!newBay || !newPosition}
+                disabled={
+                  editingOrderAllocations.length > 1 
+                    ? newBays.some(b => !b) || newPositions.some(p => !p)
+                    : !newBays[0] || !newPositions[0]
+                }
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
-                Update Location
+                {editingOrderAllocations.length > 1 
+                  ? `Update All ${editingOrderAllocations.length} Locations` 
+                  : 'Update Location'
+                }
               </Button>
             </div>
           </div>
