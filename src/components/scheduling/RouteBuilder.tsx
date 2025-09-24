@@ -64,7 +64,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   };
 
   const formatAddress = (address: any) => {
-    return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;
+    // Ensure all components exist and handle missing values
+    const street = address.street || '';
+    const city = address.city || '';
+    const state = address.state || '';
+    const zipCode = address.zipCode || '';
+    const country = address.country || 'United Kingdom';
+    
+    // Filter out empty components and join with commas
+    const components = [street, city, state, zipCode, country].filter(Boolean);
+    return components.join(', ');
   };
 
   const toggleJobSelection = (job: any) => {
@@ -88,7 +97,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const calculateTimeslots = async () => {
     if (selectedJobs.length === 0) return;
 
-    const baseAddress = "Lawden Road, B100AD";
+    const baseAddress = "Lawden Road, Birmingham, West Midlands, B10 0AD, United Kingdom";
     
     try {
       const updatedJobs = [];
@@ -209,14 +218,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
       // Create Google Maps route link
       const addresses = selectedJobs.map(job => encodeURIComponent(job.address));
-      let routeLink = `https://www.google.com/maps/dir/Lawden+Road,+B100AD/${addresses.join('/')}/Lawden+Road,+B100AD`;
+      let routeLink = `https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${addresses.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
       
       // If more than 10 stops, split into 2 routes
       if (addresses.length > 10) {
         const firstHalf = addresses.slice(0, 5);
         const secondHalf = addresses.slice(5);
-        routeLink = `Route 1: https://www.google.com/maps/dir/Lawden+Road,+B100AD/${firstHalf.join('/')}/Lawden+Road,+B100AD
-Route 2: https://www.google.com/maps/dir/Lawden+Road,+B100AD/${secondHalf.join('/')}/Lawden+Road,+B100AD`;
+        routeLink = `Route 1: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${firstHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD
+Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${secondHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
       }
 
       const message = `Driving Total Hours: ${drivingHours}
@@ -346,7 +355,7 @@ Route Link: ${routeLink}`;
             <div className="space-y-3">
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                 <MapPin className="h-4 w-4" />
-                <span className="text-sm font-medium">Start: Lawden Road, B100AD</span>
+                <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
                 <Badge variant="outline">{startTime}</Badge>
               </div>
 
@@ -385,7 +394,7 @@ Route Link: ${routeLink}`;
 
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                 <MapPin className="h-4 w-4" />
-                <span className="text-sm font-medium">End: Lawden Road, B100AD</span>
+                <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
               </div>
             </div>
           </div>
