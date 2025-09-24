@@ -1249,7 +1249,7 @@ Route Link: ${routeLink}`;
           <div className="space-y-4">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
-                <Label className="text-sm font-medium">Start Time:</Label>
+                <label className="text-sm font-medium">Start Time:</label>
                 <Input
                   type="time"
                   value={startTime}
@@ -1259,7 +1259,7 @@ Route Link: ${routeLink}`;
               </div>
               
               <div className="flex items-center gap-2">
-                <Label className="text-sm font-medium">Date:</Label>
+                <label className="text-sm font-medium">Date:</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
