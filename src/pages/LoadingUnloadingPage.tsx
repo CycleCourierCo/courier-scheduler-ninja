@@ -55,17 +55,25 @@ const LoadingUnloadingPage = () => {
       
       // Fetch storage allocations from orders' storage_locations field
       const allAllocations: StorageAllocation[] = [];
+      console.log('Processing orders for storage allocations:', ordersData.length);
+      
       ordersData.forEach(order => {
+        console.log(`Order ${order.id} storage_locations:`, order.storage_locations);
+        
         if (order.storage_locations) {
           const orderAllocations = Array.isArray(order.storage_locations) 
             ? order.storage_locations 
             : [order.storage_locations];
           
+          console.log(`Order ${order.id} parsed allocations:`, orderAllocations);
+          
           orderAllocations.forEach((allocation: any) => {
-            allAllocations.push({
+            const parsedAllocation = {
               ...allocation,
               allocatedAt: new Date(allocation.allocatedAt)
-            });
+            };
+            console.log('Adding allocation:', parsedAllocation);
+            allAllocations.push(parsedAllocation);
           });
         }
       });
