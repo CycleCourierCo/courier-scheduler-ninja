@@ -91,14 +91,16 @@ const serve_handler = async (req: Request): Promise<Response> => {
       });
     };
 
-    // Create message based on recipient type
+    // Create message based on recipient type or use custom message
     let message: string;
-    if (recipientType === 'sender') {
+    if (customMessage) {
+      // Use the provided custom message (for grouped deliveries/collections)
+      message = customMessage;
+    } else if (recipientType === 'sender') {
       message = `Dear ${contact.name},
 
 Your ${order.bike_brand || 'bike'} ${order.bike_model || ''} Collection has been scheduled for ${formatDate(scheduledDate)} between ${startTime} and ${endTime}.
 
-${customMessage ? `\n${customMessage}\n` : ''}
 You will receive a text with a live tracking link once the driver is on his way.
 
 Please ensure the pedals have been removed from the bike and in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.
@@ -110,7 +112,6 @@ Cycle Courier Co.`;
 
 Your ${order.bike_brand || 'bike'} ${order.bike_model || ''} Delivery has been scheduled for ${formatDate(scheduledDate)} between ${startTime} and ${endTime}.
 
-${customMessage ? `\n${customMessage}\n` : ''}
 You will receive a text with a live tracking link once the driver is on his way.
 
 Thank you!
@@ -286,13 +287,38 @@ Cycle Courier Co.`;
           ? `Your ${order.bike_brand || 'bike'} collection has been scheduled - ${order.tracking_number}`
           : `Your ${order.bike_brand || 'bike'} delivery has been scheduled - ${order.tracking_number}`;
 
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Dear ${contact.name},</h2>
+        let emailHtml: string;
+        
+        if (customMessage) {
+          // For grouped messages, format the custom message with proper styling
+          const formattedCustomMessage = customMessage
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/Deliveries:/g, '<strong>Deliveries:</strong>')
+            .replace(/Collections:/g, '<strong>Collections:</strong>')
+            .replace(/Thank you!/g, '<p style="margin-top: 30px;">Thank you!</p>')
+            .replace(/Cycle Courier Co\./g, '<p><strong>Cycle Courier Co.</strong></p>');
             
-            ${customMessage ? `
-              <div style="white-space: pre-line;">${customMessage.replace(/\n/g, '<br>')}</div>
-            ` : `
+          emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <p>${formattedCustomMessage}</p>
+              
+              <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0;">
+                <p><strong>Collection Instructions:</strong></p>
+                <ul>
+                  <li>Please ensure the pedals have been removed from the bikes we are collecting and placed in a bag</li>
+                  <li>Any other accessories should also be in the bag</li>
+                  <li>Make sure the bag is attached to the bike securely to avoid any loss</li>
+                </ul>
+              </div>
+            </div>
+          `;
+        } else {
+          // Single job message format
+          emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Dear ${contact.name},</h2>
+              
               <p>Your <strong>${order.bike_brand || 'bike'} ${order.bike_model || ''}</strong> ${recipientType === 'sender' ? 'Collection' : 'Delivery'} has been scheduled for:</p>
               
               <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -315,9 +341,9 @@ Cycle Courier Co.`;
               
               <p style="margin-top: 30px;">Thank you!</p>
               <p><strong>Cycle Courier Co.</strong></p>
-            `}
-          </div>
-        `;
+            </div>
+          `;
+        }
 
         emailResult = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
