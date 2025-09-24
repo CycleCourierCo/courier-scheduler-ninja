@@ -232,29 +232,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const calculateOptimalStartingBikes = (): number => {
     if (selectedJobs.length === 0) return 0;
     
-    // Work forwards through the route to track bike requirements
-    let currentBikes = 0;
-    let maxBikesNeeded = 0;
+    // Start with the total number of deliveries in the route
+    const totalDeliveries = selectedJobs.filter(job => job.type === 'delivery').length;
     
-    // For each job, calculate how many bikes we need before executing it
-    for (let i = 0; i < selectedJobs.length; i++) {
-      const job = selectedJobs[i];
-      
-      if (job.type === 'delivery') {
-        // Before a delivery, we need to have one bike to deliver
-        currentBikes += 1;
-        maxBikesNeeded = Math.max(maxBikesNeeded, currentBikes);
-        // After delivery, we have one less bike
-        currentBikes -= 1;
-      } else if (job.type === 'pickup') {
-        // Before pickup, we don't need extra bikes
-        // After pickup, we have one more bike
-        currentBikes += 1;
-      }
-      // Breaks don't affect bike count
-    }
-    
-    return maxBikesNeeded;
+    return totalDeliveries;
   };
 
   // Auto-update starting bikes when route changes
@@ -269,14 +250,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     
     for (let i = 0; i < jobIndex; i++) {
       const job = selectedJobs[i];
-      if (job.type === 'pickup') {
-        // Find the order to get bike quantity
-        const order = orderList.find(o => o.id === job.orderId);
-        bikeCount += order?.bike_quantity || 1;
-      } else if (job.type === 'delivery') {
-        // Find the order to get bike quantity
-        const order = orderList.find(o => o.id === job.orderId);
-        bikeCount -= order?.bike_quantity || 1;
+      if (job.type === 'delivery') {
+        // After a delivery, subtract 1 bike
+        bikeCount -= 1;
+      } else if (job.type === 'pickup') {
+        // After a pickup, add 1 bike
+        bikeCount += 1;
       }
       // Breaks don't affect bike count
     }
@@ -289,12 +268,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     let bikeCount = startingBikes;
     
     for (const job of selectedJobs) {
-      if (job.type === 'pickup') {
-        const order = orderList.find(o => o.id === job.orderId);
-        bikeCount += order?.bike_quantity || 1;
-      } else if (job.type === 'delivery') {
-        const order = orderList.find(o => o.id === job.orderId);
-        bikeCount -= order?.bike_quantity || 1;
+      if (job.type === 'delivery') {
+        // After a delivery, subtract 1 bike
+        bikeCount -= 1;
+      } else if (job.type === 'pickup') {
+        // After a pickup, add 1 bike
+        bikeCount += 1;
       }
     }
     
