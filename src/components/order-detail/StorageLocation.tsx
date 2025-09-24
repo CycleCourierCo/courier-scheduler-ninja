@@ -14,9 +14,8 @@ interface StorageLocationProps {
 }
 
 export const StorageLocation = ({ order }: StorageLocationProps) => {
-  const [bay, setBay] = useState("");
-  const [position, setPosition] = useState("");
-  const [currentAllocation, setCurrentAllocation] = useState<StorageAllocation | null>(null);
+  const [bays, setBays] = useState<string[]>([]);
+  const [positions, setPositions] = useState<string[]>([]);
   const [allAllocations, setAllAllocations] = useState<StorageAllocation[]>([]);
 
   useEffect(() => {
@@ -31,71 +30,106 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
       
       // Find allocations for this order (there might be multiple for multi-bike orders)
       const orderAllocations = allocations.filter((a: StorageAllocation) => a.orderId === order.id);
-      if (orderAllocations.length > 0) {
-        setCurrentAllocation(orderAllocations[0]); // Set the first one for form defaults
-        setBay(orderAllocations[0].bay);
-        setPosition(orderAllocations[0].position.toString());
-      }
+      const bikeQuantity = order.bikeQuantity || 1;
+      
+      // Initialize form arrays
+      const newBays = Array(bikeQuantity).fill('');
+      const newPositions = Array(bikeQuantity).fill('');
+      
+      // Fill existing allocations
+      orderAllocations.forEach((allocation, index) => {
+        if (index < bikeQuantity) {
+          newBays[index] = allocation.bay;
+          newPositions[index] = allocation.position.toString();
+        }
+      });
+      
+      setBays(newBays);
+      setPositions(newPositions);
+    } else {
+      // Initialize empty arrays
+      const bikeQuantity = order.bikeQuantity || 1;
+      setBays(Array(bikeQuantity).fill(''));
+      setPositions(Array(bikeQuantity).fill(''));
     }
-  }, [order.id]);
+  }, [order.id, order.bikeQuantity]);
 
   const handleAllocate = () => {
-    if (!bay || !position) {
-      toast.error("Please enter both bay and position");
-      return;
+    const bikeQuantity = order.bikeQuantity || 1;
+    
+    // Validate all fields are filled
+    for (let i = 0; i < bikeQuantity; i++) {
+      if (!bays[i] || !positions[i]) {
+        toast.error(`Please enter bay and position for bike ${i + 1}`);
+        return;
+      }
     }
 
-    const bayUpper = bay.toUpperCase();
-    const positionNum = parseInt(position);
+    const newAllocations: StorageAllocation[] = [];
+    const bayPositionSet = new Set<string>();
 
-    // Validate bay (A-D)
-    if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
-      toast.error("Bay must be A, B, C, or D");
-      return;
+    // Validate and prepare allocations
+    for (let i = 0; i < bikeQuantity; i++) {
+      const bayUpper = bays[i].toUpperCase();
+      const positionNum = parseInt(positions[i]);
+
+      // Validate bay (A-D)
+      if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
+        toast.error(`Bike ${i + 1}: Bay must be A, B, C, or D`);
+        return;
+      }
+
+      // Validate position (1-15)
+      if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
+        toast.error(`Bike ${i + 1}: Position must be between 1 and 15`);
+        return;
+      }
+
+      const bayPositionKey = `${bayUpper}${positionNum}`;
+
+      // Check for duplicates within this order
+      if (bayPositionSet.has(bayPositionKey)) {
+        toast.error(`Duplicate position: Bay ${bayUpper}${positionNum}`);
+        return;
+      }
+      bayPositionSet.add(bayPositionKey);
+
+      // Check if the bay/position is already occupied by another order
+      const isOccupied = allAllocations.some(
+        allocation => 
+          allocation.bay === bayUpper && 
+          allocation.position === positionNum &&
+          allocation.orderId !== order.id
+      );
+
+      if (isOccupied) {
+        toast.error(`Bay ${bayUpper}${positionNum} is already occupied`);
+        return;
+      }
+
+      // Create allocation for this bike
+      newAllocations.push({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        bay: bayUpper,
+        position: positionNum,
+        bikeBrand: order.bikeBrand,
+        bikeModel: order.bikeModel,
+        customerName: order.sender.name,
+        allocatedAt: new Date()
+      });
     }
 
-    // Validate position (1-15)
-    if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
-      toast.error("Position must be between 1 and 15");
-      return;
-    }
-
-    // Check if the bay/position is already occupied by another bike
-    const isOccupied = allAllocations.some(
-      allocation => 
-        allocation.bay === bayUpper && 
-        allocation.position === positionNum &&
-        allocation.orderId !== order.id // Don't count current order's allocation
-    );
-
-    if (isOccupied) {
-      toast.error(`Bay ${bayUpper}${positionNum} is already occupied`);
-      return;
-    }
-
-    // Remove existing allocation for this order if any
+    // Remove existing allocations for this order
     const updatedAllocations = allAllocations.filter(a => a.orderId !== order.id);
-
-    // Create new allocation
-    const newAllocation: StorageAllocation = {
-      id: crypto.randomUUID(),
-      orderId: order.id,
-      bay: bayUpper,
-      position: positionNum,
-      bikeBrand: order.bikeBrand,
-      bikeModel: order.bikeModel,
-      customerName: order.sender.name,
-      allocatedAt: new Date()
-    };
-
-    const finalAllocations = [...updatedAllocations, newAllocation];
+    const finalAllocations = [...updatedAllocations, ...newAllocations];
+    
     setAllAllocations(finalAllocations);
-    setCurrentAllocation(newAllocation);
     
     // Save to localStorage
     localStorage.setItem('storageAllocations', JSON.stringify(finalAllocations));
     
-    toast.success(`Bike allocated to bay ${bayUpper}${positionNum}`);
+    toast.success(`${bikeQuantity > 1 ? 'All bikes' : 'Bike'} allocated to storage`);
   };
 
   const handleRemove = () => {
@@ -105,9 +139,11 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
 
     const updatedAllocations = allAllocations.filter(a => a.orderId !== order.id);
     setAllAllocations(updatedAllocations);
-    setCurrentAllocation(null);
-    setBay("");
-    setPosition("");
+    
+    // Reset form arrays
+    const bikeQuantity = order.bikeQuantity || 1;
+    setBays(Array(bikeQuantity).fill(''));
+    setPositions(Array(bikeQuantity).fill(''));
     
     // Save to localStorage
     localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
@@ -215,39 +251,99 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
               {isMultiBike && ` (${bikeQuantity} bikes need allocation)`}
             </div>
             
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <Label htmlFor="bay" className="text-sm">Bay (A-D)</Label>
-                <Input
-                  id="bay"
-                  value={bay}
-                  onChange={(e) => setBay(e.target.value.toUpperCase())}
-                  placeholder="A"
-                  maxLength={1}
-                  className="text-center uppercase"
-                />
+            {isMultiBike ? (
+              <div className="space-y-4">
+                <div className="text-sm font-medium">
+                  {bikeQuantity} bikes total - {bikeQuantity} remaining to allocate
+                </div>
+                
+                {Array.from({ length: bikeQuantity }, (_, index) => (
+                  <div key={index} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      <span className="font-medium">Bike {index + 1} of {bikeQuantity}</span>
+                    </div>
+                    
+                    <div className="flex gap-3 items-end">
+                      <div className="flex-1">
+                        <Label htmlFor={`bay-${index}`} className="text-sm">Bay (A-D)</Label>
+                        <Input
+                          id={`bay-${index}`}
+                          value={bays[index] || ''}
+                          onChange={(e) => {
+                            const newBays = [...bays];
+                            newBays[index] = e.target.value.toUpperCase();
+                            setBays(newBays);
+                          }}
+                          placeholder="A"
+                          maxLength={1}
+                          className="text-center uppercase"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label htmlFor={`position-${index}`} className="text-sm">Position (1-15)</Label>
+                        <Input
+                          id={`position-${index}`}
+                          value={positions[index] || ''}
+                          onChange={(e) => {
+                            const newPositions = [...positions];
+                            newPositions[index] = e.target.value;
+                            setPositions(newPositions);
+                          }}
+                          placeholder="1"
+                          type="number"
+                          min="1"
+                          max="15"
+                          className="text-center"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button 
+                  onClick={handleAllocate}
+                  disabled={bays.some(b => !b) || positions.some(p => !p)}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  Allocate All {bikeQuantity} Bikes
+                </Button>
               </div>
-              <div className="flex-1">
-                <Label htmlFor="position" className="text-sm">Position (1-15)</Label>
-                <Input
-                  id="position"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  placeholder="1"
-                  type="number"
-                  min="1"
-                  max="15"
-                  className="text-center"
-                />
+            ) : (
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="bay" className="text-sm">Bay (A-D)</Label>
+                  <Input
+                    id="bay"
+                    value={bays[0] || ''}
+                    onChange={(e) => setBays([e.target.value.toUpperCase()])}
+                    placeholder="A"
+                    maxLength={1}
+                    className="text-center uppercase"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="position" className="text-sm">Position (1-15)</Label>
+                  <Input
+                    id="position"
+                    value={positions[0] || ''}
+                    onChange={(e) => setPositions([e.target.value])}
+                    placeholder="1"
+                    type="number"
+                    min="1"
+                    max="15"
+                    className="text-center"
+                  />
+                </div>
+                <Button 
+                  onClick={handleAllocate}
+                  disabled={!bays[0] || !positions[0]}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Allocate
+                </Button>
               </div>
-              <Button 
-                onClick={handleAllocate}
-                disabled={!bay || !position}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Allocate
-              </Button>
-            </div>
+            )}
           </div>
         )}
       </CardContent>
