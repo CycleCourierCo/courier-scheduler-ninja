@@ -93,44 +93,21 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       pdf.text(`Date: ${format(selectedDate!, 'dd/MM/yyyy')}`, margin, currentY);
       currentY += 25;
       
-      // List all bikes for delivery
+      // Simple bullet point list
       pdf.setFontSize(10);
-      orders.forEach((order, orderIndex) => {
+      orders.forEach((order) => {
         const quantity = order.bikeQuantity || 1;
         
         for (let i = 0; i < quantity; i++) {
-          if (currentY > labelHeight - 50) {
-            pdf.addPage();
-            currentY = margin + 20;
-          }
-          
-          pdf.setFont("helvetica", "bold");
-          pdf.text(`${orderIndex + 1}.${quantity > 1 ? `${i + 1}` : ''}`, margin, currentY);
-          
-          pdf.setFont("helvetica", "normal");
           const customerName = order.receiver?.name || 'Unknown Customer';
           const bikeBrand = order.bikeBrand || 'Unknown';
           const bikeModel = order.bikeModel || 'Bike';
           const bikeInfo = `${bikeBrand} ${bikeModel}`.trim();
-          const trackingNumber = order.trackingNumber || 'N/A';
           
-          pdf.text(`Customer: ${customerName}`, margin + 20, currentY);
-          currentY += 12;
-          pdf.text(`Bike: ${bikeInfo}`, margin + 20, currentY);
-          currentY += 12;
-          pdf.text(`Tracking: ${trackingNumber}`, margin + 20, currentY);
-          currentY += 18;
+          pdf.text(`• ${bikeInfo} - ${customerName}`, margin, currentY);
+          currentY += 15;
         }
       });
-      
-      // Contact info at bottom of loading list
-      currentY = Math.max(currentY + 15, labelHeight - 60);
-      pdf.setFontSize(8);
-      pdf.setFont("helvetica", "normal");
-      const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
-      const contactWidth = pdf.getTextWidth(contactText);
-      const contactX = (labelWidth - contactWidth) / 2;
-      pdf.text(contactText, contactX, currentY);
       
       // Now generate individual labels
       orders.forEach((order) => {
