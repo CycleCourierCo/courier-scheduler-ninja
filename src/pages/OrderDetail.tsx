@@ -923,7 +923,7 @@ const OrderDetail = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="container px-4 py-6 md:px-6 space-y-6">
         <OrderHeader 
           status={order.status}
           statusUpdating={statusUpdating}
