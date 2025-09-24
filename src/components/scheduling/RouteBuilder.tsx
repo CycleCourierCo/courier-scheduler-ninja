@@ -282,7 +282,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         order: index + 1
       }));
     setSelectedJobs(updatedJobs);
-    }
   };
 
   const calculateTimeslots = async () => {
