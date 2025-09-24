@@ -41,25 +41,25 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     
     try {
       const orders = await getOrders();
-      // Only filter for collection/pickup dates
+      // Filter for delivery dates
       const scheduledOrders = orders.filter(order => {
-        const scheduledPickup = order.scheduledPickupDate;
+        const scheduledDelivery = order.scheduledDeliveryDate;
         
-        if (!scheduledPickup) return false;
+        if (!scheduledDelivery) return false;
         
         const targetDate = format(selectedDate, 'yyyy-MM-dd');
-        const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
+        const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
         
-        return pickupDate === targetDate;
+        return deliveryDate === targetDate;
       });
 
       if (scheduledOrders.length === 0) {
-        toast.info("No collection orders scheduled for the selected date");
+        toast.info("No delivery orders scheduled for the selected date");
         return;
       }
 
       await generateLabels(scheduledOrders);
-      toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
+      toast.success(`Generated delivery labels for ${scheduledOrders.length} orders`);
       setIsDialogOpen(false);
     } catch (error) {
       toast.error("Failed to generate labels");
