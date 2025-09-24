@@ -90,6 +90,18 @@ const JobItem: React.FC<JobItemProps> = ({
     if (dropRef) dropRef.current = el;
   };
 
+  // Check if this job is part of a group and get all jobs in the same group
+  const groupedJobs = job.isGroupedLocation && job.locationGroupId 
+    ? allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break')
+    : [job];
+
+  // Only render the card for the first job in a group (to avoid duplicates)
+  const isFirstInGroup = !job.isGroupedLocation || job.groupOrder === 1;
+  
+  if (!isFirstInGroup) {
+    return null; // Don't render duplicate cards for grouped jobs
+  }
+
   return (
     <div className="space-y-2">
       <div 
@@ -101,30 +113,49 @@ const JobItem: React.FC<JobItemProps> = ({
         <div className="flex items-center gap-3">
           <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
           <Badge variant="outline">#{job.order}</Badge>
-          <div>
-            <p className="text-sm font-medium">{job.contactName}</p>
-            <p className="text-xs text-muted-foreground">{job.address}</p>
-            <div className="flex gap-1 flex-wrap">
-              {job.type === 'break' ? (
-                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
-                  {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
-                </Badge>
-              ) : (
-                <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                  {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-                </Badge>
-              )}
-              {job.isGroupedLocation && (
-                <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800">
-                  📍 Stop {job.groupOrder} at this location
-                </Badge>
-              )}
-              {job.type !== 'break' && (
-                <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                  🚲 {bikeCount} bikes
-                </Badge>
-              )}
-            </div>
+          <div className="flex-1">
+            {groupedJobs.length > 1 ? (
+              // Multiple jobs at same location
+              <div className="space-y-2">
+                <p className="text-sm font-medium">📍 Multiple stops at this location</p>
+                <p className="text-xs text-muted-foreground">{job.address}</p>
+                <div className="space-y-1">
+                  {groupedJobs.map((groupedJob, idx) => (
+                    <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-2 pl-2 border-l-2 border-muted">
+                      <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
+                        {groupedJob.type === 'pickup' ? 'Collection' : 'Delivery'}
+                      </Badge>
+                      <span className="text-xs font-medium">{groupedJob.contactName}</span>
+                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                        🚲 {bikeCount} bikes
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // Single job
+              <div>
+                <p className="text-sm font-medium">{job.contactName}</p>
+                <p className="text-xs text-muted-foreground">{job.address}</p>
+                <div className="flex gap-1 flex-wrap">
+                  {job.type === 'break' ? (
+                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                      {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
+                    </Badge>
+                  ) : (
+                    <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
+                      {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+                    </Badge>
+                  )}
+                  {job.type !== 'break' && (
+                    <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                      🚲 {bikeCount} bikes
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
@@ -155,16 +186,33 @@ const JobItem: React.FC<JobItemProps> = ({
           )}
           
           {job.type !== 'break' && (job.lat && job.lon) && (
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                onClick={() => onSendTimeslot(job)}
-                disabled={isSendingTimeslots || !job.estimatedTime}
-                className="flex items-center gap-1"
-              >
-                <Send className="h-3 w-3" />
-                Send
-              </Button>
+            <div className="flex gap-1 flex-wrap">
+              {groupedJobs.length > 1 ? (
+                // Individual send buttons for each job in the group
+                groupedJobs.map((groupedJob) => (
+                  <Button
+                    key={`${groupedJob.orderId}-${groupedJob.type}`}
+                    size="sm"
+                    onClick={() => onSendTimeslot(groupedJob)}
+                    disabled={isSendingTimeslots || !groupedJob.estimatedTime}
+                    className="flex items-center gap-1 text-xs"
+                  >
+                    <Send className="h-3 w-3" />
+                    {groupedJob.type === 'pickup' ? 'Send Collection' : 'Send Delivery'}
+                  </Button>
+                ))
+              ) : (
+                // Single job send button
+                <Button
+                  size="sm"
+                  onClick={() => onSendTimeslot(job)}
+                  disabled={isSendingTimeslots || !job.estimatedTime}
+                  className="flex items-center gap-1"
+                >
+                  <Send className="h-3 w-3" />
+                  Send
+                </Button>
+              )}
               
               {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
                allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
@@ -176,7 +224,7 @@ const JobItem: React.FC<JobItemProps> = ({
                   className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
                 >
                   <Send className="h-3 w-3" />
-                  Send Group
+                  Send All
                 </Button>
               )}
             </div>
