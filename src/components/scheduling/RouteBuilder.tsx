@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3 } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,7 @@ interface JobItemProps {
   onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
   onRemove: (job: SelectedJob) => void;
   onSendTimeslot: (job: SelectedJob) => void;
+  onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
   isSendingTimeslots: boolean;
 }
 
@@ -48,6 +49,7 @@ const JobItem: React.FC<JobItemProps> = ({
   onAddBreak, 
   onRemove, 
   onSendTimeslot, 
+  onUpdateCoordinates,
   isSendingTimeslots 
 }) => {
   const { dragRef, isDragging } = useDraggable({
@@ -104,7 +106,25 @@ const JobItem: React.FC<JobItemProps> = ({
             </Badge>
           )}
           
-          {job.type !== 'break' && (
+          {job.type !== 'break' && !job.lat && !job.lon && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const lat = prompt('Enter latitude:');
+                const lon = prompt('Enter longitude:');
+                if (lat && lon && !isNaN(Number(lat)) && !isNaN(Number(lon))) {
+                  onUpdateCoordinates(job, Number(lat), Number(lon));
+                }
+              }}
+              className="flex items-center gap-1 text-orange-600 hover:text-orange-700"
+            >
+              <Edit3 className="h-3 w-3" />
+              Update Coords
+            </Button>
+          )}
+          
+          {job.type !== 'break' && (job.lat && job.lon) && (
             <Button
               size="sm"
               onClick={() => onSendTimeslot(job)}
@@ -282,6 +302,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         order: index + 1
       }));
     setSelectedJobs(updatedJobs);
+  };
+
+  const updateCoordinates = (jobToUpdate: SelectedJob, lat: number, lon: number) => {
+    const updatedJobs = selectedJobs.map(job => 
+      (job.orderId === jobToUpdate.orderId && job.type === jobToUpdate.type) 
+        ? { ...job, lat, lon }
+        : job
+    );
+    setSelectedJobs(updatedJobs);
+    toast.success('Coordinates updated successfully');
   };
 
   const roundTimeToNext5Minutes = (date: Date): Date => {
@@ -607,6 +637,7 @@ Route Link: ${routeLink}`;
                   onAddBreak={addBreak}
                   onRemove={removeJob}
                   onSendTimeslot={sendTimeslot}
+                  onUpdateCoordinates={updateCoordinates}
                   isSendingTimeslots={isSendingTimeslots}
                 />
               ))}
