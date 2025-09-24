@@ -121,32 +121,41 @@ const JobItem: React.FC<JobItemProps> = ({
                 <p className="text-sm font-medium">📍 Multiple stops at this location</p>
                 <p className="text-xs text-muted-foreground">{job.address}</p>
                 <div className="space-y-1">
-                  {groupedJobs.map((groupedJob, idx) => {
-                    // Calculate progressive bike count for each job in the group
-                    let progressiveBikeCount = bikeCount;
-                    // Add back the bike changes for jobs that haven't happened yet in this group
-                    for (let i = idx + 1; i < groupedJobs.length; i++) {
-                      const futureJob = groupedJobs[i];
-                      const quantity = futureJob.orderData?.bike_quantity || 1;
-                      if (futureJob.type === 'delivery') {
-                        progressiveBikeCount += quantity; // Add back deliveries that haven't happened yet
-                      } else if (futureJob.type === 'pickup') {
-                        progressiveBikeCount -= quantity; // Subtract pickups that haven't happened yet
-                      }
-                    }
+                  {(() => {
+                    // Sort grouped jobs: deliveries first, then pickups
+                    const sortedJobs = [...groupedJobs].sort((a, b) => {
+                      if (a.type === 'delivery' && b.type === 'pickup') return -1;
+                      if (a.type === 'pickup' && b.type === 'delivery') return 1;
+                      return 0;
+                    });
                     
-                    return (
-                      <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-2 pl-2 border-l-2 border-muted">
-                        <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                          {groupedJob.type === 'pickup' ? 'Collection' : 'Delivery'}
-                        </Badge>
-                        <span className="text-xs font-medium">{groupedJob.contactName}</span>
-                        <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                          🚲 {progressiveBikeCount} bikes
-                        </Badge>
-                      </div>
-                    );
-                  })}
+                    let runningBikeCount = bikeCount;
+                    
+                    return sortedJobs.map((groupedJob, idx) => {
+                      const quantity = groupedJob.orderData?.bike_quantity || 1;
+                      
+                      // Calculate bike count after this job
+                      if (groupedJob.type === 'delivery') {
+                        runningBikeCount -= quantity;
+                      } else if (groupedJob.type === 'pickup') {
+                        runningBikeCount += quantity;
+                      }
+                      
+                      const bikeCountAfterJob = runningBikeCount;
+                    
+                      return (
+                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-2 pl-2 border-l-2 border-muted">
+                          <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
+                            {groupedJob.type === 'pickup' ? 'Collection' : 'Delivery'}
+                          </Badge>
+                          <span className="text-xs font-medium">{groupedJob.contactName}</span>
+                          <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                            🚲 {bikeCountAfterJob} bikes
+                          </Badge>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             ) : (
