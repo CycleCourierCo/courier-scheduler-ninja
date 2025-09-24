@@ -443,10 +443,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
           currentTime = new Date(currentTime.getTime() + travelTime * 60000);
           
-          // Add 15 minutes service time for each job
-          currentTime = new Date(currentTime.getTime() + 15 * 60000);
-          
-          // Round to next 5-minute increment
+          // Round to next 5-minute increment for arrival time
           const roundedJobTime = roundTimeToNext5Minutes(currentTime);
           
           updatedJobs.push({
@@ -454,9 +451,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             estimatedTime: roundedJobTime.toTimeString().slice(0, 5)
           });
           
-          // Update last location for next calculation and use rounded time
+          // Add 15 minutes service time AFTER setting the arrival time for this job
+          // This affects the start time of the NEXT job
+          currentTime = new Date(roundedJobTime.getTime() + 15 * 60000);
+          
+          // Update last location for next calculation
           lastLocationCoords = { lat: job.lat!, lon: job.lon! };
-          currentTime = roundedJobTime;
         }
       }
 
