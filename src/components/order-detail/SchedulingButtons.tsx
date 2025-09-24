@@ -50,98 +50,12 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
   deliveryTime,
   setDeliveryTime,
 }) => {
-  const showDeliveryButton = status === 'scheduled_dates_pending' || status === 'collection_scheduled' || status === 'collected';
-  const showDirectDatePicker = status === 'collected' && !deliveryDateSelected && setDeliveryDate;
-  const showAdminScheduling = status === 'scheduled_dates_pending' && pickupDatePicker && deliveryDatePicker;
+  // Always show the date picker regardless of status
+  const showDirectDatePicker = setDeliveryDate;
   
-  if ((status !== 'scheduled_dates_pending' && status !== 'collection_scheduled' && status !== 'collected') || isScheduled) {
-    return null;
-  }
-
   return (
     <div className="space-y-4">
-      {status === 'scheduled_dates_pending' && !showAdminScheduling && (
-        <Button 
-          onClick={onSchedulePickup} 
-          disabled={!pickupDateSelected || isSubmitting}
-          className="w-full"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Pickup...
-            </>
-          ) : (
-            "Schedule Pickup Date & Create Shipment"
-          )}
-        </Button>
-      )}
-
-      {/* Admin scheduling with date picker for scheduled_dates_pending */}
-      {showAdminScheduling && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Admin Schedule Pickup Only */}
-            {onAdminSchedulePickup && (
-              <Button 
-                onClick={onAdminSchedulePickup} 
-                disabled={!pickupDatePicker || isSubmitting}
-                className="bg-orange-600 hover:bg-orange-700"
-                variant="default"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    Scheduling...
-                  </>
-                ) : (
-                  "Schedule Collection (Admin)"
-                )}
-              </Button>
-            )}
-
-            {/* Admin Schedule Delivery Only */}
-            {onAdminScheduleDelivery && (
-              <Button 
-                onClick={onAdminScheduleDelivery} 
-                disabled={!deliveryDatePicker || isSubmitting}
-                className="bg-orange-600 hover:bg-orange-700"
-                variant="default"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    Scheduling...
-                  </>
-                ) : (
-                  "Schedule Delivery (Admin)"
-                )}
-              </Button>
-            )}
-          </div>
-
-          {/* Admin Schedule Both */}
-          {onAdminScheduleBoth && (
-            <Button 
-              onClick={onAdminScheduleBoth} 
-              disabled={!pickupDatePicker || !deliveryDatePicker || isSubmitting}
-              className="w-full bg-orange-700 hover:bg-orange-800"
-              variant="default"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                  Scheduling Order...
-                </>
-              ) : (
-                "Schedule Both Collection & Delivery (Admin)"
-              )}
-            </Button>
-          )}
-        </div>
-      )}
-
+      {/* Always show date picker */}
       {showDirectDatePicker && (
         <div className="space-y-3 bg-gray-50 p-3 rounded-md">
           <p className="text-sm font-medium">Select delivery date and time:</p>
@@ -183,42 +97,6 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {showDeliveryButton && (
-        <Button 
-          onClick={onScheduleDelivery} 
-          disabled={(showDirectDatePicker ? !deliveryDate : !deliveryDateSelected) || isSubmitting}
-          className="w-full"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Delivery...
-            </>
-          ) : (
-            "Schedule Delivery Date & Create Shipment"
-          )}
-        </Button>
-      )}
-
-      {status === 'scheduled_dates_pending' && !showAdminScheduling && (
-        <Button 
-          onClick={onScheduleBoth} 
-          disabled={!pickupDateSelected || !deliveryDateSelected || isSubmitting}
-          className="w-full"
-          variant="default"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Scheduling Order...
-            </>
-          ) : (
-            "Schedule Order & Create Shipment"
-          )}
-        </Button>
       )}
     </div>
   );
