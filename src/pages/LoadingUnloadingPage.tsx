@@ -129,7 +129,7 @@ const LoadingUnloadingPage = () => {
     return { allocation, order };
   }).filter(item => item.order); // Only include if order still exists
 
-  const handleAllocateStorage = (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
+  const handleAllocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -158,32 +158,88 @@ const LoadingUnloadingPage = () => {
       bikeIndex: allocation.bikeIndex
     }));
 
-    const updatedAllocations = [...storageAllocations, ...newAllocations];
-    setStorageAllocations(updatedAllocations);
-    
-    // Save to localStorage
-    localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
-    
-    const bikeQuantity = order.bikeQuantity || 1;
-    const totalAllocatedCount = updatedAllocations.filter(a => a.orderId === orderId).length;
-    
-    toast.success(`Successfully allocated ${allocationsToMake.length} bike(s). Total: ${totalAllocatedCount}/${bikeQuantity} bikes allocated for this order.`);
+    try {
+      // Get existing allocations for this order from the database
+      const existingAllocations = order.storage_locations || [];
+      const allOrderAllocations = [...existingAllocations, ...newAllocations];
+
+      // Convert Date objects to ISO strings for JSON storage
+      const allocationsForDb = allOrderAllocations.map(allocation => ({
+        ...allocation,
+        allocatedAt: allocation.allocatedAt instanceof Date ? allocation.allocatedAt.toISOString() : allocation.allocatedAt
+      }));
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ storage_locations: allocationsForDb })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error updating storage locations:', error);
+        toast.error('Failed to save storage allocation');
+        return;
+      }
+
+      // Update local state
+      const updatedAllocations = [...storageAllocations, ...newAllocations];
+      setStorageAllocations(updatedAllocations);
+      
+      const bikeQuantity = order.bikeQuantity || 1;
+      const totalAllocatedCount = updatedAllocations.filter(a => a.orderId === orderId).length;
+      
+      toast.success(`Successfully allocated ${allocationsToMake.length} bike(s). Total: ${totalAllocatedCount}/${bikeQuantity} bikes allocated for this order.`);
+    } catch (error) {
+      console.error('Error updating storage locations:', error);
+      toast.error('Failed to save storage allocation');
+    }
   };
 
-  const handleRemoveFromStorage = (allocationId: string) => {
-    const updatedAllocations = storageAllocations.filter(
-      allocation => allocation.id !== allocationId
-    );
-    setStorageAllocations(updatedAllocations);
-    
-    // Save to localStorage
-    localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
-    
-    toast.success('Bike loaded onto van and removed from storage');
+  const handleRemoveFromStorage = async (allocationId: string) => {
+    // Find the allocation to remove
+    const allocationToRemove = storageAllocations.find(a => a.id === allocationId);
+    if (!allocationToRemove) return;
+
+    const order = orders.find(o => o.id === allocationToRemove.orderId);
+    if (!order) return;
+
+    try {
+      // Remove the allocation from the order's storage_locations
+      const existingAllocations = order.storage_locations || [];
+      const updatedAllocations = existingAllocations.filter((a: any) => a.id !== allocationId);
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null })
+        .eq('id', allocationToRemove.orderId);
+
+      if (error) {
+        console.error('Error removing storage location:', error);
+        toast.error('Failed to remove storage allocation');
+        return;
+      }
+
+      // Update local state
+      const updatedLocalAllocations = storageAllocations.filter(
+        allocation => allocation.id !== allocationId
+      );
+      setStorageAllocations(updatedLocalAllocations);
+      
+      toast.success('Bike loaded onto van and removed from storage');
+    } catch (error) {
+      console.error('Error removing storage location:', error);
+      toast.error('Failed to remove storage allocation');
+    }
   };
 
-  const handleChangeLocation = (allocationId: string, newBay: string, newPosition: number) => {
-    // Check if the new bay/position is already occupied
+  const handleChangeLocation = async (allocationId: string, newBay: string, newPosition: number) => {
+    // Find the allocation to update
+    const allocationToUpdate = storageAllocations.find(a => a.id === allocationId);
+    if (!allocationToUpdate) return;
+
+    const order = orders.find(o => o.id === allocationToUpdate.orderId);
+    if (!order) return;
+
+    // Check if the new bay/position is already occupied by another bike
     const isOccupied = storageAllocations.some(
       allocation => 
         allocation.bay === newBay && 
@@ -196,17 +252,39 @@ const LoadingUnloadingPage = () => {
       return;
     }
 
-    const updatedAllocations = storageAllocations.map(allocation =>
-      allocation.id === allocationId
-        ? { ...allocation, bay: newBay, position: newPosition }
-        : allocation
-    );
-    setStorageAllocations(updatedAllocations);
-    
-    // Save to localStorage
-    localStorage.setItem('storageAllocations', JSON.stringify(updatedAllocations));
-    
-    toast.success(`Bike moved to bay ${newBay}${newPosition}`);
+    try {
+      // Update the allocation in the order's storage_locations
+      const existingAllocations = order.storage_locations || [];
+      const updatedAllocations = existingAllocations.map((a: any) => 
+        a.id === allocationId 
+          ? { ...a, bay: newBay, position: newPosition }
+          : a
+      );
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ storage_locations: updatedAllocations })
+        .eq('id', allocationToUpdate.orderId);
+
+      if (error) {
+        console.error('Error updating storage location:', error);
+        toast.error('Failed to update storage location');
+        return;
+      }
+
+      // Update local state
+      const updatedLocalAllocations = storageAllocations.map(allocation =>
+        allocation.id === allocationId
+          ? { ...allocation, bay: newBay, position: newPosition }
+          : allocation
+      );
+      setStorageAllocations(updatedLocalAllocations);
+      
+      toast.success(`Bike moved to bay ${newBay}${newPosition}`);
+    } catch (error) {
+      console.error('Error updating storage location:', error);
+      toast.error('Failed to update storage location');
+    }
   };
 
   // Print labels functionality
