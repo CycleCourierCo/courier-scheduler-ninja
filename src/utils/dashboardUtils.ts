@@ -28,7 +28,7 @@ export const sortOrders = (ordersToSort: Order[], sortBy: string) => {
 
 export const applyFiltersToOrders = (
   orders: Order[], 
-  filters: { status: string[]; search: string; sortBy: string }
+  filters: { status: string[]; search: string; sortBy: string; dateFrom: Date | undefined; dateTo: Date | undefined }
 ) => {
   let result = [...orders];
   
@@ -48,6 +48,16 @@ export const applyFiltersToOrders = (
       (order.bikeBrand && order.bikeBrand.toLowerCase().includes(searchLower)) ||
       (order.bikeModel && order.bikeModel.toLowerCase().includes(searchLower))
     );
+  }
+  
+  // Apply date filter
+  if (filters.dateFrom || filters.dateTo) {
+    result = result.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      const matchesFromDate = !filters.dateFrom || orderDate >= filters.dateFrom;
+      const matchesToDate = !filters.dateTo || orderDate <= filters.dateTo;
+      return matchesFromDate && matchesToDate;
+    });
   }
   
   // Apply sorting

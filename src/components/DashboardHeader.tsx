@@ -2,20 +2,14 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Calendar, Truck } from "lucide-react";
 
 interface DashboardHeaderProps {
   children?: React.ReactNode;
-  showActionButtons?: boolean;
-  userRole?: string | null;
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
-  children, 
-  showActionButtons = false,
-  userRole = null
+  children
 }) => {
-  const isAdmin = userRole === 'admin';
 
 
   return (
@@ -26,16 +20,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <p className="text-muted-foreground">
             Manage your delivery orders
           </p>
-        </div>
-      )}
-      {showActionButtons && (
-        <div className="flex flex-col sm:flex-row justify-end gap-2">
-          <Button asChild className="w-full sm:w-auto">
-            <Link to="/create-order">
-              <Plus className="mr-2 h-4 w-4" />
-              New Order
-            </Link>
-          </Button>
         </div>
       )}
     </div>
