@@ -486,22 +486,23 @@ const LoadingUnloadingPage = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
             <div className="flex items-center gap-3">
               <Truck className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold">Loading & Unloading</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">Loading & Unloading</h1>
             </div>
             
             {/* Action buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-2 md:flex-row md:gap-3">
               {/* Print Collection Labels */}
               <Dialog open={isLabelsDialogOpen} onOpenChange={setIsLabelsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full md:w-auto">
                     <Printer className="mr-2 h-4 w-4" />
-                    Print Collection Labels
+                    <span className="hidden sm:inline">Print Collection Labels</span>
+                    <span className="sm:hidden">Print Labels</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -548,9 +549,10 @@ const LoadingUnloadingPage = () => {
               {/* Loading List for Date */}
               <Dialog open={isLoadingListDialogOpen} onOpenChange={setIsLoadingListDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full md:w-auto">
                     <Package className="mr-2 h-4 w-4" />
-                    View Loading List
+                    <span className="hidden sm:inline">View Loading List</span>
+                    <span className="sm:hidden">Loading List</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">

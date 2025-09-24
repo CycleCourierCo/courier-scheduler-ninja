@@ -28,14 +28,14 @@ export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps
 
   return (
     <div className="w-full overflow-x-auto">
-      <div className="min-w-[900px] space-y-3">
+      <div className="min-w-[320px] sm:min-w-[600px] lg:min-w-[900px] space-y-3">
         {bays.map((bay) => (
-          <div key={bay} className="flex items-center gap-4">
-            <div className="w-16 text-center font-bold text-lg text-primary">
-              Bay {bay}
+          <div key={bay} className="flex items-center gap-2 sm:gap-4">
+            <div className="w-12 sm:w-16 text-center font-bold text-sm sm:text-lg text-primary flex-shrink-0">
+              <span className="hidden sm:inline">Bay </span>{bay}
             </div>
-            <Card className="flex-1 p-2 bg-muted/20">
-                <div className="flex gap-1">
+            <Card className="flex-1 p-1 sm:p-2 bg-muted/20">
+                <div className="flex gap-0.5 sm:gap-1">
                   {positions.map((position) => {
                     const occupied = isOccupied(bay, position);
                     const allocation = getAllocation(bay, position);
@@ -43,13 +43,13 @@ export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps
                     const bayContent = (
                       <div
                         className={cn(
-                          "w-8 h-8 flex items-center justify-center text-xs font-medium rounded border-2 transition-colors cursor-pointer",
+                          "w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-xs font-medium rounded border-2 transition-colors cursor-pointer",
                           occupied 
                             ? "bg-red-500 text-white border-red-600" 
                             : "bg-green-100 border-green-300 text-green-800 hover:bg-green-200"
                         )}
                       >
-                        {position}
+                        <span className="text-[10px] sm:text-xs">{position}</span>
                       </div>
                     );
 
