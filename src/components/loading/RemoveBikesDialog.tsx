@@ -47,19 +47,24 @@ export const RemoveBikesDialog = ({
     }
   };
 
-  const handleLoadOntoVan = () => {
+  const handleLoadOntoVan = async () => {
     if (selectedOrders.length === 0) {
       toast.error("Please select at least one bike to load");
       return;
     }
 
-    // Load all selected orders
-    selectedOrders.forEach(orderId => {
-      onRemoveAllBikesFromOrder(orderId);
-    });
-    
-    setSelectedOrders([]);
-    onOpenChange(false);
+    try {
+      // Load all selected orders sequentially to avoid conflicts
+      for (const orderId of selectedOrders) {
+        await onRemoveAllBikesFromOrder(orderId);
+      }
+      
+      setSelectedOrders([]);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error loading bikes onto van:', error);
+      toast.error('Failed to load some bikes onto van');
+    }
   };
 
   const allSelected = bikesForDelivery.length > 0 && 
