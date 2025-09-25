@@ -75,7 +75,6 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
                     selected={pickupDatePicker}
                     onSelect={setPickupDatePicker}
                     initialFocus
-                    disabled={(date) => date < new Date()}
                     className={cn("p-3 pointer-events-auto")}
                   />
                 </PopoverContent>
@@ -108,7 +107,6 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
                     selected={deliveryDatePicker}
                     onSelect={setDeliveryDatePicker}
                     initialFocus
-                    disabled={(date) => date < new Date()}
                     className={cn("p-3 pointer-events-auto")}
                   />
                 </PopoverContent>
