@@ -75,12 +75,18 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         return;
       }
 
+      // Calculate the time minus 3 hours for the timeslot
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const adjustedTime = new Date();
+      adjustedTime.setHours(hours - 3, minutes, 0, 0);
+      const timeslotToSend = adjustedTime.toTimeString().substring(0, 5);
+
       // Then send the WhatsApp message
       const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId,
           recipientType: type,
-          deliveryTime: selectedTime
+          deliveryTime: timeslotToSend
         }
       });
 

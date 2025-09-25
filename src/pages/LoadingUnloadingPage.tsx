@@ -252,37 +252,42 @@ const LoadingUnloadingPage = () => {
   const handleRemoveAllBikesFromOrder = async (orderId: string) => {
     // Find all allocations for this order
     const orderAllocations = storageAllocations.filter(a => a.orderId === orderId);
-    if (orderAllocations.length === 0) return;
-
+    
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
     try {
-      // Remove all storage locations for this order and mark as loaded onto van
+      // Always mark as loaded onto van, regardless of storage allocation status
+      const updateData = {
+        loaded_onto_van: true,
+        loaded_onto_van_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        // Only clear storage locations if there are any
+        ...(orderAllocations.length > 0 && { storage_locations: null })
+      };
+
       const { error } = await supabase
         .from('orders')
-        .update({ 
-          storage_locations: null,
-          loaded_onto_van: true,
-          loaded_onto_van_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', orderId);
 
       if (error) {
-        console.error('Error removing all storage locations:', error);
-        toast.error('Failed to remove bikes from storage');
+        console.error('Error updating order for van loading:', error);
+        toast.error('Failed to load bikes onto van');
         return;
       }
 
       // Refresh data from database to ensure UI reflects the saved state
       await fetchData();
       
-      const bikeCount = orderAllocations.length;
-      toast.success(`${bikeCount} bike(s) loaded onto van and removed from storage`);
+      if (orderAllocations.length > 0) {
+        toast.success(`${orderAllocations.length} bike(s) loaded onto van and removed from storage`);
+      } else {
+        toast.success(`Bike(s) loaded onto van`);
+      }
     } catch (error) {
-      console.error('Error removing all storage locations:', error);
-      toast.error('Failed to remove bikes from storage');
+      console.error('Error loading bikes onto van:', error);
+      toast.error('Failed to load bikes onto van');
     }
   };
 
