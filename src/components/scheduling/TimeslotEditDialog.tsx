@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, Calendar as CalendarIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface SelectedJob {
   orderId: string;
@@ -41,15 +45,17 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
   isLoading = false
 }) => {
   const [editedTime, setEditedTime] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   React.useEffect(() => {
     if (job) {
       setEditedTime(job.estimatedTime || "");
+      setSelectedDate(undefined); // Reset date when job changes
     }
   }, [job]);
 
   const handleConfirm = () => {
-    if (job && editedTime) {
+    if (job && editedTime && selectedDate) {
       onConfirm(job, editedTime);
     }
   };
@@ -70,6 +76,35 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="date">
+              Select Date
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="time">
               {job.type === 'pickup' ? 'Collection' : 'Delivery'} Time
@@ -98,7 +133,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isLoading || !editedTime}
+            disabled={isLoading || !editedTime || !selectedDate}
           >
             {isLoading ? (
               <>

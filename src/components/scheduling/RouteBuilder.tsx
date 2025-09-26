@@ -281,25 +281,27 @@ const JobItem: React.FC<JobItemProps> = ({
         </div>
       </div>
       
-      {/* Add break buttons after each job */}
-      <div className="flex gap-1 ml-8">
-        <Button 
-          onClick={() => onAddBreak(index, 'lunch')} 
-          variant="ghost" 
-          size="sm"
-          className="text-xs h-6 px-2"
-        >
-          + Lunch
-        </Button>
-        <Button 
-          onClick={() => onAddBreak(index, 'stop')} 
-          variant="ghost" 
-          size="sm"
-          className="text-xs h-6 px-2"
-        >
-          + Stop
-        </Button>
-      </div>
+      {/* Add break buttons after each job - only show if not at Lawden Road */}
+      {!job.address.toLowerCase().includes('lawden road') && (
+        <div className="flex gap-1 ml-8">
+          <Button 
+            onClick={() => onAddBreak(index, 'lunch')} 
+            variant="ghost" 
+            size="sm"
+            className="text-xs h-6 px-2"
+          >
+            + Lunch
+          </Button>
+          <Button 
+            onClick={() => onAddBreak(index, 'stop')} 
+            variant="ghost" 
+            size="sm"
+            className="text-xs h-6 px-2"
+          >
+            + Stop
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
@@ -1115,6 +1117,103 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }
   };
 
+  const sendAllTimeslots = async () => {
+    const jobsToSend = selectedJobs.filter(job => 
+      job.type !== 'break' && 
+      job.estimatedTime && 
+      job.lat && 
+      job.lon
+    );
+    
+    if (jobsToSend.length === 0) {
+      toast.error('No jobs with valid timeslots and coordinates to send');
+      return;
+    }
+
+    setIsSendingTimeslots(true);
+    let successCount = 0;
+    let failureCount = 0;
+
+    try {
+      for (let i = 0; i < jobsToSend.length; i++) {
+        const job = jobsToSend[i];
+        
+        try {
+          const deliveryTime = `${job.estimatedTime}:00`;
+          
+          // Create datetime from selected date and estimated time
+          const [hours, minutes] = job.estimatedTime.split(':').map(Number);
+          const scheduledDateTime = new Date(selectedDate);
+          scheduledDateTime.setHours(hours, minutes, 0, 0);
+          
+          // First save the timeslot and scheduled date to the database
+          const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+          const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+          
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({ 
+              [updateField]: job.estimatedTime,
+              [dateField]: scheduledDateTime.toISOString()
+            })
+            .eq('id', job.orderId);
+
+          if (updateError) {
+            console.error(`Error saving timeslot for ${job.contactName}:`, updateError);
+            failureCount++;
+            continue;
+          }
+
+          // Calculate the time minus 3 hours for the timeslot
+          const [timeHours, timeMinutes] = job.estimatedTime.split(':').map(Number);
+          const adjustedTime = new Date();
+          adjustedTime.setHours(timeHours - 3, timeMinutes, 0, 0);
+          const timeslotToSend = adjustedTime.toTimeString().substring(0, 5);
+
+          // Send the WhatsApp message
+          const { error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
+            body: {
+              orderId: job.orderId,
+              recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
+              deliveryTime: timeslotToSend
+            }
+          });
+
+          if (error) {
+            console.error(`Error sending timeslot to ${job.contactName}:`, error);
+            failureCount++;
+          } else {
+            successCount++;
+          }
+
+          // Add 2-minute delay between sends (except for the last one)
+          if (i < jobsToSend.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000)); // 2 minutes
+          }
+
+        } catch (jobError) {
+          console.error(`Error processing job for ${job.contactName}:`, jobError);
+          failureCount++;
+        }
+      }
+
+      // Show summary toast
+      if (successCount > 0 && failureCount === 0) {
+        toast.success(`All ${successCount} timeslots sent successfully!`);
+      } else if (successCount > 0 && failureCount > 0) {
+        toast.success(`${successCount} timeslots sent successfully, ${failureCount} failed`);
+      } else {
+        toast.error(`Failed to send all ${failureCount} timeslots`);
+      }
+
+    } catch (error) {
+      console.error('Error in bulk send:', error);
+      toast.error('Failed to send timeslots');
+    } finally {
+      setIsSendingTimeslots(false);
+    }
+  };
+
   const createTimeslip = async () => {
     if (selectedJobs.length === 0) return;
 
@@ -1403,24 +1502,6 @@ Route Link: ${routeLink}`;
               </div>
               
               <div className="flex gap-2 mt-4">
-                <Button 
-                  onClick={() => addBreak(selectedJobs.length - 1, 'lunch')} 
-                  variant="outline" 
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Coffee className="h-3 w-3" />
-                  Add Lunch Break
-                </Button>
-                <Button 
-                  onClick={() => addBreak(selectedJobs.length - 1, 'stop')} 
-                  variant="outline" 
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Plus className="h-3 w-3" />
-                  Add Stop Break
-                </Button>
                 <Button
                   onClick={createTimeslip}
                   disabled={isSendingTimeslip || selectedJobs.length === 0}
@@ -1430,6 +1511,16 @@ Route Link: ${routeLink}`;
                 >
                   <Send className="h-3 w-3" />
                   {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
+                </Button>
+                <Button
+                  onClick={sendAllTimeslots}
+                  disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Send className="h-3 w-3" />
+                  {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
                 </Button>
               </div>
             </div>
