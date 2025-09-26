@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
+import TimeslotEditDialog from './TimeslotEditDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -232,8 +233,8 @@ const JobItem: React.FC<JobItemProps> = ({
                   <Button
                     key={`${groupedJob.orderId}-${groupedJob.type}`}
                     size="sm"
-                    onClick={() => onSendTimeslot(groupedJob)}
-                    disabled={isSendingTimeslots || !groupedJob.estimatedTime}
+                     onClick={() => onSendTimeslot(groupedJob)}
+                     disabled={isSendingTimeslots || !groupedJob.estimatedTime}
                     className="flex items-center gap-1 text-xs"
                   >
                     <Send className="h-3 w-3" />
@@ -244,8 +245,8 @@ const JobItem: React.FC<JobItemProps> = ({
                 // Single job send button
                 <Button
                   size="sm"
-                  onClick={() => onSendTimeslot(job)}
-                  disabled={isSendingTimeslots || !job.estimatedTime}
+                   onClick={() => onSendTimeslot(job)}
+                   disabled={isSendingTimeslots || !job.estimatedTime}
                   className="flex items-center gap-1"
                 >
                   <Send className="h-3 w-3" />
@@ -314,6 +315,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [startingBikes, setStartingBikes] = useState<number>(0);
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
 
   // Calculate optimal starting bike count based on route
@@ -870,15 +873,22 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }
   };
 
-  const sendTimeslot = async (job: SelectedJob) => {
+  const openTimeslotEditDialog = (job: SelectedJob) => {
     if (!job.estimatedTime) return;
+    setJobToEdit(job);
+    setEditDialogOpen(true);
+  };
+
+  const sendTimeslot = async (job: SelectedJob, customTime?: string) => {
+    const timeToUse = customTime || job.estimatedTime;
+    if (!timeToUse) return;
 
     setIsSendingTimeslots(true);
     try {
-      const deliveryTime = `${job.estimatedTime}:00`;
+      const deliveryTime = `${timeToUse}:00`;
       
       // Create datetime from selected date and estimated time
-      const [hours, minutes] = job.estimatedTime.split(':').map(Number);
+      const [hours, minutes] = timeToUse.split(':').map(Number);
       const scheduledDateTime = new Date(selectedDate);
       scheduledDateTime.setHours(hours, minutes, 0, 0);
       
@@ -1374,8 +1384,8 @@ Route Link: ${routeLink}`;
                   onReorder={reorderJobs}
                   onAddBreak={addBreak}
                   onRemove={removeJob}
-                  onSendTimeslot={sendTimeslot}
-                  onSendGroupedTimeslots={sendGroupedTimeslots}
+                   onSendTimeslot={openTimeslotEditDialog}
+                   onSendGroupedTimeslots={sendGroupedTimeslots}
                   onUpdateCoordinates={updateCoordinates}
                   isSendingTimeslots={isSendingTimeslots}
                   allJobs={selectedJobs}
@@ -1491,6 +1501,17 @@ Route Link: ${routeLink}`;
           )}
         </DialogContent>
       </Dialog>
+
+      <TimeslotEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        job={jobToEdit}
+        onConfirm={(job, editedTime) => {
+          setEditDialogOpen(false);
+          sendTimeslot(job, editedTime);
+        }}
+        isLoading={isSendingTimeslots}
+      />
     </div>
   );
 };
