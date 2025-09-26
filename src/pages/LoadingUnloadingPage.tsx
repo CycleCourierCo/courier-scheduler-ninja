@@ -69,7 +69,18 @@ const LoadingUnloadingPage = () => {
     });
   };
 
+  // Helper to get bikes loaded on a given date
+  const getBikesLoadedOnDate = (date: Date) => {
+    return orders.filter(order => {
+      if (!order.scheduledDeliveryDate || !order.loaded_onto_van) return false;
+      const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      return deliveryDate === targetDate;
+    });
+  };
+
   const bikesForDelivery = selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : [];
+  const bikesLoadedOnDate = selectedLoadingDate ? getBikesLoadedOnDate(selectedLoadingDate) : [];
 
   const fetchData = async () => {
     try {
@@ -664,9 +675,10 @@ const LoadingUnloadingPage = () => {
 
     try {
       const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
+      const loadedBikesForDate = getBikesLoadedOnDate(selectedLoadingDate);
       
-      // Format bikes data for the WhatsApp function
-      const bikesData = bikesForDate.map(order => {
+      // Format unloaded bikes data for the WhatsApp function
+      const bikesNeedingLoadingData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
         // Find the delivery driver assignment
@@ -690,11 +702,31 @@ const LoadingUnloadingPage = () => {
         };
       });
 
+      // Format loaded bikes data for the WhatsApp function  
+      const bikesAlreadyLoadedData = loadedBikesForDate.map(order => {
+        const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+        const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
+
+        return {
+          id: order.id,
+          receiver: {
+            name: order.receiver.name
+          },
+          bikeBrand: order.bikeBrand || '',
+          bikeModel: order.bikeModel || '',
+          trackingNumber: order.trackingNumber || '',
+          bikeQuantity: order.bikeQuantity || 1,
+          driverName: deliveryDriverName,
+          loadedTime: loadedTime
+        };
+      });
+
       // Call the WhatsApp edge function
       const response = await supabase.functions.invoke('send-loading-list-whatsapp', {
         body: {
           date: format(selectedLoadingDate, 'PPP'),
-          bikesNeedingLoading: bikesData
+          bikesNeedingLoading: bikesNeedingLoadingData,
+          bikesAlreadyLoaded: bikesAlreadyLoadedData
         }
       });
 
@@ -823,130 +855,200 @@ const LoadingUnloadingPage = () => {
                       </PopoverContent>
                     </Popover>
                     
-                    {selectedLoadingDate && (
-                      <div className="space-y-4 max-h-96 overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-muted-foreground">
-                            Bikes scheduled for delivery on {format(selectedLoadingDate, "PPP")}:
-                          </div>
-                          {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
-                            <Button
-                              size="sm"
-                              onClick={handleSendLoadingList}
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              disabled={!selectedLoadingDate}
-                            >
-                              📱 Send Loading List
-                            </Button>
-                          )}
-                        </div>
-                        
-                        {getBikesNeedingLoading(selectedLoadingDate).map((order) => {
-                          const quantity = order.bikeQuantity || 1;
-                          // Find storage allocations for this order
-                          const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                          
-                          return (
-                            <Card key={order.id} className="p-3">
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium">
-                                    {order.receiver?.name || 'Unknown Customer'}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {quantity > 1 && (
-                                      <div className="text-xs bg-muted px-2 py-1 rounded">
-                                        {quantity} bikes
-                                      </div>
-                                    )}
-                                    {orderAllocations.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {orderAllocations
-                                          .sort((a, b) => {
-                                            if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
-                                            return a.position - b.position;
-                                          })
-                                          .map((allocation) => (
-                                            <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
-                                              {allocation.bay}{allocation.position}
+                     {selectedLoadingDate && (
+                       <div className="space-y-6 max-h-96 overflow-y-auto">
+                         {/* Header with summary stats */}
+                         <div className="flex items-center justify-between">
+                           <div>
+                             <div className="font-medium">
+                               Loading List for {format(selectedLoadingDate, 'PPP')}
+                             </div>
+                             <div className="text-sm text-muted-foreground mt-1">
+                               {bikesLoadedOnDate.length + getBikesNeedingLoading(selectedLoadingDate).length} bikes scheduled • {bikesLoadedOnDate.length} loaded • {getBikesNeedingLoading(selectedLoadingDate).length} pending
+                             </div>
+                           </div>
+                           {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
+                             <Button 
+                               size="sm" 
+                               variant="outline"
+                               onClick={handleSendLoadingList}
+                             >
+                               📱 Send Loading List
+                             </Button>
+                           )}
+                         </div>
+
+                         {/* Bikes Already Loaded Section */}
+                         {bikesLoadedOnDate.length > 0 && (
+                           <div className="space-y-3">
+                             <div className="flex items-center gap-2">
+                               <div className="h-4 w-4 bg-green-500 rounded-full"></div>
+                               <h3 className="font-medium text-green-700">Bikes Already Loaded ({bikesLoadedOnDate.length})</h3>
+                             </div>
+                             <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
+                               {bikesLoadedOnDate.map((order) => {
+                                 const quantity = order.bikeQuantity || 1;
+                                 const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                                 const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
+                                 
+                                 return (
+                                   <Card key={order.id} className="p-3 bg-white border-green-300">
+                                     <div className="space-y-2">
+                                       <div className="flex items-center justify-between">
+                                         <div className="font-medium text-green-800">
+                                           {order.receiver?.name || 'Unknown Customer'}
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                           {quantity > 1 && (
+                                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                               {quantity} bikes
+                                             </div>
+                                           )}
+                                           <div className="text-xs bg-green-600 text-white px-2 py-1 rounded font-medium">
+                                             Loaded {loadedTime}
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <div className="text-sm text-green-700">
+                                         <div>{order.bikeBrand} {order.bikeModel}</div>
+                                         <div>Tracking: {order.trackingNumber}</div>
+                                         <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
+                                         {deliveryDriverName && (
+                                           <div className="text-green-600 font-medium">On {deliveryDriverName} Van</div>
+                                         )}
+                                       </div>
+                                     </div>
+                                   </Card>
+                                 );
+                               })}
+                             </div>
+                           </div>
+                         )}
+
+                         {/* Bikes Still Need Loading Section */}
+                         <div className="space-y-3">
+                           <div className="flex items-center gap-2">
+                             <div className="h-4 w-4 bg-orange-500 rounded-full"></div>
+                             <h3 className="font-medium text-orange-700">Bikes Still Need Loading ({getBikesNeedingLoading(selectedLoadingDate).length})</h3>
+                           </div>
+                           
+                           {getBikesNeedingLoading(selectedLoadingDate).length > 0 ? (
+                             <div className="space-y-2 bg-orange-50 p-4 rounded-lg border border-orange-200">
+                               {getBikesNeedingLoading(selectedLoadingDate).map((order) => {
+                                 const quantity = order.bikeQuantity || 1;
+                                 // Find storage allocations for this order
+                                 const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+                                 
+                                 return (
+                                   <Card key={order.id} className="p-3 bg-white border-orange-300">
+                                     <div className="space-y-2">
+                                       <div className="flex items-center justify-between">
+                                         <div className="font-medium text-orange-800">
+                                           {order.receiver?.name || 'Unknown Customer'}
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                           {quantity > 1 && (
+                                             <div className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                               {quantity} bikes
+                                             </div>
+                                           )}
+                                           {orderAllocations.length > 0 && (
+                                             <div className="flex flex-wrap gap-1">
+                                               {orderAllocations
+                                                 .sort((a, b) => {
+                                                   if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
+                                                   return a.position - b.position;
+                                                 })
+                                                 .map((allocation) => (
+                                                   <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
+                                                     {allocation.bay}{allocation.position}
+                                                   </div>
+                                                 ))}
+                                             </div>
+                                           )}
+                                         </div>
+                                       </div>
+                                        <div className="text-sm text-orange-700">
+                                          <div>{order.bikeBrand} {order.bikeModel}</div>
+                                          <div>Tracking: {order.trackingNumber}</div>
+                                          <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
+                                          {(() => {
+                                              // Show who needs to load onto van (delivery driver)
+                                              const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                                            
+                                            if (deliveryDriverName) {
+                                              return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
+                                            }
+                                            return null;
+                                          })()}
+                                          {orderAllocations.length === 0 && (
+                                            <div className="text-red-600 font-medium mt-1">
+                                              ⚠️ Not yet allocated to storage
+                                              {(() => {
+                                                // Show driver name if available
+                                                const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                                  (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                                  update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                                );
+                                                const driverName = collectionEvent?.driverName;
+                                                
+                                                if (driverName) {
+                                                  return <div className="text-blue-600 font-medium">In {driverName} Van</div>;
+                                                }
+                                                return null;
+                                              })()}
                                             </div>
-                                          ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                 <div className="text-sm text-muted-foreground">
-                                   <div>{order.bikeBrand} {order.bikeModel}</div>
-                                   <div>Tracking: {order.trackingNumber}</div>
-                                   <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                   {(() => {
-                                       // Show who needs to load onto van (delivery driver)
-                                       const deliveryDriverName = getDriverAssignment(order, 'delivery');
-                                     
-                                     if (deliveryDriverName) {
-                                       return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
-                                     }
-                                     return null;
-                                   })()}
-                                   {orderAllocations.length === 0 && (
-                                     <div className="text-red-600 font-medium mt-1">
-                                       ⚠️ Not yet allocated to storage
-                                       {(() => {
-                                         // Show driver name if available
-                                         const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                           (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                           update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                         );
-                                         const driverName = collectionEvent?.driverName;
-                                         
-                                         if (driverName) {
-                                           return <div className="text-blue-600 font-medium">In {driverName} Van</div>;
-                                         }
-                                         return null;
-                                       })()}
+                                          )}
+                                          {orderAllocations.length > 0 && orderAllocations.length < quantity && (
+                                            <div className="text-orange-600 font-medium mt-1">
+                                              ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
+                                              {(() => {
+                                                // Show driver name if available
+                                                const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                                  (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                                  update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                                );
+                                                const driverName = collectionEvent?.driverName;
+                                                
+                                                if (driverName) {
+                                                  return <div className="text-blue-600 font-medium">Collected by {driverName}</div>;
+                                                }
+                                                return null;
+                                              })()}
+                                            </div>
+                                          )}
+                                       </div>
+                                       <div className="mt-3 pt-3 border-t">
+                                         <Button 
+                                           size="sm" 
+                                           className="w-full"
+                                           onClick={() => handleLoadOntoVan(order.id)}
+                                         >
+                                           Load onto Van
+                                         </Button>
+                                       </div>
                                      </div>
-                                   )}
-                                   {orderAllocations.length > 0 && orderAllocations.length < quantity && (
-                                     <div className="text-orange-600 font-medium mt-1">
-                                       ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
-                                       {(() => {
-                                         // Show driver name if available
-                                         const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                           (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                           update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                         );
-                                         const driverName = collectionEvent?.driverName;
-                                         
-                                         if (driverName) {
-                                           return <div className="text-blue-600 font-medium">Collected by {driverName}</div>;
-                                         }
-                                         return null;
-                                       })()}
-                                     </div>
-                                   )}
-                                </div>
-                                <div className="mt-3 pt-3 border-t">
-                                  <Button 
-                                    size="sm" 
-                                    className="w-full"
-                                    onClick={() => handleLoadOntoVan(order.id)}
-                                  >
-                                    Load onto Van
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          );
-                        })}
-                        
-                        {getBikesNeedingLoading(selectedLoadingDate).length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No bikes scheduled for delivery on this date</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                   </Card>
+                                 );
+                               })}
+                             </div>
+                           ) : (
+                             <div className="text-center py-8 text-muted-foreground bg-orange-50 rounded-lg border border-orange-200">
+                               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                               <p>No bikes need loading for this date</p>
+                             </div>
+                           )}
+                         </div>
+
+                         {/* Empty state when no bikes at all */}
+                         {bikesLoadedOnDate.length === 0 && getBikesNeedingLoading(selectedLoadingDate).length === 0 && (
+                           <div className="text-center py-8 text-muted-foreground">
+                             <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                             <p>No bikes scheduled for delivery on this date</p>
+                           </div>
+                         )}
+                       </div>
+                     )}
                   </div>
                 </DialogContent>
               </Dialog>
