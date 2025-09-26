@@ -1,11 +1,15 @@
 import React, { useState } from "react";
-import { Clock, MessageSquare } from "lucide-react";
+import { Clock, MessageSquare, CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface TimeslotSelectionProps {
   type: "sender" | "receiver";
@@ -16,11 +20,17 @@ interface TimeslotSelectionProps {
 const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, order }) => {
   const existingTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
   const [selectedTime, setSelectedTime] = useState<string>(existingTimeslot || "18:00");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isSending, setIsSending] = useState(false);
 
   const handleSendTimeslot = async () => {
     if (!selectedTime) {
       toast.error("Please select a delivery time");
+      return;
+    }
+
+    if (!selectedDate) {
+      toast.error("Please select a date");
       return;
     }
 
@@ -143,6 +153,35 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
+          <Label htmlFor={`${type}-date`}>
+            Select {type === "sender" ? "collection" : "delivery"} date
+          </Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !selectedDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate || undefined}
+                onSelect={setSelectedDate}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor={`${type}-time`}>
             Latest {type === "sender" ? "collection" : "delivery"} time
           </Label>
@@ -157,7 +196,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         
         <Button 
           onClick={handleSendTimeslot}
-          disabled={isSending || !contact?.phone}
+          disabled={isSending || !contact?.phone || !selectedDate}
           className="w-full"
           size="sm"
         >
