@@ -1110,29 +1110,80 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
     setIsSendingTimeslip(true);
     try {
-      const totalStops = selectedJobs.length;
-      const drivingHours = Math.round((totalStops * 0.25 + 1) * 100) / 100; // Estimate driving time
-      const stopMinutes = totalStops * 10; // 10 minutes per stop
-      const stopHours = Math.round((stopMinutes / 60) * 100) / 100;
+      // Group jobs by location to get unique stops
+      const groupedJobs = groupJobsByLocation(selectedJobs);
+      const routeJobs = groupedJobs.filter(job => job.type !== 'break');
+      
+      // Get unique locations only (one per group)
+      const uniqueLocations: { lat: number; lon: number; address: string }[] = [];
+      const processedGroups = new Set<string>();
+      
+      routeJobs.forEach(job => {
+        if (job.lat && job.lon) {
+          const groupKey = job.locationGroupId || `single-${job.orderId}-${job.type}`;
+          if (!processedGroups.has(groupKey)) {
+            uniqueLocations.push({
+              lat: job.lat,
+              lon: job.lon,
+              address: job.address
+            });
+            processedGroups.add(groupKey);
+          }
+        }
+      });
+      
+      const totalUniqueStops = uniqueLocations.length;
+      
+      // Calculate actual driving time using Geoapify API
+      let drivingMinutes = 0;
+      const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Lawden Road, B10 0AD
+      
+      if (uniqueLocations.length > 0) {
+        try {
+          // Calculate route: Lawden Road -> all unique stops -> back to Lawden Road
+          let currentCoords = baseCoords;
+          
+          for (const location of uniqueLocations) {
+            const travelTime = await calculateTravelTime(currentCoords, { lat: location.lat, lon: location.lon });
+            drivingMinutes += travelTime;
+            currentCoords = { lat: location.lat, lon: location.lon };
+          }
+          
+          // Add return leg to Lawden Road
+          const returnTime = await calculateTravelTime(currentCoords, baseCoords);
+          drivingMinutes += returnTime;
+          
+        } catch (error) {
+          console.error('Error calculating driving time:', error);
+          // Fallback: use 15 minutes per stop + 30 minutes return
+          drivingMinutes = (totalUniqueStops * 15) + 30;
+        }
+      }
+      
+      const drivingHours = Math.round((drivingMinutes / 60) * 100) / 100;
+      
+      // Calculate stop time based on unique stops (what's displayed)
+      const stopMinutes = totalUniqueStops * 10; // 10 minutes per unique stop
+      const stopHours = stopMinutes / 60;
       const lunchHours = 1;
       const totalHours = Math.round((drivingHours + stopHours + lunchHours) * 100) / 100;
       const totalPay = Math.round((totalHours * 11) * 100) / 100;
 
-      // Create Google Maps route link
-      const addresses = selectedJobs.map(job => encodeURIComponent(job.address));
-      let routeLink = `https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${addresses.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
+      // Create Google Maps route link using unique locations only
+      const uniqueAddresses = uniqueLocations.map(loc => encodeURIComponent(loc.address));
+      let routeLink = `https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${uniqueAddresses.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
       
-      // If more than 10 stops, split into 2 routes
-      if (addresses.length > 10) {
-        const firstHalf = addresses.slice(0, 5);
-        const secondHalf = addresses.slice(5);
+      // If more than 10 unique stops, split into 2 routes
+      if (uniqueAddresses.length > 10) {
+        const firstHalf = uniqueAddresses.slice(0, 5);
+        const secondHalf = uniqueAddresses.slice(5);
         routeLink = `Route 1: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${firstHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD
 Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${secondHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
       }
 
       const message = `Driving Total Hours: ${drivingHours}
 
-Stops: ${totalStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
+Stops: ${totalUniqueStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
 
 Lunch: 1h
 
@@ -1151,7 +1202,7 @@ Route Link: ${routeLink}`;
       });
 
       toast.success('Timeslip sent successfully');
-      setSelectedJobs([]); // Clear selection after sending
+      // Route and timeslots remain visible for further use
     } catch (error) {
       console.error('Error creating timeslip:', error);
       toast.error('Failed to create timeslip');
@@ -1359,6 +1410,16 @@ Route Link: ${routeLink}`;
                 >
                   <Plus className="h-3 w-3" />
                   Add Stop Break
+                </Button>
+                <Button
+                  onClick={createTimeslip}
+                  disabled={isSendingTimeslip || selectedJobs.length === 0}
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Send className="h-3 w-3" />
+                  {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
                 </Button>
               </div>
             </div>

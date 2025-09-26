@@ -6,7 +6,6 @@ const corsHeaders = {
 };
 
 interface TimeslipRequest {
-  phoneNumber: string;
   message: string;
 }
 
@@ -17,8 +16,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { phoneNumber, message }: TimeslipRequest = await req.json();
+    const { message }: TimeslipRequest = await req.json();
 
+    // Always send to this specific number for timeslips
+    const phoneNumber = '+441217980767';
+    
     console.log('Sending timeslip to:', phoneNumber);
 
     // Get API credentials from environment
@@ -36,17 +38,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Clean phone number (remove + and non-digits)
+    const cleanPhone = phoneNumber.replace(/[^\d]/g, '');
+
     // Send WhatsApp message via 2Chat API
-    const whatsappResponse = await fetch('https://api.2chat.io/open/whatsapp/send-message', {
+    const whatsappResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-User-API-Key': apiKey,
       },
       body: JSON.stringify({
-        phone_number: phoneNumber,
-        text: message,
-        from_number: fromNumber
+        to_number: `+${cleanPhone}`,
+        from_number: fromNumber,
+        text: message
       }),
     });
 
