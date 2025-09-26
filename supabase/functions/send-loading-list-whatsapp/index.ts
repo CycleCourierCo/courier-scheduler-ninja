@@ -77,9 +77,20 @@ const handler = async (req: Request): Promise<Response> => {
       
       driverBikes.forEach((bike, index) => {
         const bikeNumber = index + 1;
-        const location = bike.isInStorage 
-          ? bike.storageAllocations.map(alloc => `Bay ${alloc.bay}${alloc.position}`).join(', ')
-          : `In ${driverName} van`;
+        
+        // Determine current location of the bike
+        let location = '';
+        if (bike.isInStorage) {
+          // Bike is in storage unit
+          location = bike.storageAllocations.map(alloc => `Bay ${alloc.bay}${alloc.position}`).join(', ');
+        } else {
+          // Bike is not in storage - check if it's with a driver or needs to be collected
+          if (driverName === 'Unassigned Driver') {
+            location = 'Awaiting assignment';
+          } else {
+            location = `With ${driverName}`;
+          }
+        }
         
         message += `${bikeNumber}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
         message += `   📍 Location: ${location}\n`;
