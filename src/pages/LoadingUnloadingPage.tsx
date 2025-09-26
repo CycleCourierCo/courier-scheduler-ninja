@@ -13,10 +13,14 @@ import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Truck, Printer, CalendarIcon, Package } from "lucide-react";
+import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
+import { useAuth } from "@/contexts/AuthContext";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 // Storage allocation type
 export type StorageAllocation = {
@@ -46,6 +50,25 @@ const LoadingUnloadingPage = () => {
   const [selectedLoadingDate, setSelectedLoadingDate] = useState<Date>();
   const [isLoadingDatePickerOpen, setIsLoadingDatePickerOpen] = useState(false);
   const [isLoadingListDialogOpen, setIsLoadingListDialogOpen] = useState(false);
+  const [showDriverPhoneDialog, setShowDriverPhoneDialog] = useState(false);
+  const [driversForLoading, setDriversForLoading] = useState<string[]>([]);
+  const [driverPhoneNumbers, setDriverPhoneNumbers] = useState<Record<string, string>>({});
+  const [showRemoveBikesDialog, setShowRemoveBikesDialog] = useState(false);
+
+  const { user } = useAuth();
+  const isAdmin = user?.user_metadata?.role === 'admin';
+
+  // Helper to get bikes for delivery on a given date
+  const getBikesForDelivery = (date: Date) => {
+    return orders.filter(order => {
+      if (!order.scheduledDeliveryDate) return false;
+      const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      return deliveryDate === targetDate && !order.loaded_onto_van;
+    });
+  };
+
+  const bikesForDelivery = selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : [];
 
   const fetchData = async () => {
     try {
@@ -608,14 +631,42 @@ const LoadingUnloadingPage = () => {
       return;
     }
 
+    const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
+    
+    if (bikesForDate.length === 0) {
+      toast.error("No bikes scheduled for delivery on this date");
+      return;
+    }
+
+    // Group bikes by driver to get unique drivers
+    const driverGroups = bikesForDate.reduce((acc, order) => {
+      const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+      
+      const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
+        (update: any) => update.event === 'ORDER_ASSIGNED' && 
+        update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
+      );
+      const deliveryDriverName = deliveryEvent?.driverName || 'Unassigned Driver';
+
+      if (!acc[deliveryDriverName]) {
+        acc[deliveryDriverName] = [];
+      }
+      acc[deliveryDriverName].push(order);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const uniqueDrivers = Object.keys(driverGroups);
+    setDriversForLoading(uniqueDrivers);
+    setDriverPhoneNumbers({});
+    setShowDriverPhoneDialog(true);
+  };
+
+  const handleSendWithDriverNumbers = async () => {
+    if (!selectedLoadingDate) return;
+
     try {
       const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
       
-      if (bikesForDate.length === 0) {
-        toast.error("No bikes scheduled for delivery on this date");
-        return;
-      }
-
       // Format bikes data for the WhatsApp function
       const bikesData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
@@ -961,6 +1012,52 @@ const LoadingUnloadingPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Remove Bikes Dialog */}
+        <RemoveBikesDialog 
+          open={showRemoveBikesDialog}
+          onOpenChange={setShowRemoveBikesDialog}
+          bikesForDelivery={bikesForDelivery}
+          storageAllocations={storageAllocations}
+          onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
+        />
+
+        {/* Driver Phone Numbers Dialog */}
+        <Dialog open={showDriverPhoneDialog} onOpenChange={setShowDriverPhoneDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Send Loading List</DialogTitle>
+              <DialogDescription>
+                Enter phone numbers for drivers (optional). The management team will always receive the list.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {driversForLoading.map((driver) => (
+                <div key={driver} className="space-y-2">
+                  <Label htmlFor={`phone-${driver}`}>{driver}</Label>
+                  <Input
+                    id={`phone-${driver}`}
+                    type="tel"
+                    placeholder="+44..."
+                    value={driverPhoneNumbers[driver] || ''}
+                    onChange={(e) => setDriverPhoneNumbers(prev => ({
+                      ...prev,
+                      [driver]: e.target.value
+                    }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDriverPhoneDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSendWithDriverNumbers}>
+                Send Loading List
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

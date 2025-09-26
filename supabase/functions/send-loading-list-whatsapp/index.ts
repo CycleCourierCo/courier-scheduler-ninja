@@ -24,6 +24,7 @@ interface LoadingListRequest {
     driverName?: string; // Driver who should load this bike
     isInStorage: boolean;
   }[];
+  driverPhoneNumbers?: Record<string, string>; // Optional driver phone numbers
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -33,10 +34,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { date, bikesNeedingLoading }: LoadingListRequest = await req.json();
+    const { date, bikesNeedingLoading, driverPhoneNumbers = {} }: LoadingListRequest = await req.json();
 
     console.log('Sending loading list for date:', date);
     console.log('Bikes needing loading:', bikesNeedingLoading);
+    console.log('Driver phone numbers:', driverPhoneNumbers);
 
     // Get API credentials from environment
     const apiKey = Deno.env.get('TWOCHAT_API_KEY');
@@ -65,9 +67,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Bikes grouped by driver:', bikesByDriver);
 
-    // Send to management WhatsApp number
-    const phoneNumber = '+441217980767';
-    const cleanPhone = phoneNumber.replace(/[^\d]/g, '');
+    // Management phone number (always gets the list)
+    const managementPhone = '+441217980767';
+    const results = [];
 
     // Create the loading list message
     let message = `🚛 LOADING LIST\n\n📅 Date: ${date}\n\n`;
@@ -108,34 +110,94 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Formatted loading list message:', message);
 
-    // Send WhatsApp message via 2Chat API
-    const whatsappResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
+    // Send to management (always)
+    const managementCleanPhone = managementPhone.replace(/[^\d]/g, '');
+    const managementResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-User-API-Key': apiKey,
       },
       body: JSON.stringify({
-        to_number: `+${cleanPhone}`,
+        to_number: `+${managementCleanPhone}`,
         from_number: fromNumber,
         text: message
       }),
     });
 
-    const whatsappResult = await whatsappResponse.json();
-    console.log('WhatsApp API response:', whatsappResult);
+    const managementResult = await managementResponse.json();
+    console.log('Management WhatsApp response:', managementResult);
+    results.push({ recipient: 'management', phone: managementPhone, result: managementResult });
 
-    if (!whatsappResponse.ok) {
-      throw new Error(`WhatsApp API error: ${JSON.stringify(whatsappResult)}`);
+    if (!managementResponse.ok) {
+      throw new Error(`Management WhatsApp API error: ${JSON.stringify(managementResult)}`);
+    }
+
+    // Send to individual drivers (if phone numbers provided)
+    for (const [driverName, driverBikes] of Object.entries(bikesByDriver)) {
+      const driverPhone = driverPhoneNumbers[driverName];
+      
+      if (driverPhone && driverPhone.trim()) {
+        // Create driver-specific message
+        let driverMessage = `🚛 YOUR LOADING LIST\n\n📅 Date: ${date}\n\n👨‍💼 ${driverName}\n`;
+        
+        driverBikes.forEach((bike, index) => {
+          const bikeNumber = index + 1;
+          
+          let location = '';
+          if (bike.isInStorage) {
+            location = bike.storageAllocations.map(alloc => `Bay ${alloc.bay}${alloc.position}`).join(', ');
+          } else {
+            if (driverName === 'Unassigned Driver') {
+              location = 'Awaiting assignment';
+            } else {
+              location = `With ${driverName}`;
+            }
+          }
+          
+          driverMessage += `${bikeNumber}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
+          driverMessage += `   📍 Location: ${location}\n`;
+          driverMessage += `   📦 Customer: ${bike.receiver.name}\n`;
+          driverMessage += `   🔢 Tracking: ${bike.trackingNumber}\n`;
+          
+          if (bike.bikeQuantity > 1) {
+            driverMessage += `   🚲 Quantity: ${bike.bikeQuantity} bikes\n`;
+          }
+          driverMessage += '\n';
+        });
+
+        const driverCleanPhone = driverPhone.replace(/[^\d]/g, '');
+        const driverResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-API-Key': apiKey,
+          },
+          body: JSON.stringify({
+            to_number: `+${driverCleanPhone}`,
+            from_number: fromNumber,
+            text: driverMessage
+          }),
+        });
+
+        const driverResult = await driverResponse.json();
+        console.log(`Driver ${driverName} WhatsApp response:`, driverResult);
+        results.push({ recipient: driverName, phone: driverPhone, result: driverResult });
+
+        if (!driverResponse.ok) {
+          console.error(`Failed to send to driver ${driverName}:`, driverResult);
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Loading list sent successfully',
-        whatsappResult,
+        results,
         driversCount: Object.keys(bikesByDriver).length,
-        totalBikes: bikesNeedingLoading.length
+        totalBikes: bikesNeedingLoading.length,
+        sentToDrivers: Object.values(driverPhoneNumbers).filter(phone => phone && phone.trim()).length
       }),
       {
         status: 200,
