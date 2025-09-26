@@ -642,10 +642,13 @@ const LoadingUnloadingPage = () => {
     const driverGroups = bikesForDate.reduce((acc, order) => {
       const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
       
-      const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
+      // Find the most recent ORDER_ASSIGNED event with a driverName for this delivery
+      const deliveryEvents = order.trackingEvents?.shipday?.updates?.filter(
         (update: any) => update.event === 'ORDER_ASSIGNED' && 
-        update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
+        update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString() &&
+        update.driverName
       );
+      const deliveryEvent = deliveryEvents?.length > 0 ? deliveryEvents[deliveryEvents.length - 1] : null;
       const deliveryDriverName = deliveryEvent?.driverName || 'Unassigned Driver';
 
       if (!acc[deliveryDriverName]) {
@@ -671,11 +674,13 @@ const LoadingUnloadingPage = () => {
       const bikesData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Find delivery driver name
-        const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
+        // Find the most recent ORDER_ASSIGNED event with a driverName for this delivery
+        const deliveryEvents = order.trackingEvents?.shipday?.updates?.filter(
           (update: any) => update.event === 'ORDER_ASSIGNED' && 
-          update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
+          update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString() &&
+          update.driverName
         );
+        const deliveryEvent = deliveryEvents?.length > 0 ? deliveryEvents[deliveryEvents.length - 1] : null;
         const deliveryDriverName = deliveryEvent?.driverName || 'Unassigned Driver';
 
         return {
@@ -886,12 +891,14 @@ const LoadingUnloadingPage = () => {
                                    <div>Tracking: {order.trackingNumber}</div>
                                    <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
                                    {(() => {
-                                     // Show who needs to load onto van (delivery driver)
-                                     const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
-                                       (update: any) => update.event === 'ORDER_ASSIGNED' && 
-                                       update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
-                                     );
-                                     const deliveryDriverName = deliveryEvent?.driverName;
+                                      // Show who needs to load onto van (delivery driver) - find most recent with driverName
+                                      const deliveryEvents = order.trackingEvents?.shipday?.updates?.filter(
+                                        (update: any) => update.event === 'ORDER_ASSIGNED' && 
+                                        update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString() &&
+                                        update.driverName
+                                      );
+                                      const deliveryEvent = deliveryEvents?.length > 0 ? deliveryEvents[deliveryEvents.length - 1] : null;
+                                      const deliveryDriverName = deliveryEvent?.driverName;
                                      
                                      if (deliveryDriverName) {
                                        return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
