@@ -602,6 +602,70 @@ const LoadingUnloadingPage = () => {
     handleRemoveAllBikesFromOrder(orderId);
   };
 
+  const handleSendLoadingList = async () => {
+    if (!selectedLoadingDate) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    try {
+      const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
+      
+      if (bikesForDate.length === 0) {
+        toast.error("No bikes scheduled for delivery on this date");
+        return;
+      }
+
+      // Format bikes data for the WhatsApp function
+      const bikesData = bikesForDate.map(order => {
+        const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+        
+        // Find delivery driver name
+        const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
+          (update: any) => update.event === 'ORDER_ASSIGNED' && 
+          update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
+        );
+        const deliveryDriverName = deliveryEvent?.driverName || 'Unassigned Driver';
+
+        return {
+          id: order.id,
+          receiver: {
+            name: order.receiver.name
+          },
+          bikeBrand: order.bikeBrand || '',
+          bikeModel: order.bikeModel || '',
+          trackingNumber: order.trackingNumber || '',
+          bikeQuantity: order.bikeQuantity || 1,
+          storageAllocations: orderAllocations.map(alloc => ({
+            bay: alloc.bay,
+            position: alloc.position
+          })),
+          driverName: deliveryDriverName,
+          isInStorage: orderAllocations.length > 0
+        };
+      });
+
+      // Call the WhatsApp edge function
+      const response = await supabase.functions.invoke('send-loading-list-whatsapp', {
+        body: {
+          date: format(selectedLoadingDate, 'PPP'),
+          bikesNeedingLoading: bikesData
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+      toast.success(`Loading list sent successfully! ${result.totalBikes} bikes for ${result.driversCount} driver(s)`);
+      
+    } catch (error) {
+      console.error('Error sending loading list:', error);
+      toast.error('Failed to send loading list');
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -716,8 +780,20 @@ const LoadingUnloadingPage = () => {
                     
                     {selectedLoadingDate && (
                       <div className="space-y-4 max-h-96 overflow-y-auto">
-                        <div className="text-sm text-muted-foreground">
-                          Bikes scheduled for delivery on {format(selectedLoadingDate, "PPP")}:
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-muted-foreground">
+                            Bikes scheduled for delivery on {format(selectedLoadingDate, "PPP")}:
+                          </div>
+                          {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
+                            <Button
+                              size="sm"
+                              onClick={handleSendLoadingList}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              disabled={!selectedLoadingDate}
+                            >
+                              📱 Send Loading List
+                            </Button>
+                          )}
                         </div>
                         
                         {getBikesNeedingLoading(selectedLoadingDate).map((order) => {
