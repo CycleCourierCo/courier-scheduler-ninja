@@ -1164,7 +1164,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       
       // Calculate stop time based on unique stops (what's displayed)
       const stopMinutes = totalUniqueStops * 10; // 10 minutes per unique stop
-      const stopHours = Math.round((stopMinutes / 60) * 100) / 100;
+      const stopHours = stopMinutes / 60;
       const lunchHours = 1;
       const totalHours = Math.round((drivingHours + stopHours + lunchHours) * 100) / 100;
       const totalPay = Math.round((totalHours * 11) * 100) / 100;
