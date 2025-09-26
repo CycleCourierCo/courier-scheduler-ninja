@@ -1017,6 +1017,63 @@ const OrderDetail = () => {
                 </div>
               </div>
 
+              {/* Sender and Receiver Selected Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Sender Availability</h3>
+                  {order.pickupDate && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
+                    <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+                      <p className="font-medium text-blue-900 dark:text-blue-100">
+                        {order.senderConfirmedAt ? 'Confirmed' : 'Selected'} Dates:
+                      </p>
+                      <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                        {order.pickupDate.map((date, index) => (
+                          <div key={index}>
+                            {safeFormat(new Date(date), "PPP")}
+                          </div>
+                        ))}
+                      </div>
+                      {order.senderConfirmedAt && (
+                        <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                          Confirmed on {safeFormat(order.senderConfirmedAt, "PPP 'at' p")}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <p className="text-muted-foreground">No sender availability provided</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Receiver Availability</h3>
+                  {order.deliveryDate && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
+                    <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-md border border-green-200 dark:border-green-800">
+                      <p className="font-medium text-green-900 dark:text-green-100">
+                        {order.receiverConfirmedAt ? 'Confirmed' : 'Selected'} Dates:
+                      </p>
+                      <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                        {order.deliveryDate.map((date, index) => (
+                          <div key={index}>
+                            {safeFormat(new Date(date), "PPP")}
+                          </div>
+                        ))}
+                      </div>
+                      {order.receiverConfirmedAt && (
+                        <p className="text-xs text-green-600 dark:text-green-300 mt-2">
+                          Confirmed on {safeFormat(order.receiverConfirmedAt, "PPP 'at' p")}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <p className="text-muted-foreground">No receiver availability provided</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <SchedulingButtons
                 orderId={id as string}
                 onSchedulePickup={handleSchedulePickup}
