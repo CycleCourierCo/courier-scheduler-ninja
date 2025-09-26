@@ -37,7 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Send WhatsApp message via 2Chat API
-    const whatsappResponse = await fetch('https://api.2chat.io/open/whatsapp/send-message', {
+    const whatsappResponse = await fetch('https://api.2chat.co/open/whatsapp/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

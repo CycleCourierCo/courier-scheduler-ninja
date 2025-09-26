@@ -1360,6 +1360,16 @@ Route Link: ${routeLink}`;
                   <Plus className="h-3 w-3" />
                   Add Stop Break
                 </Button>
+                <Button
+                  onClick={createTimeslip}
+                  disabled={isSendingTimeslip || selectedJobs.length === 0}
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Send className="h-3 w-3" />
+                  {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
+                </Button>
               </div>
             </div>
           </div>
