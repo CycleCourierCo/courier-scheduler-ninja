@@ -1184,7 +1184,7 @@ Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${seco
 
       const message = `Driving Total Hours: ${drivingHours}
 
-Stops: ${totalUniqueStops} unique locations (${totalJobs} total jobs) → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
+Stops: ${totalUniqueStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
 
 Lunch: 1h
 
@@ -1203,7 +1203,7 @@ Route Link: ${routeLink}`;
       });
 
       toast.success('Timeslip sent successfully');
-      setSelectedJobs([]); // Clear selection after sending
+      // Route and timeslots remain visible for further use
     } catch (error) {
       console.error('Error creating timeslip:', error);
       toast.error('Failed to create timeslip');
