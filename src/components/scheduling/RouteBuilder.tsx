@@ -1111,7 +1111,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     setIsSendingTimeslip(true);
     try {
       const totalStops = selectedJobs.length;
-      const drivingHours = Math.round((totalStops * 0.25 + 1) * 100) / 100; // Estimate driving time
+      // Calculate driving time: 15min per stop + 30min for return leg to Lawden Road
+      const drivingHours = Math.round(((totalStops * 0.25) + 0.5) * 100) / 100; // 0.25h per stop + 0.5h return leg
       const stopMinutes = totalStops * 10; // 10 minutes per stop
       const stopHours = Math.round((stopMinutes / 60) * 100) / 100;
       const lunchHours = 1;
