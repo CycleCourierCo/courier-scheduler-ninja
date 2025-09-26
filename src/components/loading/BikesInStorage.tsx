@@ -10,6 +10,7 @@ import { Order } from "@/types/order";
 import { Package, MapPin, Truck, Edit, Clock } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
+import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 
 interface BikesInStorageProps {
   bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
@@ -204,12 +205,8 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     {order?.status || 'Unknown'}
                   </Badge>
                   {(() => {
-                    // Find driver name from tracking events
-                    const collectionEvent = order?.trackingEvents?.shipday?.updates?.find(
-                      (update: any) => update.event === 'ORDER_COMPLETED' && 
-                      update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                    );
-                    const driverName = collectionEvent?.driverName;
+                     // Find driver name from collection completion event
+                     const driverName = getCompletedDriverName(order, 'pickup');
                     
                     if (driverName) {
                       return (

@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 
 // Storage allocation type
 export type StorageAllocation = {
@@ -642,14 +643,8 @@ const LoadingUnloadingPage = () => {
     const driverGroups = bikesForDate.reduce((acc, order) => {
       const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
       
-      // Find the most recent ORDER_ASSIGNED event with a driverName for this delivery
-      const deliveryEvents = order.trackingEvents?.shipday?.updates?.filter(
-        (update: any) => update.event === 'ORDER_ASSIGNED' && 
-        update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString() &&
-        update.driverName
-      );
-      const deliveryEvent = deliveryEvents?.length > 0 ? deliveryEvents[deliveryEvents.length - 1] : null;
-      const deliveryDriverName = deliveryEvent?.driverName || 'Unassigned Driver';
+      // Find the delivery driver assignment
+      const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
 
       if (!acc[deliveryDriverName]) {
         acc[deliveryDriverName] = [];
@@ -674,14 +669,8 @@ const LoadingUnloadingPage = () => {
       const bikesData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Find the most recent ORDER_ASSIGNED event with a driverName for this delivery
-        const deliveryEvents = order.trackingEvents?.shipday?.updates?.filter(
-          (update: any) => update.event === 'ORDER_ASSIGNED' && 
-          update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString() &&
-          update.driverName
-        );
-        const deliveryEvent = deliveryEvents?.length > 0 ? deliveryEvents[deliveryEvents.length - 1] : null;
-        const deliveryDriverName = deliveryEvent?.driverName || 'Unassigned Driver';
+        // Find the delivery driver assignment
+        const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
 
         return {
           id: order.id,
@@ -891,14 +880,8 @@ const LoadingUnloadingPage = () => {
                                    <div>Tracking: {order.trackingNumber}</div>
                                    <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
                                    {(() => {
-                                      // Show who needs to load onto van (delivery driver) - find most recent with driverName
-                                      const deliveryEvents = order.trackingEvents?.shipday?.updates?.filter(
-                                        (update: any) => update.event === 'ORDER_ASSIGNED' && 
-                                        update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString() &&
-                                        update.driverName
-                                      );
-                                      const deliveryEvent = deliveryEvents?.length > 0 ? deliveryEvents[deliveryEvents.length - 1] : null;
-                                      const deliveryDriverName = deliveryEvent?.driverName;
+                                       // Show who needs to load onto van (delivery driver)
+                                       const deliveryDriverName = getDriverAssignment(order, 'delivery');
                                      
                                      if (deliveryDriverName) {
                                        return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
