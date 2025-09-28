@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getValidQuickBooksToken } from '../refresh-quickbooks-token/index.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,20 +65,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
     console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
 
-    // Get stored QuickBooks tokens for the current user
-    const { data: tokenData, error: tokenError } = await supabase
-      .from('quickbooks_tokens')
-      .select('access_token, refresh_token, expires_at, company_id')
-      .eq('user_id', user.id)
-      .single();
+    // Get valid QuickBooks tokens (will auto-refresh if needed)
+    const tokenData = await getValidQuickBooksToken(supabase, user.id);
 
-    if (tokenError || !tokenData) {
-      throw new Error('QuickBooks not connected. Please connect to QuickBooks first.');
-    }
-
-    // Check if token is expired
-    if (new Date(tokenData.expires_at) <= new Date()) {
-      throw new Error('QuickBooks token expired. Please reconnect to QuickBooks.');
+    if (!tokenData) {
+      throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
     }
 
     // First, fetch available tax codes from QuickBooks
