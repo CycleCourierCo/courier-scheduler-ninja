@@ -275,7 +275,7 @@ Route 2: https://www.google.com/maps/dir/?api=1&origin=${baseCoords}&destination
 
 Driving Total Hours: ${drivingHours}
 
-Stops: ${stopHours}h
+Stops: ${uniqueStops.length} -> ${stopHours}h
 
 Lunch: ${lunchHours}h
 
