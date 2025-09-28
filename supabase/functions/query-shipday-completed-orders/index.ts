@@ -69,13 +69,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create request body for Shipday API using correct parameter names
+    // Create request body for Shipday API
+    // Note: startTime/endTime filter by order placement time, not delivery time
+    // So we'll use a wider range and filter by deliveryTime in JavaScript
     const requestBody = {
       orderStatus: "ALREADY_DELIVERED",
-      startTime: `${date}T00:00:00Z`,
-      endTime: `${date}T23:59:59Z`,
+      startTime: "2020-01-01T00:00:00Z", // Use wide range since we'll filter by deliveryTime
+      endTime: "2030-12-31T23:59:59Z",
       startCursor: 1,
-      endCursor: 100
+      endCursor: 1000 // Increase to get more orders
     };
 
     console.log('Shipday API request body:', requestBody);
@@ -118,12 +120,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Parsed Shipday data:', shipdayData);
 
-    // Filter orders by the specific delivery date since startTime/endTime filter by placement time
+    // Filter orders by the specific delivery date 
     const targetDate = date;
     const filteredOrders = shipdayData.filter((order: ShipdayOrder) => {
-      if (!order.deliveryTime) return false;
+      // Check if order has delivery time and was actually delivered
+      if (!order.deliveryTime || order.status !== 'ALREADY_DELIVERED') {
+        return false;
+      }
+      
+      // Check if delivery date matches target date
       const deliveryDate = order.deliveryTime.split('T')[0];
-      return deliveryDate === targetDate && order.status === 'ALREADY_DELIVERED';
+      const isCorrectDate = deliveryDate === targetDate;
+      
+      // Also check if carrier/driver exists
+      const hasDriver = order.carrier && order.carrier.name;
+      
+      console.log(`Order ${order.orderId}: deliveryTime=${order.deliveryTime}, deliveryDate=${deliveryDate}, targetDate=${targetDate}, match=${isCorrectDate}, driver=${order.carrier?.name}, status=${order.status}`);
+      
+      return isCorrectDate && hasDriver;
     });
 
     console.log(`Filtered ${filteredOrders.length} orders for date ${targetDate}`);
