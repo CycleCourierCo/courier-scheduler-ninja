@@ -121,26 +121,51 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Parsed Shipday data:', shipdayData);
 
     // Filter orders by the specific delivery date 
-    const targetDate = date;
+    const targetDate = date; // Format: YYYY-MM-DD
+    console.log(`Filtering orders for target date: ${targetDate}`);
+    console.log(`Total orders returned from Shipday: ${shipdayData.length}`);
+    
     const filteredOrders = shipdayData.filter((order: ShipdayOrder) => {
       // Check if order has delivery time and was actually delivered
-      if (!order.deliveryTime || order.status !== 'ALREADY_DELIVERED') {
+      if (!order.deliveryTime) {
+        console.log(`Order ${order.orderId}: No deliveryTime`);
         return false;
       }
       
-      // Check if delivery date matches target date
-      const deliveryDate = order.deliveryTime.split('T')[0];
+      if (order.status !== 'ALREADY_DELIVERED') {
+        console.log(`Order ${order.orderId}: Status is ${order.status}, not ALREADY_DELIVERED`);
+        return false;
+      }
+      
+      // Extract date from deliveryTime (should be in ISO format like "2025-09-24T14:30:00Z")
+      const deliveryDateTime = new Date(order.deliveryTime);
+      const deliveryDate = deliveryDateTime.toISOString().split('T')[0]; // Get YYYY-MM-DD
       const isCorrectDate = deliveryDate === targetDate;
       
-      // Also check if carrier/driver exists
+      // Check if carrier/driver exists
       const hasDriver = order.carrier && order.carrier.name;
+      const driverName = order.carrier?.name || 'No driver';
       
-      console.log(`Order ${order.orderId}: deliveryTime=${order.deliveryTime}, deliveryDate=${deliveryDate}, targetDate=${targetDate}, match=${isCorrectDate}, driver=${order.carrier?.name}, status=${order.status}`);
+      console.log(`Order ${order.orderId}: deliveryTime=${order.deliveryTime}, extractedDate=${deliveryDate}, targetDate=${targetDate}, dateMatch=${isCorrectDate}, driver=${driverName}, status=${order.status}`);
       
-      return isCorrectDate && hasDriver;
+      if (isCorrectDate && hasDriver) {
+        console.log(`✓ Including order ${order.orderId} for driver ${driverName}`);
+        return true;
+      }
+      
+      return false;
     });
 
     console.log(`Filtered ${filteredOrders.length} orders for date ${targetDate}`);
+    
+    // Log summary by driver
+    const driverSummary: Record<string, number> = {};
+    filteredOrders.forEach((order: ShipdayOrder) => {
+      const driverName = order.carrier.name;
+      if (!driverSummary[driverName]) driverSummary[driverName] = 0;
+      driverSummary[driverName]++;
+    });
+    console.log('Orders per driver:', driverSummary);
 
     // Group orders by driver name
     const driverOrdersMap = new Map<string, ShipdayOrder[]>();
