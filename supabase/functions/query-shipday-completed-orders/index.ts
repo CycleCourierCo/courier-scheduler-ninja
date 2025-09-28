@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(apiKey + ':')}`
+        'Authorization': `Basic ${apiKey}`
       },
       body: JSON.stringify(requestBody),
     });
