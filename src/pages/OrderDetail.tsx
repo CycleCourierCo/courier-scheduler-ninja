@@ -25,6 +25,7 @@ import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -985,7 +986,7 @@ const OrderDetail = () => {
                       </p>
                       {order.pickupTimeslot && (
                         <p className="text-sm text-muted-foreground">
-                          Time: {order.pickupTimeslot}
+                          Time: {formatTimeslotWindow(order.pickupTimeslot)}
                         </p>
                       )}
                     </div>
@@ -1005,7 +1006,7 @@ const OrderDetail = () => {
                       </p>
                       {order.deliveryTimeslot && (
                         <p className="text-sm text-muted-foreground">
-                          Time: {order.deliveryTimeslot}
+                          Time: {formatTimeslotWindow(order.deliveryTimeslot)}
                         </p>
                       )}
                     </div>
