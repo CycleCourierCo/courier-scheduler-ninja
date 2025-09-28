@@ -69,12 +69,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create request body for Shipday API
+    // Create request body for Shipday API using correct parameter names
     const requestBody = {
-      status: "ALREADY_DELIVERED",
-      // Add date filtering if the API supports it
-      deliveredAfter: `${date}T00:00:00Z`,
-      deliveredBefore: `${date}T23:59:59Z`
+      orderStatus: "ALREADY_DELIVERED",
+      startTime: `${date}T00:00:00Z`,
+      endTime: `${date}T23:59:59Z`,
+      startCursor: 1,
+      endCursor: 100
     };
 
     console.log('Shipday API request body:', requestBody);
@@ -117,18 +118,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Parsed Shipday data:', shipdayData);
 
-    // Ensure shipdayData is an array
-    if (!Array.isArray(shipdayData)) {
-      console.log('Shipday response is not an array:', typeof shipdayData);
-      shipdayData = [];
-    }
-
-    // Filter orders by the specific date (in case API doesn't support date filtering perfectly)
+    // Filter orders by the specific delivery date since startTime/endTime filter by placement time
     const targetDate = date;
     const filteredOrders = shipdayData.filter((order: ShipdayOrder) => {
       if (!order.deliveryTime) return false;
       const deliveryDate = order.deliveryTime.split('T')[0];
-      return deliveryDate === targetDate;
+      return deliveryDate === targetDate && order.status === 'ALREADY_DELIVERED';
     });
 
     console.log(`Filtered ${filteredOrders.length} orders for date ${targetDate}`);
