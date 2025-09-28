@@ -1411,16 +1411,6 @@ Route Link: ${routeLink}`;
                 <Clock className="h-4 w-4" />
                 Get Timeslots ({selectedJobs.length} jobs)
               </Button>
-              
-              <Button 
-                onClick={createTimeslip} 
-                variant="outline"
-                disabled={isSendingTimeslip}
-                className="flex items-center gap-2"
-              >
-                <Send className="h-4 w-4" />
-                {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
-              </Button>
             </div>
           )}
         </CardContent>
@@ -1514,16 +1504,6 @@ Route Link: ${routeLink}`;
               </div>
               
               <div className="flex gap-2 mt-4">
-                <Button
-                  onClick={createTimeslip}
-                  disabled={isSendingTimeslip || selectedJobs.length === 0}
-                  variant="default"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Send className="h-3 w-3" />
-                  {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
-                </Button>
                 <Button
                   onClick={sendAllTimeslots}
                   disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
