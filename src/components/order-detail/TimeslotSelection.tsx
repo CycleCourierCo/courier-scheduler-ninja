@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 
 interface TimeslotSelectionProps {
   type: "sender" | "receiver";
@@ -116,14 +117,6 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
     }
   };
 
-  // Format timeslot as 3-hour window
-  const formatTimeslotWindow = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const endHour = Math.min(23, hours + 3);
-    const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    return `${startTime} to ${endTime}`;
-  };
 
   const contact = type === "sender" ? order?.sender : order?.receiver;
   const scheduledDate = type === "sender" ? order?.scheduledPickupDate : order?.scheduledDeliveryDate;

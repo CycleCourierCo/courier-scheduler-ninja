@@ -8,6 +8,7 @@ import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
 import { Package, MapPin } from "lucide-react";
+import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 
 interface PendingStorageAllocationProps {
   collectedBikes: Order[];
@@ -136,12 +137,8 @@ export const PendingStorageAllocation = ({
                       {remainingToAllocate} remaining to allocate
                     </Badge>
                     {(() => {
-                      // Find driver name from tracking events
-                      const collectionEvent = bike.trackingEvents?.shipday?.updates?.find(
-                        (update: any) => update.event === 'ORDER_COMPLETED' && 
-                        update.orderId?.toString() === bike.trackingEvents?.shipday?.pickup_id?.toString()
-                      );
-                      const driverName = collectionEvent?.driverName;
+                       // Find driver name from collection completion event
+                       const driverName = getCompletedDriverName(bike, 'pickup');
                       
                       if (driverName) {
                         return (

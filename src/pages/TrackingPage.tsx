@@ -13,6 +13,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 
 const formSchema = z.object({
   orderId: z.string().min(1, "Order ID is required"),
@@ -200,13 +201,7 @@ const TrackingPage = () => {
                          {order.pickupTimeslot && (
                            <div className="flex items-start text-blue-600 gap-2 min-w-0">
                              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                             <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {(() => {
-                               const [hours, minutes] = order.pickupTimeslot.split(':').map(Number);
-                               const startHour = Math.max(0, hours - 3);
-                               const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                               const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                               return `${startTime} to ${endTime}`;
-                             })()}</span>
+                              <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {formatTimeslotWindow(order.pickupTimeslot)}</span>
                            </div>
                          )}
                        </div>
@@ -239,13 +234,7 @@ const TrackingPage = () => {
                          {order.deliveryTimeslot && (
                            <div className="flex items-start text-green-600 gap-2 min-w-0">
                              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                             <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {(() => {
-                               const [hours, minutes] = order.deliveryTimeslot.split(':').map(Number);
-                               const startHour = Math.max(0, hours - 3);
-                               const startTime = `${startHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                               const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                               return `${startTime} to ${endTime}`;
-                             })()}</span>
+                              <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {formatTimeslotWindow(order.deliveryTimeslot)}</span>
                            </div>
                          )}
                        </div>

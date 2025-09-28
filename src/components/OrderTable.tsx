@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Eye, RefreshCcw, Bike, GripVertical, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import {
   Table,
   TableBody,
@@ -418,7 +419,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                           <span>{formatDate(order.scheduledPickupDate)}</span>
                         </div>
                         {order.pickupTimeslot && (
-                          <span className="text-xs text-muted-foreground ml-5">{order.pickupTimeslot}</span>
+                          <span className="text-xs text-muted-foreground ml-5">{formatTimeslotWindow(order.pickupTimeslot)}</span>
                         )}
                       </div>
                     )}
@@ -429,7 +430,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                           <span>{formatDate(order.scheduledDeliveryDate)}</span>
                         </div>
                         {order.deliveryTimeslot && (
-                          <span className="text-xs text-muted-foreground ml-5">{order.deliveryTimeslot}</span>
+                          <span className="text-xs text-muted-foreground ml-5">{formatTimeslotWindow(order.deliveryTimeslot)}</span>
                         )}
                       </div>
                     )}

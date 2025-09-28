@@ -12,6 +12,7 @@ import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 
 // Enhanced safe format function to better handle invalid dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
@@ -211,6 +212,11 @@ const CustomerOrderDetail = () => {
                           : "Collection completed"}
                       </p>
                     </div>
+                    {order.pickupTimeslot && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Time: {formatTimeslotWindow(order.pickupTimeslot)}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <p>{formatDates(order.pickupDate)}</p>
@@ -228,6 +234,11 @@ const CustomerOrderDetail = () => {
                         {safeFormat(order.scheduledDeliveryDate, "PPP")}
                       </p>
                     </div>
+                    {order.deliveryTimeslot && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Time: {formatTimeslotWindow(order.deliveryTimeslot)}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <p>{formatDates(order.deliveryDate)}</p>

@@ -13,10 +13,15 @@ import { getOrders } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Truck, Printer, CalendarIcon, Package } from "lucide-react";
+import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
+import { useAuth } from "@/contexts/AuthContext";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 
 // Storage allocation type
 export type StorageAllocation = {
@@ -46,6 +51,36 @@ const LoadingUnloadingPage = () => {
   const [selectedLoadingDate, setSelectedLoadingDate] = useState<Date>();
   const [isLoadingDatePickerOpen, setIsLoadingDatePickerOpen] = useState(false);
   const [isLoadingListDialogOpen, setIsLoadingListDialogOpen] = useState(false);
+  const [showDriverPhoneDialog, setShowDriverPhoneDialog] = useState(false);
+  const [driversForLoading, setDriversForLoading] = useState<string[]>([]);
+  const [driverPhoneNumbers, setDriverPhoneNumbers] = useState<Record<string, string>>({});
+  const [showRemoveBikesDialog, setShowRemoveBikesDialog] = useState(false);
+
+  const { user } = useAuth();
+  const isAdmin = user?.user_metadata?.role === 'admin';
+
+  // Helper to get bikes for delivery on a given date
+  const getBikesForDelivery = (date: Date) => {
+    return orders.filter(order => {
+      if (!order.scheduledDeliveryDate) return false;
+      const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      return deliveryDate === targetDate && !order.loaded_onto_van;
+    });
+  };
+
+  // Helper to get bikes loaded on a given date
+  const getBikesLoadedOnDate = (date: Date) => {
+    return orders.filter(order => {
+      if (!order.scheduledDeliveryDate || !order.loaded_onto_van) return false;
+      const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      return deliveryDate === targetDate;
+    });
+  };
+
+  const bikesForDelivery = selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : [];
+  const bikesLoadedOnDate = selectedLoadingDate ? getBikesLoadedOnDate(selectedLoadingDate) : [];
 
   const fetchData = async () => {
     try {
@@ -602,6 +637,112 @@ const LoadingUnloadingPage = () => {
     handleRemoveAllBikesFromOrder(orderId);
   };
 
+  const handleSendLoadingList = async () => {
+    if (!selectedLoadingDate) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
+    
+    if (bikesForDate.length === 0) {
+      toast.error("No bikes scheduled for delivery on this date");
+      return;
+    }
+
+    // Group bikes by driver to get unique drivers
+    const driverGroups = bikesForDate.reduce((acc, order) => {
+      const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+      
+      // Find the delivery driver assignment
+      const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+
+      if (!acc[deliveryDriverName]) {
+        acc[deliveryDriverName] = [];
+      }
+      acc[deliveryDriverName].push(order);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const uniqueDrivers = Object.keys(driverGroups);
+    setDriversForLoading(uniqueDrivers);
+    setDriverPhoneNumbers({});
+    setShowDriverPhoneDialog(true);
+  };
+
+  const handleSendWithDriverNumbers = async () => {
+    if (!selectedLoadingDate) return;
+
+    try {
+      const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
+      const loadedBikesForDate = getBikesLoadedOnDate(selectedLoadingDate);
+      
+      // Format unloaded bikes data for the WhatsApp function
+      const bikesNeedingLoadingData = bikesForDate.map(order => {
+        const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+        
+        // Find the delivery driver assignment
+        const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+
+        return {
+          id: order.id,
+          receiver: {
+            name: order.receiver.name
+          },
+          bikeBrand: order.bikeBrand || '',
+          bikeModel: order.bikeModel || '',
+          trackingNumber: order.trackingNumber || '',
+          bikeQuantity: order.bikeQuantity || 1,
+          storageAllocations: orderAllocations.map(alloc => ({
+            bay: alloc.bay,
+            position: alloc.position
+          })),
+          driverName: deliveryDriverName,
+          isInStorage: orderAllocations.length > 0
+        };
+      });
+
+      // Format loaded bikes data for the WhatsApp function  
+      const bikesAlreadyLoadedData = loadedBikesForDate.map(order => {
+        const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+        const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
+
+        return {
+          id: order.id,
+          receiver: {
+            name: order.receiver.name
+          },
+          bikeBrand: order.bikeBrand || '',
+          bikeModel: order.bikeModel || '',
+          trackingNumber: order.trackingNumber || '',
+          bikeQuantity: order.bikeQuantity || 1,
+          driverName: deliveryDriverName,
+          loadedTime: loadedTime
+        };
+      });
+
+      // Call the WhatsApp edge function
+      const response = await supabase.functions.invoke('send-loading-list-whatsapp', {
+        body: {
+          date: format(selectedLoadingDate, 'PPP'),
+          bikesNeedingLoading: bikesNeedingLoadingData,
+          bikesAlreadyLoaded: bikesAlreadyLoadedData
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+      toast.success(`Loading list sent successfully! ${result.totalBikes} bikes for ${result.driversCount} driver(s)`);
+      
+    } catch (error) {
+      console.error('Error sending loading list:', error);
+      toast.error('Failed to send loading list');
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -714,122 +855,200 @@ const LoadingUnloadingPage = () => {
                       </PopoverContent>
                     </Popover>
                     
-                    {selectedLoadingDate && (
-                      <div className="space-y-4 max-h-96 overflow-y-auto">
-                        <div className="text-sm text-muted-foreground">
-                          Bikes scheduled for delivery on {format(selectedLoadingDate, "PPP")}:
-                        </div>
-                        
-                        {getBikesNeedingLoading(selectedLoadingDate).map((order) => {
-                          const quantity = order.bikeQuantity || 1;
-                          // Find storage allocations for this order
-                          const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                          
-                          return (
-                            <Card key={order.id} className="p-3">
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium">
-                                    {order.receiver?.name || 'Unknown Customer'}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {quantity > 1 && (
-                                      <div className="text-xs bg-muted px-2 py-1 rounded">
-                                        {quantity} bikes
-                                      </div>
-                                    )}
-                                    {orderAllocations.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {orderAllocations
-                                          .sort((a, b) => {
-                                            if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
-                                            return a.position - b.position;
-                                          })
-                                          .map((allocation) => (
-                                            <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
-                                              {allocation.bay}{allocation.position}
+                     {selectedLoadingDate && (
+                       <div className="space-y-6 max-h-96 overflow-y-auto">
+                         {/* Header with summary stats */}
+                         <div className="flex items-center justify-between">
+                           <div>
+                             <div className="font-medium">
+                               Loading List for {format(selectedLoadingDate, 'PPP')}
+                             </div>
+                             <div className="text-sm text-muted-foreground mt-1">
+                               {bikesLoadedOnDate.length + getBikesNeedingLoading(selectedLoadingDate).length} bikes scheduled • {bikesLoadedOnDate.length} loaded • {getBikesNeedingLoading(selectedLoadingDate).length} pending
+                             </div>
+                           </div>
+                           {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
+                             <Button 
+                               size="sm" 
+                               variant="outline"
+                               onClick={handleSendLoadingList}
+                             >
+                               📱 Send Loading List
+                             </Button>
+                           )}
+                         </div>
+
+                         {/* Bikes Already Loaded Section */}
+                         {bikesLoadedOnDate.length > 0 && (
+                           <div className="space-y-3">
+                             <div className="flex items-center gap-2">
+                               <div className="h-4 w-4 bg-green-500 rounded-full"></div>
+                               <h3 className="font-medium text-green-700">Bikes Already Loaded ({bikesLoadedOnDate.length})</h3>
+                             </div>
+                             <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
+                               {bikesLoadedOnDate.map((order) => {
+                                 const quantity = order.bikeQuantity || 1;
+                                 const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                                 const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
+                                 
+                                 return (
+                                   <Card key={order.id} className="p-3 bg-white border-green-300">
+                                     <div className="space-y-2">
+                                       <div className="flex items-center justify-between">
+                                         <div className="font-medium text-green-800">
+                                           {order.receiver?.name || 'Unknown Customer'}
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                           {quantity > 1 && (
+                                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                               {quantity} bikes
+                                             </div>
+                                           )}
+                                           <div className="text-xs bg-green-600 text-white px-2 py-1 rounded font-medium">
+                                             Loaded {loadedTime}
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <div className="text-sm text-green-700">
+                                         <div>{order.bikeBrand} {order.bikeModel}</div>
+                                         <div>Tracking: {order.trackingNumber}</div>
+                                         <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
+                                         {deliveryDriverName && (
+                                           <div className="text-green-600 font-medium">On {deliveryDriverName} Van</div>
+                                         )}
+                                       </div>
+                                     </div>
+                                   </Card>
+                                 );
+                               })}
+                             </div>
+                           </div>
+                         )}
+
+                         {/* Bikes Still Need Loading Section */}
+                         <div className="space-y-3">
+                           <div className="flex items-center gap-2">
+                             <div className="h-4 w-4 bg-orange-500 rounded-full"></div>
+                             <h3 className="font-medium text-orange-700">Bikes Still Need Loading ({getBikesNeedingLoading(selectedLoadingDate).length})</h3>
+                           </div>
+                           
+                           {getBikesNeedingLoading(selectedLoadingDate).length > 0 ? (
+                             <div className="space-y-2 bg-orange-50 p-4 rounded-lg border border-orange-200">
+                               {getBikesNeedingLoading(selectedLoadingDate).map((order) => {
+                                 const quantity = order.bikeQuantity || 1;
+                                 // Find storage allocations for this order
+                                 const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+                                 
+                                 return (
+                                   <Card key={order.id} className="p-3 bg-white border-orange-300">
+                                     <div className="space-y-2">
+                                       <div className="flex items-center justify-between">
+                                         <div className="font-medium text-orange-800">
+                                           {order.receiver?.name || 'Unknown Customer'}
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                           {quantity > 1 && (
+                                             <div className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                               {quantity} bikes
+                                             </div>
+                                           )}
+                                           {orderAllocations.length > 0 && (
+                                             <div className="flex flex-wrap gap-1">
+                                               {orderAllocations
+                                                 .sort((a, b) => {
+                                                   if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
+                                                   return a.position - b.position;
+                                                 })
+                                                 .map((allocation) => (
+                                                   <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
+                                                     {allocation.bay}{allocation.position}
+                                                   </div>
+                                                 ))}
+                                             </div>
+                                           )}
+                                         </div>
+                                       </div>
+                                        <div className="text-sm text-orange-700">
+                                          <div>{order.bikeBrand} {order.bikeModel}</div>
+                                          <div>Tracking: {order.trackingNumber}</div>
+                                          <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
+                                          {(() => {
+                                              // Show who needs to load onto van (delivery driver)
+                                              const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                                            
+                                            if (deliveryDriverName) {
+                                              return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
+                                            }
+                                            return null;
+                                          })()}
+                                          {orderAllocations.length === 0 && (
+                                            <div className="text-red-600 font-medium mt-1">
+                                              ⚠️ Not yet allocated to storage
+                                              {(() => {
+                                                // Show driver name if available
+                                                const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                                  (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                                  update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                                );
+                                                const driverName = collectionEvent?.driverName;
+                                                
+                                                if (driverName) {
+                                                  return <div className="text-blue-600 font-medium">In {driverName} Van</div>;
+                                                }
+                                                return null;
+                                              })()}
                                             </div>
-                                          ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                 <div className="text-sm text-muted-foreground">
-                                   <div>{order.bikeBrand} {order.bikeModel}</div>
-                                   <div>Tracking: {order.trackingNumber}</div>
-                                   <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                   {(() => {
-                                     // Show who needs to load onto van (delivery driver)
-                                     const deliveryEvent = order.trackingEvents?.shipday?.updates?.find(
-                                       (update: any) => update.event === 'ORDER_ASSIGNED' && 
-                                       update.orderId?.toString() === order.trackingEvents?.shipday?.delivery_id?.toString()
-                                     );
-                                     const deliveryDriverName = deliveryEvent?.driverName;
-                                     
-                                     if (deliveryDriverName) {
-                                       return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
-                                     }
-                                     return null;
-                                   })()}
-                                   {orderAllocations.length === 0 && (
-                                     <div className="text-red-600 font-medium mt-1">
-                                       ⚠️ Not yet allocated to storage
-                                       {(() => {
-                                         // Show driver name if available
-                                         const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                           (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                           update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                         );
-                                         const driverName = collectionEvent?.driverName;
-                                         
-                                         if (driverName) {
-                                           return <div className="text-blue-600 font-medium">In {driverName} Van</div>;
-                                         }
-                                         return null;
-                                       })()}
+                                          )}
+                                          {orderAllocations.length > 0 && orderAllocations.length < quantity && (
+                                            <div className="text-orange-600 font-medium mt-1">
+                                              ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
+                                              {(() => {
+                                                // Show driver name if available
+                                                const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                                  (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                                  update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                                );
+                                                const driverName = collectionEvent?.driverName;
+                                                
+                                                if (driverName) {
+                                                  return <div className="text-blue-600 font-medium">Collected by {driverName}</div>;
+                                                }
+                                                return null;
+                                              })()}
+                                            </div>
+                                          )}
+                                       </div>
+                                       <div className="mt-3 pt-3 border-t">
+                                         <Button 
+                                           size="sm" 
+                                           className="w-full"
+                                           onClick={() => handleLoadOntoVan(order.id)}
+                                         >
+                                           Load onto Van
+                                         </Button>
+                                       </div>
                                      </div>
-                                   )}
-                                   {orderAllocations.length > 0 && orderAllocations.length < quantity && (
-                                     <div className="text-orange-600 font-medium mt-1">
-                                       ⚠️ Partially allocated ({orderAllocations.length}/{quantity} bikes)
-                                       {(() => {
-                                         // Show driver name if available
-                                         const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                           (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                           update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                         );
-                                         const driverName = collectionEvent?.driverName;
-                                         
-                                         if (driverName) {
-                                           return <div className="text-blue-600 font-medium">Collected by {driverName}</div>;
-                                         }
-                                         return null;
-                                       })()}
-                                     </div>
-                                   )}
-                                </div>
-                                <div className="mt-3 pt-3 border-t">
-                                  <Button 
-                                    size="sm" 
-                                    className="w-full"
-                                    onClick={() => handleLoadOntoVan(order.id)}
-                                  >
-                                    Load onto Van
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          );
-                        })}
-                        
-                        {getBikesNeedingLoading(selectedLoadingDate).length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No bikes scheduled for delivery on this date</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                   </Card>
+                                 );
+                               })}
+                             </div>
+                           ) : (
+                             <div className="text-center py-8 text-muted-foreground bg-orange-50 rounded-lg border border-orange-200">
+                               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                               <p>No bikes need loading for this date</p>
+                             </div>
+                           )}
+                         </div>
+
+                         {/* Empty state when no bikes at all */}
+                         {bikesLoadedOnDate.length === 0 && getBikesNeedingLoading(selectedLoadingDate).length === 0 && (
+                           <div className="text-center py-8 text-muted-foreground">
+                             <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                             <p>No bikes scheduled for delivery on this date</p>
+                           </div>
+                         )}
+                       </div>
+                     )}
                   </div>
                 </DialogContent>
               </Dialog>
@@ -885,6 +1104,52 @@ const LoadingUnloadingPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Remove Bikes Dialog */}
+        <RemoveBikesDialog 
+          open={showRemoveBikesDialog}
+          onOpenChange={setShowRemoveBikesDialog}
+          bikesForDelivery={bikesForDelivery}
+          storageAllocations={storageAllocations}
+          onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
+        />
+
+        {/* Driver Phone Numbers Dialog */}
+        <Dialog open={showDriverPhoneDialog} onOpenChange={setShowDriverPhoneDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Send Loading List</DialogTitle>
+              <DialogDescription>
+                Enter phone numbers for drivers (optional). The management team will always receive the list.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {driversForLoading.map((driver) => (
+                <div key={driver} className="space-y-2">
+                  <Label htmlFor={`phone-${driver}`}>{driver}</Label>
+                  <Input
+                    id={`phone-${driver}`}
+                    type="tel"
+                    placeholder="+44..."
+                    value={driverPhoneNumbers[driver] || ''}
+                    onChange={(e) => setDriverPhoneNumbers(prev => ({
+                      ...prev,
+                      [driver]: e.target.value
+                    }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDriverPhoneDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSendWithDriverNumbers}>
+                Send Loading List
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

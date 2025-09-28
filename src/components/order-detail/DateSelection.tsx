@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "Not scheduled";
@@ -147,14 +148,6 @@ const DateSelection: React.FC<DateSelectionProps> = ({
     }).join(", ");
   };
 
-  // Format timeslot as 3-hour window
-  const formatTimeslotWindow = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const endHour = Math.min(23, hours + 3);
-    const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    const endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    return `${startTime} to ${endTime}`;
-  };
 
   const showScheduledStyle = !!(scheduledDate || (availableDates && selectedDate));
   
