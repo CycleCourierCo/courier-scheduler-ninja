@@ -24,6 +24,7 @@ import { isPointInPolygon } from "@/components/scheduling/JobMap";
 import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 import PostcodePolygonSearch from "@/components/scheduling/PostcodePolygonSearch";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface OrderData {
   id: string;
@@ -57,6 +58,10 @@ const JobScheduling = () => {
   const [selectedTimeslipDate, setSelectedTimeslipDate] = useState<Date>();
   const [isTimeslipDialogOpen, setIsTimeslipDialogOpen] = useState(false);
   const [isGeneratingTimeslip, setIsGeneratingTimeslip] = useState(false);
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  const [selectedDriver, setSelectedDriver] = useState<string>("");
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  const [showDriverSelection, setShowDriverSelection] = useState(false);
 
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['scheduling-orders'],
@@ -160,74 +165,100 @@ const JobScheduling = () => {
     return dates.map(date => format(new Date(date), 'MMM d, yyyy')).join(", ");
   };
 
-  const generateTimeslipForDate = async (selectedDate: Date) => {
-    setIsGeneratingTimeslip(true);
+  const queryDriversForDate = async (selectedDate: Date) => {
+    setIsLoadingDrivers(true);
     try {
-      // Fetch jobs for the selected date
-      const { data: jobs, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          orders!inner(
-            scheduled_pickup_date,
-            scheduled_delivery_date,
-            sender,
-            receiver,
-            tracking_number,
-            bike_brand,
-            bike_model
-          )
-        `);
+      const targetDate = format(selectedDate, 'yyyy-MM-dd');
+      console.log('Querying drivers for date:', targetDate);
+
+      const { data, error } = await supabase.functions.invoke('query-shipday-completed-orders', {
+        body: { date: targetDate }
+      });
 
       if (error) throw error;
 
-      // Filter jobs for the selected date
-      const targetDate = format(selectedDate, 'yyyy-MM-dd');
-      const filteredJobs = jobs.filter(job => {
-        const order = job.orders;
-        const scheduledPickup = order.scheduled_pickup_date ? format(new Date(order.scheduled_pickup_date), 'yyyy-MM-dd') : null;
-        const scheduledDelivery = order.scheduled_delivery_date ? format(new Date(order.scheduled_delivery_date), 'yyyy-MM-dd') : null;
-        
-        return scheduledPickup === targetDate || scheduledDelivery === targetDate;
-      });
-
-      if (filteredJobs.length === 0) {
-        toast.error("No jobs found for the selected date");
-        return;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to query Shipday orders');
       }
 
-      // Generate unique stops from jobs
-      const stops = new Set<string>();
-      filteredJobs.forEach(job => {
-        if (job.location) {
-          stops.add(job.location);
+      console.log('Available drivers:', data.drivers);
+      setAvailableDrivers(data.drivers);
+      setShowDriverSelection(true);
+
+      if (data.drivers.length === 0) {
+        toast.error("No drivers found with completed orders for the selected date");
+      }
+
+    } catch (error: any) {
+      console.error('Error querying drivers:', error);
+      toast.error(`Failed to get drivers: ${error.message}`);
+    } finally {
+      setIsLoadingDrivers(false);
+    }
+  };
+
+  const generateTimeslipForDriver = async (driverName: string) => {
+    setIsGeneratingTimeslip(true);
+    try {
+      const selectedDriverData = availableDrivers.find(d => d.driverName === driverName);
+      if (!selectedDriverData) {
+        throw new Error('Driver data not found');
+      }
+
+      const orders = selectedDriverData.orders;
+      console.log(`Generating timeslip for ${driverName} with ${orders.length} orders`);
+
+      // Collect all addresses with lat/lng coordinates
+      const stops: Array<{lat: number, lng: number, address: string}> = [];
+      
+      orders.forEach((order: any) => {
+        // Add pickup location
+        if (order.pickup?.lat && order.pickup?.lng) {
+          stops.push({
+            lat: order.pickup.lat,
+            lng: order.pickup.lng,
+            address: order.pickup.formattedAddress || order.pickup.address
+          });
+        }
+        
+        // Add delivery location
+        if (order.delivery?.lat && order.delivery?.lng) {
+          stops.push({
+            lat: order.delivery.lat,
+            lng: order.delivery.lng,
+            address: order.delivery.formattedAddress || order.delivery.address
+          });
         }
       });
 
-      const uniqueStops = Array.from(stops);
-      console.log(`Jobs for ${targetDate}:`, filteredJobs.length, "jobs,", uniqueStops.length, "unique stops");
+      // Remove duplicate locations (same lat/lng)
+      const uniqueStops = stops.filter((stop, index, self) => 
+        index === self.findIndex(s => s.lat === stop.lat && s.lng === stop.lng)
+      );
 
-      // Calculate hours and generate timeslip
-      const totalUniqueStops = uniqueStops.length;
-      const drivingHours = Math.round((totalUniqueStops - 1) * 0.333);
-      const stopMinutes = totalUniqueStops * 7;
-      const stopHours = Math.round(stopMinutes / 60);
-      const lunchHours = drivingHours >= 6 ? 1 : 0;
+      console.log(`Found ${uniqueStops.length} unique stops for driver ${driverName}`);
+
+      // Placeholder hours calculation (as requested)
+      const drivingHours = 6; // Placeholder
+      const stopHours = 2; // Placeholder
+      const lunchHours = 1; // Placeholder
       const totalHours = drivingHours + stopHours + lunchHours;
       const totalPay = totalHours * 11;
 
-      // Generate Google Maps links (split every 10 stops)
+      // Generate Google Maps routes using lat/lng coordinates
       let routeLinks = "";
+      const baseCoords = "52.4868,-1.8908"; // Lawden Road, Birmingham coordinates
+      
       if (uniqueStops.length > 10) {
-        const firstHalf = uniqueStops.slice(0, 10).map(encodeURIComponent);
-        const secondHalf = uniqueStops.slice(10).map(encodeURIComponent);
+        const firstHalf = uniqueStops.slice(0, 10).map(stop => `${stop.lat},${stop.lng}`);
+        const secondHalf = uniqueStops.slice(10).map(stop => `${stop.lat},${stop.lng}`);
         
-        routeLinks = `Route 1: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${firstHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD
+        routeLinks = `Route 1: https://www.google.com/maps/dir/?api=1&origin=${baseCoords}&destination=${baseCoords}&waypoints=${firstHalf.join('|')}&travelmode=driving
 
-Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${secondHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
-      } else {
-        const encodedStops = uniqueStops.map(encodeURIComponent);
-        routeLinks = `Route: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${encodedStops.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
+Route 2: https://www.google.com/maps/dir/?api=1&origin=${baseCoords}&destination=${baseCoords}&waypoints=${secondHalf.join('|')}&travelmode=driving`;
+      } else if (uniqueStops.length > 0) {
+        const waypoints = uniqueStops.map(stop => `${stop.lat},${stop.lng}`).join('|');
+        routeLinks = `Route: https://www.google.com/maps/dir/?api=1&origin=${baseCoords}&destination=${baseCoords}&waypoints=${waypoints}&travelmode=driving`;
       }
 
       // Format the timeslip message
@@ -240,11 +271,11 @@ Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${seco
         });
       };
 
-      const message = `Timeslip - ${formatDate(selectedDate)}
+      const message = `Timeslip - ${driverName} - ${formatDate(selectedTimeslipDate!)}
 
 Driving Total Hours: ${drivingHours}
 
-Stops: ${totalUniqueStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
+Stops: ${uniqueStops.length} → Placeholder calculation
 
 Lunch: ${lunchHours}h
 
@@ -252,7 +283,7 @@ Total Hours: ${totalHours}h
 
 Total Pay: £${totalPay}
 
-Jobs: ${filteredJobs.length}
+Orders Completed: ${orders.length}
 
 ${routeLinks}`;
 
@@ -266,6 +297,9 @@ ${routeLinks}`;
       toast.success("Timeslip sent successfully!");
       setIsTimeslipDialogOpen(false);
       setSelectedTimeslipDate(undefined);
+      setSelectedDriver("");
+      setShowDriverSelection(false);
+      setAvailableDrivers([]);
 
     } catch (error: any) {
       console.error('Error generating timeslip:', error);
@@ -297,51 +331,97 @@ ${routeLinks}`;
                 <DialogTitle>Generate Timeslip</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Select Date</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
+                {!showDriverSelection ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Select Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !selectedTimeslipDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedTimeslipDate ? format(selectedTimeslipDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={selectedTimeslipDate}
+                            onSelect={setSelectedTimeslipDate}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="flex gap-2">
                       <Button
+                        onClick={() => {
+                          setIsTimeslipDialogOpen(false);
+                          setSelectedTimeslipDate(undefined);
+                          setShowDriverSelection(false);
+                          setAvailableDrivers([]);
+                        }}
                         variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !selectedTimeslipDate && "text-muted-foreground"
-                        )}
+                        className="flex-1"
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedTimeslipDate ? format(selectedTimeslipDate, "PPP") : "Pick a date"}
+                        Cancel
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={selectedTimeslipDate}
-                        onSelect={setSelectedTimeslipDate}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setIsTimeslipDialogOpen(false);
-                      setSelectedTimeslipDate(undefined);
-                    }}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => selectedTimeslipDate && generateTimeslipForDate(selectedTimeslipDate)}
-                    disabled={!selectedTimeslipDate || isGeneratingTimeslip}
-                    className="flex-1"
-                  >
-                    {isGeneratingTimeslip ? "Generating..." : "Generate"}
-                  </Button>
-                </div>
+                      <Button
+                        onClick={() => selectedTimeslipDate && queryDriversForDate(selectedTimeslipDate)}
+                        disabled={!selectedTimeslipDate || isLoadingDrivers}
+                        className="flex-1"
+                      >
+                        {isLoadingDrivers ? "Loading..." : "Next"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Select Driver for {selectedTimeslipDate && format(selectedTimeslipDate, "PPP")}
+                      </label>
+                      <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Choose a driver" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableDrivers.map((driver) => (
+                            <SelectItem key={driver.driverName} value={driver.driverName}>
+                              {driver.driverName} ({driver.totalOrders} orders)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          setShowDriverSelection(false);
+                          setSelectedDriver("");
+                          setAvailableDrivers([]);
+                        }}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        onClick={() => selectedDriver && generateTimeslipForDriver(selectedDriver)}
+                        disabled={!selectedDriver || isGeneratingTimeslip}
+                        className="flex-1"
+                      >
+                        {isGeneratingTimeslip ? "Generating..." : "Generate"}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </DialogContent>
           </Dialog>
