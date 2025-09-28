@@ -238,16 +238,16 @@ const JobScheduling = () => {
 
       console.log(`Found ${uniqueStops.length} unique stops for driver ${driverName}`);
 
-      // Placeholder hours calculation (as requested)
-      const drivingHours = 6; // Placeholder
-      const stopHours = 2; // Placeholder
+      // Calculate hours
+      const drivingHours = 6; // Placeholder as requested
+      const stopHours = Math.round((uniqueStops.length * 10 / 60) * 100) / 100; // 10 mins per stop, rounded to 2 decimal places
       const lunchHours = 1; // Placeholder
       const totalHours = drivingHours + stopHours + lunchHours;
       const totalPay = totalHours * 11;
 
       // Generate Google Maps routes using lat/lng coordinates
       let routeLinks = "";
-      const baseCoords = "52.4868,-1.8908"; // Lawden Road, Birmingham coordinates
+      const baseCoords = "52.4707965,-1.8749747"; // Updated Lawden Road coordinates
       
       if (uniqueStops.length > 10) {
         const firstHalf = uniqueStops.slice(0, 10).map(stop => `${stop.lat},${stop.lng}`);
@@ -275,15 +275,13 @@ Route 2: https://www.google.com/maps/dir/?api=1&origin=${baseCoords}&destination
 
 Driving Total Hours: ${drivingHours}
 
-Stops: ${uniqueStops.length} → Placeholder calculation
+Stops: ${stopHours}h
 
 Lunch: ${lunchHours}h
 
 Total Hours: ${totalHours}h
 
 Total Pay: £${totalPay}
-
-Orders Completed: ${orders.length}
 
 ${routeLinks}`;
 
