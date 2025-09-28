@@ -1290,7 +1290,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${secondHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
       }
 
-      const message = `Driving Total Hours: ${drivingHours}
+      // Format the selected date
+      const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-GB', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      const message = `Timeslip - ${formatDate(selectedDate)}
+
+Driving Total Hours: ${drivingHours}
 
 Stops: ${totalUniqueStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
 
