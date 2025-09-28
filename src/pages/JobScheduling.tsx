@@ -208,16 +208,23 @@ const JobScheduling = () => {
       const orders = selectedDriverData.orders;
       console.log(`Generating timeslip for ${driverName} with ${orders.length} orders`);
 
-      // Collect all addresses with lat/lng coordinates
-      const stops: Array<{lat: number, lng: number, address: string}> = [];
+      // Collect all addresses with lat/lng coordinates and delivery times
+      const stops: Array<{lat: number, lng: number, address: string, deliveryTime: string, type: 'pickup' | 'delivery'}> = [];
       
       orders.forEach((order: any) => {
+        // Only process orders for this specific driver
+        if (order.carrier?.name !== driverName) {
+          return;
+        }
+
         // Add pickup location
         if (order.pickup?.lat && order.pickup?.lng) {
           stops.push({
             lat: order.pickup.lat,
             lng: order.pickup.lng,
-            address: order.pickup.formattedAddress || order.pickup.address
+            address: order.pickup.formattedAddress || order.pickup.address,
+            deliveryTime: order.deliveryTime,
+            type: 'pickup'
           });
         }
         
@@ -226,17 +233,22 @@ const JobScheduling = () => {
           stops.push({
             lat: order.delivery.lat,
             lng: order.delivery.lng,
-            address: order.delivery.formattedAddress || order.delivery.address
+            address: order.delivery.formattedAddress || order.delivery.address,
+            deliveryTime: order.deliveryTime,
+            type: 'delivery'
           });
         }
       });
 
-      // Remove duplicate locations (same lat/lng)
+      // Sort stops by delivery time (chronological order)
+      stops.sort((a, b) => new Date(a.deliveryTime).getTime() - new Date(b.deliveryTime).getTime());
+
+      // Remove duplicate locations (same lat/lng) while preserving chronological order
       const uniqueStops = stops.filter((stop, index, self) => 
         index === self.findIndex(s => s.lat === stop.lat && s.lng === stop.lng)
       );
 
-      console.log(`Found ${uniqueStops.length} unique stops for driver ${driverName}`);
+      console.log(`Found ${uniqueStops.length} unique stops for driver ${driverName} (sorted by delivery time)`);
 
       // Calculate hours
       const drivingHours = 6; // Placeholder as requested
