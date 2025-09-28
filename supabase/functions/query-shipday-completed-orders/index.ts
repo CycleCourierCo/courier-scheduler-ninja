@@ -89,11 +89,38 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify(requestBody),
     });
 
-    const shipdayData = await shipdayResponse.json();
-    console.log('Shipday API response:', shipdayData);
+    console.log('Shipday API response status:', shipdayResponse.status);
+    console.log('Shipday API response headers:', Object.fromEntries(shipdayResponse.headers.entries()));
 
     if (!shipdayResponse.ok) {
-      throw new Error(`Shipday API error: ${JSON.stringify(shipdayData)}`);
+      const errorText = await shipdayResponse.text();
+      console.error('Shipday API error response:', errorText);
+      throw new Error(`Shipday API error (${shipdayResponse.status}): ${errorText}`);
+    }
+
+    // Check if response has content before parsing
+    const responseText = await shipdayResponse.text();
+    console.log('Shipday API response text:', responseText);
+    
+    let shipdayData;
+    if (!responseText || responseText.trim() === '') {
+      console.log('Empty response from Shipday API');
+      shipdayData = [];
+    } else {
+      try {
+        shipdayData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse Shipday response as JSON:', parseError);
+        throw new Error(`Invalid JSON response from Shipday: ${responseText}`);
+      }
+    }
+
+    console.log('Parsed Shipday data:', shipdayData);
+
+    // Ensure shipdayData is an array
+    if (!Array.isArray(shipdayData)) {
+      console.log('Shipday response is not an array:', typeof shipdayData);
+      shipdayData = [];
     }
 
     // Filter orders by the specific date (in case API doesn't support date filtering perfectly)
