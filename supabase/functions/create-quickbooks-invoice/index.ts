@@ -24,6 +24,135 @@ interface InvoiceRequest {
   }>;
 }
 
+async function refreshQuickBooksToken(
+  supabase: any, 
+  userId: string, 
+  refreshToken: string
+): Promise<{ access_token: string; expires_at: string } | null> {
+  try {
+    const clientId = Deno.env.get('QUICKBOOKS_CLIENT_ID');
+    const clientSecret = Deno.env.get('QUICKBOOKS_CLIENT_SECRET');
+    
+    if (!clientId || !clientSecret) {
+      console.error('QuickBooks credentials not configured');
+      return null;
+    }
+
+    const tokenUrl = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
+    
+    const tokenParams = new URLSearchParams({
+      'grant_type': 'refresh_token',
+      'refresh_token': refreshToken
+    });
+
+    const credentials = btoa(`${clientId}:${clientSecret}`);
+    
+    const tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${credentials}`,
+        'Accept': 'application/json'
+      },
+      body: tokenParams.toString()
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Token refresh failed:', errorText);
+      return null;
+    }
+
+    const tokenData = await tokenResponse.json();
+    
+    // Update tokens in database
+    const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+    
+    const { error: updateError } = await supabase
+      .from('quickbooks_tokens')
+      .update({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token || refreshToken,
+        expires_at: newExpiresAt,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      console.error('Error updating tokens:', updateError);
+      return null;
+    }
+
+    console.log('QuickBooks token refreshed successfully for user:', userId);
+    
+    return {
+      access_token: tokenData.access_token,
+      expires_at: newExpiresAt
+    };
+
+  } catch (error) {
+    console.error('Error refreshing QuickBooks token:', error);
+    return null;
+  }
+}
+
+async function getValidQuickBooksToken(
+  supabase: any, 
+  userId: string
+): Promise<{ access_token: string; company_id: string; expires_at: string } | null> {
+  try {
+    // Get current tokens
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('quickbooks_tokens')
+      .select('access_token, refresh_token, expires_at, company_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (tokenError || !tokenData) {
+      console.error('No QuickBooks tokens found for user:', userId);
+      return null;
+    }
+
+    // Check if token is expired (with 5 minute buffer)
+    const expiresAt = new Date(tokenData.expires_at);
+    const now = new Date();
+    const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    if (expiresAt.getTime() - now.getTime() < bufferTime) {
+      console.log('Token expired or expiring soon, attempting refresh...');
+      
+      // Try to refresh the token
+      const refreshResult = await refreshQuickBooksToken(
+        supabase, 
+        userId, 
+        tokenData.refresh_token
+      );
+      
+      if (refreshResult) {
+        return {
+          access_token: refreshResult.access_token,
+          company_id: tokenData.company_id,
+          expires_at: refreshResult.expires_at
+        };
+      } else {
+        console.error('Failed to refresh token');
+        return null;
+      }
+    }
+
+    // Token is still valid
+    return {
+      access_token: tokenData.access_token,
+      company_id: tokenData.company_id,
+      expires_at: tokenData.expires_at
+    };
+
+  } catch (error) {
+    console.error('Error getting valid QuickBooks token:', error);
+    return null;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -64,20 +193,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
     console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
 
-    // Get stored QuickBooks tokens for the current user
-    const { data: tokenData, error: tokenError } = await supabase
-      .from('quickbooks_tokens')
-      .select('access_token, refresh_token, expires_at, company_id')
-      .eq('user_id', user.id)
-      .single();
+    // Get valid QuickBooks tokens (will auto-refresh if needed)
+    const tokenData = await getValidQuickBooksToken(supabase, user.id);
 
-    if (tokenError || !tokenData) {
-      throw new Error('QuickBooks not connected. Please connect to QuickBooks first.');
-    }
-
-    // Check if token is expired
-    if (new Date(tokenData.expires_at) <= new Date()) {
-      throw new Error('QuickBooks token expired. Please reconnect to QuickBooks.');
+    if (!tokenData) {
+      throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
     }
 
     // First, fetch available tax codes from QuickBooks

@@ -1290,7 +1290,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${secondHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
       }
 
-      const message = `Driving Total Hours: ${drivingHours}
+      // Format the selected date
+      const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-GB', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      const message = `Timeslip - ${formatDate(selectedDate)}
+
+Driving Total Hours: ${drivingHours}
 
 Stops: ${totalUniqueStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
 
@@ -1399,16 +1411,6 @@ Route Link: ${routeLink}`;
                 <Clock className="h-4 w-4" />
                 Get Timeslots ({selectedJobs.length} jobs)
               </Button>
-              
-              <Button 
-                onClick={createTimeslip} 
-                variant="outline"
-                disabled={isSendingTimeslip}
-                className="flex items-center gap-2"
-              >
-                <Send className="h-4 w-4" />
-                {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
-              </Button>
             </div>
           )}
         </CardContent>
@@ -1502,16 +1504,6 @@ Route Link: ${routeLink}`;
               </div>
               
               <div className="flex gap-2 mt-4">
-                <Button
-                  onClick={createTimeslip}
-                  disabled={isSendingTimeslip || selectedJobs.length === 0}
-                  variant="default"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Send className="h-3 w-3" />
-                  {isSendingTimeslip ? 'Sending...' : 'Create Timeslip'}
-                </Button>
                 <Button
                   onClick={sendAllTimeslots}
                   disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
