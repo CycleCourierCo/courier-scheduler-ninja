@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -73,6 +73,10 @@ const Layout: React.FC<LayoutProps> = ({
                         Your Profile
                       </Link>
                       {isAdmin && <>
+                          <Link to="/users" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Users className="mr-2 h-4 w-4" />
+                            User Management
+                          </Link>
                           <Link to="/loading" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Package className="mr-2 h-4 w-4" />
                             Loading & Storage
@@ -140,6 +144,12 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/users" className="cursor-pointer flex w-full items-center">
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>User Management</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/loading" className="cursor-pointer flex w-full items-center">
                           <Package className="mr-2 h-4 w-4" />

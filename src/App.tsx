@@ -28,6 +28,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
 import ApiDocumentationPage from "./pages/ApiDocumentationPage";
 import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
+import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
 
@@ -77,12 +78,12 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/scheduling" element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute>
                 <JobScheduling />
               </ProtectedRoute>
             } />
             <Route path="/account-approvals" element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute>
                 <AccountApprovals />
               </ProtectedRoute>
             } />
@@ -91,8 +92,13 @@ function App() {
                 <ApiKeysPage />
               </ProtectedRoute>
             } />
-            <Route path="/invoices" element={
+            <Route path="/users" element={
               <ProtectedRoute adminOnly={true}>
+                <UserManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/invoices" element={
+              <ProtectedRoute>
                 <InvoicesPage />
               </ProtectedRoute>
             } />

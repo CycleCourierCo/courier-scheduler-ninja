@@ -75,12 +75,12 @@ const Dashboard: React.FC = () => {
       console.log("Dashboard: Fetched", data.length, "orders from getOrders()");
       
       let newOrders: Order[];
-      // Only show all orders if the user is specifically an "admin"
-      if (userRole === "admin") {
-        console.log("Dashboard: User is admin, showing all orders");
+      // Show all orders for admin and route_planner, only own orders for others
+      if (userRole === "admin" || userRole === "route_planner") {
+        console.log("Dashboard: User has access to all orders, showing all");
         newOrders = data;
       } else {
-        console.log("Dashboard: User is not admin, filtering orders");
+        console.log("Dashboard: User filtering to own orders");
         const filteredOrders = data.filter(order => order.user_id === user.id);
         console.log("Dashboard: Filtered to", filteredOrders.length, "orders");
         newOrders = filteredOrders;

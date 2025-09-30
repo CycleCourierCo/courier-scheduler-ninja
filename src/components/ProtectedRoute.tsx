@@ -69,12 +69,32 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 5. Block B2C users from admin-only pages
+  // 5. Route planner role restrictions - only allow scheduling and dashboard
+  const isSchedulingPage = location.pathname === '/scheduling';
+  const isDashboardPage = location.pathname === '/dashboard';
+  if (userProfile?.role === 'route_planner') {
+    if (!isSchedulingPage && !isDashboardPage) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  // 6. Sales role restrictions - only allow approvals, invoices, and dashboard
+  const isApprovalsPage = location.pathname === '/account-approvals';
+  const isInvoicesPage = location.pathname === '/invoices';
+  if (userProfile?.role === 'sales') {
+    if (!isApprovalsPage && !isInvoicesPage && !isDashboardPage) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  // 7. Block B2C users from admin-only pages
   if (noB2CAccess && userProfile?.role === 'b2c_customer') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 6. Admin-only route protection
+  // 8. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
