@@ -4,7 +4,7 @@ export interface UserProfile {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: 'admin' | 'b2b_customer' | 'b2c_customer';
+  role: 'admin' | 'b2b_customer' | 'b2c_customer' | 'loader';
   is_business: boolean | null;
   company_name: string | null;
   website: string | null;

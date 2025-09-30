@@ -97,7 +97,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/loading" element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute>
                 <LoadingUnloadingPage />
               </ProtectedRoute>
             } />

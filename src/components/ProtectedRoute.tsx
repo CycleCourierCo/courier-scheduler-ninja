@@ -25,6 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Check if the current path is a public page that skips authentication
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
   const isReceiverAvailabilityPage = location.pathname.includes('/receiver-availability/');
+  const isLoadingPage = location.pathname === '/loading';
   
 
   // Set initialLoadComplete after the first profile load
@@ -59,12 +60,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/auth" replace />;
   }
 
-  // 4. Block B2C users from admin-only pages
+  // 4. Loader role restrictions - only allow access to loading page
+  if (userProfile?.role === 'loader') {
+    if (!isLoadingPage) {
+      return <Navigate to="/loading" replace />;
+    }
+    // If they're on the loading page, allow access
+    return <>{children}</>;
+  }
+
+  // 5. Block B2C users from admin-only pages
   if (noB2CAccess && userProfile?.role === 'b2c_customer') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 5. Admin-only route protection
+  // 6. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }

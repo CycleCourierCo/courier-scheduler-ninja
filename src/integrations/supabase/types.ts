@@ -616,7 +616,7 @@ export type Database = {
         | "driver_to_delivery"
         | "collection_scheduled"
         | "delivery_scheduled"
-      user_role: "admin" | "b2b_customer" | "b2c_customer"
+      user_role: "admin" | "b2b_customer" | "b2c_customer" | "loader"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -763,7 +763,7 @@ export const Constants = {
         "collection_scheduled",
         "delivery_scheduled",
       ],
-      user_role: ["admin", "b2b_customer", "b2c_customer"],
+      user_role: ["admin", "b2b_customer", "b2c_customer", "loader"],
     },
   },
 } as const
