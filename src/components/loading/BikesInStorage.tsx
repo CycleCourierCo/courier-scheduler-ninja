@@ -10,7 +10,7 @@ import { Order } from "@/types/order";
 import { Package, MapPin, Truck, Edit, Clock } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
-import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
+import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
 
 interface BikesInStorageProps {
   bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
@@ -206,16 +206,24 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   </Badge>
                   {(() => {
                      // Find driver name from collection completion event
-                     const driverName = getCompletedDriverName(order, 'pickup');
+                     const collectionDriverName = getCompletedDriverName(order, 'pickup');
+                     // Find driver name for delivery assignment  
+                     const deliveryDriverName = getDriverAssignment(order, 'delivery');
                     
-                    if (driverName) {
-                      return (
-                        <Badge variant="default" className="text-xs bg-blue-600 text-white">
-                          Collected by {driverName}
-                        </Badge>
-                      );
-                    }
-                    return null;
+                    return (
+                      <div className="flex flex-wrap gap-1">
+                        {collectionDriverName && (
+                          <Badge variant="default" className="text-xs bg-blue-600 text-white">
+                            Collected by {collectionDriverName}
+                          </Badge>
+                        )}
+                        {deliveryDriverName && (
+                          <Badge variant="default" className="text-xs bg-orange-600 text-white">
+                            Load onto {deliveryDriverName} van
+                          </Badge>
+                        )}
+                      </div>
+                    );
                   })()}
                 </div>
               </div>
