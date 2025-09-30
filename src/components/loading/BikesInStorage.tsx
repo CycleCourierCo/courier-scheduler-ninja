@@ -166,10 +166,10 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
         const daysInStorage = differenceInDays(new Date(), allocations[0].allocatedAt);
         
         return (
-          <Card key={orderId} className="p-3">
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          <Card key={orderId} className="p-2 sm:p-3">
+            <CardContent className="space-y-3 p-0">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 flex-wrap">
                   {isMultiBike ? (
                     <div className="flex flex-wrap gap-1">
                       {allocations.map((allocation) => (
@@ -179,14 +179,14 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                       ))}
                     </div>
                   ) : (
-                    <Badge variant="secondary" className="font-mono">
+                    <Badge variant="secondary" className="font-mono text-xs">
                       {allocations[0].bay}{allocations[0].position}
                     </Badge>
                   )}
                   <h4 className="font-medium text-sm">{allocations[0].customerName}</h4>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge 
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Badge
                     variant={daysInStorage > 7 ? "destructive" : daysInStorage > 3 ? "default" : "secondary"}
                     className="text-xs flex items-center gap-1"
                   >
@@ -246,15 +246,20 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                 <p className="text-xs mt-1">
                   Stored: {format(allocations[0].allocatedAt, 'MMM dd, yyyy HH:mm')}
                 </p>
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-col sm:flex-row gap-2 mt-3">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => openEditDialog(allocations[0])}
-                    className="h-7 text-xs flex-1"
+                    className="h-9 text-xs flex-1 min-h-[44px]"
                   >
-                    <Edit className="h-3 w-3 mr-1" />
-                    {isMultiBike ? 'Manage Locations' : 'Change Location'}
+                    <Edit className="h-3 w-3 sm:mr-1" />
+                    <span className="hidden sm:inline ml-1">
+                      {isMultiBike ? 'Manage Locations' : 'Change Location'}
+                    </span>
+                    <span className="sm:hidden ml-1">
+                      {isMultiBike ? 'Manage' : 'Change'}
+                    </span>
                   </Button>
                   <Button
                     size="sm"
@@ -267,10 +272,15 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                         onRemoveFromStorage(allocations[0].id);
                       }
                     }}
-                    className="h-7 text-xs flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    className="h-9 text-xs flex-1 min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Truck className="h-3 w-3 mr-1" />
-                    {isMultiBike ? `Load All ${allocations.length} onto Van` : 'Load onto Van'}
+                    <Truck className="h-3 w-3 sm:mr-1" />
+                    <span className="hidden sm:inline ml-1">
+                      {isMultiBike ? `Load All ${allocations.length}` : 'Load onto Van'}
+                    </span>
+                    <span className="sm:hidden ml-1">
+                      Load {isMultiBike ? `All ${allocations.length}` : ''}
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -288,7 +298,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
           setNewPositions([]);
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingOrderAllocations.length > 1 ? 'Manage Storage Locations' : 'Change Storage Location'}
@@ -385,8 +395,8 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                 )}
               </div>
             )}
-            <div className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setEditingAllocation(null)} className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setEditingAllocation(null)} className="flex-1 min-h-[44px]">
                 Cancel
               </Button>
               <Button 
@@ -396,12 +406,20 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     ? newBays.some(b => !b) || newPositions.some(p => !p)
                     : !newBays[0] || !newPositions[0]
                 }
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 min-h-[44px] bg-blue-600 hover:bg-blue-700"
               >
-                {editingOrderAllocations.length > 1 
-                  ? `Update All ${editingOrderAllocations.length} Locations` 
-                  : 'Update Location'
-                }
+                <span className="hidden sm:inline">
+                  {editingOrderAllocations.length > 1 
+                    ? `Update All ${editingOrderAllocations.length} Locations` 
+                    : 'Update Location'
+                  }
+                </span>
+                <span className="sm:hidden">
+                  {editingOrderAllocations.length > 1 
+                    ? `Update All ${editingOrderAllocations.length}` 
+                    : 'Update'
+                  }
+                </span>
               </Button>
             </div>
           </div>

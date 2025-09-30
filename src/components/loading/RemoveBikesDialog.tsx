@@ -72,10 +72,10 @@ export const RemoveBikesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Truck className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
             Remove Bikes from Storage
           </DialogTitle>
         </DialogHeader>
@@ -116,14 +116,14 @@ export const RemoveBikesDialog = ({
 
                   return (
                     <Card key={bike.id} className={`transition-colors ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start gap-2 sm:gap-3">
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={(checked) => 
                               handleSelectOrder(bike.id, checked as boolean)
                             }
-                            className="mt-1"
+                            className="mt-1 min-w-[20px] min-h-[20px]"
                           />
                           
                           <div className="flex-1 space-y-2">
@@ -159,13 +159,14 @@ export const RemoveBikesDialog = ({
                 })}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-4 border-t">
+                <Button variant="outline" onClick={() => onOpenChange(false)} className="min-h-[44px]">
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleLoadOntoVan}
                   disabled={selectedOrders.length === 0}
+                  className="min-h-[44px]"
                 >
                   Load {selectedOrders.length} Bike(s) onto Van
                 </Button>

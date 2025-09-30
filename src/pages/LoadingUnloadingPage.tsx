@@ -1057,23 +1057,23 @@ const LoadingUnloadingPage = () => {
         </div>
 
         {/* Storage Unit Layout */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Storage Unit Layout</CardTitle>
+        <Card className="mb-6 sm:mb-8">
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl">Storage Unit Layout</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6">
             <StorageUnitLayout 
               storageAllocations={storageAllocations}
             />
           </CardContent>
         </Card>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-8">
           {/* Bikes Pending Storage Allocation */}
           <Card>
-            <CardHeader>
-              <CardTitle>Bikes Pending Storage Allocation</CardTitle>
-              <p className="text-sm text-muted-foreground">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg sm:text-xl">Bikes Pending Storage Allocation</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {collectedBikes.length} bike(s) collected and awaiting storage allocation
               </p>
             </CardHeader>
@@ -1088,9 +1088,9 @@ const LoadingUnloadingPage = () => {
 
           {/* Bikes in Storage */}
           <Card>
-            <CardHeader>
-              <CardTitle>Bikes in Storage</CardTitle>
-              <p className="text-sm text-muted-foreground">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg sm:text-xl">Bikes in Storage</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {bikesInStorage.length} bike(s) currently in storage
               </p>
             </CardHeader>
