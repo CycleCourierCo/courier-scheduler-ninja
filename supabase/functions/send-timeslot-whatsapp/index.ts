@@ -12,6 +12,7 @@ interface TimeslotRequest {
   recipientType: 'sender' | 'receiver';
   deliveryTime: string;
   customMessage?: string; // Optional custom message for grouped locations
+  relatedOrderIds?: string[]; // Optional array of related order IDs for consolidated messages
 }
 
 const serve_handler = async (req: Request): Promise<Response> => {
@@ -21,9 +22,12 @@ const serve_handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { orderId, recipientType, deliveryTime, customMessage }: TimeslotRequest = await req.json();
+    const { orderId, recipientType, deliveryTime, customMessage, relatedOrderIds }: TimeslotRequest = await req.json();
 
     console.log(`Processing timeslot request for order ${orderId}, type: ${recipientType}, time: ${deliveryTime}`);
+    if (relatedOrderIds && relatedOrderIds.length > 0) {
+      console.log(`Also processing ${relatedOrderIds.length} related orders for consolidated message`);
+    }
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -174,110 +178,128 @@ Cycle Courier Co.`;
       });
     }
 
-    // Update Shipday order with delivery time if shipdayId exists
+    // Update Shipday order with delivery time - handle both primary and related orders
     let shipdayResponse = null;
-    const shipdayId = recipientType === 'sender' ? order.shipday_pickup_id : order.shipday_delivery_id;
-    if (shipdayId) {
-      console.log(`Updating Shipday order ${shipdayId} with delivery time...`);
-
-      const shipdayApiKey = Deno.env.get('SHIPDAY_API_KEY');
-      if (!shipdayApiKey) {
-        console.log('Shipday API key not found - skipping Shipday update');
-      } else {
-        try {
-          // Use the correct Shipday API endpoint and match the create-shipday-order schema
-          const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
-          console.log('Shipday URL:', shipdayUrl);
-          
-          // Convert user's local time to UTC for Shipday
-          // Use the END time of the timeslot (estimated arrival + 3 hours)
-          const endHour = Math.min(23, deliveryHour + 3);
-          // Assuming UK timezone (UTC+0 in winter, UTC+1 in summer)
-          const ukTimezoneOffset = new Date().getTimezoneOffset() === 0 ? 1 : 0; // 1 hour ahead if server is UTC
-          const adjustedHour = endHour - ukTimezoneOffset;
-          const adjustedEndTime = `${adjustedHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
-          
-          const expectedDeliveryTime = adjustedEndTime.includes(':') && adjustedEndTime.split(':').length === 2 
-            ? `${adjustedEndTime}:00` 
-            : adjustedEndTime;
-          
-          console.log(`User selected time: ${deliveryTime}`);
-          console.log(`Server timezone offset: ${new Date().getTimezoneOffset()} minutes`);
-          console.log(`UK timezone adjustment: -${ukTimezoneOffset} hours`);
-          console.log(`Adjusted time for Shipday: ${expectedDeliveryTime}`);
-          console.log(`Scheduled date: ${scheduledDate}`);
-          
-          // Use the same comprehensive schema as create-shipday-order function
-          // Build comprehensive delivery instructions with all order details
-          const bikeInfo = order.bike_brand && order.bike_model 
-            ? `Bike: ${order.bike_brand} ${order.bike_model}` 
-            : order.bike_brand 
-              ? `Bike: ${order.bike_brand}` 
-              : order.bike_model 
-                ? `Bike: ${order.bike_model}` 
-                : '';
-
-          const orderDetails = [];
-          if (bikeInfo) orderDetails.push(bikeInfo);
-          if (order.customer_order_number) orderDetails.push(`Order #: ${order.customer_order_number}`);
-          if (order.collection_code) orderDetails.push(`eBay Code: ${order.collection_code}`);
-          if (order.needs_payment_on_collection) orderDetails.push('Payment required on collection');
-          if (order.is_ebay_order) orderDetails.push('eBay Order');
-          if (order.is_bike_swap) orderDetails.push('Bike Swap');
-          
-          const baseDeliveryInstructions = order.delivery_instructions || '';
-          const contextNotes = recipientType === 'sender' ? order.sender_notes : order.receiver_notes;
-          
-          const allInstructions = [
-            ...orderDetails,
-            baseDeliveryInstructions,
-            contextNotes
-          ].filter(Boolean).join(' | ');
-
-          const requestBody = {
-            orderNumber: order.tracking_number || `${orderId.substring(0, 8)}-UPDATE`,
-            customerName: recipientType === 'sender' ? order.sender.name : order.receiver.name,
-            customerAddress: recipientType === 'sender' 
-              ? `${order.sender.address.street}, ${order.sender.address.city}, ${order.sender.address.state} ${order.sender.address.zipCode}`
-              : `${order.receiver.address.street}, ${order.receiver.address.city}, ${order.receiver.address.state} ${order.receiver.address.zipCode}`,
-            customerEmail: recipientType === 'sender' ? order.sender.email : order.receiver.email,
-            customerPhoneNumber: recipientType === 'sender' ? order.sender.phone : order.receiver.phone,
-            restaurantName: "Cycle Courier Co.",
-            restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-            expectedDeliveryTime: expectedDeliveryTime,
-            expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
-            deliveryInstruction: allInstructions
-          };
-          console.log('Shipday request body:', requestBody);
-
-          shipdayResponse = await fetch(shipdayUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Basic ${shipdayApiKey}`
-            },
-            body: JSON.stringify(requestBody)
-          });
-
-          console.log('Shipday response status:', shipdayResponse.status);
-          console.log('Shipday response status text:', shipdayResponse.statusText);
-
-          if (shipdayResponse.ok) {
-            console.log('Shipday order updated successfully');
-          } else {
-            console.log(`Shipday update failed with status ${shipdayResponse.status}: ${shipdayResponse.statusText}`);
-            // Try to get response text for debugging
-            const responseText = await shipdayResponse.text();
-            console.log('Shipday error response:', responseText);
-          }
-        } catch (shipdayError) {
-          console.log('Error updating Shipday order (non-critical):', shipdayError);
-          // Don't fail the entire function for Shipday errors
+    const shipdayApiKey = Deno.env.get('SHIPDAY_API_KEY');
+    
+    // Collect all orders that need Shipday updates (primary + related)
+    const ordersToUpdate = [order];
+    if (relatedOrderIds && relatedOrderIds.length > 0) {
+      console.log(`Fetching ${relatedOrderIds.length} related orders for Shipday updates...`);
+      for (const relatedId of relatedOrderIds) {
+        const { data: relatedOrder, error: relatedError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', relatedId)
+          .single();
+        
+        if (!relatedError && relatedOrder) {
+          ordersToUpdate.push(relatedOrder);
+        } else {
+          console.error(`Failed to fetch related order ${relatedId}:`, relatedError);
         }
       }
-    } else {
-      console.log('No Shipday ID found - skipping Shipday update');
     }
+    
+    console.log(`Updating Shipday for ${ordersToUpdate.length} order(s)...`);
+    
+    // Update Shipday for each order
+    const shipdayResults: any[] = [];
+    for (const orderToUpdate of ordersToUpdate) {
+      const shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+      
+      if (!shipdayId) {
+        console.log(`No Shipday ID found for order ${orderToUpdate.id} - skipping Shipday update`);
+        shipdayResults.push({ orderId: orderToUpdate.id, status: 'no_shipday_id' });
+        continue;
+      }
+      
+      if (!shipdayApiKey) {
+        console.log(`Shipday API key not found - skipping Shipday update for order ${orderToUpdate.id}`);
+        shipdayResults.push({ orderId: orderToUpdate.id, status: 'no_api_key' });
+        continue;
+      }
+      
+      console.log(`Updating Shipday order ${shipdayId} for order ${orderToUpdate.id}...`);
+      
+      try {
+        const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
+        
+        // Convert user's local time to UTC for Shipday
+        const [deliveryHour, deliveryMinute] = deliveryTime.split(':').map(Number);
+        const endHour = Math.min(23, deliveryHour + 3);
+        const ukTimezoneOffset = new Date().getTimezoneOffset() === 0 ? 1 : 0;
+        const adjustedHour = endHour - ukTimezoneOffset;
+        const adjustedEndTime = `${adjustedHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
+        const expectedDeliveryTime = adjustedEndTime.includes(':') && adjustedEndTime.split(':').length === 2 
+          ? `${adjustedEndTime}:00` 
+          : adjustedEndTime;
+        
+        // Build delivery instructions
+        const bikeInfo = orderToUpdate.bike_brand && orderToUpdate.bike_model 
+          ? `Bike: ${orderToUpdate.bike_brand} ${orderToUpdate.bike_model}` 
+          : orderToUpdate.bike_brand 
+            ? `Bike: ${orderToUpdate.bike_brand}` 
+            : orderToUpdate.bike_model 
+              ? `Bike: ${orderToUpdate.bike_model}` 
+              : '';
+
+        const orderDetails = [];
+        if (bikeInfo) orderDetails.push(bikeInfo);
+        if (orderToUpdate.customer_order_number) orderDetails.push(`Order #: ${orderToUpdate.customer_order_number}`);
+        if (orderToUpdate.collection_code) orderDetails.push(`eBay Code: ${orderToUpdate.collection_code}`);
+        if (orderToUpdate.needs_payment_on_collection) orderDetails.push('Payment required on collection');
+        if (orderToUpdate.is_ebay_order) orderDetails.push('eBay Order');
+        if (orderToUpdate.is_bike_swap) orderDetails.push('Bike Swap');
+        
+        const baseDeliveryInstructions = orderToUpdate.delivery_instructions || '';
+        const contextNotes = recipientType === 'sender' ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
+        
+        const allInstructions = [
+          ...orderDetails,
+          baseDeliveryInstructions,
+          contextNotes
+        ].filter(Boolean).join(' | ');
+
+        const requestBody = {
+          orderNumber: orderToUpdate.tracking_number || `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
+          customerName: recipientType === 'sender' ? orderToUpdate.sender.name : orderToUpdate.receiver.name,
+          customerAddress: recipientType === 'sender' 
+            ? `${orderToUpdate.sender.address.street}, ${orderToUpdate.sender.address.city}, ${orderToUpdate.sender.address.state} ${orderToUpdate.sender.address.zipCode}`
+            : `${orderToUpdate.receiver.address.street}, ${orderToUpdate.receiver.address.city}, ${orderToUpdate.receiver.address.state} ${orderToUpdate.receiver.address.zipCode}`,
+          customerEmail: recipientType === 'sender' ? orderToUpdate.sender.email : orderToUpdate.receiver.email,
+          customerPhoneNumber: recipientType === 'sender' ? orderToUpdate.sender.phone : orderToUpdate.receiver.phone,
+          restaurantName: "Cycle Courier Co.",
+          restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+          expectedDeliveryTime: expectedDeliveryTime,
+          expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
+          deliveryInstruction: allInstructions
+        };
+
+        shipdayResponse = await fetch(shipdayUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${shipdayApiKey}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (shipdayResponse.ok) {
+          console.log(`Shipday order ${shipdayId} updated successfully for order ${orderToUpdate.id}`);
+          shipdayResults.push({ orderId: orderToUpdate.id, status: 'success', shipdayId });
+        } else {
+          const responseText = await shipdayResponse.text();
+          console.log(`Shipday update failed for order ${orderToUpdate.id} with status ${shipdayResponse.status}: ${responseText}`);
+          shipdayResults.push({ orderId: orderToUpdate.id, status: 'failed', error: responseText });
+        }
+      } catch (shipdayError) {
+        console.log(`Error updating Shipday order for ${orderToUpdate.id} (non-critical):`, shipdayError);
+        shipdayResults.push({ orderId: orderToUpdate.id, status: 'error', error: shipdayError instanceof Error ? shipdayError.message : 'Unknown error' });
+      }
+    }
+    
+    console.log(`Shipday update results:`, shipdayResults);
 
     // Send email notification
     let emailResult = null;
@@ -394,8 +416,7 @@ Cycle Courier Co.`;
       message: 'Timeslot sent successfully',
       whatsappResult,
       emailResult,
-      shipdayStatus: shipdayId ? (shipdayResponse?.ok ? 'updated' : 'failed') : 'no_shipday_id',
-      shipdayError: shipdayId && !shipdayResponse?.ok ? `Status ${shipdayResponse?.status}: ${shipdayResponse?.statusText}` : null
+      shipdayResults: shipdayResults // Array of results for all orders updated
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -1098,17 +1098,44 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           .eq('id', job.orderId);
       }
       
-      // Send ONE consolidated message to the primary contact
-      await supabase.functions.invoke('send-timeslot-whatsapp', {
+      // Send ONE consolidated message to the primary contact, but include all related order IDs
+      // so that ALL Shipday jobs get updated
+      const relatedOrderIds = jobsAtLocation
+        .filter(job => job.orderId !== primaryJob.orderId)
+        .map(job => job.orderId);
+      
+      console.log(`Sending consolidated message for primary order ${primaryJob.orderId} with ${relatedOrderIds.length} related orders`);
+      
+      const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId: primaryJob.orderId,
           recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
-          customMessage: message
+          customMessage: message,
+          relatedOrderIds: relatedOrderIds.length > 0 ? relatedOrderIds : undefined
         }
       });
 
-      toast.success(`Consolidated timeslot sent for ${jobsAtLocation.length} jobs at this location`);
+      if (error) {
+        console.error('Error sending grouped timeslots:', error);
+        toast.error(`Failed to send consolidated timeslot: ${error.message}`);
+        return;
+      }
+
+      // Check Shipday results and show appropriate notification
+      const shipdayResults = data?.shipdayResults || [];
+      const successfulUpdates = shipdayResults.filter((r: any) => r.status === 'success').length;
+      const failedUpdates = shipdayResults.filter((r: any) => r.status === 'failed' || r.status === 'error').length;
+      
+      let toastMessage = `Consolidated timeslot sent for ${jobsAtLocation.length} jobs at this location`;
+      if (successfulUpdates > 0) {
+        toastMessage += ` (${successfulUpdates} Shipday orders updated)`;
+      }
+      if (failedUpdates > 0) {
+        toastMessage += ` - ${failedUpdates} Shipday updates failed`;
+      }
+      
+      toast.success(toastMessage);
     } catch (error) {
       console.error('Error sending grouped timeslots:', error);
       toast.error('Failed to send some timeslots');
