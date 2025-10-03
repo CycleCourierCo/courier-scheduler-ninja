@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -20,7 +20,12 @@ const Layout: React.FC<LayoutProps> = ({
   const [open, setOpen] = useState(false);
   const closeSheet = () => setOpen(false);
   const isAdmin = userProfile?.role === 'admin';
-  const navLinks = <>
+  const isLoader = userProfile?.role === 'loader';
+  const isRoutePlanner = userProfile?.role === 'route_planner';
+  const isSales = userProfile?.role === 'sales';
+  
+  // Loaders should not see any navigation
+  const navLinks = !isLoader ? <>
       <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Home
       </Link>
@@ -32,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({
         </Link> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
         </Link>}
-    </>;
+    </> : null;
   return <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -58,7 +63,7 @@ const Layout: React.FC<LayoutProps> = ({
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
                   
-                  {user && <>
+                  {user && !isLoader && <>
                       <DropdownMenuSeparator className="my-2" />
                       <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <Home className="mr-2 h-4 w-4" />
@@ -73,6 +78,10 @@ const Layout: React.FC<LayoutProps> = ({
                         Your Profile
                       </Link>
                       {isAdmin && <>
+                          <Link to="/users" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Users className="mr-2 h-4 w-4" />
+                            User Management
+                          </Link>
                           <Link to="/loading" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Package className="mr-2 h-4 w-4" />
                             Loading & Storage
@@ -94,6 +103,20 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
+                      {(isRoutePlanner || isAdmin) && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Job Scheduling
+                        </Link>}
+                      {(isSales || isAdmin) && <>
+                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Shield className="mr-2 h-4 w-4" />
+                            Account Approvals
+                          </Link>
+                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Invoices
+                          </Link>
+                        </>}
                       <button onClick={() => {
                     signOut();
                     closeSheet();
@@ -102,6 +125,13 @@ const Layout: React.FC<LayoutProps> = ({
                         Logout
                       </button>
                     </>}
+                  {user && isLoader && <button onClick={() => {
+                    signOut();
+                    closeSheet();
+                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </button>}
                 </div>
               </SheetContent>
             </Sheet>
@@ -110,7 +140,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
-            {user && <DropdownMenu>
+            {user && !isLoader && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <User className="h-5 w-5" />
@@ -140,6 +170,12 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/users" className="cursor-pointer flex w-full items-center">
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>User Management</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/loading" className="cursor-pointer flex w-full items-center">
                           <Package className="mr-2 h-4 w-4" />
@@ -171,6 +207,26 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                     </>}
+                  {(isRoutePlanner || isAdmin) && <DropdownMenuItem asChild>
+                      <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>Job Scheduling</span>
+                      </Link>
+                    </DropdownMenuItem>}
+                  {(isSales || isAdmin) && <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Account Approvals</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/invoices" className="cursor-pointer flex w-full items-center">
+                          <FileText className="mr-2 h-4 w-4" />
+                          <span>Invoices</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -178,6 +234,10 @@ const Layout: React.FC<LayoutProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>}
+            {user && isLoader && <Button variant="ghost" size="sm" onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>}
           </div>
         </div>
       </header>
