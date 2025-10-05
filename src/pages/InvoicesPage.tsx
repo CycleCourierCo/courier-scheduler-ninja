@@ -67,8 +67,7 @@ export default function InvoicesPage() {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, name, email, accounts_email")
-        .neq("role", "admin")
-        .eq("is_business", true)
+        .eq("role", "b2b_customer")
         .eq("account_status", "approved")
         .order("name");
       

@@ -290,21 +290,34 @@ serve(async (req) => {
     // Send delivery confirmation emails if status is "delivered"
     if (newStatus === "delivered") {
       try {
-        console.log("Sending delivery confirmation emails for order:", dbOrder.id);
+        console.log("Checking if delivery confirmation needed for order:", dbOrder.id);
         
-        const emailResponse = await supabase.functions.invoke("send-email", {
-          body: {
-            meta: {
-              action: "delivery_confirmation",
-              orderId: dbOrder.id
-            }
-          }
-        });
+        // Check if delivery confirmation has already been sent (race condition protection)
+        const { data: currentOrder } = await supabase
+          .from("orders")
+          .select("delivery_confirmation_sent_at")
+          .eq("id", dbOrder.id)
+          .single();
         
-        if (emailResponse.error) {
-          console.error("Error triggering delivery confirmation emails:", emailResponse.error);
+        if (currentOrder?.delivery_confirmation_sent_at) {
+          console.log("Delivery confirmation already sent at:", currentOrder.delivery_confirmation_sent_at);
         } else {
-          console.log("Successfully triggered delivery confirmation emails");
+          console.log("Sending delivery confirmation emails for order:", dbOrder.id);
+          
+          const emailResponse = await supabase.functions.invoke("send-email", {
+            body: {
+              meta: {
+                action: "delivery_confirmation",
+                orderId: dbOrder.id
+              }
+            }
+          });
+          
+          if (emailResponse.error) {
+            console.error("Error triggering delivery confirmation emails:", emailResponse.error);
+          } else {
+            console.log("Successfully triggered delivery confirmation emails");
+          }
         }
       } catch (emailError) {
         console.error("Error sending delivery confirmation emails:", emailError);
