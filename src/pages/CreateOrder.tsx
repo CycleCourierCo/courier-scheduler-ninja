@@ -25,6 +25,10 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 // Custom phone validation with better error messages
 const phoneValidation = z.string()
   .refine(
+    (val) => !val.includes(' '), 
+    { message: "Please remove spaces from the phone number" }
+  )
+  .refine(
     (val) => val.startsWith('+44'), 
     { message: "Phone must start with +44" }
   )
@@ -34,7 +38,7 @@ const phoneValidation = z.string()
   )
   .refine(
     (val) => /^\+44[0-9]{10}$/.test(val), 
-    { message: "Phone must contain only digits after +44 (no spaces)" }
+    { message: "Phone must contain only digits after +44" }
   );
 
 const orderSchema = z.object({
@@ -340,7 +344,7 @@ const CreateOrder = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
         <Card>
           <CardHeader>
