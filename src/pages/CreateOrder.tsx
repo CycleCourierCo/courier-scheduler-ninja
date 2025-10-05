@@ -23,23 +23,16 @@ const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 // Custom phone validation with better error messages
-const phoneValidation = z.string()
-  .refine(
-    (val) => !val.includes(' '), 
-    { message: "Please remove spaces from the phone number" }
-  )
-  .refine(
-    (val) => val.startsWith('+44'), 
-    { message: "Phone must start with +44" }
-  )
-  .refine(
-    (val) => val.length === 13, 
-    { message: "Phone must be 10 digits after +44" }
-  )
-  .refine(
-    (val) => /^\+44[0-9]{10}$/.test(val), 
-    { message: "Phone must contain only digits after +44" }
-  );
+const phoneValidation = z
+  .string()
+  .min(1, "Phone number is required")
+  .refine((val) => {
+    // Remove spaces and check format
+    const cleaned = val.replace(/\s/g, '');
+    return /^\+44\d{10}$/.test(cleaned);
+  }, {
+    message: "Phone must be +44 followed by 10 digits (remove spaces)",
+  });
 
 const orderSchema = z.object({
   sender: z.object({
@@ -110,7 +103,7 @@ const CreateOrder = () => {
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
-    mode: "onBlur", // Trigger validation when field loses focus
+    mode: "onChange", // Trigger validation on change for immediate feedback
     defaultValues: {
       sender: {
         name: "",
