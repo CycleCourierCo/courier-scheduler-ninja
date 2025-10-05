@@ -64,9 +64,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
                 <Input 
                   placeholder="1234567890" 
                   type="tel" 
-                  value={field.value} 
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
+                  {...field}
                   className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </FormControl>
