@@ -22,6 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } from "@/constants/depot";
+import { calculateDistanceInMeters } from "@/utils/locationUtils";
 
 // Storage allocation type
 export type StorageAllocation = {
@@ -629,9 +631,6 @@ const LoadingUnloadingPage = () => {
           const deliveryLon = order.receiver?.address?.lon;
           
           if (deliveryLat && deliveryLon) {
-            const { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } = require('@/constants/depot');
-            const { calculateDistanceInMeters } = require('@/utils/locationUtils');
-            
             const distanceToDepot = calculateDistanceInMeters(
               DEPOT_LOCATION.lat,
               DEPOT_LOCATION.lon,
