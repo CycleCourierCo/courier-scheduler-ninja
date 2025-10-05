@@ -1058,7 +1058,16 @@ const LoadingUnloadingPage = () => {
                                            📍 {locationName} ({orders.length})
                                          </h4>
                                          <div className="space-y-2">
-                                           {orders.map((order) => {
+                                           {orders
+                                             .sort((a, b) => {
+                                               // Sort by lowest position number within the bay
+                                               const aAllocations = storageAllocations.filter(alloc => alloc.orderId === a.id);
+                                               const bAllocations = storageAllocations.filter(alloc => alloc.orderId === b.id);
+                                               const aMinPos = Math.min(...aAllocations.map(alloc => alloc.position));
+                                               const bMinPos = Math.min(...bAllocations.map(alloc => alloc.position));
+                                               return aMinPos - bMinPos;
+                                             })
+                                             .map((order) => {
                                              const quantity = order.bikeQuantity || 1;
                                              const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
                                              
