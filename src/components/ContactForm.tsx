@@ -57,7 +57,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
         <FormField
           control={control}
           name={`${prefix}.phone`}
-          render={({ field }) => (
+          render={({ field, fieldState }) => (
             <FormItem>
               <FormLabel>Phone *</FormLabel>
               <FormControl>
@@ -67,9 +67,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
                   value={field.value} 
                   onChange={field.onChange}
                   onBlur={field.onBlur}
+                  className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage className="text-destructive font-medium" />
             </FormItem>
           )}
         />

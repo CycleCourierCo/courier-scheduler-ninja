@@ -619,12 +619,39 @@ const LoadingUnloadingPage = () => {
       // Exclude if already loaded onto van
       if (order.loaded_onto_van) return false;
       
-      // If collection and delivery are on the same day, exclude from loading list
-      // as driver will collect it on their route
+      // Handle same-day collection and delivery
       if (scheduledPickup) {
         const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
         if (pickupDate === deliveryDate) {
-          return false;
+          // Same-day collection and delivery detected
+          // Check if delivery is within 500m of depot
+          const deliveryLat = order.receiver?.address?.lat;
+          const deliveryLon = order.receiver?.address?.lon;
+          
+          if (deliveryLat && deliveryLon) {
+            const { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } = require('@/constants/depot');
+            const { calculateDistanceInMeters } = require('@/utils/locationUtils');
+            
+            const distanceToDepot = calculateDistanceInMeters(
+              DEPOT_LOCATION.lat,
+              DEPOT_LOCATION.lon,
+              deliveryLat,
+              deliveryLon
+            );
+            
+            // If within 500m of depot, INCLUDE in loading list (driver won't have the bike yet)
+            if (distanceToDepot <= DEPOT_PROXIMITY_THRESHOLD_METERS) {
+              console.log(`Order ${order.trackingNumber}: Same-day but within ${Math.round(distanceToDepot)}m of depot - INCLUDING in loading list`);
+              return deliveryDate === targetDate;
+            } else {
+              console.log(`Order ${order.trackingNumber}: Same-day and ${Math.round(distanceToDepot)}m from depot - EXCLUDING from loading list`);
+              return false;
+            }
+          } else {
+            // No coordinates available, default to original behavior (exclude same-day)
+            console.log(`Order ${order.trackingNumber}: Same-day but no coordinates - EXCLUDING from loading list`);
+            return false;
+          }
         }
       }
       

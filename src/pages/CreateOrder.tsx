@@ -22,11 +22,26 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
+// Custom phone validation with better error messages
+const phoneValidation = z.string()
+  .refine(
+    (val) => val.startsWith('+44'), 
+    { message: "Phone must start with +44" }
+  )
+  .refine(
+    (val) => val.length === 13, 
+    { message: "Phone must be 10 digits after +44" }
+  )
+  .refine(
+    (val) => /^\+44[0-9]{10}$/.test(val), 
+    { message: "Phone must contain only digits after +44 (no spaces)" }
+  );
+
 const orderSchema = z.object({
   sender: z.object({
     name: z.string().min(2, "Name is required"),
     email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX"),
+    phone: phoneValidation,
     address: z.object({
       street: z.string().min(2, "Street address is required"),
       city: z.string().min(2, "City is required"),
@@ -40,7 +55,7 @@ const orderSchema = z.object({
   receiver: z.object({
     name: z.string().min(2, "Name is required"),
     email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX"),
+    phone: phoneValidation,
     address: z.object({
       street: z.string().min(2, "Street address is required"),
       city: z.string().min(2, "City is required"),
@@ -58,7 +73,7 @@ const orderSchema = z.object({
   })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
-  paymentCollectionPhone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX").optional().or(z.literal("")),
+  paymentCollectionPhone: phoneValidation.optional().or(z.literal("")),
   isBikeSwap: z.boolean().default(false),
   partExchangeBikeBrand: z.string().optional(),
   partExchangeBikeModel: z.string().optional(),
