@@ -963,10 +963,7 @@ const LoadingUnloadingPage = () => {
                                  {(() => {
                                    // Group bikes by current location
                                    const bikesNeedingLoading = getBikesNeedingLoading(selectedLoadingDate);
-                                   const locationGroups: Record<string, Order[]> = {
-                                     'Storage Unit': [],
-                                     'Driver Vans': []
-                                   };
+                                   const locationGroups: Record<string, Order[]> = {};
                                    
                                    bikesNeedingLoading.forEach(order => {
                                      const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
@@ -997,9 +994,24 @@ const LoadingUnloadingPage = () => {
                                        }
                                      }
                                      
-                                     if (orderAllocations.length > 0 || isNearDepot) {
-                                       // Bike is in storage unit OR needs to be collected from near depot
-                                       locationGroups['Storage Unit'].push(order);
+                                     if (orderAllocations.length > 0) {
+                                       // Group by bay (column) for bikes in storage
+                                       orderAllocations.forEach(allocation => {
+                                         const bayKey = `Bay ${allocation.bay}`;
+                                         if (!locationGroups[bayKey]) {
+                                           locationGroups[bayKey] = [];
+                                         }
+                                         // Only add once per order, not per allocation
+                                         if (!locationGroups[bayKey].some(o => o.id === order.id)) {
+                                           locationGroups[bayKey].push(order);
+                                         }
+                                       });
+                                     } else if (isNearDepot) {
+                                       // Bikes that need to be collected from near depot
+                                       if (!locationGroups['To Be Collected']) {
+                                         locationGroups['To Be Collected'] = [];
+                                       }
+                                       locationGroups['To Be Collected'].push(order);
                                      } else {
                                        // Check if in a driver's van
                                        const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
@@ -1017,44 +1029,59 @@ const LoadingUnloadingPage = () => {
                                          locationGroups[driverKey].push(order);
                                        } else {
                                          // Unknown location
+                                         if (!locationGroups['Driver Vans']) {
+                                           locationGroups['Driver Vans'] = [];
+                                         }
                                          locationGroups['Driver Vans'].push(order);
                                        }
                                      }
                                    });
-                                  
-                                  // Render groups
-                                  return Object.entries(locationGroups)
-                                    .filter(([_, orders]) => orders.length > 0)
-                                    .map(([locationName, orders]) => (
-                                      <div key={locationName} className="space-y-2">
-                                        <h4 className="font-semibold text-orange-800 text-sm uppercase tracking-wide border-b border-orange-300 pb-1">
-                                          📍 {locationName} ({orders.length})
-                                        </h4>
-                                        <div className="space-y-2">
-                                          {orders.map((order) => {
-                                            const quantity = order.bikeQuantity || 1;
-                                            const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                                            
-                                            return (
-                                              <Card key={order.id} className="p-3 bg-white border-orange-300">
-                                                <div className="space-y-2">
-                                                  <div className="flex items-center justify-between">
-                                                    <div className="font-medium text-orange-800">
-                                                      {order.receiver?.name || 'Unknown Customer'}
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                      {quantity > 1 && (
-                                                        <div className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
-                                                          {quantity} bikes
-                                                        </div>
-                                                      )}
-                                                      {orderAllocations.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1">
-                                                          {orderAllocations
-                                                            .sort((a, b) => {
-                                                              if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
-                                                              return a.position - b.position;
-                                                            })
+                                   
+                                   // Sort groups: Bays first (A, B, C, D), then other locations
+                                   const sortedGroups = Object.entries(locationGroups).sort(([a], [b]) => {
+                                     const bayOrder = ['Bay A', 'Bay B', 'Bay C', 'Bay D'];
+                                     const aIndex = bayOrder.indexOf(a);
+                                     const bIndex = bayOrder.indexOf(b);
+                                     
+                                     if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                                     if (aIndex !== -1) return -1;
+                                     if (bIndex !== -1) return 1;
+                                     return a.localeCompare(b);
+                                   });
+                                   
+                                   // Render groups
+                                   return sortedGroups
+                                     .filter(([_, orders]) => orders.length > 0)
+                                     .map(([locationName, orders]) => (
+                                       <div key={locationName} className="space-y-2">
+                                         <h4 className="font-semibold text-orange-800 text-sm uppercase tracking-wide border-b border-orange-300 pb-1">
+                                           📍 {locationName} ({orders.length})
+                                         </h4>
+                                         <div className="space-y-2">
+                                           {orders.map((order) => {
+                                             const quantity = order.bikeQuantity || 1;
+                                             const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+                                             
+                                             return (
+                                               <Card key={order.id} className="p-3 bg-white border-orange-300">
+                                                 <div className="space-y-2">
+                                                   <div className="flex items-center justify-between">
+                                                     <div className="font-medium text-orange-800">
+                                                       {order.receiver?.name || 'Unknown Customer'}
+                                                     </div>
+                                                     <div className="flex items-center gap-2">
+                                                       {quantity > 1 && (
+                                                         <div className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                                           {quantity} bikes
+                                                         </div>
+                                                       )}
+                                                       {orderAllocations.length > 0 && (
+                                                         <div className="flex flex-wrap gap-1">
+                                                           {orderAllocations
+                                                             .sort((a, b) => {
+                                                               if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
+                                                               return a.position - b.position;
+                                                             })
                                                             .map((allocation) => (
                                                               <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
                                                                 {allocation.bay}{allocation.position}
