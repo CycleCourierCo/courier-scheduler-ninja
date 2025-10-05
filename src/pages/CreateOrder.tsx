@@ -22,11 +22,22 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
+// Custom phone validation - spaces are already stripped by the input component
+const phoneValidation = z
+  .string()
+  .min(1, "Phone number is required")
+  .refine((val) => {
+    // At this point, spaces should already be stripped
+    return /^\+44\d{10}$/.test(val);
+  }, {
+    message: "Must be +44 followed by 10 digits",
+  });
+
 const orderSchema = z.object({
   sender: z.object({
     name: z.string().min(2, "Name is required"),
     email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX"),
+    phone: phoneValidation,
     address: z.object({
       street: z.string().min(2, "Street address is required"),
       city: z.string().min(2, "City is required"),
@@ -40,7 +51,7 @@ const orderSchema = z.object({
   receiver: z.object({
     name: z.string().min(2, "Name is required"),
     email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX"),
+    phone: phoneValidation,
     address: z.object({
       street: z.string().min(2, "Street address is required"),
       city: z.string().min(2, "City is required"),
@@ -58,7 +69,7 @@ const orderSchema = z.object({
   })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
-  paymentCollectionPhone: z.string().regex(UK_PHONE_REGEX, "Phone must be in format +44XXXXXXXXXX").optional().or(z.literal("")),
+  paymentCollectionPhone: phoneValidation.optional().or(z.literal("")),
   isBikeSwap: z.boolean().default(false),
   partExchangeBikeBrand: z.string().optional(),
   partExchangeBikeModel: z.string().optional(),
@@ -91,6 +102,7 @@ const CreateOrder = () => {
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
+    mode: "onChange", // Trigger validation on change for immediate feedback
     defaultValues: {
       sender: {
         name: "",
@@ -135,7 +147,6 @@ const CreateOrder = () => {
       bikeBrand: "",
       bikeModel: "",
     },
-    mode: "onChange",
   });
 
   const detailsFields = form.watch(["bikeQuantity", "bikes"]);
@@ -325,7 +336,7 @@ const CreateOrder = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
         <Card>
           <CardHeader>
@@ -337,8 +348,8 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col md:flex-row gap-6">
-                  <div className="w-full md:w-64 space-y-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col lg:flex-row gap-6">
+                  <div className="w-full lg:w-64 space-y-4 shrink-0">
                     <h3 className="text-base font-medium mb-2">Order Steps</h3>
                     <TabsList orientation="vertical" className="w-full bg-muted/60">
                       <TabsTrigger 
@@ -366,12 +377,12 @@ const CreateOrder = () => {
                       </TabsTrigger>
                     </TabsList>
                     
-                    <div className="text-sm text-muted-foreground pt-4">
+                    <div className="text-sm text-muted-foreground pt-4 hidden lg:block">
                       <p>Complete all steps to create your bicycle courier order.</p>
                     </div>
                   </div>
 
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <TabsContent value="details" className="space-y-6 mt-0">
                       <OrderDetails control={form.control} />
                       <OrderOptions control={form.control} />
@@ -390,15 +401,15 @@ const CreateOrder = () => {
                     </TabsContent>
 
                     <TabsContent value="sender" className="space-y-6 mt-0">
-                      <div>
-                        <div className="flex items-center justify-between mb-4">
+                      <div className="overflow-hidden">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                           <h3 className="text-lg font-medium">Collection Contact Information</h3>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => fillMyDetails("sender")}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 w-full sm:w-auto"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
@@ -416,18 +427,19 @@ const CreateOrder = () => {
                         />
                       </div>
 
-                      <div className="flex justify-between">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
                         <Button 
                           type="button" 
                           variant="outline" 
                           onClick={() => setActiveTab("details")}
+                          className="w-full sm:w-auto"
                         >
                           Back to Order Details
                         </Button>
                         <Button 
                           type="button" 
                           onClick={handleNextToReceiver}
-                          className="bg-courier-600 hover:bg-courier-700"
+                          className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
                           disabled={!isSenderValid}
                         >
                           Next: Delivery Information
@@ -436,15 +448,15 @@ const CreateOrder = () => {
                     </TabsContent>
 
                     <TabsContent value="receiver" className="space-y-6 mt-0">
-                      <div>
-                        <div className="flex items-center justify-between mb-4">
+                      <div className="overflow-hidden">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                           <h3 className="text-lg font-medium">Delivery Contact Information</h3>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => fillMyDetails("receiver")}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 w-full sm:w-auto"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
@@ -462,17 +474,18 @@ const CreateOrder = () => {
                         />
                       </div>
 
-                      <div className="flex justify-between">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
                         <Button 
                           type="button" 
                           variant="outline" 
                           onClick={() => setActiveTab("sender")}
+                          className="w-full sm:w-auto"
                         >
                           Back to Collection Information
                         </Button>
                         <Button 
                           type="submit" 
-                          className="bg-courier-600 hover:bg-courier-700"
+                          className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
                           disabled={isSubmitting || !isReceiverValid}
                         >
                           {isSubmitting ? "Creating Order..." : "Create Order"}
