@@ -960,41 +960,67 @@ const LoadingUnloadingPage = () => {
                             
                             {getBikesNeedingLoading(selectedLoadingDate).length > 0 ? (
                               <div className="space-y-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
-                                {(() => {
-                                  // Group bikes by current location
-                                  const bikesNeedingLoading = getBikesNeedingLoading(selectedLoadingDate);
-                                  const locationGroups: Record<string, Order[]> = {
-                                    'Storage Unit': [],
-                                    'Driver Vans': []
-                                  };
-                                  
-                                  bikesNeedingLoading.forEach(order => {
-                                    const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                                    
-                                    if (orderAllocations.length > 0) {
-                                      // Bike is in storage unit
-                                      locationGroups['Storage Unit'].push(order);
-                                    } else {
-                                      // Check if in a driver's van
-                                      const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                        (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                        update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                      );
-                                      const driverName = collectionEvent?.driverName;
-                                      
-                                      if (driverName) {
-                                        // Create group for this driver if it doesn't exist
-                                        const driverKey = `${driverName} Van`;
-                                        if (!locationGroups[driverKey]) {
-                                          locationGroups[driverKey] = [];
-                                        }
-                                        locationGroups[driverKey].push(order);
-                                      } else {
-                                        // Unknown location
-                                        locationGroups['Driver Vans'].push(order);
-                                      }
-                                    }
-                                  });
+                                 {(() => {
+                                   // Group bikes by current location
+                                   const bikesNeedingLoading = getBikesNeedingLoading(selectedLoadingDate);
+                                   const locationGroups: Record<string, Order[]> = {
+                                     'Storage Unit': [],
+                                     'Driver Vans': []
+                                   };
+                                   
+                                   bikesNeedingLoading.forEach(order => {
+                                     const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+                                     
+                                     // Check if this is a same-day collection/delivery within 500m of depot
+                                     const scheduledPickup = order.scheduledPickupDate;
+                                     const scheduledDelivery = order.scheduledDeliveryDate;
+                                     let isNearDepot = false;
+                                     
+                                     if (scheduledPickup && scheduledDelivery) {
+                                       const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
+                                       const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
+                                       
+                                       if (pickupDate === deliveryDate) {
+                                         const collectionLat = order.sender?.address?.lat;
+                                         const collectionLon = order.sender?.address?.lon;
+                                         
+                                         if (collectionLat && collectionLon) {
+                                           const distanceToDepot = calculateDistanceInMeters(
+                                             DEPOT_LOCATION.lat,
+                                             DEPOT_LOCATION.lon,
+                                             collectionLat,
+                                             collectionLon
+                                           );
+                                           
+                                           isNearDepot = distanceToDepot <= DEPOT_PROXIMITY_THRESHOLD_METERS;
+                                         }
+                                       }
+                                     }
+                                     
+                                     if (orderAllocations.length > 0 || isNearDepot) {
+                                       // Bike is in storage unit OR needs to be collected from near depot
+                                       locationGroups['Storage Unit'].push(order);
+                                     } else {
+                                       // Check if in a driver's van
+                                       const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
+                                         (update: any) => update.event === 'ORDER_COMPLETED' && 
+                                         update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
+                                       );
+                                       const driverName = collectionEvent?.driverName;
+                                       
+                                       if (driverName) {
+                                         // Create group for this driver if it doesn't exist
+                                         const driverKey = `${driverName} Van`;
+                                         if (!locationGroups[driverKey]) {
+                                           locationGroups[driverKey] = [];
+                                         }
+                                         locationGroups[driverKey].push(order);
+                                       } else {
+                                         // Unknown location
+                                         locationGroups['Driver Vans'].push(order);
+                                       }
+                                     }
+                                   });
                                   
                                   // Render groups
                                   return Object.entries(locationGroups)
