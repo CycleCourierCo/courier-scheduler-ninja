@@ -51,6 +51,8 @@ export default function InvoicesPage() {
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [isConnectingQuickBooks, setIsConnectingQuickBooks] = useState(false);
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
+  const [isCreatingAllInvoices, setIsCreatingAllInvoices] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   
   // Invoice history filters
   const [historyCustomerFilter, setHistoryCustomerFilter] = useState<string>("all");
@@ -66,6 +68,8 @@ export default function InvoicesPage() {
         .from("profiles")
         .select("id, name, email, accounts_email")
         .neq("role", "admin")
+        .eq("is_business", true)
+        .eq("account_status", "approved")
         .order("name");
       
       if (error) throw error;
@@ -289,6 +293,233 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleCreateAllInvoices = async () => {
+    if (!startDate || !endDate) {
+      toast({
+        title: "Missing Date Range",
+        description: "Please select start and end dates.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!quickBooksConnected) {
+      toast({
+        title: "QuickBooks Not Connected",
+        description: "Please connect to QuickBooks before creating invoices.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const eligibleCustomers = customers?.filter(c => c.accounts_email) || [];
+    
+    if (eligibleCustomers.length === 0) {
+      toast({
+        title: "No Eligible Customers",
+        description: "No customers with accounts email found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingAllInvoices(true);
+    setBatchProgress({ current: 0, total: eligibleCustomers.length });
+
+    const successfulInvoices: any[] = [];
+    const failedInvoices: any[] = [];
+    const allOrdersData: any[] = [];
+
+    for (let i = 0; i < eligibleCustomers.length; i++) {
+      const customer = eligibleCustomers[i];
+      setBatchProgress({ current: i + 1, total: eligibleCustomers.length });
+
+      try {
+        // Fetch orders for this customer
+        const { data: customerOrders, error: ordersError } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", customer.id)
+          .gte("created_at", startDate.toISOString())
+          .lte("created_at", endDate.toISOString())
+          .neq("status", "cancelled");
+
+        if (ordersError) throw ordersError;
+
+        // Skip if no orders
+        if (!customerOrders || customerOrders.length === 0) {
+          console.log(`Skipping ${customer.name} - no orders found`);
+          continue;
+        }
+
+        // Store all orders for statistics
+        allOrdersData.push(...customerOrders);
+
+        // Create invoice
+        const { data, error } = await supabase.functions.invoke("create-quickbooks-invoice", {
+          body: {
+            customerId: customer.id,
+            customerEmail: customer.accounts_email,
+            customerName: customer.name,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            orders: customerOrders,
+          },
+        });
+
+        if (error) throw error;
+
+        successfulInvoices.push({
+          customerName: customer.name,
+          customerEmail: customer.accounts_email,
+          orderCount: customerOrders.length,
+          invoiceNumber: data?.invoice_number,
+        });
+
+        toast({
+          title: "Invoice Created",
+          description: `Invoice for ${customer.name} created successfully`,
+        });
+
+      } catch (error: any) {
+        console.error(`Error creating invoice for ${customer.name}:`, error);
+        failedInvoices.push({
+          customerName: customer.name,
+          customerEmail: customer.accounts_email || customer.email,
+          error: error.message,
+        });
+
+        toast({
+          title: "Invoice Failed",
+          description: `Failed to create invoice for ${customer.name}`,
+          variant: "destructive",
+        });
+      }
+    }
+
+    // Calculate statistics
+    const deliveredOrders = allOrdersData.filter(o => o.status === 'delivered');
+    const collectedOrders = allOrdersData.filter(o => o.sender_confirmed_at || o.status === 'collected' || o.status === 'in_transit' || o.status === 'delivered');
+    
+    const deliveryTimes = deliveredOrders
+      .filter(o => o.created_at && o.tracking_events?.shipday?.updates)
+      .map(o => {
+        const createdAt = new Date(o.created_at);
+        const deliveredEvent = o.tracking_events.shipday.updates?.find((u: any) => u.event === 'ORDER_COMPLETED');
+        const collectedEvent = o.tracking_events.shipday.updates?.find((u: any) => u.event === 'ORDER_POD_UPLOAD');
+        
+        if (deliveredEvent) {
+          const deliveredAt = new Date(deliveredEvent.timestamp);
+          const creationToDelivery = (deliveredAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60); // hours
+          
+          let collectionToDelivery = 0;
+          if (collectedEvent) {
+            const collectedAt = new Date(collectedEvent.timestamp);
+            collectionToDelivery = (deliveredAt.getTime() - collectedAt.getTime()) / (1000 * 60 * 60);
+          }
+          
+          return {
+            creationToDelivery,
+            collectionToDelivery: collectedEvent ? collectionToDelivery : null,
+          };
+        }
+        return null;
+      })
+      .filter(t => t !== null);
+
+    const avgCreationToDelivery = deliveryTimes.length > 0
+      ? deliveryTimes.reduce((sum, t) => sum + t.creationToDelivery, 0) / deliveryTimes.length
+      : 0;
+
+    const avgCollectionToDelivery = deliveryTimes.filter(t => t.collectionToDelivery !== null).length > 0
+      ? deliveryTimes
+          .filter(t => t.collectionToDelivery !== null)
+          .reduce((sum, t) => sum + t.collectionToDelivery!, 0) / 
+          deliveryTimes.filter(t => t.collectionToDelivery !== null).length
+      : 0;
+
+    // Send email report
+    try {
+      await supabase.functions.invoke("send-email", {
+        body: {
+          to: "info@cyclecourierco.com",
+          subject: `Invoice Batch Report - ${format(startDate, "MMM d")} to ${format(endDate, "MMM d, yyyy")}`,
+          html: `
+            <h2>Invoice Batch Creation Report</h2>
+            <p><strong>Date Range:</strong> ${format(startDate, "PPP")} to ${format(endDate, "PPP")}</p>
+            
+            <h3>Summary</h3>
+            <ul>
+              <li>Successful Invoices: ${successfulInvoices.length}</li>
+              <li>Failed Invoices: ${failedInvoices.length}</li>
+              <li>Total Customers Processed: ${eligibleCustomers.length}</li>
+            </ul>
+
+            <h3>Order Statistics</h3>
+            <ul>
+              <li>Total Orders: ${allOrdersData.length}</li>
+              <li>Delivered Orders: ${deliveredOrders.length}</li>
+              <li>Collected Orders: ${collectedOrders.length}</li>
+              <li>Average Creation to Delivery: ${avgCreationToDelivery.toFixed(1)} hours</li>
+              <li>Average Collection to Delivery: ${avgCollectionToDelivery.toFixed(1)} hours</li>
+            </ul>
+
+            <h3>Successful Invoices</h3>
+            ${successfulInvoices.length > 0 ? `
+              <table border="1" cellpadding="8" cellspacing="0">
+                <tr>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Orders</th>
+                  <th>Invoice #</th>
+                </tr>
+                ${successfulInvoices.map(inv => `
+                  <tr>
+                    <td>${inv.customerName}</td>
+                    <td>${inv.customerEmail}</td>
+                    <td>${inv.orderCount}</td>
+                    <td>${inv.invoiceNumber || 'N/A'}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            ` : '<p>No successful invoices</p>'}
+
+            <h3>Failed Invoices</h3>
+            ${failedInvoices.length > 0 ? `
+              <table border="1" cellpadding="8" cellspacing="0">
+                <tr>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Error</th>
+                </tr>
+                ${failedInvoices.map(inv => `
+                  <tr>
+                    <td>${inv.customerName}</td>
+                    <td>${inv.customerEmail}</td>
+                    <td>${inv.error}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            ` : '<p>No failed invoices</p>'}
+          `,
+        },
+      });
+
+      console.log("Report email sent successfully");
+    } catch (emailError) {
+      console.error("Failed to send report email:", emailError);
+    }
+
+    setIsCreatingAllInvoices(false);
+    setBatchProgress({ current: 0, total: 0 });
+    refetchHistory();
+
+    toast({
+      title: "Batch Complete",
+      description: `Created ${successfulInvoices.length} invoices. ${failedInvoices.length} failed. Report sent to info@cyclecourierco.com`,
+    });
+  };
+
   return (
     <Layout>
       <div className="container px-4 py-6 md:px-6 mx-auto space-y-8">
@@ -450,7 +681,26 @@ export default function InvoicesPage() {
             </div>
           )}
           
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
+            <Button
+              onClick={handleCreateAllInvoices}
+              disabled={
+                !startDate ||
+                !endDate ||
+                isCreatingInvoice ||
+                isCreatingAllInvoices ||
+                !quickBooksConnected
+              }
+              size="lg"
+              variant="secondary"
+              className="min-w-[200px]"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              {isCreatingAllInvoices 
+                ? `Creating... ${batchProgress.current}/${batchProgress.total}` 
+                : "Create All Invoices"}
+            </Button>
+
             <Button
               onClick={handleCreateInvoice}
               disabled={
@@ -461,6 +711,7 @@ export default function InvoicesPage() {
                 orders.length === 0 ||
                 !selectedCustomerData?.accounts_email ||
                 isCreatingInvoice ||
+                isCreatingAllInvoices ||
                 !quickBooksConnected
               }
               size="lg"
