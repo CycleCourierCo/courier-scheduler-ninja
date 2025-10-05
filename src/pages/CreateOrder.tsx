@@ -22,16 +22,15 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-// Custom phone validation with better error messages
+// Custom phone validation - spaces are already stripped by the input component
 const phoneValidation = z
   .string()
   .min(1, "Phone number is required")
   .refine((val) => {
-    // Remove spaces and check format
-    const cleaned = val.replace(/\s/g, '');
-    return /^\+44\d{10}$/.test(cleaned);
+    // At this point, spaces should already be stripped
+    return /^\+44\d{10}$/.test(val);
   }, {
-    message: "Phone must be +44 followed by 10 digits (remove spaces)",
+    message: "Must be +44 followed by 10 digits",
   });
 
 const orderSchema = z.object({

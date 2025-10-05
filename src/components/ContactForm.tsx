@@ -57,27 +57,64 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
         <FormField
           control={control}
           name={`${prefix}.phone`}
-          render={({ field, fieldState }) => (
-            <FormItem>
-              <FormLabel>Phone *</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="1234567890" 
-                  type="tel"
-                  inputMode="numeric"
-                  value={field.value || ''}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    // Trigger validation on change
-                    setTimeout(() => field.onBlur(), 0);
-                  }}
-                  onBlur={field.onBlur}
-                  className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </FormControl>
-              <FormMessage className="text-destructive font-medium" />
-            </FormItem>
-          )}
+          render={({ field, fieldState }) => {
+            const normalizePhone = (value: string) => {
+              // Strip all spaces and whitespace
+              let cleaned = value.replace(/\s/g, '');
+              
+              // Handle various formats of pasted numbers
+              // Convert 0044 to +44
+              if (cleaned.startsWith('0044')) {
+                cleaned = '+44' + cleaned.substring(4);
+              }
+              // Convert UK numbers starting with 0 to +44
+              else if (cleaned.startsWith('0') && !cleaned.startsWith('+')) {
+                cleaned = '+44' + cleaned.substring(1);
+              }
+              // Ensure +44 prefix if it's just digits
+              else if (!cleaned.startsWith('+') && /^\d+$/.test(cleaned)) {
+                cleaned = '+44' + cleaned;
+              }
+              
+              // Remove any non-digit characters except the leading +
+              const hasPlus = cleaned.startsWith('+');
+              cleaned = cleaned.replace(/[^\d]/g, '');
+              if (hasPlus) {
+                cleaned = '+' + cleaned;
+              }
+              
+              return cleaned;
+            };
+
+            return (
+              <FormItem>
+                <FormLabel>Phone *</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="1234567890" 
+                    type="tel"
+                    inputMode="numeric"
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const normalized = normalizePhone(e.target.value);
+                      field.onChange(normalized);
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pastedText = e.clipboardData.getData('text');
+                      const normalized = normalizePhone(pastedText);
+                      field.onChange(normalized);
+                      // Trigger validation after paste
+                      setTimeout(() => field.onBlur(), 100);
+                    }}
+                    onBlur={field.onBlur}
+                    className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                </FormControl>
+                <FormMessage className="text-destructive font-medium" />
+              </FormItem>
+            );
+          }}
         />
       </div>
     </div>
