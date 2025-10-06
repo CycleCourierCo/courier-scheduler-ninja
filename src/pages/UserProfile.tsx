@@ -37,6 +37,7 @@ const UserProfile = () => {
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
+    mode: "onSubmit",
     defaultValues: {
       name: "",
       email: "",
@@ -108,6 +109,10 @@ const UserProfile = () => {
     }
   };
 
+  const handleInvalidSubmit = () => {
+    toast.error("Please fill in all required fields correctly");
+  };
+
   return (
     <Layout>
       <div className="container px-4 py-6 md:px-6 mx-auto">
@@ -126,7 +131,7 @@ const UserProfile = () => {
 
       <div className="container px-4 py-6 md:px-6 max-w-4xl mx-auto">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
