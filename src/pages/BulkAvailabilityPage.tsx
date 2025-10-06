@@ -34,7 +34,7 @@ const BulkAvailabilityPage = () => {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .or(`status.eq.sender_availability_pending,status.eq.receiver_availability_pending`)
+        .or(`status.eq.created,status.eq.sender_availability_pending,status.eq.receiver_availability_pending`)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
