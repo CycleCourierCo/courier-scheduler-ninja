@@ -109,10 +109,20 @@ const UserProfile = () => {
     }
   };
 
-  const handleInvalidSubmit = (errors: any) => {
-    console.log("Form validation errors:", errors);
-    const errorCount = Object.keys(errors).length;
-    toast.error(`Please fill in all required fields correctly (${errorCount} error${errorCount > 1 ? 's' : ''})`);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check if form is valid
+    const isValid = form.formState.isValid;
+    const errors = form.formState.errors;
+    
+    if (Object.keys(errors).length > 0 || !isValid) {
+      const errorCount = Object.keys(errors).length;
+      toast.error(`Please fill in all required fields correctly (${errorCount} error${errorCount > 1 ? 's' : ''})`);
+      return;
+    }
+    
+    form.handleSubmit(onSubmit)(e);
   };
 
   return (
@@ -133,7 +143,7 @@ const UserProfile = () => {
 
       <div className="container px-4 py-6 md:px-6 max-w-4xl mx-auto">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
