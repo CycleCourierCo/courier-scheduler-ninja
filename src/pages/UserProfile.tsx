@@ -26,7 +26,7 @@ const profileSchema = z.object({
   county: z.string().min(1, "County is required"),
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
-  accounts_email: z.union([z.string().email("Invalid email"), z.literal("")]).optional(),
+  accounts_email: z.string().email("Invalid email address").min(1, "Accounts email is required"),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -92,7 +92,7 @@ const UserProfile = () => {
           county: data.county,
           postal_code: data.postal_code,
           country: data.country,
-          accounts_email: data.accounts_email || null,
+          accounts_email: data.accounts_email,
         })
         .eq('id', user.id);
 
@@ -143,7 +143,7 @@ const UserProfile = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>Full Name *</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -172,7 +172,7 @@ const UserProfile = () => {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
+                        <FormLabel>Phone Number *</FormLabel>
                         <FormControl>
                           <Input type="tel" {...field} />
                         </FormControl>
@@ -243,7 +243,7 @@ const UserProfile = () => {
                   name="address_line_1"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address Line 1</FormLabel>
+                      <FormLabel>Address Line 1 *</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -331,7 +331,7 @@ const UserProfile = () => {
                   name="accounts_email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Accounts Email (for invoicing)</FormLabel>
+                      <FormLabel>Accounts Email (for invoicing) *</FormLabel>
                       <FormControl>
                         <Input {...field} type="email" placeholder="accounts@company.com" />
                       </FormControl>
