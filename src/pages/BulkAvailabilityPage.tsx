@@ -107,18 +107,27 @@ const BulkAvailabilityPage = () => {
         const dateStrings = dates.map((date) => date.toISOString());
 
         if (isSender) {
+          // Determine status: if receiver already confirmed, move to scheduled_dates_pending
+          const newStatus = order.receiverConfirmedAt 
+            ? "scheduled_dates_pending" 
+            : "receiver_availability_pending";
+
           const { error } = await supabase
             .from("orders")
             .update({
               pickup_date: dateStrings,
               sender_notes: notes,
               sender_confirmed_at: new Date().toISOString(),
-              status: "receiver_availability_pending",
+              status: newStatus,
             })
             .eq("id", orderId);
 
-          if (error) throw error;
+          if (error) {
+            console.error("Error updating sender availability:", error);
+            throw error;
+          }
         } else {
+          // Receiver is always setting to scheduled_dates_pending since sender must confirm first
           const { error } = await supabase
             .from("orders")
             .update({
@@ -129,7 +138,10 @@ const BulkAvailabilityPage = () => {
             })
             .eq("id", orderId);
 
-          if (error) throw error;
+          if (error) {
+            console.error("Error updating receiver availability:", error);
+            throw error;
+          }
         }
       }
 
