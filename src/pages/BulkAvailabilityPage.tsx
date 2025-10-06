@@ -79,6 +79,12 @@ const BulkAvailabilityPage = () => {
   };
 
   const handleSubmit = async () => {
+    console.log("handleSubmit called", { 
+      selectedOrderIds: selectedOrderIds.length, 
+      datesCount: dates.length,
+      dates 
+    });
+
     if (selectedOrderIds.length === 0) {
       toast.error("Please select at least one order");
       return;
@@ -104,7 +110,16 @@ const BulkAvailabilityPage = () => {
         if (!order) continue;
 
         const isSender = role === 'sender';
-        const dateStrings = dates.map((date) => date.toISOString());
+        // Format dates as ISO strings for database
+        const dateStrings = dates
+          .map((date) => {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            return d.toISOString();
+          })
+          .sort();
+
+        console.log(`Updating order ${orderId} as ${role}`, { dateStrings });
 
         if (isSender) {
           // Determine status: if receiver already confirmed, move to scheduled_dates_pending
