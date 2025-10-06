@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Layout from "@/components/Layout";
 import { Order } from "@/types/order";
+import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { format } from "date-fns";
 import { CalendarIcon, Package } from "lucide-react";
 
@@ -39,9 +40,9 @@ const BulkAvailabilityPage = () => {
 
       if (error) throw error;
 
-      // Filter orders where user's email matches sender or receiver
+      // Map and filter orders where user's email matches sender or receiver
       // AND availability hasn't been set yet for their role
-      const filteredOrders = data?.filter((order: any) => {
+      const filteredOrders = data?.map(mapDbOrderToOrderType).filter((order: Order) => {
         const senderEmail = order.sender?.email?.toLowerCase();
         const receiverEmail = order.receiver?.email?.toLowerCase();
         const userEmail = user.email?.toLowerCase();
@@ -51,13 +52,13 @@ const BulkAvailabilityPage = () => {
         const isReceiver = receiverEmail === userEmail;
         
         // Only show orders where user is involved AND hasn't confirmed availability yet
-        if (isSender && !order.sender_confirmed_at) return true;
-        if (isReceiver && !order.receiver_confirmed_at) return true;
+        if (isSender && !order.senderConfirmedAt) return true;
+        if (isReceiver && !order.receiverConfirmedAt) return true;
         
         return false;
       }) || [];
 
-      setOrders(filteredOrders as unknown as Order[]);
+      setOrders(filteredOrders);
     } catch (error: any) {
       console.error("Error fetching orders:", error);
       toast.error("Failed to load orders");
