@@ -85,12 +85,12 @@ const BulkAvailabilityPage = () => {
     }
 
     if (dates.length === 0) {
-      toast.error("Please select at least one date");
+      toast.error("Please select at least 7 dates");
       return;
     }
 
-    if (dates.length > 7) {
-      toast.error("Please select no more than 7 dates");
+    if (dates.length < 7) {
+      toast.error("Please select at least 7 dates");
       return;
     }
 
@@ -235,7 +235,7 @@ const BulkAvailabilityPage = () => {
               <CardHeader>
                 <CardTitle>Select Your Available Dates</CardTitle>
                 <CardDescription>
-                  Choose up to 7 dates when you're available
+                  Choose at least 7 dates when you're available
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -244,10 +244,8 @@ const BulkAvailabilityPage = () => {
                     mode="multiple"
                     selected={dates}
                     onSelect={(selectedDates) => {
-                      if (selectedDates && selectedDates.length <= 7) {
+                      if (selectedDates) {
                         setDates(selectedDates);
-                      } else if (selectedDates && selectedDates.length > 7) {
-                        toast.error("You can select a maximum of 7 dates");
                       }
                     }}
                     disabled={isDateDisabled}
@@ -257,7 +255,7 @@ const BulkAvailabilityPage = () => {
                 {dates.length > 0 && (
                   <div className="mt-4">
                     <p className="text-sm font-medium mb-2">
-                      Selected dates ({dates.length}/7):
+                      Selected dates ({dates.length}/7 minimum):
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {dates.map((date, index) => (
@@ -290,7 +288,7 @@ const BulkAvailabilityPage = () => {
 
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || selectedOrderIds.length === 0 || dates.length === 0}
+              disabled={isSubmitting || selectedOrderIds.length === 0 || dates.length < 7}
               className="w-full"
               size="lg"
             >
