@@ -16,7 +16,7 @@ import { CalendarIcon, Package } from "lucide-react";
 
 const BulkAvailabilityPage = () => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<(Order & { displayRole: 'sender' | 'receiver' })[]>([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [dates, setDates] = useState<Date[]>([]);
   const [notes, setNotes] = useState("");
@@ -40,25 +40,27 @@ const BulkAvailabilityPage = () => {
 
       if (error) throw error;
 
-      // Map and filter orders where user's email matches sender or receiver
-      // AND availability hasn't been set yet for their role
-      const filteredOrders = data?.map(mapDbOrderToOrderType).filter((order: Order) => {
+      // Map and filter orders, creating separate entries for sender and receiver roles
+      const mappedOrders = data?.map(mapDbOrderToOrderType) || [];
+      const expandedOrders: (Order & { displayRole: 'sender' | 'receiver' })[] = [];
+      
+      mappedOrders.forEach((order: Order) => {
         const senderEmail = order.sender?.email?.toLowerCase();
         const receiverEmail = order.receiver?.email?.toLowerCase();
         const userEmail = user.email?.toLowerCase();
         
-        // Check if user is sender or receiver
-        const isSender = senderEmail === userEmail;
-        const isReceiver = receiverEmail === userEmail;
+        // Add as sender if email matches and not confirmed
+        if (senderEmail === userEmail && !order.senderConfirmedAt) {
+          expandedOrders.push({ ...order, displayRole: 'sender' });
+        }
         
-        // Only show orders where user is involved AND hasn't confirmed availability yet
-        if (isSender && !order.senderConfirmedAt) return true;
-        if (isReceiver && !order.receiverConfirmedAt) return true;
-        
-        return false;
-      }) || [];
+        // Add as receiver if email matches and not confirmed
+        if (receiverEmail === userEmail && !order.receiverConfirmedAt) {
+          expandedOrders.push({ ...order, displayRole: 'receiver' });
+        }
+      });
 
-      setOrders(filteredOrders);
+      setOrders(expandedOrders);
     } catch (error: any) {
       console.error("Error fetching orders:", error);
       toast.error("Failed to load orders");
@@ -67,11 +69,12 @@ const BulkAvailabilityPage = () => {
     }
   };
 
-  const toggleOrderSelection = (orderId: string) => {
+  const toggleOrderSelection = (orderId: string, role: 'sender' | 'receiver') => {
+    const key = `${orderId}-${role}`;
     setSelectedOrderIds((prev) =>
-      prev.includes(orderId)
-        ? prev.filter((id) => id !== orderId)
-        : [...prev, orderId]
+      prev.includes(key)
+        ? prev.filter((id) => id !== key)
+        : [...prev, key]
     );
   };
 
@@ -95,14 +98,12 @@ const BulkAvailabilityPage = () => {
       setIsSubmitting(true);
 
       // Update each selected order
-      for (const orderId of selectedOrderIds) {
-        const order = orders.find((o) => o.id === orderId);
+      for (const selectedKey of selectedOrderIds) {
+        const [orderId, role] = selectedKey.split('-');
+        const order = orders.find((o) => o.id === orderId && o.displayRole === role);
         if (!order) continue;
 
-        const userEmail = user?.email?.toLowerCase();
-        const senderEmail = order.sender?.email?.toLowerCase();
-        const isSender = senderEmail === userEmail;
-
+        const isSender = role === 'sender';
         const dateStrings = dates.map((date) => date.toISOString());
 
         if (isSender) {
@@ -180,23 +181,21 @@ const BulkAvailabilityPage = () => {
               ) : (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {orders.map((order) => {
-                    const userEmail = user?.email?.toLowerCase();
-                    const senderEmail = order.sender?.email?.toLowerCase();
-                    const isSender = senderEmail === userEmail;
-                    const role = isSender ? "Sender" : "Receiver";
+                    const key = `${order.id}-${order.displayRole}`;
+                    const role = order.displayRole === 'sender' ? 'Sender' : 'Receiver';
 
                     return (
                       <div
-                        key={order.id}
+                        key={key}
                         className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors"
                       >
                         <Checkbox
-                          id={order.id}
-                          checked={selectedOrderIds.includes(order.id)}
-                          onCheckedChange={() => toggleOrderSelection(order.id)}
+                          id={key}
+                          checked={selectedOrderIds.includes(key)}
+                          onCheckedChange={() => toggleOrderSelection(order.id, order.displayRole)}
                         />
                         <label
-                          htmlFor={order.id}
+                          htmlFor={key}
                           className="flex-1 cursor-pointer text-sm"
                         >
                           <div className="flex items-center gap-2 mb-1">
