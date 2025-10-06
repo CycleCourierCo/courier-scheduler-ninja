@@ -1,6 +1,9 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.refresh-quickbooks-tokens]
+verify_jwt = false
+
 [functions.create-business-user]
 verify_jwt = false
 

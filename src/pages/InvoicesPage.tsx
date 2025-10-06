@@ -26,6 +26,8 @@ type InvoiceItem = {
   tracking_number: string;
   bike_brand: string;
   bike_model: string;
+  bike_quantity: number;
+  customer_order_number: string;
   sender: any;
   receiver: any;
 };
@@ -80,12 +82,16 @@ export default function InvoicesPage() {
   const { data: quickBooksToken } = useQuery({
     queryKey: ['quickbooks-token'],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
       const { data, error } = await supabase
         .from('quickbooks_tokens')
-        .select('expires_at')
-        .single();
+        .select('expires_at, refresh_token, created_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
       return data;
     },
   });
@@ -122,7 +128,9 @@ export default function InvoicesPage() {
   });
 
   useEffect(() => {
-    if (quickBooksToken && new Date(quickBooksToken.expires_at) > new Date()) {
+    // Consider connected if token exists (refresh token is valid for 100 days)
+    // The access token will be auto-refreshed by the edge function when needed
+    if (quickBooksToken && quickBooksToken.refresh_token) {
       setQuickBooksConnected(true);
     } else {
       setQuickBooksConnected(false);
@@ -145,6 +153,7 @@ export default function InvoicesPage() {
           bike_brand,
           bike_model,
           bike_quantity,
+          customer_order_number,
           sender,
           receiver
         `)

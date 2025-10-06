@@ -19,6 +19,7 @@ interface InvoiceRequest {
     bike_brand: string;
     bike_model: string;
     bike_quantity: number;
+    customer_order_number: string;
     sender: any;
     receiver: any;
   }>;
