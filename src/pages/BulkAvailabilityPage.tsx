@@ -34,17 +34,27 @@ const BulkAvailabilityPage = () => {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .or(`status.eq.created,status.eq.sender_availability_pending,status.eq.receiver_availability_pending`)
+        .neq("status", "delivered")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       // Filter orders where user's email matches sender or receiver
+      // AND availability hasn't been set yet for their role
       const filteredOrders = data?.filter((order: any) => {
         const senderEmail = order.sender?.email?.toLowerCase();
         const receiverEmail = order.receiver?.email?.toLowerCase();
         const userEmail = user.email?.toLowerCase();
-        return senderEmail === userEmail || receiverEmail === userEmail;
+        
+        // Check if user is sender or receiver
+        const isSender = senderEmail === userEmail;
+        const isReceiver = receiverEmail === userEmail;
+        
+        // Only show orders where user is involved AND hasn't confirmed availability yet
+        if (isSender && !order.sender_confirmed_at) return true;
+        if (isReceiver && !order.receiver_confirmed_at) return true;
+        
+        return false;
       }) || [];
 
       setOrders(filteredOrders as unknown as Order[]);
