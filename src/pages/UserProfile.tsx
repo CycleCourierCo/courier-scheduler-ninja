@@ -109,8 +109,10 @@ const UserProfile = () => {
     }
   };
 
-  const handleInvalidSubmit = () => {
-    toast.error("Please fill in all required fields correctly");
+  const handleInvalidSubmit = (errors: any) => {
+    console.log("Form validation errors:", errors);
+    const errorCount = Object.keys(errors).length;
+    toast.error(`Please fill in all required fields correctly (${errorCount} error${errorCount > 1 ? 's' : ''})`);
   };
 
   return (
