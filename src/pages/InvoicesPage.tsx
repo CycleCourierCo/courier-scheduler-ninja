@@ -26,6 +26,8 @@ type InvoiceItem = {
   tracking_number: string;
   bike_brand: string;
   bike_model: string;
+  bike_quantity: number;
+  customer_order_number: string;
   sender: any;
   receiver: any;
 };
@@ -151,6 +153,7 @@ export default function InvoicesPage() {
           bike_brand,
           bike_model,
           bike_quantity,
+          customer_order_number,
           sender,
           receiver
         `)
