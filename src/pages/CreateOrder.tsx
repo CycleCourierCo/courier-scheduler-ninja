@@ -310,26 +310,12 @@ const CreateOrder = () => {
     form.setValue(`${prefix}.email`, userProfile.email);
     form.setValue(`${prefix}.phone`, formattedPhone);
 
-    // Fill address information and trigger search
-    const fullAddress = `${userProfile.address_line_1}${userProfile.address_line_2 ? `, ${userProfile.address_line_2}` : ""}, ${userProfile.city || ""}, ${userProfile.postal_code || ""}`.trim();
-    
+    // Fill address information
     form.setValue(`${prefix}.address.street`, userProfile.address_line_1);
     form.setValue(`${prefix}.address.city`, userProfile.city || "");
     form.setValue(`${prefix}.address.state`, userProfile.address_line_2 || "");
     form.setValue(`${prefix}.address.zipCode`, userProfile.postal_code || "");
     form.setValue(`${prefix}.address.country`, "United Kingdom");
-
-    // Trigger address validation by searching for the address
-    if (fullAddress.length > 3) {
-      setTimeout(() => {
-        const addressForm = document.querySelector(`input[placeholder="Search for an address in the UK..."]`) as HTMLInputElement;
-        if (addressForm) {
-          addressForm.value = fullAddress;
-          addressForm.dispatchEvent(new Event('input', { bubbles: true }));
-          addressForm.focus();
-        }
-      }, 100);
-    }
 
     toast.success("Details filled from your profile");
   };

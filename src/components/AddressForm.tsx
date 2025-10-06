@@ -42,9 +42,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       }
     };
     
-    const timeoutId = setTimeout(checkFormValues, 100);
+    checkFormValues(); // Check immediately
+    const timeoutId = setTimeout(checkFormValues, 100); // Also check after delay
     return () => clearTimeout(timeoutId);
-  }, [control, prefix]);
+  }, [control._formValues, prefix]);
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
