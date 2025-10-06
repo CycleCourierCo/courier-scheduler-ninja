@@ -104,10 +104,21 @@ const BulkAvailabilityPage = () => {
       setIsSubmitting(true);
 
       // Update each selected order
+      console.log("Starting loop, selectedOrderIds:", selectedOrderIds);
+      console.log("Available orders:", orders.map(o => ({ id: o.id, role: o.displayRole })));
+
       for (const selectedKey of selectedOrderIds) {
+        console.log("Processing selectedKey:", selectedKey);
         const [orderId, role] = selectedKey.split('-');
+        console.log("Split into orderId:", orderId, "role:", role);
+        
         const order = orders.find((o) => o.id === orderId && o.displayRole === role);
-        if (!order) continue;
+        console.log("Found order:", order ? "Yes" : "No");
+        
+        if (!order) {
+          console.log("Skipping - order not found");
+          continue;
+        }
 
         const isSender = role === 'sender';
         // Format dates as ISO strings for database
@@ -119,7 +130,11 @@ const BulkAvailabilityPage = () => {
           })
           .sort();
 
-        console.log(`Updating order ${orderId} as ${role}`, { dateStrings });
+        console.log(`Updating order ${orderId} as ${role}`, { 
+          dateStrings, 
+          isSender,
+          receiverConfirmedAt: order.receiverConfirmedAt
+        });
 
         if (isSender) {
           // Determine status: if receiver already confirmed, move to scheduled_dates_pending
@@ -127,7 +142,14 @@ const BulkAvailabilityPage = () => {
             ? "scheduled_dates_pending" 
             : "receiver_availability_pending";
 
-          const { error } = await supabase
+          console.log("About to update sender with:", {
+            pickup_date: dateStrings,
+            sender_notes: notes,
+            status: newStatus,
+            orderId
+          });
+
+          const { data, error } = await supabase
             .from("orders")
             .update({
               pickup_date: dateStrings,
@@ -135,7 +157,10 @@ const BulkAvailabilityPage = () => {
               sender_confirmed_at: new Date().toISOString(),
               status: newStatus,
             })
-            .eq("id", orderId);
+            .eq("id", orderId)
+            .select();
+
+          console.log("Sender update result:", { data, error });
 
           if (error) {
             console.error("Error updating sender availability:", error);
@@ -143,7 +168,13 @@ const BulkAvailabilityPage = () => {
           }
         } else {
           // Receiver is always setting to scheduled_dates_pending since sender must confirm first
-          const { error } = await supabase
+          console.log("About to update receiver with:", {
+            delivery_date: dateStrings,
+            receiver_notes: notes,
+            orderId
+          });
+
+          const { data, error } = await supabase
             .from("orders")
             .update({
               delivery_date: dateStrings,
@@ -151,7 +182,10 @@ const BulkAvailabilityPage = () => {
               receiver_confirmed_at: new Date().toISOString(),
               status: "scheduled_dates_pending",
             })
-            .eq("id", orderId);
+            .eq("id", orderId)
+            .select();
+
+          console.log("Receiver update result:", { data, error });
 
           if (error) {
             console.error("Error updating receiver availability:", error);
