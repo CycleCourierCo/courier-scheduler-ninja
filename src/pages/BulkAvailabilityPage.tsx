@@ -201,13 +201,20 @@ const BulkAvailabilityPage = () => {
                           <div className="flex items-center gap-2 mb-1">
                             <Package className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">
-                              {order.trackingNumber || order.customerOrderNumber || order.id.slice(0, 8)}
+                              {order.bikeBrand && order.bikeModel 
+                                ? `${order.bikeBrand} ${order.bikeModel}`
+                                : order.customerOrderNumber || "No bike info"}
                             </span>
                             <span className="text-xs text-muted-foreground">({role})</span>
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {order.sender?.name} → {order.receiver?.name}
                           </div>
+                          {order.trackingNumber && (
+                            <div className="text-xs text-muted-foreground">
+                              Tracking: {order.trackingNumber}
+                            </div>
+                          )}
                           {order.customerOrderNumber && (
                             <div className="text-xs text-muted-foreground">
                               Order #{order.customerOrderNumber}
