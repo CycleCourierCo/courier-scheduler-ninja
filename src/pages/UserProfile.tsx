@@ -23,7 +23,7 @@ const profileSchema = z.object({
   address_line_1: z.string().min(1, "Address line 1 is required"),
   address_line_2: z.string().optional(),
   city: z.string().min(1, "City is required"),
-  county: z.string().optional(),
+  county: z.string().min(1, "County is required"),
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
   accounts_email: z.union([z.string().email("Invalid email"), z.literal("")]).optional(),
@@ -89,7 +89,7 @@ const UserProfile = () => {
           address_line_1: data.address_line_1,
           address_line_2: data.address_line_2 || null,
           city: data.city,
-          county: data.county || null,
+          county: data.county,
           postal_code: data.postal_code,
           country: data.country,
           accounts_email: data.accounts_email || null,
@@ -272,7 +272,7 @@ const UserProfile = () => {
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>City</FormLabel>
+                        <FormLabel>City *</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -286,7 +286,7 @@ const UserProfile = () => {
                     name="county"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>County</FormLabel>
+                        <FormLabel>County *</FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="e.g., West Midlands" />
                         </FormControl>
@@ -302,7 +302,7 @@ const UserProfile = () => {
                     name="postal_code"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Postal Code</FormLabel>
+                        <FormLabel>Postal Code *</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -316,7 +316,7 @@ const UserProfile = () => {
                     name="country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Country</FormLabel>
+                        <FormLabel>Country *</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
