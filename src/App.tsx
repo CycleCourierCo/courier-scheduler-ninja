@@ -29,6 +29,7 @@ import TermsPage from "./pages/TermsPage";
 import ApiDocumentationPage from "./pages/ApiDocumentationPage";
 import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
 import UserManagement from "./pages/UserManagement";
+import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
 
 const queryClient = new QueryClient();
 
@@ -109,6 +110,11 @@ function App() {
             } />
             <Route path="/sender-availability/:id" element={<SenderAvailability />} />
             <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
+            <Route path="/bulk-availability" element={
+              <ProtectedRoute>
+                <BulkAvailabilityPage />
+              </ProtectedRoute>
+            } />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/tracking/:id" element={<TrackingPage />} />
             <Route path="/about" element={<AboutPage />} />

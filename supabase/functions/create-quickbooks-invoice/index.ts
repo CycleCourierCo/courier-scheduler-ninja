@@ -284,7 +284,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch items, using default service item');
     }
 
-    // Query for sales terms to find "Net 15 days"
+    // Query for sales terms to find "Net 7 days"
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
     
     let salesTermId = null;
@@ -302,15 +302,15 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Available terms:', termsData);
       
       const terms = termsData.QueryResponse?.Term || [];
-      const net15Term = terms.find((term: any) => 
-        term.Name?.toLowerCase().includes('net 15') || 
-        term.Name?.toLowerCase().includes('15 days') ||
-        (term.DueDays === 15)
+      const net7Term = terms.find((term: any) => 
+        term.Name?.toLowerCase().includes('net 7') || 
+        term.Name?.toLowerCase().includes('7 days') ||
+        (term.DueDays === 7)
       );
       
-      if (net15Term) {
-        salesTermId = net15Term.Id;
-        console.log('Using term:', net15Term.Name, 'with ID:', salesTermId);
+      if (net7Term) {
+        salesTermId = net7Term.Id;
+        console.log('Using term:', net7Term.Name, 'with ID:', salesTermId);
       }
     } else {
       console.warn('Failed to fetch terms');
@@ -356,6 +356,13 @@ const handler = async (req: Request): Promise<Response> => {
       
       console.log(`Processing order ${order.id}: quantity=${quantity}, unitPrice=${serviceItemPrice}, total=${totalAmount}`);
       
+      // Build description with order number if available
+      let description = `${order.tracking_number || order.id}`;
+      if (order.customer_order_number) {
+        description += ` (Order #${order.customer_order_number})`;
+      }
+      description += ` - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`;
+      
       return {
         Amount: totalAmount,
         DetailType: "SalesItemLineDetail",
@@ -371,7 +378,7 @@ const handler = async (req: Request): Promise<Response> => {
           },
           ServiceDate: serviceDate
         },
-        Description: `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`
+        Description: description
       };
     });
 
@@ -382,8 +389,8 @@ const handler = async (req: Request): Promise<Response> => {
         email: invoiceData.customerEmail
       },
       invoiceDate: invoiceData.endDate, // Use exact end date selected
-      dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 15 days from now
-      terms: "15 days",
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+      terms: "7 days",
       lineItems: lineItems,
       totalAmount: lineItems.reduce((sum, item) => sum + item.Amount, 0)
     };
