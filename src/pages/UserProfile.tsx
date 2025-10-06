@@ -26,7 +26,7 @@ const profileSchema = z.object({
   county: z.string().optional(),
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
-  accounts_email: z.string().email("Invalid email").optional(),
+  accounts_email: z.union([z.string().email("Invalid email"), z.literal("")]).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -68,6 +68,7 @@ const UserProfile = () => {
         county: userProfile.county || "",
         postal_code: userProfile.postal_code || "",
         country: userProfile.country || "United Kingdom",
+        accounts_email: userProfile.accounts_email || "",
       });
     }
   }, [userProfile, form]);
@@ -91,6 +92,7 @@ const UserProfile = () => {
           county: data.county || null,
           postal_code: data.postal_code,
           country: data.country,
+          accounts_email: data.accounts_email || null,
         })
         .eq('id', user.id);
 
