@@ -290,6 +290,7 @@ const CreateOrder = () => {
     if (!userProfile.email) missingFields.push("email");
     if (!userProfile.phone) missingFields.push("phone");
     if (!userProfile.address_line_1) missingFields.push("address");
+    if (!userProfile.country) missingFields.push("country");
 
     if (missingFields.length > 0) {
       toast.error(`Please complete your profile first. Missing: ${missingFields.join(", ")}`);
@@ -313,9 +314,15 @@ const CreateOrder = () => {
     // Fill address information
     form.setValue(`${prefix}.address.street`, userProfile.address_line_1);
     form.setValue(`${prefix}.address.city`, userProfile.city || "");
-    form.setValue(`${prefix}.address.state`, userProfile.address_line_2 || "");
+    form.setValue(`${prefix}.address.state`, userProfile.county || userProfile.address_line_2 || "");
     form.setValue(`${prefix}.address.zipCode`, userProfile.postal_code || "");
-    form.setValue(`${prefix}.address.country`, "United Kingdom");
+    form.setValue(`${prefix}.address.country`, userProfile.country || "United Kingdom");
+    
+    // Set coordinates if available
+    if (userProfile.latitude && userProfile.longitude) {
+      form.setValue(`${prefix}.address.lat`, userProfile.latitude);
+      form.setValue(`${prefix}.address.lon`, userProfile.longitude);
+    }
 
     toast.success("Details filled from your profile");
   };

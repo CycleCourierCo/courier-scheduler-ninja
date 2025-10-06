@@ -23,7 +23,9 @@ const profileSchema = z.object({
   address_line_1: z.string().min(1, "Address line 1 is required"),
   address_line_2: z.string().optional(),
   city: z.string().min(1, "City is required"),
+  county: z.string().optional(),
   postal_code: z.string().min(1, "Postal code is required"),
+  country: z.string().min(1, "Country is required"),
   accounts_email: z.string().email("Invalid email").optional(),
 });
 
@@ -44,7 +46,9 @@ const UserProfile = () => {
       address_line_1: "",
       address_line_2: "",
       city: "",
+      county: "",
       postal_code: "",
+      country: "United Kingdom",
       accounts_email: "",
     },
   });
@@ -61,7 +65,9 @@ const UserProfile = () => {
         address_line_1: userProfile.address_line_1 || "",
         address_line_2: userProfile.address_line_2 || "",
         city: userProfile.city || "",
+        county: userProfile.county || "",
         postal_code: userProfile.postal_code || "",
+        country: userProfile.country || "United Kingdom",
       });
     }
   }, [userProfile, form]);
@@ -82,7 +88,9 @@ const UserProfile = () => {
           address_line_1: data.address_line_1,
           address_line_2: data.address_line_2 || null,
           city: data.city,
+          county: data.county || null,
           postal_code: data.postal_code,
+          country: data.country,
         })
         .eq('id', user.id);
 
@@ -273,10 +281,40 @@ const UserProfile = () => {
 
                   <FormField
                     control={form.control}
+                    name="county"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>County</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g., West Midlands" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
                     name="postal_code"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Postal Code</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
