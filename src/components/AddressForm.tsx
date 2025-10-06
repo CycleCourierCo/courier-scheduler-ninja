@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Control, UseFormSetValue } from "react-hook-form";
+import { Control, UseFormSetValue, useWatch } from "react-hook-form";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -34,17 +34,18 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
 
+  // Watch the street field to detect when it's populated
+  const streetValue = useWatch({
+    control,
+    name: `${prefix}.street`,
+  });
+
+  // Update addressSelected when street field has a value
   useEffect(() => {
-    const checkFormValues = () => {
-      const streetValue = control._formValues[`${prefix}.street`];
-      if (streetValue && streetValue.length > 0) {
-        setAddressSelected(true);
-      }
-    };
-    
-    const timeoutId = setTimeout(checkFormValues, 100);
-    return () => clearTimeout(timeoutId);
-  }, [control, prefix]);
+    if (streetValue && streetValue.length > 0) {
+      setAddressSelected(true);
+    }
+  }, [streetValue]);
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {

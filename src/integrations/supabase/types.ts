@@ -399,10 +399,14 @@ export type Database = {
           address_line_2: string | null
           city: string | null
           company_name: string | null
+          country: string | null
+          county: string | null
           created_at: string
           email: string | null
           id: string
           is_business: boolean | null
+          latitude: number | null
+          longitude: number | null
           name: string | null
           phone: string | null
           postal_code: string | null
@@ -420,10 +424,14 @@ export type Database = {
           address_line_2?: string | null
           city?: string | null
           company_name?: string | null
+          country?: string | null
+          county?: string | null
           created_at?: string
           email?: string | null
           id: string
           is_business?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string | null
           phone?: string | null
           postal_code?: string | null
@@ -441,10 +449,14 @@ export type Database = {
           address_line_2?: string | null
           city?: string | null
           company_name?: string | null
+          country?: string | null
+          county?: string | null
           created_at?: string
           email?: string | null
           id?: string
           is_business?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string | null
           phone?: string | null
           postal_code?: string | null
@@ -563,10 +575,14 @@ export type Database = {
           address_line_2: string | null
           city: string | null
           company_name: string | null
+          country: string | null
+          county: string | null
           created_at: string
           email: string | null
           id: string
           is_business: boolean | null
+          latitude: number | null
+          longitude: number | null
           name: string | null
           phone: string | null
           postal_code: string | null

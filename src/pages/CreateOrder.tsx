@@ -290,6 +290,7 @@ const CreateOrder = () => {
     if (!userProfile.email) missingFields.push("email");
     if (!userProfile.phone) missingFields.push("phone");
     if (!userProfile.address_line_1) missingFields.push("address");
+    if (!userProfile.country) missingFields.push("country");
 
     if (missingFields.length > 0) {
       toast.error(`Please complete your profile first. Missing: ${missingFields.join(", ")}`);
@@ -310,25 +311,17 @@ const CreateOrder = () => {
     form.setValue(`${prefix}.email`, userProfile.email);
     form.setValue(`${prefix}.phone`, formattedPhone);
 
-    // Fill address information and trigger search
-    const fullAddress = `${userProfile.address_line_1}${userProfile.address_line_2 ? `, ${userProfile.address_line_2}` : ""}, ${userProfile.city || ""}, ${userProfile.postal_code || ""}`.trim();
-    
+    // Fill address information
     form.setValue(`${prefix}.address.street`, userProfile.address_line_1);
     form.setValue(`${prefix}.address.city`, userProfile.city || "");
-    form.setValue(`${prefix}.address.state`, userProfile.address_line_2 || "");
+    form.setValue(`${prefix}.address.state`, userProfile.county || userProfile.address_line_2 || "");
     form.setValue(`${prefix}.address.zipCode`, userProfile.postal_code || "");
-    form.setValue(`${prefix}.address.country`, "United Kingdom");
-
-    // Trigger address validation by searching for the address
-    if (fullAddress.length > 3) {
-      setTimeout(() => {
-        const addressForm = document.querySelector(`input[placeholder="Search for an address in the UK..."]`) as HTMLInputElement;
-        if (addressForm) {
-          addressForm.value = fullAddress;
-          addressForm.dispatchEvent(new Event('input', { bubbles: true }));
-          addressForm.focus();
-        }
-      }, 100);
+    form.setValue(`${prefix}.address.country`, userProfile.country || "United Kingdom");
+    
+    // Set coordinates if available
+    if (userProfile.latitude && userProfile.longitude) {
+      form.setValue(`${prefix}.address.lat`, userProfile.latitude);
+      form.setValue(`${prefix}.address.lon`, userProfile.longitude);
     }
 
     toast.success("Details filled from your profile");

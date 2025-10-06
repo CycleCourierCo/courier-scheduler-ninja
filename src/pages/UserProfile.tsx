@@ -23,8 +23,10 @@ const profileSchema = z.object({
   address_line_1: z.string().min(1, "Address line 1 is required"),
   address_line_2: z.string().optional(),
   city: z.string().min(1, "City is required"),
+  county: z.string().min(1, "County is required"),
   postal_code: z.string().min(1, "Postal code is required"),
-  accounts_email: z.string().email("Invalid email").optional(),
+  country: z.string().min(1, "Country is required"),
+  accounts_email: z.string().email("Invalid email address").min(1, "Accounts email is required"),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -35,6 +37,7 @@ const UserProfile = () => {
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
+    mode: "onSubmit",
     defaultValues: {
       name: "",
       email: "",
@@ -44,7 +47,9 @@ const UserProfile = () => {
       address_line_1: "",
       address_line_2: "",
       city: "",
+      county: "",
       postal_code: "",
+      country: "United Kingdom",
       accounts_email: "",
     },
   });
@@ -61,7 +66,10 @@ const UserProfile = () => {
         address_line_1: userProfile.address_line_1 || "",
         address_line_2: userProfile.address_line_2 || "",
         city: userProfile.city || "",
+        county: userProfile.county || "",
         postal_code: userProfile.postal_code || "",
+        country: userProfile.country || "United Kingdom",
+        accounts_email: userProfile.accounts_email || "",
       });
     }
   }, [userProfile, form]);
@@ -82,7 +90,10 @@ const UserProfile = () => {
           address_line_1: data.address_line_1,
           address_line_2: data.address_line_2 || null,
           city: data.city,
+          county: data.county,
           postal_code: data.postal_code,
+          country: data.country,
+          accounts_email: data.accounts_email,
         })
         .eq('id', user.id);
 
@@ -96,6 +107,22 @@ const UserProfile = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check if form is valid
+    const isValid = form.formState.isValid;
+    const errors = form.formState.errors;
+    
+    if (Object.keys(errors).length > 0 || !isValid) {
+      const errorCount = Object.keys(errors).length;
+      toast.error(`Please fill in all required fields correctly (${errorCount} error${errorCount > 1 ? 's' : ''})`);
+      return;
+    }
+    
+    form.handleSubmit(onSubmit)(e);
   };
 
   return (
@@ -116,7 +143,7 @@ const UserProfile = () => {
 
       <div className="container px-4 py-6 md:px-6 max-w-4xl mx-auto">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -133,7 +160,7 @@ const UserProfile = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>Full Name *</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -162,7 +189,7 @@ const UserProfile = () => {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
+                        <FormLabel>Phone Number *</FormLabel>
                         <FormControl>
                           <Input type="tel" {...field} />
                         </FormControl>
@@ -233,7 +260,7 @@ const UserProfile = () => {
                   name="address_line_1"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address Line 1</FormLabel>
+                      <FormLabel>Address Line 1 *</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -262,7 +289,7 @@ const UserProfile = () => {
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>City</FormLabel>
+                        <FormLabel>City *</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -273,10 +300,40 @@ const UserProfile = () => {
 
                   <FormField
                     control={form.control}
+                    name="county"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>County *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g., West Midlands" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
                     name="postal_code"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Postal Code</FormLabel>
+                        <FormLabel>Postal Code *</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country *</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -291,7 +348,7 @@ const UserProfile = () => {
                   name="accounts_email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Accounts Email (for invoicing)</FormLabel>
+                      <FormLabel>Accounts Email (for invoicing) *</FormLabel>
                       <FormControl>
                         <Input {...field} type="email" placeholder="accounts@company.com" />
                       </FormControl>

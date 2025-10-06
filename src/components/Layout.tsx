@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -23,6 +23,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isLoader = userProfile?.role === 'loader';
   const isRoutePlanner = userProfile?.role === 'route_planner';
   const isSales = userProfile?.role === 'sales';
+  const isB2B = userProfile?.role === 'b2b_customer';
   
   // Loaders should not see any navigation
   const navLinks = !isLoader ? <>
@@ -103,6 +104,12 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
+                      {(isB2B || isAdmin) && (
+                        <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Clock className="mr-2 h-4 w-4" />
+                          Bulk Availability
+                        </Link>
+                      )}
                       {(isRoutePlanner || isAdmin) && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
@@ -207,6 +214,14 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                     </>}
+                  {(isB2B || isAdmin) && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>Bulk Availability</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {(isRoutePlanner || isAdmin) && <DropdownMenuItem asChild>
                       <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                         <Calendar className="mr-2 h-4 w-4" />
