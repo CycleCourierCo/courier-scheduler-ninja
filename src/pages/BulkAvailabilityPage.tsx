@@ -109,7 +109,10 @@ const BulkAvailabilityPage = () => {
 
       for (const selectedKey of selectedOrderIds) {
         console.log("Processing selectedKey:", selectedKey);
-        const [orderId, role] = selectedKey.split('-');
+        // Split from the LAST hyphen since UUIDs contain hyphens
+        const lastHyphenIndex = selectedKey.lastIndexOf('-');
+        const orderId = selectedKey.substring(0, lastHyphenIndex);
+        const role = selectedKey.substring(lastHyphenIndex + 1) as 'sender' | 'receiver';
         console.log("Split into orderId:", orderId, "role:", role);
         
         const order = orders.find((o) => o.id === orderId && o.displayRole === role);
