@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -13,6 +13,7 @@ import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
 // Enhanced safe format function to better handle invalid dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
@@ -175,7 +176,16 @@ const CustomerOrderDetail = () => {
             </Button>
             <h1 className="text-2xl font-bold">Order Details</h1>
           </div>
-          <StatusBadge status={order.status} />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => generateSingleOrderLabel(order)}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Label
+            </Button>
+            <StatusBadge status={order.status} />
+          </div>
         </div>
 
         <Card>
