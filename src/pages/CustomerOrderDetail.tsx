@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -13,6 +13,7 @@ import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
 // Enhanced safe format function to better handle invalid dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
@@ -165,17 +166,31 @@ const CustomerOrderDetail = () => {
     <Layout>
       <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
         <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild size="sm">
               <Link to="/dashboard">
-                <ArrowLeft className="mr-2" />
-                Back
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Back</span>
+                <span className="sm:hidden">Back</span>
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold">Order Details</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Order Details</h1>
           </div>
-          <StatusBadge status={order.status} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generateSingleOrderLabel(order)}
+              className="flex-1 sm:flex-none"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Label
+            </Button>
+            <div className="flex-1 sm:flex-none">
+              <StatusBadge status={order.status} />
+            </div>
+          </div>
         </div>
 
         <Card>
