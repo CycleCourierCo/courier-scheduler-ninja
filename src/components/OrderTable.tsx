@@ -2,7 +2,7 @@
 import React, { useState, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Eye, RefreshCcw, Bike, GripVertical, Calendar } from "lucide-react";
+import { Eye, RefreshCcw, Bike, GripVertical, Calendar, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import {
@@ -20,6 +20,7 @@ import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import TableColumnSettings from "@/components/TableColumnSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
 interface OrderTableProps {
   orders: Order[];
@@ -452,6 +453,21 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                             Customer
                           </Link>
                         </Button>
+                        
+                        {(userRole === "admin" || userRole === "b2b_customer") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              generateSingleOrderLabel(order);
+                            }}
+                          >
+                            <Printer className="h-4 w-4 mr-1" />
+                            Label
+                          </Button>
+                        )}
                         
                         {order.status === "sender_availability_pending" && (
                           <Button
