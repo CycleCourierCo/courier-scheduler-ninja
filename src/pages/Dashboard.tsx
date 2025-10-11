@@ -25,7 +25,8 @@ const Dashboard: React.FC = () => {
     search: "",
     sortBy: "created_desc",
     dateFrom: undefined as Date | undefined,
-    dateTo: undefined as Date | undefined
+    dateTo: undefined as Date | undefined,
+    customerId: undefined as string | undefined
   });
   const { user } = useAuth();
 
@@ -71,7 +72,7 @@ const Dashboard: React.FC = () => {
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
         sortBy: filters.sortBy,
-        userId: user.id,
+        userId: filters.customerId || user.id,
         userRole: userRole
       });
       
@@ -102,13 +103,14 @@ const Dashboard: React.FC = () => {
     sortBy: string;
     dateFrom: Date | undefined;
     dateTo: Date | undefined;
+    customerId?: string | undefined;
   }) => {
-    setFilters(newFilters);
+    setFilters(newFilters as typeof filters);
     setCurrentPage(1); // Reset to first page when filters change
   }, []);
 
   const handleClearFilters = useCallback(() => {
-    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined });
+    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined });
     setCurrentPage(1);
   }, []);
 
@@ -140,6 +142,7 @@ const Dashboard: React.FC = () => {
         <OrderFilters 
           onFilterChange={handleFilterChange} 
           initialFilters={filters}
+          userRole={userRole}
         />
 
         <OrderListContainer
