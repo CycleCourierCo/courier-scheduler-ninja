@@ -77,6 +77,7 @@ export interface OrderFilters {
   sortBy?: string;
   userId?: string;
   userRole?: string;
+  customerId?: string;
 }
 
 export interface OrdersResponse {
@@ -95,7 +96,8 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       dateTo,
       sortBy = "created_desc",
       userId,
-      userRole
+      userRole,
+      customerId
     } = filters;
 
     let query = supabase.from("orders").select("*", { count: "exact" });
@@ -103,6 +105,11 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
     // Apply role-based filtering
     if (userRole !== "admin" && userRole !== "route_planner" && userId) {
       query = query.eq("user_id", userId);
+    }
+
+    // Apply customer filter for admins
+    if (userRole === "admin" && customerId) {
+      query = query.eq("user_id", customerId);
     }
 
     // Apply search filter across multiple fields

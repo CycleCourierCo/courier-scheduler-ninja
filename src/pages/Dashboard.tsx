@@ -72,8 +72,9 @@ const Dashboard: React.FC = () => {
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
         sortBy: filters.sortBy,
-        userId: filters.customerId || user.id,
-        userRole: userRole
+        userId: user.id,
+        userRole: userRole,
+        customerId: filters.customerId
       });
       
       setOrders(response.data);
