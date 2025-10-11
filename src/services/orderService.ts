@@ -106,15 +106,16 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
     }
 
     // Apply search filter across multiple fields
-    if (search) {
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
       query = query.or(
-        `sender->>name.ilike.%${search}%,` +
-        `receiver->>name.ilike.%${search}%,` +
-        `id.ilike.%${search}%,` +
-        `tracking_number.ilike.%${search}%,` +
-        `bike_brand.ilike.%${search}%,` +
-        `bike_model.ilike.%${search}%,` +
-        `customer_order_number.ilike.%${search}%`
+        `sender->>name.ilike.*${searchTerm}*,` +
+        `receiver->>name.ilike.*${searchTerm}*,` +
+        `id.ilike.*${searchTerm}*,` +
+        `tracking_number.ilike.*${searchTerm}*,` +
+        `bike_brand.ilike.*${searchTerm}*,` +
+        `bike_model.ilike.*${searchTerm}*,` +
+        `customer_order_number.ilike.*${searchTerm}*`
       );
     }
 
