@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
 import { getOrdersWithFilters } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { toast } from "sonner";
@@ -98,7 +98,7 @@ const Dashboard: React.FC = () => {
   const startIndex = totalCount > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
 
-  const handleFilterChange = (newFilters: {
+  const handleFilterChange = useCallback((newFilters: {
     status: string[];
     search: string;
     sortBy: string;
@@ -107,12 +107,12 @@ const Dashboard: React.FC = () => {
   }) => {
     setFilters(newFilters);
     setCurrentPage(1); // Reset to first page when filters change
-  };
+  }, []);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined });
     setCurrentPage(1);
-  };
+  }, []);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

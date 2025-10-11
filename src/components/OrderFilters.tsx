@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -352,4 +352,4 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   );
 };
 
-export default OrderFilters;
+export default memo(OrderFilters);
