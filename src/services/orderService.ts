@@ -67,6 +67,112 @@ export const getOrders = async (): Promise<Order[]> => {
   }
 };
 
+export interface OrderFilters {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string[];
+  dateFrom?: Date;
+  dateTo?: Date;
+  sortBy?: string;
+  userId?: string;
+  userRole?: string;
+}
+
+export interface OrdersResponse {
+  data: Order[];
+  count: number;
+}
+
+export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<OrdersResponse> => {
+  try {
+    const {
+      page = 1,
+      pageSize = 10,
+      search = "",
+      status = [],
+      dateFrom,
+      dateTo,
+      sortBy = "created_desc",
+      userId,
+      userRole
+    } = filters;
+
+    let query = supabase.from("orders").select("*", { count: "exact" });
+
+    // Apply role-based filtering
+    if (userRole !== "admin" && userRole !== "route_planner" && userId) {
+      query = query.eq("user_id", userId);
+    }
+
+    // Apply search filter across multiple fields
+    if (search) {
+      query = query.or(
+        `sender->>name.ilike.%${search}%,` +
+        `receiver->>name.ilike.%${search}%,` +
+        `id.ilike.%${search}%,` +
+        `tracking_number.ilike.%${search}%,` +
+        `bike_brand.ilike.%${search}%,` +
+        `bike_model.ilike.%${search}%,` +
+        `customer_order_number.ilike.%${search}%`
+      );
+    }
+
+    // Apply status filter
+    if (status.length > 0) {
+      query = query.in("status", status as any);
+    }
+
+    // Apply date range filter
+    if (dateFrom) {
+      query = query.gte("created_at", dateFrom.toISOString());
+    }
+    if (dateTo) {
+      const dateToEnd = new Date(dateTo);
+      dateToEnd.setHours(23, 59, 59, 999);
+      query = query.lte("created_at", dateToEnd.toISOString());
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case "created_asc":
+        query = query.order("created_at", { ascending: true });
+        break;
+      case "created_desc":
+        query = query.order("created_at", { ascending: false });
+        break;
+      case "sender_name":
+        query = query.order("sender->name", { ascending: true });
+        break;
+      case "receiver_name":
+        query = query.order("receiver->name", { ascending: true });
+        break;
+      default:
+        query = query.order("created_at", { ascending: false });
+    }
+
+    // Apply pagination
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+    query = query.range(start, end);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("Error fetching orders:", error);
+      return { data: [], count: 0 };
+    }
+
+    return {
+      data: (data || []).map(mapDbOrderToOrderType),
+      count: count || 0
+    };
+  } catch (error) {
+    console.error("Error in getOrdersWithFilters:", error);
+    return { data: [], count: 0 };
+  }
+};
+
 export const updateOrderStatus = async (id: string, status: OrderStatus): Promise<Order | null> => {
   try {
     const { data, error } = await supabase
