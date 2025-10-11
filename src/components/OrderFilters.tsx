@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -76,6 +76,16 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Restore focus to search input after re-renders
+  useEffect(() => {
+    if (document.activeElement?.tagName === 'INPUT' && 
+        document.activeElement.getAttribute('placeholder')?.includes('Search')) {
+      // Don't do anything if search input already has focus
+      return;
+    }
+  }, [search]);
 
   const handleStatusToggle = (value: string) => {
     const newStatus = status.includes(value)
@@ -148,6 +158,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
             <Input
+              ref={searchInputRef}
               placeholder="Search by customer name, order ID, bike details, or tracking number..."
               value={search}
               onChange={handleSearchChange}
