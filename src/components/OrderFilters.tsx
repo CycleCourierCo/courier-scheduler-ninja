@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -75,6 +75,24 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [dateTo, setDateTo] = useState<Date | undefined>(initialFilters.dateTo);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Debounced search effect
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      onFilterChange({ status, search, sortBy, dateFrom, dateTo });
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [search]);
 
   const handleStatusToggle = (value: string) => {
     const newStatus = status.includes(value)
@@ -86,7 +104,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
-    onFilterChange({ status, search: e.target.value, sortBy, dateFrom, dateTo });
+    // Debouncing handled by useEffect
   };
 
   const handleSortChange = (value: string) => {
