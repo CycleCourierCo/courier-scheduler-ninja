@@ -7,8 +7,7 @@ import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import OrderFilters from "@/components/OrderFilters";
-import OrderTable from "@/components/OrderTable";
-import EmptyOrdersState from "@/components/EmptyOrdersState";
+import OrderListContainer from "@/components/OrderListContainer";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,7 +63,6 @@ const Dashboard: React.FC = () => {
     }
     
     try {
-      setLoading(true);
       const response = await getOrdersWithFilters({
         page: currentPage,
         pageSize: itemsPerPage,
@@ -79,10 +77,10 @@ const Dashboard: React.FC = () => {
       
       setOrders(response.data);
       setTotalCount(response.count);
+      setLoading(false);
     } catch (error) {
       console.error("Dashboard: Error fetching orders:", error);
       toast.error("Failed to fetch orders");
-    } finally {
       setLoading(false);
     }
   }, [user, userRole, currentPage, itemsPerPage, filters]);
@@ -123,7 +121,8 @@ const Dashboard: React.FC = () => {
     setCurrentPage(1);
   };
 
-  if (loading) {
+
+  if (userRole === null) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
@@ -143,91 +142,89 @@ const Dashboard: React.FC = () => {
           initialFilters={filters}
         />
 
-        {totalCount === 0 ? (
-          <EmptyOrdersState 
-            hasOrders={false}
-            onClearFilters={handleClearFilters} 
-          />
-        ) : (
-          <div className="space-y-4">
-            <OrderTable orders={orders} userRole={userRole} />
+        <OrderListContainer
+          orders={orders}
+          userRole={userRole}
+          totalCount={totalCount}
+          loading={loading}
+          onClearFilters={handleClearFilters}
+        />
+
+        {totalCount > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t pt-4 gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex} to {endIndex} of {totalCount} orders
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Rows per page:</span>
+                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             
-            {/* Pagination Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t pt-4 gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing {startIndex} to {endIndex} of {totalCount} orders
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Rows per page:</span>
-                  <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => {
+                    // Show first page, last page, current page, and pages around current page
+                    return page === 1 || 
+                           page === totalPages || 
+                           (page >= currentPage - 1 && page <= currentPage + 1);
+                  })
+                  .map((page, index, array) => {
+                    // Add ellipsis if there's a gap
+                    const prevPage = array[index - 1];
+                    const showEllipsis = prevPage && page - prevPage > 1;
+                    
+                    return (
+                      <div key={page} className="flex items-center">
+                        {showEllipsis && (
+                          <span className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      </div>
+                    );
+                  })
+                }
               </div>
               
-              <div className="flex items-center gap-2 overflow-x-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      // Show first page, last page, current page, and pages around current page
-                      return page === 1 || 
-                             page === totalPages || 
-                             (page >= currentPage - 1 && page <= currentPage + 1);
-                    })
-                    .map((page, index, array) => {
-                      // Add ellipsis if there's a gap
-                      const prevPage = array[index - 1];
-                      const showEllipsis = prevPage && page - prevPage > 1;
-                      
-                      return (
-                        <div key={page} className="flex items-center">
-                          {showEllipsis && (
-                            <span className="px-2 text-muted-foreground">...</span>
-                          )}
-                          <Button
-                            variant={currentPage === page ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handlePageChange(page)}
-                            className="w-8 h-8 p-0"
-                          >
-                            {page}
-                          </Button>
-                        </div>
-                      );
-                    })
-                  }
-                </div>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
