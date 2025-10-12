@@ -755,7 +755,8 @@ const LoadingUnloadingPage = () => {
         body: {
           date: format(selectedLoadingDate, 'PPP'),
           bikesNeedingLoading: bikesNeedingLoadingData,
-          bikesAlreadyLoaded: bikesAlreadyLoadedData
+          bikesAlreadyLoaded: bikesAlreadyLoadedData,
+          driverPhoneNumbers: driverPhoneNumbers
         }
       });
 
