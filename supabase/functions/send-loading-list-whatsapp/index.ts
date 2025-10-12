@@ -21,7 +21,8 @@ interface LoadingListRequest {
       bay: string;
       position: number;
     }>;
-    driverName?: string; // Driver who should load this bike
+    collectionDriverName?: string; // Driver who collected this bike
+    deliveryDriverName?: string; // Driver who should deliver this bike
     isInStorage: boolean;
   }[];
   driverPhoneNumbers?: Record<string, string>; // Optional driver phone numbers
@@ -55,9 +56,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Group bikes by driver
+    // Group bikes by delivery driver for organization
     const bikesByDriver = bikesNeedingLoading.reduce((acc, bike) => {
-      const driver = bike.driverName || 'Unassigned Driver';
+      const driver = bike.deliveryDriverName || 'Unassigned Driver';
       if (!acc[driver]) {
         acc[driver] = [];
       }
@@ -86,8 +87,10 @@ const handler = async (req: Request): Promise<Response> => {
           // Bike is in storage unit
           location = bike.storageAllocations.map(alloc => `Bay ${alloc.bay}${alloc.position}`).join(', ');
         } else {
-          // Bike is not in storage - check if it's with a driver or needs to be collected
-          if (driverName === 'Unassigned Driver') {
+          // Bike is not in storage - show who has it (collection driver)
+          if (bike.collectionDriverName) {
+            location = `With ${bike.collectionDriverName}`;
+          } else if (driverName === 'Unassigned Driver') {
             location = 'Awaiting assignment';
           } else {
             location = `With ${driverName}`;
@@ -148,7 +151,10 @@ const handler = async (req: Request): Promise<Response> => {
           if (bike.isInStorage) {
             location = bike.storageAllocations.map(alloc => `Bay ${alloc.bay}${alloc.position}`).join(', ');
           } else {
-            if (driverName === 'Unassigned Driver') {
+            // Bike is not in storage - show who has it (collection driver)
+            if (bike.collectionDriverName) {
+              location = `With ${bike.collectionDriverName}`;
+            } else if (driverName === 'Unassigned Driver') {
               location = 'Awaiting assignment';
             } else {
               location = `With ${driverName}`;

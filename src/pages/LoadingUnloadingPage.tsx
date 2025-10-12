@@ -175,15 +175,16 @@ const LoadingUnloadingPage = () => {
     return hasCollection && !hasDelivery && !isCancelled && !hasStorage && !isLoadedOntoVan;
   });
 
-  // Get all bikes that have storage allocations (regardless of delivery status)
+  // Get all bikes that have storage allocations (excluding loaded bikes)
   const bikesInStorage = storageAllocations.map(allocation => {
     const order = orders.find(o => o.id === allocation.orderId);
     console.log('Mapping allocation:', allocation, 'Found order:', order);
     return { allocation, order };
   }).filter(item => {
     const hasOrder = !!item.order;
-    console.log('Filtering item:', item, 'Has order:', hasOrder);
-    return hasOrder;
+    const isLoaded = item.order?.loaded_onto_van === true;
+    console.log('Filtering item:', item, 'Has order:', hasOrder, 'Is loaded:', isLoaded);
+    return hasOrder && !isLoaded;
   });
 
   console.log('Final bikesInStorage:', bikesInStorage);
@@ -707,7 +708,8 @@ const LoadingUnloadingPage = () => {
       const bikesNeedingLoadingData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Find the delivery driver assignment
+        // Get both collection and delivery driver assignments
+        const collectionDriverName = getDriverAssignment(order, 'pickup') || null;
         const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
 
         return {
@@ -723,7 +725,8 @@ const LoadingUnloadingPage = () => {
             bay: alloc.bay,
             position: alloc.position
           })),
-          driverName: deliveryDriverName,
+          collectionDriverName: collectionDriverName,
+          deliveryDriverName: deliveryDriverName,
           isInStorage: orderAllocations.length > 0
         };
       });
@@ -752,7 +755,8 @@ const LoadingUnloadingPage = () => {
         body: {
           date: format(selectedLoadingDate, 'PPP'),
           bikesNeedingLoading: bikesNeedingLoadingData,
-          bikesAlreadyLoaded: bikesAlreadyLoadedData
+          bikesAlreadyLoaded: bikesAlreadyLoadedData,
+          driverPhoneNumbers: driverPhoneNumbers
         }
       });
 
