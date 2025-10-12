@@ -9,7 +9,7 @@ import { StorageUnitLayout } from "@/components/loading/StorageUnitLayout";
 import { PendingStorageAllocation } from "@/components/loading/PendingStorageAllocation";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
-import { getOrders } from "@/services/orderService";
+import { getOrders, getOrdersForLoading } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -87,7 +87,7 @@ const LoadingUnloadingPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const ordersData = await getOrders();
+      const ordersData = await getOrdersForLoading();
       setOrders(ordersData);
       
       // Fetch storage allocations from orders' storage_locations field

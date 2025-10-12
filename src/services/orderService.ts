@@ -55,7 +55,8 @@ export const getOrders = async (): Promise<Order[]> => {
   try {
     const { data, error } = await supabase
       .from("orders")
-      .select("*");
+      .select("*")
+      .limit(10000); // Increase limit to fetch all orders
 
     if (error) {
       return [];
@@ -63,6 +64,34 @@ export const getOrders = async (): Promise<Order[]> => {
 
     return data.map(mapDbOrderToOrderType);
   } catch (error) {
+    return [];
+  }
+};
+
+// Optimized query specifically for the loading/unloading page
+export const getOrdersForLoading = async (): Promise<Order[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .or(
+        'storage_locations.not.is.null,' +
+        'status.eq.collected,' +
+        'status.eq.driver_to_delivery,' +
+        'loaded_onto_van.eq.true'
+      )
+      .order("created_at", { ascending: false })
+      .limit(5000);
+
+    if (error) {
+      console.error('Error fetching orders for loading:', error);
+      return [];
+    }
+
+    console.log(`Fetched ${data?.length || 0} orders for loading page`);
+    return data.map(mapDbOrderToOrderType);
+  } catch (error) {
+    console.error('Error in getOrdersForLoading:', error);
     return [];
   }
 };
