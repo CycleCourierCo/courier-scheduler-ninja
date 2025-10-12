@@ -708,7 +708,8 @@ const LoadingUnloadingPage = () => {
       const bikesNeedingLoadingData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Find the delivery driver assignment
+        // Get both collection and delivery driver assignments
+        const collectionDriverName = getDriverAssignment(order, 'pickup') || null;
         const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
 
         return {
@@ -724,7 +725,8 @@ const LoadingUnloadingPage = () => {
             bay: alloc.bay,
             position: alloc.position
           })),
-          driverName: deliveryDriverName,
+          collectionDriverName: collectionDriverName,
+          deliveryDriverName: deliveryDriverName,
           isInStorage: orderAllocations.length > 0
         };
       });
