@@ -1,6 +1,7 @@
 
-import { useState } from "react";
-import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon } from "lucide-react";
+import { useState, useRef, useEffect, memo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const statusOptions = [
   { value: "created", label: "Created" },
@@ -54,6 +56,7 @@ interface OrderFiltersProps {
     sortBy: string;
     dateFrom: Date | undefined;
     dateTo: Date | undefined;
+    customerId?: string;
   }) => void;
   initialFilters?: {
     status: string[];
@@ -61,56 +64,106 @@ interface OrderFiltersProps {
     sortBy: string;
     dateFrom: Date | undefined;
     dateTo: Date | undefined;
+    customerId?: string;
   };
+  userRole: string | null;
 }
 
 const OrderFilters: React.FC<OrderFiltersProps> = ({ 
   onFilterChange, 
-  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined }
+  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined },
+  userRole
 }) => {
   const [status, setStatus] = useState<string[]>(initialFilters.status);
   const [search, setSearch] = useState<string>(initialFilters.search);
   const [sortBy, setSortBy] = useState<string>(initialFilters.sortBy);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(initialFilters.dateFrom);
   const [dateTo, setDateTo] = useState<Date | undefined>(initialFilters.dateTo);
+  const [customerId, setCustomerId] = useState<string | undefined>(initialFilters.customerId);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch B2B customers for admin users
+  const { data: customers } = useQuery({
+    queryKey: ["b2b-customers"],
+    queryFn: async () => {
+      if (userRole !== "admin") return [];
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, name, email")
+        .eq("role", "b2b_customer")
+        .eq("account_status", "approved")
+        .order("name");
+      
+      if (error) throw error;
+      return data as { id: string; name: string; email: string }[];
+    },
+    enabled: userRole === "admin",
+  });
+
+  // Restore focus to search input after re-renders
+  useEffect(() => {
+    if (document.activeElement?.tagName === 'INPUT' && 
+        document.activeElement.getAttribute('placeholder')?.includes('Search')) {
+      // Don't do anything if search input already has focus
+      return;
+    }
+  }, [search]);
 
   const handleStatusToggle = (value: string) => {
     const newStatus = status.includes(value)
       ? status.filter(s => s !== value)
       : [...status, value];
     setStatus(newStatus);
-    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo });
+    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    onFilterChange({ status, search: e.target.value, sortBy, dateFrom, dateTo });
+    const newSearch = e.target.value;
+    setSearch(newSearch);
+    
+    // Debounce the search filter change
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId });
+    }, 300);
   };
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
-    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo });
+    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId });
   };
 
   const handleDateFromChange = (date: Date | undefined) => {
     setDateFrom(date);
-    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo });
+    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId });
   };
 
   const handleDateToChange = (date: Date | undefined) => {
     setDateTo(date);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId });
+  };
+
+  const handleCustomerChange = (value: string) => {
+    const newCustomerId = value === "all" ? undefined : value;
+    setCustomerId(newCustomerId);
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId });
   };
 
   const handleClearFilters = () => {
-    const defaultFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined };
+    const defaultFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined };
     setStatus(defaultFilters.status);
     setSearch(defaultFilters.search);
     setSortBy(defaultFilters.sortBy);
     setDateFrom(defaultFilters.dateFrom);
     setDateTo(defaultFilters.dateTo);
+    setCustomerId(defaultFilters.customerId);
     onFilterChange(defaultFilters);
   };
 
@@ -138,6 +191,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
             <Input
+              ref={searchInputRef}
               placeholder="Search by customer name, order ID, bike details, or tracking number..."
               value={search}
               onChange={handleSearchChange}
@@ -278,21 +332,40 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => {
-                            setDateFrom(undefined);
-                            setDateTo(undefined);
-                            onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined });
-                          }}
-                          className="w-full"
-                        >
-                          Clear Date Filter
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                      onClick={() => {
+                        setDateFrom(undefined);
+                        setDateTo(undefined);
+                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId });
+                      }}
+                      className="w-full"
+                    >
+                      Clear Date Filter
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {userRole === "admin" && (
+          <div className="w-full md:w-48">
+            <Select value={customerId || "all"} onValueChange={handleCustomerChange}>
+              <SelectTrigger>
+                <Users className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="All Customers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {customers?.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
             
             <div className="w-full md:w-48">
               <Select value={sortBy} onValueChange={handleSortChange}>
@@ -331,4 +404,4 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   );
 };
 
-export default OrderFilters;
+export default memo(OrderFilters);

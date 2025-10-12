@@ -55,7 +55,8 @@ export const getOrders = async (): Promise<Order[]> => {
   try {
     const { data, error } = await supabase
       .from("orders")
-      .select("*");
+      .select("*")
+      .limit(10000); // Increase limit to fetch all orders
 
     if (error) {
       return [];
@@ -64,6 +65,147 @@ export const getOrders = async (): Promise<Order[]> => {
     return data.map(mapDbOrderToOrderType);
   } catch (error) {
     return [];
+  }
+};
+
+// Optimized query specifically for the loading/unloading page
+export const getOrdersForLoading = async (): Promise<Order[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .or(
+        'storage_locations.not.is.null,' +
+        'status.eq.collected,' +
+        'status.eq.driver_to_delivery,' +
+        'loaded_onto_van.eq.true'
+      )
+      .order("created_at", { ascending: false })
+      .limit(5000);
+
+    if (error) {
+      console.error('Error fetching orders for loading:', error);
+      return [];
+    }
+
+    console.log(`Fetched ${data?.length || 0} orders for loading page`);
+    return data.map(mapDbOrderToOrderType);
+  } catch (error) {
+    console.error('Error in getOrdersForLoading:', error);
+    return [];
+  }
+};
+
+export interface OrderFilters {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string[];
+  dateFrom?: Date;
+  dateTo?: Date;
+  sortBy?: string;
+  userId?: string;
+  userRole?: string;
+  customerId?: string;
+}
+
+export interface OrdersResponse {
+  data: Order[];
+  count: number;
+}
+
+export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<OrdersResponse> => {
+  try {
+    const {
+      page = 1,
+      pageSize = 10,
+      search = "",
+      status = [],
+      dateFrom,
+      dateTo,
+      sortBy = "created_desc",
+      userId,
+      userRole,
+      customerId
+    } = filters;
+
+    let query = supabase.from("orders").select("*", { count: "exact" });
+
+    // Apply role-based filtering
+    if (userRole !== "admin" && userRole !== "route_planner" && userId) {
+      query = query.eq("user_id", userId);
+    }
+
+    // Apply customer filter for admins
+    if (userRole === "admin" && customerId) {
+      query = query.eq("user_id", customerId);
+    }
+
+    // Apply search filter across multiple fields
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query = query.or(
+        `sender->>name.ilike.%${searchTerm}%,` +
+        `receiver->>name.ilike.%${searchTerm}%,` +
+        `tracking_number.ilike.%${searchTerm}%,` +
+        `bike_brand.ilike.%${searchTerm}%,` +
+        `bike_model.ilike.%${searchTerm}%,` +
+        `customer_order_number.ilike.%${searchTerm}%`
+      );
+    }
+
+    // Apply status filter
+    if (status.length > 0) {
+      query = query.in("status", status as any);
+    }
+
+    // Apply date range filter
+    if (dateFrom) {
+      query = query.gte("created_at", dateFrom.toISOString());
+    }
+    if (dateTo) {
+      const dateToEnd = new Date(dateTo);
+      dateToEnd.setHours(23, 59, 59, 999);
+      query = query.lte("created_at", dateToEnd.toISOString());
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case "created_asc":
+        query = query.order("created_at", { ascending: true });
+        break;
+      case "created_desc":
+        query = query.order("created_at", { ascending: false });
+        break;
+      case "sender_name":
+        query = query.order("sender->name", { ascending: true });
+        break;
+      case "receiver_name":
+        query = query.order("receiver->name", { ascending: true });
+        break;
+      default:
+        query = query.order("created_at", { ascending: false });
+    }
+
+    // Apply pagination
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+    query = query.range(start, end);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("Error fetching orders:", error);
+      return { data: [], count: 0 };
+    }
+
+    return {
+      data: (data || []).map(mapDbOrderToOrderType),
+      count: count || 0
+    };
+  } catch (error) {
+    console.error("Error in getOrdersWithFilters:", error);
+    return { data: [], count: 0 };
   }
 };
 
