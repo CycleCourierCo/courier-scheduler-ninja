@@ -175,15 +175,16 @@ const LoadingUnloadingPage = () => {
     return hasCollection && !hasDelivery && !isCancelled && !hasStorage && !isLoadedOntoVan;
   });
 
-  // Get all bikes that have storage allocations (regardless of delivery status)
+  // Get all bikes that have storage allocations (excluding loaded bikes)
   const bikesInStorage = storageAllocations.map(allocation => {
     const order = orders.find(o => o.id === allocation.orderId);
     console.log('Mapping allocation:', allocation, 'Found order:', order);
     return { allocation, order };
   }).filter(item => {
     const hasOrder = !!item.order;
-    console.log('Filtering item:', item, 'Has order:', hasOrder);
-    return hasOrder;
+    const isLoaded = item.order?.loaded_onto_van === true;
+    console.log('Filtering item:', item, 'Has order:', hasOrder, 'Is loaded:', isLoaded);
+    return hasOrder && !isLoaded;
   });
 
   console.log('Final bikesInStorage:', bikesInStorage);
