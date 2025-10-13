@@ -25,6 +25,7 @@ import { segmentGeoJSON } from "@/components/scheduling/JobMap";
 import PostcodePolygonSearch from "@/components/scheduling/PostcodePolygonSearch";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MultiJobTimeslotDialog from "@/components/scheduling/MultiJobTimeslotDialog";
 
 export interface OrderData {
   id: string;
@@ -62,6 +63,16 @@ const JobScheduling = () => {
   const [selectedDriver, setSelectedDriver] = useState<string>("");
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
   const [showDriverSelection, setShowDriverSelection] = useState(false);
+  
+  // New state for driver scheduling
+  const [isDriverSchedulingOpen, setIsDriverSchedulingOpen] = useState(false);
+  const [driverSchedulingDate, setDriverSchedulingDate] = useState<Date>();
+  const [availableDriversForScheduling, setAvailableDriversForScheduling] = useState<any[]>([]);
+  const [selectedDriverForScheduling, setSelectedDriverForScheduling] = useState<string>("");
+  const [isLoadingDriverOrders, setIsLoadingDriverOrders] = useState(false);
+  const [driverJobs, setDriverJobs] = useState<any[]>([]);
+  const [isMultiJobDialogOpen, setIsMultiJobDialogOpen] = useState(false);
+  const [showSchedulingDriverSelection, setShowSchedulingDriverSelection] = useState(false);
 
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['scheduling-orders'],
@@ -319,6 +330,142 @@ ${routeLinks}`;
     }
   };
 
+  const fetchOrdersForDriverScheduling = async (selectedDate: Date | undefined) => {
+    if (!selectedDate) return;
+    
+    setIsLoadingDriverOrders(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .not('status', 'in', '(cancelled,delivered)')
+        .or(`collection_driver_name.not.is.null,delivery_driver_name.not.is.null`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Group orders by driver name
+      const driverMap = new Map<string, { 
+        driverName: string; 
+        collectionJobs: any[]; 
+        deliveryJobs: any[];
+        totalJobs: number;
+      }>();
+
+      data.forEach(order => {
+        const sender = order.sender as any;
+        const receiver = order.receiver as any;
+        
+        // Validate coordinates
+        if (order.collection_driver_name) {
+          const hasCoords = sender?.address?.lat && sender?.address?.lon;
+          if (!hasCoords) {
+            console.warn(`Missing coordinates for collection: Order ${order.tracking_number}`);
+          }
+        }
+        
+        if (order.delivery_driver_name) {
+          const hasCoords = receiver?.address?.lat && receiver?.address?.lon;
+          if (!hasCoords) {
+            console.warn(`Missing coordinates for delivery: Order ${order.tracking_number}`);
+          }
+        }
+
+        // Process collection jobs
+        if (order.collection_driver_name) {
+          if (!driverMap.has(order.collection_driver_name)) {
+            driverMap.set(order.collection_driver_name, {
+              driverName: order.collection_driver_name,
+              collectionJobs: [],
+              deliveryJobs: [],
+              totalJobs: 0
+            });
+          }
+          const driverData = driverMap.get(order.collection_driver_name)!;
+          driverData.collectionJobs.push({
+            ...order,
+            jobType: 'collection',
+            contact: sender,
+            scheduledDate: order.scheduled_pickup_date,
+            timeslot: order.pickup_timeslot,
+            lat: sender?.address?.lat,
+            lon: sender?.address?.lon
+          });
+          driverData.totalJobs++;
+        }
+
+        // Process delivery jobs
+        if (order.delivery_driver_name) {
+          if (!driverMap.has(order.delivery_driver_name)) {
+            driverMap.set(order.delivery_driver_name, {
+              driverName: order.delivery_driver_name,
+              collectionJobs: [],
+              deliveryJobs: [],
+              totalJobs: 0
+            });
+          }
+          const driverData = driverMap.get(order.delivery_driver_name)!;
+          driverData.deliveryJobs.push({
+            ...order,
+            jobType: 'delivery',
+            contact: receiver,
+            scheduledDate: order.scheduled_delivery_date,
+            timeslot: order.delivery_timeslot,
+            lat: receiver?.address?.lat,
+            lon: receiver?.address?.lon
+          });
+          driverData.totalJobs++;
+        }
+      });
+
+      const driversArray = Array.from(driverMap.values());
+      setAvailableDriversForScheduling(driversArray);
+      setShowSchedulingDriverSelection(true);
+
+      if (driversArray.length === 0) {
+        toast.error("No drivers found with assigned orders");
+      }
+
+    } catch (error: any) {
+      console.error('Error fetching driver orders:', error);
+      toast.error(`Failed to get driver orders: ${error.message}`);
+    } finally {
+      setIsLoadingDriverOrders(false);
+    }
+  };
+
+  const prepareDriverJobsForScheduling = (driverName: string) => {
+    const driverData = availableDriversForScheduling.find(d => d.driverName === driverName);
+    if (!driverData) return;
+
+    // Combine collection and delivery jobs
+    const allJobs = [
+      ...driverData.collectionJobs,
+      ...driverData.deliveryJobs
+    ].map(job => ({
+      orderId: job.id,
+      type: job.jobType,
+      contactName: job.contact.name,
+      address: job.jobType === 'collection' 
+        ? `${job.sender.address.street}, ${job.sender.address.city}` 
+        : `${job.receiver.address.street}, ${job.receiver.address.city}`,
+      phoneNumber: job.contact.phone,
+      estimatedTime: job.timeslot || '',
+      order: job,
+      lat: job.lat,
+      lon: job.lon
+    })).filter(job => job.lat && job.lon); // Only include jobs with valid coordinates
+
+    if (allJobs.length === 0) {
+      toast.error("No jobs found with valid coordinates");
+      return;
+    }
+
+    setDriverJobs(allJobs);
+    setIsDriverSchedulingOpen(false);
+    setIsMultiJobDialogOpen(true);
+  };
+
   return (
     <Layout>
       <div className="container py-6">
@@ -329,13 +476,120 @@ ${routeLinks}`;
               Manage and schedule deliveries
             </p>
           </div>
-          <Dialog open={isTimeslipDialogOpen} onOpenChange={setIsTimeslipDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <FileText className="h-4 w-4" />
-                Generate Timeslip
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Dialog open={isDriverSchedulingOpen} onOpenChange={setIsDriverSchedulingOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Schedule Job Based on Driver
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Schedule Jobs by Driver</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {!showSchedulingDriverSelection ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Select Date</label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !driverSchedulingDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {driverSchedulingDate ? format(driverSchedulingDate, "PPP") : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={driverSchedulingDate}
+                              onSelect={setDriverSchedulingDate}
+                              initialFocus
+                              className="p-3 pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setIsDriverSchedulingOpen(false);
+                            setDriverSchedulingDate(undefined);
+                            setShowSchedulingDriverSelection(false);
+                            setAvailableDriversForScheduling([]);
+                          }}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => fetchOrdersForDriverScheduling(driverSchedulingDate)}
+                          disabled={!driverSchedulingDate || isLoadingDriverOrders}
+                          className="flex-1"
+                        >
+                          {isLoadingDriverOrders ? "Loading..." : "Next"}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Select Driver for {driverSchedulingDate && format(driverSchedulingDate, "PPP")}
+                        </label>
+                        <Select value={selectedDriverForScheduling} onValueChange={setSelectedDriverForScheduling}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Choose a driver" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableDriversForScheduling.map((driver) => (
+                              <SelectItem key={driver.driverName} value={driver.driverName}>
+                                {driver.driverName} ({driver.totalJobs} jobs: {driver.collectionJobs.length} collections, {driver.deliveryJobs.length} deliveries)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setShowSchedulingDriverSelection(false);
+                            setSelectedDriverForScheduling("");
+                            setAvailableDriversForScheduling([]);
+                          }}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          Back
+                        </Button>
+                        <Button
+                          onClick={() => selectedDriverForScheduling && prepareDriverJobsForScheduling(selectedDriverForScheduling)}
+                          disabled={!selectedDriverForScheduling}
+                          className="flex-1"
+                        >
+                          Schedule Jobs
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isTimeslipDialogOpen} onOpenChange={setIsTimeslipDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Generate Timeslip
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Generate Timeslip</DialogTitle>
@@ -435,7 +689,23 @@ ${routeLinks}`;
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </DashboardHeader>
+
+        <MultiJobTimeslotDialog
+          open={isMultiJobDialogOpen}
+          onOpenChange={setIsMultiJobDialogOpen}
+          jobs={driverJobs}
+          driverName={selectedDriverForScheduling}
+          onComplete={() => {
+            refetch();
+            setDriverJobs([]);
+            setSelectedDriverForScheduling("");
+            setAvailableDriversForScheduling([]);
+            setDriverSchedulingDate(undefined);
+            setShowSchedulingDriverSelection(false);
+          }}
+        />
 
         <PostcodePolygonSearch />
 
