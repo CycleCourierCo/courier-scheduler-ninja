@@ -121,8 +121,12 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   };
 
   const displayJobs = optimizedJobs.length > 0 ? optimizedJobs : jobs;
-  const collectionJobs = displayJobs.filter(j => j.type === 'collection');
-  const deliveryJobs = displayJobs.filter(j => j.type === 'delivery');
+  const collectionJobs = displayJobs
+    .filter(j => j.type === 'collection')
+    .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
+  const deliveryJobs = displayJobs
+    .filter(j => j.type === 'delivery')
+    .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

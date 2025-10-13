@@ -447,8 +447,8 @@ ${routeLinks}`;
       type: job.jobType,
       contactName: job.contact.name,
       address: job.jobType === 'collection' 
-        ? `${job.sender.address.street}, ${job.sender.address.city}` 
-        : `${job.receiver.address.street}, ${job.receiver.address.city}`,
+        ? `${job.contact.address.street}, ${job.contact.address.city}` 
+        : `${job.contact.address.street}, ${job.contact.address.city}`,
       phoneNumber: job.contact.phone,
       estimatedTime: job.timeslot || '',
       order: job,
@@ -456,9 +456,16 @@ ${routeLinks}`;
       lon: job.lon
     })).filter(job => job.lat && job.lon); // Only include jobs with valid coordinates
 
+    const totalJobsCount = driverData.collectionJobs.length + driverData.deliveryJobs.length;
+    const filteredCount = allJobs.length;
+
     if (allJobs.length === 0) {
       toast.error("No jobs found with valid coordinates");
       return;
+    }
+
+    if (filteredCount < totalJobsCount) {
+      toast.warning(`${totalJobsCount - filteredCount} job(s) excluded due to missing coordinates`);
     }
 
     setDriverJobs(allJobs);

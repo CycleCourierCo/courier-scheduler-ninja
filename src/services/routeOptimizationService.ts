@@ -135,7 +135,9 @@ export const optimizeRouteWithGeoapify = async (
   const route = data.features[0];
   const steps = route.properties.steps;
 
-  steps.forEach((step: any, index: number) => {
+  let sequenceCounter = 1; // Start from 1
+
+  steps.forEach((step: any) => {
     if (step.type === 'start' || step.type === 'end') return;
 
     const shipmentId = step.shipment_id;
@@ -160,7 +162,7 @@ export const optimizeRouteWithGeoapify = async (
     if (originalJob) {
       optimizedJobs.push({
         ...originalJob,
-        sequenceOrder: index,
+        sequenceOrder: sequenceCounter++, // Increment after assignment
         estimatedArrivalTime: arrivalTimeStr,
         estimatedDepartureTime: departureTimeStr,
         timeslotWindow
