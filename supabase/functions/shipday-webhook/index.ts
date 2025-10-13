@@ -171,12 +171,28 @@ serve(async (req) => {
       }
     } else if (event === "ORDER_ACCEPTED_AND_STARTED") {
       // Handle driver acceptance and start - keep current status, just log the event
-      statusDescription = isPickup ? "Driver has accepted and started collection" : "Driver has accepted and started delivery";
+      const driverName = payload.carrier?.name || null;
+      statusDescription = isPickup ? `Driver ${driverName || 'unknown'} has accepted and started collection` : `Driver ${driverName || 'unknown'} has accepted and started delivery`;
       newStatus = dbOrder.status; // Don't change status
+      
+      // Update the driver name column
+      const driverColumn = isPickup ? 'collection_driver_name' : 'delivery_driver_name';
+      await supabase
+        .from("orders")
+        .update({ [driverColumn]: driverName })
+        .eq("id", dbOrder.id);
     } else if (event === "ORDER_ASSIGNED") {
       // Handle driver assignment - keep current status, just log the event
-      statusDescription = isPickup ? "Driver assigned for collection" : "Driver assigned for delivery";
+      const driverName = payload.carrier?.name || null;
+      statusDescription = isPickup ? `Driver ${driverName || 'unknown'} assigned for collection` : `Driver ${driverName || 'unknown'} assigned for delivery`;
       newStatus = dbOrder.status; // Don't change status
+      
+      // Update the driver name column
+      const driverColumn = isPickup ? 'collection_driver_name' : 'delivery_driver_name';
+      await supabase
+        .from("orders")
+        .update({ [driverColumn]: driverName })
+        .eq("id", dbOrder.id);
     } else {
       console.log(`Ignoring event: ${event} as it's not a supported event type`);
       return new Response(JSON.stringify({ 

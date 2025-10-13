@@ -681,8 +681,8 @@ const LoadingUnloadingPage = () => {
     const driverGroups = bikesForDate.reduce((acc, order) => {
       const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
       
-      // Find the delivery driver assignment
-      const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+      // Get delivery driver name from the order column
+      const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
 
       if (!acc[deliveryDriverName]) {
         acc[deliveryDriverName] = [];
@@ -708,9 +708,9 @@ const LoadingUnloadingPage = () => {
       const bikesNeedingLoadingData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Get both collection and delivery driver assignments
-        const collectionDriverName = getDriverAssignment(order, 'pickup') || null;
-        const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+        // Get both collection and delivery driver names from order columns
+        const collectionDriverName = order.collection_driver_name || null;
+        const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
 
         return {
           id: order.id,
@@ -733,7 +733,7 @@ const LoadingUnloadingPage = () => {
 
       // Format loaded bikes data for the WhatsApp function  
       const bikesAlreadyLoadedData = loadedBikesForDate.map(order => {
-        const deliveryDriverName = getDriverAssignment(order, 'delivery') || 'Unassigned Driver';
+        const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
         const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
 
         return {
@@ -916,9 +916,9 @@ const LoadingUnloadingPage = () => {
                                <h3 className="font-medium text-green-700">Bikes Already Loaded ({bikesLoadedOnDate.length})</h3>
                              </div>
                              <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
-                               {bikesLoadedOnDate.map((order) => {
-                                 const quantity = order.bikeQuantity || 1;
-                                 const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                              {bikesLoadedOnDate.map((order) => {
+                                  const quantity = order.bikeQuantity || 1;
+                                  const deliveryDriverName = order.delivery_driver_name;
                                  const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
                                  
                                  return (
@@ -1108,9 +1108,9 @@ const LoadingUnloadingPage = () => {
                                                     <div>{order.bikeBrand} {order.bikeModel}</div>
                                                     <div>Tracking: {order.trackingNumber}</div>
                                                     <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                                    {(() => {
-                                                      // Show who needs to load onto van (delivery driver)
-                                                      const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                                                     {(() => {
+                                                       // Show who needs to load onto van (delivery driver)
+                                                       const deliveryDriverName = order.delivery_driver_name;
                                                       
                                                       if (deliveryDriverName) {
                                                         return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;

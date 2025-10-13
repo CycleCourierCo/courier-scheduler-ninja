@@ -270,10 +270,12 @@ export type Database = {
           bike_model: string | null
           bike_quantity: number | null
           collection_code: string | null
+          collection_driver_name: string | null
           created_at: string
           customer_order_number: string | null
           delivery_confirmation_sent_at: string | null
           delivery_date: Json | null
+          delivery_driver_name: string | null
           delivery_instructions: string | null
           delivery_timeslot: string | null
           id: string
@@ -308,10 +310,12 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           collection_code?: string | null
+          collection_driver_name?: string | null
           created_at?: string
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
+          delivery_driver_name?: string | null
           delivery_instructions?: string | null
           delivery_timeslot?: string | null
           id?: string
@@ -346,10 +350,12 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           collection_code?: string | null
+          collection_driver_name?: string | null
           created_at?: string
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
+          delivery_driver_name?: string | null
           delivery_instructions?: string | null
           delivery_timeslot?: string | null
           id?: string
