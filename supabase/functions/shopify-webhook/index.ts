@@ -86,6 +86,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const shopifyOrder = JSON.parse(body);
     console.log('Processing Shopify order:', shopifyOrder.id);
+    console.log('Raw Shopify order data:', JSON.stringify(shopifyOrder, null, 2));
+    console.log('Line items:', JSON.stringify(shopifyOrder.line_items, null, 2));
 
     // Extract bike details from line items
     let bikeBrand = '';
