@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
         sender_notes: body.senderNotes || body.sender_notes || '',
         receiver_notes: body.receiverNotes || body.receiver_notes || '',
         customer_order_number: body.customerOrderNumber || body.customer_order_number || null,
+        shopify_order_id: body.shopifyOrderId || body.shopify_order_id || null,
         status: 'created',
         tracking_number: trackingNumber,
         pickup_date: body.pickup_date || null,

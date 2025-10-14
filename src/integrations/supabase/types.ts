@@ -298,6 +298,7 @@ export type Database = {
           sender_notes: string | null
           shipday_delivery_id: string | null
           shipday_pickup_id: string | null
+          shopify_order_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           storage_locations: Json | null
           tracking_events: Json | null
@@ -338,6 +339,7 @@ export type Database = {
           sender_notes?: string | null
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
+          shopify_order_id?: string | null
           status: Database["public"]["Enums"]["order_status"]
           storage_locations?: Json | null
           tracking_events?: Json | null
@@ -378,6 +380,7 @@ export type Database = {
           sender_notes?: string | null
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
+          shopify_order_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           storage_locations?: Json | null
           tracking_events?: Json | null

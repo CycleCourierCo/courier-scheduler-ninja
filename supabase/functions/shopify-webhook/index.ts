@@ -330,8 +330,32 @@ const handler = async (req: Request): Promise<Response> => {
       bikeModel = 'and Delivery within England and Wales';
     }
 
+    const shopifyOrderId = shopifyOrder.id.toString();
+    console.log('Shopify Order ID:', shopifyOrderId);
+    
+    // Check if order already exists for this Shopify order ID
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id, tracking_number')
+      .eq('shopify_order_id', shopifyOrderId)
+      .maybeSingle();
+    
+    if (existingOrder) {
+      console.log('Order already exists for Shopify order:', shopifyOrderId);
+      return new Response(JSON.stringify({ 
+        success: true,
+        message: 'Order already processed',
+        orderId: existingOrder.id,
+        trackingNumber: existingOrder.tracking_number
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
     // Prepare data for Orders API
     const ordersApiBody = {
+      shopifyOrderId,
       sender: {
         name: sender.name,
         email: sender.email,
