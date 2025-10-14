@@ -131,8 +131,13 @@ async function geocodeAddress(addressString: string): Promise<{
 
     const result = data.features[0].properties;
     
+    // Construct full street address including house number
+    const houseNumber = result.housenumber || result.house_number || '';
+    const street = result.street || result.address_line1 || '';
+    const fullStreet = houseNumber ? `${houseNumber} ${street}`.trim() : street;
+    
     const geocoded = {
-      street: result.street || result.address_line1 || '',
+      street: fullStreet,
       city: result.city || '',
       zipCode: result.postcode || '',
       state: result.county || result.state || '',
