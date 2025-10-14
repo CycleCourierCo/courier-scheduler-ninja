@@ -95,6 +95,61 @@ function formatPhoneNumber(phone: string): string {
   return phone;
 }
 
+// Helper function to geocode address using Geoapify API
+async function geocodeAddress(addressString: string): Promise<{
+  street: string;
+  city: string;
+  zipCode: string;
+  state: string;
+  country: string;
+  lat?: number;
+  lon?: number;
+  formatted?: string;
+} | null> {
+  try {
+    const apiKey = Deno.env.get('VITE_GEOAPIFY_API_KEY');
+    if (!apiKey) {
+      console.warn('Geoapify API key not configured, skipping geocoding');
+      return null;
+    }
+
+    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressString)}&filter=countrycode:gb&apiKey=${apiKey}`;
+    
+    console.log('Geocoding address:', addressString);
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error('Geocoding failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data.features || data.features.length === 0) {
+      console.warn('No geocoding results found for:', addressString);
+      return null;
+    }
+
+    const result = data.features[0].properties;
+    
+    const geocoded = {
+      street: result.street || result.address_line1 || '',
+      city: result.city || '',
+      zipCode: result.postcode || '',
+      state: result.county || result.state || '',
+      country: result.country || 'United Kingdom',
+      lat: result.lat,
+      lon: result.lon,
+      formatted: result.formatted
+    };
+    
+    console.log('Geocoded address:', geocoded);
+    return geocoded;
+  } catch (error) {
+    console.error('Error geocoding address:', error);
+    return null;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -191,8 +246,9 @@ const handler = async (req: Request): Promise<Response> => {
       const collectionPhone = getPropertyValue(properties, 'Collection Mobile Number');
       const collectionAddressStr = getPropertyValue(properties, 'Collection Address');
       
-      // Parse collection address
-      const collectionAddress = parseAddress(collectionAddressStr);
+      // Geocode collection address with fallback to manual parsing
+      const geocodedCollectionAddress = await geocodeAddress(collectionAddressStr);
+      const collectionAddress = geocodedCollectionAddress || parseAddress(collectionAddressStr);
       
       sender = {
         name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
@@ -201,9 +257,11 @@ const handler = async (req: Request): Promise<Response> => {
         address: {
           street: collectionAddress.street,
           city: collectionAddress.city,
-          state: shopifyOrder.billing_address?.province || 'England',
+          state: collectionAddress.state || shopifyOrder.billing_address?.province || 'England',
           zip: collectionAddress.zipCode,
-          country: shopifyOrder.billing_address?.country || 'United Kingdom'
+          country: collectionAddress.country || shopifyOrder.billing_address?.country || 'United Kingdom',
+          lat: collectionAddress.lat,
+          lon: collectionAddress.lon
         }
       };
       
@@ -215,8 +273,9 @@ const handler = async (req: Request): Promise<Response> => {
       const deliveryPhone = getPropertyValue(properties, 'Delivery Mobile Number');
       const deliveryAddressStr = getPropertyValue(properties, 'Delivery Address');
       
-      // Parse delivery address
-      const deliveryAddress = parseAddress(deliveryAddressStr);
+      // Geocode delivery address with fallback to manual parsing
+      const geocodedDeliveryAddress = await geocodeAddress(deliveryAddressStr);
+      const deliveryAddress = geocodedDeliveryAddress || parseAddress(deliveryAddressStr);
       
       receiver = {
         name: deliveryName || sender.name,
@@ -225,9 +284,11 @@ const handler = async (req: Request): Promise<Response> => {
         address: {
           street: deliveryAddress.street,
           city: deliveryAddress.city,
-          state: deliveryAddress.city ? '' : '',  // State is usually not provided in Easify
+          state: deliveryAddress.state || '',
           zip: deliveryAddress.zipCode,
-          country: 'UK'
+          country: deliveryAddress.country || 'UK',
+          lat: deliveryAddress.lat,
+          lon: deliveryAddress.lon
         }
       };
       
@@ -280,7 +341,9 @@ const handler = async (req: Request): Promise<Response> => {
           city: sender.address.city,
           state: sender.address.state,
           zipCode: sender.address.zip,
-          country: sender.address.country
+          country: sender.address.country,
+          lat: sender.address.lat,
+          lon: sender.address.lon
         }
       },
       receiver: {
@@ -292,7 +355,9 @@ const handler = async (req: Request): Promise<Response> => {
           city: receiver.address.city,
           state: receiver.address.state,
           zipCode: receiver.address.zip,
-          country: receiver.address.country
+          country: receiver.address.country,
+          lat: receiver.address.lat,
+          lon: receiver.address.lon
         }
       },
       bikes: [
