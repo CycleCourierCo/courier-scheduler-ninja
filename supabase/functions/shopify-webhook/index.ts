@@ -25,8 +25,7 @@ async function verifyShopifyWebhook(body: string, signature: string | null, secr
 
   const hash = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
   const hashArray = Array.from(new Uint8Array(hash));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  const calculatedSignature = btoa(hashHex);
+  const calculatedSignature = btoa(String.fromCharCode(...hashArray));
 
   const providedSignature = signature.replace('sha256=', '');
   
