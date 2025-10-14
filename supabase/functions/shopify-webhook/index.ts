@@ -140,7 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create order in the system
     const orderData = {
-      user_id: null, // This will be set by admin or system
+      user_id: '5ac789cc-2e89-470f-b13a-9476246810df', // Shopify webhook orders user
       bike_brand: bikeBrand,
       bike_model: bikeModel,
       bike_quantity: shopifyOrder.line_items?.reduce((total: number, item: any) => total + (item.quantity || 1), 0) || 1,
