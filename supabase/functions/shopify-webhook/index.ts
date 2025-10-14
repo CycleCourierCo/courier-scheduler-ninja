@@ -143,6 +143,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     const shopifyOrder = JSON.parse(body);
     console.log('Processing Shopify order:', shopifyOrder.id);
+    console.log('Raw Shopify order data:', JSON.stringify(shopifyOrder, null, 2));
+
+    // Get the API key for calling the Orders API
+    const ordersApiKey = Deno.env.get('SHOPIFY_ORDERS_API_KEY');
+    if (!ordersApiKey) {
+      console.error('SHOPIFY_ORDERS_API_KEY not configured');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
 
     // Extract properties from line items (added by Easify app)
     let bikeBrand = '';
@@ -258,124 +269,91 @@ const handler = async (req: Request): Promise<Response> => {
       bikeModel = 'and Delivery within England and Wales';
     }
 
-    // Create order in the system
-    const orderData = {
-      user_id: '5ac789cc-2e89-470f-b13a-9476246810df', // Shopify webhook orders user
-      bike_brand: bikeBrand,
-      bike_model: bikeModel,
-      bike_quantity: bikeQuantity,
-      sender,
-      receiver,
-      status: 'created',
-      customer_order_number: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
-      delivery_instructions: shopifyOrder.note || ''
+    // Prepare data for Orders API
+    const ordersApiBody = {
+      sender: {
+        name: sender.name,
+        email: sender.email,
+        phone: sender.phone,
+        address: {
+          street: sender.address.street,
+          city: sender.address.city,
+          state: sender.address.state,
+          zipCode: sender.address.zip,
+          country: sender.address.country
+        }
+      },
+      receiver: {
+        name: receiver.name,
+        email: receiver.email,
+        phone: receiver.phone,
+        address: {
+          street: receiver.address.street,
+          city: receiver.address.city,
+          state: receiver.address.state,
+          zipCode: receiver.address.zip,
+          country: receiver.address.country
+        }
+      },
+      bikes: [
+        {
+          brand: bikeBrand,
+          model: bikeModel
+        }
+      ],
+      bikeQuantity: bikeQuantity,
+      customerOrderNumber: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
+      deliveryInstructions: shopifyOrder.note || ''
     };
 
-    console.log('Creating order with data:', orderData);
+    console.log('Calling Orders API with data:', JSON.stringify(ordersApiBody, null, 2));
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderData)
-      .select()
-      .single();
+    // Call the Orders API edge function
+    try {
+      const ordersApiResponse = await fetch(`${supabaseUrl}/functions/v1/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': ordersApiKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        },
+        body: JSON.stringify(ordersApiBody)
+      });
 
-    if (orderError) {
-      console.error('Error creating order:', orderError);
-      return new Response(JSON.stringify({ error: 'Failed to create order' }), {
+      const responseData = await ordersApiResponse.json();
+
+      if (!ordersApiResponse.ok) {
+        console.error('Orders API error:', responseData);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to create order via API',
+          details: responseData
+        }), {
+          status: ordersApiResponse.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      console.log('Order created successfully via Orders API:', responseData);
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        order: responseData,
+        message: 'Order created successfully via Orders API (includes tracking number, emails, and Shipday jobs)' 
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+
+    } catch (apiError) {
+      console.error('Error calling Orders API:', apiError);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to call Orders API',
+        message: apiError instanceof Error ? apiError.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
-
-    console.log('Order created successfully:', order.id);
-
-    // Send emails with delays to avoid rate limiting
-    try {
-      // 1. Order confirmation email (if we had a user)
-      console.log('Sending order confirmation email...');
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: [shopifyOrder.email],
-          subject: 'Order Confirmation - The Cycle Courier Co.',
-          html: `
-            <h2>Order Confirmation - The Cycle Courier Co.</h2>
-            <p>Thank you for your order! We've received your bicycle delivery request.</p>
-            <p><strong>Order Details:</strong></p>
-            <ul>
-              <li>Order Number: ${order.customer_order_number}</li>
-              <li>Bike: ${bikeBrand} ${bikeModel}</li>
-              <li>Collection: ${sender.name} - ${sender.address.street}, ${sender.address.city}</li>
-              <li>Delivery: ${receiver.name} - ${receiver.address.street}, ${receiver.address.city}</li>
-            </ul>
-            <p>We'll be in touch with both the sender and receiver to arrange collection and delivery dates.</p>
-            <p>Best regards,<br>The Cycle Courier Co.</p>
-          `
-        }
-      });
-
-      // Wait 3 seconds to avoid rate limiting
-      await delay(3000);
-
-      // 2. Sender availability email
-      console.log('Sending sender availability email...');
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: [sender.email],
-          subject: 'Bicycle Collection - Availability Confirmation Required',
-          html: `
-            <h2>Bicycle Collection - The Cycle Courier Co.</h2>
-            <p>Hello ${sender.name},</p>
-            <p>We've received a request to collect a bicycle from your address:</p>
-            <p><strong>${sender.address.street}, ${sender.address.city}, ${sender.address.zip}</strong></p>
-            <p>Please confirm your availability for collection by visiting the link below:</p>
-            <p><a href="${supabaseUrl.replace('supabase.co', 'lovable.app')}/sender-availability?id=${order.id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Availability</a></p>
-            <p>If you have any questions, please don't hesitate to contact us.</p>
-            <p>Best regards,<br>The Cycle Courier Co.</p>
-          `
-        }
-      });
-
-      // Wait another 3 seconds
-      await delay(3000);
-
-      // 3. Receiver notification email
-      console.log('Sending receiver notification email...');
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: [receiver.email],
-          subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
-          html: `
-            <h2>Your Bicycle Delivery - The Cycle Courier Co.</h2>
-            <p>Hello ${receiver.name},</p>
-            <p>A bicycle delivery has been arranged for you!</p>
-            <p><strong>Delivery Details:</strong></p>
-            <ul>
-              <li>Bike: ${bikeBrand} ${bikeModel}</li>
-              <li>Delivery Address: ${receiver.address.street}, ${receiver.address.city}, ${receiver.address.zip}</li>
-              <li>From: ${sender.name}</li>
-            </ul>
-            <p>We'll contact you soon to arrange a convenient delivery time.</p>
-            <p>If you have any questions, please contact us.</p>
-            <p>Best regards,<br>The Cycle Courier Co.</p>
-          `
-        }
-      });
-
-      console.log('All emails sent successfully');
-
-    } catch (emailError) {
-      console.error('Error sending emails:', emailError);
-      // Don't fail the webhook for email errors
-    }
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      orderId: order.id,
-      message: 'Order created successfully' 
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
 
   } catch (error) {
     console.error('Error processing Shopify webhook:', error);

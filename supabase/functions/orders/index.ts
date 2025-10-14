@@ -307,12 +307,30 @@ Deno.serve(async (req) => {
           }
         }
         
-        console.log('===== EMAIL SENDING PROCESS COMPLETED =====')
+      console.log('===== EMAIL SENDING PROCESS COMPLETED =====')
       } catch (emailError) {
         console.error('===== EMAIL SENDING PROCESS FAILED =====')
         console.error('Error sending emails:', emailError)
         // Don't fail the order creation if emails fail
       }
+
+      // Create Shipday jobs in the background
+      console.log('===== STARTING SHIPDAY JOB CREATION =====')
+      try {
+        const shipdayResponse = await supabase.functions.invoke('create-shipday-order', {
+          body: { orderId: order.id }
+        })
+        
+        if (shipdayResponse.error) {
+          console.error('Failed to create Shipday jobs:', shipdayResponse.error)
+        } else {
+          console.log('Shipday jobs created successfully:', shipdayResponse.data)
+        }
+      } catch (shipdayError) {
+        console.error('Error creating Shipday jobs:', shipdayError)
+        // Don't fail the order creation if Shipday fails
+      }
+      console.log('===== SHIPDAY JOB CREATION COMPLETED =====')
 
       return new Response(
         JSON.stringify({
