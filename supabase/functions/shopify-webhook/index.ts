@@ -38,6 +38,63 @@ async function verifyShopifyWebhook(body: string, signature: string | null, secr
 // Helper function to add delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper function to get property value from line item properties
+function getPropertyValue(properties: any[], name: string): string {
+  const prop = properties?.find((p: any) => p.name === name);
+  return prop?.value || '';
+}
+
+// Helper function to parse address string (e.g., "339 haunch Lane, Birmingham, b130pl")
+function parseAddress(addressStr: string): { street: string; city: string; zipCode: string } {
+  const parts = addressStr.split(',').map(p => p.trim());
+  
+  if (parts.length >= 3) {
+    return {
+      street: parts[0],
+      city: parts[1],
+      zipCode: parts[2]
+    };
+  } else if (parts.length === 2) {
+    return {
+      street: parts[0],
+      city: parts[1],
+      zipCode: ''
+    };
+  } else {
+    return {
+      street: addressStr,
+      city: '',
+      zipCode: ''
+    };
+  }
+}
+
+// Helper function to format UK phone numbers to +44 format
+function formatPhoneNumber(phone: string): string {
+  if (!phone) return '';
+  
+  // Remove all spaces and special characters
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // If it starts with 07, convert to +447
+  if (cleaned.startsWith('07')) {
+    return '+44' + cleaned.substring(1);
+  }
+  
+  // If it starts with 447, add +
+  if (cleaned.startsWith('447')) {
+    return '+' + cleaned;
+  }
+  
+  // If it already starts with +44, return as is
+  if (cleaned.startsWith('+44')) {
+    return cleaned;
+  }
+  
+  // Otherwise return as is
+  return phone;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -86,66 +143,127 @@ const handler = async (req: Request): Promise<Response> => {
 
     const shopifyOrder = JSON.parse(body);
     console.log('Processing Shopify order:', shopifyOrder.id);
-    console.log('Raw Shopify order data:', JSON.stringify(shopifyOrder, null, 2));
-    console.log('Line items:', JSON.stringify(shopifyOrder.line_items, null, 2));
 
-    // Extract bike details from line items
+    // Extract properties from line items (added by Easify app)
     let bikeBrand = '';
     let bikeModel = '';
+    let sender: any;
+    let receiver: any;
+    let bikeQuantity = 1;
     
     if (shopifyOrder.line_items && shopifyOrder.line_items.length > 0) {
       const firstItem = shopifyOrder.line_items[0];
-      // Extract from product title or variant title
-      const productTitle = firstItem.title || firstItem.name || '';
+      const properties = firstItem.properties || [];
       
-      // Try to parse brand and model from title
-      // Assuming format like "Brand Model" or just use the full title as model
-      const titleParts = productTitle.split(' ');
-      if (titleParts.length >= 2) {
-        bikeBrand = titleParts[0];
-        bikeModel = titleParts.slice(1).join(' ');
+      console.log('Extracting data from line item properties...');
+      
+      // Extract bike brand and model from "Bike Brand and Model" property
+      const bikeBrandAndModel = getPropertyValue(properties, 'Bike Brand and Model');
+      if (bikeBrandAndModel) {
+        // Split on space - first part is brand, rest is model
+        const parts = bikeBrandAndModel.split(' ');
+        bikeBrand = parts[0] || '';
+        bikeModel = parts.slice(1).join(' ') || '';
+        console.log('Parsed bike:', { bikeBrand, bikeModel });
       } else {
-        bikeModel = productTitle;
-        bikeBrand = 'Shopify Order';
+        // Fallback to product title
+        bikeBrand = firstItem.title || 'Collection';
+        bikeModel = firstItem.variant_title || 'and Delivery within England and Wales';
       }
+      
+      // Get bike quantity
+      bikeQuantity = firstItem.quantity || 1;
+      
+      // Extract collection (sender) details from properties
+      const collectionName = getPropertyValue(properties, 'Collection Name');
+      const collectionEmail = getPropertyValue(properties, 'Collection Email');
+      const collectionPhone = getPropertyValue(properties, 'Collection Mobile Number');
+      const collectionAddressStr = getPropertyValue(properties, 'Collection Address');
+      
+      // Parse collection address
+      const collectionAddress = parseAddress(collectionAddressStr);
+      
+      sender = {
+        name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
+        email: collectionEmail || shopifyOrder.email || '',
+        phone: formatPhoneNumber(collectionPhone) || '',
+        address: {
+          street: collectionAddress.street,
+          city: collectionAddress.city,
+          state: shopifyOrder.billing_address?.province || 'England',
+          zip: collectionAddress.zipCode,
+          country: shopifyOrder.billing_address?.country || 'United Kingdom'
+        }
+      };
+      
+      console.log('Parsed sender:', sender);
+      
+      // Extract delivery (receiver) details from properties
+      const deliveryName = getPropertyValue(properties, 'Delivery Name');
+      const deliveryEmail = getPropertyValue(properties, 'Delivery Email');
+      const deliveryPhone = getPropertyValue(properties, 'Delivery Mobile Number');
+      const deliveryAddressStr = getPropertyValue(properties, 'Delivery Address');
+      
+      // Parse delivery address
+      const deliveryAddress = parseAddress(deliveryAddressStr);
+      
+      receiver = {
+        name: deliveryName || sender.name,
+        email: deliveryEmail || sender.email,
+        phone: formatPhoneNumber(deliveryPhone) || sender.phone,
+        address: {
+          street: deliveryAddress.street,
+          city: deliveryAddress.city,
+          state: deliveryAddress.city ? '' : '',  // State is usually not provided in Easify
+          zip: deliveryAddress.zipCode,
+          country: 'UK'
+        }
+      };
+      
+      console.log('Parsed receiver:', receiver);
+      
+    } else {
+      // Fallback to billing/shipping addresses if no line items
+      console.log('No line items found, using billing/shipping addresses as fallback');
+      
+      const billing = shopifyOrder.billing_address;
+      sender = {
+        name: billing ? `${billing.first_name || ''} ${billing.last_name || ''}`.trim() : 'Unknown',
+        email: shopifyOrder.email || '',
+        phone: billing?.phone || '',
+        address: {
+          street: billing ? `${billing.address1 || ''} ${billing.address2 || ''}`.trim() : '',
+          city: billing?.city || '',
+          state: billing?.province || '',
+          zip: billing?.zip || '',
+          country: billing?.country || 'UK'
+        }
+      };
+      
+      const shipping = shopifyOrder.shipping_address;
+      receiver = {
+        name: shipping ? `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim() : sender.name,
+        email: shopifyOrder.email || '',
+        phone: shipping?.phone || sender.phone,
+        address: {
+          street: shipping ? `${shipping.address1 || ''} ${shipping.address2 || ''}`.trim() : sender.address.street,
+          city: shipping?.city || '',
+          state: shipping?.province || '',
+          zip: shipping?.zip || '',
+          country: shipping?.country || 'UK'
+        }
+      };
+      
+      bikeBrand = 'Collection';
+      bikeModel = 'and Delivery within England and Wales';
     }
-
-    // Map Shopify billing address to sender (collection)
-    const billing = shopifyOrder.billing_address;
-    const sender = {
-      name: billing ? `${billing.first_name || ''} ${billing.last_name || ''}`.trim() : shopifyOrder.customer?.first_name + ' ' + shopifyOrder.customer?.last_name || 'Unknown',
-      email: shopifyOrder.email || shopifyOrder.customer?.email || '',
-      phone: billing?.phone || shopifyOrder.customer?.phone || '',
-      address: {
-        street: billing ? `${billing.address1 || ''} ${billing.address2 || ''}`.trim() : '',
-        city: billing?.city || '',
-        state: billing?.province || '',
-        zip: billing?.zip || '',
-        country: billing?.country || 'UK'
-      }
-    };
-
-    // Map Shopify shipping address to receiver (delivery)
-    const shipping = shopifyOrder.shipping_address;
-    const receiver = {
-      name: shipping ? `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim() : sender.name,
-      email: shopifyOrder.email || shopifyOrder.customer?.email || '',
-      phone: shipping?.phone || billing?.phone || shopifyOrder.customer?.phone || '',
-      address: {
-        street: shipping ? `${shipping.address1 || ''} ${shipping.address2 || ''}`.trim() : sender.address.street,
-        city: shipping?.city || '',
-        state: shipping?.province || '',
-        zip: shipping?.zip || '',
-        country: shipping?.country || 'UK'
-      }
-    };
 
     // Create order in the system
     const orderData = {
       user_id: '5ac789cc-2e89-470f-b13a-9476246810df', // Shopify webhook orders user
       bike_brand: bikeBrand,
       bike_model: bikeModel,
-      bike_quantity: shopifyOrder.line_items?.reduce((total: number, item: any) => total + (item.quantity || 1), 0) || 1,
+      bike_quantity: bikeQuantity,
       sender,
       receiver,
       status: 'created',
