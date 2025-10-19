@@ -42,12 +42,23 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   driverName,
   onComplete
 }) => {
-  const isMobile = useIsMobile();
+  const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [jobTimes, setJobTimes] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
+
+  // Determine if mobile on mount
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Auto-optimize when date is selected
   React.useEffect(() => {
@@ -272,6 +283,11 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       </Button>
     </div>
   );
+
+  // Don't render until we know if mobile or not
+  if (isMobile === undefined) {
+    return null;
+  }
 
   if (isMobile) {
     return (
