@@ -69,56 +69,96 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create request body for Shipday API
-    // Note: startTime/endTime filter by order placement time, not delivery time
-    // So we'll use a wider range and filter by deliveryTime in JavaScript
-    const requestBody = {
-      orderStatus: "ALREADY_DELIVERED",
-      startTime: "2020-01-01T00:00:00Z", // Use wide range since we'll filter by deliveryTime
-      endTime: "2030-12-31T23:59:59Z",
-      startCursor: 1,
-      endCursor: 1000 // Increase to get more orders
-    };
-
-    console.log('Shipday API request body:', requestBody);
-
-    // Query Shipday API
-    const shipdayResponse = await fetch('https://api.shipday.com/orders/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${apiKey}`
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    console.log('Shipday API response status:', shipdayResponse.status);
-    console.log('Shipday API response headers:', Object.fromEntries(shipdayResponse.headers.entries()));
-
-    if (!shipdayResponse.ok) {
-      const errorText = await shipdayResponse.text();
-      console.error('Shipday API error response:', errorText);
-      throw new Error(`Shipday API error (${shipdayResponse.status}): ${errorText}`);
-    }
-
-    // Check if response has content before parsing
-    const responseText = await shipdayResponse.text();
-    console.log('Shipday API response text:', responseText);
+    // Calculate date range: selected date ± 7 days
+    const selectedDate = new Date(date);
+    const startDate = new Date(selectedDate);
+    startDate.setDate(startDate.getDate() - 7);
+    const endDate = new Date(selectedDate);
+    endDate.setDate(endDate.getDate() + 7);
     
-    let shipdayData;
-    if (!responseText || responseText.trim() === '') {
-      console.log('Empty response from Shipday API');
-      shipdayData = [];
-    } else {
-      try {
-        shipdayData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse Shipday response as JSON:', parseError);
-        throw new Error(`Invalid JSON response from Shipday: ${responseText}`);
+    const startTime = startDate.toISOString().split('T')[0] + 'T00:00:00Z';
+    const endTime = endDate.toISOString().split('T')[0] + 'T23:59:59Z';
+    
+    console.log(`Date range for query: ${startTime} to ${endTime}`);
+
+    // Implement pagination to fetch all orders
+    let allOrders: ShipdayOrder[] = [];
+    let currentCursor = 1;
+    const batchSize = 100;
+    const maxIterations = 50; // Safety limit to prevent infinite loops
+    let iteration = 0;
+
+    console.log('Starting pagination to fetch all orders...');
+
+    while (iteration < maxIterations) {
+      const requestBody = {
+        orderStatus: "ALREADY_DELIVERED",
+        startTime: startTime,
+        endTime: endTime,
+        startCursor: currentCursor,
+        endCursor: currentCursor + batchSize - 1
+      };
+
+      console.log(`Iteration ${iteration + 1}: Fetching orders ${currentCursor} to ${currentCursor + batchSize - 1}`);
+
+      // Query Shipday API
+      const shipdayResponse = await fetch('https://api.shipday.com/orders/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${apiKey}`
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log(`Batch ${iteration + 1} response status:`, shipdayResponse.status);
+
+      if (!shipdayResponse.ok) {
+        const errorText = await shipdayResponse.text();
+        console.error('Shipday API error response:', errorText);
+        throw new Error(`Shipday API error (${shipdayResponse.status}): ${errorText}`);
       }
+
+      // Check if response has content before parsing
+      const responseText = await shipdayResponse.text();
+      
+      let batchData;
+      if (!responseText || responseText.trim() === '') {
+        console.log('Empty response from Shipday API - no more orders');
+        break;
+      } else {
+        try {
+          batchData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse Shipday response as JSON:', parseError);
+          throw new Error(`Invalid JSON response from Shipday: ${responseText}`);
+        }
+      }
+
+      if (!batchData || batchData.length === 0) {
+        console.log('No more orders returned - pagination complete');
+        break;
+      }
+
+      console.log(`Batch ${iteration + 1}: Fetched ${batchData.length} orders`);
+      allOrders.push(...batchData);
+
+      // If we got fewer orders than requested, we've reached the end
+      if (batchData.length < batchSize) {
+        console.log(`Received fewer orders than batch size (${batchData.length} < ${batchSize}) - reached end`);
+        break;
+      }
+
+      currentCursor += batchSize;
+      iteration++;
     }
 
-    console.log('Parsed Shipday data:', shipdayData);
+    if (iteration >= maxIterations) {
+      console.warn(`Reached maximum iterations (${maxIterations}). May have more orders.`);
+    }
+
+    console.log(`Pagination complete. Total orders fetched: ${allOrders.length}`);
+    const shipdayData = allOrders;
 
     // Filter orders by the specific delivery date 
     const targetDate = date; // Format: YYYY-MM-DD
