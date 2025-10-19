@@ -114,19 +114,19 @@ const JobItem: React.FC<JobItemProps> = ({
     <div className="space-y-2">
       <div 
         ref={combinedRef}
-        className={`flex items-center justify-between p-3 bg-background border rounded-lg transition-opacity ${
+        className={`flex items-start justify-between p-2 bg-background border rounded-lg transition-opacity ${
           isDragging ? 'opacity-50' : ''
-        } hover:shadow-md cursor-move`}
+        } hover:shadow-md cursor-move gap-2`}
       >
-        <div className="flex items-center gap-3">
-          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-          <Badge variant="outline">#{job.order}</Badge>
-          <div className="flex-1">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab flex-shrink-0 mt-0.5" />
+          <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
               // Multiple jobs at same location
-              <div className="space-y-2">
-                <p className="text-sm font-medium">📍 Multiple stops at this location</p>
-                <p className="text-xs text-muted-foreground">{job.address}</p>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium">📍 Multiple stops</p>
+                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
                 <div className="space-y-1">
                   {(() => {
                     // Sort grouped jobs: deliveries first, then pickups
@@ -160,13 +160,13 @@ const JobItem: React.FC<JobItemProps> = ({
                       const bikeCountAfterJob = runningBikeCount;
                     
                       return (
-                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-2 pl-2 border-l-2 border-muted">
-                          <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                            {groupedJob.type === 'pickup' ? 'Collection' : 'Delivery'}
+                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-1 pl-1.5 border-l border-muted">
+                          <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                            {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                           </Badge>
-                          <span className="text-xs font-medium">{groupedJob.contactName}</span>
-                          <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                            🚲 {bikeCountAfterJob} bikes
+                          <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
+                          <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
+                            🚲 {bikeCountAfterJob}
                           </Badge>
                         </div>
                       );
@@ -176,23 +176,23 @@ const JobItem: React.FC<JobItemProps> = ({
               </div>
             ) : (
               // Single job
-              <div>
-                <p className="text-sm font-medium">{job.contactName}</p>
-                <p className="text-xs text-muted-foreground">{job.address}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium truncate">{job.contactName}</p>
+                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
                 <div className="flex gap-1 flex-wrap">
                   {job.type === 'break' ? (
-                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
-                      {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
+                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 px-1.5 py-0">
+                      {job.breakType === 'lunch' ? '🍽️ Lunch' : '☕ Stop'} ({job.breakDuration}min)
                     </Badge>
                   ) : (
-                    <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                      {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-                    </Badge>
-                  )}
-                  {job.type !== 'break' && (
-                    <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                      🚲 {bikeCount} bikes
-                    </Badge>
+                    <>
+                      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1.5 py-0">
+                        {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
+                        🚲 {bikeCount}
+                      </Badge>
+                    </>
                   )}
                 </div>
               </div>
@@ -200,91 +200,93 @@ const JobItem: React.FC<JobItemProps> = ({
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {job.estimatedTime && (
-            <Badge variant="outline" className="flex items-center gap-1">
+            <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
               <Clock className="h-3 w-3" />
               {job.estimatedTime}
             </Badge>
           )}
           
-          {job.type !== 'break' && !job.lat && !job.lon && (
+          <div className="flex flex-wrap gap-1 justify-end">
+            {job.type !== 'break' && !job.lat && !job.lon && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const lat = prompt('Enter latitude:');
+                  const lon = prompt('Enter longitude:');
+                  if (lat && lon && !isNaN(Number(lat)) && !isNaN(Number(lon))) {
+                    onUpdateCoordinates(job, Number(lat), Number(lon));
+                  }
+                }}
+                className="flex items-center gap-1 text-orange-600 hover:text-orange-700 h-7 text-xs px-2"
+              >
+                <Edit3 className="h-3 w-3" />
+                Coords
+              </Button>
+            )}
+            
+            {job.type !== 'break' && (job.lat && job.lon) && (
+              <>
+                {groupedJobs.length > 1 ? (
+                  // Individual send buttons for each job in the group
+                  groupedJobs.map((groupedJob) => (
+                    <Button
+                      key={`${groupedJob.orderId}-${groupedJob.type}`}
+                      size="sm"
+                      onClick={() => onSendTimeslot(groupedJob)}
+                      disabled={isSendingTimeslots || !groupedJob.estimatedTime}
+                      className="flex items-center gap-1 text-xs h-7 px-2"
+                    >
+                      <Send className="h-3 w-3" />
+                      {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
+                    </Button>
+                  ))
+                ) : (
+                  // Single job send button
+                  <Button
+                    size="sm"
+                    onClick={() => onSendTimeslot(job)}
+                    disabled={isSendingTimeslots || !job.estimatedTime}
+                    className="flex items-center gap-1 h-7 text-xs px-2"
+                  >
+                    <Send className="h-3 w-3" />
+                    Send
+                  </Button>
+                )}
+                
+                {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
+                 allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
+                    disabled={isSendingTimeslots || !job.estimatedTime}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
+                  >
+                    <Send className="h-3 w-3" />
+                    All
+                  </Button>
+                )}
+              </>
+            )}
+            
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                const lat = prompt('Enter latitude:');
-                const lon = prompt('Enter longitude:');
-                if (lat && lon && !isNaN(Number(lat)) && !isNaN(Number(lon))) {
-                  onUpdateCoordinates(job, Number(lat), Number(lon));
-                }
-              }}
-              className="flex items-center gap-1 text-orange-600 hover:text-orange-700"
+              onClick={() => onRemove(job)}
+              className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
             >
-              <Edit3 className="h-3 w-3" />
-              Update Coords
+              ×
             </Button>
-          )}
-          
-          {job.type !== 'break' && (job.lat && job.lon) && (
-            <div className="flex gap-1 flex-wrap">
-              {groupedJobs.length > 1 ? (
-                // Individual send buttons for each job in the group
-                groupedJobs.map((groupedJob) => (
-                  <Button
-                    key={`${groupedJob.orderId}-${groupedJob.type}`}
-                    size="sm"
-                     onClick={() => onSendTimeslot(groupedJob)}
-                     disabled={isSendingTimeslots || !groupedJob.estimatedTime}
-                    className="flex items-center gap-1 text-xs"
-                  >
-                    <Send className="h-3 w-3" />
-                    {groupedJob.type === 'pickup' ? 'Send Collection' : 'Send Delivery'}
-                  </Button>
-                ))
-              ) : (
-                // Single job send button
-                <Button
-                  size="sm"
-                   onClick={() => onSendTimeslot(job)}
-                   disabled={isSendingTimeslots || !job.estimatedTime}
-                  className="flex items-center gap-1"
-                >
-                  <Send className="h-3 w-3" />
-                  Send
-                </Button>
-              )}
-              
-              {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
-               allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
-                  disabled={isSendingTimeslots || !job.estimatedTime}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
-                >
-                  <Send className="h-3 w-3" />
-                  Send All
-                </Button>
-              )}
-            </div>
-          )}
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onRemove(job)}
-            className="text-red-600 hover:text-red-700"
-          >
-            ×
-          </Button>
+          </div>
         </div>
       </div>
       
       {/* Add break buttons after each job - only show if not at Lawden Road */}
       {!job.address.toLowerCase().includes('lawden road') && (
-        <div className="flex gap-1 ml-8">
+        <div className="flex gap-1 ml-6">
           <Button 
             onClick={() => onAddBreak(index, 'lunch')} 
             variant="ghost" 
@@ -1226,9 +1228,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             successCount++;
           }
 
-          // Add 2-minute delay between sends (except for the last one)
+          // Add 30-second delay between sends (except for the last one)
           if (i < jobsToSend.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000)); // 2 minutes
+            await new Promise(resolve => setTimeout(resolve, 30 * 1000)); // 30 seconds
           }
 
         } catch (jobError) {
