@@ -144,7 +144,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
 
   const content = (
     <>
-      <div className="space-y-3 px-1">
+      <div className="space-y-3">
         {/* Date Selection */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Select Date</label>
@@ -188,26 +188,28 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
               Collections ({collectionJobs.length})
             </h3>
             {collectionJobs.map((job) => (
-              <Card key={job.orderId} className="p-2.5 bg-green-50 dark:bg-green-950/20">
+              <Card key={job.orderId} className="p-2 bg-green-50 dark:bg-green-950/20">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-start gap-2">
+                  <div className="flex justify-between items-start gap-2 min-w-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 mb-1">
                         {job.sequenceOrder !== undefined && (
-                          <Badge variant="outline" className="bg-background text-xs px-1.5 py-0">
+                          <Badge variant="outline" className="bg-background text-xs px-1.5 py-0 flex-shrink-0">
                             #{job.sequenceOrder}
                           </Badge>
                         )}
                         <p className="font-medium text-xs truncate">{job.contactName}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{job.address}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
                       {job.timeslotWindow && (
                         <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                          Window: {job.timeslotWindow}
+                          {job.timeslotWindow}
                         </p>
                       )}
                     </div>
-                    <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-xs whitespace-nowrap">Collection</Badge>
+                    <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-xs whitespace-nowrap flex-shrink-0">
+                      Collect
+                    </Badge>
                   </div>
                   <Input
                     type="time"
@@ -228,26 +230,28 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
               Deliveries ({deliveryJobs.length})
             </h3>
             {deliveryJobs.map((job) => (
-              <Card key={job.orderId} className="p-2.5 bg-blue-50 dark:bg-blue-950/20">
+              <Card key={job.orderId} className="p-2 bg-blue-50 dark:bg-blue-950/20">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-start gap-2">
+                  <div className="flex justify-between items-start gap-2 min-w-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 mb-1">
                         {job.sequenceOrder !== undefined && (
-                          <Badge variant="outline" className="bg-background text-xs px-1.5 py-0">
+                          <Badge variant="outline" className="bg-background text-xs px-1.5 py-0 flex-shrink-0">
                             #{job.sequenceOrder}
                           </Badge>
                         )}
                         <p className="font-medium text-xs truncate">{job.contactName}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{job.address}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
                       {job.timeslotWindow && (
                         <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                          Window: {job.timeslotWindow}
+                          {job.timeslotWindow}
                         </p>
                       )}
                     </div>
-                    <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-xs whitespace-nowrap">Delivery</Badge>
+                    <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-xs whitespace-nowrap flex-shrink-0">
+                      Deliver
+                    </Badge>
                   </div>
                   <Input
                     type="time"
@@ -265,21 +269,21 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   );
 
   const footer = (
-    <div className="flex flex-col sm:flex-row gap-2 w-full">
+    <div className="flex flex-col-reverse sm:flex-row gap-2 w-full">
       <Button 
         variant="outline" 
         onClick={() => onOpenChange(false)} 
         disabled={isLoading}
-        className="w-full sm:w-auto"
+        className="w-full sm:flex-1"
       >
         Cancel
       </Button>
       <Button
         onClick={handleSendTimeslots}
         disabled={isLoading || !selectedDate || Object.keys(jobTimes).length !== jobs.length}
-        className="w-full sm:w-auto"
+        className="w-full sm:flex-1"
       >
-        {isLoading ? "Sending..." : `Send Timeslots (${jobs.length})`}
+        {isLoading ? "Sending..." : `Send (${jobs.length})`}
       </Button>
     </div>
   );
@@ -292,22 +296,22 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh]">
-          <DrawerHeader className="text-left">
+        <DrawerContent className="max-h-[90vh] overflow-hidden">
+          <DrawerHeader className="text-left pb-2">
             <DrawerTitle className="flex items-center gap-2 text-base">
               <Navigation className="h-4 w-4 flex-shrink-0" />
               <span className="truncate">Route Timeslots</span>
             </DrawerTitle>
             <DrawerDescription className="text-xs">
-              {jobs.length} jobs ({collectionJobs.length} collections, {deliveryJobs.length} deliveries)
+              {jobs.length} jobs ({collectionJobs.length} col, {deliveryJobs.length} del)
             </DrawerDescription>
           </DrawerHeader>
           
-          <div className="overflow-y-auto px-4 pb-4">
+          <div className="overflow-y-auto overflow-x-hidden px-4 pb-2">
             {content}
           </div>
 
-          <DrawerFooter className="pt-2">
+          <DrawerFooter className="pt-2 px-4 pb-4">
             {footer}
           </DrawerFooter>
         </DrawerContent>
