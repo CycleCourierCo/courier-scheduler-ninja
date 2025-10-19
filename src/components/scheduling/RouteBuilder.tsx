@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -307,6 +308,7 @@ const JobItem: React.FC<JobItemProps> = ({
 };
 
 const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
+  const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
@@ -320,6 +322,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
+
+  // Detect mobile on mount
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Calculate optimal starting bike count based on route
   const calculateOptimalStartingBikes = (): number => {
@@ -1443,109 +1456,215 @@ Route Link: ${routeLink}`;
         </CardContent>
       </Card>
 
-      <Dialog open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Route Timeslots</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Start Time:</label>
-                <Input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-32"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Date:</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-48 justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                      
+      {isMobile === undefined ? null : isMobile ? (
+        <Drawer open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
+          <DrawerContent className="max-h-[90vh] overflow-hidden">
+            <DrawerHeader className="text-left pb-2">
+              <DrawerTitle className="text-base">Route Timeslots</DrawerTitle>
+            </DrawerHeader>
+            
+            <div className="overflow-y-auto overflow-x-hidden px-4 pb-4">
+              <div className="space-y-3">
+                {/* Controls */}
+                <div className="space-y-3 p-2 bg-muted/50 rounded-lg">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Start Time:</label>
+                    <Input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full h-9 text-sm"
                     />
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Date:</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-9 text-sm",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{selectedDate ? format(selectedDate, "PPP") : "Pick a date"}</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <Button onClick={calculateTimeslots} size="sm" className="w-full h-8 text-xs">
+                    Recalculate
+                  </Button>
+                </div>
+
+                {/* Route */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="text-xs font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">{startTime}</Badge>
+                    <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
+                      🚲 {startingBikes}
+                    </Badge>
+                  </div>
+
+                  {selectedJobs.map((job, index) => (
+                    <JobItem 
+                      key={`${job.orderId}-${job.type}-${job.order}`}
+                      job={job}
+                      index={index}
+                      onReorder={reorderJobs}
+                      onAddBreak={addBreak}
+                      onRemove={removeJob}
+                      onSendTimeslot={openTimeslotEditDialog}
+                      onSendGroupedTimeslots={sendGroupedTimeslots}
+                      onUpdateCoordinates={updateCoordinates}
+                      isSendingTimeslots={isSendingTimeslots}
+                      allJobs={selectedJobs}
+                      bikeCount={calculateBikeCountAtJob(index)}
+                      startingBikes={startingBikes}
+                    />
+                  ))}
+
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="text-xs font-medium truncate flex-1">End: Lawden Rd, B10 0AD</span>
+                    <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
+                      🚲 {calculateFinalBikeCount()}
+                    </Badge>
+                  </div>
+                  
+                  <Button
+                    onClick={sendAllTimeslots}
+                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
+                  >
+                    <Send className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
+                  </Button>
+                </div>
               </div>
-              
-              <Button onClick={calculateTimeslots} size="sm">
-                Recalculate
-              </Button>
             </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
-                <Badge variant="outline">{startTime}</Badge>
-                <Badge variant="outline" className="bg-green-100 text-green-800">
-                  🚲 {startingBikes} bikes
-                </Badge>
-              </div>
-
-              {selectedJobs.map((job, index) => (
-                <JobItem 
-                  key={`${job.orderId}-${job.type}-${job.order}`}
-                  job={job}
-                  index={index}
-                  onReorder={reorderJobs}
-                  onAddBreak={addBreak}
-                  onRemove={removeJob}
-                   onSendTimeslot={openTimeslotEditDialog}
-                   onSendGroupedTimeslots={sendGroupedTimeslots}
-                  onUpdateCoordinates={updateCoordinates}
-                  isSendingTimeslots={isSendingTimeslots}
-                  allJobs={selectedJobs}
-                  bikeCount={calculateBikeCountAtJob(index)}
-                  startingBikes={startingBikes}
-                />
-              ))}
-
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
-                <Badge variant="outline" className="bg-green-100 text-green-800">
-                  🚲 {calculateFinalBikeCount()} bikes
-                </Badge>
-              </div>
-              
-              <div className="flex gap-2 mt-4">
-                <Button
-                  onClick={sendAllTimeslots}
-                  disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Send className="h-3 w-3" />
-                  {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Route Timeslots</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Start Time:</label>
+                  <Input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-32"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Date:</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-48 justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <Button onClick={calculateTimeslots} size="sm">
+                  Recalculate
                 </Button>
               </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
+                  <Badge variant="outline">{startTime}</Badge>
+                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                    🚲 {startingBikes} bikes
+                  </Badge>
+                </div>
+
+                {selectedJobs.map((job, index) => (
+                  <JobItem 
+                    key={`${job.orderId}-${job.type}-${job.order}`}
+                    job={job}
+                    index={index}
+                    onReorder={reorderJobs}
+                    onAddBreak={addBreak}
+                    onRemove={removeJob}
+                    onSendTimeslot={openTimeslotEditDialog}
+                    onSendGroupedTimeslots={sendGroupedTimeslots}
+                    onUpdateCoordinates={updateCoordinates}
+                    isSendingTimeslots={isSendingTimeslots}
+                    allJobs={selectedJobs}
+                    bikeCount={calculateBikeCountAtJob(index)}
+                    startingBikes={startingBikes}
+                  />
+                ))}
+
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
+                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                    🚲 {calculateFinalBikeCount()} bikes
+                  </Badge>
+                </div>
+                
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={sendAllTimeslots}
+                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <Send className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Coordinate Update Dialog */}
       <Dialog open={showCoordinateDialog} onOpenChange={setShowCoordinateDialog}>
