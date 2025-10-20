@@ -84,10 +84,14 @@ const serve_handler = async (req: Request): Promise<Response> => {
     console.log(`Parsed hour: ${deliveryHour}, minute: ${deliveryMinute}`);
     console.log(`Time window: ${startTime} to ${endTime}`);
 
-    // Format scheduled date
+    // Format scheduled date (local timezone)
     const formatDate = (dateStr: string) => {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('en-GB', {
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const day = date.getUTCDate();
+      const localDate = new Date(year, month, day);
+      return localDate.toLocaleDateString('en-GB', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
