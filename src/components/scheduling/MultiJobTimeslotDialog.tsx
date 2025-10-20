@@ -111,19 +111,44 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
 
     setIsLoading(true);
     try {
+      let successCount = 0;
+      let whatsappFailures = 0;
+      let emailFailures = 0;
+      let shipdayFailures = 0;
+
       for (const job of jobs) {
         const recipientType = job.type === 'collection' ? 'sender' : 'receiver';
         
-        await supabase.functions.invoke('send-timeslot-whatsapp', {
+        const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
           body: {
             orderId: job.orderId,
             recipientType: recipientType,
             deliveryTime: jobTimes[job.orderId]
           }
         });
+
+        if (!error && data?.results) {
+          if (data.results.whatsapp?.success || data.results.shipday?.success || data.results.email?.success) {
+            successCount++;
+          }
+          if (!data.results.whatsapp?.success) whatsappFailures++;
+          if (!data.results.email?.success) emailFailures++;
+          if (!data.results.shipday?.success) shipdayFailures++;
+        }
       }
 
-      toast.success(`Successfully sent timeslots for ${jobs.length} jobs`);
+      // Show summary
+      if (successCount === jobs.length) {
+        toast.success(`Successfully sent timeslots for ${jobs.length} jobs`);
+      } else if (successCount > 0) {
+        toast.success(`Partially successful: ${successCount}/${jobs.length} jobs sent`);
+        if (whatsappFailures > 0) toast.warning(`${whatsappFailures} WhatsApp failures`);
+        if (emailFailures > 0) toast.warning(`${emailFailures} Email failures`);
+        if (shipdayFailures > 0) toast.warning(`${shipdayFailures} Shipday failures`);
+      } else {
+        toast.error(`Failed to send timeslots`);
+      }
+
       onComplete();
       onOpenChange(false);
     } catch (error: any) {

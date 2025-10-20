@@ -97,17 +97,33 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         return;
       }
 
-      // Check Shipday status and show appropriate notification
-      if (data?.shipdayStatus === 'failed') {
-        toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`, {
-          description: `Note: Shipday update failed (${data.shipdayError}). The timeslot was saved but may need manual update in Shipday.`
-        });
-      } else if (data?.shipdayStatus === 'no_shipday_id') {
-        toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`, {
-          description: "Note: No Shipday order found to update."
-        });
+      // Handle individual operation results
+      if (data?.results) {
+        const { whatsapp, shipday, email } = data.results;
+        
+        // Show specific successes
+        if (whatsapp?.success) {
+          toast.success("WhatsApp message sent");
+        }
+        if (email?.success) {
+          toast.success("Email sent");
+        }
+        if (shipday?.success) {
+          toast.success("Shipday updated");
+        }
+        
+        // Show specific failures
+        if (!whatsapp?.success) {
+          toast.error(`WhatsApp failed: ${whatsapp?.error || 'Unknown error'}`);
+        }
+        if (!email?.success && email?.error) {
+          toast.warning(`Email failed: ${email.error}`);
+        }
+        if (!shipday?.success && shipday?.error) {
+          toast.warning(`Shipday failed: ${shipday.error}`);
+        }
       } else {
-        toast.success(`Timeslot sent to ${type} via WhatsApp successfully!`);
+        toast.success(`Timeslot sent to ${type} successfully!`);
       }
     } catch (error) {
       console.error("Error sending timeslot:", error);

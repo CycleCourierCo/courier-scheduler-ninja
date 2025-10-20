@@ -989,6 +989,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         return;
       }
 
+      // Handle individual operation results
+      if (data?.results) {
+        const { whatsapp, shipday, email } = data.results;
+        if (whatsapp?.success) toast.success("WhatsApp sent");
+        if (email?.success) toast.success("Email sent");
+        if (shipday?.success) toast.success("Shipday updated");
+        if (!whatsapp?.success) toast.error(`WhatsApp failed: ${whatsapp?.error}`);
+        if (!email?.success && email?.error) toast.warning(`Email failed: ${email.error}`);
+        if (!shipday?.success && shipday?.error) toast.warning(`Shipday failed: ${shipday.error}`);
+      } else {
+        toast.success("Timeslot sent successfully");
+      }
+
       // Check Shipday status and show appropriate notification like in TimeslotSelection
       if (data?.shipdayStatus === 'failed') {
         toast.success(`Timeslot sent to ${job.contactName} via WhatsApp successfully!`, {
@@ -1137,7 +1150,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         return;
       }
 
-      // Check Shipday results and show appropriate notification
+      // Handle individual operation results
+      if (data?.results) {
+        const { whatsapp, shipday, email } = data.results;
+        if (whatsapp?.success) toast.success(`WhatsApp sent to ${jobsAtLocation.length} grouped jobs`);
+        if (email?.success) toast.success("Email sent");
+        if (shipday?.success) toast.success(`Shipday updated for ${jobsAtLocation.length} jobs`);
+        if (!whatsapp?.success) toast.error(`WhatsApp failed: ${whatsapp?.error}`);
+        if (!email?.success && email?.error) toast.warning(`Email failed: ${email.error}`);
+        if (!shipday?.success && shipday?.error) toast.warning(`Shipday failed: ${shipday.error}`);
+      } else {
+        toast.success(`Consolidated timeslot sent for ${jobsAtLocation.length} jobs`);
+      }
       const shipdayResults = data?.shipdayResults || [];
       const successfulUpdates = shipdayResults.filter((r: any) => r.status === 'success').length;
       const failedUpdates = shipdayResults.filter((r: any) => r.status === 'failed' || r.status === 'error').length;
@@ -1213,7 +1237,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           const timeslotToSend = adjustedTime.toTimeString().substring(0, 5);
 
           // Send the WhatsApp message
-          const { error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
+          const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
             body: {
               orderId: job.orderId,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
@@ -1224,6 +1248,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           if (error) {
             console.error(`Error sending timeslot to ${job.contactName}:`, error);
             failureCount++;
+          } else if (data?.results) {
+            // Count as success if ANY operation succeeded
+            if (data.results.whatsapp?.success || data.results.shipday?.success || data.results.email?.success) {
+              successCount++;
+            } else {
+              failureCount++;
+            }
           } else {
             successCount++;
           }
