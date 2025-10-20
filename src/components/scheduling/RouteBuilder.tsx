@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -113,19 +114,19 @@ const JobItem: React.FC<JobItemProps> = ({
     <div className="space-y-2">
       <div 
         ref={combinedRef}
-        className={`flex items-center justify-between p-3 bg-background border rounded-lg transition-opacity ${
+        className={`flex items-start justify-between p-2 bg-background border rounded-lg transition-opacity ${
           isDragging ? 'opacity-50' : ''
-        } hover:shadow-md cursor-move`}
+        } hover:shadow-md cursor-move gap-2`}
       >
-        <div className="flex items-center gap-3">
-          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-          <Badge variant="outline">#{job.order}</Badge>
-          <div className="flex-1">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab flex-shrink-0 mt-0.5" />
+          <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
               // Multiple jobs at same location
-              <div className="space-y-2">
-                <p className="text-sm font-medium">📍 Multiple stops at this location</p>
-                <p className="text-xs text-muted-foreground">{job.address}</p>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium">📍 Multiple stops</p>
+                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
                 <div className="space-y-1">
                   {(() => {
                     // Sort grouped jobs: deliveries first, then pickups
@@ -159,13 +160,13 @@ const JobItem: React.FC<JobItemProps> = ({
                       const bikeCountAfterJob = runningBikeCount;
                     
                       return (
-                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-2 pl-2 border-l-2 border-muted">
-                          <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                            {groupedJob.type === 'pickup' ? 'Collection' : 'Delivery'}
+                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-1 pl-1.5 border-l border-muted">
+                          <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                            {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                           </Badge>
-                          <span className="text-xs font-medium">{groupedJob.contactName}</span>
-                          <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                            🚲 {bikeCountAfterJob} bikes
+                          <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
+                          <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
+                            🚲 {bikeCountAfterJob}
                           </Badge>
                         </div>
                       );
@@ -175,23 +176,23 @@ const JobItem: React.FC<JobItemProps> = ({
               </div>
             ) : (
               // Single job
-              <div>
-                <p className="text-sm font-medium">{job.contactName}</p>
-                <p className="text-xs text-muted-foreground">{job.address}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium truncate">{job.contactName}</p>
+                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
                 <div className="flex gap-1 flex-wrap">
                   {job.type === 'break' ? (
-                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
-                      {job.breakType === 'lunch' ? '🍽️ Lunch Break' : '☕ Stop Break'} ({job.breakDuration}min)
+                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 px-1.5 py-0">
+                      {job.breakType === 'lunch' ? '🍽️ Lunch' : '☕ Stop'} ({job.breakDuration}min)
                     </Badge>
                   ) : (
-                    <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs">
-                      {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-                    </Badge>
-                  )}
-                  {job.type !== 'break' && (
-                    <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                      🚲 {bikeCount} bikes
-                    </Badge>
+                    <>
+                      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1.5 py-0">
+                        {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
+                        🚲 {bikeCount}
+                      </Badge>
+                    </>
                   )}
                 </div>
               </div>
@@ -199,91 +200,93 @@ const JobItem: React.FC<JobItemProps> = ({
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {job.estimatedTime && (
-            <Badge variant="outline" className="flex items-center gap-1">
+            <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
               <Clock className="h-3 w-3" />
               {job.estimatedTime}
             </Badge>
           )}
           
-          {job.type !== 'break' && !job.lat && !job.lon && (
+          <div className="flex flex-wrap gap-1 justify-end">
+            {job.type !== 'break' && !job.lat && !job.lon && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const lat = prompt('Enter latitude:');
+                  const lon = prompt('Enter longitude:');
+                  if (lat && lon && !isNaN(Number(lat)) && !isNaN(Number(lon))) {
+                    onUpdateCoordinates(job, Number(lat), Number(lon));
+                  }
+                }}
+                className="flex items-center gap-1 text-orange-600 hover:text-orange-700 h-7 text-xs px-2"
+              >
+                <Edit3 className="h-3 w-3" />
+                Coords
+              </Button>
+            )}
+            
+            {job.type !== 'break' && (job.lat && job.lon) && (
+              <>
+                {groupedJobs.length > 1 ? (
+                  // Individual send buttons for each job in the group
+                  groupedJobs.map((groupedJob) => (
+                    <Button
+                      key={`${groupedJob.orderId}-${groupedJob.type}`}
+                      size="sm"
+                      onClick={() => onSendTimeslot(groupedJob)}
+                      disabled={isSendingTimeslots || !groupedJob.estimatedTime}
+                      className="flex items-center gap-1 text-xs h-7 px-2"
+                    >
+                      <Send className="h-3 w-3" />
+                      {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
+                    </Button>
+                  ))
+                ) : (
+                  // Single job send button
+                  <Button
+                    size="sm"
+                    onClick={() => onSendTimeslot(job)}
+                    disabled={isSendingTimeslots || !job.estimatedTime}
+                    className="flex items-center gap-1 h-7 text-xs px-2"
+                  >
+                    <Send className="h-3 w-3" />
+                    Send
+                  </Button>
+                )}
+                
+                {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
+                 allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
+                    disabled={isSendingTimeslots || !job.estimatedTime}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
+                  >
+                    <Send className="h-3 w-3" />
+                    All
+                  </Button>
+                )}
+              </>
+            )}
+            
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                const lat = prompt('Enter latitude:');
-                const lon = prompt('Enter longitude:');
-                if (lat && lon && !isNaN(Number(lat)) && !isNaN(Number(lon))) {
-                  onUpdateCoordinates(job, Number(lat), Number(lon));
-                }
-              }}
-              className="flex items-center gap-1 text-orange-600 hover:text-orange-700"
+              onClick={() => onRemove(job)}
+              className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
             >
-              <Edit3 className="h-3 w-3" />
-              Update Coords
+              ×
             </Button>
-          )}
-          
-          {job.type !== 'break' && (job.lat && job.lon) && (
-            <div className="flex gap-1 flex-wrap">
-              {groupedJobs.length > 1 ? (
-                // Individual send buttons for each job in the group
-                groupedJobs.map((groupedJob) => (
-                  <Button
-                    key={`${groupedJob.orderId}-${groupedJob.type}`}
-                    size="sm"
-                     onClick={() => onSendTimeslot(groupedJob)}
-                     disabled={isSendingTimeslots || !groupedJob.estimatedTime}
-                    className="flex items-center gap-1 text-xs"
-                  >
-                    <Send className="h-3 w-3" />
-                    {groupedJob.type === 'pickup' ? 'Send Collection' : 'Send Delivery'}
-                  </Button>
-                ))
-              ) : (
-                // Single job send button
-                <Button
-                  size="sm"
-                   onClick={() => onSendTimeslot(job)}
-                   disabled={isSendingTimeslots || !job.estimatedTime}
-                  className="flex items-center gap-1"
-                >
-                  <Send className="h-3 w-3" />
-                  Send
-                </Button>
-              )}
-              
-              {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
-               allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
-                  disabled={isSendingTimeslots || !job.estimatedTime}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
-                >
-                  <Send className="h-3 w-3" />
-                  Send All
-                </Button>
-              )}
-            </div>
-          )}
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onRemove(job)}
-            className="text-red-600 hover:text-red-700"
-          >
-            ×
-          </Button>
+          </div>
         </div>
       </div>
       
       {/* Add break buttons after each job - only show if not at Lawden Road */}
       {!job.address.toLowerCase().includes('lawden road') && (
-        <div className="flex gap-1 ml-8">
+        <div className="flex gap-1 ml-6">
           <Button 
             onClick={() => onAddBreak(index, 'lunch')} 
             variant="ghost" 
@@ -307,6 +310,7 @@ const JobItem: React.FC<JobItemProps> = ({
 };
 
 const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
+  const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
@@ -320,6 +324,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
+
+  // Detect mobile on mount
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Calculate optimal starting bike count based on route
   const calculateOptimalStartingBikes = (): number => {
@@ -974,6 +989,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         return;
       }
 
+      // Handle individual operation results
+      if (data?.results) {
+        const { whatsapp, shipday, email } = data.results;
+        if (whatsapp?.success) toast.success("WhatsApp sent");
+        if (email?.success) toast.success("Email sent");
+        if (shipday?.success) toast.success("Shipday updated");
+        if (!whatsapp?.success) toast.error(`WhatsApp failed: ${whatsapp?.error}`);
+        if (!email?.success && email?.error) toast.warning(`Email failed: ${email.error}`);
+        if (!shipday?.success && shipday?.error) toast.warning(`Shipday failed: ${shipday.error}`);
+      } else {
+        toast.success("Timeslot sent successfully");
+      }
+
       // Check Shipday status and show appropriate notification like in TimeslotSelection
       if (data?.shipdayStatus === 'failed') {
         toast.success(`Timeslot sent to ${job.contactName} via WhatsApp successfully!`, {
@@ -1122,7 +1150,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         return;
       }
 
-      // Check Shipday results and show appropriate notification
+      // Handle individual operation results
+      if (data?.results) {
+        const { whatsapp, shipday, email } = data.results;
+        if (whatsapp?.success) toast.success(`WhatsApp sent to ${jobsAtLocation.length} grouped jobs`);
+        if (email?.success) toast.success("Email sent");
+        if (shipday?.success) toast.success(`Shipday updated for ${jobsAtLocation.length} jobs`);
+        if (!whatsapp?.success) toast.error(`WhatsApp failed: ${whatsapp?.error}`);
+        if (!email?.success && email?.error) toast.warning(`Email failed: ${email.error}`);
+        if (!shipday?.success && shipday?.error) toast.warning(`Shipday failed: ${shipday.error}`);
+      } else {
+        toast.success(`Consolidated timeslot sent for ${jobsAtLocation.length} jobs`);
+      }
       const shipdayResults = data?.shipdayResults || [];
       const successfulUpdates = shipdayResults.filter((r: any) => r.status === 'success').length;
       const failedUpdates = shipdayResults.filter((r: any) => r.status === 'failed' || r.status === 'error').length;
@@ -1198,7 +1237,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           const timeslotToSend = adjustedTime.toTimeString().substring(0, 5);
 
           // Send the WhatsApp message
-          const { error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
+          const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
             body: {
               orderId: job.orderId,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
@@ -1209,13 +1248,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           if (error) {
             console.error(`Error sending timeslot to ${job.contactName}:`, error);
             failureCount++;
+          } else if (data?.results) {
+            // Count as success if ANY operation succeeded
+            if (data.results.whatsapp?.success || data.results.shipday?.success || data.results.email?.success) {
+              successCount++;
+            } else {
+              failureCount++;
+            }
           } else {
             successCount++;
           }
 
-          // Add 2-minute delay between sends (except for the last one)
+          // Add 30-second delay between sends (except for the last one)
           if (i < jobsToSend.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000)); // 2 minutes
+            await new Promise(resolve => setTimeout(resolve, 30 * 1000)); // 30 seconds
           }
 
         } catch (jobError) {
@@ -1443,109 +1489,215 @@ Route Link: ${routeLink}`;
         </CardContent>
       </Card>
 
-      <Dialog open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Route Timeslots</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Start Time:</label>
-                <Input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-32"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Date:</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-48 justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                      
+      {isMobile === undefined ? null : isMobile ? (
+        <Drawer open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
+          <DrawerContent className="max-h-[90vh] overflow-hidden">
+            <DrawerHeader className="text-left pb-2">
+              <DrawerTitle className="text-base">Route Timeslots</DrawerTitle>
+            </DrawerHeader>
+            
+            <div className="overflow-y-auto overflow-x-hidden px-4 pb-4">
+              <div className="space-y-3">
+                {/* Controls */}
+                <div className="space-y-3 p-2 bg-muted/50 rounded-lg">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Start Time:</label>
+                    <Input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full h-9 text-sm"
                     />
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Date:</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-9 text-sm",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{selectedDate ? format(selectedDate, "PPP") : "Pick a date"}</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <Button onClick={calculateTimeslots} size="sm" className="w-full h-8 text-xs">
+                    Recalculate
+                  </Button>
+                </div>
+
+                {/* Route */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="text-xs font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">{startTime}</Badge>
+                    <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
+                      🚲 {startingBikes}
+                    </Badge>
+                  </div>
+
+                  {selectedJobs.map((job, index) => (
+                    <JobItem 
+                      key={`${job.orderId}-${job.type}-${job.order}`}
+                      job={job}
+                      index={index}
+                      onReorder={reorderJobs}
+                      onAddBreak={addBreak}
+                      onRemove={removeJob}
+                      onSendTimeslot={openTimeslotEditDialog}
+                      onSendGroupedTimeslots={sendGroupedTimeslots}
+                      onUpdateCoordinates={updateCoordinates}
+                      isSendingTimeslots={isSendingTimeslots}
+                      allJobs={selectedJobs}
+                      bikeCount={calculateBikeCountAtJob(index)}
+                      startingBikes={startingBikes}
+                    />
+                  ))}
+
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="text-xs font-medium truncate flex-1">End: Lawden Rd, B10 0AD</span>
+                    <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
+                      🚲 {calculateFinalBikeCount()}
+                    </Badge>
+                  </div>
+                  
+                  <Button
+                    onClick={sendAllTimeslots}
+                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
+                  >
+                    <Send className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
+                  </Button>
+                </div>
               </div>
-              
-              <Button onClick={calculateTimeslots} size="sm">
-                Recalculate
-              </Button>
             </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
-                <Badge variant="outline">{startTime}</Badge>
-                <Badge variant="outline" className="bg-green-100 text-green-800">
-                  🚲 {startingBikes} bikes
-                </Badge>
-              </div>
-
-              {selectedJobs.map((job, index) => (
-                <JobItem 
-                  key={`${job.orderId}-${job.type}-${job.order}`}
-                  job={job}
-                  index={index}
-                  onReorder={reorderJobs}
-                  onAddBreak={addBreak}
-                  onRemove={removeJob}
-                   onSendTimeslot={openTimeslotEditDialog}
-                   onSendGroupedTimeslots={sendGroupedTimeslots}
-                  onUpdateCoordinates={updateCoordinates}
-                  isSendingTimeslots={isSendingTimeslots}
-                  allJobs={selectedJobs}
-                  bikeCount={calculateBikeCountAtJob(index)}
-                  startingBikes={startingBikes}
-                />
-              ))}
-
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
-                <Badge variant="outline" className="bg-green-100 text-green-800">
-                  🚲 {calculateFinalBikeCount()} bikes
-                </Badge>
-              </div>
-              
-              <div className="flex gap-2 mt-4">
-                <Button
-                  onClick={sendAllTimeslots}
-                  disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Send className="h-3 w-3" />
-                  {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Route Timeslots</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Start Time:</label>
+                  <Input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-32"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Date:</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-48 justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <Button onClick={calculateTimeslots} size="sm">
+                  Recalculate
                 </Button>
               </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
+                  <Badge variant="outline">{startTime}</Badge>
+                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                    🚲 {startingBikes} bikes
+                  </Badge>
+                </div>
+
+                {selectedJobs.map((job, index) => (
+                  <JobItem 
+                    key={`${job.orderId}-${job.type}-${job.order}`}
+                    job={job}
+                    index={index}
+                    onReorder={reorderJobs}
+                    onAddBreak={addBreak}
+                    onRemove={removeJob}
+                    onSendTimeslot={openTimeslotEditDialog}
+                    onSendGroupedTimeslots={sendGroupedTimeslots}
+                    onUpdateCoordinates={updateCoordinates}
+                    isSendingTimeslots={isSendingTimeslots}
+                    allJobs={selectedJobs}
+                    bikeCount={calculateBikeCountAtJob(index)}
+                    startingBikes={startingBikes}
+                  />
+                ))}
+
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
+                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                    🚲 {calculateFinalBikeCount()} bikes
+                  </Badge>
+                </div>
+                
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={sendAllTimeslots}
+                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <Send className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Coordinate Update Dialog */}
       <Dialog open={showCoordinateDialog} onOpenChange={setShowCoordinateDialog}>

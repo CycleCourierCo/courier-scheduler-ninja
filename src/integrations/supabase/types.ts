@@ -270,10 +270,12 @@ export type Database = {
           bike_model: string | null
           bike_quantity: number | null
           collection_code: string | null
+          collection_driver_name: string | null
           created_at: string
           customer_order_number: string | null
           delivery_confirmation_sent_at: string | null
           delivery_date: Json | null
+          delivery_driver_name: string | null
           delivery_instructions: string | null
           delivery_timeslot: string | null
           id: string
@@ -296,6 +298,7 @@ export type Database = {
           sender_notes: string | null
           shipday_delivery_id: string | null
           shipday_pickup_id: string | null
+          shopify_order_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           storage_locations: Json | null
           tracking_events: Json | null
@@ -308,10 +311,12 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           collection_code?: string | null
+          collection_driver_name?: string | null
           created_at?: string
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
+          delivery_driver_name?: string | null
           delivery_instructions?: string | null
           delivery_timeslot?: string | null
           id?: string
@@ -334,6 +339,7 @@ export type Database = {
           sender_notes?: string | null
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
+          shopify_order_id?: string | null
           status: Database["public"]["Enums"]["order_status"]
           storage_locations?: Json | null
           tracking_events?: Json | null
@@ -346,10 +352,12 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           collection_code?: string | null
+          collection_driver_name?: string | null
           created_at?: string
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
+          delivery_driver_name?: string | null
           delivery_instructions?: string | null
           delivery_timeslot?: string | null
           id?: string
@@ -372,6 +380,7 @@ export type Database = {
           sender_notes?: string | null
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
+          shopify_order_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           storage_locations?: Json | null
           tracking_events?: Json | null

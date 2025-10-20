@@ -275,9 +275,9 @@ const Layout: React.FC<LayoutProps> = ({
                 <div className="text-sm opacity-90">
                   <p className="font-medium">Company address:</p>
                   <address className="not-italic opacity-80">
-                    339 Haunch Lane<br />
+                    30 Wake Green Road<br />
                     Birmingham<br />
-                    B13 0PL
+                    B13 9PB
                   </address>
                 </div>
               </div>

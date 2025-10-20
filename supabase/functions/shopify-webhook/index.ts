@@ -25,8 +25,7 @@ async function verifyShopifyWebhook(body: string, signature: string | null, secr
 
   const hash = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
   const hashArray = Array.from(new Uint8Array(hash));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  const calculatedSignature = btoa(hashHex);
+  const calculatedSignature = btoa(String.fromCharCode(...hashArray));
 
   const providedSignature = signature.replace('sha256=', '');
   
@@ -38,6 +37,123 @@ async function verifyShopifyWebhook(body: string, signature: string | null, secr
 
 // Helper function to add delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to get property value from line item properties
+function getPropertyValue(properties: any[], name: string): string {
+  const prop = properties?.find((p: any) => p.name === name);
+  return prop?.value || '';
+}
+
+// Helper function to parse address string (e.g., "339 haunch Lane, Birmingham, b130pl")
+function parseAddress(addressStr: string): { street: string; city: string; zipCode: string } {
+  const parts = addressStr.split(',').map(p => p.trim());
+  
+  if (parts.length >= 3) {
+    return {
+      street: parts[0],
+      city: parts[1],
+      zipCode: parts[2]
+    };
+  } else if (parts.length === 2) {
+    return {
+      street: parts[0],
+      city: parts[1],
+      zipCode: ''
+    };
+  } else {
+    return {
+      street: addressStr,
+      city: '',
+      zipCode: ''
+    };
+  }
+}
+
+// Helper function to format UK phone numbers to +44 format
+function formatPhoneNumber(phone: string): string {
+  if (!phone) return '';
+  
+  // Remove all spaces and special characters
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // If it starts with 07, convert to +447
+  if (cleaned.startsWith('07')) {
+    return '+44' + cleaned.substring(1);
+  }
+  
+  // If it starts with 447, add +
+  if (cleaned.startsWith('447')) {
+    return '+' + cleaned;
+  }
+  
+  // If it already starts with +44, return as is
+  if (cleaned.startsWith('+44')) {
+    return cleaned;
+  }
+  
+  // Otherwise return as is
+  return phone;
+}
+
+// Helper function to geocode address using Geoapify API
+async function geocodeAddress(addressString: string): Promise<{
+  street: string;
+  city: string;
+  zipCode: string;
+  state: string;
+  country: string;
+  lat?: number;
+  lon?: number;
+  formatted?: string;
+} | null> {
+  try {
+    const apiKey = Deno.env.get('VITE_GEOAPIFY_API_KEY');
+    if (!apiKey) {
+      console.warn('Geoapify API key not configured, skipping geocoding');
+      return null;
+    }
+
+    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressString)}&filter=countrycode:gb&apiKey=${apiKey}`;
+    
+    console.log('Geocoding address:', addressString);
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error('Geocoding failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data.features || data.features.length === 0) {
+      console.warn('No geocoding results found for:', addressString);
+      return null;
+    }
+
+    const result = data.features[0].properties;
+    
+    // Construct full street address including house number
+    const houseNumber = result.housenumber || result.house_number || '';
+    const street = result.street || result.address_line1 || '';
+    const fullStreet = houseNumber ? `${houseNumber} ${street}`.trim() : street;
+    
+    const geocoded = {
+      street: fullStreet,
+      city: result.city || '',
+      zipCode: result.postcode || '',
+      state: result.county || result.state || '',
+      country: result.country || 'United Kingdom',
+      lat: result.lat,
+      lon: result.lon,
+      formatted: result.formatted
+    };
+    
+    console.log('Geocoded address:', geocoded);
+    return geocoded;
+  } catch (error) {
+    console.error('Error geocoding address:', error);
+    return null;
+  }
+}
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
@@ -87,176 +203,251 @@ const handler = async (req: Request): Promise<Response> => {
 
     const shopifyOrder = JSON.parse(body);
     console.log('Processing Shopify order:', shopifyOrder.id);
+    console.log('Raw Shopify order data:', JSON.stringify(shopifyOrder, null, 2));
 
-    // Extract bike details from line items
-    let bikeBrand = '';
-    let bikeModel = '';
-    
-    if (shopifyOrder.line_items && shopifyOrder.line_items.length > 0) {
-      const firstItem = shopifyOrder.line_items[0];
-      // Extract from product title or variant title
-      const productTitle = firstItem.title || firstItem.name || '';
-      
-      // Try to parse brand and model from title
-      // Assuming format like "Brand Model" or just use the full title as model
-      const titleParts = productTitle.split(' ');
-      if (titleParts.length >= 2) {
-        bikeBrand = titleParts[0];
-        bikeModel = titleParts.slice(1).join(' ');
-      } else {
-        bikeModel = productTitle;
-        bikeBrand = 'Shopify Order';
-      }
-    }
-
-    // Map Shopify billing address to sender (collection)
-    const billing = shopifyOrder.billing_address;
-    const sender = {
-      name: billing ? `${billing.first_name || ''} ${billing.last_name || ''}`.trim() : shopifyOrder.customer?.first_name + ' ' + shopifyOrder.customer?.last_name || 'Unknown',
-      email: shopifyOrder.email || shopifyOrder.customer?.email || '',
-      phone: billing?.phone || shopifyOrder.customer?.phone || '',
-      address: {
-        street: billing ? `${billing.address1 || ''} ${billing.address2 || ''}`.trim() : '',
-        city: billing?.city || '',
-        state: billing?.province || '',
-        zip: billing?.zip || '',
-        country: billing?.country || 'UK'
-      }
-    };
-
-    // Map Shopify shipping address to receiver (delivery)
-    const shipping = shopifyOrder.shipping_address;
-    const receiver = {
-      name: shipping ? `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim() : sender.name,
-      email: shopifyOrder.email || shopifyOrder.customer?.email || '',
-      phone: shipping?.phone || billing?.phone || shopifyOrder.customer?.phone || '',
-      address: {
-        street: shipping ? `${shipping.address1 || ''} ${shipping.address2 || ''}`.trim() : sender.address.street,
-        city: shipping?.city || '',
-        state: shipping?.province || '',
-        zip: shipping?.zip || '',
-        country: shipping?.country || 'UK'
-      }
-    };
-
-    // Create order in the system
-    const orderData = {
-      user_id: null, // This will be set by admin or system
-      bike_brand: bikeBrand,
-      bike_model: bikeModel,
-      bike_quantity: shopifyOrder.line_items?.reduce((total: number, item: any) => total + (item.quantity || 1), 0) || 1,
-      sender,
-      receiver,
-      status: 'created',
-      customer_order_number: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
-      delivery_instructions: shopifyOrder.note || ''
-    };
-
-    console.log('Creating order with data:', orderData);
-
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderData)
-      .select()
-      .single();
-
-    if (orderError) {
-      console.error('Error creating order:', orderError);
-      return new Response(JSON.stringify({ error: 'Failed to create order' }), {
+    // Get the API key for calling the Orders API
+    const ordersApiKey = Deno.env.get('SHOPIFY_ORDERS_API_KEY');
+    if (!ordersApiKey) {
+      console.error('SHOPIFY_ORDERS_API_KEY not configured');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
-    console.log('Order created successfully:', order.id);
-
-    // Send emails with delays to avoid rate limiting
-    try {
-      // 1. Order confirmation email (if we had a user)
-      console.log('Sending order confirmation email...');
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: [shopifyOrder.email],
-          subject: 'Order Confirmation - The Cycle Courier Co.',
-          html: `
-            <h2>Order Confirmation - The Cycle Courier Co.</h2>
-            <p>Thank you for your order! We've received your bicycle delivery request.</p>
-            <p><strong>Order Details:</strong></p>
-            <ul>
-              <li>Order Number: ${order.customer_order_number}</li>
-              <li>Bike: ${bikeBrand} ${bikeModel}</li>
-              <li>Collection: ${sender.name} - ${sender.address.street}, ${sender.address.city}</li>
-              <li>Delivery: ${receiver.name} - ${receiver.address.street}, ${receiver.address.city}</li>
-            </ul>
-            <p>We'll be in touch with both the sender and receiver to arrange collection and delivery dates.</p>
-            <p>Best regards,<br>The Cycle Courier Co.</p>
-          `
+    // Extract properties from line items (added by Easify app)
+    let bikeBrand = '';
+    let bikeModel = '';
+    let sender: any;
+    let receiver: any;
+    let bikeQuantity = 1;
+    
+    if (shopifyOrder.line_items && shopifyOrder.line_items.length > 0) {
+      const firstItem = shopifyOrder.line_items[0];
+      const properties = firstItem.properties || [];
+      
+      console.log('Extracting data from line item properties...');
+      
+      // Extract bike brand and model from "Bike Brand and Model" property
+      const bikeBrandAndModel = getPropertyValue(properties, 'Bike Brand and Model');
+      if (bikeBrandAndModel) {
+        // Split on space - first part is brand, rest is model
+        const parts = bikeBrandAndModel.split(' ');
+        bikeBrand = parts[0] || '';
+        bikeModel = parts.slice(1).join(' ') || '';
+        console.log('Parsed bike:', { bikeBrand, bikeModel });
+      } else {
+        // Fallback to product title
+        bikeBrand = firstItem.title || 'Collection';
+        bikeModel = firstItem.variant_title || 'and Delivery within England and Wales';
+      }
+      
+      // Get bike quantity
+      bikeQuantity = firstItem.quantity || 1;
+      
+      // Extract collection (sender) details from properties
+      const collectionName = getPropertyValue(properties, 'Collection Name');
+      const collectionEmail = getPropertyValue(properties, 'Collection Email');
+      const collectionPhone = getPropertyValue(properties, 'Collection Mobile Number');
+      const collectionAddressStr = getPropertyValue(properties, 'Collection Address');
+      
+      // Geocode collection address with fallback to manual parsing
+      const geocodedCollectionAddress = await geocodeAddress(collectionAddressStr);
+      const collectionAddress = geocodedCollectionAddress || parseAddress(collectionAddressStr);
+      
+      sender = {
+        name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
+        email: collectionEmail || shopifyOrder.email || '',
+        phone: formatPhoneNumber(collectionPhone) || '',
+        address: {
+          street: collectionAddress.street,
+          city: collectionAddress.city,
+          state: collectionAddress.state || shopifyOrder.billing_address?.province || 'England',
+          zip: collectionAddress.zipCode,
+          country: collectionAddress.country || shopifyOrder.billing_address?.country || 'United Kingdom',
+          lat: collectionAddress.lat,
+          lon: collectionAddress.lon
         }
-      });
-
-      // Wait 3 seconds to avoid rate limiting
-      await delay(3000);
-
-      // 2. Sender availability email
-      console.log('Sending sender availability email...');
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: [sender.email],
-          subject: 'Bicycle Collection - Availability Confirmation Required',
-          html: `
-            <h2>Bicycle Collection - The Cycle Courier Co.</h2>
-            <p>Hello ${sender.name},</p>
-            <p>We've received a request to collect a bicycle from your address:</p>
-            <p><strong>${sender.address.street}, ${sender.address.city}, ${sender.address.zip}</strong></p>
-            <p>Please confirm your availability for collection by visiting the link below:</p>
-            <p><a href="${supabaseUrl.replace('supabase.co', 'lovable.app')}/sender-availability?id=${order.id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Availability</a></p>
-            <p>If you have any questions, please don't hesitate to contact us.</p>
-            <p>Best regards,<br>The Cycle Courier Co.</p>
-          `
+      };
+      
+      console.log('Parsed sender:', sender);
+      
+      // Extract delivery (receiver) details from properties
+      const deliveryName = getPropertyValue(properties, 'Delivery Name');
+      const deliveryEmail = getPropertyValue(properties, 'Delivery Email');
+      const deliveryPhone = getPropertyValue(properties, 'Delivery Mobile Number');
+      const deliveryAddressStr = getPropertyValue(properties, 'Delivery Address');
+      
+      // Geocode delivery address with fallback to manual parsing
+      const geocodedDeliveryAddress = await geocodeAddress(deliveryAddressStr);
+      const deliveryAddress = geocodedDeliveryAddress || parseAddress(deliveryAddressStr);
+      
+      receiver = {
+        name: deliveryName || sender.name,
+        email: deliveryEmail || sender.email,
+        phone: formatPhoneNumber(deliveryPhone) || sender.phone,
+        address: {
+          street: deliveryAddress.street,
+          city: deliveryAddress.city,
+          state: deliveryAddress.state || '',
+          zip: deliveryAddress.zipCode,
+          country: deliveryAddress.country || 'UK',
+          lat: deliveryAddress.lat,
+          lon: deliveryAddress.lon
         }
-      });
-
-      // Wait another 3 seconds
-      await delay(3000);
-
-      // 3. Receiver notification email
-      console.log('Sending receiver notification email...');
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: [receiver.email],
-          subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
-          html: `
-            <h2>Your Bicycle Delivery - The Cycle Courier Co.</h2>
-            <p>Hello ${receiver.name},</p>
-            <p>A bicycle delivery has been arranged for you!</p>
-            <p><strong>Delivery Details:</strong></p>
-            <ul>
-              <li>Bike: ${bikeBrand} ${bikeModel}</li>
-              <li>Delivery Address: ${receiver.address.street}, ${receiver.address.city}, ${receiver.address.zip}</li>
-              <li>From: ${sender.name}</li>
-            </ul>
-            <p>We'll contact you soon to arrange a convenient delivery time.</p>
-            <p>If you have any questions, please contact us.</p>
-            <p>Best regards,<br>The Cycle Courier Co.</p>
-          `
+      };
+      
+      console.log('Parsed receiver:', receiver);
+      
+    } else {
+      // Fallback to billing/shipping addresses if no line items
+      console.log('No line items found, using billing/shipping addresses as fallback');
+      
+      const billing = shopifyOrder.billing_address;
+      sender = {
+        name: billing ? `${billing.first_name || ''} ${billing.last_name || ''}`.trim() : 'Unknown',
+        email: shopifyOrder.email || '',
+        phone: billing?.phone || '',
+        address: {
+          street: billing ? `${billing.address1 || ''} ${billing.address2 || ''}`.trim() : '',
+          city: billing?.city || '',
+          state: billing?.province || '',
+          zip: billing?.zip || '',
+          country: billing?.country || 'UK'
         }
-      });
-
-      console.log('All emails sent successfully');
-
-    } catch (emailError) {
-      console.error('Error sending emails:', emailError);
-      // Don't fail the webhook for email errors
+      };
+      
+      const shipping = shopifyOrder.shipping_address;
+      receiver = {
+        name: shipping ? `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim() : sender.name,
+        email: shopifyOrder.email || '',
+        phone: shipping?.phone || sender.phone,
+        address: {
+          street: shipping ? `${shipping.address1 || ''} ${shipping.address2 || ''}`.trim() : sender.address.street,
+          city: shipping?.city || '',
+          state: shipping?.province || '',
+          zip: shipping?.zip || '',
+          country: shipping?.country || 'UK'
+        }
+      };
+      
+      bikeBrand = 'Collection';
+      bikeModel = 'and Delivery within England and Wales';
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      orderId: order.id,
-      message: 'Order created successfully' 
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
+    const shopifyOrderId = shopifyOrder.id.toString();
+    console.log('Shopify Order ID:', shopifyOrderId);
+    
+    // Check if order already exists for this Shopify order ID
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id, tracking_number')
+      .eq('shopify_order_id', shopifyOrderId)
+      .maybeSingle();
+    
+    if (existingOrder) {
+      console.log('Order already exists for Shopify order:', shopifyOrderId);
+      return new Response(JSON.stringify({ 
+        success: true,
+        message: 'Order already processed',
+        orderId: existingOrder.id,
+        trackingNumber: existingOrder.tracking_number
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Prepare data for Orders API
+    const ordersApiBody = {
+      shopifyOrderId,
+      sender: {
+        name: sender.name,
+        email: sender.email,
+        phone: sender.phone,
+        address: {
+          street: sender.address.street,
+          city: sender.address.city,
+          state: sender.address.state,
+          zipCode: sender.address.zip,
+          country: sender.address.country,
+          lat: sender.address.lat,
+          lon: sender.address.lon
+        }
+      },
+      receiver: {
+        name: receiver.name,
+        email: receiver.email,
+        phone: receiver.phone,
+        address: {
+          street: receiver.address.street,
+          city: receiver.address.city,
+          state: receiver.address.state,
+          zipCode: receiver.address.zip,
+          country: receiver.address.country,
+          lat: receiver.address.lat,
+          lon: receiver.address.lon
+        }
+      },
+      bikes: [
+        {
+          brand: bikeBrand,
+          model: bikeModel
+        }
+      ],
+      bikeQuantity: bikeQuantity,
+      customerOrderNumber: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
+      deliveryInstructions: shopifyOrder.note || ''
+    };
+
+    console.log('Calling Orders API with data:', JSON.stringify(ordersApiBody, null, 2));
+
+    // Call the Orders API edge function
+    try {
+      const ordersApiResponse = await fetch(`${supabaseUrl}/functions/v1/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': ordersApiKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        },
+        body: JSON.stringify(ordersApiBody)
+      });
+
+      const responseData = await ordersApiResponse.json();
+
+      if (!ordersApiResponse.ok) {
+        console.error('Orders API error:', responseData);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to create order via API',
+          details: responseData
+        }), {
+          status: ordersApiResponse.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      console.log('Order created successfully via Orders API:', responseData);
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        order: responseData,
+        message: 'Order created successfully via Orders API (includes tracking number, emails, and Shipday jobs)' 
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+
+    } catch (apiError) {
+      console.error('Error calling Orders API:', apiError);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to call Orders API',
+        message: apiError instanceof Error ? apiError.message : 'Unknown error'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
 
   } catch (error) {
     console.error('Error processing Shopify webhook:', error);

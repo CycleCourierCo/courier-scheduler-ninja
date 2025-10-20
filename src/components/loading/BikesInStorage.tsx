@@ -204,11 +204,11 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   >
                     {order?.status || 'Unknown'}
                   </Badge>
-                  {(() => {
+                   {(() => {
                      // Find driver name from collection completion event
                      const collectionDriverName = getCompletedDriverName(order, 'pickup');
-                     // Find driver name for delivery assignment  
-                     const deliveryDriverName = getDriverAssignment(order, 'delivery');
+                     // Get delivery driver name from order column
+                     const deliveryDriverName = order.delivery_driver_name;
                     
                     return (
                       <div className="flex flex-wrap gap-1">
