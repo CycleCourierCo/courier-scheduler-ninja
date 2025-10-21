@@ -12,12 +12,7 @@ interface StorageUnitLayoutProps {
 
 export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps) => {
   const bays = ['A', 'B', 'C', 'D'];
-  
-  const getBayPositions = (bay: string) => {
-    // Bays A, B, C have 20 positions; Bay D has 15
-    const maxPosition = ['A', 'B', 'C'].includes(bay) ? 20 : 15;
-    return Array.from({ length: maxPosition }, (_, i) => i + 1);
-  };
+  const positions = Array.from({ length: 20 }, (_, i) => i + 1);
 
   const isOccupied = (bay: string, position: number) => {
     return storageAllocations.some(
@@ -41,7 +36,7 @@ export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps
             </div>
             <Card className="flex-1 p-1 sm:p-2 bg-muted/20">
                 <div className="flex gap-0.5 sm:gap-1">
-                  {getBayPositions(bay).map((position) => {
+                  {positions.map((position) => {
                     const occupied = isOccupied(bay, position);
                     const allocation = getAllocation(bay, position);
                     
