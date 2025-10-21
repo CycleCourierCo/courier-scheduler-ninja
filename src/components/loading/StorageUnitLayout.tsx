@@ -12,7 +12,7 @@ interface StorageUnitLayoutProps {
 
 export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps) => {
   const bays = ['A', 'B', 'C', 'D'];
-  const positions = Array.from({ length: 15 }, (_, i) => i + 1);
+  const positions = Array.from({ length: 20 }, (_, i) => i + 1);
 
   const isOccupied = (bay: string, position: number) => {
     return storageAllocations.some(

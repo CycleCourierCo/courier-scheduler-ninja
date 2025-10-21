@@ -44,7 +44,9 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     trackingEvents: dbOrder.tracking_events,
     storage_locations: dbOrder.storage_locations,
     loaded_onto_van: dbOrder.loaded_onto_van || false,
-    loaded_onto_van_at: dbOrder.loaded_onto_van_at ? parseDate(dbOrder.loaded_onto_van_at) : undefined
+    loaded_onto_van_at: dbOrder.loaded_onto_van_at ? parseDate(dbOrder.loaded_onto_van_at) : undefined,
+    collection_driver_name: dbOrder.collection_driver_name,
+    delivery_driver_name: dbOrder.delivery_driver_name
   };
 
   // Add optional date fields only if they exist in the DB record

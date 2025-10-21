@@ -83,9 +83,9 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
         return;
       }
 
-      // Validate position (1-15)
-      if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
-        toast.error(`Bike ${i + 1}: Position must be between 1 and 15`);
+      // Validate position (1-20)
+      if (isNaN(positionNum) || positionNum < 1 || positionNum > 20) {
+        toast.error(`Bike ${i + 1}: Position must be between 1 and 20`);
         return;
       }
 
@@ -316,7 +316,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                         />
                       </div>
                       <div className="flex-1">
-                        <Label htmlFor={`position-${index}`} className="text-sm">Position (1-15)</Label>
+                        <Label htmlFor={`position-${index}`} className="text-sm">Position (1-20)</Label>
                         <Input
                           id={`position-${index}`}
                           value={positions[index] || ''}
@@ -328,7 +328,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                           placeholder="1"
                           type="number"
                           min="1"
-                          max="15"
+                          max="20"
                           className="text-center"
                         />
                       </div>
@@ -358,7 +358,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                   />
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="position" className="text-sm">Position (1-15)</Label>
+                  <Label htmlFor="position" className="text-sm">Position (1-20)</Label>
                   <Input
                     id="position"
                     value={positions[0] || ''}
@@ -366,7 +366,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                     placeholder="1"
                     type="number"
                     min="1"
-                    max="15"
+                    max="20"
                     className="text-center"
                   />
                 </div>

@@ -119,6 +119,36 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       for (const job of jobs) {
         const recipientType = job.type === 'collection' ? 'sender' : 'receiver';
         
+        // Parse selected date in local timezone
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = jobTimes[job.orderId].split(':').map(Number);
+        const scheduledDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+        // Update database with timeslot and scheduled date
+        const updateField = job.type === 'collection' ? 'pickup_timeslot' : 'delivery_timeslot';
+        const dateField = job.type === 'collection' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            [updateField]: jobTimes[job.orderId],
+            [dateField]: scheduledDateTime.toISOString()
+          })
+          .eq('id', job.orderId);
+
+        if (updateError) {
+          console.error(`Failed to save timeslot for ${job.contactName}:`, updateError);
+          continue;
+        }
+
+        // Also update order status appropriately
+        const newStatus = job.type === 'collection' ? 'collection_scheduled' : 'delivery_scheduled';
+        await supabase
+          .from('orders')
+          .update({ status: newStatus })
+          .eq('id', job.orderId);
+        
         const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
           body: {
             orderId: job.orderId,

@@ -61,9 +61,9 @@ export const PendingStorageAllocation = ({
         return;
       }
 
-      // Validate position (1-15)
-      if (isNaN(position) || position < 1 || position > 15) {
-        toast.error(`Position must be between 1 and 15 (bike ${bikeIndex + 1})`);
+      // Validate position (1-20)
+      if (isNaN(position) || position < 1 || position > 20) {
+        toast.error(`Position must be between 1 and 20 (bike ${bikeIndex + 1})`);
         return;
       }
 
@@ -149,6 +149,11 @@ export const PendingStorageAllocation = ({
                       }
                       return null;
                     })()}
+                    {bike.delivery_driver_name && (
+                      <Badge variant="warning" className="text-xs">
+                        Load onto {bike.delivery_driver_name} van
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -181,7 +186,7 @@ export const PendingStorageAllocation = ({
                           />
                         </div>
                         <div>
-                          <Label htmlFor={`position-${key}`} className="text-xs">Position (1-15)</Label>
+                          <Label htmlFor={`position-${key}`} className="text-xs">Position (1-20)</Label>
                           <Input
                             id={`position-${key}`}
                             value={allocations[key]?.position || ''}
@@ -189,7 +194,7 @@ export const PendingStorageAllocation = ({
                             placeholder="1"
                             type="number"
                             min="1"
-                            max="15"
+                            max="20"
                             className="text-center h-8 sm:h-9"
                           />
                         </div>

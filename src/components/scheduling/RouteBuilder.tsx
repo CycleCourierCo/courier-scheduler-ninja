@@ -1038,10 +1038,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       const primaryJob = jobsAtLocation[0];
       const deliveryTime = `${primaryJob.estimatedTime}:00`;
       
-      // Create datetime from selected date and estimated time
+      // Create datetime from selected date and estimated time (local timezone)
       const [jobHours, jobMinutes] = primaryJob.estimatedTime.split(':').map(Number);
-      const scheduledDateTime = new Date(selectedDate);
-      scheduledDateTime.setHours(jobHours, jobMinutes, 0, 0);
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const scheduledDateTime = new Date(year, month - 1, day, jobHours, jobMinutes, 0, 0);
       
       // Separate ALL deliveries and collections at this location
       const deliveries: string[] = [];
@@ -1207,10 +1208,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         try {
           const deliveryTime = `${job.estimatedTime}:00`;
           
-          // Create datetime from selected date and estimated time
+          // Create datetime from selected date and estimated time (local timezone)
           const [hours, minutes] = job.estimatedTime.split(':').map(Number);
-          const scheduledDateTime = new Date(selectedDate);
-          scheduledDateTime.setHours(hours, minutes, 0, 0);
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const scheduledDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
           
           // First save the timeslot and scheduled date to the database
           const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
@@ -1230,18 +1232,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             continue;
           }
 
-          // Calculate the time minus 3 hours for the timeslot
-          const [timeHours, timeMinutes] = job.estimatedTime.split(':').map(Number);
-          const adjustedTime = new Date();
-          adjustedTime.setHours(timeHours - 3, timeMinutes, 0, 0);
-          const timeslotToSend = adjustedTime.toTimeString().substring(0, 5);
-
-          // Send the WhatsApp message
+          // Send the WhatsApp message with the start time
           const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
             body: {
               orderId: job.orderId,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
-              deliveryTime: timeslotToSend
+              deliveryTime: job.estimatedTime
             }
           });
 

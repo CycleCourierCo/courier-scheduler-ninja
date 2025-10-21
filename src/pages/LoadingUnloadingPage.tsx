@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -30,7 +31,7 @@ export type StorageAllocation = {
   id: string;
   orderId: string;
   bay: string; // A-D
-  position: number; // 1-15
+  position: number; // 1-20
   bikeBrand?: string;
   bikeModel?: string;
   customerName: string;
@@ -1113,9 +1114,21 @@ const LoadingUnloadingPage = () => {
                                                        const deliveryDriverName = order.delivery_driver_name;
                                                       
                                                       if (deliveryDriverName) {
-                                                        return <div className="text-purple-600 font-medium">Load onto {deliveryDriverName} Van</div>;
+                                                        return (
+                                                          <div className="mt-1">
+                                                            <Badge className="bg-orange-600 text-white hover:bg-orange-700">
+                                                              Load onto {deliveryDriverName} van
+                                                            </Badge>
+                                                          </div>
+                                                        );
                                                       }
-                                                      return null;
+                                                      return (
+                                                        <div className="mt-1">
+                                                          <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                            Driver unassigned
+                                                          </Badge>
+                                                        </div>
+                                                      );
                                                     })()}
                                                   </div>
                                                   <div className="mt-3 pt-3 border-t">
