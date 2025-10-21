@@ -51,9 +51,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
           return;
         }
 
-        // Validate position (1-15)
-        if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
-          toast.error(`Bike ${i + 1}: Position must be between 1 and 15`);
+        // Validate position (1-20)
+        if (isNaN(positionNum) || positionNum < 1 || positionNum > 20) {
+          toast.error(`Bike ${i + 1}: Position must be between 1 and 20`);
           return;
         }
 
@@ -91,9 +91,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
         return;
       }
 
-      // Validate position (1-15)
-      if (isNaN(positionNum) || positionNum < 1 || positionNum > 15) {
-        toast.error("Position must be between 1 and 15");
+      // Validate position (1-20)
+      if (isNaN(positionNum) || positionNum < 1 || positionNum > 20) {
+        toast.error("Position must be between 1 and 20");
         return;
       }
 
@@ -342,7 +342,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                             />
                           </div>
                           <div className="flex-1">
-                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position (1-15)</Label>
+                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position (1-20)</Label>
                             <Input
                               id={`new-position-${index}`}
                               value={newPositions[index] || ''}
@@ -354,7 +354,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                               placeholder="1"
                               type="number"
                               min="1"
-                              max="15"
+                              max="20"
                               className="text-center"
                             />
                           </div>
@@ -378,7 +378,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                         />
                       </div>
                       <div className="flex-1">
-                        <Label htmlFor="new-position" className="text-sm">Position (1-15)</Label>
+                        <Label htmlFor="new-position" className="text-sm">Position (1-20)</Label>
                         <Input
                           id="new-position"
                           value={newPositions[0] || ''}
@@ -386,7 +386,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                           placeholder="1"
                           type="number"
                           min="1"
-                          max="15"
+                          max="20"
                           className="text-center"
                         />
                       </div>

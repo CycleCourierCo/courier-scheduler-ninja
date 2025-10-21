@@ -31,7 +31,7 @@ export type StorageAllocation = {
   id: string;
   orderId: string;
   bay: string; // A-D
-  position: number; // 1-15
+  position: number; // 1-20
   bikeBrand?: string;
   bikeModel?: string;
   customerName: string;
