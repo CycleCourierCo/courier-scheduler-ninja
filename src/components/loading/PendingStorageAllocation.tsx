@@ -149,6 +149,15 @@ export const PendingStorageAllocation = ({
                       }
                       return null;
                     })()}
+                    {bike.delivery_driver_name ? (
+                      <Badge variant="warning" className="text-xs">
+                        Load onto {bike.delivery_driver_name} van
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">
+                        Driver unassigned
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
