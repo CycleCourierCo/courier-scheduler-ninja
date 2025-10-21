@@ -90,10 +90,9 @@ const handler = async (req: Request): Promise<Response> => {
           // Bike is not in storage - show who has it (collection driver)
           if (bike.collectionDriverName) {
             location = `With ${bike.collectionDriverName}`;
-          } else if (driverName === 'Unassigned Driver') {
-            location = 'Awaiting assignment';
           } else {
-            location = `With ${driverName}`;
+            // Collection hasn't happened yet or driver not assigned
+            location = 'Awaiting collection';
           }
         }
         
@@ -154,10 +153,9 @@ const handler = async (req: Request): Promise<Response> => {
             // Bike is not in storage - show who has it (collection driver)
             if (bike.collectionDriverName) {
               location = `With ${bike.collectionDriverName}`;
-            } else if (driverName === 'Unassigned Driver') {
-              location = 'Awaiting assignment';
             } else {
-              location = `With ${driverName}`;
+              // Collection hasn't happened yet or driver not assigned
+              location = 'Awaiting collection';
             }
           }
           
