@@ -17,6 +17,8 @@ import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
 import ContactDetails from "@/components/order-detail/ContactDetails";
+import AdminContactEditor from "@/components/order-detail/AdminContactEditor";
+import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
@@ -26,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -94,6 +97,7 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { userProfile } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -922,6 +926,19 @@ const OrderDetail = () => {
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
   
   const showAdminControls = true;
+  const isAdmin = userProfile?.role === 'admin';
+  
+  const handleRefreshOrder = async () => {
+    if (!id) return;
+    try {
+      const fetchedOrder = await getOrderById(id);
+      if (fetchedOrder) {
+        setOrder(fetchedOrder);
+      }
+    } catch (err) {
+      console.error("Error refreshing order:", err);
+    }
+  };
 
   return (
     <Layout>
@@ -1176,11 +1193,21 @@ const OrderDetail = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <ContactDetails 
-                  type="sender"
-                  contact={order.sender}
-                  notes={order.senderNotes}
-                />
+                {isAdmin ? (
+                  <AdminContactEditor 
+                    type="sender"
+                    contact={order.sender}
+                    notes={order.senderNotes}
+                    orderId={order.id}
+                    onUpdate={handleRefreshOrder}
+                  />
+                ) : (
+                  <ContactDetails 
+                    type="sender"
+                    contact={order.sender}
+                    notes={order.senderNotes}
+                  />
+                )}
                 <TimeslotSelection 
                   type="sender"
                   orderId={order.id}
@@ -1189,11 +1216,21 @@ const OrderDetail = () => {
               </div>
               
               <div className="space-y-4">
-                <ContactDetails 
-                  type="receiver"
-                  contact={order.receiver}
-                  notes={order.receiverNotes}
-                />
+                {isAdmin ? (
+                  <AdminContactEditor 
+                    type="receiver"
+                    contact={order.receiver}
+                    notes={order.receiverNotes}
+                    orderId={order.id}
+                    onUpdate={handleRefreshOrder}
+                  />
+                ) : (
+                  <ContactDetails 
+                    type="receiver"
+                    contact={order.receiver}
+                    notes={order.receiverNotes}
+                  />
+                )}
                 <TimeslotSelection 
                   type="receiver"
                   orderId={order.id}
@@ -1201,6 +1238,13 @@ const OrderDetail = () => {
                 />
               </div>
             </div>
+            
+            {isAdmin && (
+              <>
+                <Separator className="my-6" />
+                <AdminTrackingEditor order={order} onUpdate={handleRefreshOrder} />
+              </>
+            )}
             
             <Separator className="my-6" />
             
