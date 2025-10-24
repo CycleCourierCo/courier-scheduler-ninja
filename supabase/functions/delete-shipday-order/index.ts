@@ -54,7 +54,7 @@ serve(async (req) => {
           {
             method: "DELETE",
             headers: {
-              "Authorization": `Basic ${btoa(SHIPDAY_API_KEY)}`,
+              "Authorization": `Basic ${SHIPDAY_API_KEY}`,
               "Content-Type": "application/json",
             },
           }
@@ -84,7 +84,7 @@ serve(async (req) => {
           {
             method: "DELETE",
             headers: {
-              "Authorization": `Basic ${btoa(SHIPDAY_API_KEY)}`,
+              "Authorization": `Basic ${SHIPDAY_API_KEY}`,
               "Content-Type": "application/json",
             },
           }
