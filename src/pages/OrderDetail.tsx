@@ -4,7 +4,8 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package, Printer } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
-import { createShipdayOrder } from "@/services/shipdayService";
+import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
+import { sendOrderCancellationEmails } from "@/services/emailService";
 import { Order, OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -801,35 +802,81 @@ const OrderDetail = () => {
     
     try {
       setStatusUpdating(true);
-      let updatedOrder;
       
-      if (newStatus === 'scheduled_dates_pending') {
-        const { data, error } = await supabase
-          .from('orders')
-          .update({ 
-            status: newStatus,
-            scheduled_pickup_date: null,
-            scheduled_delivery_date: null,
-            scheduled_at: null
-          })
-          .eq('id', id)
-          .select()
-          .single();
+      // Handle cancellation with Shipday deletion and email notifications
+      if (newStatus === 'cancelled') {
+        let shipdaySuccess = false;
+        let emailSuccess = false;
+        
+        // Try to delete Shipday jobs
+        try {
+          const shipdayResult = await deleteShipdayJobs(id);
+          shipdaySuccess = shipdayResult.success;
+          if (shipdaySuccess) {
+            toast.success(shipdayResult.message || "Shipday jobs deleted");
+          }
+        } catch (shipdayError) {
+          console.error("Error deleting Shipday jobs:", shipdayError);
+          toast.warning("Failed to delete Shipday jobs, but continuing with cancellation");
+        }
+        
+        // Try to send cancellation emails
+        try {
+          const emailResults = await sendOrderCancellationEmails(id);
+          const emailsSent = Object.values(emailResults).filter(Boolean).length;
+          if (emailsSent > 0) {
+            emailSuccess = true;
+            toast.success(`Cancellation emails sent to ${emailsSent} recipient(s)`);
+          }
+        } catch (emailError) {
+          console.error("Error sending cancellation emails:", emailError);
+          toast.warning("Failed to send some cancellation emails");
+        }
+        
+        // Update order status to cancelled
+        const updatedOrder = await updateAdminOrderStatus(id, newStatus);
+        
+        if (updatedOrder) {
+          const mappedOrder = mapDbOrderToOrderType(updatedOrder);
+          setOrder(mappedOrder);
+          setSelectedStatus(newStatus);
           
-        if (error) throw error;
-        updatedOrder = data;
+          // Show comprehensive success message
+          const parts = ["Order cancelled"];
+          if (shipdaySuccess) parts.push("Shipday jobs deleted");
+          if (emailSuccess) parts.push("notifications sent");
+          toast.success(parts.join(", "));
+        }
       } else {
-        updatedOrder = await updateAdminOrderStatus(id, newStatus);
-      }
-      
-      if (updatedOrder) {
-        const mappedOrder = mapDbOrderToOrderType(updatedOrder);
-        setOrder(mappedOrder);
-        setSelectedStatus(newStatus);
+        // Handle other status changes normally
+        let updatedOrder;
         
-        // Don't clear date pickers when changing status
+        if (newStatus === 'scheduled_dates_pending') {
+          const { data, error } = await supabase
+            .from('orders')
+            .update({ 
+              status: newStatus,
+              scheduled_pickup_date: null,
+              scheduled_delivery_date: null,
+              scheduled_at: null
+            })
+            .eq('id', id)
+            .select()
+            .single();
+            
+          if (error) throw error;
+          updatedOrder = data;
+        } else {
+          updatedOrder = await updateAdminOrderStatus(id, newStatus);
+        }
         
-        toast.success(`Status updated to ${newStatus}`);
+        if (updatedOrder) {
+          const mappedOrder = mapDbOrderToOrderType(updatedOrder);
+          setOrder(mappedOrder);
+          setSelectedStatus(newStatus);
+          
+          toast.success(`Status updated to ${newStatus}`);
+        }
       }
     } catch (error) {
       console.error("Error updating status:", error);
