@@ -206,8 +206,13 @@ export type StorageAnalytics = {
 const getCollectionTimestamp = (order: Order): Date | null => {
   if (!order.trackingEvents?.shipday?.updates) return null;
   
+  // Look for collection events - ORDER_POD_UPLOAD for pickup or various pickup statuses
   const collectedEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => update.status === 'collected' || update.status === 'pickedUp'
+    (update: any) => 
+      update.event === 'ORDER_POD_UPLOAD' && 
+      (update.orderId === (order as any).shipdayPickupId || 
+       update.description?.toLowerCase().includes('collected') ||
+       update.description?.toLowerCase().includes('collect'))
   );
   
   return collectedEvent ? new Date(collectedEvent.timestamp) : null;
@@ -217,8 +222,13 @@ const getCollectionTimestamp = (order: Order): Date | null => {
 const getDeliveryTimestamp = (order: Order): Date | null => {
   if (!order.trackingEvents?.shipday?.updates) return null;
   
+  // Look for delivery events - ORDER_POD_UPLOAD for delivery
   const deliveredEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => update.status === 'delivered' || update.status === 'completed'
+    (update: any) => 
+      update.event === 'ORDER_POD_UPLOAD' && 
+      (update.orderId === (order as any).shipdayDeliveryId || 
+       update.description?.toLowerCase().includes('delivered') ||
+       update.description?.toLowerCase().includes('deliver'))
   );
   
   return deliveredEvent ? new Date(deliveredEvent.timestamp) : null;
