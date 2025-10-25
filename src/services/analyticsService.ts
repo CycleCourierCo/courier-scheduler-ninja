@@ -120,7 +120,8 @@ export const getTopCustomersAnalytics = (orders: Order[]): CustomerOrderCount[] 
   const customerCounts: Record<string, { count: number; isB2B: boolean }> = {};
   
   orders.forEach(order => {
-    const customerName = order.sender.name;
+    // @ts-ignore - Added in fetchOrdersForAnalytics
+    const customerName = order.companyName || order.sender.name;
     // @ts-ignore - Added in fetchOrdersForAnalytics
     const isB2B = order.isBusiness || order.userRole === 'b2b_customer';
     
@@ -263,7 +264,8 @@ export const getCollectionTimeAnalytics = (orders: Order[]): CollectionTimeAnaly
     totalHours += hoursToCollect;
     if (hoursToCollect <= 24) within24h++;
 
-    const customerName = order.sender.name;
+    // @ts-ignore - Added in fetchOrdersForAnalytics
+    const customerName = order.companyName || order.sender.name;
     if (!customerData[customerName]) {
       customerData[customerName] = { totalHours: 0, count: 0 };
     }
@@ -321,7 +323,8 @@ export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics
     totalDurationHours += totalHours;
     if (collectionToDeliveryHours <= 48) within48h++;
 
-    const customerName = order.sender.name;
+    // @ts-ignore - Added in fetchOrdersForAnalytics
+    const customerName = order.companyName || order.sender.name;
     if (!customerData[customerName]) {
       customerData[customerName] = { collectionToDelivery: 0, totalDuration: 0, count: 0 };
     }
@@ -395,7 +398,8 @@ export const getStorageAnalytics = (orders: Order[]): StorageAnalytics => {
 
     return {
       orderId: order.trackingNumber || order.id,
-      customerName: order.sender.name,
+      // @ts-ignore - Added in fetchOrdersForAnalytics
+      customerName: order.companyName || order.sender.name,
       daysInStorage
     };
   }).filter(item => item.daysInStorage > 0);
