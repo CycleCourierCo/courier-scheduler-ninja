@@ -11,15 +11,21 @@ import {
   getTopCustomersAnalytics,
   getPartExchangeAnalytics,
   getPaymentRequiredAnalytics,
-  getBikeBrandAnalytics
+  getBikeBrandAnalytics,
+  getCollectionTimeAnalytics,
+  getDeliveryTimeAnalytics,
+  getStorageAnalytics
 } from "@/services/analyticsService";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
 import TopCustomersChart from "@/components/analytics/TopCustomersChart";
 import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
+import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
+import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
+import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, DollarSign } from "lucide-react";
+import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer } from "lucide-react";
 
 const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -46,6 +52,11 @@ const AnalyticsPage = () => {
   const partExchangeData = getPartExchangeAnalytics(orders);
   const paymentRequiredData = getPaymentRequiredAnalytics(orders);
   const bikeBrandData = getBikeBrandAnalytics(orders);
+  
+  // Calculate timing analytics
+  const collectionTimeData = getCollectionTimeAnalytics(orders);
+  const deliveryTimeData = getDeliveryTimeAnalytics(orders);
+  const storageData = getStorageAnalytics(orders);
 
   // Get only B2B customers for business tab
   const b2bCustomers = topCustomersData.filter(customer => customer.isB2B);
@@ -95,7 +106,7 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-8"
             >
-              <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 mb-8">
+              <TabsList className="grid w-full grid-cols-1 md:grid-cols-5 mb-8">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <BarChart className="h-4 w-4" />
                   <span>Overview</span>
@@ -111,6 +122,10 @@ const AnalyticsPage = () => {
                 <TabsTrigger value="products" className="flex items-center gap-2">
                   <Bike className="h-4 w-4" />
                   <span>Products</span>
+                </TabsTrigger>
+                <TabsTrigger value="performance" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Performance</span>
                 </TabsTrigger>
               </TabsList>
               
@@ -180,6 +195,62 @@ const AnalyticsPage = () => {
                       <CustomerTypeChart data={paymentRequiredData} title="Payment Required Orders" />
                     </div>
                   </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="performance" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <div className="col-span-full">
+                    <h2 className="text-xl font-semibold mb-4">Performance & Timing Analytics</h2>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  <StatsCard
+                    title="Avg Collection Time"
+                    value={`${collectionTimeData.averageTimeToCollect.toFixed(1)}h`}
+                    description="From order creation to collection"
+                    icon={Clock}
+                  />
+                  <StatsCard
+                    title="Collection SLA"
+                    value={`${collectionTimeData.collectionSLA.toFixed(0)}%`}
+                    description="Within 24 hours"
+                    icon={CheckCircle2}
+                  />
+                  <StatsCard
+                    title="Avg Delivery Time"
+                    value={`${deliveryTimeData.averageCollectionToDelivery.toFixed(1)}h`}
+                    description="From collection to delivery"
+                    icon={Truck}
+                  />
+                  <StatsCard
+                    title="Delivery SLA"
+                    value={`${deliveryTimeData.deliverySLA.toFixed(0)}%`}
+                    description="Within 48 hours"
+                    icon={Target}
+                  />
+                  <StatsCard
+                    title="Bikes in Storage"
+                    value={storageData.currentInStorage}
+                    description="Currently stored"
+                    icon={Warehouse}
+                  />
+                  <StatsCard
+                    title="Avg Storage Duration"
+                    value={`${storageData.averageDaysInStorage.toFixed(1)} days`}
+                    description="Average time in storage"
+                    icon={Timer}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <CollectionTimeChart data={collectionTimeData} />
+                  <DeliveryTimeChart data={deliveryTimeData} />
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <StorageAnalyticsChart data={storageData} />
                 </div>
               </TabsContent>
             </Tabs>
