@@ -321,6 +321,7 @@ export default function InvoicesPage() {
     }
 
     const eligibleCustomers = customers?.filter(c => c.accounts_email) || [];
+    const customersWithoutEmail = customers?.filter(c => !c.accounts_email) || [];
     
     if (eligibleCustomers.length === 0) {
       toast({
@@ -337,6 +338,7 @@ export default function InvoicesPage() {
     const successfulInvoices: any[] = [];
     const failedInvoices: any[] = [];
     const allOrdersData: any[] = [];
+    const skippedCustomers: any[] = [];
 
     for (let i = 0; i < eligibleCustomers.length; i++) {
       const customer = eligibleCustomers[i];
@@ -357,6 +359,12 @@ export default function InvoicesPage() {
         // Skip if no orders
         if (!customerOrders || customerOrders.length === 0) {
           console.log(`Skipping ${customer.name} - no orders found`);
+          skippedCustomers.push({
+            customerName: customer.name,
+            customerEmail: customer.accounts_email || customer.email,
+            reason: 'No orders in date range',
+            orderCount: 0,
+          });
           continue;
         }
 
@@ -403,6 +411,27 @@ export default function InvoicesPage() {
           variant: "destructive",
         });
       }
+    }
+
+    // Add customers without accounts_email to skipped list
+    for (const customer of customersWithoutEmail) {
+      // Check if they have orders in the date range
+      const { data: customerOrders } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("user_id", customer.id)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+        .neq("status", "cancelled");
+
+      const orderCount = customerOrders?.length || 0;
+      
+      skippedCustomers.push({
+        customerName: customer.name,
+        customerEmail: customer.email || 'No email',
+        reason: 'Missing accounts email',
+        orderCount,
+      });
     }
 
     // Calculate statistics
@@ -460,12 +489,14 @@ export default function InvoicesPage() {
             <ul>
               <li>Successful Invoices: ${successfulInvoices.length}</li>
               <li>Failed Invoices: ${failedInvoices.length}</li>
+              <li>Skipped Customers: ${skippedCustomers.length}</li>
               <li>Total Customers Processed: ${eligibleCustomers.length}</li>
             </ul>
 
             <h3>Order Statistics</h3>
             <ul>
-              <li>Total Orders: ${allOrdersData.length}</li>
+              <li>Total Orders Included in Invoices: ${allOrdersData.length}</li>
+              <li>Total Orders from Skipped Customers: ${skippedCustomers.reduce((sum, c) => sum + c.orderCount, 0)}</li>
               <li>Delivered Orders: ${deliveredOrders.length}</li>
               <li>Collected Orders: ${collectedOrders.length}</li>
               <li>Average Creation to Delivery: ${avgCreationToDelivery.toFixed(1)} hours</li>
@@ -509,6 +540,27 @@ export default function InvoicesPage() {
                 `).join('')}
               </table>
             ` : '<p>No failed invoices</p>'}
+
+            <h3>Skipped Customers</h3>
+            ${skippedCustomers.length > 0 ? `
+              <table border="1" cellpadding="8" cellspacing="0" style="background-color: #fff3cd;">
+                <tr>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Orders in Range</th>
+                  <th>Reason</th>
+                </tr>
+                ${skippedCustomers.map(cust => `
+                  <tr>
+                    <td>${cust.customerName}</td>
+                    <td>${cust.customerEmail}</td>
+                    <td>${cust.orderCount}</td>
+                    <td>${cust.reason}</td>
+                  </tr>
+                `).join('')}
+              </table>
+              <p><strong>Note:</strong> These customers were excluded from invoice creation. To include them, add an accounts email address in User Management.</p>
+            ` : '<p>No customers were skipped</p>'}
           `,
         },
       });
