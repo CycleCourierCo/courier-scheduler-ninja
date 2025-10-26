@@ -103,19 +103,52 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log(`Processing ${orders.length} orders for driver: ${driverName}`);
 
-      // Find driver record by name
-      const { data: driverRecords } = await supabaseClient
-        .from('drivers')
-        .select('*')
-        .ilike('name', driverName)
-        .limit(1);
+      // First, try to find driver by Shipday carrier ID
+      const carrierId = orders[0]?.carrier?.id;
+      let driver = null;
 
-      if (!driverRecords || driverRecords.length === 0) {
-        console.warn(`Driver not found in database: ${driverName}`);
-        continue;
+      if (carrierId) {
+        const { data: driverByShipdayId } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('shipday_driver_id', carrierId.toString())
+          .eq('role', 'driver')
+          .limit(1);
+
+        if (driverByShipdayId && driverByShipdayId.length > 0) {
+          driver = driverByShipdayId[0];
+          console.log(`Found driver by Shipday ID ${carrierId}: ${driver.name}`);
+        }
       }
 
-      const driver = driverRecords[0];
+      // If not found by Shipday ID, try matching by name
+      if (!driver) {
+        const { data: driverByName } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('role', 'driver')
+          .ilike('name', driverName)
+          .limit(1);
+
+        if (driverByName && driverByName.length > 0) {
+          driver = driverByName[0];
+          console.log(`Found driver by name match: ${driver.name}`);
+          
+          // Auto-update Shipday ID for future matches
+          if (carrierId && !driver.shipday_driver_id) {
+            await supabaseClient
+              .from('profiles')
+              .update({ shipday_driver_id: carrierId.toString() })
+              .eq('id', driver.id);
+            console.log(`Auto-linked Shipday ID ${carrierId} to driver ${driver.name}`);
+          }
+        }
+      }
+
+      if (!driver) {
+        console.warn(`Driver not found in database: ${driverName} (Shipday ID: ${carrierId})`);
+        continue;
+      }
 
       // Extract all stops from orders
       const allStops: JobLocation[] = [];

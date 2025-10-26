@@ -20,4 +20,11 @@ export interface UserProfile {
   city: string | null;
   postal_code: string | null;
   accounts_email: string | null;
+  // Driver fields
+  hourly_rate: number | null;
+  uses_own_van: boolean | null;
+  van_allowance: number | null;
+  is_active: boolean | null;
+  available_hours: number | null;
+  shipday_driver_id: string | null;
 }

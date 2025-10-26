@@ -421,13 +421,16 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          available_hours: number | null
           city: string | null
           company_name: string | null
           country: string | null
           county: string | null
           created_at: string
           email: string | null
+          hourly_rate: number | null
           id: string
+          is_active: boolean | null
           is_business: boolean | null
           latitude: number | null
           longitude: number | null
@@ -435,8 +438,11 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id: string | null
           table_preferences: Json | null
           updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
           website: string | null
         }
         Insert: {
@@ -446,13 +452,16 @@ export type Database = {
           accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
+          available_hours?: number | null
           city?: string | null
           company_name?: string | null
           country?: string | null
           county?: string | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id: string
+          is_active?: boolean | null
           is_business?: boolean | null
           latitude?: number | null
           longitude?: number | null
@@ -460,8 +469,11 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id?: string | null
           table_preferences?: Json | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
           website?: string | null
         }
         Update: {
@@ -471,13 +483,16 @@ export type Database = {
           accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
+          available_hours?: number | null
           city?: string | null
           company_name?: string | null
           country?: string | null
           county?: string | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_active?: boolean | null
           is_business?: boolean | null
           latitude?: number | null
           longitude?: number | null
@@ -485,8 +500,11 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id?: string | null
           table_preferences?: Json | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
           website?: string | null
         }
         Relationships: []
@@ -689,13 +707,16 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          available_hours: number | null
           city: string | null
           company_name: string | null
           country: string | null
           county: string | null
           created_at: string
           email: string | null
+          hourly_rate: number | null
           id: string
+          is_active: boolean | null
           is_business: boolean | null
           latitude: number | null
           longitude: number | null
@@ -703,8 +724,11 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id: string | null
           table_preferences: Json | null
           updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
           website: string | null
         }[]
         SetofOptions: {
@@ -728,6 +752,7 @@ export type Database = {
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      sync_drivers_to_profiles: { Args: never; Returns: undefined }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
