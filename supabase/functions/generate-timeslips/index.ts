@@ -199,13 +199,13 @@ const handler = async (req: Request): Promise<Response> => {
         const firstHalf = stopCoords.slice(0, 10).join('|');
         const secondHalf = stopCoords.slice(10).join('|');
         routeLinks.push(
-          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&waypoints=${firstHalf}&destination=${depotCoords}&travelmode=driving`,
-          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&waypoints=${secondHalf}&destination=${depotCoords}&travelmode=driving`
+          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${firstHalf}&travelmode=driving`,
+          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${secondHalf}&travelmode=driving`
         );
       } else if (stopCoords.length > 0) {
         const waypoints = stopCoords.join('|');
         routeLinks.push(
-          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&waypoints=${waypoints}&destination=${depotCoords}&travelmode=driving`
+          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${waypoints}&travelmode=driving`
         );
       }
 
