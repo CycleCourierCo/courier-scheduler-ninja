@@ -32,7 +32,10 @@ Deno.serve(async (req) => {
     }
 
     // Verify the user is an admin
-    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin');
+    const { data: isAdmin } = await supabaseAdmin.rpc('has_role', { 
+      _user_id: user.id, 
+      _role: 'admin' 
+    });
     
     if (!isAdmin) {
       console.error('User is not admin:', user.id);
