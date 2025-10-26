@@ -1,6 +1,9 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.manage-user-roles]
+verify_jwt = true
+
 [functions.refresh-quickbooks-tokens]
 verify_jwt = false
 

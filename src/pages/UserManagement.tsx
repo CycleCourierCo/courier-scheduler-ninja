@@ -7,23 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Trash2 } from "lucide-react";
+import { UserPlus, Trash2, Pencil, Search } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
-type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'loader' | 'route_planner' | 'sales';
-
-interface UserProfile {
-  id: string;
-  name: string | null;
-  email: string | null;
-  role: UserRole;
-  created_at: string;
-}
+import { UserProfile, UserRole } from "@/types/user";
+import { EditUserDialog } from "@/components/user-management/EditUserDialog";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newUser, setNewUser] = useState<{
     email: string;
     password: string;
@@ -45,11 +42,11 @@ const UserManagement: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, email, role, created_at')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUsers((data || []) as any);
+      setUsers((data || []) as UserProfile[]);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
@@ -80,13 +77,12 @@ const UserManagement: React.FC = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Update the user's role
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ role: newUser.role })
-          .eq('id', data.user.id);
+        // Set the user's role using the edge function
+        const { error: roleError } = await supabase.functions.invoke('manage-user-roles', {
+          body: { action: 'set', userId: data.user.id, role: newUser.role }
+        });
 
-        if (updateError) throw updateError;
+        if (roleError) throw roleError;
 
         toast.success("User created successfully");
         setNewUser({ email: "", password: "", name: "", role: "b2c_customer" });
@@ -100,10 +96,9 @@ const UserManagement: React.FC = () => {
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
+      const { error } = await supabase.functions.invoke('manage-user-roles', {
+        body: { action: 'set', userId, role: newRole }
+      });
 
       if (error) throw error;
 
@@ -112,6 +107,23 @@ const UserManagement: React.FC = () => {
     } catch (error) {
       console.error("Error updating role:", error);
       toast.error("Failed to update role");
+    }
+  };
+
+  const handleEditUser = async (userId: string, updates: Partial<UserProfile>) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast.success("User updated successfully");
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast.error("Failed to update user");
     }
   };
 
@@ -128,6 +140,28 @@ const UserManagement: React.FC = () => {
       toast.error("Failed to delete user");
     }
   };
+
+  const getStatusBadgeVariant = (status: string | null) => {
+    switch (status) {
+      case 'approved': return 'default';
+      case 'pending': return 'secondary';
+      case 'rejected': return 'destructive';
+      case 'suspended': return 'outline';
+      default: return 'secondary';
+    }
+  };
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = !searchTerm || 
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.company_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRole = filterRole === 'all' || user.role === filterRole;
+    const matchesStatus = filterStatus === 'all' || user.account_status === filterStatus;
+    
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   return (
     <Layout>
@@ -183,6 +217,7 @@ const UserManagement: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="driver">Driver</SelectItem>
                       <SelectItem value="route_planner">Route Planner</SelectItem>
                       <SelectItem value="sales">Sales</SelectItem>
                       <SelectItem value="loader">Loader</SelectItem>
@@ -207,6 +242,46 @@ const UserManagement: React.FC = () => {
             <CardDescription>Manage existing users and their roles</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or company..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={filterRole} onValueChange={setFilterRole}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="driver">Driver</SelectItem>
+                  <SelectItem value="route_planner">Route Planner</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="loader">Loader</SelectItem>
+                  <SelectItem value="b2b_customer">B2B Customer</SelectItem>
+                  <SelectItem value="b2c_customer">B2C Customer</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
@@ -217,16 +292,21 @@ const UserManagement: React.FC = () => {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Active</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell>{user.name || "N/A"}</TableCell>
+                      <TableCell className="font-medium">{user.name || "N/A"}</TableCell>
                       <TableCell>{user.email || "N/A"}</TableCell>
+                      <TableCell>{user.phone || "—"}</TableCell>
                       <TableCell>
                         <Select
                           value={user.role}
@@ -237,6 +317,7 @@ const UserManagement: React.FC = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="driver">Driver</SelectItem>
                             <SelectItem value="route_planner">Route Planner</SelectItem>
                             <SelectItem value="sales">Sales</SelectItem>
                             <SelectItem value="loader">Loader</SelectItem>
@@ -245,29 +326,51 @@ const UserManagement: React.FC = () => {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this user? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Badge variant={getStatusBadgeVariant(user.account_status)}>
+                          {user.account_status || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{user.company_name || "—"}</TableCell>
+                      <TableCell>
+                        {user.role === 'driver' ? (
+                          <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                            {user.is_active ? 'Yes' : 'No'}
+                          </Badge>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setEditingUser(user)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this user? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -276,6 +379,13 @@ const UserManagement: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        <EditUserDialog
+          user={editingUser}
+          isOpen={!!editingUser}
+          onClose={() => setEditingUser(null)}
+          onSave={handleEditUser}
+        />
       </div>
     </Layout>
   );
