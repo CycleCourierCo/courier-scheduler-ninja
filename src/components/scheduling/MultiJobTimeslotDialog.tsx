@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Calendar as CalendarIcon, Navigation } from "lucide-react";
+import { Calendar as CalendarIcon, Navigation, Package, PackageX } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,9 @@ interface Job {
   order: any;
   lat: number;
   lon: number;
+  pickupDates?: string[];
+  deliveryDates?: string[];
+  collectionConfirmedAt?: string | null;
 }
 
 interface MultiJobTimeslotDialogProps {
@@ -48,6 +51,60 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
+
+  const getAvailabilityBadge = (
+    jobType: 'collection' | 'delivery',
+    selectedDate: Date | undefined,
+    pickupDates?: string[],
+    deliveryDates?: string[]
+  ): { text: string; color: string } | null => {
+    if (!selectedDate) return null;
+    
+    const relevantDates = jobType === 'collection' ? pickupDates : deliveryDates;
+    
+    if (!relevantDates || relevantDates.length === 0) {
+      return {
+        text: 'No Dates Provided',
+        color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+      };
+    }
+    
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+    const isMatch = relevantDates.some(date => {
+      const customerDateStr = format(new Date(date), 'yyyy-MM-dd');
+      return customerDateStr === selectedDateStr;
+    });
+    
+    if (isMatch) {
+      return {
+        text: 'Customer Available',
+        color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+      };
+    } else {
+      return {
+        text: 'Not Customer Date',
+        color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
+      };
+    }
+  };
+
+  const getCollectionStatusBadge = (
+    collectionConfirmedAt?: string | null
+  ): { text: string; color: string; icon: JSX.Element } | null => {
+    if (collectionConfirmedAt) {
+      return {
+        text: 'Collected',
+        color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+        icon: <Package className="h-3 w-3" />
+      };
+    } else {
+      return {
+        text: 'Not Collected',
+        color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+        icon: <PackageX className="h-3 w-3" />
+      };
+    }
+  };
 
   // Determine if mobile on mount
   React.useEffect(() => {
@@ -247,7 +304,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-start gap-2 min-w-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                         {job.sequenceOrder !== undefined && (
                           <Badge variant="outline" className="bg-background text-xs px-1.5 py-0 flex-shrink-0">
                             #{job.sequenceOrder}
@@ -255,6 +312,23 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                         )}
                         <p className="font-medium text-xs truncate">{job.contactName}</p>
                       </div>
+                      
+                      <div className="flex gap-1 mb-1 flex-wrap">
+                        {(() => {
+                          const availabilityBadge = getAvailabilityBadge(
+                            job.type,
+                            selectedDate,
+                            job.pickupDates,
+                            job.deliveryDates
+                          );
+                          return availabilityBadge ? (
+                            <Badge className={`text-xs ${availabilityBadge.color}`}>
+                              {availabilityBadge.text}
+                            </Badge>
+                          ) : null;
+                        })()}
+                      </div>
+                      
                       <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
                       {job.timeslotWindow && (
                         <p className="text-xs text-green-700 dark:text-green-400 mt-1">
@@ -289,7 +363,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-start gap-2 min-w-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                         {job.sequenceOrder !== undefined && (
                           <Badge variant="outline" className="bg-background text-xs px-1.5 py-0 flex-shrink-0">
                             #{job.sequenceOrder}
@@ -297,6 +371,33 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                         )}
                         <p className="font-medium text-xs truncate">{job.contactName}</p>
                       </div>
+                      
+                      <div className="flex gap-1 mb-1 flex-wrap">
+                        {(() => {
+                          const availabilityBadge = getAvailabilityBadge(
+                            job.type,
+                            selectedDate,
+                            job.pickupDates,
+                            job.deliveryDates
+                          );
+                          return availabilityBadge ? (
+                            <Badge className={`text-xs ${availabilityBadge.color}`}>
+                              {availabilityBadge.text}
+                            </Badge>
+                          ) : null;
+                        })()}
+                        
+                        {(() => {
+                          const collectionBadge = getCollectionStatusBadge(job.collectionConfirmedAt);
+                          return collectionBadge ? (
+                            <Badge className={`text-xs flex items-center gap-1 ${collectionBadge.color}`}>
+                              {collectionBadge.icon}
+                              {collectionBadge.text}
+                            </Badge>
+                          ) : null;
+                        })()}
+                      </div>
+                      
                       <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
                       {job.timeslotWindow && (
                         <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">

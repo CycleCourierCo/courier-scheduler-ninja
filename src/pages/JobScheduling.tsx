@@ -453,7 +453,10 @@ ${routeLinks}`;
       estimatedTime: job.timeslot || '',
       order: job,
       lat: job.lat,
-      lon: job.lon
+      lon: job.lon,
+      pickupDates: job.pickup_date,
+      deliveryDates: job.delivery_date,
+      collectionConfirmedAt: job.collection_confirmation_sent_at
     })).filter(job => job.lat && job.lon); // Only include jobs with valid coordinates
 
     const totalJobsCount = driverData.collectionJobs.length + driverData.deliveryJobs.length;
