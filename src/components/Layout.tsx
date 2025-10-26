@@ -24,6 +24,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isRoutePlanner = userProfile?.role === 'route_planner';
   const isSales = userProfile?.role === 'sales';
   const isB2B = userProfile?.role === 'b2b_customer';
+  const isDriver = userProfile?.role === 'driver';
   
   // Loaders should not see any navigation
   const navLinks = !isLoader ? <>
@@ -113,6 +114,10 @@ const Layout: React.FC<LayoutProps> = ({
                       {(isRoutePlanner || isAdmin) && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
+                        </Link>}
+                      {(isDriver || isAdmin) && <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Clock className="mr-2 h-4 w-4" />
+                          {isAdmin ? 'Driver Timeslips' : 'My Timeslips'}
                         </Link>}
                       {(isSales || isAdmin) && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
@@ -226,6 +231,12 @@ const Layout: React.FC<LayoutProps> = ({
                       <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>Job Scheduling</span>
+                      </Link>
+                    </DropdownMenuItem>}
+                  {(isDriver || isAdmin) && <DropdownMenuItem asChild>
+                      <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>{isAdmin ? 'Driver Timeslips' : 'My Timeslips'}</span>
                       </Link>
                     </DropdownMenuItem>}
                   {(isSales || isAdmin) && <>

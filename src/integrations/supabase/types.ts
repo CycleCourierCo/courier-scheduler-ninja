@@ -63,28 +63,40 @@ export type Database = {
           available_hours: number | null
           created_at: string
           email: string | null
+          hourly_rate: number | null
           id: string
+          is_active: boolean | null
           name: string
           phone: string | null
           updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
         }
         Insert: {
           available_hours?: number | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_active?: boolean | null
           name: string
           phone?: string | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
         }
         Update: {
           available_hours?: number | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_active?: boolean | null
           name?: string
           phone?: string | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
         }
         Relationships: []
       }
@@ -549,6 +561,80 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "routes_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timeslips: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          date: string
+          driver_id: string
+          driving_hours: number
+          hourly_rate: number
+          id: string
+          job_locations: Json | null
+          lunch_hours: number
+          route_links: string[] | null
+          status: string
+          stop_hours: number
+          total_hours: number | null
+          total_pay: number | null
+          total_stops: number
+          updated_at: string | null
+          van_allowance: number | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          date: string
+          driver_id: string
+          driving_hours?: number
+          hourly_rate: number
+          id?: string
+          job_locations?: Json | null
+          lunch_hours?: number
+          route_links?: string[] | null
+          status: string
+          stop_hours?: number
+          total_hours?: number | null
+          total_pay?: number | null
+          total_stops?: number
+          updated_at?: string | null
+          van_allowance?: number | null
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          date?: string
+          driver_id?: string
+          driving_hours?: number
+          hourly_rate?: number
+          id?: string
+          job_locations?: Json | null
+          lunch_hours?: number
+          route_links?: string[] | null
+          status?: string
+          stop_hours?: number
+          total_hours?: number | null
+          total_pay?: number | null
+          total_stops?: number
+          updated_at?: string | null
+          van_allowance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeslips_driver_id_fkey"
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "drivers"

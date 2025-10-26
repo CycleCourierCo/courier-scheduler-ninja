@@ -49,7 +49,7 @@ const UserManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUsers(data || []);
+      setUsers((data || []) as any);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");

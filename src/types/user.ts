@@ -1,10 +1,12 @@
 
+export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'route_planner' | 'sales';
+
 export interface UserProfile {
   id: string;
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: 'admin' | 'b2b_customer' | 'b2c_customer' | 'loader' | 'route_planner' | 'sales';
+  role: UserRole;
   is_business: boolean | null;
   company_name: string | null;
   website: string | null;
