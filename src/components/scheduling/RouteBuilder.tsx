@@ -8,7 +8,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +62,64 @@ interface JobItemProps {
   allJobs: SelectedJob[]; // To check for grouped locations
   bikeCount: number; // Current bike count at this stop
   startingBikes: number; // Starting bike count
+  selectedDate: Date; // NEW: Pass the selected date for availability comparison
 }
+
+// Helper function to get availability badge
+const getAvailabilityBadge = (
+  jobType: 'pickup' | 'delivery' | 'break',
+  selectedDate: Date | undefined,
+  pickupDates?: string[] | null,
+  deliveryDates?: string[] | null
+): { text: string; color: string } | null => {
+  if (!selectedDate || jobType === 'break') return null;
+  
+  const relevantDates = jobType === 'pickup' ? pickupDates : deliveryDates;
+  
+  if (!relevantDates || relevantDates.length === 0) {
+    return {
+      text: 'No Dates Provided',
+      color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+    };
+  }
+  
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const isMatch = relevantDates.some(date => {
+    const customerDateStr = format(new Date(date), 'yyyy-MM-dd');
+    return customerDateStr === selectedDateStr;
+  });
+  
+  if (isMatch) {
+    return {
+      text: 'Customer Available',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+    };
+  } else {
+    return {
+      text: 'Not Customer Date',
+      color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
+    };
+  }
+};
+
+// Helper function to get collection status badge
+const getCollectionStatusBadge = (
+  collectionConfirmedAt?: string | null
+): { text: string; color: string; icon: JSX.Element } | null => {
+  if (collectionConfirmedAt) {
+    return {
+      text: 'Collected',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      icon: <Package className="h-3 w-3" />
+    };
+  } else {
+    return {
+      text: 'Not Collected',
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+      icon: <PackageX className="h-3 w-3" />
+    };
+  }
+};
 
 const JobItem: React.FC<JobItemProps> = ({ 
   job, 
@@ -76,7 +133,8 @@ const JobItem: React.FC<JobItemProps> = ({
   isSendingTimeslots,
   allJobs,
   bikeCount,
-  startingBikes
+  startingBikes,
+  selectedDate
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
@@ -158,16 +216,46 @@ const JobItem: React.FC<JobItemProps> = ({
                       }
                       
                       const bikeCountAfterJob = runningBikeCount;
+                      
+                      // Get badges for this grouped job
+                      const availabilityBadge = getAvailabilityBadge(
+                        groupedJob.type,
+                        selectedDate,
+                        groupedJob.orderData?.pickup_date,
+                        groupedJob.orderData?.delivery_date
+                      );
+                      
+                      const collectionBadge = groupedJob.type === 'delivery' 
+                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at)
+                        : null;
                     
                       return (
-                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="flex items-center gap-1 pl-1.5 border-l border-muted">
-                          <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
-                            {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
-                          </Badge>
-                          <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
-                          <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
-                            🚲 {bikeCountAfterJob}
-                          </Badge>
+                        <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="space-y-1 pl-1.5 border-l border-muted">
+                          {/* Job info row */}
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                              {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
+                            </Badge>
+                            <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
+                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
+                              🚲 {bikeCountAfterJob}
+                            </Badge>
+                          </div>
+                          
+                          {/* Badges row */}
+                          <div className="flex gap-1 flex-wrap">
+                            {availabilityBadge && (
+                              <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
+                                {availabilityBadge.text}
+                              </Badge>
+                            )}
+                            {collectionBadge && (
+                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                                {collectionBadge.icon}
+                                {collectionBadge.text}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       );
                     });
@@ -179,19 +267,48 @@ const JobItem: React.FC<JobItemProps> = ({
               <div className="space-y-0.5">
                 <p className="text-xs font-medium truncate">{job.contactName}</p>
                 <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
-                <div className="flex gap-1 flex-wrap">
+                <div className="flex gap-1 flex-wrap items-center">
                   {job.type === 'break' ? (
                     <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 px-1.5 py-0">
                       {job.breakType === 'lunch' ? '🍽️ Lunch' : '☕ Stop'} ({job.breakDuration}min)
                     </Badge>
                   ) : (
                     <>
+                      {/* Job Type Badge */}
                       <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1.5 py-0">
                         {job.type === 'pickup' ? 'Collection' : 'Delivery'}
                       </Badge>
+                      
+                      {/* Bike Count Badge */}
                       <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
                         🚲 {bikeCount}
                       </Badge>
+                      
+                      {/* Availability Badge */}
+                      {(() => {
+                        const availabilityBadge = getAvailabilityBadge(
+                          job.type,
+                          selectedDate,
+                          job.orderData?.pickup_date,
+                          job.orderData?.delivery_date
+                        );
+                        return availabilityBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
+                            {availabilityBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+                      
+                      {/* Collection Status Badge (only for deliveries) */}
+                      {job.type === 'delivery' && (() => {
+                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at);
+                        return collectionBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                            {collectionBadge.icon}
+                            {collectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
                     </>
                   )}
                 </div>
@@ -1564,6 +1681,7 @@ Route Link: ${routeLink}`;
                       allJobs={selectedJobs}
                       bikeCount={calculateBikeCountAtJob(index)}
                       startingBikes={startingBikes}
+                      selectedDate={selectedDate}
                     />
                   ))}
 
@@ -1666,6 +1784,7 @@ Route Link: ${routeLink}`;
                     allJobs={selectedJobs}
                     bikeCount={calculateBikeCountAtJob(index)}
                     startingBikes={startingBikes}
+                    selectedDate={selectedDate}
                   />
                 ))}
 

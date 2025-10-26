@@ -41,6 +41,7 @@ export interface OrderData {
   scheduled_delivery_date: string | null;
   pickup_date: string[] | null;
   delivery_date: string[] | null;
+  collection_confirmation_sent_at: string | null;
   senderPolygonSegment?: number;
   receiverPolygonSegment?: number;
 }
