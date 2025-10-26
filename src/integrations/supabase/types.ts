@@ -655,7 +655,7 @@ export type Database = {
             foreignKeyName: "timeslips_driver_id_fkey"
             columns: ["driver_id"]
             isOneToOne: false
-            referencedRelation: "drivers"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
