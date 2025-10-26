@@ -565,3 +565,160 @@ export const sendOrderCreationConfirmationToUser = async (
     return false;
   }
 };
+
+/**
+ * Sends cancellation emails to order creator, sender, and receiver
+ * @param orderId The ID of the cancelled order
+ */
+export const sendOrderCancellationEmails = async (orderId: string): Promise<{
+  creatorSent: boolean;
+  senderSent: boolean;
+  receiverSent: boolean;
+}> => {
+  try {
+    console.log("Sending order cancellation emails for order ID:", orderId);
+    
+    // Get the order details and creator profile
+    const order = await getOrder(orderId);
+    
+    if (!order) {
+      console.error("Order not found for ID:", orderId);
+      return { creatorSent: false, senderSent: false, receiverSent: false };
+    }
+
+    // Fetch the creator's profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('email, name')
+      .eq('id', order.user_id)
+      .single();
+
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError);
+    }
+
+    const results = {
+      creatorSent: false,
+      senderSent: false,
+      receiverSent: false,
+    };
+
+    const bikeName = `${order.bikeBrand || ''} ${order.bikeModel || 'Bicycle'}`.trim();
+    const trackingNumber = order.trackingNumber || orderId;
+    const customerOrderNumber = order.customerOrderNumber ? `\n- Customer Order Number: ${order.customerOrderNumber}` : '';
+
+    // Send email to order creator
+    if (profile?.email) {
+      try {
+        console.log("Sending cancellation email to order creator:", profile.email);
+        const response = await supabase.functions.invoke("send-email", {
+          body: {
+            to: profile.email,
+            subject: `Order Cancelled - ${trackingNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Dear ${profile.name || 'Customer'},</h2>
+                <p>Your bicycle delivery order has been cancelled.</p>
+                <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <p><strong>Order Details:</strong></p>
+                  <p>- Tracking Number: ${trackingNumber}${customerOrderNumber}</p>
+                  <p>- Bicycle: ${bikeName}</p>
+                </div>
+                <p>If you have any questions about this cancellation, please contact our support team.</p>
+                <p>Best regards,<br>The Cycle Courier Co. Team</p>
+              </div>
+            `,
+            from: "Ccc@notification.cyclecourierco.com"
+          }
+        });
+        
+        if (!response.error) {
+          results.creatorSent = true;
+          console.log("Cancellation email sent to creator successfully");
+        } else {
+          console.error("Error sending email to creator:", response.error);
+        }
+      } catch (error) {
+        console.error("Failed to send email to creator:", error);
+      }
+    }
+
+    // Send email to sender
+    if (order.sender?.email) {
+      try {
+        console.log("Sending cancellation email to sender:", order.sender.email);
+        const response = await supabase.functions.invoke("send-email", {
+          body: {
+            to: order.sender.email,
+            subject: `Order Cancelled - ${trackingNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Dear ${order.sender.name || 'Customer'},</h2>
+                <p>Your bicycle delivery order has been cancelled.</p>
+                <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <p><strong>Order Details:</strong></p>
+                  <p>- Tracking Number: ${trackingNumber}${customerOrderNumber}</p>
+                  <p>- Bicycle: ${bikeName}</p>
+                </div>
+                <p>If you have any questions about this cancellation, please contact our support team.</p>
+                <p>Best regards,<br>The Cycle Courier Co. Team</p>
+              </div>
+            `,
+            from: "Ccc@notification.cyclecourierco.com"
+          }
+        });
+        
+        if (!response.error) {
+          results.senderSent = true;
+          console.log("Cancellation email sent to sender successfully");
+        } else {
+          console.error("Error sending email to sender:", response.error);
+        }
+      } catch (error) {
+        console.error("Failed to send email to sender:", error);
+      }
+    }
+
+    // Send email to receiver
+    if (order.receiver?.email) {
+      try {
+        console.log("Sending cancellation email to receiver:", order.receiver.email);
+        const response = await supabase.functions.invoke("send-email", {
+          body: {
+            to: order.receiver.email,
+            subject: `Order Cancelled - ${trackingNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Dear ${order.receiver.name || 'Customer'},</h2>
+                <p>Your bicycle delivery order has been cancelled.</p>
+                <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <p><strong>Order Details:</strong></p>
+                  <p>- Tracking Number: ${trackingNumber}${customerOrderNumber}</p>
+                  <p>- Bicycle: ${bikeName}</p>
+                </div>
+                <p>If you have any questions about this cancellation, please contact our support team.</p>
+                <p>Best regards,<br>The Cycle Courier Co. Team</p>
+              </div>
+            `,
+            from: "Ccc@notification.cyclecourierco.com"
+          }
+        });
+        
+        if (!response.error) {
+          results.receiverSent = true;
+          console.log("Cancellation email sent to receiver successfully");
+        } else {
+          console.error("Error sending email to receiver:", response.error);
+        }
+      } catch (error) {
+        console.error("Failed to send email to receiver:", error);
+      }
+    }
+
+    console.log("Cancellation emails sent:", results);
+    return results;
+  } catch (error) {
+    console.error("Failed to send order cancellation emails:", error);
+    return { creatorSent: false, senderSent: false, receiverSent: false };
+  }
+};

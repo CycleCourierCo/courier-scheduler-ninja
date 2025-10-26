@@ -100,3 +100,67 @@ export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | '
     throw err;
   }
 };
+
+/**
+ * Deletes Shipday pickup and delivery jobs for a given order
+ * @param orderId The ID of the order to delete Shipday jobs for
+ */
+export const deleteShipdayJobs = async (orderId: string) => {
+  try {
+    console.log("Fetching order to delete Shipday jobs for:", orderId);
+    
+    // Fetch the order to get Shipday IDs
+    const { data: order, error: fetchError } = await supabase
+      .from('orders')
+      .select('shipday_pickup_id, shipday_delivery_id')
+      .eq('id', orderId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching order for Shipday deletion:", fetchError);
+      throw new Error(fetchError.message);
+    }
+
+    const shipdayPickupId = order?.shipday_pickup_id;
+    const shipdayDeliveryId = order?.shipday_delivery_id;
+
+    // If no Shipday IDs exist, nothing to delete
+    if (!shipdayPickupId && !shipdayDeliveryId) {
+      console.log("No Shipday jobs found for order:", orderId);
+      return { success: true, message: "No Shipday jobs to delete" };
+    }
+
+    console.log("Deleting Shipday jobs:", { shipdayPickupId, shipdayDeliveryId });
+
+    // Call the edge function to delete Shipday jobs
+    const { data, error } = await supabase.functions.invoke("delete-shipday-order", {
+      body: { shipdayPickupId, shipdayDeliveryId }
+    });
+
+    if (error) {
+      console.error("Error deleting Shipday jobs:", error);
+      throw new Error(error.message);
+    }
+
+    if (!data || !data.success) {
+      console.error("Failed to delete Shipday jobs:", data);
+      const errorMsg = data?.result?.pickupError || data?.result?.deliveryError || "Unknown error";
+      throw new Error(errorMsg);
+    }
+
+    console.log("Shipday jobs deletion result:", data.result);
+    
+    const deletedJobs = [];
+    if (data.result.pickupDeleted) deletedJobs.push("pickup");
+    if (data.result.deliveryDeleted) deletedJobs.push("delivery");
+    
+    const message = deletedJobs.length > 0 
+      ? `Shipday ${deletedJobs.join(" and ")} job(s) deleted`
+      : "Shipday jobs processed";
+    
+    return { success: true, message, result: data.result };
+  } catch (err) {
+    console.error("Error in deleteShipdayJobs:", err);
+    throw err;
+  }
+};

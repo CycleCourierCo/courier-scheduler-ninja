@@ -42,6 +42,11 @@ serve(async (req) => {
       return await handleDeliveryConfirmation(reqData.meta.orderId, resend);
     }
 
+    if (reqData.meta && reqData.meta.action === "collection_confirmation") {
+      console.log("Processing collection confirmation action for order:", reqData.meta.orderId);
+      return await handleCollectionConfirmation(reqData.meta.orderId, resend);
+    }
+
     // Validate required fields for regular emails (not for delivery confirmation)
     if (!reqData.to) {
       console.error('Missing required field: to');
@@ -344,6 +349,172 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
     console.error("Error in handleDeliveryConfirmation:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send delivery confirmation emails" }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
+    );
+  }
+}
+
+async function handleCollectionConfirmation(orderId: string, resend: any): Promise<Response> {
+  try {
+    console.log("Starting collection confirmation process for order:", orderId);
+    
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .single();
+    
+    if (error || !order) {
+      console.error("Error fetching order details for collection email:", error);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch order details" }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404
+        }
+      );
+    }
+
+    // Check if collection confirmation emails have already been sent
+    if (order.collection_confirmation_sent_at) {
+      console.log("Collection confirmation emails already sent on:", order.collection_confirmation_sent_at);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Collection confirmation emails already sent",
+          alreadySent: true 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    }
+    
+    const trackingUrl = `https://booking.cyclecourierco.com/tracking/${order.tracking_number || orderId}`;
+    const itemName = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle";
+    
+    let senderSent = false;
+    let receiverSent = false;
+    
+    // Send email to sender (person whose bike was collected)
+    if (order.sender && order.sender.email) {
+      console.log("Sending collection confirmation to sender:", order.sender.email);
+      
+      const senderHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Dear ${order.sender.name || "Customer"},</h2>
+          <p>Your bicycle has been successfully collected by The Cycle Courier Co.</p>
+          <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Order Details:</strong></p>
+            <p>- Tracking Number: ${order.tracking_number || "N/A"}</p>
+            ${order.customer_order_number ? `<p>- Customer Order Number: ${order.customer_order_number}</p>` : ""}
+            <p>- Bicycle: ${itemName}</p>
+          </div>
+          <p>You can track your delivery at:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Track Your Delivery
+            </a>
+          </div>
+          <p>Thank you for choosing The Cycle Courier Co.</p>
+          <p>Best regards,<br>The Cycle Courier Co. Team</p>
+        </div>
+      `;
+      
+      try {
+        const { data: senderData, error: senderError } = await resend.emails.send({
+          from: "Ccc@notification.cyclecourierco.com",
+          to: order.sender.email,
+          subject: `Bike Collected - ${order.tracking_number || orderId}`,
+          html: senderHtml
+        });
+        
+        if (senderError) {
+          console.error("Error sending collection confirmation to sender:", senderError);
+        } else {
+          console.log("Successfully sent collection confirmation to sender");
+          senderSent = true;
+        }
+      } catch (e) {
+        console.error("Exception sending sender collection email:", e);
+      }
+    }
+    
+    // Send email to receiver (person expecting delivery)
+    if (order.receiver && order.receiver.email) {
+      console.log("Sending collection notification to receiver:", order.receiver.email);
+      
+      const receiverHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Dear ${order.receiver.name || "Customer"},</h2>
+          <p>Great news! Your bicycle has been collected and is now on its way to you.</p>
+          <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Order Details:</strong></p>
+            <p>- Tracking Number: ${order.tracking_number || "N/A"}</p>
+            ${order.customer_order_number ? `<p>- Customer Order Number: ${order.customer_order_number}</p>` : ""}
+            <p>- Bicycle: ${itemName}</p>
+          </div>
+          <p>You can track your delivery at:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Track Your Delivery
+            </a>
+          </div>
+          <p>We'll notify you when your bicycle is out for delivery.</p>
+          <p>Best regards,<br>The Cycle Courier Co. Team</p>
+        </div>
+      `;
+      
+      try {
+        const { data: receiverData, error: receiverError } = await resend.emails.send({
+          from: "Ccc@notification.cyclecourierco.com",
+          to: order.receiver.email,
+          subject: `Bike Collected - On Its Way - ${order.tracking_number || orderId}`,
+          html: receiverHtml
+        });
+        
+        if (receiverError) {
+          console.error("Error sending collection notification to receiver:", receiverError);
+        } else {
+          console.log("Successfully sent collection notification to receiver");
+          receiverSent = true;
+        }
+      } catch (e) {
+        console.error("Exception sending receiver collection email:", e);
+      }
+    }
+    
+    // Mark collection confirmation emails as sent if at least one was successful
+    if (senderSent || receiverSent) {
+      await supabase
+        .from("orders")
+        .update({ collection_confirmation_sent_at: new Date().toISOString() })
+        .eq("id", orderId);
+      console.log("Marked collection confirmation emails as sent for order:", orderId);
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        senderSent,
+        receiverSent,
+        message: "Collection confirmation emails processing completed" 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    );
+  } catch (error) {
+    console.error("Error in handleCollectionConfirmation:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send collection confirmation emails" }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500

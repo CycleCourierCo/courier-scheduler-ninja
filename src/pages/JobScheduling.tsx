@@ -41,6 +41,7 @@ export interface OrderData {
   scheduled_delivery_date: string | null;
   pickup_date: string[] | null;
   delivery_date: string[] | null;
+  collection_confirmation_sent_at: string | null;
   senderPolygonSegment?: number;
   receiverPolygonSegment?: number;
 }
@@ -453,7 +454,10 @@ ${routeLinks}`;
       estimatedTime: job.timeslot || '',
       order: job,
       lat: job.lat,
-      lon: job.lon
+      lon: job.lon,
+      pickupDates: job.pickup_date,
+      deliveryDates: job.delivery_date,
+      collectionConfirmedAt: job.collection_confirmation_sent_at
     })).filter(job => job.lat && job.lon); // Only include jobs with valid coordinates
 
     const totalJobsCount = driverData.collectionJobs.length + driverData.deliveryJobs.length;

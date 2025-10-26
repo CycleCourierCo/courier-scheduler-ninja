@@ -270,6 +270,7 @@ export type Database = {
           bike_model: string | null
           bike_quantity: number | null
           collection_code: string | null
+          collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
           created_at: string
           customer_order_number: string | null
@@ -311,6 +312,7 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           collection_code?: string | null
+          collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
           created_at?: string
           customer_order_number?: string | null
@@ -352,6 +354,7 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           collection_code?: string | null
+          collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
           created_at?: string
           customer_order_number?: string | null
@@ -565,16 +568,13 @@ export type Database = {
           key_id: string
         }[]
       }
-      admin_revoke_api_key: {
-        Args: { key_id: string }
-        Returns: boolean
-      }
+      admin_revoke_api_key: { Args: { key_id: string }; Returns: boolean }
       admin_update_account_status: {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
       get_business_accounts_for_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           account_status:
             | Database["public"]["Enums"]["account_status_type"]
@@ -600,27 +600,21 @@ export type Database = {
           updated_at: string
           website: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_account_approved: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      verify_api_key: {
-        Args: { api_key: string }
-        Returns: string
-      }
+      is_account_approved: { Args: { user_id: string }; Returns: boolean }
+      is_admin: { Args: never; Returns: boolean }
+      is_current_user_admin: { Args: never; Returns: boolean }
+      verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
       account_status_type: "pending" | "approved" | "rejected" | "suspended"

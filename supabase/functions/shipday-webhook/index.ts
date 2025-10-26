@@ -303,6 +303,43 @@ serve(async (req) => {
       console.error("Error updating job statuses:", jobError);
     }
 
+    // Send collection confirmation emails if status is "collected"
+    if (newStatus === "collected") {
+      try {
+        console.log("Checking if collection confirmation needed for order:", dbOrder.id);
+        
+        // Check if collection confirmation has already been sent (race condition protection)
+        const { data: currentOrder } = await supabase
+          .from("orders")
+          .select("collection_confirmation_sent_at")
+          .eq("id", dbOrder.id)
+          .single();
+        
+        if (currentOrder?.collection_confirmation_sent_at) {
+          console.log("Collection confirmation already sent at:", currentOrder.collection_confirmation_sent_at);
+        } else {
+          console.log("Sending collection confirmation emails for order:", dbOrder.id);
+          
+          const emailResponse = await supabase.functions.invoke("send-email", {
+            body: {
+              meta: {
+                action: "collection_confirmation",
+                orderId: dbOrder.id
+              }
+            }
+          });
+          
+          if (emailResponse.error) {
+            console.error("Error triggering collection confirmation emails:", emailResponse.error);
+          } else {
+            console.log("Successfully triggered collection confirmation emails");
+          }
+        }
+      } catch (emailError) {
+        console.error("Error sending collection confirmation emails:", emailError);
+      }
+    }
+
     // Send delivery confirmation emails if status is "delivered"
     if (newStatus === "delivered") {
       try {

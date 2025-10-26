@@ -3,20 +3,36 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 
-// Fetch all orders for analytics
+// Fetch all orders for analytics with pagination to avoid 1000 record limit
 export const fetchOrdersForAnalytics = async (): Promise<Order[]> => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*, profiles(role, company_name, is_business)")
-      .order("created_at", { ascending: false });
+    const allOrders = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (error) {
-      console.error("Error fetching orders for analytics:", error);
-      throw new Error("Failed to fetch orders for analytics");
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, profiles(role, company_name, is_business)")
+        .order("created_at", { ascending: false })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error("Error fetching orders for analytics:", error);
+        throw new Error("Failed to fetch orders for analytics");
+      }
+
+      if (data && data.length > 0) {
+        allOrders.push(...data);
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
     }
 
-    return data.map((order) => ({
+    return allOrders.map((order) => ({
       ...mapDbOrderToOrderType(order),
       // @ts-ignore - Add additional properties from the join
       userRole: order.profiles?.role || "unknown",
@@ -104,7 +120,8 @@ export const getTopCustomersAnalytics = (orders: Order[]): CustomerOrderCount[] 
   const customerCounts: Record<string, { count: number; isB2B: boolean }> = {};
   
   orders.forEach(order => {
-    const customerName = order.sender.name;
+    // @ts-ignore - Added in fetchOrdersForAnalytics
+    const customerName = order.companyName || order.sender.name;
     // @ts-ignore - Added in fetchOrdersForAnalytics
     const isB2B = order.isBusiness || order.userRole === 'b2b_customer';
     
@@ -163,4 +180,238 @@ export const getBikeBrandAnalytics = (orders: Order[]): BikeAnalytics[] => {
       percentage: totalBikes > 0 ? (count / totalBikes) * 100 : 0
     }))
     .sort((a, b) => b.count - a.count);
+};
+
+// Types for timing analytics
+export type CollectionTimeAnalytics = {
+  averageTimeToCollect: number; // hours
+  collectionSLA: number; // percentage within 24h
+  byCustomer: Array<{ customer: string; avgTime: number }>;
+};
+
+export type DeliveryTimeAnalytics = {
+  averageCollectionToDelivery: number; // hours
+  averageTotalDuration: number; // hours from creation to delivery
+  deliverySLA: number; // percentage within target
+  byCustomer: Array<{ customer: string; avgCollectionToDelivery: number; avgTotal: number }>;
+};
+
+export type StorageAnalytics = {
+  currentInStorage: number;
+  averageDaysInStorage: number;
+  longestStoredBikes: Array<{ orderId: string; customerName: string; daysInStorage: number }>;
+  storageDistribution: Array<{ range: string; count: number }>;
+};
+
+// Helper function to extract collection timestamp from tracking events
+const getCollectionTimestamp = (order: Order): Date | null => {
+  if (!order.trackingEvents?.shipday?.updates) return null;
+  
+  // Look for collection events - ORDER_POD_UPLOAD for pickup or various pickup statuses
+  const collectedEvent = order.trackingEvents.shipday.updates.find(
+    (update: any) => 
+      update.event === 'ORDER_POD_UPLOAD' && 
+      (update.orderId === (order as any).shipdayPickupId || 
+       update.description?.toLowerCase().includes('collected') ||
+       update.description?.toLowerCase().includes('collect'))
+  );
+  
+  return collectedEvent ? new Date(collectedEvent.timestamp) : null;
+};
+
+// Helper function to extract delivery timestamp from tracking events
+const getDeliveryTimestamp = (order: Order): Date | null => {
+  if (!order.trackingEvents?.shipday?.updates) return null;
+  
+  // Look for delivery events - ORDER_POD_UPLOAD for delivery
+  const deliveredEvent = order.trackingEvents.shipday.updates.find(
+    (update: any) => 
+      update.event === 'ORDER_POD_UPLOAD' && 
+      (update.orderId === (order as any).shipdayDeliveryId || 
+       update.description?.toLowerCase().includes('delivered') ||
+       update.description?.toLowerCase().includes('deliver'))
+  );
+  
+  return deliveredEvent ? new Date(deliveredEvent.timestamp) : null;
+};
+
+// Calculate time to collection (order creation to collection)
+export const getCollectionTimeAnalytics = (orders: Order[]): CollectionTimeAnalytics => {
+  const collectedOrders = orders.filter(order => {
+    const collectionTime = getCollectionTimestamp(order);
+    return collectionTime !== null;
+  });
+
+  if (collectedOrders.length === 0) {
+    return {
+      averageTimeToCollect: 0,
+      collectionSLA: 0,
+      byCustomer: []
+    };
+  }
+
+  let totalHours = 0;
+  let within24h = 0;
+  const customerData: Record<string, { totalHours: number; count: number }> = {};
+
+  collectedOrders.forEach(order => {
+    const collectionTime = getCollectionTimestamp(order);
+    if (!collectionTime) return;
+
+    const createdAt = new Date(order.createdAt);
+    const hoursToCollect = (collectionTime.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+    
+    totalHours += hoursToCollect;
+    if (hoursToCollect <= 24) within24h++;
+
+    // @ts-ignore - Added in fetchOrdersForAnalytics
+    const customerName = order.companyName || order.sender.name;
+    if (!customerData[customerName]) {
+      customerData[customerName] = { totalHours: 0, count: 0 };
+    }
+    customerData[customerName].totalHours += hoursToCollect;
+    customerData[customerName].count++;
+  });
+
+  const byCustomer = Object.entries(customerData)
+    .map(([customer, data]) => ({
+      customer,
+      avgTime: data.totalHours / data.count
+    }))
+    .sort((a, b) => b.avgTime - a.avgTime)
+    .slice(0, 10);
+
+  return {
+    averageTimeToCollect: totalHours / collectedOrders.length,
+    collectionSLA: (within24h / collectedOrders.length) * 100,
+    byCustomer
+  };
+};
+
+// Calculate delivery timing (collection to delivery, and total duration)
+export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics => {
+  const deliveredOrders = orders.filter(order => {
+    const deliveryTime = getDeliveryTimestamp(order);
+    const collectionTime = getCollectionTimestamp(order);
+    return deliveryTime !== null && collectionTime !== null;
+  });
+
+  if (deliveredOrders.length === 0) {
+    return {
+      averageCollectionToDelivery: 0,
+      averageTotalDuration: 0,
+      deliverySLA: 0,
+      byCustomer: []
+    };
+  }
+
+  let totalCollectionToDeliveryHours = 0;
+  let totalDurationHours = 0;
+  let within48h = 0;
+  const customerData: Record<string, { collectionToDelivery: number; totalDuration: number; count: number }> = {};
+
+  deliveredOrders.forEach(order => {
+    const collectionTime = getCollectionTimestamp(order);
+    const deliveryTime = getDeliveryTimestamp(order);
+    if (!collectionTime || !deliveryTime) return;
+
+    const createdAt = new Date(order.createdAt);
+    const collectionToDeliveryHours = (deliveryTime.getTime() - collectionTime.getTime()) / (1000 * 60 * 60);
+    const totalHours = (deliveryTime.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+    
+    totalCollectionToDeliveryHours += collectionToDeliveryHours;
+    totalDurationHours += totalHours;
+    if (collectionToDeliveryHours <= 48) within48h++;
+
+    // @ts-ignore - Added in fetchOrdersForAnalytics
+    const customerName = order.companyName || order.sender.name;
+    if (!customerData[customerName]) {
+      customerData[customerName] = { collectionToDelivery: 0, totalDuration: 0, count: 0 };
+    }
+    customerData[customerName].collectionToDelivery += collectionToDeliveryHours;
+    customerData[customerName].totalDuration += totalHours;
+    customerData[customerName].count++;
+  });
+
+  const byCustomer = Object.entries(customerData)
+    .map(([customer, data]) => ({
+      customer,
+      avgCollectionToDelivery: data.collectionToDelivery / data.count,
+      avgTotal: data.totalDuration / data.count
+    }))
+    .sort((a, b) => b.avgCollectionToDelivery - a.avgCollectionToDelivery)
+    .slice(0, 10);
+
+  return {
+    averageCollectionToDelivery: totalCollectionToDeliveryHours / deliveredOrders.length,
+    averageTotalDuration: totalDurationHours / deliveredOrders.length,
+    deliverySLA: (within48h / deliveredOrders.length) * 100,
+    byCustomer
+  };
+};
+
+// Calculate storage analytics
+export const getStorageAnalytics = (orders: Order[]): StorageAnalytics => {
+  const storedOrders = orders.filter(order => {
+    return order.storage_locations && Array.isArray(order.storage_locations) && order.storage_locations.length > 0;
+  });
+
+  const currentInStorage = storedOrders.filter(order => 
+    order.status !== 'delivered' && order.status !== 'cancelled'
+  ).length;
+
+  if (storedOrders.length === 0) {
+    return {
+      currentInStorage,
+      averageDaysInStorage: 0,
+      longestStoredBikes: [],
+      storageDistribution: []
+    };
+  }
+
+  let totalDays = 0;
+  const storageDistribution: Record<string, number> = {
+    '0-1 days': 0,
+    '1-3 days': 0,
+    '3-7 days': 0,
+    '7-14 days': 0,
+    '14+ days': 0
+  };
+
+  const bikesWithStorage = storedOrders.map(order => {
+    const collectionTime = getCollectionTimestamp(order);
+    const deliveryTime = getDeliveryTimestamp(order);
+    
+    let daysInStorage = 0;
+    if (collectionTime) {
+      const endTime = deliveryTime || new Date();
+      daysInStorage = (endTime.getTime() - collectionTime.getTime()) / (1000 * 60 * 60 * 24);
+      totalDays += daysInStorage;
+
+      // Distribution
+      if (daysInStorage <= 1) storageDistribution['0-1 days']++;
+      else if (daysInStorage <= 3) storageDistribution['1-3 days']++;
+      else if (daysInStorage <= 7) storageDistribution['3-7 days']++;
+      else if (daysInStorage <= 14) storageDistribution['7-14 days']++;
+      else storageDistribution['14+ days']++;
+    }
+
+    return {
+      orderId: order.trackingNumber || order.id,
+      // @ts-ignore - Added in fetchOrdersForAnalytics
+      customerName: order.companyName || order.sender.name,
+      daysInStorage
+    };
+  }).filter(item => item.daysInStorage > 0);
+
+  const longestStoredBikes = bikesWithStorage
+    .sort((a, b) => b.daysInStorage - a.daysInStorage)
+    .slice(0, 10);
+
+  return {
+    currentInStorage,
+    averageDaysInStorage: bikesWithStorage.length > 0 ? totalDays / bikesWithStorage.length : 0,
+    longestStoredBikes,
+    storageDistribution: Object.entries(storageDistribution).map(([range, count]) => ({ range, count }))
+  };
 };

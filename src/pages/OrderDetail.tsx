@@ -4,7 +4,8 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package, Printer } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
-import { createShipdayOrder } from "@/services/shipdayService";
+import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
+import { sendOrderCancellationEmails } from "@/services/emailService";
 import { Order, OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,8 @@ import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
 import ContactDetails from "@/components/order-detail/ContactDetails";
+import AdminContactEditor from "@/components/order-detail/AdminContactEditor";
+import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
@@ -26,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -94,6 +98,7 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { userProfile } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -797,35 +802,81 @@ const OrderDetail = () => {
     
     try {
       setStatusUpdating(true);
-      let updatedOrder;
       
-      if (newStatus === 'scheduled_dates_pending') {
-        const { data, error } = await supabase
-          .from('orders')
-          .update({ 
-            status: newStatus,
-            scheduled_pickup_date: null,
-            scheduled_delivery_date: null,
-            scheduled_at: null
-          })
-          .eq('id', id)
-          .select()
-          .single();
+      // Handle cancellation with Shipday deletion and email notifications
+      if (newStatus === 'cancelled') {
+        let shipdaySuccess = false;
+        let emailSuccess = false;
+        
+        // Try to delete Shipday jobs
+        try {
+          const shipdayResult = await deleteShipdayJobs(id);
+          shipdaySuccess = shipdayResult.success;
+          if (shipdaySuccess) {
+            toast.success(shipdayResult.message || "Shipday jobs deleted");
+          }
+        } catch (shipdayError) {
+          console.error("Error deleting Shipday jobs:", shipdayError);
+          toast.warning("Failed to delete Shipday jobs, but continuing with cancellation");
+        }
+        
+        // Try to send cancellation emails
+        try {
+          const emailResults = await sendOrderCancellationEmails(id);
+          const emailsSent = Object.values(emailResults).filter(Boolean).length;
+          if (emailsSent > 0) {
+            emailSuccess = true;
+            toast.success(`Cancellation emails sent to ${emailsSent} recipient(s)`);
+          }
+        } catch (emailError) {
+          console.error("Error sending cancellation emails:", emailError);
+          toast.warning("Failed to send some cancellation emails");
+        }
+        
+        // Update order status to cancelled
+        const updatedOrder = await updateAdminOrderStatus(id, newStatus);
+        
+        if (updatedOrder) {
+          const mappedOrder = mapDbOrderToOrderType(updatedOrder);
+          setOrder(mappedOrder);
+          setSelectedStatus(newStatus);
           
-        if (error) throw error;
-        updatedOrder = data;
+          // Show comprehensive success message
+          const parts = ["Order cancelled"];
+          if (shipdaySuccess) parts.push("Shipday jobs deleted");
+          if (emailSuccess) parts.push("notifications sent");
+          toast.success(parts.join(", "));
+        }
       } else {
-        updatedOrder = await updateAdminOrderStatus(id, newStatus);
-      }
-      
-      if (updatedOrder) {
-        const mappedOrder = mapDbOrderToOrderType(updatedOrder);
-        setOrder(mappedOrder);
-        setSelectedStatus(newStatus);
+        // Handle other status changes normally
+        let updatedOrder;
         
-        // Don't clear date pickers when changing status
+        if (newStatus === 'scheduled_dates_pending') {
+          const { data, error } = await supabase
+            .from('orders')
+            .update({ 
+              status: newStatus,
+              scheduled_pickup_date: null,
+              scheduled_delivery_date: null,
+              scheduled_at: null
+            })
+            .eq('id', id)
+            .select()
+            .single();
+            
+          if (error) throw error;
+          updatedOrder = data;
+        } else {
+          updatedOrder = await updateAdminOrderStatus(id, newStatus);
+        }
         
-        toast.success(`Status updated to ${newStatus}`);
+        if (updatedOrder) {
+          const mappedOrder = mapDbOrderToOrderType(updatedOrder);
+          setOrder(mappedOrder);
+          setSelectedStatus(newStatus);
+          
+          toast.success(`Status updated to ${newStatus}`);
+        }
       }
     } catch (error) {
       console.error("Error updating status:", error);
@@ -922,6 +973,19 @@ const OrderDetail = () => {
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
   
   const showAdminControls = true;
+  const isAdmin = userProfile?.role === 'admin';
+  
+  const handleRefreshOrder = async () => {
+    if (!id) return;
+    try {
+      const fetchedOrder = await getOrderById(id);
+      if (fetchedOrder) {
+        setOrder(fetchedOrder);
+      }
+    } catch (err) {
+      console.error("Error refreshing order:", err);
+    }
+  };
 
   return (
     <Layout>
@@ -1176,11 +1240,21 @@ const OrderDetail = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <ContactDetails 
-                  type="sender"
-                  contact={order.sender}
-                  notes={order.senderNotes}
-                />
+                {isAdmin ? (
+                  <AdminContactEditor 
+                    type="sender"
+                    contact={order.sender}
+                    notes={order.senderNotes}
+                    orderId={order.id}
+                    onUpdate={handleRefreshOrder}
+                  />
+                ) : (
+                  <ContactDetails 
+                    type="sender"
+                    contact={order.sender}
+                    notes={order.senderNotes}
+                  />
+                )}
                 <TimeslotSelection 
                   type="sender"
                   orderId={order.id}
@@ -1189,11 +1263,21 @@ const OrderDetail = () => {
               </div>
               
               <div className="space-y-4">
-                <ContactDetails 
-                  type="receiver"
-                  contact={order.receiver}
-                  notes={order.receiverNotes}
-                />
+                {isAdmin ? (
+                  <AdminContactEditor 
+                    type="receiver"
+                    contact={order.receiver}
+                    notes={order.receiverNotes}
+                    orderId={order.id}
+                    onUpdate={handleRefreshOrder}
+                  />
+                ) : (
+                  <ContactDetails 
+                    type="receiver"
+                    contact={order.receiver}
+                    notes={order.receiverNotes}
+                  />
+                )}
                 <TimeslotSelection 
                   type="receiver"
                   orderId={order.id}
@@ -1201,6 +1285,13 @@ const OrderDetail = () => {
                 />
               </div>
             </div>
+            
+            {isAdmin && (
+              <>
+                <Separator className="my-6" />
+                <AdminTrackingEditor order={order} onUpdate={handleRefreshOrder} />
+              </>
+            )}
             
             <Separator className="my-6" />
             
