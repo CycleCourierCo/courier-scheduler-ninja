@@ -109,7 +109,7 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
-                      {(isB2B || isAdmin) && (
+                      {isB2B && (
                         <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Clock className="mr-2 h-4 w-4" />
                           Bulk Availability
@@ -249,7 +249,7 @@ const Layout: React.FC<LayoutProps> = ({
                       </DropdownMenuItem>
                     </>}
                   
-                  {(isB2B || isAdmin) && (
+                  {isB2B && (
                     <DropdownMenuItem asChild>
                       <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
