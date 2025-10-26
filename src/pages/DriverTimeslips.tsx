@@ -12,7 +12,6 @@ import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
 import TimeslipCard from '@/components/timeslips/TimeslipCard';
 import TimeslipEditDialog from '@/components/timeslips/TimeslipEditDialog';
-import DriverManagementDialog from '@/components/timeslips/DriverManagementDialog';
 import GenerateTimeslipsDialog from '@/components/timeslips/GenerateTimeslipsDialog';
 import { format } from 'date-fns';
 
@@ -20,7 +19,6 @@ const DriverTimeslips = () => {
   const { userProfile } = useAuth();
   const queryClient = useQueryClient();
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
-  const [showDriverManagement, setShowDriverManagement] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('draft');
 
@@ -45,10 +43,16 @@ const DriverTimeslips = () => {
     mutationFn: (date: Date) => timeslipService.generateTimeslips(format(date, 'yyyy-MM-dd')),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['timeslips'] });
-      toast.success(data.message || 'Timeslips generated successfully');
+      setShowGenerateDialog(false);
+      
+      if (data.count === 0) {
+        toast.info("No completed orders found in Shipday for this date");
+      } else {
+        toast.success(`Generated ${data.count} draft timeslip${data.count !== 1 ? 's' : ''}`);
+      }
     },
-    onError: () => {
-      toast.error('Failed to generate timeslips');
+    onError: (error: any) => {
+      toast.error(`Failed to generate timeslips: ${error.message}`);
     },
   });
 
@@ -116,7 +120,7 @@ const DriverTimeslips = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <DashboardHeader>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -131,16 +135,10 @@ const DriverTimeslips = () => {
         </DashboardHeader>
 
         {isAdmin && (
-          <div className="flex gap-4">
-            <Button onClick={() => setShowGenerateDialog(true)}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Generate Timeslips
-            </Button>
-            <Button variant="outline" onClick={() => setShowDriverManagement(true)}>
-              <Users className="h-4 w-4 mr-2" />
-              Manage Drivers
-            </Button>
-          </div>
+          <Button onClick={() => setShowGenerateDialog(true)}>
+            <Calendar className="h-4 w-4 mr-2" />
+            Generate Timeslips
+          </Button>
         )}
 
         {isAdmin ? (
@@ -224,11 +222,6 @@ const DriverTimeslips = () => {
         isOpen={!!editingTimeslip}
         onClose={() => setEditingTimeslip(null)}
         onSave={handleSave}
-      />
-
-      <DriverManagementDialog
-        isOpen={showDriverManagement}
-        onClose={() => setShowDriverManagement(false)}
       />
 
       <GenerateTimeslipsDialog
