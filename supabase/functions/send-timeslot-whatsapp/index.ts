@@ -240,15 +240,21 @@ Cycle Courier Co.`;
         try {
           const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
           
-          // Convert user's local time to UTC for Shipday
+          // Parse the start time
           const [deliveryHour, deliveryMinute] = deliveryTime.split(':').map(Number);
-          const endHour = Math.min(23, deliveryHour + 3);
-          const ukTimezoneOffset = new Date().getTimezoneOffset() === 0 ? 1 : 0;
-          const adjustedHour = endHour - ukTimezoneOffset;
-          const adjustedEndTime = `${adjustedHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}`;
-          const expectedDeliveryTime = adjustedEndTime.includes(':') && adjustedEndTime.split(':').length === 2 
-            ? `${adjustedEndTime}:00` 
-            : adjustedEndTime;
+          
+          // Expected pickup time is the start of the timeslot
+          const expectedPickupTime = `${deliveryHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}:00`;
+          
+          // Expected delivery time is 3 hours after start (end of timeslot)
+          const endHour = deliveryHour + 3;
+          const expectedDeliveryTime = `${endHour.toString().padStart(2, '0')}:${deliveryMinute.toString().padStart(2, '0')}:00`;
+          
+          console.log('Shipday time details:', {
+            originalTime: deliveryTime,
+            expectedPickupTime,
+            expectedDeliveryTime
+          });
           
           // Build delivery instructions
           const bikeInfo = orderToUpdate.bike_brand && orderToUpdate.bike_model 
@@ -276,20 +282,21 @@ Cycle Courier Co.`;
             contextNotes
           ].filter(Boolean).join(' | ');
 
-          const requestBody = {
-            orderNumber: orderToUpdate.tracking_number || `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
-            customerName: recipientType === 'sender' ? orderToUpdate.sender.name : orderToUpdate.receiver.name,
-            customerAddress: recipientType === 'sender' 
-              ? `${orderToUpdate.sender.address.street}, ${orderToUpdate.sender.address.city}, ${orderToUpdate.sender.address.state} ${orderToUpdate.sender.address.zipCode}`
-              : `${orderToUpdate.receiver.address.street}, ${orderToUpdate.receiver.address.city}, ${orderToUpdate.receiver.address.state} ${orderToUpdate.receiver.address.zipCode}`,
-            customerEmail: recipientType === 'sender' ? orderToUpdate.sender.email : orderToUpdate.receiver.email,
-            customerPhoneNumber: recipientType === 'sender' ? orderToUpdate.sender.phone : orderToUpdate.receiver.phone,
-            restaurantName: "Cycle Courier Co.",
-            restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-            expectedDeliveryTime: expectedDeliveryTime,
-            expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
-            deliveryInstruction: allInstructions
-          };
+        const requestBody = {
+          orderNumber: orderToUpdate.tracking_number || `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
+          customerName: recipientType === 'sender' ? orderToUpdate.sender.name : orderToUpdate.receiver.name,
+          customerAddress: recipientType === 'sender' 
+            ? `${orderToUpdate.sender.address.street}, ${orderToUpdate.sender.address.city}, ${orderToUpdate.sender.address.state} ${orderToUpdate.sender.address.zipCode}`
+            : `${orderToUpdate.receiver.address.street}, ${orderToUpdate.receiver.address.city}, ${orderToUpdate.receiver.address.state} ${orderToUpdate.receiver.address.zipCode}`,
+          customerEmail: recipientType === 'sender' ? orderToUpdate.sender.email : orderToUpdate.receiver.email,
+          customerPhoneNumber: recipientType === 'sender' ? orderToUpdate.sender.phone : orderToUpdate.receiver.phone,
+          restaurantName: "Cycle Courier Co.",
+          restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+          expectedPickupTime: expectedPickupTime,
+          expectedDeliveryTime: expectedDeliveryTime,
+          expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
+          deliveryInstruction: allInstructions
+        };
 
           const shipdayResponse = await fetch(shipdayUrl, {
             method: 'PUT',
