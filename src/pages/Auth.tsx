@@ -211,6 +211,11 @@ const Auth = () => {
       <div className="container mx-auto max-w-2xl py-12">
         <Card>
           <CardHeader>
+            <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-sm font-bold text-center text-destructive leading-relaxed">
+                DO NOT REGISTER UNLESS YOU ARE A BICYCLE BUSINESS. IF YOU ARE EXPECTING A COLLECTION OR DELIVERY PLEASE GO TO THE TRACKING PAGE OR CONTACT US FOR FURTHER INFO
+              </p>
+            </div>
             <CardTitle className="text-2xl text-center">Log in or Register</CardTitle>
             <CardDescription className="text-center">
               Sign in to access your account or create a new one
