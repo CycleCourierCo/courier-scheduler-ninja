@@ -187,7 +187,11 @@ const handler = async (req: Request): Promise<Response> => {
         return index === firstIndex;
       });
 
-      const totalStops = uniqueStops.length;
+      // Calculate total stops excluding depot coordinates
+      const totalStops = uniqueStops.filter(stop => {
+        const coords = `${stop.lat},${stop.lng}`;
+        return coords !== depotCoords;
+      }).length;
       const stopHours = Math.round((totalStops * 10 / 60) * 100) / 100; // 10 mins per stop
 
       // Generate route links (handle 10+ stops by splitting)

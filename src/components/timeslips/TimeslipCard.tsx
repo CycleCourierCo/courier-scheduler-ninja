@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Timeslip } from '@/types/timeslip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
-import TimeslipMapPreview from './TimeslipMapPreview';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TimeslipCardProps {
   timeslip: Timeslip;
@@ -23,7 +21,6 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   onApprove,
   onReject
 }) => {
-  const [showMap, setShowMap] = useState(false);
 
   const statusColors = {
     draft: 'bg-yellow-500',
@@ -32,8 +29,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   };
 
   return (
-    <>
-      <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -114,14 +110,6 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                     Route {index + 1}
                   </Button>
                 ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowMap(true)}
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  Preview Map
-                </Button>
               </div>
             </div>
           )}
@@ -169,25 +157,9 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                 </>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Map Preview Dialog */}
-      <Dialog open={showMap} onOpenChange={setShowMap}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Route Map - {timeslip.driver?.name} - {format(new Date(timeslip.date), 'MMM d, yyyy')}
-            </DialogTitle>
-          </DialogHeader>
-          <TimeslipMapPreview 
-            locations={timeslip.job_locations || []} 
-            height="500px"
-          />
-        </DialogContent>
-      </Dialog>
-    </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
