@@ -27,6 +27,7 @@ export interface Timeslip {
   route_links: string[];
   job_locations: JobLocation[];
   custom_addons: CustomAddon[];
+  custom_addon_hours: number;
   
   // Metadata
   created_at: string;

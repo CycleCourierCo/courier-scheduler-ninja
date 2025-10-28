@@ -81,9 +81,17 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
 
   const handleSave = () => {
     const stop_hours = (formData.total_stops * 10) / 60;
+    
+    // Calculate total custom addon hours
+    const customAddonHours = formData.custom_addons.reduce((sum, addon) => {
+      const hours = isNaN(addon.hours) ? 0 : Number(addon.hours);
+      return sum + hours;
+    }, 0);
+    
     onSave(timeslip.id, {
       ...formData,
       stop_hours,
+      custom_addon_hours: customAddonHours,
     });
     onClose();
   };

@@ -205,7 +205,8 @@ const handler = async (req: Request): Promise<Response> => {
           total_stops: totalStops,
           route_links: routeLinks,
           job_locations: uniqueStops,
-          custom_addons: []
+          custom_addons: [],
+          custom_addon_hours: 0
         }, {
           onConflict: 'driver_id,date'
         })
