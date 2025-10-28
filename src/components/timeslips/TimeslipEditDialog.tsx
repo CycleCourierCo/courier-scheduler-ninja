@@ -95,7 +95,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     const hours = isNaN(addon.hours) ? 0 : Number(addon.hours);
     return sum + hours;
   }, 0);
-  const totalHours = formData.driving_hours + stop_hours - formData.lunch_hours + customAddonHours;
+  const totalHours = formData.driving_hours + stop_hours + formData.lunch_hours + customAddonHours;
   const totalPay = (totalHours * formData.hourly_rate) + formData.van_allowance;
 
   return (
@@ -261,7 +261,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
               <div className="text-xs text-muted-foreground col-span-2 space-y-1 mt-2 pt-2 border-t">
                 <div>• Driving: {formData.driving_hours}h</div>
                 <div>• Stops: {stop_hours.toFixed(2)}h</div>
-                <div>• Lunch: -{formData.lunch_hours}h</div>
+                <div>• Lunch: +{formData.lunch_hours}h</div>
                 {customAddonHours > 0 && (
                   <div>• Custom Add-ons: +{customAddonHours.toFixed(2)}h</div>
                 )}
