@@ -91,7 +91,10 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
   if (!timeslip) return null;
 
   const stop_hours = (formData.total_stops * 10) / 60;
-  const customAddonHours = formData.custom_addons.reduce((sum, addon) => sum + addon.hours, 0);
+  const customAddonHours = formData.custom_addons.reduce((sum, addon) => {
+    const hours = isNaN(addon.hours) ? 0 : Number(addon.hours);
+    return sum + hours;
+  }, 0);
   const totalHours = formData.driving_hours + stop_hours - formData.lunch_hours + customAddonHours;
   const totalPay = (totalHours * formData.hourly_rate) + formData.van_allowance;
 
@@ -220,8 +223,11 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                   type="number"
                   step="0.5"
                   placeholder="Hours"
-                  value={newAddon.hours || ''}
-                  onChange={(e) => setNewAddon({ ...newAddon, hours: parseFloat(e.target.value) || 0 })}
+                  value={newAddon.hours === 0 ? '' : newAddon.hours}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    setNewAddon({ ...newAddon, hours: isNaN(value) ? 0 : value });
+                  }}
                 />
                 <Button
                   variant="outline"
@@ -252,6 +258,14 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
               <div className="font-medium">{totalHours.toFixed(2)}h</div>
               <div>Total Pay:</div>
               <div className="font-medium text-primary">£{totalPay.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground col-span-2 space-y-1 mt-2 pt-2 border-t">
+                <div>• Driving: {formData.driving_hours}h</div>
+                <div>• Stops: {stop_hours.toFixed(2)}h</div>
+                <div>• Lunch: -{formData.lunch_hours}h</div>
+                {customAddonHours > 0 && (
+                  <div>• Custom Add-ons: +{customAddonHours.toFixed(2)}h</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
