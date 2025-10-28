@@ -30,6 +30,7 @@ import ApiDocumentationPage from "./pages/ApiDocumentationPage";
 import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
 import UserManagement from "./pages/UserManagement";
 import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
+import DriverTimeslips from "./pages/DriverTimeslips";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,11 @@ function App() {
             <Route path="/bulk-availability" element={
               <ProtectedRoute>
                 <BulkAvailabilityPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/driver-timeslips" element={
+              <ProtectedRoute>
+                <DriverTimeslips />
               </ProtectedRoute>
             } />
             <Route path="/tracking" element={<TrackingPage />} />

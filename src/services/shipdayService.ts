@@ -75,17 +75,13 @@ export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | '
 
     if (error) {
       console.error("Error creating Shipday orders:", error);
-      toast.error("Failed to create Shipday order");
       throw new Error(error.message);
     }
 
     if (!data || !data.success) {
       console.error("Failed to create Shipday orders:", data);
-      toast.error(data?.error || "Failed to create Shipday order");
       throw new Error(data?.error || "Unknown error creating Shipday orders");
     }
-
-    toast.success("Shipday order created successfully");
     
     // Display helpful information about webhook setup
     console.log("Shipday order created. Configure the Shipday webhook:", {
@@ -96,7 +92,6 @@ export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | '
     return data;
   } catch (err) {
     console.error("Error in createShipdayOrder:", err);
-    toast.error("An unexpected error occurred");
     throw err;
   }
 };

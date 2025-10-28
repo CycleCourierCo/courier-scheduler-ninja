@@ -36,6 +36,78 @@ Thank you for choosing The Cycle Courier Co.
   }
 };
 
+export const sendBusinessRegistrationAdminNotification = async (
+  name: string,
+  email: string,
+  companyName: string,
+  phone: string,
+  website: string,
+  address: {
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    postalCode: string;
+  }
+): Promise<boolean> => {
+  try {
+    console.log("Sending business registration notification to admin");
+    
+    const approvalUrl = `${window.location.origin}/users`;
+    const fullAddress = [
+      address.addressLine1,
+      address.addressLine2,
+      address.city,
+      address.postalCode
+    ].filter(Boolean).join(", ");
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: "info@cyclecourierco.com",
+        subject: "New Business Registration Requires Approval",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>New Business Registration</h2>
+            <p>A new business account has been created and requires approval.</p>
+            
+            <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Business Details</h3>
+              <p><strong>Business Name:</strong> ${companyName}</p>
+              <p><strong>Contact Person:</strong> ${name}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Phone:</strong> ${phone}</p>
+              <p><strong>Website:</strong> ${website || 'Not provided'}</p>
+              <p><strong>Address:</strong> ${fullAddress}</p>
+              <p><strong>Registered At:</strong> ${new Date().toLocaleString('en-GB')}</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${approvalUrl}" style="background-color: #4a65d5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Review & Approve Account
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              Please review this application and approve or reject it from the admin dashboard.
+            </p>
+          </div>
+        `,
+        from: "Ccc@notification.cyclecourierco.com"
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending admin notification email:", response.error);
+      return false;
+    }
+    
+    console.log("Admin notification email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send admin notification email:", error);
+    return false;
+  }
+};
+
 export const sendAccountApprovalEmail = async (email: string, name: string, companyName?: string): Promise<boolean> => {
   try {
     console.log("Sending account approval email to:", email);

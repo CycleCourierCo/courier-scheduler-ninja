@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { sendBusinessAccountCreationEmail } from "@/services/emailService";
+import { sendBusinessAccountCreationEmail, sendBusinessRegistrationAdminNotification } from "@/services/emailService";
 
 type AuthContextType = {
   user: User | null;
@@ -205,8 +205,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Send confirmation email that account is pending approval
           try {
             await sendBusinessAccountCreationEmail(email, name);
+            
+            // Send notification to admin
+            await sendBusinessRegistrationAdminNotification(
+              name,
+              email,
+              metadata.company_name || '',
+              metadata.phone || '',
+              metadata.website || '',
+              {
+                addressLine1: metadata.address_line_1 || '',
+                addressLine2: metadata.address_line_2,
+                city: metadata.city || '',
+                postalCode: metadata.postal_code || ''
+              }
+            );
           } catch (emailError) {
             // Don't throw here, as the account was created successfully
+            console.error("Error sending notification emails:", emailError);
           }
           
           return { data: response.data, isBusinessAccount: true };

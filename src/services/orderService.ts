@@ -2,7 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderStatus } from "@/types/order";
 import { CreateOrderFormData } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
-import { createJobsForOrder } from "./jobService";
 import { 
   sendOrderCreationConfirmationToUser,
   sendOrderNotificationToReceiver, 
@@ -336,9 +335,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     if (error) {
       throw error;
     }
-
-    const orderWithJobs = mapDbOrderToOrderType(order);
-    await createJobsForOrder(orderWithJobs);
     
     // Create reverse order for part exchange
     if (isBikeSwap && partExchangeBikeBrand && partExchangeBikeModel) {
@@ -392,11 +388,6 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           })
           .select()
           .single();
-        
-        if (!reverseError) {
-          const reverseOrderWithJobs = mapDbOrderToOrderType(reverseOrder);
-          await createJobsForOrder(reverseOrderWithJobs);
-        }
       } catch (reverseOrderError) {
         // Don't throw here - we don't want to fail the main order creation
       }

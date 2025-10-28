@@ -24,6 +24,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isRoutePlanner = userProfile?.role === 'route_planner';
   const isSales = userProfile?.role === 'sales';
   const isB2B = userProfile?.role === 'b2b_customer';
+  const isDriver = userProfile?.role === 'driver';
   
   // Loaders should not see any navigation
   const navLinks = !isLoader ? <>
@@ -64,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
                   
-                  {user && !isLoader && <>
+                  {user && !isLoader && !isDriver && <>
                       <DropdownMenuSeparator className="my-2" />
                       <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <Home className="mr-2 h-4 w-4" />
@@ -91,6 +92,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Calendar className="mr-2 h-4 w-4" />
                             Job Scheduling
                           </Link>
+                          <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Clock className="mr-2 h-4 w-4" />
+                            Driver Timeslips
+                          </Link>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
@@ -104,17 +109,17 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
-                      {(isB2B || isAdmin) && (
+                      {isB2B && (
                         <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Clock className="mr-2 h-4 w-4" />
                           Bulk Availability
                         </Link>
                       )}
-                      {(isRoutePlanner || isAdmin) && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isRoutePlanner && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
                         </Link>}
-                      {(isSales || isAdmin) && <>
+                      {isSales && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
@@ -124,6 +129,24 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
+                      <button onClick={() => {
+                    signOut();
+                    closeSheet();
+                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                      </button>
+                    </>}
+                  {user && isDriver && <>
+                      <DropdownMenuSeparator className="my-2" />
+                      <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Clock className="mr-2 h-4 w-4" />
+                        My Timeslips
+                      </Link>
+                      <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <User className="mr-2 h-4 w-4" />
+                        Your Profile
+                      </Link>
                       <button onClick={() => {
                     signOut();
                     closeSheet();
@@ -158,25 +181,30 @@ const Layout: React.FC<LayoutProps> = ({
                     <span className="text-sm">{user.email}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
+                  
+                  {!isDriver && <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
                       <Home className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
                     </Link>
-                  </DropdownMenuItem>
+                  </DropdownMenuItem>}
+                  
                   {isAdmin && <DropdownMenuItem asChild>
                       <Link to="/analytics" className="cursor-pointer flex w-full items-center">
                         <BarChart3 className="mr-2 h-4 w-4" />
                         <span>Analytics</span>
                       </Link>
                     </DropdownMenuItem>}
+                  
                   <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Your Profile</span>
                     </Link>
                   </DropdownMenuItem>
+                  
                   {isAdmin && <>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
                         <Link to="/users" className="cursor-pointer flex w-full items-center">
                           <Users className="mr-2 h-4 w-4" />
@@ -193,6 +221,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                           <Calendar className="mr-2 h-4 w-4" />
                           <span>Job Scheduling</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                          <Clock className="mr-2 h-4 w-4" />
+                          <span>Driver Timeslips</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
@@ -214,7 +248,8 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                     </>}
-                  {(isB2B || isAdmin) && (
+                  
+                  {isB2B && (
                     <DropdownMenuItem asChild>
                       <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
@@ -222,13 +257,22 @@ const Layout: React.FC<LayoutProps> = ({
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  {(isRoutePlanner || isAdmin) && <DropdownMenuItem asChild>
+                  
+                  {isRoutePlanner && <DropdownMenuItem asChild>
                       <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>Job Scheduling</span>
                       </Link>
                     </DropdownMenuItem>}
-                  {(isSales || isAdmin) && <>
+                  
+                  {isDriver && <DropdownMenuItem asChild>
+                      <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>My Timeslips</span>
+                      </Link>
+                    </DropdownMenuItem>}
+                  
+                  {isSales && <>
                       <DropdownMenuItem asChild>
                         <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
                           <Shield className="mr-2 h-4 w-4" />
@@ -242,6 +286,7 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                     </>}
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />

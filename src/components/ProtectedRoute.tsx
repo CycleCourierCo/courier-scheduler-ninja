@@ -89,12 +89,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 7. Block B2C users from admin-only pages
+  // 7. Driver role restrictions - only allow timeslips and profile
+  const isTimeslipsPage = location.pathname === '/driver-timeslips';
+  const isProfilePage = location.pathname === '/profile';
+  if (userProfile?.role === 'driver') {
+    if (!isTimeslipsPage && !isProfilePage) {
+      return <Navigate to="/driver-timeslips" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  // 8. Block B2C users from admin-only pages
   if (noB2CAccess && userProfile?.role === 'b2c_customer') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 8. Admin-only route protection
+  // 9. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }

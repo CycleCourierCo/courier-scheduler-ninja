@@ -63,28 +63,40 @@ export type Database = {
           available_hours: number | null
           created_at: string
           email: string | null
+          hourly_rate: number | null
           id: string
+          is_active: boolean | null
           name: string
           phone: string | null
           updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
         }
         Insert: {
           available_hours?: number | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_active?: boolean | null
           name: string
           phone?: string | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
         }
         Update: {
           available_hours?: number | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_active?: boolean | null
           name?: string
           phone?: string | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
         }
         Relationships: []
       }
@@ -409,13 +421,16 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          available_hours: number | null
           city: string | null
           company_name: string | null
           country: string | null
           county: string | null
           created_at: string
           email: string | null
+          hourly_rate: number | null
           id: string
+          is_active: boolean | null
           is_business: boolean | null
           latitude: number | null
           longitude: number | null
@@ -423,8 +438,11 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id: string | null
           table_preferences: Json | null
           updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
           website: string | null
         }
         Insert: {
@@ -434,13 +452,16 @@ export type Database = {
           accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
+          available_hours?: number | null
           city?: string | null
           company_name?: string | null
           country?: string | null
           county?: string | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id: string
+          is_active?: boolean | null
           is_business?: boolean | null
           latitude?: number | null
           longitude?: number | null
@@ -448,8 +469,11 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id?: string | null
           table_preferences?: Json | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
           website?: string | null
         }
         Update: {
@@ -459,13 +483,16 @@ export type Database = {
           accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
+          available_hours?: number | null
           city?: string | null
           company_name?: string | null
           country?: string | null
           county?: string | null
           created_at?: string
           email?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_active?: boolean | null
           is_business?: boolean | null
           latitude?: number | null
           longitude?: number | null
@@ -473,8 +500,11 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id?: string | null
           table_preferences?: Json | null
           updated_at?: string
+          uses_own_van?: boolean | null
+          van_allowance?: number | null
           website?: string | null
         }
         Relationships: []
@@ -556,6 +586,101 @@ export type Database = {
           },
         ]
       }
+      timeslips: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          date: string
+          driver_id: string
+          driving_hours: number
+          hourly_rate: number
+          id: string
+          job_locations: Json | null
+          lunch_hours: number
+          route_links: string[] | null
+          status: string
+          stop_hours: number
+          total_hours: number | null
+          total_pay: number | null
+          total_stops: number
+          updated_at: string | null
+          van_allowance: number | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          date: string
+          driver_id: string
+          driving_hours?: number
+          hourly_rate: number
+          id?: string
+          job_locations?: Json | null
+          lunch_hours?: number
+          route_links?: string[] | null
+          status: string
+          stop_hours?: number
+          total_hours?: number | null
+          total_pay?: number | null
+          total_stops?: number
+          updated_at?: string | null
+          van_allowance?: number | null
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          date?: string
+          driver_id?: string
+          driving_hours?: number
+          hourly_rate?: number
+          id?: string
+          job_locations?: Json | null
+          lunch_hours?: number
+          route_links?: string[] | null
+          status?: string
+          stop_hours?: number
+          total_hours?: number | null
+          total_pay?: number | null
+          total_stops?: number
+          updated_at?: string | null
+          van_allowance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeslips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -582,13 +707,16 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          available_hours: number | null
           city: string | null
           company_name: string | null
           country: string | null
           county: string | null
           created_at: string
           email: string | null
+          hourly_rate: number | null
           id: string
+          is_active: boolean | null
           is_business: boolean | null
           latitude: number | null
           longitude: number | null
@@ -596,8 +724,11 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id: string | null
           table_preferences: Json | null
           updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
           website: string | null
         }[]
         SetofOptions: {
@@ -611,9 +742,17 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      sync_drivers_to_profiles: { Args: never; Returns: undefined }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
@@ -642,6 +781,7 @@ export type Database = {
         | "loader"
         | "route_planner"
         | "sales"
+        | "driver"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -795,6 +935,7 @@ export const Constants = {
         "loader",
         "route_planner",
         "sales",
+        "driver",
       ],
     },
   },
