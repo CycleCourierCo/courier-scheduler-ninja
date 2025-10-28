@@ -6,7 +6,7 @@ export const timeslipService = {
   async getAllTimeslips(status?: 'draft' | 'approved' | 'rejected') {
     let query = supabase
       .from('timeslips')
-      .select('*, driver:profiles(id, name, email, phone, hourly_rate, uses_own_van, van_allowance, is_active)')
+      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
       .order('date', { ascending: false });
     
     if (status) {
@@ -25,7 +25,7 @@ export const timeslipService = {
   async getDriverTimeslips(driverId: string) {
     const { data, error } = await supabase
       .from('timeslips')
-      .select('*, driver:profiles(id, name, email, phone, hourly_rate, uses_own_van, van_allowance, is_active)')
+      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
       .eq('driver_id', driverId)
       .eq('status', 'approved')
       .order('date', { ascending: false });

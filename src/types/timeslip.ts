@@ -1,3 +1,5 @@
+import { UserProfile } from './user';
+
 export interface Timeslip {
   id: string;
   driver_id: string;
@@ -28,7 +30,7 @@ export interface Timeslip {
   admin_notes: string | null;
   
   // Joined data
-  driver?: Driver;
+  driver?: UserProfile;
 }
 
 export interface JobLocation {
@@ -37,18 +39,4 @@ export interface JobLocation {
   type: 'pickup' | 'delivery';
   postcode?: string;
   order_id: string;
-}
-
-export interface Driver {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  hourly_rate: number;
-  uses_own_van: boolean;
-  van_allowance: number;
-  is_active: boolean;
-  available_hours: number | null;
-  created_at: string;
-  updated_at: string;
 }

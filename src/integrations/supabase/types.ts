@@ -58,48 +58,6 @@ export type Database = {
           },
         ]
       }
-      drivers: {
-        Row: {
-          available_hours: number | null
-          created_at: string
-          email: string | null
-          hourly_rate: number | null
-          id: string
-          is_active: boolean | null
-          name: string
-          phone: string | null
-          updated_at: string
-          uses_own_van: boolean | null
-          van_allowance: number | null
-        }
-        Insert: {
-          available_hours?: number | null
-          created_at?: string
-          email?: string | null
-          hourly_rate?: number | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          phone?: string | null
-          updated_at?: string
-          uses_own_van?: boolean | null
-          van_allowance?: number | null
-        }
-        Update: {
-          available_hours?: number | null
-          created_at?: string
-          email?: string | null
-          hourly_rate?: number | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          phone?: string | null
-          updated_at?: string
-          uses_own_van?: boolean | null
-          van_allowance?: number | null
-        }
-        Relationships: []
-      }
       invoice_history: {
         Row: {
           created_at: string
@@ -576,15 +534,7 @@ export type Database = {
           total_time?: number
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "routes_driver_id_fkey"
-            columns: ["driver_id"]
-            isOneToOne: false
-            referencedRelation: "drivers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       timeslips: {
         Row: {
@@ -752,7 +702,6 @@ export type Database = {
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
-      sync_drivers_to_profiles: { Args: never; Returns: undefined }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
