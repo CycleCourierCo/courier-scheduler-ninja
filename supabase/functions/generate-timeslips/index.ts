@@ -103,50 +103,27 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log(`Processing ${orders.length} orders for driver: ${driverName}`);
 
-      // First, try to find driver by Shipday carrier ID
+      // Find driver ONLY by Shipday carrier ID (no name fallback)
       const carrierId = orders[0]?.carrier?.id;
       let driver = null;
 
-      if (carrierId) {
-        const { data: driverByShipdayId } = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .eq('shipday_driver_id', carrierId.toString())
-          .eq('role', 'driver')
-          .limit(1);
-
-        if (driverByShipdayId && driverByShipdayId.length > 0) {
-          driver = driverByShipdayId[0];
-          console.log(`Found driver by Shipday ID ${carrierId}: ${driver.name}`);
-        }
+      if (!carrierId) {
+        console.warn(`No carrier ID found for driver: ${driverName}`);
+        continue;
       }
 
-      // If not found by Shipday ID, try matching by name
-      if (!driver) {
-        const { data: driverByName } = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .eq('role', 'driver')
-          .ilike('name', driverName)
-          .limit(1);
+      const { data: driverByShipdayId } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('shipday_driver_id', carrierId.toString())
+        .eq('role', 'driver')
+        .limit(1);
 
-        if (driverByName && driverByName.length > 0) {
-          driver = driverByName[0];
-          console.log(`Found driver by name match: ${driver.name}`);
-          
-          // Auto-update Shipday ID for future matches
-          if (carrierId && !driver.shipday_driver_id) {
-            await supabaseClient
-              .from('profiles')
-              .update({ shipday_driver_id: carrierId.toString() })
-              .eq('id', driver.id);
-            console.log(`Auto-linked Shipday ID ${carrierId} to driver ${driver.name}`);
-          }
-        }
-      }
-
-      if (!driver) {
-        console.warn(`Driver not found in database: ${driverName} (Shipday ID: ${carrierId})`);
+      if (driverByShipdayId && driverByShipdayId.length > 0) {
+        driver = driverByShipdayId[0];
+        console.log(`Found driver by Shipday ID ${carrierId}: ${driver.name}`);
+      } else {
+        console.warn(`Driver not found in database with Shipday ID: ${carrierId} (Shipday name: ${driverName})`);
         continue;
       }
 
