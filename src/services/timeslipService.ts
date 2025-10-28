@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Timeslip, JobLocation } from "@/types/timeslip";
+import { Timeslip, JobLocation, CustomAddon } from "@/types/timeslip";
 
 export const timeslipService = {
   // Get all timeslips (admin only)
@@ -17,7 +17,8 @@ export const timeslipService = {
     if (error) throw error;
     return (data || []).map(item => ({
       ...item,
-      job_locations: (item.job_locations as any as JobLocation[]) || []
+      job_locations: (item.job_locations as any as JobLocation[]) || [],
+      custom_addons: (item.custom_addons as any as CustomAddon[]) || []
     })) as Timeslip[];
   },
 
@@ -33,7 +34,8 @@ export const timeslipService = {
     if (error) throw error;
     return (data || []).map(item => ({
       ...item,
-      job_locations: (item.job_locations as any as JobLocation[]) || []
+      job_locations: (item.job_locations as any as JobLocation[]) || [],
+      custom_addons: (item.custom_addons as any as CustomAddon[]) || []
     })) as Timeslip[];
   },
 
@@ -64,7 +66,8 @@ export const timeslipService = {
     if (error) throw error;
     return {
       ...data,
-      job_locations: (data.job_locations as any as JobLocation[]) || []
+      job_locations: (data.job_locations as any as JobLocation[]) || [],
+      custom_addons: (data.custom_addons as any as CustomAddon[]) || []
     } as Timeslip;
   },
 
@@ -87,7 +90,8 @@ export const timeslipService = {
     if (error) throw error;
     return {
       ...data,
-      job_locations: (data.job_locations as any as JobLocation[]) || []
+      job_locations: (data.job_locations as any as JobLocation[]) || [],
+      custom_addons: (data.custom_addons as any as CustomAddon[]) || []
     } as Timeslip;
   },
 
@@ -106,7 +110,8 @@ export const timeslipService = {
     if (error) throw error;
     return {
       ...data,
-      job_locations: (data.job_locations as any as JobLocation[]) || []
+      job_locations: (data.job_locations as any as JobLocation[]) || [],
+      custom_addons: (data.custom_addons as any as CustomAddon[]) || []
     } as Timeslip;
   },
 

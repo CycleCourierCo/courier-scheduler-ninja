@@ -1,5 +1,10 @@
 import { UserProfile } from './user';
 
+export interface CustomAddon {
+  title: string;
+  hours: number;
+}
+
 export interface Timeslip {
   id: string;
   driver_id: string;
@@ -21,6 +26,7 @@ export interface Timeslip {
   total_stops: number;
   route_links: string[];
   job_locations: JobLocation[];
+  custom_addons: CustomAddon[];
   
   // Metadata
   created_at: string;

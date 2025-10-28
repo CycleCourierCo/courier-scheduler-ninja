@@ -542,6 +542,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string | null
+          custom_addons: Json | null
           date: string
           driver_id: string
           driving_hours: number
@@ -563,6 +564,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string | null
+          custom_addons?: Json | null
           date: string
           driver_id: string
           driving_hours?: number
@@ -584,6 +586,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string | null
+          custom_addons?: Json | null
           date?: string
           driver_id?: string
           driving_hours?: number

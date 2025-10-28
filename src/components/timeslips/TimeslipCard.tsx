@@ -3,7 +3,7 @@ import { Timeslip } from '@/types/timeslip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink } from 'lucide-react';
+import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TimeslipCardProps {
@@ -54,22 +54,36 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
         <CardContent className="space-y-4">
           {/* Hours Breakdown */}
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{timeslip.driving_hours}h</span>
-              <span className="text-muted-foreground">driving</span>
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{timeslip.driving_hours}h</span>
+                <span className="text-muted-foreground">driving</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{timeslip.stop_hours}h</span>
+                <span className="text-muted-foreground">stops</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{timeslip.lunch_hours}h</span>
+                <span className="text-muted-foreground">lunch</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{timeslip.stop_hours}h</span>
-              <span className="text-muted-foreground">stops</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{timeslip.lunch_hours}h</span>
-              <span className="text-muted-foreground">lunch</span>
-            </div>
+            
+            {timeslip.custom_addons && timeslip.custom_addons.length > 0 && (
+              <div className="space-y-1">
+                {timeslip.custom_addons.map((addon, index) => (
+                  <div key={index} className="flex items-center gap-1 text-sm text-primary">
+                    <Zap className="h-4 w-4" />
+                    <span className="font-medium">{addon.hours}h</span>
+                    <span>{addon.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Pay Details */}

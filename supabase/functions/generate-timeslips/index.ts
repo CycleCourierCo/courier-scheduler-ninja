@@ -204,7 +204,8 @@ const handler = async (req: Request): Promise<Response> => {
           van_allowance: driver.uses_own_van ? (driver.van_allowance || 0.00) : 0.00,
           total_stops: totalStops,
           route_links: routeLinks,
-          job_locations: uniqueStops
+          job_locations: uniqueStops,
+          custom_addons: []
         }, {
           onConflict: 'driver_id,date'
         })

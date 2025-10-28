@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Timeslip } from '@/types/timeslip';
+import { Timeslip, CustomAddon } from '@/types/timeslip';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { X, Plus } from 'lucide-react';
 
 interface TimeslipEditDialogProps {
   timeslip: Timeslip;
@@ -41,7 +42,10 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     van_allowance: timeslip?.van_allowance || 0,
     status: timeslip?.status || 'draft',
     admin_notes: timeslip?.admin_notes || '',
+    custom_addons: timeslip?.custom_addons || [],
   });
+
+  const [newAddon, setNewAddon] = useState({ title: '', hours: 0 });
 
   useEffect(() => {
     if (timeslip) {
@@ -53,9 +57,27 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
         van_allowance: timeslip.van_allowance,
         status: timeslip.status,
         admin_notes: timeslip.admin_notes || '',
+        custom_addons: timeslip.custom_addons || [],
       });
     }
   }, [timeslip]);
+
+  const handleAddAddon = () => {
+    if (newAddon.title.trim() && newAddon.hours > 0) {
+      setFormData({
+        ...formData,
+        custom_addons: [...formData.custom_addons, { ...newAddon }]
+      });
+      setNewAddon({ title: '', hours: 0 });
+    }
+  };
+
+  const handleRemoveAddon = (index: number) => {
+    setFormData({
+      ...formData,
+      custom_addons: formData.custom_addons.filter((_, i) => i !== index)
+    });
+  };
 
   const handleSave = () => {
     const stop_hours = (formData.total_stops * 10) / 60;
@@ -69,7 +91,8 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
   if (!timeslip) return null;
 
   const stop_hours = (formData.total_stops * 10) / 60;
-  const totalHours = formData.driving_hours + stop_hours - formData.lunch_hours;
+  const customAddonHours = formData.custom_addons.reduce((sum, addon) => sum + addon.hours, 0);
+  const totalHours = formData.driving_hours + stop_hours - formData.lunch_hours + customAddonHours;
   const totalPay = (totalHours * formData.hourly_rate) + formData.van_allowance;
 
   return (
@@ -158,6 +181,58 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Custom Add-Ons</Label>
+            <div className="space-y-2 p-3 bg-muted rounded-lg">
+              {formData.custom_addons.length > 0 ? (
+                <div className="space-y-1">
+                  {formData.custom_addons.map((addon, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <span>{addon.title}: {addon.hours}h</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveAddon(index)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No custom add-ons</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2">
+                <Input
+                  placeholder="Title (e.g., Traffic)"
+                  value={newAddon.title}
+                  onChange={(e) => setNewAddon({ ...newAddon, title: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-1">
+                <Input
+                  type="number"
+                  step="0.5"
+                  placeholder="Hours"
+                  value={newAddon.hours || ''}
+                  onChange={(e) => setNewAddon({ ...newAddon, hours: parseFloat(e.target.value) || 0 })}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddAddon}
+                  disabled={!newAddon.title.trim() || newAddon.hours <= 0}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
