@@ -12,6 +12,7 @@ interface TimeslipCardProps {
   onEdit?: (timeslip: Timeslip) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onCreateBill?: (timeslip: Timeslip) => void;
 }
 
 const TimeslipCard: React.FC<TimeslipCardProps> = ({
@@ -19,7 +20,8 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   isAdmin,
   onEdit,
   onApprove,
-  onReject
+  onReject,
+  onCreateBill
 }) => {
 
   const statusColors = {
@@ -159,7 +161,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
           {/* Admin Actions */}
           {isAdmin && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -190,6 +192,17 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                     Reject
                   </Button>
                 </>
+              )}
+              {timeslip.status === 'approved' && !timeslip.quickbooks_bill_id && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onCreateBill?.(timeslip)}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Create Bill
+                </Button>
               )}
             </div>
         )}

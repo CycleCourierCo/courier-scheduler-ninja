@@ -181,5 +181,41 @@ export const timeslipService = {
       .eq('id', id);
     
     if (error) throw error;
+  },
+
+  // Create QuickBooks bill for an approved timeslip
+  async createQuickBooksBill(timeslipId: string) {
+    // Get the full timeslip data with driver info
+    const { data: timeslip, error: fetchError } = await supabase
+      .from('timeslips')
+      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
+      .eq('id', timeslipId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    if (!timeslip) throw new Error('Timeslip not found');
+    
+    // Call the edge function to create the bill
+    const { data, error } = await supabase.functions.invoke('create-quickbooks-bill', {
+      body: {
+        timeslipId: timeslipId,
+        driverId: timeslip.driver_id,
+        driverName: timeslip.driver?.name || 'Unknown Driver',
+        driverEmail: timeslip.driver?.email || '',
+        date: timeslip.date,
+        totalPay: timeslip.total_pay,
+        breakdown: {
+          drivingHours: timeslip.driving_hours,
+          stopHours: timeslip.stop_hours,
+          lunchHours: timeslip.lunch_hours,
+          hourlyRate: timeslip.hourly_rate,
+          vanAllowance: timeslip.van_allowance || 0,
+          customAddonHours: timeslip.custom_addon_hours || 0,
+        }
+      }
+    });
+    
+    if (error) throw error;
+    return data;
   }
 };

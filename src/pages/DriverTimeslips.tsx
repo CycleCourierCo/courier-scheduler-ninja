@@ -141,6 +141,18 @@ const DriverTimeslips = () => {
     },
   });
 
+  // Create QuickBooks bill mutation
+  const createBillMutation = useMutation({
+    mutationFn: (timeslipId: string) => timeslipService.createQuickBooksBill(timeslipId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeslips'] });
+      toast.success('QuickBooks bill created successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to create bill: ${error.message}`);
+    },
+  });
+
   const handleGenerate = (date: Date) => {
     generateMutation.mutate(date);
   };
@@ -160,6 +172,10 @@ const DriverTimeslips = () => {
 
   const handleReject = (id: string) => {
     rejectMutation.mutate(id);
+  };
+
+  const handleCreateBill = (timeslip: Timeslip) => {
+    createBillMutation.mutate(timeslip.id);
   };
 
   // Count timeslips by status (from all timeslips for accurate counts)
@@ -247,6 +263,7 @@ const DriverTimeslips = () => {
                       onEdit={handleEdit}
                       onApprove={handleApprove}
                       onReject={handleReject}
+                      onCreateBill={handleCreateBill}
                     />
                   ))}
                 </div>
