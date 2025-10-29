@@ -3,14 +3,31 @@ import { Timeslip, JobLocation, CustomAddon } from "@/types/timeslip";
 
 export const timeslipService = {
   // Get all timeslips (admin only)
-  async getAllTimeslips(status?: 'draft' | 'approved' | 'rejected') {
+  async getAllTimeslips(filters?: {
+    status?: 'draft' | 'approved' | 'rejected';
+    driverId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
     let query = supabase
       .from('timeslips')
       .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
       .order('date', { ascending: false });
     
-    if (status) {
-      query = query.eq('status', status);
+    if (filters?.status) {
+      query = query.eq('status', filters.status);
+    }
+    
+    if (filters?.driverId) {
+      query = query.eq('driver_id', filters.driverId);
+    }
+    
+    if (filters?.dateFrom) {
+      query = query.gte('date', filters.dateFrom);
+    }
+    
+    if (filters?.dateTo) {
+      query = query.lte('date', filters.dateTo);
     }
     
     const { data, error } = await query;

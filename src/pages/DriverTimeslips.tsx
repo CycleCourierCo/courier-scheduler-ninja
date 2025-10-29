@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 import TimeslipCard from '@/components/timeslips/TimeslipCard';
 import TimeslipEditDialog from '@/components/timeslips/TimeslipEditDialog';
 import GenerateTimeslipsDialog from '@/components/timeslips/GenerateTimeslipsDialog';
+import TimeslipFilters from '@/components/timeslips/TimeslipFilters';
 import { format } from 'date-fns';
 
 const DriverTimeslips = () => {
@@ -21,22 +22,52 @@ const DriverTimeslips = () => {
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('draft');
+  const [filters, setFilters] = useState<{
+    driverId?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    sortBy: string;
+  }>({
+    sortBy: 'date_desc',
+  });
 
   const isAdmin = userProfile?.role === 'admin';
 
   // Fetch timeslips based on user role
   const { data: timeslips, isLoading } = useQuery({
-    queryKey: ['timeslips', activeTab],
+    queryKey: ['timeslips', activeTab, filters.driverId, filters.dateFrom, filters.dateTo],
     queryFn: () => {
       if (isAdmin) {
-        return timeslipService.getAllTimeslips(
-          activeTab === 'all' ? undefined : (activeTab as 'draft' | 'approved' | 'rejected')
-        );
+        return timeslipService.getAllTimeslips({
+          status: activeTab === 'all' ? undefined : (activeTab as 'draft' | 'approved' | 'rejected'),
+          driverId: filters.driverId,
+          dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
+          dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+        });
       }
       // For drivers, fetch only approved timeslips
       return timeslipService.getDriverTimeslips(userProfile?.id || '');
     },
   });
+
+  // Sort timeslips based on sortBy filter
+  const sortedTimeslips = useMemo(() => {
+    if (!timeslips) return [];
+    const sorted = [...timeslips];
+
+    switch (filters.sortBy) {
+      case 'date_asc':
+        return sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      case 'driver_name':
+        return sorted.sort((a, b) => (a.driver?.name || '').localeCompare(b.driver?.name || ''));
+      case 'total_pay_desc':
+        return sorted.sort((a, b) => (b.total_pay || 0) - (a.total_pay || 0));
+      case 'total_pay_asc':
+        return sorted.sort((a, b) => (a.total_pay || 0) - (b.total_pay || 0));
+      default: // date_desc
+        return sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+  }, [timeslips, filters.sortBy]);
 
   // Generate timeslips mutation
   const generateMutation = useMutation({
@@ -114,9 +145,9 @@ const DriverTimeslips = () => {
     rejectMutation.mutate(id);
   };
 
-  // Count timeslips by status
-  const draftCount = timeslips?.filter((t) => t.status === 'draft').length || 0;
-  const approvedCount = timeslips?.filter((t) => t.status === 'approved').length || 0;
+  // Count timeslips by status (from sorted list)
+  const draftCount = sortedTimeslips?.filter((t) => t.status === 'draft').length || 0;
+  const approvedCount = sortedTimeslips?.filter((t) => t.status === 'approved').length || 0;
 
   return (
     <Layout>
@@ -141,6 +172,10 @@ const DriverTimeslips = () => {
           </Button>
         )}
 
+        {isAdmin && (
+          <TimeslipFilters onFilterChange={setFilters} />
+        )}
+
         {isAdmin ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
@@ -161,9 +196,9 @@ const DriverTimeslips = () => {
                     <p className="text-center text-muted-foreground">Loading timeslips...</p>
                   </CardContent>
                 </Card>
-              ) : timeslips && timeslips.length > 0 ? (
+              ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {timeslips.map((timeslip) => (
+                  {sortedTimeslips.map((timeslip) => (
                     <TimeslipCard
                       key={timeslip.id}
                       timeslip={timeslip}
@@ -193,9 +228,9 @@ const DriverTimeslips = () => {
                   <p className="text-center text-muted-foreground">Loading timeslips...</p>
                 </CardContent>
               </Card>
-            ) : timeslips && timeslips.length > 0 ? (
+            ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {timeslips.map((timeslip) => (
+                {sortedTimeslips.map((timeslip) => (
                   <TimeslipCard
                     key={timeslip.id}
                     timeslip={timeslip}
