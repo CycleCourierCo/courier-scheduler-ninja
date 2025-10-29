@@ -33,7 +33,24 @@ const DriverTimeslips = () => {
 
   const isAdmin = userProfile?.role === 'admin';
 
-  // Fetch timeslips based on user role
+  // Fetch all timeslips for accurate counts (no status filter)
+  const { data: allTimeslips } = useQuery({
+    queryKey: ['timeslips', 'counts', filters.driverId, filters.dateFrom, filters.dateTo],
+    queryFn: () => {
+      if (isAdmin) {
+        return timeslipService.getAllTimeslips({
+          status: undefined, // Get all statuses for accurate counts
+          driverId: filters.driverId,
+          dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
+          dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+        });
+      }
+      return [];
+    },
+    enabled: isAdmin,
+  });
+
+  // Fetch timeslips based on user role and active tab
   const { data: timeslips, isLoading } = useQuery({
     queryKey: ['timeslips', activeTab, filters.driverId, filters.dateFrom, filters.dateTo],
     queryFn: () => {
@@ -145,9 +162,16 @@ const DriverTimeslips = () => {
     rejectMutation.mutate(id);
   };
 
-  // Count timeslips by status (from sorted list)
-  const draftCount = sortedTimeslips?.filter((t) => t.status === 'draft').length || 0;
-  const approvedCount = sortedTimeslips?.filter((t) => t.status === 'approved').length || 0;
+  // Count timeslips by status (from all timeslips for accurate counts)
+  const draftCount = allTimeslips?.filter((t) => t.status === 'draft').length || 0;
+  const approvedCount = allTimeslips?.filter((t) => t.status === 'approved').length || 0;
+  const allCount = allTimeslips?.length || 0;
+
+  // Calculate total pay from visible timeslips
+  const totalPay = useMemo(() => {
+    if (!sortedTimeslips) return 0;
+    return sortedTimeslips.reduce((sum, timeslip) => sum + (timeslip.total_pay || 0), 0);
+  }, [sortedTimeslips]);
 
   return (
     <Layout>
@@ -176,6 +200,23 @@ const DriverTimeslips = () => {
           <TimeslipFilters onFilterChange={setFilters} />
         )}
 
+        {isAdmin && sortedTimeslips && sortedTimeslips.length > 0 && (
+          <Card>
+            <CardContent className="flex justify-between items-center p-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Showing</p>
+                <p className="text-2xl font-bold">{sortedTimeslips.length} timeslips</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Total Pay</p>
+                <p className="text-2xl font-bold text-green-600">
+                  £{totalPay.toFixed(2)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {isAdmin ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
@@ -186,7 +227,7 @@ const DriverTimeslips = () => {
               <TabsTrigger value="approved">
                 Approved ({approvedCount})
               </TabsTrigger>
-              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="all">All ({allCount})</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-4">
