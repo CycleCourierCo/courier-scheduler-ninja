@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { Resend } from 'npm:resend@4.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,6 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Found ${shipdayData.drivers.length} drivers with completed orders`);
 
     const createdTimeslips = [];
+    const warnings: string[] = [];
     const depotCoords = "52.4707965,-1.8749747"; // Depot coordinates
 
     // Process each driver's orders
@@ -108,7 +110,9 @@ const handler = async (req: Request): Promise<Response> => {
       let driver = null;
 
       if (!carrierId) {
-        console.warn(`No carrier ID found for driver: ${driverName}`);
+        const warning = `No carrier ID found for driver: ${driverName}`;
+        console.warn(warning);
+        warnings.push(warning);
         continue;
       }
 
@@ -123,7 +127,9 @@ const handler = async (req: Request): Promise<Response> => {
         driver = driverByShipdayId[0];
         console.log(`Found driver by Shipday ID ${carrierId}: ${driver.name}`);
       } else {
-        console.warn(`Driver not found in database with Shipday ID: ${carrierId} (Shipday name: ${driverName})`);
+        const warning = `Driver not found in database with Shipday ID: ${carrierId} (Shipday name: ${driverName})`;
+        console.warn(warning);
+        warnings.push(warning);
         continue;
       }
 
@@ -222,12 +228,78 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`Created/updated draft timeslip for ${driverName}: ${totalStops} stops, ${stopHours}h stop time`);
     }
 
+    // Send email notification if timeslips were created
+    if (createdTimeslips.length > 0) {
+      try {
+        const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+        
+        // Fetch driver details for the email
+        const driverDetails = await Promise.all(
+          createdTimeslips.map(async (timeslip) => {
+            const { data: driver } = await supabaseClient
+              .from('profiles')
+              .select('name')
+              .eq('id', timeslip.driver_id)
+              .single();
+            
+            return {
+              name: driver?.name || 'Unknown Driver',
+              stops: timeslip.total_stops,
+              stopHours: timeslip.stop_hours,
+              totalPay: timeslip.total_pay
+            };
+          })
+        );
+
+        // Build email content
+        const driverList = driverDetails
+          .map(d => `- ${d.name}: ${d.stops} stops, ${d.stopHours.toFixed(2)}h, £${d.totalPay.toFixed(2)}`)
+          .join('\n');
+
+        const warningSection = warnings.length > 0 
+          ? `\n\n⚠️ Warnings:\n${warnings.map(w => `- ${w}`).join('\n')}`
+          : '';
+
+        const emailHtml = `
+          <h2>Timeslips Generated for ${date}</h2>
+          <p><strong>✅ Successfully Generated: ${createdTimeslips.length} timeslip${createdTimeslips.length !== 1 ? 's' : ''}</strong></p>
+          
+          <h3>Driver Details:</h3>
+          <ul>
+            ${driverDetails.map(d => `<li><strong>${d.name}:</strong> ${d.stops} stops, ${d.stopHours.toFixed(2)}h, £${d.totalPay.toFixed(2)}</li>`).join('\n')}
+          </ul>
+          
+          ${warnings.length > 0 ? `
+            <h3>⚠️ Warnings:</h3>
+            <ul>
+              ${warnings.map(w => `<li>${w}</li>`).join('\n')}
+            </ul>
+          ` : ''}
+          
+          <p>View all timeslips in your dashboard at: <a href="https://your-domain.com/driver-timeslips">Driver Timeslips</a></p>
+        `;
+
+        await resend.emails.send({
+          from: 'Cycle Courier <onboarding@resend.dev>',
+          to: ['info@cyclecourierco.com'],
+          subject: `Timeslips Generated - ${date}`,
+          html: emailHtml,
+        });
+
+        console.log('Email notification sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
+        // Don't fail the whole request if email fails
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: `Generated ${createdTimeslips.length} draft timeslip${createdTimeslips.length !== 1 ? 's' : ''}`,
         count: createdTimeslips.length,
-        timeslips: createdTimeslips
+        timeslips: createdTimeslips,
+        warnings: warnings
       }),
       { 
         status: 200, 
