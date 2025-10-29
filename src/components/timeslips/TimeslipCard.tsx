@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Timeslip } from '@/types/timeslip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink } from 'lucide-react';
+import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink, Zap, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import TimeslipMapPreview from './TimeslipMapPreview';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TimeslipCardProps {
   timeslip: Timeslip;
@@ -14,6 +12,7 @@ interface TimeslipCardProps {
   onEdit?: (timeslip: Timeslip) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onCreateBill?: (timeslip: Timeslip) => void;
 }
 
 const TimeslipCard: React.FC<TimeslipCardProps> = ({
@@ -21,9 +20,9 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   isAdmin,
   onEdit,
   onApprove,
-  onReject
+  onReject,
+  onCreateBill
 }) => {
-  const [showMap, setShowMap] = useState(false);
 
   const statusColors = {
     draft: 'bg-yellow-500',
@@ -32,8 +31,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   };
 
   return (
-    <>
-      <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -58,22 +56,36 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
         <CardContent className="space-y-4">
           {/* Hours Breakdown */}
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{timeslip.driving_hours}h</span>
-              <span className="text-muted-foreground">driving</span>
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{timeslip.driving_hours}h</span>
+                <span className="text-muted-foreground">driving</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{timeslip.stop_hours}h</span>
+                <span className="text-muted-foreground">stops</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{timeslip.lunch_hours}h</span>
+                <span className="text-muted-foreground">lunch</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{timeslip.stop_hours}h</span>
-              <span className="text-muted-foreground">stops</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{timeslip.lunch_hours}h</span>
-              <span className="text-muted-foreground">lunch</span>
-            </div>
+            
+            {timeslip.custom_addons && timeslip.custom_addons.length > 0 && (
+              <div className="space-y-1">
+                {timeslip.custom_addons.map((addon, index) => (
+                  <div key={index} className="flex items-center gap-1 text-sm text-primary">
+                    <Zap className="h-4 w-4" />
+                    <span className="font-medium">{addon.hours}h</span>
+                    <span>{addon.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Pay Details */}
@@ -114,15 +126,28 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                     Route {index + 1}
                   </Button>
                 ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowMap(true)}
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  Preview Map
-                </Button>
               </div>
+            </div>
+          )}
+
+          {/* QuickBooks Bill */}
+          {(timeslip as any).quickbooks_bill_id && (
+            <div className="flex items-center gap-2 text-sm p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <span className="font-medium text-green-700 dark:text-green-300">
+                QuickBooks Bill #{(timeslip as any).quickbooks_bill_number}
+              </span>
+              {(timeslip as any).quickbooks_bill_url && (
+                <a 
+                  href={(timeslip as any).quickbooks_bill_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-auto text-green-600 dark:text-green-400 hover:underline flex items-center gap-1"
+                >
+                  View in QB
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </div>
           )}
 
@@ -136,7 +161,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
           {/* Admin Actions */}
           {isAdmin && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -168,26 +193,21 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                   </Button>
                 </>
               )}
+              {timeslip.status === 'approved' && !timeslip.quickbooks_bill_id && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onCreateBill?.(timeslip)}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Create Bill
+                </Button>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Map Preview Dialog */}
-      <Dialog open={showMap} onOpenChange={setShowMap}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Route Map - {timeslip.driver?.name} - {format(new Date(timeslip.date), 'MMM d, yyyy')}
-            </DialogTitle>
-          </DialogHeader>
-          <TimeslipMapPreview 
-            locations={timeslip.job_locations || []} 
-            height="500px"
-          />
-        </DialogContent>
-      </Dialog>
-    </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

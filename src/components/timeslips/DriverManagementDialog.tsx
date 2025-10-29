@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Driver } from '@/types/timeslip';
+import { UserProfile } from '@/types/user';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit, Save, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { driverService } from '@/services/driverService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface DriverManagementDialogProps {
@@ -26,18 +26,34 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
   onClose,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Driver>>({});
+  const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
   const queryClient = useQueryClient();
 
   const { data: drivers, isLoading } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => driverService.getAllDrivers(),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'driver')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
     enabled: isOpen,
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Driver> }) =>
-      driverService.updateDriver(id, updates),
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<UserProfile> }) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       toast.success('Driver updated successfully');
@@ -48,7 +64,7 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
     },
   });
 
-  const handleEdit = (driver: Driver) => {
+  const handleEdit = (driver: UserProfile) => {
     setEditingId(driver.id);
     setEditForm(driver);
   };
@@ -129,7 +145,7 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                           id={`hourly_rate-${driver.id}`}
                           type="number"
                           step="0.01"
-                          value={editForm.hourly_rate || 0}
+                          value={editForm.hourly_rate ?? 11}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
@@ -144,7 +160,7 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                           id={`van_allowance-${driver.id}`}
                           type="number"
                           step="0.01"
-                          value={editForm.van_allowance || 0}
+                          value={editForm.van_allowance ?? 0}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
@@ -186,11 +202,11 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                       </div>
                       <div>
                         <span className="text-muted-foreground">Hourly Rate:</span>{' '}
-                        £{driver.hourly_rate.toFixed(2)}/h
+                        £{(driver.hourly_rate ?? 11).toFixed(2)}/h
                       </div>
                       <div>
                         <span className="text-muted-foreground">Van Allowance:</span>{' '}
-                        £{driver.van_allowance.toFixed(2)}
+                        £{(driver.van_allowance ?? 0).toFixed(2)}
                       </div>
                       <div>
                         <span className="text-muted-foreground">Uses Own Van:</span>{' '}
