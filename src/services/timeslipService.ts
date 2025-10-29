@@ -92,6 +92,16 @@ export const timeslipService = {
   async approveTimeslip(id: string, adminNotes?: string) {
     const { data: { user } } = await supabase.auth.getUser();
     
+    // Get the full timeslip data first for QuickBooks bill creation
+    const { data: timeslip, error: fetchError } = await supabase
+      .from('timeslips')
+      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // Approve the timeslip
     const { data, error } = await supabase
       .from('timeslips')
       .update({
@@ -105,6 +115,37 @@ export const timeslipService = {
       .single();
     
     if (error) throw error;
+    
+    // Create QuickBooks bill (non-blocking)
+    try {
+      const billResult = await supabase.functions.invoke('create-quickbooks-bill', {
+        body: {
+          timeslipId: id,
+          driverId: timeslip.driver_id,
+          driverName: timeslip.driver?.name || 'Unknown Driver',
+          driverEmail: timeslip.driver?.email || '',
+          date: timeslip.date,
+          totalPay: timeslip.total_pay,
+          breakdown: {
+            drivingHours: timeslip.driving_hours,
+            stopHours: timeslip.stop_hours,
+            lunchHours: timeslip.lunch_hours,
+            hourlyRate: timeslip.hourly_rate,
+            vanAllowance: timeslip.van_allowance || 0,
+            customAddonHours: timeslip.custom_addon_hours || 0,
+          }
+        }
+      });
+      
+      if (billResult.error) {
+        console.error('Failed to create QuickBooks bill:', billResult.error);
+        // Don't fail the approval, just log the error
+      }
+    } catch (billError) {
+      console.error('Error creating QuickBooks bill:', billError);
+      // Continue - timeslip is still approved
+    }
+    
     return {
       ...data,
       job_locations: (data.job_locations as any as JobLocation[]) || [],

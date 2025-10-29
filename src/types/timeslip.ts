@@ -36,6 +36,12 @@ export interface Timeslip {
   approved_by: string | null;
   admin_notes: string | null;
   
+  // QuickBooks integration
+  quickbooks_bill_id?: string | null;
+  quickbooks_bill_number?: string | null;
+  quickbooks_bill_url?: string | null;
+  quickbooks_bill_created_at?: string | null;
+  
   // Joined data
   driver?: UserProfile;
 }
