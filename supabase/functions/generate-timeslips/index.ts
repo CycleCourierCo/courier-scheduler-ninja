@@ -53,6 +53,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -61,7 +63,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { date }: GenerateTimeslipsRequest = await req.json();
     
-    console.log(`Generating timeslips for date: ${date}`);
+    console.log('=== GENERATE TIMESLIPS STARTED ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Request date:', date);
+    console.log('Triggered by:', req.headers.get('user-agent') || 'unknown');
 
     // Query Shipday for completed orders on this date
     const { data: shipdayData, error: shipdayError } = await supabaseClient.functions.invoke(
@@ -72,12 +77,22 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     if (shipdayError) {
-      console.error('Error querying Shipday:', shipdayError);
+      console.error('❌ Error querying Shipday:', shipdayError);
       throw shipdayError;
     }
 
     if (!shipdayData || !shipdayData.drivers || shipdayData.drivers.length === 0) {
-      console.log('No completed orders found in Shipday for this date');
+      console.log('⚠️ No completed orders found in Shipday for this date');
+      
+      // Log the run
+      await supabaseClient.from('timeslip_generation_logs').insert({
+        run_date: date,
+        status: 'success',
+        timeslips_created: 0,
+        drivers_processed: 0,
+        execution_duration_ms: Date.now() - startTime
+      });
+      
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -92,18 +107,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Found ${shipdayData.drivers.length} drivers with completed orders`);
+    const totalOrderCount = shipdayData.drivers.reduce((sum: number, d: any) => sum + d.orders.length, 0);
+    console.log(`📊 Shipday query result: ${shipdayData.drivers.length} drivers, ${totalOrderCount} total orders`);
 
     const createdTimeslips = [];
     const warnings: string[] = [];
     const depotCoords = "52.4707965,-1.8749747"; // Depot coordinates
 
     // Process each driver's orders
-    for (const driverData of shipdayData.drivers) {
+    for (let index = 0; index < shipdayData.drivers.length; index++) {
+      const driverData = shipdayData.drivers[index];
       const driverName = driverData.driverName;
       const orders: ShipdayOrder[] = driverData.orders;
 
-      console.log(`Processing ${orders.length} orders for driver: ${driverName}`);
+      console.log(`\n[Driver ${index + 1}/${shipdayData.drivers.length}] Processing: ${driverName}`);
+      console.log(`  └─ ${orders.length} orders to process`);
 
       // Find driver ONLY by Shipday carrier ID (no name fallback)
       const carrierId = orders[0]?.carrier?.id;
@@ -111,24 +129,33 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!carrierId) {
         const warning = `No carrier ID found for driver: ${driverName}`;
-        console.warn(warning);
+        console.warn(`  ⚠️ ${warning}`);
         warnings.push(warning);
         continue;
       }
 
-      const { data: driverByShipdayId } = await supabaseClient
+      console.log(`  └─ Looking up driver by Shipday Carrier ID: ${carrierId}`);
+
+      const { data: driverByShipdayId, error: driverLookupError } = await supabaseClient
         .from('profiles')
         .select('*')
         .eq('shipday_driver_id', carrierId.toString())
         .eq('role', 'driver')
         .limit(1);
 
+      if (driverLookupError) {
+        const warning = `Database error looking up driver ${carrierId}: ${driverLookupError.message}`;
+        console.error(`  ❌ ${warning}`);
+        warnings.push(warning);
+        continue;
+      }
+
       if (driverByShipdayId && driverByShipdayId.length > 0) {
         driver = driverByShipdayId[0];
-        console.log(`Found driver by Shipday ID ${carrierId}: ${driver.name}`);
+        console.log(`  ✅ Found driver: ${driver.name} (DB ID: ${driver.id.substring(0, 8)}...)`);
       } else {
         const warning = `Driver not found in database with Shipday ID: ${carrierId} (Shipday name: ${driverName})`;
-        console.warn(warning);
+        console.warn(`  ⚠️ ${warning}`);
         warnings.push(warning);
         continue;
       }
@@ -220,86 +247,142 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
 
       if (timeslipError) {
-        console.error(`Error creating timeslip for ${driverName}:`, timeslipError);
+        const warning = `Database error creating timeslip for ${driverName}: ${timeslipError.message}`;
+        console.error(`  ❌ ${warning}`);
+        warnings.push(warning);
         continue;
       }
 
       createdTimeslips.push(timeslip);
-      console.log(`Created/updated draft timeslip for ${driverName}: ${totalStops} stops, ${stopHours}h stop time`);
+      const totalPay = timeslip.total_pay || 0;
+      console.log(`  ✅ Created/updated draft timeslip:`);
+      console.log(`     - Stops: ${totalStops}, Stop Hours: ${stopHours.toFixed(2)}h`);
+      console.log(`     - Total Pay: £${totalPay.toFixed(2)}`);
     }
 
-    // Send email notification if timeslips were created
-    if (createdTimeslips.length > 0) {
-      try {
-        const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-        
-        // Fetch driver details for the email
-        const driverDetails = await Promise.all(
-          createdTimeslips.map(async (timeslip) => {
-            const { data: driver } = await supabaseClient
-              .from('profiles')
-              .select('name')
-              .eq('id', timeslip.driver_id)
-              .single();
-            
-            return {
-              name: driver?.name || 'Unknown Driver',
-              stops: timeslip.total_stops,
-              stopHours: timeslip.stop_hours,
-              totalPay: timeslip.total_pay
-            };
-          })
-        );
-
-        // Build email content
-        const driverList = driverDetails
-          .map(d => `- ${d.name}: ${d.stops} stops, ${d.stopHours.toFixed(2)}h, £${d.totalPay.toFixed(2)}`)
-          .join('\n');
-
-        const warningSection = warnings.length > 0 
-          ? `\n\n⚠️ Warnings:\n${warnings.map(w => `- ${w}`).join('\n')}`
-          : '';
-
-        const emailHtml = `
-          <h2>Timeslips Generated for ${date}</h2>
-          <p><strong>✅ Successfully Generated: ${createdTimeslips.length} timeslip${createdTimeslips.length !== 1 ? 's' : ''}</strong></p>
+    // Send email notification
+    console.log('\n📧 Sending email notification...');
+    const executionTime = Date.now() - startTime;
+    const status = createdTimeslips.length > 0 ? (warnings.length > 0 ? 'partial' : 'success') : 'failed';
+    
+    try {
+      const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+      
+      // Fetch driver details for the email
+      const driverDetails = createdTimeslips.length > 0 ? await Promise.all(
+        createdTimeslips.map(async (timeslip) => {
+          const { data: driver } = await supabaseClient
+            .from('profiles')
+            .select('name')
+            .eq('id', timeslip.driver_id)
+            .single();
           
-          <h3>Driver Details:</h3>
+          return {
+            name: driver?.name || 'Unknown Driver',
+            stops: timeslip.total_stops,
+            stopHours: timeslip.stop_hours,
+            totalPay: timeslip.total_pay
+          };
+        })
+      ) : [];
+
+      // Determine email subject based on outcome
+      let subject = '';
+      if (createdTimeslips.length === 0 && shipdayData.drivers.length > 0) {
+        subject = `❌ Timeslip Generation Failed - ${date}`;
+      } else if (warnings.length > 0) {
+        subject = `⚠️ Timeslips Generated - ${date} (${createdTimeslips.length} created, ${warnings.length} warnings)`;
+      } else {
+        subject = `✅ Timeslips Generated - ${date} (${createdTimeslips.length} timeslips)`;
+      }
+
+      const emailHtml = `
+        <h2>Timeslip Generation Report - ${date}</h2>
+        <p><strong>Execution Time:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Duration:</strong> ${(executionTime / 1000).toFixed(2)}s</p>
+        <p><strong>Status:</strong> ${status.toUpperCase()}</p>
+        
+        <hr />
+        
+        <h3>📊 Summary:</h3>
+        <ul>
+          <li><strong>Drivers with orders:</strong> ${shipdayData.drivers.length}</li>
+          <li><strong>Total orders processed:</strong> ${totalOrderCount}</li>
+          <li><strong>Timeslips created:</strong> ${createdTimeslips.length}</li>
+        </ul>
+        
+        ${createdTimeslips.length > 0 ? `
+          <h3>✅ Created Timeslips:</h3>
           <ul>
             ${driverDetails.map(d => `<li><strong>${d.name}:</strong> ${d.stops} stops, ${d.stopHours.toFixed(2)}h, £${d.totalPay.toFixed(2)}</li>`).join('\n')}
           </ul>
-          
-          ${warnings.length > 0 ? `
-            <h3>⚠️ Warnings:</h3>
-            <ul>
-              ${warnings.map(w => `<li>${w}</li>`).join('\n')}
-            </ul>
-          ` : ''}
-          
-          <p>View all timeslips in your dashboard at: <a href="https://your-domain.com/driver-timeslips">Driver Timeslips</a></p>
-        `;
+        ` : ''}
+        
+        ${warnings.length > 0 ? `
+          <h3>⚠️ Warnings (${warnings.length}):</h3>
+          <ul>
+            ${warnings.map(w => `<li>${w}</li>`).join('\n')}
+          </ul>
+        ` : ''}
+        
+        ${createdTimeslips.length === 0 && shipdayData.drivers.length > 0 ? `
+          <h3>🚨 Alert: No Timeslips Created</h3>
+          <p>The system found ${shipdayData.drivers.length} drivers with orders, but created 0 timeslips.</p>
+          <p><strong>Possible Issues:</strong></p>
+          <ul>
+            <li>Driver Shipday IDs don't match database profiles</li>
+            <li>Database connection issues</li>
+            <li>Data validation failures</li>
+          </ul>
+          <p>Please check the <a href="https://supabase.com/dashboard/project/axigtrmaxhetyfzjjdve/functions/generate-timeslips/logs">edge function logs</a> for details.</p>
+        ` : ''}
+        
+        <hr />
+        <p><small>View all timeslips in your <a href="https://cyclecourier.lovable.app/driver-timeslips">dashboard</a></small></p>
+      `;
 
-        await resend.emails.send({
-          from: 'Cycle Courier <onboarding@resend.dev>',
-          to: ['info@cyclecourierco.com'],
-          subject: `Timeslips Generated - ${date}`,
-          html: emailHtml,
-        });
+      await resend.emails.send({
+        from: 'Cycle Courier <onboarding@resend.dev>',
+        to: ['info@cyclecourierco.com'],
+        subject: subject,
+        html: emailHtml,
+      });
 
-        console.log('Email notification sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send email notification:', emailError);
-        // Don't fail the whole request if email fails
-      }
+      console.log('  ✅ Email notification sent to info@cyclecourierco.com');
+    } catch (emailError: any) {
+      console.error('  ❌ Failed to send email notification:', emailError.message);
+      warnings.push(`Email notification failed: ${emailError.message}`);
+    }
+    
+    // Log the run to database
+    console.log('\n💾 Logging run to database...');
+    try {
+      await supabaseClient.from('timeslip_generation_logs').insert({
+        run_date: date,
+        status: status,
+        timeslips_created: createdTimeslips.length,
+        drivers_processed: shipdayData.drivers.length,
+        warnings: warnings.length > 0 ? warnings : null,
+        execution_duration_ms: executionTime
+      });
+      console.log('  ✅ Run logged successfully');
+    } catch (logError: any) {
+      console.error('  ⚠️ Failed to log run:', logError.message);
     }
 
+    console.log('\n=== GENERATE TIMESLIPS COMPLETED ===');
+    console.log(`✅ Created: ${createdTimeslips.length} timeslips`);
+    console.log(`⚠️  Warnings: ${warnings.length}`);
+    console.log(`⏱️  Execution time: ${executionTime}ms`);
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: `Generated ${createdTimeslips.length} draft timeslip${createdTimeslips.length !== 1 ? 's' : ''}`,
         count: createdTimeslips.length,
         timeslips: createdTimeslips,
-        warnings: warnings
+        warnings: warnings,
+        executionTime: executionTime
       }),
       { 
         status: 200, 
@@ -308,11 +391,36 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error('Error generating timeslips:', error);
+    const executionTime = Date.now() - startTime;
+    console.error('\n=== GENERATE TIMESLIPS FAILED ===');
+    console.error('❌ Error:', error.message);
+    console.error('⏱️  Execution time:', executionTime, 'ms');
+    console.error('Stack:', error.stack);
+    
+    // Try to log the failure
+    try {
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      await supabaseClient.from('timeslip_generation_logs').insert({
+        run_date: new Date().toISOString().split('T')[0],
+        status: 'failed',
+        timeslips_created: 0,
+        drivers_processed: 0,
+        error_message: error.message,
+        execution_duration_ms: executionTime
+      });
+    } catch (logError) {
+      console.error('Failed to log error to database:', logError);
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Failed to generate timeslips',
-        details: error 
+        details: error.stack,
+        executionTime: executionTime
       }),
       { 
         status: 500, 
