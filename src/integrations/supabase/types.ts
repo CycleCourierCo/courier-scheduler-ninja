@@ -536,6 +536,42 @@ export type Database = {
         }
         Relationships: []
       }
+      timeslip_generation_logs: {
+        Row: {
+          drivers_processed: number | null
+          error_message: string | null
+          execution_duration_ms: number | null
+          execution_time: string | null
+          id: string
+          run_date: string
+          status: string
+          timeslips_created: number | null
+          warnings: string[] | null
+        }
+        Insert: {
+          drivers_processed?: number | null
+          error_message?: string | null
+          execution_duration_ms?: number | null
+          execution_time?: string | null
+          id?: string
+          run_date: string
+          status: string
+          timeslips_created?: number | null
+          warnings?: string[] | null
+        }
+        Update: {
+          drivers_processed?: number | null
+          error_message?: string | null
+          execution_duration_ms?: number | null
+          execution_time?: string | null
+          id?: string
+          run_date?: string
+          status?: string
+          timeslips_created?: number | null
+          warnings?: string[] | null
+        }
+        Relationships: []
+      }
       timeslips: {
         Row: {
           admin_notes: string | null
