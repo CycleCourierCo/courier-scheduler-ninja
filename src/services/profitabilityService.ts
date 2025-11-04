@@ -31,13 +31,47 @@ export const updateTimeslipMileage = async (id: string, mileage: number): Promis
   if (error) throw error;
 };
 
+// Calculate total jobs from order IDs (for historic timeslips without total_jobs)
+export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<number> => {
+  if (orderIds.length === 0) return 0;
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('bike_quantity')
+    .in('id', orderIds);
+
+  if (error || !data) {
+    console.error('Error fetching orders for job calculation:', error);
+    return 0;
+  }
+
+  return data.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+};
+
+// Get total jobs for a timeslip (hybrid: uses total_jobs if available, else calculates)
+export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
+  // Use total_jobs if available (new timeslips)
+  if (timeslip.total_jobs !== null && timeslip.total_jobs !== undefined) {
+    return timeslip.total_jobs;
+  }
+
+  // Fallback: Calculate from job_locations (historic timeslips)
+  const orderIds = (timeslip.job_locations || [])
+    .map(loc => loc.order_id)
+    .filter((id): id is string => !!id);
+
+  const uniqueOrderIds = [...new Set(orderIds)];
+  return await calculateTotalJobsFromOrders(uniqueOrderIds);
+};
+
 export const calculateProfitability = (
+  totalJobs: number,
   timeslip: Timeslip,
   revenuePerStop: number,
   costPerMile: number
 ): ProfitabilityMetrics => {
-  // Calculate revenue based on stops
-  const revenue = timeslip.total_stops * revenuePerStop;
+  // Calculate revenue based on total jobs (bikes)
+  const revenue = totalJobs * revenuePerStop;
 
   // Calculate custom addon costs
   const customAddonCosts = (timeslip.custom_addons || []).reduce((sum, addon) => {
@@ -61,7 +95,7 @@ export const calculateProfitability = (
   };
 };
 
-export const aggregateProfitability = (
+export const aggregateProfitability = async (
   timeslips: Timeslip[],
   revenuePerStop: number,
   costPerMile: number
@@ -70,12 +104,13 @@ export const aggregateProfitability = (
   let totalCosts = 0;
   let totalProfit = 0;
 
-  timeslips.forEach(timeslip => {
-    const metrics = calculateProfitability(timeslip, revenuePerStop, costPerMile);
+  for (const timeslip of timeslips) {
+    const totalJobs = await getTotalJobs(timeslip);
+    const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
     totalRevenue += metrics.revenue;
     totalCosts += metrics.totalCosts;
     totalProfit += metrics.profit;
-  });
+  }
 
   return {
     totalRevenue,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Calendar, TrendingUp } from "lucide-react";
@@ -17,8 +17,10 @@ import {
   getTimeslipsForDate, 
   updateTimeslipMileage, 
   calculateProfitability,
-  aggregateProfitability 
+  aggregateProfitability,
+  getTotalJobs
 } from "@/services/profitabilityService";
+import { Timeslip } from "@/types/timeslip";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -53,7 +55,11 @@ const RouteProfitabilityPage = () => {
     }
   };
 
-  const aggregated = aggregateProfitability(timeslips, revenuePerStop, costPerMile);
+  const { data: aggregated } = useQuery({
+    queryKey: ['profitability-summary', timeslips, revenuePerStop, costPerMile],
+    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile),
+    enabled: timeslips.length > 0,
+  });
 
   return (
     <Layout>
@@ -99,7 +105,7 @@ const RouteProfitabilityPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="revenue">Revenue per Stop (£)</Label>
+              <Label htmlFor="revenue">Revenue per Job (£)</Label>
               <Input
                 id="revenue"
                 type="number"
@@ -132,7 +138,7 @@ const RouteProfitabilityPage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                £{aggregated.totalRevenue.toFixed(2)}
+                £{aggregated?.totalRevenue.toFixed(2) || '0.00'}
               </div>
             </CardContent>
           </Card>
@@ -143,7 +149,7 @@ const RouteProfitabilityPage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                £{aggregated.totalCosts.toFixed(2)}
+                £{aggregated?.totalCosts.toFixed(2) || '0.00'}
               </div>
             </CardContent>
           </Card>
@@ -155,9 +161,9 @@ const RouteProfitabilityPage = () => {
             <CardContent>
               <div className={cn(
                 "text-2xl font-bold",
-                aggregated.totalProfit >= 0 ? "text-green-600" : "text-red-600"
+                (aggregated?.totalProfit || 0) >= 0 ? "text-green-600" : "text-red-600"
               )}>
-                £{aggregated.totalProfit.toFixed(2)}
+                £{aggregated?.totalProfit.toFixed(2) || '0.00'}
               </div>
             </CardContent>
           </Card>
@@ -167,7 +173,7 @@ const RouteProfitabilityPage = () => {
               <CardTitle className="text-sm font-medium text-muted-foreground">Drivers</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{aggregated.driverCount}</div>
+              <div className="text-2xl font-bold">{aggregated?.driverCount || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -193,6 +199,7 @@ const RouteProfitabilityPage = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Driver</TableHead>
+                      <TableHead className="text-right">Total Jobs</TableHead>
                       <TableHead className="text-right">Stops</TableHead>
                       <TableHead className="text-right">Mileage</TableHead>
                       <TableHead className="text-right">Driver Pay</TableHead>
@@ -203,46 +210,15 @@ const RouteProfitabilityPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {timeslips.map((timeslip) => {
-                      const metrics = calculateProfitability(timeslip, revenuePerStop, costPerMile);
-                      return (
-                        <TableRow key={timeslip.id}>
-                          <TableCell className="font-medium">
-                            {timeslip.driver?.name || 'Unknown Driver'}
-                          </TableCell>
-                          <TableCell className="text-right">{timeslip.total_stops}</TableCell>
-                          <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              placeholder="Enter miles"
-                              value={timeslip.mileage || ''}
-                              onChange={(e) => handleMileageChange(timeslip.id, e.target.value)}
-                              className="w-24 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            £{(timeslip.total_pay || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            £{metrics.customAddonCosts.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right text-green-600 font-medium">
-                            £{metrics.revenue.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right text-orange-600">
-                            £{metrics.totalCosts.toFixed(2)}
-                          </TableCell>
-                          <TableCell className={cn(
-                            "text-right font-bold",
-                            metrics.profit >= 0 ? "text-green-600" : "text-red-600"
-                          )}>
-                            £{metrics.profit.toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {timeslips.map((timeslip) => (
+                      <TimeslipRow 
+                        key={timeslip.id} 
+                        timeslip={timeslip} 
+                        revenuePerStop={revenuePerStop}
+                        costPerMile={costPerMile}
+                        onMileageChange={handleMileageChange}
+                      />
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -251,6 +227,80 @@ const RouteProfitabilityPage = () => {
         </Card>
       </div>
     </Layout>
+  );
+};
+
+const TimeslipRow = ({ 
+  timeslip, 
+  revenuePerStop, 
+  costPerMile, 
+  onMileageChange 
+}: { 
+  timeslip: Timeslip; 
+  revenuePerStop: number;
+  costPerMile: number;
+  onMileageChange: (id: string, value: string) => void;
+}) => {
+  const [totalJobs, setTotalJobs] = useState<number>(0);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+
+  useEffect(() => {
+    getTotalJobs(timeslip).then((jobs) => {
+      setTotalJobs(jobs);
+      setIsLoadingJobs(false);
+    });
+  }, [timeslip]);
+
+  const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        {timeslip.driver?.name || 'Unknown Driver'}
+      </TableCell>
+      <TableCell className="text-right">
+        {isLoadingJobs ? (
+          <span className="text-muted-foreground">...</span>
+        ) : (
+          <div className="flex items-center justify-end gap-2">
+            <span className="font-semibold">{totalJobs}</span>
+            {timeslip.total_jobs === null && (
+              <span className="text-xs text-muted-foreground">(calc)</span>
+            )}
+          </div>
+        )}
+      </TableCell>
+      <TableCell className="text-right">{timeslip.total_stops}</TableCell>
+      <TableCell className="text-right">
+        <Input
+          type="number"
+          step="0.1"
+          min="0"
+          placeholder="Enter miles"
+          value={timeslip.mileage || ''}
+          onChange={(e) => onMileageChange(timeslip.id, e.target.value)}
+          className="w-24 text-right"
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        £{(timeslip.total_pay || 0).toFixed(2)}
+      </TableCell>
+      <TableCell className="text-right">
+        £{metrics.customAddonCosts.toFixed(2)}
+      </TableCell>
+      <TableCell className="text-right text-green-600 font-medium">
+        £{metrics.revenue.toFixed(2)}
+      </TableCell>
+      <TableCell className="text-right text-orange-600">
+        £{metrics.totalCosts.toFixed(2)}
+      </TableCell>
+      <TableCell className={cn(
+        "text-right font-bold",
+        metrics.profit >= 0 ? "text-green-600" : "text-red-600"
+      )}>
+        £{metrics.profit.toFixed(2)}
+      </TableCell>
+    </TableRow>
   );
 };
 

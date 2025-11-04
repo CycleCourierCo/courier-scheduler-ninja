@@ -596,6 +596,7 @@ export type Database = {
           status: string
           stop_hours: number
           total_hours: number | null
+          total_jobs: number | null
           total_pay: number | null
           total_stops: number
           updated_at: string | null
@@ -624,6 +625,7 @@ export type Database = {
           status: string
           stop_hours?: number
           total_hours?: number | null
+          total_jobs?: number | null
           total_pay?: number | null
           total_stops?: number
           updated_at?: string | null
@@ -652,6 +654,7 @@ export type Database = {
           status?: string
           stop_hours?: number
           total_hours?: number | null
+          total_jobs?: number | null
           total_pay?: number | null
           total_stops?: number
           updated_at?: string | null
