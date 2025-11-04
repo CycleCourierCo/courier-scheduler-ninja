@@ -53,6 +53,8 @@ export const calculateTotalJobsFromDriverDate = async (
   shipdayDriverName: string,
   date: string
 ): Promise<number> => {
+  console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, date });
+  
   // First filter by date, then filter by driver in JavaScript for correct AND logic
   const { data, error } = await supabase
     .from('orders')
@@ -60,15 +62,26 @@ export const calculateTotalJobsFromDriverDate = async (
     .or(`scheduled_pickup_date::date.eq.${date},scheduled_delivery_date::date.eq.${date}`);
 
   if (error || !data) {
-    console.error('Error fetching orders for driver/date:', error);
+    console.error('❌ Error fetching orders for driver/date:', error);
     return 0;
   }
+
+  console.log('📦 Raw orders from Supabase:', data.length);
 
   // Filter by driver name in JavaScript to ensure AND logic
   const filteredData = data.filter(order => 
     order.collection_driver_name === shipdayDriverName || 
     order.delivery_driver_name === shipdayDriverName
   );
+
+  console.log('🔎 Filtered orders matching driver:', {
+    filtered_count: filteredData.length,
+    driver_searched: shipdayDriverName,
+    sample_driver_names: data.slice(0, 3).map(o => ({ 
+      collection: o.collection_driver_name, 
+      delivery: o.delivery_driver_name 
+    }))
+  });
 
   // Get unique order IDs (avoid double-counting if driver does both pickup and delivery)
   const uniqueOrderIds = new Set(filteredData.map(order => order.id));
@@ -78,26 +91,55 @@ export const calculateTotalJobsFromDriverDate = async (
     filteredData.find(order => order.id === id)!
   );
   
-  return uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+  const totalJobs = uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+  
+  console.log('✅ Total jobs calculated:', {
+    unique_orders: uniqueOrders.length,
+    total_jobs: totalJobs,
+    bike_quantities: uniqueOrders.map(o => o.bike_quantity)
+  });
+  
+  return totalJobs;
 };
 
 // Get total jobs for a timeslip (hybrid: uses total_jobs if available, else calculates)
 export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
+  console.log('🔍 getTotalJobs called for timeslip:', {
+    id: timeslip.id,
+    date: timeslip.date,
+    total_jobs: timeslip.total_jobs,
+    driver_name: timeslip.driver?.shipday_driver_name,
+    has_driver_object: !!timeslip.driver
+  });
+
   // Use total_jobs if available (new timeslips)
   if (timeslip.total_jobs !== null && timeslip.total_jobs !== undefined) {
+    console.log('✅ Using total_jobs from database:', timeslip.total_jobs);
     return timeslip.total_jobs;
   }
 
   // Try driver name + date matching first (for historic timeslips)
   if (timeslip.driver?.shipday_driver_name && timeslip.date) {
+    console.log('🔄 Calculating from driver name + date:', {
+      driver: timeslip.driver.shipday_driver_name,
+      date: timeslip.date
+    });
+    
     const jobsFromOrders = await calculateTotalJobsFromDriverDate(
       timeslip.driver.shipday_driver_name,
       timeslip.date
     );
     
+    console.log('📊 Jobs calculated from driver/date:', jobsFromOrders);
+    
     if (jobsFromOrders > 0) {
       return jobsFromOrders;
     }
+  } else {
+    console.log('⚠️ Missing driver name or date:', {
+      has_driver_name: !!timeslip.driver?.shipday_driver_name,
+      has_date: !!timeslip.date
+    });
   }
 
   // Fallback: Calculate from job_locations if order_ids exist
@@ -105,11 +147,18 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
     .map(loc => loc.order_id)
     .filter((id): id is string => !!id);
 
+  console.log('📍 Trying job_locations fallback:', {
+    orderIds_count: orderIds.length
+  });
+
   if (orderIds.length > 0) {
     const uniqueOrderIds = [...new Set(orderIds)];
-    return await calculateTotalJobsFromOrders(uniqueOrderIds);
+    const result = await calculateTotalJobsFromOrders(uniqueOrderIds);
+    console.log('📦 Jobs from order IDs:', result);
+    return result;
   }
 
+  console.log('❌ No jobs found, returning 0');
   return 0;
 };
 
