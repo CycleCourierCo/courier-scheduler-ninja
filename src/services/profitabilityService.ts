@@ -53,10 +53,10 @@ export const calculateTotalJobsFromDriverDate = async (
   shipdayDriverName: string,
   date: string
 ): Promise<number> => {
+  // First filter by date, then filter by driver in JavaScript for correct AND logic
   const { data, error } = await supabase
     .from('orders')
     .select('id, bike_quantity, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date')
-    .or(`collection_driver_name.eq.${shipdayDriverName},delivery_driver_name.eq.${shipdayDriverName}`)
     .or(`scheduled_pickup_date::date.eq.${date},scheduled_delivery_date::date.eq.${date}`);
 
   if (error || !data) {
@@ -64,12 +64,18 @@ export const calculateTotalJobsFromDriverDate = async (
     return 0;
   }
 
+  // Filter by driver name in JavaScript to ensure AND logic
+  const filteredData = data.filter(order => 
+    order.collection_driver_name === shipdayDriverName || 
+    order.delivery_driver_name === shipdayDriverName
+  );
+
   // Get unique order IDs (avoid double-counting if driver does both pickup and delivery)
-  const uniqueOrderIds = new Set(data.map(order => order.id));
+  const uniqueOrderIds = new Set(filteredData.map(order => order.id));
   
   // Sum bike_quantity for unique orders
   const uniqueOrders = Array.from(uniqueOrderIds).map(id => 
-    data.find(order => order.id === id)!
+    filteredData.find(order => order.id === id)!
   );
   
   return uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
