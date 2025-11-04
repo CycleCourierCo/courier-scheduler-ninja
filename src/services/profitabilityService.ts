@@ -48,6 +48,33 @@ export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<
   return data.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
 };
 
+// Calculate total jobs by matching driver name + date in orders table (for historic timeslips)
+export const calculateTotalJobsFromDriverDate = async (
+  shipdayDriverName: string,
+  date: string
+): Promise<number> => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, bike_quantity, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date')
+    .or(`collection_driver_name.eq.${shipdayDriverName},delivery_driver_name.eq.${shipdayDriverName}`)
+    .or(`scheduled_pickup_date::date.eq.${date},scheduled_delivery_date::date.eq.${date}`);
+
+  if (error || !data) {
+    console.error('Error fetching orders for driver/date:', error);
+    return 0;
+  }
+
+  // Get unique order IDs (avoid double-counting if driver does both pickup and delivery)
+  const uniqueOrderIds = new Set(data.map(order => order.id));
+  
+  // Sum bike_quantity for unique orders
+  const uniqueOrders = Array.from(uniqueOrderIds).map(id => 
+    data.find(order => order.id === id)!
+  );
+  
+  return uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+};
+
 // Get total jobs for a timeslip (hybrid: uses total_jobs if available, else calculates)
 export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
   // Use total_jobs if available (new timeslips)
@@ -55,13 +82,29 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
     return timeslip.total_jobs;
   }
 
-  // Fallback: Calculate from job_locations (historic timeslips)
+  // Try driver name + date matching first (for historic timeslips)
+  if (timeslip.driver?.shipday_driver_name && timeslip.date) {
+    const jobsFromOrders = await calculateTotalJobsFromDriverDate(
+      timeslip.driver.shipday_driver_name,
+      timeslip.date
+    );
+    
+    if (jobsFromOrders > 0) {
+      return jobsFromOrders;
+    }
+  }
+
+  // Fallback: Calculate from job_locations if order_ids exist
   const orderIds = (timeslip.job_locations || [])
     .map(loc => loc.order_id)
     .filter((id): id is string => !!id);
 
-  const uniqueOrderIds = [...new Set(orderIds)];
-  return await calculateTotalJobsFromOrders(uniqueOrderIds);
+  if (orderIds.length > 0) {
+    const uniqueOrderIds = [...new Set(orderIds)];
+    return await calculateTotalJobsFromOrders(uniqueOrderIds);
+  }
+
+  return 0;
 };
 
 export const calculateProfitability = (

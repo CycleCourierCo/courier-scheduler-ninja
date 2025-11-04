@@ -397,6 +397,7 @@ export type Database = {
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
+          shipday_driver_name: string | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
@@ -428,6 +429,7 @@ export type Database = {
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
+          shipday_driver_name?: string | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -459,6 +461,7 @@ export type Database = {
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
+          shipday_driver_name?: string | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -735,6 +738,7 @@ export type Database = {
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
+          shipday_driver_name: string | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
