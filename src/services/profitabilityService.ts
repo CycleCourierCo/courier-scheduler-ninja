@@ -55,11 +55,10 @@ export const calculateTotalJobsFromDriverDate = async (
 ): Promise<number> => {
   console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, date });
   
-  // First filter by date, then filter by driver in JavaScript for correct AND logic
+  // Fetch all orders and filter in JavaScript
   const { data, error } = await supabase
     .from('orders')
-    .select('id, bike_quantity, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date')
-    .or(`scheduled_pickup_date::date.eq.${date},scheduled_delivery_date::date.eq.${date}`);
+    .select('id, bike_quantity, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
 
   if (error || !data) {
     console.error('❌ Error fetching orders for driver/date:', error);
@@ -68,8 +67,17 @@ export const calculateTotalJobsFromDriverDate = async (
 
   console.log('📦 Raw orders from Supabase:', data.length);
 
+  // Filter by date in JavaScript (extract date part from timestamp)
+  const dateFilteredData = data.filter(order => {
+    const pickupDate = order.scheduled_pickup_date?.split('T')[0];
+    const deliveryDate = order.scheduled_delivery_date?.split('T')[0];
+    return pickupDate === date || deliveryDate === date;
+  });
+
+  console.log('📅 Orders matching date:', dateFilteredData.length);
+
   // Filter by driver name in JavaScript to ensure AND logic
-  const filteredData = data.filter(order => 
+  const filteredData = dateFilteredData.filter(order => 
     order.collection_driver_name === shipdayDriverName || 
     order.delivery_driver_name === shipdayDriverName
   );
