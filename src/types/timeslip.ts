@@ -42,6 +42,9 @@ export interface Timeslip {
   quickbooks_bill_url?: string | null;
   quickbooks_bill_created_at?: string | null;
   
+  // Route profitability
+  mileage?: number | null;
+  
   // Joined data
   driver?: UserProfile;
 }

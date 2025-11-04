@@ -31,6 +31,7 @@ import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
 import UserManagement from "./pages/UserManagement";
 import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
 import DriverTimeslips from "./pages/DriverTimeslips";
+import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
 
 const queryClient = new QueryClient();
 
@@ -119,6 +120,11 @@ function App() {
             <Route path="/driver-timeslips" element={
               <ProtectedRoute>
                 <DriverTimeslips />
+              </ProtectedRoute>
+            } />
+            <Route path="/route-profitability" element={
+              <ProtectedRoute adminOnly={true}>
+                <RouteProfitabilityPage />
               </ProtectedRoute>
             } />
             <Route path="/tracking" element={<TrackingPage />} />

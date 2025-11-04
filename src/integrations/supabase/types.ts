@@ -587,6 +587,7 @@ export type Database = {
           id: string
           job_locations: Json | null
           lunch_hours: number
+          mileage: number | null
           quickbooks_bill_created_at: string | null
           quickbooks_bill_id: string | null
           quickbooks_bill_number: string | null
@@ -614,6 +615,7 @@ export type Database = {
           id?: string
           job_locations?: Json | null
           lunch_hours?: number
+          mileage?: number | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
@@ -641,6 +643,7 @@ export type Database = {
           id?: string
           job_locations?: Json | null
           lunch_hours?: number
+          mileage?: number | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
