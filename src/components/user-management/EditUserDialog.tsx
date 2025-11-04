@@ -44,6 +44,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         is_active: user.is_active,
         available_hours: user.available_hours,
         shipday_driver_id: user.shipday_driver_id,
+        shipday_driver_name: user.shipday_driver_name,
       });
     }
   }, [user]);
@@ -237,6 +238,15 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     id="edit-shipday-id"
                     value={formData.shipday_driver_id || ''}
                     onChange={(e) => setFormData({ ...formData, shipday_driver_id: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-shipday-name">Shipday Driver Name</Label>
+                  <Input
+                    id="edit-shipday-name"
+                    placeholder="e.g., Hass, Maj, Sal"
+                    value={formData.shipday_driver_name || ''}
+                    onChange={(e) => setFormData({ ...formData, shipday_driver_name: e.target.value })}
                   />
                 </div>
                 <div className="flex items-center space-x-2">
