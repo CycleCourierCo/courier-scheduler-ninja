@@ -166,9 +166,9 @@ const handler = async (req: Request): Promise<Response> => {
       const orderIdsForJobs: string[] = [];
       
       orders.forEach(order => {
-        // Track order ID for job calculation (we'll query bike_quantity later)
-        if (order.orderNumber) {
-          orderIdsForJobs.push(order.orderNumber);
+        // Track order ID for job calculation (use orderId which matches shipday_pickup_id/delivery_id)
+        if (order.orderId) {
+          orderIdsForJobs.push(order.orderId.toString());
         }
         
         // Add pickup stop
