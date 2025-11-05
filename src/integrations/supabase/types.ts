@@ -397,6 +397,7 @@ export type Database = {
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
+          shipday_driver_name: string | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
@@ -428,6 +429,7 @@ export type Database = {
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
+          shipday_driver_name?: string | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -459,6 +461,7 @@ export type Database = {
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
+          shipday_driver_name?: string | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -587,6 +590,7 @@ export type Database = {
           id: string
           job_locations: Json | null
           lunch_hours: number
+          mileage: number | null
           quickbooks_bill_created_at: string | null
           quickbooks_bill_id: string | null
           quickbooks_bill_number: string | null
@@ -595,6 +599,7 @@ export type Database = {
           status: string
           stop_hours: number
           total_hours: number | null
+          total_jobs: number | null
           total_pay: number | null
           total_stops: number
           updated_at: string | null
@@ -614,6 +619,7 @@ export type Database = {
           id?: string
           job_locations?: Json | null
           lunch_hours?: number
+          mileage?: number | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
@@ -622,6 +628,7 @@ export type Database = {
           status: string
           stop_hours?: number
           total_hours?: number | null
+          total_jobs?: number | null
           total_pay?: number | null
           total_stops?: number
           updated_at?: string | null
@@ -641,6 +648,7 @@ export type Database = {
           id?: string
           job_locations?: Json | null
           lunch_hours?: number
+          mileage?: number | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
@@ -649,6 +657,7 @@ export type Database = {
           status?: string
           stop_hours?: number
           total_hours?: number | null
+          total_jobs?: number | null
           total_pay?: number | null
           total_stops?: number
           updated_at?: string | null
@@ -729,6 +738,7 @@ export type Database = {
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
+          shipday_driver_name: string | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null

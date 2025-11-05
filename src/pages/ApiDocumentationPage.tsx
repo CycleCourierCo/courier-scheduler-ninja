@@ -9,8 +9,8 @@ const ApiDocumentationPage = () => {
   return <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">API Documentation</h1>
-          <p className="text-muted-foreground text-lg">
+          <h1 className="text-2xl md:text-4xl font-bold text-primary mb-2">API Documentation</h1>
+          <p className="text-muted-foreground text-base md:text-lg">
             Integrate with Cycle Courier's REST API to create and manage orders programmatically.
           </p>
         </div>
@@ -27,7 +27,7 @@ const ApiDocumentationPage = () => {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-semibold mb-2">Base URL</h3>
-                <code className="bg-muted px-3 py-1 rounded text-sm">
+                <code className="bg-muted px-3 py-1 rounded text-sm break-all">
                   https://api.cyclecourierco.com/functions/v1
                 </code>
               </div>
@@ -36,7 +36,7 @@ const ApiDocumentationPage = () => {
                 <p className="text-sm text-muted-foreground mb-2">
                   All requests require an API key in the headers:
                 </p>
-                <code className="bg-muted px-3 py-1 rounded text-sm block">
+                <code className="bg-muted px-3 py-1 rounded text-sm block break-all">
                   X-API-Key: your_api_key_here
                 </code>
               </div>
@@ -63,7 +63,7 @@ const ApiDocumentationPage = () => {
 
         {/* Orders API */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Orders API</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Orders API</h2>
           
           <Card className="mb-6">
             <CardHeader>
@@ -84,7 +84,7 @@ const ApiDocumentationPage = () => {
                 
                 <div>
                   <h4 className="font-semibold mb-2">Required Headers</h4>
-                  <pre className="bg-muted p-3 rounded text-sm">
+                  <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words">
                   {`X-API-Key: your_api_key_here
 Content-Type: application/json
 Idempotency-Key: unique_request_id (optional)`}
@@ -93,7 +93,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Request Body</h4>
-                  <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "sender": {
     "name": "John Smith",
@@ -154,7 +154,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Success Response (201 Created)</h4>
-                  <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "id": "ord_1234567890",
   "trackingNumber": "CC-TR-ABC123",
@@ -219,7 +219,7 @@ Idempotency-Key: unique_request_id (optional)`}
                 
                 <div>
                   <h4 className="font-semibold mb-2">Example Response</h4>
-                  <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "id": "ord_1234567890",
   "trackingNumber": "CC-TR-ABC123",
@@ -255,7 +255,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Order Statuses */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Order Statuses</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Order Statuses</h2>
           
           <Card>
             <CardContent className="pt-6">
@@ -289,7 +289,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Error Responses */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Error Responses</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Error Responses</h2>
           
           <div className="grid gap-4">
             <Card>
@@ -298,7 +298,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div>
                     <Badge variant="destructive">400</Badge>
                     <span className="ml-2 font-semibold">Bad Request</span>
-                    <pre className="bg-muted p-3 rounded text-xs mt-2">
+                    <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed mt-2">
                     {`{
   "error": "validation_error",
   "message": "Invalid request data",
@@ -315,7 +315,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div>
                     <Badge variant="destructive">401</Badge>
                     <span className="ml-2 font-semibold">Unauthorized</span>
-                    <pre className="bg-muted p-3 rounded text-xs mt-2">
+                    <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed mt-2">
                     {`{
   "error": "unauthorized",
   "message": "Invalid or missing API key"
@@ -326,7 +326,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div>
                     <Badge variant="destructive">429</Badge>
                     <span className="ml-2 font-semibold">Rate Limited</span>
-                    <pre className="bg-muted p-3 rounded text-xs mt-2">
+                    <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed mt-2">
                     {`{
   "error": "rate_limit_exceeded", 
   "message": "Too many requests",
@@ -344,7 +344,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Webhooks */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold mb-6 flex items-center gap-2">
             <Bell className="h-6 w-6" />
             Webhooks
           </h2>
@@ -374,7 +374,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Webhook Payload Example</h4>
-                  <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "event": "order.status.updated",
   "timestamp": "2024-01-15T14:30:00.000Z",
@@ -396,7 +396,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <p className="text-sm text-muted-foreground mb-2">
                     All webhooks include an HMAC SHA-256 signature in the <code>X-Webhook-Signature</code> header for verification.
                   </p>
-                  <pre className="bg-muted p-3 rounded text-xs">
+                  <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`const crypto = require('crypto');
 
 function verifyWebhook(payload, signature, secret) {
@@ -426,7 +426,7 @@ function verifyWebhook(payload, signature, secret) {
 
         {/* API Key Management */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold mb-6 flex items-center gap-2">
             <Key className="h-6 w-6" />
             API Key Management
           </h2>
@@ -483,7 +483,7 @@ function verifyWebhook(payload, signature, secret) {
 
         {/* Code Examples */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Code Examples</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Code Examples</h2>
           
           <div className="grid gap-6">
             <Card>
@@ -491,7 +491,7 @@ function verifyWebhook(payload, signature, secret) {
                 <CardTitle>cURL</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                 {`curl -X POST https://api.cyclecourierco.com/functions/v1/orders \\
   -H "X-API-Key: your_api_key_here" \\
   -H "Content-Type: application/json" \\
@@ -535,7 +535,7 @@ function verifyWebhook(payload, signature, secret) {
                 <CardTitle>JavaScript (Node.js)</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                 {`const axios = require('axios');
 
 async function createOrder(orderData) {
@@ -568,7 +568,7 @@ async function createOrder(orderData) {
                 <CardTitle>Python</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+                <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                 {`import requests
 import time
 

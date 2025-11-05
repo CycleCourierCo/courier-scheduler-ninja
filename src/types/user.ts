@@ -27,4 +27,5 @@ export interface UserProfile {
   is_active: boolean | null;
   available_hours: number | null;
   shipday_driver_id: string | null;
+  shipday_driver_name: string | null;
 }

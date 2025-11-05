@@ -46,6 +46,7 @@ interface JobLocation {
   type: 'pickup' | 'delivery';
   address: string;
   deliveryTime: string;
+  order_id: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -160,10 +161,16 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // Extract all stops from orders
+      // Extract all stops from orders and calculate total jobs
       const allStops: JobLocation[] = [];
+      const orderIdsForJobs: string[] = [];
       
       orders.forEach(order => {
+        // Track order ID for job calculation (use orderId which matches shipday_pickup_id/delivery_id)
+        if (order.orderId) {
+          orderIdsForJobs.push(order.orderId.toString());
+        }
+        
         // Add pickup stop
         if (order.pickup && order.pickup.lat && order.pickup.lng) {
           allStops.push({
@@ -171,7 +178,8 @@ const handler = async (req: Request): Promise<Response> => {
             lng: order.pickup.lng,
             type: 'pickup',
             address: order.pickup.formattedAddress || order.pickup.address,
-            deliveryTime: order.deliveryTime
+            deliveryTime: order.deliveryTime,
+            order_id: order.orderNumber || ''
           });
         }
         
@@ -182,10 +190,43 @@ const handler = async (req: Request): Promise<Response> => {
             lng: order.delivery.lng,
             type: 'delivery',
             address: order.delivery.formattedAddress || order.delivery.address,
-            deliveryTime: order.deliveryTime
+            deliveryTime: order.deliveryTime,
+            order_id: order.orderNumber || ''
           });
         }
       });
+      
+      // Calculate total jobs (sum of bike_quantity from orders table)
+      let totalJobs = 0;
+      if (orderIdsForJobs.length > 0) {
+        console.log(`  └─ Querying orders for IDs: ${orderIdsForJobs.join(', ')}`);
+        
+        // Query pickup orders
+        const { data: pickupOrders, error: pickupError } = await supabaseClient
+          .from('orders')
+          .select('id, bike_quantity, shipday_pickup_id')
+          .in('shipday_pickup_id', orderIdsForJobs);
+        
+        // Query delivery orders
+        const { data: deliveryOrders, error: deliveryError } = await supabaseClient
+          .from('orders')
+          .select('id, bike_quantity, shipday_delivery_id')
+          .in('shipday_delivery_id', orderIdsForJobs);
+        
+        if (pickupError) {
+          console.warn(`  ⚠️ Pickup orders query error: ${pickupError.message}`);
+        }
+        if (deliveryError) {
+          console.warn(`  ⚠️ Delivery orders query error: ${deliveryError.message}`);
+        }
+        
+        // Sum jobs from pickup and delivery separately (no deduplication)
+        const pickupJobs = (pickupOrders || []).reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+        const deliveryJobs = (deliveryOrders || []).reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+        totalJobs = pickupJobs + deliveryJobs;
+        
+        console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} (${pickupJobs} from ${pickupOrders?.length || 0} pickups, ${deliveryJobs} from ${deliveryOrders?.length || 0} deliveries)`);
+      }
 
       // Sort stops by delivery time (chronological)
       allStops.sort((a, b) => new Date(a.deliveryTime).getTime() - new Date(b.deliveryTime).getTime());
@@ -236,6 +277,7 @@ const handler = async (req: Request): Promise<Response> => {
           hourly_rate: driver.hourly_rate || 11.00,
           van_allowance: driver.uses_own_van ? (driver.van_allowance || 0.00) : 0.00,
           total_stops: totalStops,
+          total_jobs: totalJobs > 0 ? totalJobs : null,
           route_links: routeLinks,
           job_locations: uniqueStops,
           custom_addons: [],

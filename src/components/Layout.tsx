@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -95,6 +95,10 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             Driver Timeslips
+                          </Link>
+                          <Link to="/route-profitability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <TrendingUp className="mr-2 h-4 w-4" />
+                            Route Profitability
                           </Link>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
@@ -227,6 +231,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                           <Clock className="mr-2 h-4 w-4" />
                           <span>Driver Timeslips</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/route-profitability" className="cursor-pointer flex w-full items-center">
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          <span>Route Profitability</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
