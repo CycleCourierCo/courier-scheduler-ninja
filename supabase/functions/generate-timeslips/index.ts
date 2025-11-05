@@ -201,12 +201,12 @@ const handler = async (req: Request): Promise<Response> => {
       if (orderIdsForJobs.length > 0) {
         const { data: orderData, error: orderError } = await supabaseClient
           .from('orders')
-          .select('bike_quantity, customer_order_number')
-          .in('customer_order_number', orderIdsForJobs);
+          .select('bike_quantity, shipday_pickup_id, shipday_delivery_id')
+          .or(`shipday_pickup_id.in.(${orderIdsForJobs.join(',')}),shipday_delivery_id.in.(${orderIdsForJobs.join(',')})`);
         
         if (!orderError && orderData) {
           totalJobs = orderData.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
-          console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs}`);
+          console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} from ${orderData.length} orders`);
         } else {
           console.warn(`  ⚠️ Could not calculate total_jobs, will be NULL: ${orderError?.message || 'No data'}`);
         }
