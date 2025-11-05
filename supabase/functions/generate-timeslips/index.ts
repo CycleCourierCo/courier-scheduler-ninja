@@ -199,17 +199,39 @@ const handler = async (req: Request): Promise<Response> => {
       // Calculate total jobs (sum of bike_quantity from orders table)
       let totalJobs = 0;
       if (orderIdsForJobs.length > 0) {
-        const { data: orderData, error: orderError } = await supabaseClient
-          .from('orders')
-          .select('bike_quantity, shipday_pickup_id, shipday_delivery_id')
-          .or(`shipday_pickup_id.in.(${orderIdsForJobs.join(',')}),shipday_delivery_id.in.(${orderIdsForJobs.join(',')})`);
+        console.log(`  └─ Querying orders for IDs: ${orderIdsForJobs.join(', ')}`);
         
-        if (!orderError && orderData) {
-          totalJobs = orderData.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
-          console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} from ${orderData.length} orders`);
-        } else {
-          console.warn(`  ⚠️ Could not calculate total_jobs, will be NULL: ${orderError?.message || 'No data'}`);
+        // Query pickup orders
+        const { data: pickupOrders, error: pickupError } = await supabaseClient
+          .from('orders')
+          .select('id, bike_quantity, shipday_pickup_id')
+          .in('shipday_pickup_id', orderIdsForJobs);
+        
+        // Query delivery orders
+        const { data: deliveryOrders, error: deliveryError } = await supabaseClient
+          .from('orders')
+          .select('id, bike_quantity, shipday_delivery_id')
+          .in('shipday_delivery_id', orderIdsForJobs);
+        
+        if (pickupError) {
+          console.warn(`  ⚠️ Pickup orders query error: ${pickupError.message}`);
         }
+        if (deliveryError) {
+          console.warn(`  ⚠️ Delivery orders query error: ${deliveryError.message}`);
+        }
+        
+        // Combine and deduplicate orders by id
+        const allOrders = [...(pickupOrders || []), ...(deliveryOrders || [])];
+        const uniqueOrdersMap = new Map();
+        allOrders.forEach(order => {
+          if (!uniqueOrdersMap.has(order.id)) {
+            uniqueOrdersMap.set(order.id, order);
+          }
+        });
+        const uniqueOrders = Array.from(uniqueOrdersMap.values());
+        
+        totalJobs = uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+        console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} from ${uniqueOrders.length} unique orders (${pickupOrders?.length || 0} pickup, ${deliveryOrders?.length || 0} delivery)`);
       }
 
       // Sort stops by delivery time (chronological)
