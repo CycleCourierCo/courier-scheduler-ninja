@@ -220,18 +220,12 @@ const handler = async (req: Request): Promise<Response> => {
           console.warn(`  ⚠️ Delivery orders query error: ${deliveryError.message}`);
         }
         
-        // Combine and deduplicate orders by id
-        const allOrders = [...(pickupOrders || []), ...(deliveryOrders || [])];
-        const uniqueOrdersMap = new Map();
-        allOrders.forEach(order => {
-          if (!uniqueOrdersMap.has(order.id)) {
-            uniqueOrdersMap.set(order.id, order);
-          }
-        });
-        const uniqueOrders = Array.from(uniqueOrdersMap.values());
+        // Sum jobs from pickup and delivery separately (no deduplication)
+        const pickupJobs = (pickupOrders || []).reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+        const deliveryJobs = (deliveryOrders || []).reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
+        totalJobs = pickupJobs + deliveryJobs;
         
-        totalJobs = uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
-        console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} from ${uniqueOrders.length} unique orders (${pickupOrders?.length || 0} pickup, ${deliveryOrders?.length || 0} delivery)`);
+        console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} (${pickupJobs} from ${pickupOrders?.length || 0} pickups, ${deliveryJobs} from ${deliveryOrders?.length || 0} deliveries)`);
       }
 
       // Sort stops by delivery time (chronological)
