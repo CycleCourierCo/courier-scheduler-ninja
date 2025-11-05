@@ -438,145 +438,194 @@ const LoadingUnloadingPage = () => {
       const labelHeight = 432; // 6 inches in points
       
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
-      let isFirstLabel = true;
+      let isFirstPage = true;
       
-      // Individual collection labels
-      orders.forEach((order) => {
-        const quantity = order.bikeQuantity || 1;
+      // Group orders by collection driver
+      const ordersByDriver = orders.reduce((acc, order) => {
+        const driverName = order.collection_driver_name || 'Unassigned';
+        if (!acc[driverName]) {
+          acc[driverName] = [];
+        }
+        acc[driverName].push(order);
+        return acc;
+      }, {} as Record<string, Order[]>);
+      
+      // Sort driver names (Unassigned last)
+      const sortedDriverNames = Object.keys(ordersByDriver).sort((a, b) => {
+        if (a === 'Unassigned') return 1;
+        if (b === 'Unassigned') return -1;
+        return a.localeCompare(b);
+      });
+      
+      // Generate labels grouped by driver
+      sortedDriverNames.forEach((driverName) => {
+        const driverOrders = ordersByDriver[driverName];
+        const totalBikes = driverOrders.reduce((sum, order) => sum + (order.bikeQuantity || 1), 0);
         
-        for (let i = 0; i < quantity; i++) {
-          if (!isFirstLabel) {
+        // Add driver separator page
+        if (!isFirstPage) {
+          pdf.addPage();
+        }
+        isFirstPage = false;
+        
+        // Driver separator page content
+        const margin = 15;
+        let currentY = labelHeight / 2 - 60;
+        
+        pdf.setFontSize(24);
+        pdf.setFont("helvetica", "bold");
+        const driverText = driverName;
+        const driverTextWidth = pdf.getTextWidth(driverText);
+        pdf.text(driverText, (labelWidth - driverTextWidth) / 2, currentY);
+        currentY += 40;
+        
+        pdf.setFontSize(16);
+        pdf.setFont("helvetica", "normal");
+        const pickupsText = `${driverOrders.length} Pickups - ${totalBikes} Bikes`;
+        const pickupsTextWidth = pdf.getTextWidth(pickupsText);
+        pdf.text(pickupsText, (labelWidth - pickupsTextWidth) / 2, currentY);
+        currentY += 30;
+        
+        pdf.setFontSize(14);
+        const dateText = format(selectedDate!, 'EEEE, MMMM d, yyyy');
+        const dateTextWidth = pdf.getTextWidth(dateText);
+        pdf.text(dateText, (labelWidth - dateTextWidth) / 2, currentY);
+        
+        // Generate labels for this driver's orders
+        driverOrders.forEach((order) => {
+          const quantity = order.bikeQuantity || 1;
+          
+          for (let i = 0; i < quantity; i++) {
             pdf.addPage();
-          }
-          isFirstLabel = false;
 
-          const margin = 15;
-          let currentY = margin + 20;
-          
-          // Tracking number
-          pdf.setFontSize(14);
-          pdf.setFont("helvetica", "bold");
-          const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}${quantity > 1 ? ` (${i + 1}/${quantity})` : ''}`;
-          pdf.text(trackingText, margin, currentY);
-          currentY += 30;
-          
-          // Bike details
-          if (order.bikeBrand || order.bikeModel || order.bikeQuantity) {
+            const margin = 15;
+            let currentY = margin + 20;
+            
+            // Tracking number
+            pdf.setFontSize(14);
+            pdf.setFont("helvetica", "bold");
+            const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}${quantity > 1 ? ` (${i + 1}/${quantity})` : ''}`;
+            pdf.text(trackingText, margin, currentY);
+            currentY += 30;
+            
+            // Bike details
+            if (order.bikeBrand || order.bikeModel || order.bikeQuantity) {
+              pdf.setFontSize(10);
+              pdf.setFont("helvetica", "bold");
+              pdf.text('ITEM:', margin, currentY);
+              currentY += 15;
+              
+              pdf.setFont("helvetica", "normal");
+              const isMultipleBikes = quantity > 1;
+              const itemName = isMultipleBikes 
+                ? `Bike ${i + 1} of ${quantity}` 
+                : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+              
+              if (!isMultipleBikes && order.bikeBrand && order.bikeModel) {
+                pdf.text(`${order.bikeBrand} ${order.bikeModel}`, margin, currentY);
+              } else {
+                pdf.text(itemName, margin, currentY);
+              }
+              currentY += 20;
+            }
+            
+            // Sender info (FROM)
             pdf.setFontSize(10);
             pdf.setFont("helvetica", "bold");
-            pdf.text('ITEM:', margin, currentY);
+            pdf.text('FROM:', margin, currentY);
             currentY += 15;
             
             pdf.setFont("helvetica", "normal");
-            const isMultipleBikes = quantity > 1;
-            const itemName = isMultipleBikes 
-              ? `Bike ${i + 1} of ${quantity}` 
-              : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
-            
-            if (!isMultipleBikes && order.bikeBrand && order.bikeModel) {
-              pdf.text(`${order.bikeBrand} ${order.bikeModel}`, margin, currentY);
-            } else {
-              pdf.text(itemName, margin, currentY);
-            }
-            currentY += 20;
-          }
-          
-          // Sender info (FROM)
-          pdf.setFontSize(10);
-          pdf.setFont("helvetica", "bold");
-          pdf.text('FROM:', margin, currentY);
-          currentY += 15;
-          
-          pdf.setFont("helvetica", "normal");
-          if (order.sender?.name) {
-            pdf.text(order.sender.name, margin, currentY);
-            currentY += 12;
-          }
-          
-          if (order.sender?.address) {
-            const address = order.sender.address;
-            if (address.street) {
-              const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-              streetText.forEach(line => {
-                pdf.text(line, margin, currentY);
-                currentY += 12;
-              });
-            }
-            
-            const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-            if (cityLine.length > 2) {
-              pdf.text(cityLine, margin, currentY);
+            if (order.sender?.name) {
+              pdf.text(order.sender.name, margin, currentY);
               currentY += 12;
             }
-          }
-          
-          if (order.sender?.phone) {
-            pdf.text(order.sender.phone, margin, currentY);
-            currentY += 25;
-          }
-          
-          // Receiver info (TO)
-          pdf.setFont("helvetica", "bold");
-          pdf.text('TO:', margin, currentY);
-          currentY += 15;
-          
-          pdf.setFont("helvetica", "normal");
-          if (order.receiver?.name) {
-            pdf.text(order.receiver.name, margin, currentY);
-            currentY += 12;
-          }
-          
-          if (order.receiver?.address) {
-            const address = order.receiver.address;
-            if (address.street) {
-              const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-              streetText.forEach(line => {
-                pdf.text(line, margin, currentY);
+            
+            if (order.sender?.address) {
+              const address = order.sender.address;
+              if (address.street) {
+                const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+                streetText.forEach(line => {
+                  pdf.text(line, margin, currentY);
+                  currentY += 12;
+                });
+              }
+              
+              const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+              if (cityLine.length > 2) {
+                pdf.text(cityLine, margin, currentY);
                 currentY += 12;
-              });
+              }
             }
             
-            const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-            if (cityLine.length > 2) {
-              pdf.text(cityLine, margin, currentY);
-              currentY += 12;
+            if (order.sender?.phone) {
+              pdf.text(order.sender.phone, margin, currentY);
+              currentY += 25;
             }
-          }
-          
-          if (order.receiver?.phone) {
-            pdf.text(order.receiver.phone, margin, currentY);
-            currentY += 25;
-          }
-          
-          // Contact information and website
-          pdf.setFontSize(8);
-          pdf.setFont("helvetica", "normal");
-          const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
-          const contactWidth = pdf.getTextWidth(contactText);
-          const contactX = (labelWidth - contactWidth) / 2;
-          pdf.text(contactText, contactX, currentY);
-          currentY += 20;
-          
-          // Logo
-          try {
-            const logoWidth = (labelWidth - (2 * margin)) * 0.51;
-            const logoHeight = logoWidth;
-            const logoX = (labelWidth - logoWidth) / 2;
             
-            pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
-            currentY += logoHeight + 10;
+            // Receiver info (TO)
+            pdf.setFont("helvetica", "bold");
+            pdf.text('TO:', margin, currentY);
+            currentY += 15;
             
-            // Tagline below logo
-            pdf.setFontSize(10);
             pdf.setFont("helvetica", "normal");
-            const taglineText = 'Streamlining Bike Transport';
-            const taglineWidth = pdf.getTextWidth(taglineText);
-            const taglineX = (labelWidth - taglineWidth) / 2;
-            pdf.text(taglineText, taglineX, currentY);
-          } catch (error) {
-            // Logo loading failed - continue without it
+            if (order.receiver?.name) {
+              pdf.text(order.receiver.name, margin, currentY);
+              currentY += 12;
+            }
+            
+            if (order.receiver?.address) {
+              const address = order.receiver.address;
+              if (address.street) {
+                const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+                streetText.forEach(line => {
+                  pdf.text(line, margin, currentY);
+                  currentY += 12;
+                });
+              }
+              
+              const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
+              if (cityLine.length > 2) {
+                pdf.text(cityLine, margin, currentY);
+                currentY += 12;
+              }
+            }
+            
+            if (order.receiver?.phone) {
+              pdf.text(order.receiver.phone, margin, currentY);
+              currentY += 25;
+            }
+            
+            // Contact information and website
+            pdf.setFontSize(8);
+            pdf.setFont("helvetica", "normal");
+            const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
+            const contactWidth = pdf.getTextWidth(contactText);
+            const contactX = (labelWidth - contactWidth) / 2;
+            pdf.text(contactText, contactX, currentY);
+            currentY += 20;
+            
+            // Logo
+            try {
+              const logoWidth = (labelWidth - (2 * margin)) * 0.51;
+              const logoHeight = logoWidth;
+              const logoX = (labelWidth - logoWidth) / 2;
+              
+              pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
+              currentY += logoHeight + 10;
+              
+              // Tagline below logo
+              pdf.setFontSize(10);
+              pdf.setFont("helvetica", "normal");
+              const taglineText = 'Streamlining Bike Transport';
+              const taglineWidth = pdf.getTextWidth(taglineText);
+              const taglineX = (labelWidth - taglineWidth) / 2;
+              pdf.text(taglineText, taglineX, currentY);
+            } catch (error) {
+              // Logo loading failed - continue without it
+            }
           }
-        }
+        });
       });
 
       pdf.save(`collection-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
