@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, TrendingUp } from "lucide-react";
+import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,12 +32,48 @@ const RouteProfitabilityPage = () => {
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
   const queryClient = useQueryClient();
 
+  // State for selected week (defaults to current week)
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
+    const { monday } = getCurrentWeekRange();
+    return monday;
+  });
+
   const dateString = format(selectedDate, 'yyyy-MM-dd');
 
-  // Current week data
-  const { monday, sunday } = getCurrentWeekRange();
+  // Calculate week range from selected start date
+  const monday = selectedWeekStart;
+  const sunday = new Date(selectedWeekStart);
+  sunday.setDate(sunday.getDate() + 6); // Add 6 days to get Sunday
+  
   const weekStartString = format(monday, 'yyyy-MM-dd');
   const weekEndString = format(sunday, 'yyyy-MM-dd');
+
+  // Week navigation functions
+  const goToPreviousWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 7);
+      return newDate;
+    });
+  };
+
+  const goToNextWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + 7);
+      return newDate;
+    });
+  };
+
+  const goToCurrentWeek = () => {
+    const { monday } = getCurrentWeekRange();
+    setSelectedWeekStart(monday);
+  };
+
+  const isCurrentWeek = () => {
+    const { monday: currentMonday } = getCurrentWeekRange();
+    return format(selectedWeekStart, 'yyyy-MM-dd') === format(currentMonday, 'yyyy-MM-dd');
+  };
 
   const { data: weekTimeslips = [] } = useQuery({
     queryKey: ['profitability-week', weekStartString, weekEndString],
@@ -99,13 +135,47 @@ const RouteProfitabilityPage = () => {
         {/* Current Week Summary */}
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Current Week Overview
-            </CardTitle>
-            <CardDescription>
-              {format(monday, "MMM d")} - {format(sunday, "MMM d, yyyy")}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Week Overview
+                </CardTitle>
+                <CardDescription>
+                  {format(monday, "MMM d")} - {format(sunday, "MMM d, yyyy")}
+                </CardDescription>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousWeek}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                {!isCurrentWeek() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToCurrentWeek}
+                  >
+                    Current Week
+                  </Button>
+                )}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextWeek}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
