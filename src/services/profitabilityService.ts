@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Timeslip } from "@/types/timeslip";
+import { startOfWeek, endOfWeek, format } from "date-fns";
 
 export interface ProfitabilityMetrics {
   revenue: number;
@@ -29,6 +30,33 @@ export const updateTimeslipMileage = async (id: string, mileage: number): Promis
     .eq('id', id);
 
   if (error) throw error;
+};
+
+export const getCurrentWeekRange = () => {
+  const now = new Date();
+  const monday = startOfWeek(now, { weekStartsOn: 1 }); // Monday = 1
+  const sunday = endOfWeek(now, { weekStartsOn: 1 });
+  
+  return { monday, sunday };
+};
+
+export const getTimeslipsForWeek = async (startDate: string, endDate: string): Promise<Timeslip[]> => {
+  const { data, error } = await supabase
+    .from('timeslips')
+    .select(`
+      *,
+      driver:profiles!timeslips_driver_id_fkey(*)
+    `)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching week timeslips:', error);
+    throw error;
+  }
+
+  return (data as unknown as Timeslip[]) || [];
 };
 
 // Calculate total jobs from order IDs (for historic timeslips without total_jobs)

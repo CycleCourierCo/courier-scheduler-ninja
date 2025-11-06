@@ -18,7 +18,9 @@ import {
   updateTimeslipMileage, 
   calculateProfitability,
   aggregateProfitability,
-  getTotalJobs
+  getTotalJobs,
+  getCurrentWeekRange,
+  getTimeslipsForWeek
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
 
@@ -29,6 +31,22 @@ const RouteProfitabilityPage = () => {
   const queryClient = useQueryClient();
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
+
+  // Current week data
+  const { monday, sunday } = getCurrentWeekRange();
+  const weekStartString = format(monday, 'yyyy-MM-dd');
+  const weekEndString = format(sunday, 'yyyy-MM-dd');
+
+  const { data: weekTimeslips = [] } = useQuery({
+    queryKey: ['profitability-week', weekStartString, weekEndString],
+    queryFn: () => getTimeslipsForWeek(weekStartString, weekEndString),
+  });
+
+  const { data: weekAggregated } = useQuery({
+    queryKey: ['profitability-week-summary', weekTimeslips, revenuePerStop, costPerMile],
+    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile),
+    enabled: weekTimeslips.length > 0,
+  });
 
   const { data: timeslips = [], isLoading } = useQuery({
     queryKey: ['profitability-timeslips', dateString],
@@ -69,6 +87,54 @@ const RouteProfitabilityPage = () => {
           <TrendingUp className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold">Route Profitability</h1>
         </div>
+
+        {/* Current Week Summary */}
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Current Week Overview
+            </CardTitle>
+            <CardDescription>
+              {format(monday, "MMM d")} - {format(sunday, "MMM d, yyyy")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Weekly Revenue</p>
+                <p className="text-2xl font-bold text-green-600">
+                  £{weekAggregated?.totalRevenue.toFixed(2) || '0.00'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Weekly Costs</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  £{weekAggregated?.totalCosts.toFixed(2) || '0.00'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Weekly Profit</p>
+                <p className={cn(
+                  "text-2xl font-bold",
+                  (weekAggregated?.totalProfit || 0) >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  £{weekAggregated?.totalProfit.toFixed(2) || '0.00'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Total Timeslips</span>
+                <span className="font-medium text-foreground">{weekTimeslips.length}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                <span>Active Drivers</span>
+                <span className="font-medium text-foreground">{weekAggregated?.driverCount || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Settings Section */}
         <Card>
