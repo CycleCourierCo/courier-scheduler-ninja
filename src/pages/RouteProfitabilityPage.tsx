@@ -135,7 +135,7 @@ const RouteProfitabilityPage = () => {
         {/* Current Week Summary */}
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
@@ -146,14 +146,15 @@ const RouteProfitabilityPage = () => {
                 </CardDescription>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={goToPreviousWeek}
+                  className="flex-1 sm:flex-none"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Previous
+                  <span className="hidden xs:inline">Previous</span>
                 </Button>
                 
                 {!isCurrentWeek() && (
@@ -161,6 +162,7 @@ const RouteProfitabilityPage = () => {
                     variant="outline"
                     size="sm"
                     onClick={goToCurrentWeek}
+                    className="flex-1 sm:flex-none"
                   >
                     Current Week
                   </Button>
@@ -170,8 +172,9 @@ const RouteProfitabilityPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={goToNextWeek}
+                  className="flex-1 sm:flex-none"
                 >
-                  Next
+                  <span className="hidden xs:inline">Next</span>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
