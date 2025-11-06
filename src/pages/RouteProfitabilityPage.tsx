@@ -20,9 +20,11 @@ import {
   aggregateProfitability,
   getTotalJobs,
   getCurrentWeekRange,
-  getTimeslipsForWeek
+  getTimeslipsForWeek,
+  calculateDailyProfitability
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
+import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -45,6 +47,12 @@ const RouteProfitabilityPage = () => {
   const { data: weekAggregated } = useQuery({
     queryKey: ['profitability-week-summary', weekTimeslips, revenuePerStop, costPerMile],
     queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile),
+    enabled: weekTimeslips.length > 0,
+  });
+
+  const { data: dailyChartData = [] } = useQuery({
+    queryKey: ['profitability-daily-chart', weekTimeslips, revenuePerStop, costPerMile, monday, sunday],
+    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile),
     enabled: weekTimeslips.length > 0,
   });
 
@@ -135,6 +143,11 @@ const RouteProfitabilityPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Weekly Profitability Chart */}
+        {weekTimeslips.length > 0 && (
+          <WeeklyProfitabilityChart data={dailyChartData} />
+        )}
 
         {/* Settings Section */}
         <Card>
