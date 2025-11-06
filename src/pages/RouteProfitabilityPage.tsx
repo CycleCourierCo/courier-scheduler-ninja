@@ -286,19 +286,19 @@ const TimeslipRow = ({
         £{(timeslip.total_pay || 0).toFixed(2)}
       </TableCell>
       <TableCell className="text-right">
-        £{metrics.customAddonCosts.toFixed(2)}
+        £{(metrics?.customAddonCosts ?? 0).toFixed(2)}
       </TableCell>
       <TableCell className="text-right text-green-600 font-medium">
-        £{metrics.revenue.toFixed(2)}
+        £{(metrics?.revenue ?? 0).toFixed(2)}
       </TableCell>
       <TableCell className="text-right text-orange-600">
-        £{metrics.totalCosts.toFixed(2)}
+        £{(metrics?.totalCosts ?? 0).toFixed(2)}
       </TableCell>
       <TableCell className={cn(
         "text-right font-bold",
-        metrics.profit >= 0 ? "text-green-600" : "text-red-600"
+        (metrics?.profit ?? 0) >= 0 ? "text-green-600" : "text-red-600"
       )}>
-        £{metrics.profit.toFixed(2)}
+        £{(metrics?.profit ?? 0).toFixed(2)}
       </TableCell>
     </TableRow>
   );
