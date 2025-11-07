@@ -47,7 +47,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-primary">
-                £{timeslip.total_pay.toFixed(2)}
+                £{(timeslip.total_pay ?? 0).toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground">Total Pay</p>
             </div>
@@ -96,18 +96,24 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Hourly Rate:</span>
-              <span className="font-medium">£{timeslip.hourly_rate.toFixed(2)}/h</span>
+              <span className="font-medium">£{(timeslip.hourly_rate ?? 0).toFixed(2)}/h</span>
             </div>
-            {timeslip.van_allowance > 0 && (
+            {(timeslip.van_allowance ?? 0) > 0 && (
               <div className="flex justify-between text-primary">
                 <span>Van Allowance:</span>
-                <span className="font-medium">£{timeslip.van_allowance.toFixed(2)}</span>
+                <span className="font-medium">£{(timeslip.van_allowance ?? 0).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between">
               <span>Total Stops:</span>
               <span className="font-medium">{timeslip.total_stops}</span>
             </div>
+            {isAdmin && timeslip.mileage && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Mileage:</span>
+                <span className="font-medium">{timeslip.mileage} miles</span>
+              </div>
+            )}
           </div>
 
           {/* Route Links */}

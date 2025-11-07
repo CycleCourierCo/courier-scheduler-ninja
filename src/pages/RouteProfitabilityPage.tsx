@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, TrendingUp } from "lucide-react";
+import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +18,13 @@ import {
   updateTimeslipMileage, 
   calculateProfitability,
   aggregateProfitability,
-  getTotalJobs
+  getTotalJobs,
+  getCurrentWeekRange,
+  getTimeslipsForWeek,
+  calculateDailyProfitability
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
+import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -28,7 +32,65 @@ const RouteProfitabilityPage = () => {
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
   const queryClient = useQueryClient();
 
+  // State for selected week (defaults to current week)
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
+    const { monday } = getCurrentWeekRange();
+    return monday;
+  });
+
   const dateString = format(selectedDate, 'yyyy-MM-dd');
+
+  // Calculate week range from selected start date
+  const monday = selectedWeekStart;
+  const sunday = new Date(selectedWeekStart);
+  sunday.setDate(sunday.getDate() + 6); // Add 6 days to get Sunday
+  
+  const weekStartString = format(monday, 'yyyy-MM-dd');
+  const weekEndString = format(sunday, 'yyyy-MM-dd');
+
+  // Week navigation functions
+  const goToPreviousWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 7);
+      return newDate;
+    });
+  };
+
+  const goToNextWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + 7);
+      return newDate;
+    });
+  };
+
+  const goToCurrentWeek = () => {
+    const { monday } = getCurrentWeekRange();
+    setSelectedWeekStart(monday);
+  };
+
+  const isCurrentWeek = () => {
+    const { monday: currentMonday } = getCurrentWeekRange();
+    return format(selectedWeekStart, 'yyyy-MM-dd') === format(currentMonday, 'yyyy-MM-dd');
+  };
+
+  const { data: weekTimeslips = [] } = useQuery({
+    queryKey: ['profitability-week', weekStartString, weekEndString],
+    queryFn: () => getTimeslipsForWeek(weekStartString, weekEndString),
+  });
+
+  const { data: weekAggregated } = useQuery({
+    queryKey: ['profitability-week-summary', weekTimeslips, revenuePerStop, costPerMile],
+    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile),
+    enabled: weekTimeslips.length > 0,
+  });
+
+  const { data: dailyChartData = [] } = useQuery({
+    queryKey: ['profitability-daily-chart', weekTimeslips, revenuePerStop, costPerMile, monday, sunday],
+    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile),
+    enabled: weekTimeslips.length > 0,
+  });
 
   const { data: timeslips = [], isLoading } = useQuery({
     queryKey: ['profitability-timeslips', dateString],
@@ -69,6 +131,96 @@ const RouteProfitabilityPage = () => {
           <TrendingUp className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold">Route Profitability</h1>
         </div>
+
+        {/* Current Week Summary */}
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <CardHeader>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Week Overview
+                </CardTitle>
+                <CardDescription>
+                  {format(monday, "MMM d")} - {format(sunday, "MMM d, yyyy")}
+                </CardDescription>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousWeek}
+                  className="flex-1 sm:flex-none"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden xs:inline">Previous</span>
+                </Button>
+                
+                {!isCurrentWeek() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToCurrentWeek}
+                    className="flex-1 sm:flex-none"
+                  >
+                    Current Week
+                  </Button>
+                )}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextWeek}
+                  className="flex-1 sm:flex-none"
+                >
+                  <span className="hidden xs:inline">Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Weekly Revenue</p>
+                <p className="text-2xl font-bold text-green-600">
+                  £{weekAggregated?.totalRevenue.toFixed(2) || '0.00'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Weekly Costs</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  £{weekAggregated?.totalCosts.toFixed(2) || '0.00'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Weekly Profit</p>
+                <p className={cn(
+                  "text-2xl font-bold",
+                  (weekAggregated?.totalProfit || 0) >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  £{weekAggregated?.totalProfit.toFixed(2) || '0.00'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Total Timeslips</span>
+                <span className="font-medium text-foreground">{weekTimeslips.length}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                <span>Active Drivers</span>
+                <span className="font-medium text-foreground">{weekAggregated?.driverCount || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Profitability Chart */}
+        {weekTimeslips.length > 0 && (
+          <WeeklyProfitabilityChart data={dailyChartData} />
+        )}
 
         {/* Settings Section */}
         <Card>
@@ -286,19 +438,19 @@ const TimeslipRow = ({
         £{(timeslip.total_pay || 0).toFixed(2)}
       </TableCell>
       <TableCell className="text-right">
-        £{metrics.customAddonCosts.toFixed(2)}
+        £{(metrics?.customAddonCosts ?? 0).toFixed(2)}
       </TableCell>
       <TableCell className="text-right text-green-600 font-medium">
-        £{metrics.revenue.toFixed(2)}
+        £{(metrics?.revenue ?? 0).toFixed(2)}
       </TableCell>
       <TableCell className="text-right text-orange-600">
-        £{metrics.totalCosts.toFixed(2)}
+        £{(metrics?.totalCosts ?? 0).toFixed(2)}
       </TableCell>
       <TableCell className={cn(
         "text-right font-bold",
-        metrics.profit >= 0 ? "text-green-600" : "text-red-600"
+        (metrics?.profit ?? 0) >= 0 ? "text-green-600" : "text-red-600"
       )}>
-        £{metrics.profit.toFixed(2)}
+        £{(metrics?.profit ?? 0).toFixed(2)}
       </TableCell>
     </TableRow>
   );

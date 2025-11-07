@@ -40,6 +40,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     lunch_hours: timeslip?.lunch_hours || 1,
     hourly_rate: timeslip?.hourly_rate || 11,
     van_allowance: timeslip?.van_allowance || 0,
+    mileage: timeslip?.mileage || null,
     status: timeslip?.status || 'draft',
     admin_notes: timeslip?.admin_notes || '',
     custom_addons: timeslip?.custom_addons || [],
@@ -55,12 +56,20 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
         lunch_hours: timeslip.lunch_hours,
         hourly_rate: timeslip.hourly_rate,
         van_allowance: timeslip.van_allowance,
+        mileage: timeslip.mileage,
         status: timeslip.status,
         admin_notes: timeslip.admin_notes || '',
         custom_addons: timeslip.custom_addons || [],
       });
     }
   }, [timeslip]);
+
+  // Auto-populate mileage to 160 if van allowance is set and mileage is not already set
+  useEffect(() => {
+    if (formData.van_allowance > 0 && !formData.mileage) {
+      setFormData(prev => ({ ...prev, mileage: 160 }));
+    }
+  }, [formData.van_allowance]);
 
   const handleAddAddon = () => {
     if (newAddon.title.trim() && newAddon.hours > 0) {
@@ -174,6 +183,27 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                 value={formData.van_allowance}
                 onChange={(e) => setFormData({ ...formData, van_allowance: parseFloat(e.target.value) })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mileage">Mileage (miles)</Label>
+              <Input
+                id="mileage"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="Auto-set to 160 if van allowance"
+                value={formData.mileage || ''}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  mileage: e.target.value ? parseFloat(e.target.value) : null 
+                })}
+              />
+              <p className="text-xs text-muted-foreground">
+                {formData.van_allowance > 0 
+                  ? 'Default: 160 miles for drivers with van allowance' 
+                  : 'Enter actual miles driven'}
+              </p>
             </div>
           </div>
 
