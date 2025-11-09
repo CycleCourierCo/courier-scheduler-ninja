@@ -21,6 +21,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import JobScheduling from "./pages/JobScheduling";
 import AccountApprovals from "./pages/AccountApprovals";
 import ApiKeysPage from "./pages/ApiKeysPage";
+import WebhookConfigPage from "./pages/WebhookConfigPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import NotFound from "./pages/NotFound";
 import AboutPage from "./pages/AboutPage";
@@ -93,6 +94,11 @@ function App() {
             <Route path="/api-keys" element={
               <ProtectedRoute adminOnly={true}>
                 <ApiKeysPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/webhooks" element={
+              <ProtectedRoute adminOnly={true}>
+                <WebhookConfigPage />
               </ProtectedRoute>
             } />
             <Route path="/users" element={

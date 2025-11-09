@@ -694,6 +694,119 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_configurations: {
+        Row: {
+          created_at: string | null
+          endpoint_url: string
+          events: string[] | null
+          id: string
+          is_active: boolean | null
+          last_delivery_status: string | null
+          last_error_message: string | null
+          last_triggered_at: string | null
+          name: string
+          secret_hash: string
+          secret_prefix: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint_url: string
+          events?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          last_delivery_status?: string | null
+          last_error_message?: string | null
+          last_triggered_at?: string | null
+          name: string
+          secret_hash: string
+          secret_prefix: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          endpoint_url?: string
+          events?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          last_delivery_status?: string | null
+          last_error_message?: string | null
+          last_triggered_at?: string | null
+          name?: string
+          secret_hash?: string
+          secret_prefix?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_configurations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_delivery_logs: {
+        Row: {
+          attempt_number: number | null
+          delivered_at: string | null
+          delivery_duration_ms: number | null
+          event_type: string
+          id: string
+          order_id: string | null
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          success: boolean | null
+          webhook_config_id: string | null
+        }
+        Insert: {
+          attempt_number?: number | null
+          delivered_at?: string | null
+          delivery_duration_ms?: number | null
+          event_type: string
+          id?: string
+          order_id?: string | null
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean | null
+          webhook_config_id?: string | null
+        }
+        Update: {
+          attempt_number?: number | null
+          delivered_at?: string | null
+          delivery_duration_ms?: number | null
+          event_type?: string
+          id?: string
+          order_id?: string | null
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean | null
+          webhook_config_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_delivery_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_delivery_logs_webhook_config_id_fkey"
+            columns: ["webhook_config_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -706,7 +819,20 @@ export type Database = {
           key_id: string
         }[]
       }
+      admin_generate_webhook_secret: {
+        Args: {
+          p_endpoint_url: string
+          p_events: string[]
+          p_name: string
+          p_user_id: string
+        }
+        Returns: {
+          config_id: string
+          webhook_secret: string
+        }[]
+      }
       admin_revoke_api_key: { Args: { key_id: string }; Returns: boolean }
+      admin_revoke_webhook: { Args: { p_config_id: string }; Returns: boolean }
       admin_update_account_status: {
         Args: { status: string; user_id: string }
         Returns: boolean
