@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  company_name: string;
+  role: string;
+}
 
 interface CreateWebhookDialogProps {
   open: boolean;
@@ -34,6 +43,30 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
   const [generatedSecret, setGeneratedSecret] = useState('');
   const [copied, setCopied] = useState(false);
   const [userId, setUserId] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, company_name, role')
+        .in('role', ['b2b_customer', 'b2c_customer'])
+        .eq('account_status', 'approved')
+        .order('name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast.error('Failed to fetch customers');
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchCustomers();
+    }
+  }, [open]);
 
   const resetForm = () => {
     setStep('form');
@@ -52,7 +85,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
     }
 
     if (!userId) {
-      toast.error("Please enter a user ID");
+      toast.error("Please select a customer");
       return;
     }
 
@@ -126,13 +159,26 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="userId">Customer User ID *</Label>
-                <Input
-                  id="userId"
-                  placeholder="Enter customer user ID"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                />
+                <Label htmlFor="customer">Customer *</Label>
+                <Select value={userId} onValueChange={setUserId}>
+                  <SelectTrigger className="bg-background border border-input">
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-input z-50">
+                    {customers.length === 0 ? (
+                      <SelectItem value="no-customers" disabled>
+                        No approved customers found
+                      </SelectItem>
+                    ) : (
+                      customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name || customer.email}
+                          {customer.company_name && ` - ${customer.company_name}`}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
