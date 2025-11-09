@@ -317,36 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch terms');
     }
 
-    // Query for the next invoice number
-    const invoicesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT DocNumber FROM Invoice ORDER BY DocNumber DESC MAXRESULTS 1`;
-    
-    let nextDocNumber = null;
-    
-    const invoicesResponse = await fetch(invoicesUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (invoicesResponse.ok) {
-      const invoicesData = await invoicesResponse.json();
-      console.log('Latest invoice:', invoicesData);
-      
-      const invoices = invoicesData.QueryResponse?.Invoice || [];
-      if (invoices.length > 0 && invoices[0].DocNumber) {
-        const lastDocNumber = invoices[0].DocNumber;
-        const numericPart = parseInt(lastDocNumber.replace(/\D/g, '')) || 0;
-        nextDocNumber = (numericPart + 1).toString();
-        console.log('Next invoice number will be:', nextDocNumber);
-      } else {
-        console.log('No previous invoices found or DocNumber missing, starting from 1');
-        nextDocNumber = "1";
-      }
-    } else {
-      console.warn('Failed to fetch latest invoice number');
-    }
+    // Let QuickBooks auto-assign the invoice number to avoid conflicts with other transaction types
 
     const lineItems = invoiceData.orders.map((order, index) => {
       const senderName = order.sender?.name || 'Unknown Sender';
@@ -440,8 +411,8 @@ const handler = async (req: Request): Promise<Response> => {
         Address: customerEmail
       },
       TxnDate: invoiceData.endDate, // Use exact end date
-      ...(salesTermId && { SalesTermRef: { value: salesTermId } }),
-      ...(nextDocNumber && { DocNumber: nextDocNumber })
+      ...(salesTermId && { SalesTermRef: { value: salesTermId } })
+      // DocNumber omitted - let QuickBooks auto-assign to avoid conflicts
     };
 
     const response = await fetch(quickbooksApiUrl, {
