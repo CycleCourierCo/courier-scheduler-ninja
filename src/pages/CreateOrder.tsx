@@ -79,19 +79,42 @@ const orderSchema = z.object({
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
-}).refine((data) => {
-  if (data.isEbayOrder && !data.collectionCode) {
-    return false;
+}).superRefine((data, ctx) => {
+  // Check eBay collection code
+  if (data.isEbayOrder && !data.collectionCode?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Collection code is required for eBay orders",
+      path: ["collectionCode"],
+    });
   }
-  if (data.needsPaymentOnCollection && !data.paymentCollectionPhone) {
-    return false;
+  
+  // Check payment collection phone
+  if (data.needsPaymentOnCollection && !data.paymentCollectionPhone?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Payment collection phone number is required",
+      path: ["paymentCollectionPhone"],
+    });
   }
-  if (data.isBikeSwap && (!data.partExchangeBikeBrand || !data.partExchangeBikeModel)) {
-    return false;
+  
+  // Check part exchange bike details
+  if (data.isBikeSwap) {
+    if (!data.partExchangeBikeBrand?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Part exchange bike brand is required",
+        path: ["partExchangeBikeBrand"],
+      });
+    }
+    if (!data.partExchangeBikeModel?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Part exchange bike model is required",
+        path: ["partExchangeBikeModel"],
+      });
+    }
   }
-  return true;
-}, {
-  message: "Required fields missing for selected options",
 });
 
 const CreateOrder = () => {
@@ -149,7 +172,17 @@ const CreateOrder = () => {
     },
   });
 
-  const detailsFields = form.watch(["bikeQuantity", "bikes"]);
+  const detailsFields = form.watch([
+    "bikeQuantity",
+    "bikes",
+    "isEbayOrder",
+    "collectionCode",
+    "needsPaymentOnCollection",
+    "paymentCollectionPhone",
+    "isBikeSwap",
+    "partExchangeBikeBrand",
+    "partExchangeBikeModel"
+  ]);
   const senderFields = form.watch([
     "sender.name", 
     "sender.email", 
@@ -174,9 +207,32 @@ const CreateOrder = () => {
   const isDetailsValid = React.useMemo(() => {
     const bikeQuantity = form.getValues("bikeQuantity");
     const bikes = form.getValues("bikes") || [];
-    return bikeQuantity >= 1 && bikes.length === bikeQuantity && 
+    const bikesValid = bikeQuantity >= 1 && bikes.length === bikeQuantity && 
            bikes.every(bike => bike && bike.brand && bike.model && 
                              bike.brand.trim() !== '' && bike.model.trim() !== '');
+    
+    // Check conditional field requirements
+    const isEbayOrder = form.getValues("isEbayOrder");
+    const collectionCode = form.getValues("collectionCode");
+    const needsPaymentOnCollection = form.getValues("needsPaymentOnCollection");
+    const paymentCollectionPhone = form.getValues("paymentCollectionPhone");
+    const isBikeSwap = form.getValues("isBikeSwap");
+    const partExchangeBikeBrand = form.getValues("partExchangeBikeBrand");
+    const partExchangeBikeModel = form.getValues("partExchangeBikeModel");
+    
+    // eBay validation
+    const ebayValid = !isEbayOrder || (collectionCode && collectionCode.trim() !== '');
+    
+    // Payment collection validation
+    const paymentValid = !needsPaymentOnCollection || (paymentCollectionPhone && paymentCollectionPhone.trim() !== '');
+    
+    // Part exchange validation
+    const swapValid = !isBikeSwap || (
+      partExchangeBikeBrand && partExchangeBikeBrand.trim() !== '' &&
+      partExchangeBikeModel && partExchangeBikeModel.trim() !== ''
+    );
+    
+    return bikesValid && ebayValid && paymentValid && swapValid;
   }, [detailsFields, form]);
 
   const isSenderValid = React.useMemo(() => {
@@ -247,14 +303,18 @@ const CreateOrder = () => {
   };
 
   const handleNextToSender = () => {
-    const bikes = form.getValues("bikes") || [];
-    const bikeQuantity = form.getValues("bikeQuantity");
+    // Trigger validation for all fields on details tab including conditional ones
+    form.trigger([
+      "bikeQuantity",
+      "bikes",
+      "collectionCode",
+      "paymentCollectionPhone",
+      "partExchangeBikeBrand",
+      "partExchangeBikeModel"
+    ]);
     
-    form.trigger(["bikeQuantity", "bikes"]);
     if (isDetailsValid) {
       setActiveTab("sender");
-    } else {
-      toast.error("Please fill in all required fields in Order Details.");
     }
   };
 

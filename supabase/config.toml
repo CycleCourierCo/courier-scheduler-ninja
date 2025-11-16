@@ -1,6 +1,9 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.trigger-webhook]
+verify_jwt = false
+
 [functions.manage-user-roles]
 verify_jwt = true
 

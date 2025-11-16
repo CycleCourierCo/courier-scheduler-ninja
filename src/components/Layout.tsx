@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -107,6 +107,10 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to="/api-keys" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Key className="mr-2 h-4 w-4" />
                             API Keys
+                          </Link>
+                          <Link to="/webhooks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Webhook className="mr-2 h-4 w-4" />
+                            Webhooks
                           </Link>
                           <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <FileText className="mr-2 h-4 w-4" />
@@ -249,6 +253,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/api-keys" className="cursor-pointer flex w-full items-center">
                           <Key className="mr-2 h-4 w-4" />
                           <span>API Keys</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/webhooks" className="cursor-pointer flex w-full items-center">
+                          <Webhook className="mr-2 h-4 w-4" />
+                          <span>Webhooks</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
