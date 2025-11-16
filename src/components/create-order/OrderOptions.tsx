@@ -3,7 +3,7 @@ import React from "react";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Control, useWatch } from "react-hook-form";
+import { Control, useWatch, useFormContext } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
 interface OrderOptionsProps {
@@ -11,6 +11,8 @@ interface OrderOptionsProps {
 }
 
 const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
+  const { clearErrors, setValue } = useFormContext<CreateOrderFormData>();
+
   const needsPaymentOnCollection = useWatch({
     control,
     name: "needsPaymentOnCollection",
@@ -25,6 +27,32 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     control,
     name: "isBikeSwap",
   });
+
+  // Clear eBay collection code when toggle is turned off
+  React.useEffect(() => {
+    if (!isEbayOrder) {
+      setValue("collectionCode", "");
+      clearErrors("collectionCode");
+    }
+  }, [isEbayOrder, setValue, clearErrors]);
+
+  // Clear payment phone when toggle is turned off
+  React.useEffect(() => {
+    if (!needsPaymentOnCollection) {
+      setValue("paymentCollectionPhone", "");
+      clearErrors("paymentCollectionPhone");
+    }
+  }, [needsPaymentOnCollection, setValue, clearErrors]);
+
+  // Clear part exchange fields when toggle is turned off
+  React.useEffect(() => {
+    if (!isBikeSwap) {
+      setValue("partExchangeBikeBrand", "");
+      setValue("partExchangeBikeModel", "");
+      clearErrors("partExchangeBikeBrand");
+      clearErrors("partExchangeBikeModel");
+    }
+  }, [isBikeSwap, setValue, clearErrors]);
 
   return (
     <div>
