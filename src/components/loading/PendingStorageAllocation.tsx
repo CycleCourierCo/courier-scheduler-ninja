@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
-import { Package, MapPin } from "lucide-react";
+import { Package, MapPin, Truck } from "lucide-react";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 
 interface PendingStorageAllocationProps {
@@ -104,9 +104,38 @@ export const PendingStorageAllocation = ({
     );
   }
 
+  // Group bikes by driver
+  const bikesByDriver = collectedBikes.reduce((groups, bike) => {
+    const driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
+    if (!groups[driverName]) {
+      groups[driverName] = [];
+    }
+    groups[driverName].push(bike);
+    return groups;
+  }, {} as Record<string, Order[]>);
+
+  // Sort driver names alphabetically, with "No Driver Assigned" last
+  const sortedDriverNames = Object.keys(bikesByDriver).sort((a, b) => {
+    if (a === 'No Driver Assigned') return 1;
+    if (b === 'No Driver Assigned') return -1;
+    return a.localeCompare(b);
+  });
+
   return (
-    <div className="space-y-4">
-      {collectedBikes.map((bike) => {
+    <div className="space-y-6">
+      {sortedDriverNames.map((driverName) => (
+        <div key={driverName} className="space-y-3">
+          {/* Driver Section Header */}
+          <div className="flex items-center gap-2 pt-2 pb-2 border-b border-border">
+            <Truck className="h-5 w-5 text-muted-foreground" />
+            <h3 className="font-semibold text-lg">{driverName}</h3>
+            <Badge variant="secondary">
+              {bikesByDriver[driverName].length} bike{bikesByDriver[driverName].length > 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {/* Bikes for this driver */}
+          {bikesByDriver[driverName].map((bike) => {
         const bikeQuantity = bike.bikeQuantity || 1;
         const allocatedCount = storageAllocations.filter(a => a.orderId === bike.id).length;
         const remainingToAllocate = bikeQuantity - allocatedCount;
@@ -221,6 +250,8 @@ export const PendingStorageAllocation = ({
           </Card>
         );
       })}
+        </div>
+      ))}
     </div>
   );
 };
