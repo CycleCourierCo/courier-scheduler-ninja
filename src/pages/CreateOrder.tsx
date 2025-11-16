@@ -79,19 +79,42 @@ const orderSchema = z.object({
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
-}).refine((data) => {
-  if (data.isEbayOrder && !data.collectionCode) {
-    return false;
+}).superRefine((data, ctx) => {
+  // Check eBay collection code
+  if (data.isEbayOrder && !data.collectionCode?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Collection code is required for eBay orders",
+      path: ["collectionCode"],
+    });
   }
-  if (data.needsPaymentOnCollection && !data.paymentCollectionPhone) {
-    return false;
+  
+  // Check payment collection phone
+  if (data.needsPaymentOnCollection && !data.paymentCollectionPhone?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Payment collection phone number is required",
+      path: ["paymentCollectionPhone"],
+    });
   }
-  if (data.isBikeSwap && (!data.partExchangeBikeBrand || !data.partExchangeBikeModel)) {
-    return false;
+  
+  // Check part exchange bike details
+  if (data.isBikeSwap) {
+    if (!data.partExchangeBikeBrand?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Part exchange bike brand is required",
+        path: ["partExchangeBikeBrand"],
+      });
+    }
+    if (!data.partExchangeBikeModel?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Part exchange bike model is required",
+        path: ["partExchangeBikeModel"],
+      });
+    }
   }
-  return true;
-}, {
-  message: "Required fields missing for selected options",
 });
 
 const CreateOrder = () => {
