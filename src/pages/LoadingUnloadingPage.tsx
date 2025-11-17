@@ -804,7 +804,7 @@ const LoadingUnloadingPage = () => {
       // Call the WhatsApp edge function
       const response = await supabase.functions.invoke('send-loading-list-whatsapp', {
         body: {
-          date: format(selectedLoadingDate, 'PPP'),
+          date: format(selectedLoadingDate, 'yyyy-MM-dd'),
           bikesNeedingLoading: bikesNeedingLoadingData,
           bikesAlreadyLoaded: bikesAlreadyLoadedData,
           driverPhoneNumbers: driverPhoneNumbers
