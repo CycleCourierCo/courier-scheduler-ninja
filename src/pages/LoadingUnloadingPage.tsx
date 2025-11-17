@@ -669,10 +669,10 @@ const LoadingUnloadingPage = () => {
       
       const targetDate = format(date, 'yyyy-MM-dd');
       
-      // Include bikes without scheduled delivery if they have a collection driver
+      // Include bikes without scheduled delivery ONLY if they have ACTUALLY BEEN COLLECTED
       // (these need to go to depot - edge function will categorize them)
       if (!scheduledDelivery) {
-        return !!order.collection_driver_name;
+        return hasBeenCollected(order);
       }
       
       const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
@@ -715,8 +715,8 @@ const LoadingUnloadingPage = () => {
         return true;
       }
       
-      // Include bikes collected but scheduled for a different date (will go to depot)
-      if (order.collection_driver_name && deliveryDate !== targetDate) {
+      // Include bikes ACTUALLY COLLECTED but scheduled for a different date (will go to depot)
+      if (hasBeenCollected(order) && deliveryDate !== targetDate) {
         return true;
       }
       
@@ -793,7 +793,8 @@ const LoadingUnloadingPage = () => {
           collectionDriverName: collectionDriverName,
           deliveryDriverName: deliveryDriverName,
           isInStorage: orderAllocations.length > 0,
-          scheduledDeliveryDate: order.scheduledDeliveryDate
+          scheduledDeliveryDate: order.scheduledDeliveryDate,
+          hasBeenCollected: hasBeenCollected(order)
         };
       });
 
