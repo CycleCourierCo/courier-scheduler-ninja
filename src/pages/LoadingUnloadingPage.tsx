@@ -670,9 +670,11 @@ const LoadingUnloadingPage = () => {
       const targetDate = format(date, 'yyyy-MM-dd');
       
       // Include bikes without scheduled delivery ONLY if they have ACTUALLY BEEN COLLECTED
-      // (these need to go to depot - edge function will categorize them)
+      // AND are not already in storage (those are already at depot)
       if (!scheduledDelivery) {
-        return hasBeenCollected(order);
+        const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+        const isAlreadyInStorage = orderAllocations.length > 0;
+        return hasBeenCollected(order) && !isAlreadyInStorage;
       }
       
       const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
