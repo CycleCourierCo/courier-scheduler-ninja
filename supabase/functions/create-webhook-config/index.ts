@@ -98,11 +98,15 @@ Deno.serve(async (req) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const secretHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
-    // Store plaintext secret in Vault
+    // Store plaintext secret in Vault using the RPC wrapper
     const vaultKey = `webhook_secret_${configId}`
-    const { error: vaultError } = await supabaseAdmin
-      .from('vault.secrets')
-      .insert({ name: vaultKey, secret: fullSecret })
+    const { data: secretId, error: vaultError } = await supabaseAdmin.rpc(
+      'create_webhook_secret',
+      { 
+        p_secret: fullSecret,
+        p_name: vaultKey
+      }
+    )
 
     if (vaultError) {
       console.error('Vault error:', vaultError)
@@ -111,6 +115,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    console.log('Webhook secret stored in vault:', { secretId, vaultKey })
 
     // Insert webhook configuration
     const { error: configError } = await supabaseAdmin

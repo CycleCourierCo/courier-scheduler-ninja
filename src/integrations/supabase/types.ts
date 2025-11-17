@@ -837,6 +837,10 @@ export type Database = {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
+      create_webhook_secret: {
+        Args: { p_name: string; p_secret: string }
+        Returns: string
+      }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {
