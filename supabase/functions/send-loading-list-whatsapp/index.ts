@@ -29,25 +29,40 @@ interface LoadingListRequest {
   driverPhoneNumbers?: Record<string, string>;
 }
 
+function normalizeDateToYYYYMMDD(dateString: string): string {
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function categorizeBikesForDriver(
   driverName: string,
   allBikes: LoadingListRequest['bikesNeedingLoading'],
   loadingDate: string
 ) {
-  const bikesToKeep = allBikes.filter(b =>
-    b.collectionDriverName === driverName &&
-    b.deliveryDriverName === driverName &&
-    !b.isInStorage &&
-    b.scheduledDeliveryDate === loadingDate
-  );
+  // Normalize loading date to YYYY-MM-DD
+  const normalizedLoadingDate = normalizeDateToYYYYMMDD(loadingDate);
+  
+  console.log(`Categorizing bikes for ${driverName}, loading date: ${normalizedLoadingDate}`);
+  
+  const bikesToKeep = allBikes.filter(b => {
+    const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+    return b.collectionDriverName === driverName &&
+      b.deliveryDriverName === driverName &&
+      !b.isInStorage &&
+      bikeDate === normalizedLoadingDate;
+  });
 
-  const bikesToGiveAway = allBikes.filter(b =>
-    b.collectionDriverName === driverName &&
-    b.deliveryDriverName &&
-    b.deliveryDriverName !== driverName &&
-    b.deliveryDriverName !== 'Unassigned Driver' &&
-    b.scheduledDeliveryDate === loadingDate
-  );
+  const bikesToGiveAway = allBikes.filter(b => {
+    const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+    return b.collectionDriverName === driverName &&
+      b.deliveryDriverName &&
+      b.deliveryDriverName !== driverName &&
+      b.deliveryDriverName !== 'Unassigned Driver' &&
+      bikeDate === normalizedLoadingDate;
+  });
 
   const bikesByRecipient = bikesToGiveAway.reduce((acc, bike) => {
     const recipient = bike.deliveryDriverName!;
@@ -56,20 +71,29 @@ function categorizeBikesForDriver(
     return acc;
   }, {} as Record<string, typeof bikesToGiveAway>);
 
-  const bikesToCollect = allBikes.filter(b =>
-    b.isInStorage &&
-    b.deliveryDriverName === driverName &&
-    b.scheduledDeliveryDate === loadingDate
-  );
+  const bikesToCollect = allBikes.filter(b => {
+    const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+    return b.isInStorage &&
+      b.deliveryDriverName === driverName &&
+      bikeDate === normalizedLoadingDate;
+  });
 
-  const bikesToDeposit = allBikes.filter(b =>
-    b.collectionDriverName === driverName &&
-    (
-      !b.deliveryDriverName ||
-      b.deliveryDriverName === 'Unassigned Driver' ||
-      (b.scheduledDeliveryDate && b.scheduledDeliveryDate !== loadingDate)
-    )
-  );
+  const bikesToDeposit = allBikes.filter(b => {
+    const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+    return b.collectionDriverName === driverName &&
+      (
+        !b.deliveryDriverName ||
+        b.deliveryDriverName === 'Unassigned Driver' ||
+        (bikeDate && bikeDate !== normalizedLoadingDate)
+      );
+  });
+  
+  console.log(`${driverName} categories:`, {
+    keep: bikesToKeep.length,
+    giveAway: Object.keys(bikesByRecipient).length,
+    collect: bikesToCollect.length,
+    deposit: bikesToDeposit.length
+  });
 
   return {
     bikesToKeep,
@@ -279,6 +303,7 @@ const handler = async (req: Request): Promise<Response> => {
         const driverMessage = buildDriverMessage(driverName, categories, date);
         
         if (driverMessage) {
+          console.log(`Sending to ${driverName}:`, driverMessage);
           const driverCleanPhone = driverPhone.replace(/[^\d]/g, '');
           const driverResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
             method: 'POST',
