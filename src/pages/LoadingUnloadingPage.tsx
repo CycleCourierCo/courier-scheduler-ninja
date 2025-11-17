@@ -777,7 +777,8 @@ const LoadingUnloadingPage = () => {
           })),
           collectionDriverName: collectionDriverName,
           deliveryDriverName: deliveryDriverName,
-          isInStorage: orderAllocations.length > 0
+          isInStorage: orderAllocations.length > 0,
+          scheduledDeliveryDate: order.scheduledDeliveryDate
         };
       });
 
