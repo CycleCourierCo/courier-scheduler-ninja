@@ -25,6 +25,7 @@ interface LoadingListRequest {
     deliveryDriverName?: string;
     isInStorage: boolean;
     scheduledDeliveryDate?: string;
+    hasBeenCollected?: boolean;
   }[];
   driverPhoneNumbers?: Record<string, string>;
 }
@@ -96,7 +97,9 @@ function categorizeBikesForDriver(
 
   const bikesToDeposit = allBikes.filter(b => {
     const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
-    return b.collectionDriverName === driverName &&
+    // Only include bikes that have ACTUALLY BEEN COLLECTED
+    return b.hasBeenCollected &&
+      b.collectionDriverName === driverName &&
       (
         !b.deliveryDriverName ||
         b.deliveryDriverName === 'Unassigned Driver' ||
