@@ -62,6 +62,7 @@ function categorizeBikesForDriver(
       b.deliveryDriverName &&
       b.deliveryDriverName !== driverName &&
       b.deliveryDriverName !== 'Unassigned Driver' &&
+      !b.isInStorage &&
       bikeDate === normalizedLoadingDate;
   });
 
