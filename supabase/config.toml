@@ -40,5 +40,8 @@ verify_jwt = false
 [functions.shopify-webhook]
 verify_jwt = false
 
+[functions.create-webhook-config]
+verify_jwt = false
+
 [functions.create-quickbooks-bill]
 verify_jwt = false
