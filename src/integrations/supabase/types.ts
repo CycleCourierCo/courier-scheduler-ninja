@@ -882,6 +882,7 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_vault_secret: { Args: { secret_name: string }; Returns: string }
       get_webhook_event_for_status: {
         Args: { new_status: string; old_status: string }
         Returns: string
