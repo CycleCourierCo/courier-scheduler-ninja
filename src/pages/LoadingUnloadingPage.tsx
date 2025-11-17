@@ -664,13 +664,18 @@ const LoadingUnloadingPage = () => {
       const scheduledDelivery = order.scheduledDeliveryDate;
       const scheduledPickup = order.scheduledPickupDate;
       
-      if (!scheduledDelivery) return false;
-      
-      const targetDate = format(date, 'yyyy-MM-dd');
-      const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
-      
       // Exclude if already loaded onto van
       if (order.loaded_onto_van) return false;
+      
+      const targetDate = format(date, 'yyyy-MM-dd');
+      
+      // Include bikes without scheduled delivery if they have a collection driver
+      // (these need to go to depot - edge function will categorize them)
+      if (!scheduledDelivery) {
+        return !!order.collection_driver_name;
+      }
+      
+      const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
       
       // Handle same-day collection and delivery
       if (scheduledPickup) {
@@ -705,7 +710,17 @@ const LoadingUnloadingPage = () => {
         }
       }
       
-      return deliveryDate === targetDate;
+      // Include if delivery date matches target OR if collected but scheduled for a different date
+      if (deliveryDate === targetDate) {
+        return true;
+      }
+      
+      // Include bikes collected but scheduled for a different date (will go to depot)
+      if (order.collection_driver_name && deliveryDate !== targetDate) {
+        return true;
+      }
+      
+      return false;
     });
   };
 
