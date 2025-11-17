@@ -716,7 +716,11 @@ const LoadingUnloadingPage = () => {
       }
       
       // Include bikes ACTUALLY COLLECTED but scheduled for a different date (will go to depot)
-      if (hasBeenCollected(order) && deliveryDate !== targetDate) {
+      // BUT exclude bikes already in storage - those only appear when scheduled for this date
+      const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+      const isAlreadyInStorage = orderAllocations.length > 0;
+      
+      if (hasBeenCollected(order) && deliveryDate !== targetDate && !isAlreadyInStorage) {
         return true;
       }
       
