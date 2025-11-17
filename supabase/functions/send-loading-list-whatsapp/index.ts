@@ -71,6 +71,22 @@ function categorizeBikesForDriver(
     return acc;
   }, {} as Record<string, typeof bikesToGiveAway>);
 
+  const bikesToReceive = allBikes.filter(b => {
+    const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+    return b.deliveryDriverName === driverName &&
+      b.collectionDriverName &&
+      b.collectionDriverName !== driverName &&
+      !b.isInStorage &&
+      bikeDate === normalizedLoadingDate;
+  });
+
+  const bikesByProvider = bikesToReceive.reduce((acc, bike) => {
+    const provider = bike.collectionDriverName!;
+    if (!acc[provider]) acc[provider] = [];
+    acc[provider].push(bike);
+    return acc;
+  }, {} as Record<string, typeof bikesToReceive>);
+
   const bikesToCollect = allBikes.filter(b => {
     const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
     return b.isInStorage &&
@@ -91,6 +107,7 @@ function categorizeBikesForDriver(
   console.log(`${driverName} categories:`, {
     keep: bikesToKeep.length,
     giveAway: Object.keys(bikesByRecipient).length,
+    receive: Object.keys(bikesByProvider).length,
     collect: bikesToCollect.length,
     deposit: bikesToDeposit.length
   });
@@ -98,6 +115,7 @@ function categorizeBikesForDriver(
   return {
     bikesToKeep,
     bikesByRecipient,
+    bikesByProvider,
     bikesToCollect,
     bikesToDeposit
   };
@@ -156,6 +174,18 @@ function buildDriverMessage(
     message += '---\n\n';
   }
   
+  if (Object.keys(categories.bikesByProvider).length > 0) {
+    message += `📥 BIKES TO RECEIVE FROM OTHER DRIVERS\n\n`;
+    for (const [providerName, bikes] of Object.entries(categories.bikesByProvider)) {
+      message += `📦 Receive from ${providerName} (${bikes.length} bike${bikes.length > 1 ? 's' : ''})\n`;
+      bikes.forEach((bike, i) => {
+        message += formatBikeEntry(bike, i, false);
+      });
+      message += '\n';
+    }
+    message += '---\n\n';
+  }
+  
   if (categories.bikesToCollect.length > 0) {
     message += `🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})\n\n`;
     categories.bikesToCollect.forEach((bike, i) => {
@@ -175,6 +205,7 @@ function buildDriverMessage(
   
   if (categories.bikesToKeep.length === 0 &&
       Object.keys(categories.bikesByRecipient).length === 0 &&
+      Object.keys(categories.bikesByProvider).length === 0 &&
       categories.bikesToCollect.length === 0 &&
       categories.bikesToDeposit.length === 0) {
     return '';
