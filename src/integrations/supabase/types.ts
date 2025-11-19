@@ -837,6 +837,10 @@ export type Database = {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
+      create_webhook_secret: {
+        Args: { p_name: string; p_secret: string }
+        Returns: string
+      }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {
@@ -882,6 +886,7 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_vault_secret: { Args: { secret_name: string }; Returns: string }
       get_webhook_event_for_status: {
         Args: { new_status: string; old_status: string }
         Returns: string

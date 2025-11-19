@@ -100,24 +100,21 @@ Deno.serve(async (req) => {
           const startTime = Date.now();
 
           try {
-            // Retrieve plaintext secret from Vault
+            // Retrieve plaintext secret from Vault using RPC function
             const vaultKey = `webhook_secret_${config.id}`;
-            const { data: vaultData, error: vaultError } = await supabase
-              .from('vault.secrets')
-              .select('decrypted_secret')
-              .eq('name', vaultKey)
-              .single();
+            const { data: webhookSecret, error: vaultError } = await supabase
+              .rpc('get_vault_secret', { secret_name: vaultKey });
 
-            if (vaultError || !vaultData?.decrypted_secret) {
+            if (vaultError || !webhookSecret) {
               console.error('Failed to retrieve webhook secret from Vault:', vaultError);
-              responseBody = 'Failed to retrieve webhook secret';
+              responseBody = `Failed to retrieve webhook secret: ${vaultError?.message || 'Secret not found'}`;
               continue;
             }
 
             // Generate HMAC signature using plaintext secret
             const payloadString = JSON.stringify(eventPayload);
             const encoder = new TextEncoder();
-            const keyData = encoder.encode(vaultData.decrypted_secret);
+            const keyData = encoder.encode(webhookSecret);
             const dataToSign = encoder.encode(payloadString);
             
             const cryptoKey = await crypto.subtle.importKey(

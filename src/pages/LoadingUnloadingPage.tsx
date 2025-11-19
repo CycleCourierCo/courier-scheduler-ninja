@@ -664,13 +664,20 @@ const LoadingUnloadingPage = () => {
       const scheduledDelivery = order.scheduledDeliveryDate;
       const scheduledPickup = order.scheduledPickupDate;
       
-      if (!scheduledDelivery) return false;
-      
-      const targetDate = format(date, 'yyyy-MM-dd');
-      const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
-      
       // Exclude if already loaded onto van
       if (order.loaded_onto_van) return false;
+      
+      const targetDate = format(date, 'yyyy-MM-dd');
+      
+      // Include bikes without scheduled delivery ONLY if they have ACTUALLY BEEN COLLECTED
+      // AND are not already in storage (those are already at depot)
+      if (!scheduledDelivery) {
+        const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+        const isAlreadyInStorage = orderAllocations.length > 0;
+        return hasBeenCollected(order) && !isAlreadyInStorage;
+      }
+      
+      const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
       
       // Handle same-day collection and delivery
       if (scheduledPickup) {
@@ -705,7 +712,21 @@ const LoadingUnloadingPage = () => {
         }
       }
       
-      return deliveryDate === targetDate;
+      // Include if delivery date matches target OR if collected but scheduled for a different date
+      if (deliveryDate === targetDate) {
+        return true;
+      }
+      
+      // Include bikes ACTUALLY COLLECTED but scheduled for a different date (will go to depot)
+      // BUT exclude bikes already in storage - those only appear when scheduled for this date
+      const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
+      const isAlreadyInStorage = orderAllocations.length > 0;
+      
+      if (hasBeenCollected(order) && deliveryDate !== targetDate && !isAlreadyInStorage) {
+        return true;
+      }
+      
+      return false;
     });
   };
 
@@ -777,7 +798,9 @@ const LoadingUnloadingPage = () => {
           })),
           collectionDriverName: collectionDriverName,
           deliveryDriverName: deliveryDriverName,
-          isInStorage: orderAllocations.length > 0
+          isInStorage: orderAllocations.length > 0,
+          scheduledDeliveryDate: order.scheduledDeliveryDate,
+          hasBeenCollected: hasBeenCollected(order)
         };
       });
 
@@ -803,7 +826,7 @@ const LoadingUnloadingPage = () => {
       // Call the WhatsApp edge function
       const response = await supabase.functions.invoke('send-loading-list-whatsapp', {
         body: {
-          date: format(selectedLoadingDate, 'PPP'),
+          date: format(selectedLoadingDate, 'yyyy-MM-dd'),
           bikesNeedingLoading: bikesNeedingLoadingData,
           bikesAlreadyLoaded: bikesAlreadyLoadedData,
           driverPhoneNumbers: driverPhoneNumbers

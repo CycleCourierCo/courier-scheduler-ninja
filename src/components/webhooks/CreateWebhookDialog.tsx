@@ -103,20 +103,27 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
 
     setLoading(true);
 
-    const { data, error } = await supabase.rpc('admin_generate_webhook_secret', {
-      p_user_id: userId,
-      p_name: name,
-      p_endpoint_url: endpointUrl,
-      p_events: selectedEvents,
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('create-webhook-config', {
+        body: {
+          user_id: userId,
+          name: name,
+          endpoint_url: endpointUrl,
+          events: selectedEvents,
+        }
+      });
 
-    if (error) {
+      if (error) {
+        toast.error("Failed to create webhook");
+        console.error(error);
+      } else if (data?.webhook_secret) {
+        setGeneratedSecret(data.webhook_secret);
+        setStep('secret');
+        toast.success("Webhook created successfully");
+      }
+    } catch (error) {
       toast.error("Failed to create webhook");
       console.error(error);
-    } else if (data && data.length > 0) {
-      setGeneratedSecret(data[0].webhook_secret);
-      setStep('secret');
-      toast.success("Webhook created successfully");
     }
 
     setLoading(false);
