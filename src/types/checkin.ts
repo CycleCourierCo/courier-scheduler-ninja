@@ -8,9 +8,18 @@ export interface DriverCheckin {
   fuel_photo_url: string;
   uniform_photo_url: string;
   is_on_time: boolean;
+  checkin_latitude: number | null;
+  checkin_longitude: number | null;
+  distance_from_depot_meters: number | null;
   created_at: string;
   updated_at: string;
   driver?: UserProfile;
+}
+
+export interface GeolocationData {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
 }
 
 export interface WeeklyCheckinBonus {

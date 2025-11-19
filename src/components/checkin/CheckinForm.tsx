@@ -2,11 +2,13 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Camera, Upload, X } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Camera, Upload, X, Check, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { GeolocationData } from '@/types/checkin';
 
 interface CheckinFormProps {
-  onSubmit: (fuelPhoto: File, uniformPhoto: File) => Promise<void>;
+  onSubmit: (fuelPhoto: File, uniformPhoto: File, location: GeolocationData) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -15,6 +17,8 @@ export function CheckinForm({ onSubmit, isSubmitting }: CheckinFormProps) {
   const [uniformPhoto, setUniformPhoto] = useState<File | null>(null);
   const [fuelPreview, setFuelPreview] = useState<string | null>(null);
   const [uniformPreview, setUniformPreview] = useState<string | null>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const fuelInputRef = useRef<HTMLInputElement>(null);
   const uniformInputRef = useRef<HTMLInputElement>(null);
@@ -62,23 +66,72 @@ export function CheckinForm({ onSubmit, isSubmitting }: CheckinFormProps) {
     }
   };
 
+  const getCurrentLocation = (): Promise<GeolocationData> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+        },
+        (error) => {
+          let message = 'Unable to get your location';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              message = 'Location permission denied. Please enable location access to check in.';
+              setLocationPermissionDenied(true);
+              break;
+            case error.POSITION_UNAVAILABLE:
+              message = 'Location information unavailable. Please ensure GPS is enabled.';
+              break;
+            case error.TIMEOUT:
+              message = 'Location request timed out. Please try again.';
+              break;
+          }
+          reject(new Error(message));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  };
+
   const handleSubmit = async () => {
     if (!fuelPhoto || !uniformPhoto) {
       toast.error('Please upload both photos');
       return;
     }
 
+    setIsRequestingLocation(true);
+    
     try {
-      await onSubmit(fuelPhoto, uniformPhoto);
+      const location = await getCurrentLocation();
+      await onSubmit(fuelPhoto, uniformPhoto, location);
+      
       // Clean up previews
       if (fuelPreview) URL.revokeObjectURL(fuelPreview);
       if (uniformPreview) URL.revokeObjectURL(uniformPreview);
     } catch (error) {
       console.error('Check-in submission error:', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
+    } finally {
+      setIsRequestingLocation(false);
     }
   };
 
-  const canSubmit = fuelPhoto && uniformPhoto && !isSubmitting;
+  const canSubmit = fuelPhoto && uniformPhoto && !isSubmitting && !isRequestingLocation;
 
   return (
     <Card>
@@ -87,6 +140,16 @@ export function CheckinForm({ onSubmit, isSubmitting }: CheckinFormProps) {
         <CardDescription>Upload your fuel level and uniform photos before 8:15 AM</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {locationPermissionDenied && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Location Access Required</AlertTitle>
+            <AlertDescription>
+              You must enable location permissions to submit your check-in. 
+              This ensures you're at the depot. Please enable location in your browser settings.
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Fuel Photo */}
         <div className="space-y-2">
           <Label htmlFor="fuel-photo">Fuel Level Photo</Label>
@@ -213,8 +276,24 @@ export function CheckinForm({ onSubmit, isSubmitting }: CheckinFormProps) {
           onClick={handleSubmit}
           disabled={!canSubmit}
           className="w-full"
+          size="lg"
         >
-          {isSubmitting ? 'Submitting...' : 'Submit Check-In'}
+          {isRequestingLocation ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Getting your location...
+            </>
+          ) : isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              <Check className="mr-2 h-4 w-4" />
+              Submit Check-In
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>

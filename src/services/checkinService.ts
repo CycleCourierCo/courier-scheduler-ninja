@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { DriverCheckin, WeeklyCheckinBonus } from "@/types/checkin";
+import { DriverCheckin, WeeklyCheckinBonus, GeolocationData } from "@/types/checkin";
 import { format } from 'date-fns';
 
 export const checkinService = {
@@ -61,8 +61,23 @@ export const checkinService = {
   async submitCheckin(
     driverId: string,
     fuelPhoto: File,
-    uniformPhoto: File
+    uniformPhoto: File,
+    location: GeolocationData
   ): Promise<DriverCheckin> {
+    // Validate location first
+    const { data: validation, error: validationError } = await supabase
+      .rpc('validate_checkin_location', {
+        p_lat: location.latitude,
+        p_lon: location.longitude
+      })
+      .single();
+
+    if (validationError) throw validationError;
+
+    if (!validation.is_valid) {
+      throw new Error(validation.error_message);
+    }
+
     // Upload photos
     const fuelPhotoUrl = await this.uploadPhoto(driverId, fuelPhoto, 'fuel');
     const uniformPhotoUrl = await this.uploadPhoto(driverId, uniformPhoto, 'uniform');
@@ -75,7 +90,10 @@ export const checkinService = {
         checkin_date: format(now, 'yyyy-MM-dd'),
         checkin_time: format(now, 'HH:mm:ss'),
         fuel_photo_url: fuelPhotoUrl,
-        uniform_photo_url: uniformPhotoUrl
+        uniform_photo_url: uniformPhotoUrl,
+        checkin_latitude: location.latitude,
+        checkin_longitude: location.longitude,
+        distance_from_depot_meters: validation.distance_meters
       })
       .select()
       .single();
