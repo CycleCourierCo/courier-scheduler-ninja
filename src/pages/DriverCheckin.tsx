@@ -56,9 +56,9 @@ export default function DriverCheckin() {
 
   // Submit check-in mutation
   const submitCheckinMutation = useMutation({
-    mutationFn: async ({ fuelPhoto, uniformPhoto }: { fuelPhoto: File; uniformPhoto: File }) => {
+    mutationFn: async ({ fuelPhoto, uniformPhoto, location }: { fuelPhoto: File; uniformPhoto: File; location: any }) => {
       if (!userProfile?.id) throw new Error('User not found');
-      return checkinService.submitCheckin(userProfile.id, fuelPhoto, uniformPhoto);
+      return checkinService.submitCheckin(userProfile.id, fuelPhoto, uniformPhoto, location);
     },
     onSuccess: () => {
       toast.success('Check-in submitted successfully!');
@@ -71,8 +71,8 @@ export default function DriverCheckin() {
     }
   });
 
-  const handleSubmitCheckin = async (fuelPhoto: File, uniformPhoto: File) => {
-    await submitCheckinMutation.mutateAsync({ fuelPhoto, uniformPhoto });
+  const handleSubmitCheckin = async (fuelPhoto: File, uniformPhoto: File, location: any) => {
+    await submitCheckinMutation.mutateAsync({ fuelPhoto, uniformPhoto, location });
   };
 
   const hasCheckedInToday = !!todayCheckin;

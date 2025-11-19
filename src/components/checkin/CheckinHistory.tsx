@@ -37,6 +37,7 @@ export function CheckinHistory({ checkins }: CheckinHistoryProps) {
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Location</TableHead>
               <TableHead>Photos</TableHead>
             </TableRow>
           </TableHeader>
@@ -56,6 +57,15 @@ export function CheckinHistory({ checkins }: CheckinHistoryProps) {
                       <XCircle className="h-3 w-3" />
                       Late
                     </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {checkin.distance_from_depot_meters !== null ? (
+                    <Badge variant={checkin.distance_from_depot_meters <= 500 ? "default" : "destructive"}>
+                      {checkin.distance_from_depot_meters}m from depot
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">No location data</span>
                   )}
                 </TableCell>
                 <TableCell>

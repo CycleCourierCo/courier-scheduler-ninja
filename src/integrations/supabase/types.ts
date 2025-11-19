@@ -61,8 +61,11 @@ export type Database = {
       driver_checkins: {
         Row: {
           checkin_date: string
+          checkin_latitude: number | null
+          checkin_longitude: number | null
           checkin_time: string
           created_at: string | null
+          distance_from_depot_meters: number | null
           driver_id: string
           fuel_photo_url: string
           id: string
@@ -72,8 +75,11 @@ export type Database = {
         }
         Insert: {
           checkin_date: string
+          checkin_latitude?: number | null
+          checkin_longitude?: number | null
           checkin_time: string
           created_at?: string | null
+          distance_from_depot_meters?: number | null
           driver_id: string
           fuel_photo_url: string
           id?: string
@@ -83,8 +89,11 @@ export type Database = {
         }
         Update: {
           checkin_date?: string
+          checkin_latitude?: number | null
+          checkin_longitude?: number | null
           checkin_time?: string
           created_at?: string | null
+          distance_from_depot_meters?: number | null
           driver_id?: string
           fuel_photo_url?: string
           id?: string
@@ -1007,6 +1016,14 @@ export type Database = {
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      validate_checkin_location: {
+        Args: { p_lat: number; p_lon: number }
+        Returns: {
+          distance_meters: number
+          error_message: string
+          is_valid: boolean
+        }[]
+      }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
