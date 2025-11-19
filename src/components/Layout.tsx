@@ -40,6 +40,16 @@ const Layout: React.FC<LayoutProps> = ({
           Sign In
         </Link>}
     </> : null;
+
+  const driverNavLinks = isDriver ? <>
+      <Link to="/driver-checkin" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Check-In
+      </Link>
+      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        My Timeslips
+      </Link>
+    </> : null;
+
   return <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -49,6 +59,7 @@ const Layout: React.FC<LayoutProps> = ({
           
           <nav className="hidden md:flex space-x-6">
             {navLinks}
+            {driverNavLinks}
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
@@ -64,6 +75,7 @@ const Layout: React.FC<LayoutProps> = ({
               <SheetContent side="right" className="w-[250px]">
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
+                  {driverNavLinks}
                   
                   {user && !isLoader && !isDriver && <>
                       <DropdownMenuSeparator className="my-2" />
