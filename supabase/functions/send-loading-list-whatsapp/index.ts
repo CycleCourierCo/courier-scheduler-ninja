@@ -257,48 +257,102 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('All drivers:', Array.from(allDrivers));
 
-    // Create management overview (grouped by delivery driver)
-    const bikesByDriver = bikesNeedingLoading.reduce((acc, bike) => {
-      const driver = bike.deliveryDriverName || 'Unassigned Driver';
-      if (!acc[driver]) {
-        acc[driver] = [];
-      }
-      acc[driver].push(bike);
-      return acc;
-    }, {} as Record<string, typeof bikesNeedingLoading>);
+    // Helper functions for management message categorization
+    const getBikesFromDepot = (bikes: LoadingListRequest['bikesNeedingLoading'], loadingDate: string) => {
+      const normalizedDate = normalizeDateToYYYYMMDD(loadingDate);
+      return bikes.filter(b => {
+        const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+        return b.isInStorage && bikeDate === normalizedDate;
+      });
+    };
 
+    const getBikesToDepot = (bikes: LoadingListRequest['bikesNeedingLoading'], loadingDate: string) => {
+      const normalizedDate = normalizeDateToYYYYMMDD(loadingDate);
+      return bikes.filter(b => {
+        const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
+        return b.hasBeenCollected && 
+               !b.isInStorage && 
+               (
+                 !b.deliveryDriverName ||
+                 b.deliveryDriverName === 'Unassigned Driver' ||
+                 !bikeDate ||
+                 bikeDate !== normalizedDate
+               );
+      });
+    };
+
+    // Build management message with FROM/TO depot sections
     let managementMessage = `🚛 LOADING LIST - MANAGEMENT OVERVIEW\n\n📅 Date: ${date}\n\n`;
 
-    for (const [driverName, driverBikes] of Object.entries(bikesByDriver)) {
-      managementMessage += `👨‍💼 ${driverName}\n`;
-      
-      driverBikes.forEach((bike, index) => {
-        const bikeNumber = index + 1;
-        
-        let location = '';
-        if (bike.isInStorage) {
-          location = bike.storageAllocations.map(alloc => `Bay ${alloc.bay}${alloc.position}`).join(', ');
-        } else {
-          if (bike.collectionDriverName) {
-            location = `With ${bike.collectionDriverName}`;
-          } else {
-            location = 'Awaiting collection';
-          }
-        }
-        
-        managementMessage += `${bikeNumber}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
-        managementMessage += `   📍 Location: ${location}\n`;
-        managementMessage += `   📦 Customer: ${bike.receiver.name}\n`;
-        managementMessage += `   🔢 Tracking: ${bike.trackingNumber}\n`;
-        
+    // SECTION 1: FROM Depot → Drivers (Outbound)
+    const bikesFromDepot = getBikesFromDepot(bikesNeedingLoading, date);
+    managementMessage += `📤 FROM DEPOT → DRIVERS (${bikesFromDepot.length} bikes)\n`;
+    managementMessage += `Bikes in storage going OUT today\n\n`;
+
+    // Group by delivery driver
+    const fromDepotByDriver = bikesFromDepot.reduce((acc, bike) => {
+      const driver = bike.deliveryDriverName || 'Unassigned';
+      if (!acc[driver]) acc[driver] = [];
+      acc[driver].push(bike);
+      return acc;
+    }, {} as Record<string, typeof bikesFromDepot>);
+
+    for (const [driverName, bikes] of Object.entries(fromDepotByDriver)) {
+      managementMessage += `👨‍💼 ${driverName} (${bikes.length})\n`;
+      bikes.forEach((bike, i) => {
+        const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        managementMessage += `${i+1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
+        managementMessage += `   📍 ${location}\n`;
+        managementMessage += `   📦 ${bike.receiver.name}\n`;
+        managementMessage += `   🔢 ${bike.trackingNumber}\n`;
         if (bike.bikeQuantity > 1) {
           managementMessage += `   🚲 Quantity: ${bike.bikeQuantity} bikes\n`;
         }
         managementMessage += '\n';
       });
-      
-      managementMessage += '---\n\n';
     }
+    managementMessage += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
+    // SECTION 2: TO Depot (Inbound)
+    const bikesToDepot = getBikesToDepot(bikesNeedingLoading, date);
+    managementMessage += `📥 TO DEPOT ← DRIVERS (${bikesToDepot.length} bikes)\n`;
+    managementMessage += `Bikes collected that need to come IN\n\n`;
+
+    // Group by collection driver
+    const toDepotByDriver = bikesToDepot.reduce((acc, bike) => {
+      const driver = bike.collectionDriverName || 'Unknown';
+      if (!acc[driver]) acc[driver] = [];
+      acc[driver].push(bike);
+      return acc;
+    }, {} as Record<string, typeof bikesToDepot>);
+
+    for (const [driverName, bikes] of Object.entries(toDepotByDriver)) {
+      managementMessage += `👨‍💼 ${driverName} bringing in (${bikes.length})\n`;
+      bikes.forEach((bike, i) => {
+        let reason = '';
+        if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
+          reason = '⚠️ No delivery driver';
+        } else if (bike.scheduledDeliveryDate) {
+          const deliveryDate = new Date(bike.scheduledDeliveryDate).toLocaleDateString('en-GB');
+          reason = `📅 Delivery: ${deliveryDate}`;
+        }
+        managementMessage += `${i+1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
+        managementMessage += `   📦 ${bike.receiver.name}\n`;
+        managementMessage += `   🔢 ${bike.trackingNumber}\n`;
+        if (reason) managementMessage += `   ${reason}\n`;
+        if (bike.bikeQuantity > 1) {
+          managementMessage += `   🚲 Quantity: ${bike.bikeQuantity} bikes\n`;
+        }
+        managementMessage += '\n';
+      });
+    }
+    managementMessage += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
+    // SECTION 3: Summary
+    managementMessage += `📊 SUMMARY\n`;
+    managementMessage += `• Outbound: ${bikesFromDepot.length} bikes leaving depot\n`;
+    managementMessage += `• Inbound: ${bikesToDepot.length} bikes coming to depot\n`;
+    managementMessage += `• Total drivers: ${allDrivers.size}\n`;
 
     console.log('Formatted management message:', managementMessage);
 
