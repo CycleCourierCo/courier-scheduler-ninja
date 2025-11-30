@@ -402,10 +402,20 @@ export const assignOrdersToWeek = (
   const dayJobs: Job[][] = WORKING_DAYS.map(() => []);
   
   pendingJobs.forEach(({ availableDays, ...job }) => {
-    // Pick the first available working day
-    const dayIdx = availableDays[0];
-    if (dayIdx >= 0 && dayIdx < WORKING_DAYS.length) {
-      dayJobs[dayIdx].push(job);
+    // Find the available day with the least jobs assigned (balance workload)
+    let bestDayIdx = availableDays[0];
+    let minJobs = dayJobs[bestDayIdx]?.length || 0;
+    
+    availableDays.forEach(dayIdx => {
+      const currentJobCount = dayJobs[dayIdx]?.length || 0;
+      if (currentJobCount < minJobs) {
+        minJobs = currentJobCount;
+        bestDayIdx = dayIdx;
+      }
+    });
+    
+    if (bestDayIdx >= 0 && bestDayIdx < WORKING_DAYS.length) {
+      dayJobs[bestDayIdx].push(job);
     }
   });
   
