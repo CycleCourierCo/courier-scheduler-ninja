@@ -2,16 +2,12 @@ import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import StatusBadge from "@/components/StatusBadge";
 import { format } from "date-fns";
 import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
-import { Separator } from "@/components/ui/separator";
-import { ArrowDown, Calendar, MapPin, FileText } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Calendar, MapPin, FileText } from "lucide-react";
 import JobMap from "@/components/scheduling/JobMap";
-import JobSchedulingForm from "@/components/scheduling/JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -46,15 +42,6 @@ export interface OrderData {
   receiverPolygonSegment?: number;
 }
 
-const getPolygonBadgeVariant = (segment: number | undefined) => {
-  if (!segment) return undefined;
-  
-  const safeSegment = Math.min(Math.max(1, segment), 8);
-  
-  return `p${safeSegment}-segment` as 
-    "p1-segment" | "p2-segment" | "p3-segment" | "p4-segment" | 
-    "p5-segment" | "p6-segment" | "p7-segment" | "p8-segment";
-};
 
 const JobScheduling = () => {
   const [selectedTimeslipDate, setSelectedTimeslipDate] = useState<Date>();
@@ -129,34 +116,6 @@ const JobScheduling = () => {
     return null;
   };
 
-  const checkAndSetScheduledStatus = async (order: OrderData) => {
-    if (order.status === "scheduled") return;
-
-    if (order.scheduled_pickup_date && order.scheduled_delivery_date) {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "scheduled" })
-        .eq("id", order.id);
-      if (!error) {
-        toast.success("Order marked as scheduled!");
-        refetch();
-      } else {
-        toast.error("Error updating status to scheduled");
-      }
-    }
-  };
-
-  const handleScheduled = async (orderId?: string) => {
-    toast.success("Job scheduled successfully");
-    await refetch();
-    if (!orders) return;
-
-    if (orderId) {
-      const foundOrder = orders.find(o => o.id === orderId);
-      if (foundOrder) checkAndSetScheduledStatus(foundOrder);
-    }
-  };
-
   useEffect(() => {
     if (orders) {
       console.log("Orders loaded with polygon segments:", 
@@ -167,15 +126,6 @@ const JobScheduling = () => {
         })));
     }
   }, [orders]);
-
-  const formatAddress = (address: Address) => {
-    return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;
-  };
-
-  const formatDates = (dates: string[] | null) => {
-    if (!dates || dates.length === 0) return "No dates available";
-    return dates.map(date => format(new Date(date), 'MMM d, yyyy')).join(", ");
-  };
 
   const queryDriversForDate = async (selectedDate: Date) => {
     setIsLoadingDrivers(true);
@@ -732,152 +682,6 @@ ${routeLinks}`;
             
             <div className="mb-8">
               <RouteBuilder orders={orders || []} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {orders?.map((order) => (
-                <div key={order.id} className="space-y-4">
-                  <Link to={`/orders/${order.id}`}>
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-4">
-                          <StatusBadge status={order.status} />
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(order.created_at), 'MMM d, yyyy')}
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          <div>
-                            <p className="font-medium">{order.bike_brand} {order.bike_model}</p>
-                            <p className="text-sm text-muted-foreground">Order #{order.tracking_number}</p>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className="text-sm">
-                              <p className="font-medium mb-1">From:</p>
-                              <p className="text-muted-foreground">{formatAddress(order.sender.address)}</p>
-                            </div>
-                            <div className="text-sm">
-                              <p className="font-medium mb-1">To:</p>
-                              <p className="text-muted-foreground">{formatAddress(order.receiver.address)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <div className="flex justify-center">
-                    <ArrowDown className="text-gray-400" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="bg-green-50 hover:shadow-md transition-shadow">
-                      <CardContent className="p-3 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-medium text-sm">Collection</h3>
-                          <div className="flex items-center gap-2">
-                            {order.senderPolygonSegment && (
-                              <Badge 
-                                variant={getPolygonBadgeVariant(order.senderPolygonSegment)}
-                                className="text-xs"
-                              >
-                                P{order.senderPolygonSegment}
-                              </Badge>
-                            )}
-                            {order.scheduled_pickup_date && (
-                              <Badge variant="outline" className="text-xs">Scheduled</Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-1">
-                            <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground">{formatAddress(order.sender.address)}</p>
-                          </div>
-                          {order.sender.address.lat && order.sender.address.lon && (
-                            <p className="text-xs text-muted-foreground ml-4">
-                              Coordinates: {order.sender.address.lat.toFixed(4)}, {order.sender.address.lon.toFixed(4)}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <p>Available dates:</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDates(order.pickup_date)}
-                          </p>
-                          {order.scheduled_pickup_date && (
-                            <p className="text-xs text-muted-foreground">
-                              Scheduled Date: {format(new Date(order.scheduled_pickup_date), 'MMM d, yyyy h:mm a')}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {!order.scheduled_pickup_date && (
-                          <JobSchedulingForm 
-                            orderId={order.id} 
-                            type="pickup" 
-                            onScheduled={() => handleScheduled(order.id)}
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-blue-50 hover:shadow-md transition-shadow">
-                      <CardContent className="p-3 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-medium text-sm">Delivery</h3>
-                          <div className="flex items-center gap-2">
-                            {order.receiverPolygonSegment && (
-                              <Badge 
-                                variant={getPolygonBadgeVariant(order.receiverPolygonSegment)}
-                                className="text-xs"
-                              >
-                                P{order.receiverPolygonSegment}
-                              </Badge>
-                            )}
-                            {order.scheduled_delivery_date && (
-                              <Badge variant="outline" className="text-xs">Scheduled</Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-1">
-                            <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground">{formatAddress(order.receiver.address)}</p>
-                          </div>
-                          {order.receiver.address.lat && order.receiver.address.lon && (
-                            <p className="text-xs text-muted-foreground ml-4">
-                              Coordinates: {order.receiver.address.lat.toFixed(4)}, {order.receiver.address.lon.toFixed(4)}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <p>Available dates:</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDates(order.delivery_date)}
-                          </p>
-                          {order.scheduled_delivery_date && (
-                            <p className="text-xs text-muted-foreground">
-                              Scheduled Date: {format(new Date(order.scheduled_delivery_date), 'MMM d, yyyy h:mm a')}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {!order.scheduled_delivery_date && (
-                          <JobSchedulingForm 
-                            orderId={order.id} 
-                            type="delivery" 
-                            onScheduled={() => handleScheduled(order.id)}
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              ))}
             </div>
           </>
         )}
