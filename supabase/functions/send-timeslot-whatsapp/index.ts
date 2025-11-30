@@ -300,22 +300,24 @@ Cycle Courier Co.`;
           if (orderToUpdate.is_bike_swap) orderDetails.push('Bike Swap');
           
           const baseDeliveryInstructions = orderToUpdate.delivery_instructions || '';
-          const contextNotes = recipientType === 'sender' ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
+          
+          // Determine which contact to use based on the job type (collection = sender, delivery = receiver)
+          const usesSenderInfo = isCollectionJob;
+          const jobContact = usesSenderInfo ? orderToUpdate.sender : orderToUpdate.receiver;
+          const jobNotes = usesSenderInfo ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
           
           const allInstructions = [
             ...orderDetails,
             baseDeliveryInstructions,
-            contextNotes
+            jobNotes
           ].filter(Boolean).join(' | ');
 
         const requestBody = {
           orderNumber: orderToUpdate.tracking_number || `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
-          customerName: recipientType === 'sender' ? orderToUpdate.sender.name : orderToUpdate.receiver.name,
-          customerAddress: recipientType === 'sender' 
-            ? `${orderToUpdate.sender.address.street}, ${orderToUpdate.sender.address.city}, ${orderToUpdate.sender.address.state} ${orderToUpdate.sender.address.zipCode}`
-            : `${orderToUpdate.receiver.address.street}, ${orderToUpdate.receiver.address.city}, ${orderToUpdate.receiver.address.state} ${orderToUpdate.receiver.address.zipCode}`,
-          customerEmail: recipientType === 'sender' ? orderToUpdate.sender.email : orderToUpdate.receiver.email,
-          customerPhoneNumber: recipientType === 'sender' ? orderToUpdate.sender.phone : orderToUpdate.receiver.phone,
+          customerName: jobContact.name,
+          customerAddress: `${jobContact.address.street}, ${jobContact.address.city}, ${jobContact.address.state} ${jobContact.address.zipCode}`,
+          customerEmail: jobContact.email,
+          customerPhoneNumber: jobContact.phone,
           restaurantName: "Cycle Courier Co.",
           restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
           expectedPickupTime: expectedPickupTime,
@@ -323,6 +325,8 @@ Cycle Courier Co.`;
           expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
           deliveryInstruction: allInstructions
         };
+
+        console.log(`Order ${orderToUpdate.id}: Using ${usesSenderInfo ? 'SENDER' : 'RECEIVER'} info for Shipday update`);
 
           const shipdayResponse = await fetch(shipdayUrl, {
             method: 'PUT',
