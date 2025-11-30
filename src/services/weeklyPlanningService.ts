@@ -3,7 +3,7 @@ import { format, addDays, isWithinInterval, startOfWeek, endOfWeek } from "date-
 import { supabase } from "@/integrations/supabase/client";
 import { DEPOT_LOCATION } from "@/constants/depot";
 
-const MAX_JOBS_PER_DRIVER = 15;
+const MAX_BIKES_ON_VAN = 10;
 const MAX_ROUTE_DISTANCE_MILES = 600;
 const DEPOT = DEPOT_LOCATION;
 
@@ -23,6 +23,7 @@ export interface Job {
   lat: number;
   lon: number;
   region: Region;
+  bikeQuantity: number;
 }
 
 export interface DriverAssignment {
@@ -168,26 +169,38 @@ const groupJobsByRegion = (jobs: Job[]): Map<Region, Job[]> => {
   return regionMap;
 };
 
+/**
+ * Calculate the maximum number of bikes on the van at any point in the route.
+ * Collections add bikes, deliveries remove bikes.
+ * Worst case: all collections happen before deliveries.
+ */
+const calculatePeakBikeCount = (jobs: Job[]): number => {
+  const collections = jobs.filter(j => j.type === 'collection');
+  const totalCollected = collections.reduce((sum, j) => sum + j.bikeQuantity, 0);
+  return totalCollected;
+};
+
 // Calculate required drivers for a set of jobs
 export const calculateRequiredDrivers = (jobs: Job[]): number => {
   if (jobs.length === 0) return 0;
   
-  // Group by region
   const regionGroups = groupJobsByRegion(jobs);
-  
   let totalDriversNeeded = 0;
   
   regionGroups.forEach((regionJobs) => {
     // Calculate drivers needed based on:
-    // 1. Job count (max 15 per driver)
-    const driversByJobCount = Math.ceil(regionJobs.length / MAX_JOBS_PER_DRIVER);
+    // 1. Bike capacity (max 10 bikes on van at peak)
+    const totalBikesToCollect = regionJobs
+      .filter(j => j.type === 'collection')
+      .reduce((sum, j) => sum + j.bikeQuantity, 0);
+    const driversByBikeCapacity = Math.ceil(totalBikesToCollect / MAX_BIKES_ON_VAN);
     
     // 2. Route distance (max 600 miles)
     const estimatedRegionDistance = calculateRouteDistance(regionJobs);
     const driversByDistance = Math.ceil(estimatedRegionDistance / MAX_ROUTE_DISTANCE_MILES);
     
     // Take the higher of the two constraints
-    totalDriversNeeded += Math.max(driversByJobCount, driversByDistance);
+    totalDriversNeeded += Math.max(driversByBikeCapacity, driversByDistance);
   });
   
   return Math.max(1, totalDriversNeeded);
@@ -198,54 +211,61 @@ export const balanceDriverWorkload = (
   dayJobs: Job[],
   numberOfDrivers: number
 ): DriverAssignment[] => {
-  if (numberOfDrivers === 1) {
-    return [{
-      driverIndex: 0,
-      jobs: dayJobs,
-      estimatedDistance: calculateRouteDistance(dayJobs),
-      region: dayJobs[0]?.region
-    }];
-  }
+  if (dayJobs.length === 0) return [];
   
-  // Group jobs by region first
   const regionGroups = groupJobsByRegion(dayJobs);
+  const drivers: DriverAssignment[] = [];
+  let driverIdx = 0;
   
-  // Initialize driver assignments
-  const drivers: DriverAssignment[] = Array.from({ length: numberOfDrivers }, (_, i) => ({
-    driverIndex: i,
+  const createDriver = (): DriverAssignment => ({
+    driverIndex: driverIdx++,
     jobs: [],
     estimatedDistance: 0,
     region: undefined
-  }));
-  
-  // Assign regional groups to drivers
-  let driverIdx = 0;
-  regionGroups.forEach((jobs, region) => {
-    // Try to keep regional groups together
-    const driver = drivers[driverIdx % numberOfDrivers];
-    
-    // Check if adding these jobs exceeds limits
-    if (driver.jobs.length + jobs.length <= MAX_JOBS_PER_DRIVER) {
-      driver.jobs.push(...jobs);
-      driver.region = driver.region || region;
-      driver.estimatedDistance = calculateRouteDistance(driver.jobs);
-    } else {
-      // Split across multiple drivers if needed
-      let remainingJobs = [...jobs];
-      while (remainingJobs.length > 0) {
-        const currentDriver = drivers.find(d => d.jobs.length < MAX_JOBS_PER_DRIVER) || drivers[0];
-        const available = MAX_JOBS_PER_DRIVER - currentDriver.jobs.length;
-        const toAdd = remainingJobs.splice(0, available);
-        currentDriver.jobs.push(...toAdd);
-        currentDriver.region = currentDriver.region || region;
-        currentDriver.estimatedDistance = calculateRouteDistance(currentDriver.jobs);
-      }
-    }
-    
-    driverIdx++;
   });
   
-  return drivers.filter(d => d.jobs.length > 0);
+  // Check if adding a job is valid (bike capacity + distance)
+  const canAddJob = (driver: DriverAssignment, job: Job): boolean => {
+    const testJobs = [...driver.jobs, job];
+    
+    // Check bike capacity
+    const peakBikes = calculatePeakBikeCount(testJobs);
+    if (peakBikes > MAX_BIKES_ON_VAN) return false;
+    
+    // Check distance
+    const testDistance = calculateRouteDistance(testJobs);
+    if (testDistance > MAX_ROUTE_DISTANCE_MILES) return false;
+    
+    return true;
+  };
+  
+  // Process each region's jobs
+  regionGroups.forEach((regionJobs, region) => {
+    regionJobs.forEach(job => {
+      // Find an existing driver that can take this job (same region preferred)
+      let assignedDriver = drivers.find(d => 
+        d.region === region && canAddJob(d, job)
+      );
+      
+      // If no same-region driver, find any driver with capacity
+      if (!assignedDriver) {
+        assignedDriver = drivers.find(d => canAddJob(d, job));
+      }
+      
+      // If no existing driver can take it, create a new one
+      if (!assignedDriver) {
+        assignedDriver = createDriver();
+        assignedDriver.region = region;
+        drivers.push(assignedDriver);
+      }
+      
+      // Add job and recalculate distance
+      assignedDriver.jobs.push(job);
+      assignedDriver.estimatedDistance = calculateRouteDistance(assignedDriver.jobs);
+    });
+  });
+  
+  return drivers;
 };
 
 // Enforce collection before delivery for same order
@@ -288,13 +308,30 @@ const enforceCollectionBeforeDelivery = (dayPlans: DayPlan[], orders: OrderData[
         const jobIdx = driver.jobs.findIndex(j => j.orderId === orderId && j.type === 'delivery');
         if (jobIdx !== -1) {
           const [job] = driver.jobs.splice(jobIdx, 1);
+          driver.estimatedDistance = calculateRouteDistance(driver.jobs);
           
-          // Add to target day (first driver with space)
-          const targetDriver = dayPlans[targetDay].drivers[0];
-          if (targetDriver) {
-            targetDriver.jobs.push(job);
-            targetDriver.estimatedDistance = calculateRouteDistance(targetDriver.jobs);
+          // Find a driver with capacity on target day, or create new one
+          const targetDrivers = dayPlans[targetDay].drivers;
+          let targetDriver = targetDrivers.find(d => {
+            const testJobs = [...d.jobs, job];
+            const peakBikes = calculatePeakBikeCount(testJobs);
+            const testDistance = calculateRouteDistance(testJobs);
+            return peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES;
+          });
+          
+          if (!targetDriver) {
+            // Create new driver for target day
+            targetDriver = {
+              driverIndex: targetDrivers.length,
+              jobs: [],
+              estimatedDistance: 0,
+              region: job.region
+            };
+            targetDrivers.push(targetDriver);
           }
+          
+          targetDriver.jobs.push(job);
+          targetDriver.estimatedDistance = calculateRouteDistance(targetDriver.jobs);
           return;
         }
       }
@@ -344,6 +381,7 @@ export const assignOrdersToWeek = (
             lat: contact.address.lat,
             lon: contact.address.lon,
             region: getRegion(contact.address.lat, contact.address.lon),
+            bikeQuantity: order.bike_quantity || 1,
             availableDays: availableDayIndices
           });
         }
@@ -389,6 +427,11 @@ export const assignOrdersToWeek = (
   
   // Step 5: Enforce collection before delivery
   const finalDayPlans = enforceCollectionBeforeDelivery(dayPlans, orders);
+  
+  // Step 6: Recalculate driversPerDay based on actual assignments after enforcement
+  WORKING_DAYS.forEach((dayName, dayIdx) => {
+    driversPerDay[dayName] = finalDayPlans[dayIdx].drivers.length;
+  });
   
   return {
     weekStart,
