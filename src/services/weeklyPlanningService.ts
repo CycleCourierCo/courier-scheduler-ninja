@@ -3,8 +3,13 @@ import { format, addDays, isWithinInterval, startOfWeek, endOfWeek } from "date-
 import { supabase } from "@/integrations/supabase/client";
 import { DEPOT_LOCATION } from "@/constants/depot";
 
+const MAX_JOBS_PER_DRIVER = 15;
 const MAX_ROUTE_DISTANCE_MILES = 600;
 const DEPOT = DEPOT_LOCATION;
+
+// Working days: Mon-Thu + Sat-Sun (Friday removed)
+const WORKING_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'] as const;
+const DAY_INDICES = [0, 1, 2, 3, 5, 6]; // addDays indices from Monday
 
 export type Region = 'midlands' | 'north' | 'wales' | 'south' | 'scotland';
 
@@ -99,11 +104,10 @@ export const getAvailableDaysForOrder = (order: OrderData, weekStart: Date, isCo
   const dateArray = isCollection ? order.pickup_date : order.delivery_date;
   
   if (!dateArray || dateArray.length === 0) {
-    // No specific dates - all weekdays are available
-    for (let i = 0; i < 5; i++) {
-      const day = addDays(weekStart, i);
-      dates.push(day);
-    }
+    // No specific dates - all working days are available
+    DAY_INDICES.forEach(idx => {
+      dates.push(addDays(weekStart, idx));
+    });
     return dates;
   }
   
@@ -112,9 +116,9 @@ export const getAvailableDaysForOrder = (order: OrderData, weekStart: Date, isCo
     try {
       const date = new Date(dateStr);
       if (isWithinInterval(date, { start: weekStart, end: weekEnd })) {
-        // Exclude weekends
         const dayOfWeek = date.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        // Include Mon-Thu (1-4) and Sat-Sun (6,0)
+        if ((dayOfWeek >= 1 && dayOfWeek <= 4) || dayOfWeek === 6 || dayOfWeek === 0) {
           dates.push(date);
         }
       }
@@ -123,12 +127,11 @@ export const getAvailableDaysForOrder = (order: OrderData, weekStart: Date, isCo
     }
   });
   
-  // If no dates fall in this week, allow all weekdays
+  // If no dates fall in this week, allow all working days
   if (dates.length === 0) {
-    for (let i = 0; i < 5; i++) {
-      const day = addDays(weekStart, i);
-      dates.push(day);
-    }
+    DAY_INDICES.forEach(idx => {
+      dates.push(addDays(weekStart, idx));
+    });
   }
   
   return dates;
@@ -152,11 +155,6 @@ const calculateRouteDistance = (jobs: Job[]): number => {
   return totalDistance * 0.621371; // km to miles
 };
 
-// Validate route doesn't exceed max distance
-const validateRouteDistance = (jobs: Job[]): boolean => {
-  return calculateRouteDistance(jobs) <= MAX_ROUTE_DISTANCE_MILES;
-};
-
 // Group jobs by region
 const groupJobsByRegion = (jobs: Job[]): Map<Region, Job[]> => {
   const regionMap = new Map<Region, Job[]>();
@@ -170,11 +168,35 @@ const groupJobsByRegion = (jobs: Job[]): Map<Region, Job[]> => {
   return regionMap;
 };
 
+// Calculate required drivers for a set of jobs
+export const calculateRequiredDrivers = (jobs: Job[]): number => {
+  if (jobs.length === 0) return 0;
+  
+  // Group by region
+  const regionGroups = groupJobsByRegion(jobs);
+  
+  let totalDriversNeeded = 0;
+  
+  regionGroups.forEach((regionJobs) => {
+    // Calculate drivers needed based on:
+    // 1. Job count (max 15 per driver)
+    const driversByJobCount = Math.ceil(regionJobs.length / MAX_JOBS_PER_DRIVER);
+    
+    // 2. Route distance (max 600 miles)
+    const estimatedRegionDistance = calculateRouteDistance(regionJobs);
+    const driversByDistance = Math.ceil(estimatedRegionDistance / MAX_ROUTE_DISTANCE_MILES);
+    
+    // Take the higher of the two constraints
+    totalDriversNeeded += Math.max(driversByJobCount, driversByDistance);
+  });
+  
+  return Math.max(1, totalDriversNeeded);
+};
+
 // Balance workload across drivers for a single day with regional clustering
 export const balanceDriverWorkload = (
   dayJobs: Job[],
-  numberOfDrivers: number,
-  maxJobsPerDriver: number = 25
+  numberOfDrivers: number
 ): DriverAssignment[] => {
   if (numberOfDrivers === 1) {
     return [{
@@ -203,7 +225,7 @@ export const balanceDriverWorkload = (
     const driver = drivers[driverIdx % numberOfDrivers];
     
     // Check if adding these jobs exceeds limits
-    if (driver.jobs.length + jobs.length <= maxJobsPerDriver) {
+    if (driver.jobs.length + jobs.length <= MAX_JOBS_PER_DRIVER) {
       driver.jobs.push(...jobs);
       driver.region = driver.region || region;
       driver.estimatedDistance = calculateRouteDistance(driver.jobs);
@@ -211,8 +233,8 @@ export const balanceDriverWorkload = (
       // Split across multiple drivers if needed
       let remainingJobs = [...jobs];
       while (remainingJobs.length > 0) {
-        const currentDriver = drivers.find(d => d.jobs.length < maxJobsPerDriver) || drivers[0];
-        const available = maxJobsPerDriver - currentDriver.jobs.length;
+        const currentDriver = drivers.find(d => d.jobs.length < MAX_JOBS_PER_DRIVER) || drivers[0];
+        const available = MAX_JOBS_PER_DRIVER - currentDriver.jobs.length;
         const toAdd = remainingJobs.splice(0, available);
         currentDriver.jobs.push(...toAdd);
         currentDriver.region = currentDriver.region || region;
@@ -282,14 +304,11 @@ const enforceCollectionBeforeDelivery = (dayPlans: DayPlan[], orders: OrderData[
   return dayPlans;
 };
 
-// Assign orders to week with improved logic
+// Assign orders to week with auto-calculated drivers
 export const assignOrdersToWeek = (
   orders: OrderData[],
-  weekStart: Date,
-  driversPerDay: Record<string, number>
+  weekStart: Date
 ): WeeklyPlan => {
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-  
   // Step 1: Create all pending jobs (one per order per type)
   const pendingJobs: (Job & { availableDays: number[] })[] = [];
   
@@ -302,9 +321,17 @@ export const assignOrdersToWeek = (
       
       if (contact.address.lat && contact.address.lon) {
         const availableDays = getAvailableDaysForOrder(order, weekStart, isCollection);
-        const availableDayIndices = availableDays.map(date => 
-          Math.floor((date.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24))
-        ).filter(idx => idx >= 0 && idx < 5);
+        const availableDayIndices = availableDays.map(date => {
+          const dayOfWeek = date.getDay();
+          // Map to our working days array indices
+          if (dayOfWeek === 1) return 0; // Monday
+          if (dayOfWeek === 2) return 1; // Tuesday
+          if (dayOfWeek === 3) return 2; // Wednesday
+          if (dayOfWeek === 4) return 3; // Thursday
+          if (dayOfWeek === 6) return 4; // Saturday
+          if (dayOfWeek === 0) return 5; // Sunday
+          return -1;
+        }).filter(idx => idx >= 0);
         
         if (availableDayIndices.length > 0) {
           pendingJobs.push({
@@ -324,41 +351,43 @@ export const assignOrdersToWeek = (
     });
   });
   
-  // Step 2: Group jobs by region
-  const jobsByRegion = groupJobsByRegion(pendingJobs.map(({ availableDays, ...job }) => job));
-  
-  // Step 3: Assign regional groups to specific days
-  const dayPlans: DayPlan[] = days.map((dayName, dayIdx) => ({
+  // Step 2: Initialize day plans
+  const dayPlans: DayPlan[] = WORKING_DAYS.map((dayName, idx) => ({
     day: dayName,
-    date: addDays(weekStart, dayIdx),
+    date: addDays(weekStart, DAY_INDICES[idx]),
     drivers: [],
     totalJobs: 0,
     totalDistance: 0
   }));
   
-  // Distribute regions across days
-  let dayIdx = 0;
-  jobsByRegion.forEach((jobs, region) => {
-    // Filter jobs available for this day
-    const availableJobs = jobs.filter(job => {
-      const pendingJob = pendingJobs.find(pj => pj.orderId === job.orderId && pj.type === job.type);
-      return pendingJob?.availableDays.includes(dayIdx);
-    });
-    
-    if (availableJobs.length > 0) {
-      const dayName = days[dayIdx];
-      const numDrivers = driversPerDay[dayName] || 1;
-      const driverAssignments = balanceDriverWorkload(availableJobs, numDrivers);
-      
-      dayPlans[dayIdx].drivers = driverAssignments;
-      dayPlans[dayIdx].totalJobs = availableJobs.length;
-      dayPlans[dayIdx].totalDistance = driverAssignments.reduce((sum, d) => sum + d.estimatedDistance, 0);
+  // Step 3: Assign jobs to days based on availability
+  const dayJobs: Job[][] = WORKING_DAYS.map(() => []);
+  
+  pendingJobs.forEach(({ availableDays, ...job }) => {
+    // Pick the first available working day
+    const dayIdx = availableDays[0];
+    if (dayIdx >= 0 && dayIdx < WORKING_DAYS.length) {
+      dayJobs[dayIdx].push(job);
     }
-    
-    dayIdx = (dayIdx + 1) % 5;
   });
   
-  // Step 4: Enforce collection before delivery
+  // Step 4: Calculate required drivers per day and assign jobs
+  const driversPerDay: Record<string, number> = {};
+  
+  WORKING_DAYS.forEach((dayName, dayIdx) => {
+    const jobs = dayJobs[dayIdx];
+    const numDrivers = calculateRequiredDrivers(jobs);
+    driversPerDay[dayName] = numDrivers;
+    
+    if (jobs.length > 0) {
+      const driverAssignments = balanceDriverWorkload(jobs, numDrivers);
+      dayPlans[dayIdx].drivers = driverAssignments;
+      dayPlans[dayIdx].totalJobs = jobs.length;
+      dayPlans[dayIdx].totalDistance = driverAssignments.reduce((sum, d) => sum + d.estimatedDistance, 0);
+    }
+  });
+  
+  // Step 5: Enforce collection before delivery
   const finalDayPlans = enforceCollectionBeforeDelivery(dayPlans, orders);
   
   return {
@@ -385,7 +414,7 @@ export const savePlanToDatabase = async (plan: WeeklyPlan): Promise<boolean> => 
     const inserts = plan.days.flatMap((dayPlan, dayIdx) =>
       dayPlan.drivers.map(driver => ({
         week_start: weekStartStr,
-        day_of_week: dayIdx,
+        day_of_week: dayIdx, // 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Sat, 5=Sun
         driver_index: driver.driverIndex,
         region: driver.region || null,
         job_data: driver.jobs as any,
@@ -422,10 +451,9 @@ export const loadPlanFromDatabase = async (weekStart: Date): Promise<WeeklyPlan 
     if (!data || data.length === 0) return null;
     
     // Reconstruct the plan
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-    const dayPlans: DayPlan[] = days.map((dayName, dayIdx) => ({
+    const dayPlans: DayPlan[] = WORKING_DAYS.map((dayName, idx) => ({
       day: dayName,
-      date: addDays(weekStart, dayIdx),
+      date: addDays(weekStart, DAY_INDICES[idx]),
       drivers: [],
       totalJobs: 0,
       totalDistance: 0
@@ -447,7 +475,7 @@ export const loadPlanFromDatabase = async (weekStart: Date): Promise<WeeklyPlan 
       dayPlan.totalJobs += jobs.length;
       dayPlan.totalDistance += record.total_distance_miles || 0;
       
-      const dayName = days[record.day_of_week];
+      const dayName = WORKING_DAYS[record.day_of_week];
       driversPerDay[dayName] = Math.max(driversPerDay[dayName] || 0, record.driver_index + 1);
     });
     
