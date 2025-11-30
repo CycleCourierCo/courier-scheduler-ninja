@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import Layout from "@/components/Layout";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
+import { resendReceiverAvailabilityEmail } from "@/services/emailService";
 import { format } from "date-fns";
 import { CalendarIcon, Package } from "lucide-react";
 
@@ -169,6 +170,22 @@ const BulkAvailabilityPage = () => {
           if (error) {
             console.error("Error updating sender availability:", error);
             throw error;
+          }
+
+          // Send receiver availability email if status changed to receiver_availability_pending
+          if (newStatus === "receiver_availability_pending") {
+            try {
+              console.log("Sending receiver availability email for order:", orderId);
+              const emailSent = await resendReceiverAvailabilityEmail(orderId);
+              if (emailSent) {
+                console.log("Receiver availability email sent successfully");
+              } else {
+                console.warn("Failed to send receiver availability email for order:", orderId);
+              }
+            } catch (emailError) {
+              console.error("Error sending receiver availability email:", emailError);
+              // Don't throw - continue processing other orders even if email fails
+            }
           }
         } else {
           // Receiver is always setting to scheduled_dates_pending since sender must confirm first
