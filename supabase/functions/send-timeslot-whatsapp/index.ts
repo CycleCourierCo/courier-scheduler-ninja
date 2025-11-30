@@ -229,7 +229,33 @@ Cycle Courier Co.`;
       // Update Shipday for each order
       const shipdayResults: any[] = [];
       for (const orderToUpdate of ordersToUpdate) {
-        const shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+        // Determine the correct Shipday ID based on the ORDER's status, not the global recipientType
+        // This is important for consolidated messages where different orders may have different contexts
+        let shipdayId: string | null = null;
+        
+        const orderStatus = orderToUpdate.status;
+        const isCollectionJob = orderStatus === 'collection_scheduled' || 
+                                orderStatus === 'sender_availability_pending' ||
+                                orderStatus === 'sender_availability_confirmed' ||
+                                orderStatus === 'scheduled_dates_pending';
+        const isDeliveryJob = orderStatus === 'delivery_scheduled' || 
+                              orderStatus === 'receiver_availability_pending' ||
+                              orderStatus === 'receiver_availability_confirmed' ||
+                              orderStatus === 'scheduled' ||
+                              orderStatus === 'collected';
+        
+        if (isCollectionJob) {
+          // This is a pickup/collection - update the pickup Shipday job
+          shipdayId = orderToUpdate.shipday_pickup_id;
+        } else if (isDeliveryJob) {
+          // This is a delivery - update the delivery Shipday job
+          shipdayId = orderToUpdate.shipday_delivery_id;
+        } else {
+          // Fallback to the recipientType-based logic for other statuses
+          shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+        }
+        
+        console.log(`Order ${orderToUpdate.id} (status: ${orderStatus}): Using Shipday ID ${shipdayId} (${isCollectionJob ? 'pickup' : isDeliveryJob ? 'delivery' : 'fallback'})`);
         
         if (!shipdayId) {
           console.log(`No Shipday ID found for order ${orderToUpdate.id} - skipping`);
