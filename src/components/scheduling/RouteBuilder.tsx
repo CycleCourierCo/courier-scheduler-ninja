@@ -19,6 +19,9 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+// Location grouping radius for consolidating messages (in meters)
+const LOCATION_GROUPING_RADIUS_METERS = 750;
+
 // Coordinate validation schema
 const coordinateSchema = z.object({
   lat: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
@@ -807,7 +810,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = earthRadius * c;
 
-    return distance <= 50; // Within 50 meters
+    return distance <= LOCATION_GROUPING_RADIUS_METERS; // Within 750 meters
   };
 
   // Helper function to group jobs by location
@@ -1319,21 +1322,50 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     let failureCount = 0;
 
     try {
-      // Step 1: Separate jobs into grouped vs standalone
+      // Step 1: Group jobs by actual coordinates (not relying on pre-set grouping info)
       const processedGroupIds = new Set<string>();
       const groupedLocationMap = new Map<string, SelectedJob[]>();
       const standaloneJobs: SelectedJob[] = [];
 
+      // First, group jobs by coordinates
+      const coordinateGroups: { [key: string]: SelectedJob[] } = {};
+      
       for (const job of jobsToSend) {
-        if (job.isGroupedLocation && job.locationGroupId) {
-          if (!groupedLocationMap.has(job.locationGroupId)) {
-            groupedLocationMap.set(job.locationGroupId, []);
-          }
-          groupedLocationMap.get(job.locationGroupId)!.push(job);
-        } else {
+        if (!job.lat || !job.lon) {
           standaloneJobs.push(job);
+          continue;
+        }
+        
+        // Find existing group with same location (within 750 meters)
+        let foundGroupKey: string | null = null;
+        for (const [groupKey, groupJobs] of Object.entries(coordinateGroups)) {
+          const firstJobInGroup = groupJobs[0];
+          if (firstJobInGroup.lat && firstJobInGroup.lon && 
+              isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) {
+            foundGroupKey = groupKey;
+            break;
+          }
+        }
+        
+        if (foundGroupKey) {
+          coordinateGroups[foundGroupKey].push(job);
+        } else {
+          // Create new group
+          const newGroupKey = `coord-${job.lat}-${job.lon}`;
+          coordinateGroups[newGroupKey] = [job];
         }
       }
+      
+      // Step 2: Separate into grouped (2+ jobs) vs standalone (1 job)
+      for (const [groupKey, jobs] of Object.entries(coordinateGroups)) {
+        if (jobs.length >= 2) {
+          groupedLocationMap.set(groupKey, jobs);
+        } else {
+          standaloneJobs.push(jobs[0]);
+        }
+      }
+
+      console.log(`Grouping results: ${groupedLocationMap.size} grouped locations, ${standaloneJobs.length} standalone jobs`);
 
       // Step 2: Process grouped locations FIRST (one message per location)
       for (const [locationGroupId, jobsAtLocation] of groupedLocationMap.entries()) {
