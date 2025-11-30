@@ -16,10 +16,8 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { isPointInPolygon } from "@/components/scheduling/JobMap";
-import { segmentGeoJSON } from "@/components/scheduling/JobMap";
-import PostcodePolygonSearch from "@/components/scheduling/PostcodePolygonSearch";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
+import WeeklyRoutePlanner from "@/components/scheduling/WeeklyRoutePlanner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import MultiJobTimeslotDialog from "@/components/scheduling/MultiJobTimeslotDialog";
 
@@ -38,8 +36,6 @@ export interface OrderData {
   pickup_date: string[] | null;
   delivery_date: string[] | null;
   collection_confirmation_sent_at: string | null;
-  senderPolygonSegment?: number;
-  receiverPolygonSegment?: number;
 }
 
 
@@ -73,59 +69,14 @@ const JobScheduling = () => {
       
       if (error) throw error;
       
-      const mappedOrders = data.map(order => ({
+      return data.map(order => ({
         ...order,
         sender: order.sender as ContactInfo & { address: Address },
         receiver: order.receiver as ContactInfo & { address: Address },
         status: order.status as OrderStatus
       })) as OrderData[];
-
-      mappedOrders.forEach(order => {
-        if (order.sender.address.lat && order.sender.address.lon) {
-          order.senderPolygonSegment = getPolygonSegment(
-            order.sender.address.lat,
-            order.sender.address.lon
-          );
-        }
-        
-        if (order.receiver.address.lat && order.receiver.address.lon) {
-          order.receiverPolygonSegment = getPolygonSegment(
-            order.receiver.address.lat,
-            order.receiver.address.lon
-          );
-        }
-      });
-      
-      console.log("Mapped orders with segments:", mappedOrders.map(o => ({
-        id: o.id, 
-        senderPolygonSegment: o.senderPolygonSegment,
-        receiverPolygonSegment: o.receiverPolygonSegment
-      })));
-      
-      return mappedOrders;
     }
   });
-
-  const getPolygonSegment = (lat: number, lng: number): number | null => {
-    for (let i = 0; i < segmentGeoJSON.features.length; i++) {
-      const polygon = segmentGeoJSON.features[i].geometry.coordinates[0];
-      if (isPointInPolygon([lng, lat], polygon)) {
-        return i + 1;
-      }
-    }
-    return null;
-  };
-
-  useEffect(() => {
-    if (orders) {
-      console.log("Orders loaded with polygon segments:", 
-        orders.map(o => ({ 
-          id: o.id, 
-          senderPolygonSegment: o.senderPolygonSegment,
-          receiverPolygonSegment: o.receiverPolygonSegment
-        })));
-    }
-  }, [orders]);
 
   const queryDriversForDate = async (selectedDate: Date) => {
     setIsLoadingDrivers(true);
@@ -668,8 +619,6 @@ ${routeLinks}`;
           }}
         />
 
-        <PostcodePolygonSearch />
-
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -682,6 +631,10 @@ ${routeLinks}`;
             
             <div className="mb-8">
               <RouteBuilder orders={orders || []} />
+            </div>
+
+            <div className="mb-8">
+              <WeeklyRoutePlanner orders={orders || []} onScheduleApplied={refetch} />
             </div>
           </>
         )}
