@@ -342,6 +342,17 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
                                         {job.type}
                                       </Badge>
                                     </div>
+                                    {job.order.tracking_number && (
+                                      <div className="text-xs font-mono text-primary mt-1">
+                                        #{job.order.tracking_number}
+                                      </div>
+                                    )}
+                                    {(job.order.bike_brand || job.order.bike_model) && (
+                                      <div className="text-xs text-muted-foreground">
+                                        🚲 {[job.order.bike_brand, job.order.bike_model].filter(Boolean).join(' ')}
+                                        {job.bikeQuantity > 1 && ` (×${job.bikeQuantity})`}
+                                      </div>
+                                    )}
                                     <div className="text-xs text-muted-foreground mt-1">{job.address}</div>
                                   </div>
                                 ))
