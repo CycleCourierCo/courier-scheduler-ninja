@@ -914,6 +914,45 @@ export type Database = {
           },
         ]
       }
+      weekly_plans: {
+        Row: {
+          created_at: string | null
+          day_of_week: number
+          driver_index: number
+          id: string
+          is_optimized: boolean | null
+          job_data: Json
+          region: string | null
+          total_distance_miles: number | null
+          updated_at: string | null
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: number
+          driver_index: number
+          id?: string
+          is_optimized?: boolean | null
+          job_data?: Json
+          region?: string | null
+          total_distance_miles?: number | null
+          updated_at?: string | null
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: number
+          driver_index?: number
+          id?: string
+          is_optimized?: boolean | null
+          job_data?: Json
+          region?: string | null
+          total_distance_miles?: number | null
+          updated_at?: string | null
+          week_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

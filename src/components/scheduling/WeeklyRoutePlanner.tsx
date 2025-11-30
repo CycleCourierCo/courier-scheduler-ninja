@@ -1,15 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, MapPin, Loader2 } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, MapPin, Loader2, Save, Database } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
-import { assignOrdersToWeek, WeeklyPlan, prioritizeDays } from "@/services/weeklyPlanningService";
+import { assignOrdersToWeek, WeeklyPlan, prioritizeDays, savePlanToDatabase, loadPlanFromDatabase } from "@/services/weeklyPlanningService";
 import { format, addWeeks, startOfWeek } from "date-fns";
 import { toast } from "sonner";
-import { optimizeRouteWithGeoapify } from "@/services/routeOptimizationService";
 
 interface WeeklyRoutePlannerProps {
   orders: OrderData[];
@@ -28,7 +27,37 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>('monday');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [optimizingDay, setOptimizingDay] = useState<string | null>(null);
+
+  // Load saved plan when week changes
+  useEffect(() => {
+    const loadSavedPlan = async () => {
+      setIsLoading(true);
+      try {
+        const savedPlan = await loadPlanFromDatabase(weekStart);
+        if (savedPlan) {
+          setWeeklyPlan(savedPlan);
+          setDriversPerDay(savedPlan.driversPerDay as typeof driversPerDay);
+          toast.success("Loaded saved plan for this week");
+          
+          const prioritized = prioritizeDays(savedPlan);
+          if (prioritized.length > 0) {
+            setSelectedDay(prioritized[0]);
+          }
+        } else {
+          setWeeklyPlan(null);
+        }
+      } catch (error) {
+        console.error('Error loading plan:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadSavedPlan();
+  }, [weekStart]);
 
   const handlePreviousWeek = () => {
     setWeekStart(addWeeks(weekStart, -1));
@@ -54,9 +83,10 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
       setWeeklyPlan(plan);
       
       const totalJobs = plan.days.reduce((sum, day) => sum + day.totalJobs, 0);
-      toast.success(`Weekly plan generated with ${totalJobs} jobs across ${plan.days.length} days`);
+      const totalDistance = plan.days.reduce((sum, day) => sum + day.totalDistance, 0);
       
-      // Auto-select first day with most jobs
+      toast.success(`Weekly plan generated: ${totalJobs} jobs, ${Math.round(totalDistance)} miles total`);
+      
       const prioritized = prioritizeDays(plan);
       if (prioritized.length > 0) {
         setSelectedDay(prioritized[0]);
@@ -69,6 +99,26 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
     }
   };
 
+  const handleSavePlan = async () => {
+    if (!weeklyPlan) return;
+    
+    setIsSaving(true);
+    try {
+      const success = await savePlanToDatabase(weeklyPlan);
+      if (success) {
+        toast.success("Plan saved successfully!");
+        setWeeklyPlan({ ...weeklyPlan, isSaved: true });
+      } else {
+        toast.error("Failed to save plan");
+      }
+    } catch (error: any) {
+      console.error('Error saving plan:', error);
+      toast.error(`Failed to save: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleOptimizeDay = async (dayName: string) => {
     if (!weeklyPlan) return;
     
@@ -77,12 +127,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
 
     setOptimizingDay(dayName);
     try {
-      // For now, just show success - actual route optimization will use Geoapify
       toast.success(`Route optimization for ${dayName} would use Geoapify's multi-agent API`);
-      
-      // TODO: Implement actual Geoapify optimization per driver
-      // const optimizedRoutes = await optimizeRouteWithGeoapify(...)
-      
     } catch (error: any) {
       console.error('Error optimizing route:', error);
       toast.error(`Failed to optimize: ${error.message}`);
@@ -98,12 +143,28 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
 
   const currentDayPlan = getDayPlan();
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5" />
           Weekly Route Planner
+          {weeklyPlan?.isSaved && (
+            <Badge variant="secondary" className="ml-auto">
+              <Database className="h-3 w-3 mr-1" />
+              Saved
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -152,21 +213,43 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
           </div>
         </div>
 
-        {/* Generate Button */}
-        <Button 
-          onClick={handleGeneratePlan} 
-          disabled={isGenerating}
-          className="w-full"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating Plan...
-            </>
-          ) : (
-            'Generate Weekly Plan'
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleGeneratePlan} 
+            disabled={isGenerating}
+            className="flex-1"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating Plan...
+              </>
+            ) : (
+              'Generate Weekly Plan'
+            )}
+          </Button>
+          
+          {weeklyPlan && !weeklyPlan.isSaved && (
+            <Button 
+              onClick={handleSavePlan} 
+              disabled={isSaving}
+              variant="secondary"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Plan
+                </>
+              )}
+            </Button>
           )}
-        </Button>
+        </div>
 
         {/* Weekly Plan Display */}
         {weeklyPlan && (
@@ -189,7 +272,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
                     <div>
                       <h3 className="text-lg font-semibold capitalize">{day.day}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {format(day.date, 'MMMM d, yyyy')} • {day.totalJobs} jobs • {day.drivers.length} {day.drivers.length === 1 ? 'driver' : 'drivers'}
+                        {format(day.date, 'MMMM d, yyyy')} • {day.totalJobs} jobs • {day.drivers.length} {day.drivers.length === 1 ? 'driver' : 'drivers'} • {Math.round(day.totalDistance)} miles
                       </p>
                     </div>
                     <Button
@@ -216,12 +299,22 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
                     {day.drivers.map((driver) => (
                       <Card key={driver.driverIndex}>
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-sm">
-                            Driver {driver.driverIndex + 1}
-                            <Badge variant="secondary" className="ml-2">
-                              {driver.jobs.length} jobs
-                            </Badge>
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <span>Driver {driver.driverIndex + 1}</span>
+                            <div className="flex gap-1">
+                              {driver.region && (
+                                <Badge variant="outline" className="capitalize">
+                                  {driver.region}
+                                </Badge>
+                              )}
+                              <Badge variant="secondary">
+                                {driver.jobs.length} jobs
+                              </Badge>
+                            </div>
                           </CardTitle>
+                          <p className="text-xs text-muted-foreground">
+                            {Math.round(driver.estimatedDistance)} miles
+                          </p>
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-2">
@@ -234,7 +327,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
                                     <span className="font-medium">
                                       {idx + 1}. {job.type === 'collection' ? '📦' : '🚚'} {job.contactName}
                                     </span>
-                                    <Badge variant={job.type === 'collection' ? 'default' : 'secondary'}>
+                                    <Badge variant={job.type === 'collection' ? 'default' : 'secondary'} className="text-xs">
                                       {job.type}
                                     </Badge>
                                   </div>
@@ -257,7 +350,6 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
               className="w-full"
               onClick={() => {
                 toast.info("Schedule application would update order dates in database");
-                // TODO: Implement actual database updates
                 onScheduleApplied?.();
               }}
             >
