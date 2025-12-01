@@ -40,6 +40,16 @@ const Layout: React.FC<LayoutProps> = ({
           Sign In
         </Link>}
     </> : null;
+
+  const driverNavLinks = isDriver ? <>
+      <Link to="/driver-checkin" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Check-In
+      </Link>
+      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        My Timeslips
+      </Link>
+    </> : null;
+
   return <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -49,6 +59,7 @@ const Layout: React.FC<LayoutProps> = ({
           
           <nav className="hidden md:flex space-x-6">
             {navLinks}
+            {driverNavLinks}
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
@@ -64,6 +75,7 @@ const Layout: React.FC<LayoutProps> = ({
               <SheetContent side="right" className="w-[250px]">
                 <div className="flex flex-col space-y-4 py-4">
                   {navLinks}
+                  {driverNavLinks}
                   
                   {user && !isLoader && !isDriver && <>
                       <DropdownMenuSeparator className="my-2" />
@@ -95,6 +107,10 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             Driver Timeslips
+                          </Link>
+                          <Link to="/driver-checkin" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Shield className="mr-2 h-4 w-4" />
+                            Driver Check-Ins
                           </Link>
                           <Link to="/route-profitability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <TrendingUp className="mr-2 h-4 w-4" />
@@ -235,6 +251,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                           <Clock className="mr-2 h-4 w-4" />
                           <span>Driver Timeslips</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/driver-checkin" className="cursor-pointer flex w-full items-center">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Driver Check-Ins</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>

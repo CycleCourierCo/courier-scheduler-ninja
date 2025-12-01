@@ -1,6 +1,9 @@
 
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.calculate-weekly-bonuses]
+verify_jwt = false
+
 [functions.trigger-webhook]
 verify_jwt = false
 

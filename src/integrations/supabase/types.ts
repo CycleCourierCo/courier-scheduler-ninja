@@ -58,6 +58,59 @@ export type Database = {
           },
         ]
       }
+      driver_checkins: {
+        Row: {
+          checkin_date: string
+          checkin_latitude: number | null
+          checkin_longitude: number | null
+          checkin_time: string
+          created_at: string | null
+          distance_from_depot_meters: number | null
+          driver_id: string
+          fuel_photo_url: string
+          id: string
+          is_on_time: boolean | null
+          uniform_photo_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          checkin_date: string
+          checkin_latitude?: number | null
+          checkin_longitude?: number | null
+          checkin_time: string
+          created_at?: string | null
+          distance_from_depot_meters?: number | null
+          driver_id: string
+          fuel_photo_url: string
+          id?: string
+          is_on_time?: boolean | null
+          uniform_photo_url: string
+          updated_at?: string | null
+        }
+        Update: {
+          checkin_date?: string
+          checkin_latitude?: number | null
+          checkin_longitude?: number | null
+          checkin_time?: string
+          created_at?: string | null
+          distance_from_depot_meters?: number | null
+          driver_id?: string
+          fuel_photo_url?: string
+          id?: string
+          is_on_time?: boolean | null
+          uniform_photo_url?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_checkins_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_history: {
         Row: {
           created_at: string
@@ -807,6 +860,99 @@ export type Database = {
           },
         ]
       }
+      weekly_checkin_bonuses: {
+        Row: {
+          bonus_awarded: boolean
+          compliance_percentage: number | null
+          created_at: string | null
+          driver_id: string
+          id: string
+          on_time_checkins: number
+          timeslip_id: string | null
+          total_checkins: number
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          bonus_awarded?: boolean
+          compliance_percentage?: number | null
+          created_at?: string | null
+          driver_id: string
+          id?: string
+          on_time_checkins: number
+          timeslip_id?: string | null
+          total_checkins: number
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          bonus_awarded?: boolean
+          compliance_percentage?: number | null
+          created_at?: string | null
+          driver_id?: string
+          id?: string
+          on_time_checkins?: number
+          timeslip_id?: string | null
+          total_checkins?: number
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_checkin_bonuses_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_checkin_bonuses_timeslip_id_fkey"
+            columns: ["timeslip_id"]
+            isOneToOne: false
+            referencedRelation: "timeslips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_plans: {
+        Row: {
+          created_at: string | null
+          day_of_week: number
+          driver_index: number
+          id: string
+          is_optimized: boolean | null
+          job_data: Json
+          region: string | null
+          total_distance_miles: number | null
+          updated_at: string | null
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: number
+          driver_index: number
+          id?: string
+          is_optimized?: boolean | null
+          job_data?: Json
+          region?: string | null
+          total_distance_miles?: number | null
+          updated_at?: string | null
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: number
+          driver_index?: number
+          id?: string
+          is_optimized?: boolean | null
+          job_data?: Json
+          region?: string | null
+          total_distance_miles?: number | null
+          updated_at?: string | null
+          week_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -836,6 +982,14 @@ export type Database = {
       admin_update_account_status: {
         Args: { status: string; user_id: string }
         Returns: boolean
+      }
+      calculate_weekly_checkin_compliance: {
+        Args: { p_driver_id: string; p_week_end: string; p_week_start: string }
+        Returns: {
+          compliance_percentage: number
+          on_time_checkins: number
+          total_checkins: number
+        }[]
       }
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
@@ -901,6 +1055,14 @@ export type Database = {
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      validate_checkin_location: {
+        Args: { p_lat: number; p_lon: number }
+        Returns: {
+          distance_meters: number
+          error_message: string
+          is_valid: boolean
+        }[]
+      }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {

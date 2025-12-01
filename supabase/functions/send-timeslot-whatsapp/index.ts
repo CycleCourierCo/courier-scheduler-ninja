@@ -229,7 +229,33 @@ Cycle Courier Co.`;
       // Update Shipday for each order
       const shipdayResults: any[] = [];
       for (const orderToUpdate of ordersToUpdate) {
-        const shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+        // Determine the correct Shipday ID based on the ORDER's status, not the global recipientType
+        // This is important for consolidated messages where different orders may have different contexts
+        let shipdayId: string | null = null;
+        
+        const orderStatus = orderToUpdate.status;
+        const isCollectionJob = orderStatus === 'collection_scheduled' || 
+                                orderStatus === 'sender_availability_pending' ||
+                                orderStatus === 'sender_availability_confirmed' ||
+                                orderStatus === 'scheduled_dates_pending';
+        const isDeliveryJob = orderStatus === 'delivery_scheduled' || 
+                              orderStatus === 'receiver_availability_pending' ||
+                              orderStatus === 'receiver_availability_confirmed' ||
+                              orderStatus === 'scheduled' ||
+                              orderStatus === 'collected';
+        
+        if (isCollectionJob) {
+          // This is a pickup/collection - update the pickup Shipday job
+          shipdayId = orderToUpdate.shipday_pickup_id;
+        } else if (isDeliveryJob) {
+          // This is a delivery - update the delivery Shipday job
+          shipdayId = orderToUpdate.shipday_delivery_id;
+        } else {
+          // Fallback to the recipientType-based logic for other statuses
+          shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+        }
+        
+        console.log(`Order ${orderToUpdate.id} (status: ${orderStatus}): Using Shipday ID ${shipdayId} (${isCollectionJob ? 'pickup' : isDeliveryJob ? 'delivery' : 'fallback'})`);
         
         if (!shipdayId) {
           console.log(`No Shipday ID found for order ${orderToUpdate.id} - skipping`);
@@ -274,22 +300,24 @@ Cycle Courier Co.`;
           if (orderToUpdate.is_bike_swap) orderDetails.push('Bike Swap');
           
           const baseDeliveryInstructions = orderToUpdate.delivery_instructions || '';
-          const contextNotes = recipientType === 'sender' ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
+          
+          // Determine which contact to use based on the job type (collection = sender, delivery = receiver)
+          const usesSenderInfo = isCollectionJob;
+          const jobContact = usesSenderInfo ? orderToUpdate.sender : orderToUpdate.receiver;
+          const jobNotes = usesSenderInfo ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
           
           const allInstructions = [
             ...orderDetails,
             baseDeliveryInstructions,
-            contextNotes
+            jobNotes
           ].filter(Boolean).join(' | ');
 
         const requestBody = {
           orderNumber: orderToUpdate.tracking_number || `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
-          customerName: recipientType === 'sender' ? orderToUpdate.sender.name : orderToUpdate.receiver.name,
-          customerAddress: recipientType === 'sender' 
-            ? `${orderToUpdate.sender.address.street}, ${orderToUpdate.sender.address.city}, ${orderToUpdate.sender.address.state} ${orderToUpdate.sender.address.zipCode}`
-            : `${orderToUpdate.receiver.address.street}, ${orderToUpdate.receiver.address.city}, ${orderToUpdate.receiver.address.state} ${orderToUpdate.receiver.address.zipCode}`,
-          customerEmail: recipientType === 'sender' ? orderToUpdate.sender.email : orderToUpdate.receiver.email,
-          customerPhoneNumber: recipientType === 'sender' ? orderToUpdate.sender.phone : orderToUpdate.receiver.phone,
+          customerName: jobContact.name,
+          customerAddress: `${jobContact.address.street}, ${jobContact.address.city}, ${jobContact.address.state} ${jobContact.address.zipCode}`,
+          customerEmail: jobContact.email,
+          customerPhoneNumber: jobContact.phone,
           restaurantName: "Cycle Courier Co.",
           restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
           expectedPickupTime: expectedPickupTime,
@@ -297,6 +325,8 @@ Cycle Courier Co.`;
           expectedDeliveryDate: new Date(scheduledDate).toISOString().split('T')[0],
           deliveryInstruction: allInstructions
         };
+
+        console.log(`Order ${orderToUpdate.id}: Using ${usesSenderInfo ? 'SENDER' : 'RECEIVER'} info for Shipday update`);
 
           const shipdayResponse = await fetch(shipdayUrl, {
             method: 'PUT',
