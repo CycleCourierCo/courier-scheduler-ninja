@@ -11,8 +11,8 @@ interface OrderRequest {
   customerPhoneNumber: string;
   restaurantName: string;
   restaurantAddress: string;
-  pickupTime?: string; 
-  expectedDeliveryTime?: string;
+  expectedPickupTime?: string;   // Start of time window
+  expectedDeliveryTime?: string; // End of time window
   orderType?: string;
   expectedDeliveryDate?: string;
   expectedPickupDate?: string;
@@ -204,7 +204,7 @@ serve(async (req) => {
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "PICKUP",
-      pickupTime: `${expectedPickupDateFormatted} ${pickupWindow.start}`,
+      expectedPickupTime: pickupWindow.start,  // Start of 3-hour window
       expectedDeliveryTime: pickupWindow.end,  // End of 3-hour window
       expectedPickupDate: expectedPickupDateFormatted,
       expectedDeliveryDate: expectedPickupDateFormatted,
@@ -221,6 +221,7 @@ serve(async (req) => {
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
+      expectedPickupTime: deliveryWindow.start,  // Start of 3-hour window
       expectedDeliveryTime: deliveryWindow.end,  // End of 3-hour window
       expectedDeliveryDate: expectedDeliveryDateFormatted,
       deliveryInstruction: deliveryInstructions
