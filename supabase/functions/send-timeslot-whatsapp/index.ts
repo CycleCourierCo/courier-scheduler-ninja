@@ -301,8 +301,20 @@ Cycle Courier Co.`;
           
           const baseDeliveryInstructions = orderToUpdate.delivery_instructions || '';
           
-          // Determine which contact to use based on the job type (collection = sender, delivery = receiver)
-          const usesSenderInfo = isCollectionJob;
+          // Determine which contact to use - MUST match the same logic used to select shipdayId
+          // For collection/pickup jobs → use sender info
+          // For delivery jobs → use receiver info
+          let usesSenderInfo: boolean;
+          
+          if (isCollectionJob) {
+            usesSenderInfo = true;  // Pickup job = sender contact
+          } else if (isDeliveryJob) {
+            usesSenderInfo = false; // Delivery job = receiver contact
+          } else {
+            // Fallback for 'created' status: use the same logic as shipdayId selection
+            usesSenderInfo = recipientType === 'sender';
+          }
+          
           const jobContact = usesSenderInfo ? orderToUpdate.sender : orderToUpdate.receiver;
           const jobNotes = usesSenderInfo ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
           
