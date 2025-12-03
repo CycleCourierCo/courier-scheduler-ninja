@@ -114,34 +114,50 @@ serve(async (req) => {
     
     const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
-    let scheduledPickupDate = null;
-    let scheduledDeliveryDate = null;
+    // Parse timeslots and create 3-hour windows (same as send-timeslot-whatsapp)
+    const parseTimeSlot = (timeslot: string | null | undefined): { start: string; end: string } => {
+      if (!timeslot) {
+        // Default to 09:00 if no timeslot set
+        return { start: '09:00:00', end: '12:00:00' };
+      }
+      
+      // Handle both "HH:MM" and "HH:MM:SS" formats
+      const [hourStr, minuteStr] = timeslot.split(':');
+      const hour = parseInt(hourStr, 10);
+      const minute = parseInt(minuteStr, 10) || 0;
+      
+      const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
+      const endHour = Math.min(23, hour + 3); // 3-hour window, capped at 23:00
+      const endTime = `${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
+      
+      return { start: startTime, end: endTime };
+    };
+
+    // Get the actual timeslots from the order
+    const pickupWindow = parseTimeSlot(order.pickup_timeslot);
+    const deliveryWindow = parseTimeSlot(order.delivery_timeslot);
     
-    // Use scheduled dates if available, otherwise default to 24 hours from now
+    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window:', pickupWindow);
+    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window:', deliveryWindow);
+
+    // Get DATE portion from scheduled dates, default to tomorrow if not set
+    let expectedPickupDateFormatted: string;
+    let expectedDeliveryDateFormatted: string;
+    
     if (order.scheduled_pickup_date) {
-      scheduledPickupDate = new Date(order.scheduled_pickup_date);
+      expectedPickupDateFormatted = formatDateOnly(new Date(order.scheduled_pickup_date)) || '';
     } else {
-      scheduledPickupDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+      expectedPickupDateFormatted = formatDateOnly(new Date(Date.now() + 24 * 60 * 60 * 1000)) || '';
     }
     
     if (order.scheduled_delivery_date) {
-      scheduledDeliveryDate = new Date(order.scheduled_delivery_date);
+      expectedDeliveryDateFormatted = formatDateOnly(new Date(order.scheduled_delivery_date)) || '';
     } else {
-      scheduledDeliveryDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+      expectedDeliveryDateFormatted = formatDateOnly(new Date(Date.now() + 24 * 60 * 60 * 1000)) || '';
     }
     
-    const pickupTimeFormatted = formatDateForShipday(scheduledPickupDate);
-    const pickupTimeOnlyFormatted = formatTimeOnly(scheduledPickupDate);
-    const deliveryTimeFormatted = formatTimeOnly(scheduledDeliveryDate);
-    
-    const expectedDeliveryDateFormatted = formatDateOnly(scheduledDeliveryDate);
-    const expectedPickupDateFormatted = formatDateOnly(scheduledPickupDate);
-    
-    console.log("Formatted pickup time:", pickupTimeFormatted);
-    console.log("Formatted pickup time (HH:MM:SS):", pickupTimeOnlyFormatted);
-    console.log("Formatted delivery time (HH:MM:SS):", deliveryTimeFormatted);
-    console.log("Expected delivery date (date only):", expectedDeliveryDateFormatted);
-    console.log("Expected pickup date (date only):", expectedPickupDateFormatted);
+    console.log("Expected pickup date:", expectedPickupDateFormatted);
+    console.log("Expected delivery date:", expectedDeliveryDateFormatted);
 
     // Build comprehensive delivery instructions with all order details
     const bikeInfo = order.bike_brand && order.bike_model 
@@ -178,6 +194,7 @@ serve(async (req) => {
 
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
+    // Create pickup order with correct timeslot window
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderReference}-PICKUP`,
       customerName: sender.name,
@@ -187,13 +204,14 @@ serve(async (req) => {
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "PICKUP",
-      pickupTime: pickupTimeFormatted,
-      expectedDeliveryTime: pickupTimeOnlyFormatted,
+      pickupTime: `${expectedPickupDateFormatted} ${pickupWindow.start}`,
+      expectedDeliveryTime: pickupWindow.end,  // End of 3-hour window
       expectedPickupDate: expectedPickupDateFormatted,
       expectedDeliveryDate: expectedPickupDateFormatted,
       deliveryInstruction: pickupInstructions
     };
 
+    // Create delivery order with correct timeslot window
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderReference}-DELIVERY`,
       customerName: receiver.name,
@@ -203,7 +221,7 @@ serve(async (req) => {
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
-      expectedDeliveryTime: deliveryTimeFormatted,
+      expectedDeliveryTime: deliveryWindow.end,  // End of 3-hour window
       expectedDeliveryDate: expectedDeliveryDateFormatted,
       deliveryInstruction: deliveryInstructions
     };
