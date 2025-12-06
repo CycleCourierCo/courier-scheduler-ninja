@@ -327,10 +327,90 @@ export const balanceDriverWorkload = (
     });
   }
   
-  // Re-index drivers
-  drivers.forEach((d, idx) => { d.driverIndex = idx; });
+  // Consolidate small routes to ensure all meet the 10-job minimum
+  const consolidatedDrivers = consolidateSmallRoutes(drivers);
   
-  return drivers;
+  return consolidatedDrivers;
+};
+
+// Consolidate routes with fewer than 10 jobs into nearby routes that have capacity
+const consolidateSmallRoutes = (drivers: DriverAssignment[]): DriverAssignment[] => {
+  if (drivers.length <= 1) return drivers;
+  
+  // Remove any empty drivers first
+  let result = drivers.filter(d => d.jobs.length > 0);
+  
+  let consolidationMade = true;
+  let iterations = 0;
+  const maxIterations = 50; // Prevent infinite loops
+  
+  while (consolidationMade && iterations < maxIterations) {
+    consolidationMade = false;
+    iterations++;
+    
+    // Find the smallest route that's under the minimum
+    const underMinIdx = result.findIndex(d => d.jobs.length < MIN_STOPS_PER_ROUTE);
+    if (underMinIdx === -1) break; // All routes meet minimum
+    
+    const smallRoute = result[underMinIdx];
+    
+    // Calculate centroid of small route
+    const smallCentroid = {
+      lat: smallRoute.jobs.reduce((sum, j) => sum + j.lat, 0) / smallRoute.jobs.length,
+      lon: smallRoute.jobs.reduce((sum, j) => sum + j.lon, 0) / smallRoute.jobs.length
+    };
+    
+    // Find the nearest route that can absorb this one (respecting capacity constraints)
+    let bestTargetIdx = -1;
+    let bestDistance = Infinity;
+    
+    for (let i = 0; i < result.length; i++) {
+      if (i === underMinIdx || result[i].jobs.length === 0) continue;
+      
+      const target = result[i];
+      const combinedJobs = [...target.jobs, ...smallRoute.jobs];
+      const peakBikes = calculatePeakBikeCount(combinedJobs);
+      const combinedDistance = calculateRouteDistance(combinedJobs);
+      
+      // Check capacity constraints
+      if (peakBikes <= MAX_BIKES_ON_VAN && combinedDistance <= MAX_ROUTE_DISTANCE_MILES) {
+        const targetCentroid = {
+          lat: target.jobs.reduce((sum, j) => sum + j.lat, 0) / target.jobs.length,
+          lon: target.jobs.reduce((sum, j) => sum + j.lon, 0) / target.jobs.length
+        };
+        
+        const dist = haversineDistance(smallCentroid.lat, smallCentroid.lon, 
+                                       targetCentroid.lat, targetCentroid.lon);
+        
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestTargetIdx = i;
+        }
+      }
+    }
+    
+    if (bestTargetIdx !== -1) {
+      // Merge small route into target
+      result[bestTargetIdx].jobs.push(...smallRoute.jobs);
+      result[bestTargetIdx].estimatedDistance = calculateRouteDistance(result[bestTargetIdx].jobs);
+      result.splice(underMinIdx, 1);
+      consolidationMade = true;
+    } else {
+      // Can't merge this route due to capacity limits
+      // Move it to the end so we check other small routes first
+      const [removed] = result.splice(underMinIdx, 1);
+      result.push(removed);
+      
+      // If we've cycled through all under-minimum routes without merging, stop
+      const allUnderMin = result.filter(d => d.jobs.length < MIN_STOPS_PER_ROUTE);
+      if (allUnderMin.length === result.length) break; // All routes are under minimum and can't be merged
+    }
+  }
+  
+  // Re-index drivers
+  result.forEach((d, idx) => { d.driverIndex = idx; });
+  
+  return result;
 };
 
 // Enforce collection before delivery for same order
