@@ -49,12 +49,20 @@ export interface DeferredJob extends Job {
   reason: string;
 }
 
+export interface UnderMinimumRoute {
+  dayName: string;
+  dayIdx: number;
+  driverIdx: number;
+  driver: DriverAssignment;
+}
+
 export interface WeeklyPlan {
   weekStart: Date;
   weekEnd: Date;
   days: DayPlan[];
   driversPerDay: Record<string, number>;
   deferredJobs: DeferredJob[];
+  underMinimumByDay: Record<string, UnderMinimumRoute[]>;
   isSaved?: boolean;
 }
 
@@ -350,19 +358,23 @@ const enforceCollectionBeforeDelivery = (dayPlans: DayPlan[], orders: OrderData[
   return dayPlans;
 };
 
-// Enforce minimum stops per route - returns routes that don't meet minimum
-const findUnderMinimumRoutes = (dayPlans: DayPlan[]): { dayIdx: number; driverIdx: number; driver: DriverAssignment }[] => {
-  const underMinimum: { dayIdx: number; driverIdx: number; driver: DriverAssignment }[] = [];
+// Enforce minimum stops per route - returns routes that don't meet minimum grouped by day
+const findUnderMinimumRoutes = (dayPlans: DayPlan[]): Record<string, UnderMinimumRoute[]> => {
+  const underMinimumByDay: Record<string, UnderMinimumRoute[]> = {};
   
   dayPlans.forEach((dayPlan, dayIdx) => {
+    const dayName = WORKING_DAYS[dayIdx];
     dayPlan.drivers.forEach((driver, driverIdx) => {
       if (driver.jobs.length > 0 && driver.jobs.length < MIN_STOPS_PER_ROUTE) {
-        underMinimum.push({ dayIdx, driverIdx, driver });
+        if (!underMinimumByDay[dayName]) {
+          underMinimumByDay[dayName] = [];
+        }
+        underMinimumByDay[dayName].push({ dayName, dayIdx, driverIdx, driver });
       }
     });
   });
   
-  return underMinimum;
+  return underMinimumByDay;
 };
 
 // Handle routes under minimum by deferring jobs to later days
@@ -580,11 +592,55 @@ const handleUnderMinimumCombine = (
   return { updatedPlans, deferredJobs };
 };
 
+// Handle under-minimum routes for a specific day and return updated plan
+export const handleUnderMinimumForDay = (
+  plan: WeeklyPlan,
+  dayName: string,
+  action: UnderMinimumAction
+): WeeklyPlan => {
+  const underMinimumRoutes = plan.underMinimumByDay[dayName];
+  if (!underMinimumRoutes || underMinimumRoutes.length === 0) {
+    return plan;
+  }
+
+  // Convert to the format expected by existing handlers
+  const routesForHandler = underMinimumRoutes.map(r => ({
+    dayIdx: r.dayIdx,
+    driverIdx: r.driverIdx,
+    driver: r.driver
+  }));
+
+  let result: { updatedPlans: DayPlan[]; deferredJobs: DeferredJob[] };
+  
+  if (action === 'defer') {
+    result = handleUnderMinimumDefer([...plan.days], routesForHandler);
+  } else {
+    result = handleUnderMinimumCombine([...plan.days], routesForHandler);
+  }
+
+  // Recalculate driversPerDay
+  const driversPerDay: Record<string, number> = {};
+  WORKING_DAYS.forEach((day, dayIdx) => {
+    driversPerDay[day] = result.updatedPlans[dayIdx].drivers.length;
+  });
+
+  // Recalculate underMinimumByDay
+  const newUnderMinimumByDay = findUnderMinimumRoutes(result.updatedPlans);
+
+  return {
+    ...plan,
+    days: result.updatedPlans,
+    driversPerDay,
+    deferredJobs: [...plan.deferredJobs, ...result.deferredJobs],
+    underMinimumByDay: newUnderMinimumByDay
+  };
+};
+
 // Assign orders to week with auto-calculated drivers
+// Does NOT auto-apply under-minimum handling - that's done per-day via UI
 export const assignOrdersToWeek = (
   orders: OrderData[],
-  weekStart: Date,
-  underMinimumAction: UnderMinimumAction = 'defer'
+  weekStart: Date
 ): WeeklyPlan => {
   // Step 1: Create all pending jobs (one per order per type)
   const pendingJobs: (Job & { availableDays: number[] })[] = [];
@@ -678,21 +734,8 @@ export const assignOrdersToWeek = (
   // Step 5: Enforce collection before delivery
   let finalDayPlans = enforceCollectionBeforeDelivery(dayPlans, orders);
   
-  // Step 6: Handle routes under minimum stops
-  const underMinimumRoutes = findUnderMinimumRoutes(finalDayPlans);
-  let deferredJobs: DeferredJob[] = [];
-  
-  if (underMinimumRoutes.length > 0) {
-    if (underMinimumAction === 'defer') {
-      const result = handleUnderMinimumDefer(finalDayPlans, underMinimumRoutes);
-      finalDayPlans = result.updatedPlans;
-      deferredJobs = result.deferredJobs;
-    } else {
-      const result = handleUnderMinimumCombine(finalDayPlans, underMinimumRoutes);
-      finalDayPlans = result.updatedPlans;
-      deferredJobs = result.deferredJobs;
-    }
-  }
+  // Step 6: Identify routes under minimum stops (don't auto-handle, let UI decide)
+  const underMinimumByDay = findUnderMinimumRoutes(finalDayPlans);
   
   // Step 7: Recalculate driversPerDay based on actual assignments
   WORKING_DAYS.forEach((dayName, dayIdx) => {
@@ -704,7 +747,8 @@ export const assignOrdersToWeek = (
     weekEnd: endOfWeek(weekStart, { weekStartsOn: 1 }),
     days: finalDayPlans,
     driversPerDay,
-    deferredJobs,
+    deferredJobs: [],
+    underMinimumByDay,
     isSaved: false
   };
 };
@@ -794,7 +838,8 @@ export const loadPlanFromDatabase = async (weekStart: Date): Promise<WeeklyPlan 
       weekEnd: endOfWeek(weekStart, { weekStartsOn: 1 }),
       days: dayPlans,
       driversPerDay,
-      deferredJobs: [], // Saved plans don't have deferred jobs tracked
+      deferredJobs: [],
+      underMinimumByDay: {},
       isSaved: true
     };
   } catch (error) {
