@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
 import ClusterMap from "@/components/scheduling/ClusterMap";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
-import WeeklyRoutePlanner from "@/components/scheduling/WeeklyRoutePlanner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Cluster } from "@/services/clusteringService";
@@ -32,7 +31,7 @@ const JobScheduling = () => {
   const [showClusters, setShowClusters] = useState(true);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   
-  const { data: orders, isLoading, refetch } = useQuery({
+  const { data: orders, isLoading } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -92,14 +91,6 @@ const JobScheduling = () => {
             
             <div className="mb-8">
               <RouteBuilder orders={orders || []} />
-            </div>
-
-            <div className="mb-8">
-              <WeeklyRoutePlanner 
-                orders={orders || []} 
-                onScheduleApplied={refetch}
-                clusters={clusters}
-              />
             </div>
           </>
         )}
