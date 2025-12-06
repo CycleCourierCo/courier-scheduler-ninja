@@ -8,6 +8,7 @@ const MAX_BIKES_ON_VAN = 10;
 const MAX_ROUTE_DISTANCE_MILES = 600;
 const MIN_STOPS_PER_ROUTE = 10;
 const DEPOT = DEPOT_LOCATION;
+const GEOAPIFY_API_KEY = import.meta.env.VITE_GEOAPIFY_API_KEY;
 
 // Working days: Mon-Thu + Sat-Sun (Friday removed)
 const WORKING_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'] as const;
@@ -234,10 +235,10 @@ export const calculateRequiredDrivers = (jobs: Job[]): number => {
 };
 
 // Balance workload across drivers for a single day using K-Means clustering
-export const balanceDriverWorkload = (
+export const balanceDriverWorkload = async (
   dayJobs: Job[],
   numberOfDrivers: number
-): DriverAssignment[] => {
+): Promise<DriverAssignment[]> => {
   if (dayJobs.length === 0) return [];
   
   // Convert jobs to cluster points for K-Means
@@ -252,7 +253,8 @@ export const balanceDriverWorkload = (
   
   // Calculate optimal number of clusters prioritizing 10-job minimum
   // Target: each route should have at least MIN_STOPS_PER_ROUTE jobs
-  const targetClusters = Math.max(1, Math.ceil(dayJobs.length / MIN_STOPS_PER_ROUTE));
+  // Use floor to create FEWER, LARGER clusters (e.g., 25 jobs → 2 clusters of 12-13)
+  const targetClusters = Math.max(1, Math.floor(dayJobs.length / MIN_STOPS_PER_ROUTE));
   
   // Use K-Means clustering for geographic grouping
   const clusterResult = clusterJobs(clusterPoints, {
@@ -328,13 +330,141 @@ export const balanceDriverWorkload = (
   }
   
   // Consolidate small routes to ensure all meet the 10-job minimum
-  const consolidatedDrivers = consolidateSmallRoutes(drivers);
+  // Use Geoapify to calculate actual peak bike count based on optimized route order
+  const consolidatedDrivers = await consolidateSmallRoutesWithOptimization(drivers);
   
   return consolidatedDrivers;
 };
 
+/**
+ * Calculate actual peak bike count using Geoapify route optimization.
+ * This simulates the optimized route order and counts bikes on van at each stop.
+ * Collections add bikes, deliveries remove bikes.
+ */
+const calculateActualPeakBikeCount = async (jobs: Job[]): Promise<number> => {
+  if (!GEOAPIFY_API_KEY || jobs.length === 0) {
+    // Fallback to conservative estimate if no API key
+    return calculatePeakBikeCount(jobs);
+  }
+
+  try {
+    // Build shipments for Geoapify
+    const shipments: any[] = [];
+    const orderMap = new Map<string, { collection?: Job; delivery?: Job }>();
+
+    // Group jobs by order ID
+    jobs.forEach(job => {
+      if (!orderMap.has(job.orderId)) {
+        orderMap.set(job.orderId, {});
+      }
+      const orderJobs = orderMap.get(job.orderId)!;
+      if (job.type === 'collection') {
+        orderJobs.collection = job;
+      } else {
+        orderJobs.delivery = job;
+      }
+    });
+
+    // Create shipments with dependencies
+    orderMap.forEach((orderJobs, orderId) => {
+      const { collection, delivery } = orderJobs;
+
+      if (collection) {
+        shipments.push({
+          id: `${orderId}-pickup`,
+          pickup: {
+            location: [collection.lat, collection.lon],
+            duration: 900
+          },
+          metadata: { jobType: 'collection', orderId, bikeQuantity: collection.bikeQuantity }
+        });
+      }
+
+      if (delivery) {
+        const deliveryShipment: any = {
+          id: `${orderId}-delivery`,
+          pickup: {
+            location: [delivery.lat, delivery.lon],
+            duration: 900
+          },
+          metadata: { jobType: 'delivery', orderId, bikeQuantity: delivery.bikeQuantity }
+        };
+
+        if (collection) {
+          deliveryShipment.depends_on = [`${orderId}-pickup`];
+        }
+
+        shipments.push(deliveryShipment);
+      }
+    });
+
+    const startDateTime = new Date();
+    startDateTime.setHours(9, 0, 0, 0);
+
+    const requestBody = {
+      mode: "light_truck",
+      agents: [{
+        start_location: [DEPOT.lat, DEPOT.lon],
+        end_location: [DEPOT.lat, DEPOT.lon],
+        start_time: startDateTime.toISOString()
+      }],
+      shipments,
+      optimization: "time"
+    };
+
+    const response = await fetch(
+      `https://api.geoapify.com/v1/routeplanner?apiKey=${GEOAPIFY_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }
+    );
+
+    if (!response.ok) {
+      console.warn('Geoapify optimization failed, using conservative estimate');
+      return calculatePeakBikeCount(jobs);
+    }
+
+    const data = await response.json();
+    const route = data.features?.[0];
+    if (!route) {
+      return calculatePeakBikeCount(jobs);
+    }
+
+    // Simulate the optimized route and track peak bikes on van
+    const steps = route.properties.steps;
+    let currentBikes = 0;
+    let peakBikes = 0;
+
+    steps.forEach((step: any) => {
+      if (step.type === 'start' || step.type === 'end') return;
+
+      const shipmentId = step.shipment_id;
+      const shipment = shipments.find(s => s.id === shipmentId);
+      if (!shipment) return;
+
+      const bikeQty = shipment.metadata.bikeQuantity || 1;
+
+      if (shipment.metadata.jobType === 'collection') {
+        currentBikes += bikeQty;
+      } else {
+        currentBikes -= bikeQty;
+      }
+
+      peakBikes = Math.max(peakBikes, currentBikes);
+    });
+
+    return peakBikes;
+  } catch (error) {
+    console.warn('Error calculating actual peak bikes:', error);
+    return calculatePeakBikeCount(jobs);
+  }
+};
+
 // Consolidate routes with fewer than 10 jobs into nearby routes that have capacity
-const consolidateSmallRoutes = (drivers: DriverAssignment[]): DriverAssignment[] => {
+// Uses Geoapify to calculate actual peak bike count based on optimized route order
+const consolidateSmallRoutesWithOptimization = async (drivers: DriverAssignment[]): Promise<DriverAssignment[]> => {
   if (drivers.length <= 1) return drivers;
   
   // Remove any empty drivers first
@@ -369,11 +499,13 @@ const consolidateSmallRoutes = (drivers: DriverAssignment[]): DriverAssignment[]
       
       const target = result[i];
       const combinedJobs = [...target.jobs, ...smallRoute.jobs];
-      const peakBikes = calculatePeakBikeCount(combinedJobs);
+      
+      // Use Geoapify to calculate actual peak bike count
+      const actualPeakBikes = await calculateActualPeakBikeCount(combinedJobs);
       const combinedDistance = calculateRouteDistance(combinedJobs);
       
-      // Check capacity constraints
-      if (peakBikes <= MAX_BIKES_ON_VAN && combinedDistance <= MAX_ROUTE_DISTANCE_MILES) {
+      // Check capacity constraints with actual optimized peak
+      if (actualPeakBikes <= MAX_BIKES_ON_VAN && combinedDistance <= MAX_ROUTE_DISTANCE_MILES) {
         const targetCentroid = {
           lat: target.jobs.reduce((sum, j) => sum + j.lat, 0) / target.jobs.length,
           lon: target.jobs.reduce((sum, j) => sum + j.lon, 0) / target.jobs.length
@@ -786,10 +918,10 @@ export const handleUnderMinimumForDay = (
 
 // Assign orders to week with auto-calculated drivers
 // Does NOT auto-apply under-minimum handling - that's done per-day via UI
-export const assignOrdersToWeek = (
+export const assignOrdersToWeek = async (
   orders: OrderData[],
   weekStart: Date
-): WeeklyPlan => {
+): Promise<WeeklyPlan> => {
   // Step 1: Create all pending jobs (one per order per type)
   const pendingJobs: (Job & { availableDays: number[] })[] = [];
   
@@ -866,18 +998,20 @@ export const assignOrdersToWeek = (
   // Step 4: Calculate required drivers per day and assign jobs
   const driversPerDay: Record<string, number> = {};
   
-  WORKING_DAYS.forEach((dayName, dayIdx) => {
+  // Process each day sequentially since balanceDriverWorkload is async
+  for (let dayIdx = 0; dayIdx < WORKING_DAYS.length; dayIdx++) {
+    const dayName = WORKING_DAYS[dayIdx];
     const jobs = dayJobs[dayIdx];
     const numDrivers = calculateRequiredDrivers(jobs);
     driversPerDay[dayName] = numDrivers;
     
     if (jobs.length > 0) {
-      const driverAssignments = balanceDriverWorkload(jobs, numDrivers);
+      const driverAssignments = await balanceDriverWorkload(jobs, numDrivers);
       dayPlans[dayIdx].drivers = driverAssignments;
       dayPlans[dayIdx].totalJobs = jobs.length;
       dayPlans[dayIdx].totalDistance = driverAssignments.reduce((sum, d) => sum + d.estimatedDistance, 0);
     }
-  });
+  }
   
   // Step 5: Enforce collection before delivery
   let finalDayPlans = enforceCollectionBeforeDelivery(dayPlans, orders);
