@@ -78,7 +78,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
   const handleGeneratePlan = async () => {
     setIsGenerating(true);
     try {
-      const plan = assignOrdersToWeek(orders, weekStart);
+      const plan = await assignOrdersToWeek(orders, weekStart);
       setWeeklyPlan(plan);
       
       const totalJobs = plan.days.reduce((sum, day) => sum + day.totalJobs, 0);
