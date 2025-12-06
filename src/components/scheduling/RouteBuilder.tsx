@@ -18,7 +18,7 @@ import TimeslotEditDialog from './TimeslotEditDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { countJobsForOrders } from "@/services/weeklyPlanningService";
+import { countJobsForOrders } from "@/utils/jobUtils";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
