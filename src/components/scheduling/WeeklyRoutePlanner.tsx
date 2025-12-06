@@ -13,7 +13,8 @@ import {
   loadPlanFromDatabase,
   handleUnderMinimumForDay,
   UnderMinimumRoute,
-  DeferredJob
+  DeferredJob,
+  countJobsForOrders
 } from "@/services/weeklyPlanningService";
 import { format, addWeeks, startOfWeek, addDays } from "date-fns";
 import { toast } from "sonner";
@@ -217,7 +218,10 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
               {format(weekStart, 'MMM d')} - {format(addWeeks(weekStart, 1), 'MMM d, yyyy')}
             </div>
             <div className="text-sm text-muted-foreground">
-              Week of {format(weekStart, 'MMMM d, yyyy')} • {orders.length} orders
+              {(() => {
+                const { total, collections, deliveries } = countJobsForOrders(orders);
+                return `Week of ${format(weekStart, 'MMMM d, yyyy')} • ${total} jobs (${collections} collections, ${deliveries} deliveries) from ${orders.length} orders`;
+              })()}
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={handleNextWeek}>

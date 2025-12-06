@@ -18,6 +18,7 @@ import TimeslotEditDialog from './TimeslotEditDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { countJobsForOrders } from "@/services/weeklyPlanningService";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
@@ -1701,9 +1702,23 @@ Route Link: ${routeLink}`;
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Route className="h-5 w-5" />
-            Route Builder
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Route className="h-5 w-5" />
+              Route Builder
+            </span>
+            <div className="flex gap-2">
+              {(() => {
+                const { total, collections, deliveries } = countJobsForOrders(orders);
+                return (
+                  <>
+                    <Badge variant="outline">{collections} collections</Badge>
+                    <Badge variant="outline">{deliveries} deliveries</Badge>
+                    <Badge variant="secondary">{total} total jobs</Badge>
+                  </>
+                );
+              })()}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>

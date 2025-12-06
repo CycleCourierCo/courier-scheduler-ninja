@@ -80,7 +80,7 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 };
 
 // Determine which jobs are needed based on order status
-const getJobsForOrder = (order: OrderData): ('collection' | 'delivery')[] => {
+export const getJobsForOrder = (order: OrderData): ('collection' | 'delivery')[] => {
   const status = order.status;
   
   // Already completed or cancelled - no jobs
@@ -98,6 +98,24 @@ const getJobsForOrder = (order: OrderData): ('collection' | 'delivery')[] => {
   
   // All other statuses - both jobs needed
   return ['collection', 'delivery'];
+};
+
+// Count jobs for a set of orders - used for consistent job counting across UI
+export const countJobsForOrders = (orders: OrderData[]): { 
+  total: number; 
+  collections: number; 
+  deliveries: number 
+} => {
+  let collections = 0;
+  let deliveries = 0;
+  
+  orders.forEach(order => {
+    const jobs = getJobsForOrder(order);
+    if (jobs.includes('collection')) collections++;
+    if (jobs.includes('delivery')) deliveries++;
+  });
+  
+  return { total: collections + deliveries, collections, deliveries };
 };
 
 // Get region based on location
