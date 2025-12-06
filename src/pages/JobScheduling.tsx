@@ -1,12 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
-import JobMap from "@/components/scheduling/JobMap";
+import ClusterMap from "@/components/scheduling/ClusterMap";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
 import WeeklyRoutePlanner from "@/components/scheduling/WeeklyRoutePlanner";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Cluster } from "@/services/clusteringService";
 
 export interface OrderData {
   id: string;
@@ -26,6 +29,9 @@ export interface OrderData {
 }
 
 const JobScheduling = () => {
+  const [showClusters, setShowClusters] = useState(true);
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: async () => {
@@ -53,7 +59,7 @@ const JobScheduling = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Job Scheduling</h1>
             <p className="text-muted-foreground">
-              Manage and schedule deliveries
+              Manage and schedule deliveries with K-means clustering
             </p>
           </div>
         </DashboardHeader>
@@ -64,8 +70,24 @@ const JobScheduling = () => {
           </div>
         ) : (
           <>
+            {/* Cluster Toggle */}
+            <div className="flex items-center space-x-2 mb-4">
+              <Switch
+                id="cluster-mode"
+                checked={showClusters}
+                onCheckedChange={setShowClusters}
+              />
+              <Label htmlFor="cluster-mode">
+                Show K-means Clusters
+              </Label>
+            </div>
+            
             <div className="mb-8">
-              <JobMap orders={orders || []} />
+              <ClusterMap 
+                orders={orders || []} 
+                showClusters={showClusters}
+                onClusterChange={setClusters}
+              />
             </div>
             
             <div className="mb-8">
@@ -73,7 +95,11 @@ const JobScheduling = () => {
             </div>
 
             <div className="mb-8">
-              <WeeklyRoutePlanner orders={orders || []} onScheduleApplied={refetch} />
+              <WeeklyRoutePlanner 
+                orders={orders || []} 
+                onScheduleApplied={refetch}
+                clusters={clusters}
+              />
             </div>
           </>
         )}

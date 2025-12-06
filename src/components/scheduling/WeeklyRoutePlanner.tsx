@@ -9,12 +9,15 @@ import { assignOrdersToWeek, WeeklyPlan, prioritizeDays, savePlanToDatabase, loa
 import { format, addWeeks, startOfWeek, addDays } from "date-fns";
 import { toast } from "sonner";
 
+import { Cluster, getClusterName } from "@/services/clusteringService";
+
 interface WeeklyRoutePlannerProps {
   orders: OrderData[];
   onScheduleApplied?: () => void;
+  clusters?: Cluster[];
 }
 
-const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onScheduleApplied }) => {
+const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onScheduleApplied, clusters = [] }) => {
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>('monday');
