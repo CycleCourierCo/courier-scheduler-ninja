@@ -348,68 +348,21 @@ const calculateActualPeakBikeCount = async (jobs: Job[]): Promise<number> => {
   }
 
   try {
-    // Build shipments for Geoapify
-    const shipments: any[] = [];
-    const orderMap = new Map<string, { collection?: Job; delivery?: Job }>();
-
-    // Group jobs by order ID
-    jobs.forEach(job => {
-      if (!orderMap.has(job.orderId)) {
-        orderMap.set(job.orderId, {});
-      }
-      const orderJobs = orderMap.get(job.orderId)!;
-      if (job.type === 'collection') {
-        orderJobs.collection = job;
-      } else {
-        orderJobs.delivery = job;
-      }
-    });
-
-    // Create shipments with dependencies
-    orderMap.forEach((orderJobs, orderId) => {
-      const { collection, delivery } = orderJobs;
-
-      if (collection) {
-        shipments.push({
-          id: `${orderId}-pickup`,
-          pickup: {
-            location: [collection.lat, collection.lon],
-            duration: 900
-          },
-          metadata: { jobType: 'collection', orderId, bikeQuantity: collection.bikeQuantity }
-        });
-      }
-
-      if (delivery) {
-        const deliveryShipment: any = {
-          id: `${orderId}-delivery`,
-          pickup: {
-            location: [delivery.lat, delivery.lon],
-            duration: 900
-          },
-          metadata: { jobType: 'delivery', orderId, bikeQuantity: delivery.bikeQuantity }
-        };
-
-        if (collection) {
-          deliveryShipment.depends_on = [`${orderId}-pickup`];
-        }
-
-        shipments.push(deliveryShipment);
-      }
-    });
-
-    const startDateTime = new Date();
-    startDateTime.setHours(9, 0, 0, 0);
+    // Build jobs array for Geoapify (single stops, not pickup-delivery pairs)
+    const geoapifyJobs: any[] = jobs.map((job, idx) => ({
+      id: `${job.orderId}-${job.type}`,
+      location: [job.lon, job.lat], // Geoapify uses [lon, lat] format!
+      duration: 900,
+      priority: job.type === 'collection' ? 2 : 1 // Collections have higher priority
+    }));
 
     const requestBody = {
       mode: "light_truck",
       agents: [{
-        start_location: [DEPOT.lat, DEPOT.lon],
-        end_location: [DEPOT.lat, DEPOT.lon],
-        start_time: startDateTime.toISOString()
+        start_location: [DEPOT.lon, DEPOT.lat], // [lon, lat] format
+        end_location: [DEPOT.lon, DEPOT.lat]
       }],
-      shipments,
-      optimization: "time"
+      jobs: geoapifyJobs
     };
 
     const response = await fetch(
@@ -433,20 +386,23 @@ const calculateActualPeakBikeCount = async (jobs: Job[]): Promise<number> => {
     }
 
     // Simulate the optimized route and track peak bikes on van
-    const steps = route.properties.steps;
+    const actions = route.properties.actions || [];
     let currentBikes = 0;
     let peakBikes = 0;
 
-    steps.forEach((step: any) => {
-      if (step.type === 'start' || step.type === 'end') return;
+    // Create a map of job id to job details for quick lookup
+    const jobMap = new Map(jobs.map(job => [`${job.orderId}-${job.type}`, job]));
 
-      const shipmentId = step.shipment_id;
-      const shipment = shipments.find(s => s.id === shipmentId);
-      if (!shipment) return;
+    actions.forEach((action: any) => {
+      if (action.type !== 'job') return;
 
-      const bikeQty = shipment.metadata.bikeQuantity || 1;
+      const jobId = action.job_id;
+      const job = jobMap.get(jobId);
+      if (!job) return;
 
-      if (shipment.metadata.jobType === 'collection') {
+      const bikeQty = job.bikeQuantity || 1;
+
+      if (job.type === 'collection') {
         currentBikes += bikeQty;
       } else {
         currentBikes -= bikeQty;
@@ -494,10 +450,30 @@ const consolidateSmallRoutesWithOptimization = async (drivers: DriverAssignment[
     let bestTargetIdx = -1;
     let bestDistance = Infinity;
     
+    // Maximum distance between route centroids to allow merging (240km = ~150 miles)
+    const MAX_MERGE_DISTANCE_KM = 240;
+    
     for (let i = 0; i < result.length; i++) {
       if (i === underMinIdx || result[i].jobs.length === 0) continue;
       
       const target = result[i];
+      
+      // Calculate centroid of target route
+      const targetCentroid = {
+        lat: target.jobs.reduce((sum, j) => sum + j.lat, 0) / target.jobs.length,
+        lon: target.jobs.reduce((sum, j) => sum + j.lon, 0) / target.jobs.length
+      };
+      
+      // Check geographic distance FIRST - don't merge routes that are too far apart
+      const centroidDistance = haversineDistance(
+        smallCentroid.lat, smallCentroid.lon,
+        targetCentroid.lat, targetCentroid.lon
+      );
+      
+      if (centroidDistance > MAX_MERGE_DISTANCE_KM) {
+        continue; // Skip this target, centroids too far apart
+      }
+      
       const combinedJobs = [...target.jobs, ...smallRoute.jobs];
       
       // Use Geoapify to calculate actual peak bike count
@@ -506,16 +482,8 @@ const consolidateSmallRoutesWithOptimization = async (drivers: DriverAssignment[
       
       // Check capacity constraints with actual optimized peak
       if (actualPeakBikes <= MAX_BIKES_ON_VAN && combinedDistance <= MAX_ROUTE_DISTANCE_MILES) {
-        const targetCentroid = {
-          lat: target.jobs.reduce((sum, j) => sum + j.lat, 0) / target.jobs.length,
-          lon: target.jobs.reduce((sum, j) => sum + j.lon, 0) / target.jobs.length
-        };
-        
-        const dist = haversineDistance(smallCentroid.lat, smallCentroid.lon, 
-                                       targetCentroid.lat, targetCentroid.lon);
-        
-        if (dist < bestDistance) {
-          bestDistance = dist;
+        if (centroidDistance < bestDistance) {
+          bestDistance = centroidDistance;
           bestTargetIdx = i;
         }
       }
