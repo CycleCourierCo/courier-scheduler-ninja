@@ -471,74 +471,83 @@ const handleUnderMinimumCombine = (
     const dayPlan = updatedPlans[dayIdx];
     const dayName = WORKING_DAYS[dayIdx];
     
-    // Collect all jobs from under-minimum routes
-    const jobsToMerge: Job[] = [];
-    const driverIndicesToRemove: number[] = [];
-    
-    driversToMerge.forEach(({ driverIdx, driver }) => {
-      jobsToMerge.push(...driver.jobs);
-      driverIndicesToRemove.push(driverIdx);
+    // Collect driver indices to remove
+    const driverIndicesToRemove = new Set<number>();
+    driversToMerge.forEach(({ driverIdx }) => {
+      driverIndicesToRemove.add(driverIdx);
     });
     
-    // Also collect jobs from routes that already meet minimum (to combine with)
-    const existingMeetingMinimum = dayPlan.drivers.filter((d, idx) => 
-      !driverIndicesToRemove.includes(idx) && d.jobs.length >= MIN_STOPS_PER_ROUTE
-    );
+    // Separate existing drivers into valid (meeting minimum) and under-minimum
+    const validDrivers: DriverAssignment[] = [];
+    const allJobsFromUnderMinimum: Job[] = [];
     
-    // Try to absorb into existing routes first
-    let remainingJobs = [...jobsToMerge];
+    dayPlan.drivers.forEach((driver, idx) => {
+      if (driverIndicesToRemove.has(idx)) {
+        // This is an under-minimum route - collect its jobs
+        allJobsFromUnderMinimum.push(...driver.jobs);
+      } else {
+        // Keep this driver as-is
+        validDrivers.push(driver);
+      }
+    });
     
-    existingMeetingMinimum.forEach(driver => {
-      const absorbable: Job[] = [];
-      remainingJobs = remainingJobs.filter(job => {
-        const testJobs = [...driver.jobs, ...absorbable, job];
+    // Sort jobs by distance from depot for better geographic grouping
+    allJobsFromUnderMinimum.sort((a, b) => {
+      const distA = calculateDistance(DEPOT.lat, DEPOT.lon, a.lat, a.lon);
+      const distB = calculateDistance(DEPOT.lat, DEPOT.lon, b.lat, b.lon);
+      return distA - distB;
+    });
+    
+    // First, try to absorb jobs one-by-one into existing valid routes
+    const remainingJobs: Job[] = [];
+    
+    allJobsFromUnderMinimum.forEach(job => {
+      let absorbed = false;
+      
+      for (const driver of validDrivers) {
+        const testJobs = [...driver.jobs, job];
         const peakBikes = calculatePeakBikeCount(testJobs);
         const testDistance = calculateRouteDistance(testJobs);
         
         if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
-          absorbable.push(job);
-          return false;
+          driver.jobs.push(job);
+          driver.estimatedDistance = testDistance;
+          absorbed = true;
+          break;
         }
-        return true;
-      });
+      }
       
-      driver.jobs.push(...absorbable);
-      driver.estimatedDistance = calculateRouteDistance(driver.jobs);
+      if (!absorbed) {
+        remainingJobs.push(job);
+      }
     });
     
-    // Create new combined routes from remaining jobs
-    if (remainingJobs.length >= MIN_STOPS_PER_ROUTE) {
-      // Sort by distance from depot for better grouping
-      remainingJobs.sort((a, b) => {
-        const distA = calculateDistance(DEPOT.lat, DEPOT.lon, a.lat, a.lon);
-        const distB = calculateDistance(DEPOT.lat, DEPOT.lon, b.lat, b.lon);
-        return distA - distB;
-      });
-      
-      // Create new drivers with combined routes
-      let currentDriver: DriverAssignment = {
-        driverIndex: dayPlan.drivers.length,
+    // Now create new combined routes from remaining jobs
+    if (remainingJobs.length > 0) {
+      // Build new routes respecting capacity limits
+      const newRoutes: DriverAssignment[] = [];
+      let currentRoute: DriverAssignment = {
+        driverIndex: 0,
         jobs: [],
         estimatedDistance: 0,
         region: undefined
       };
-      const newDrivers: DriverAssignment[] = [];
       
       remainingJobs.forEach(job => {
-        const testJobs = [...currentDriver.jobs, job];
+        const testJobs = [...currentRoute.jobs, job];
         const peakBikes = calculatePeakBikeCount(testJobs);
         const testDistance = calculateRouteDistance(testJobs);
         
         if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
-          currentDriver.jobs.push(job);
-          currentDriver.estimatedDistance = testDistance;
+          currentRoute.jobs.push(job);
+          currentRoute.estimatedDistance = testDistance;
         } else {
-          // Start new driver
-          if (currentDriver.jobs.length > 0) {
-            newDrivers.push(currentDriver);
+          // Save current route and start a new one
+          if (currentRoute.jobs.length > 0) {
+            newRoutes.push(currentRoute);
           }
-          currentDriver = {
-            driverIndex: dayPlan.drivers.length + newDrivers.length,
+          currentRoute = {
+            driverIndex: 0,
             jobs: [job],
             estimatedDistance: calculateRouteDistance([job]),
             region: job.region
@@ -546,39 +555,50 @@ const handleUnderMinimumCombine = (
         }
       });
       
-      if (currentDriver.jobs.length > 0) {
-        newDrivers.push(currentDriver);
+      if (currentRoute.jobs.length > 0) {
+        newRoutes.push(currentRoute);
       }
       
-      // Filter out new drivers that still don't meet minimum (defer those)
-      newDrivers.forEach(driver => {
-        if (driver.jobs.length >= MIN_STOPS_PER_ROUTE) {
-          dayPlan.drivers.push(driver);
+      // For new routes: keep those meeting minimum, try to absorb others, or defer
+      newRoutes.forEach(route => {
+        if (route.jobs.length >= MIN_STOPS_PER_ROUTE) {
+          // Route meets minimum - add to valid drivers
+          validDrivers.push(route);
         } else {
-          driver.jobs.forEach(job => {
-            deferredJobs.push({
-              ...job,
-              originalDay: dayName,
-              reason: `Combined route still only has ${driver.jobs.length} stops (minimum ${MIN_STOPS_PER_ROUTE} required)`
-            });
+          // Try to absorb these jobs into existing valid routes one-by-one
+          route.jobs.forEach(job => {
+            let absorbed = false;
+            
+            for (const driver of validDrivers) {
+              const testJobs = [...driver.jobs, job];
+              const peakBikes = calculatePeakBikeCount(testJobs);
+              const testDistance = calculateRouteDistance(testJobs);
+              
+              if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
+                driver.jobs.push(job);
+                driver.estimatedDistance = testDistance;
+                absorbed = true;
+                break;
+              }
+            }
+            
+            if (!absorbed) {
+              deferredJobs.push({
+                ...job,
+                originalDay: dayName,
+                reason: `Could not combine into a valid route (minimum ${MIN_STOPS_PER_ROUTE} stops required)`
+              });
+            }
           });
         }
       });
-    } else if (remainingJobs.length > 0) {
-      // Not enough to create a valid route - defer all
-      remainingJobs.forEach(job => {
-        deferredJobs.push({
-          ...job,
-          originalDay: dayName,
-          reason: `Only ${remainingJobs.length} jobs available to combine (minimum ${MIN_STOPS_PER_ROUTE} required)`
-        });
-      });
     }
     
-    // Remove original under-minimum drivers (sort indices descending to avoid shifting issues)
-    driverIndicesToRemove.sort((a, b) => b - a).forEach(idx => {
-      dayPlan.drivers.splice(idx, 1);
-    });
+    // Replace day's drivers with the new valid set
+    dayPlan.drivers = validDrivers;
+    
+    // Re-index drivers
+    dayPlan.drivers.forEach((d, idx) => { d.driverIndex = idx; });
   });
   
   // Recalculate totals
