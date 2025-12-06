@@ -3,8 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Calendar, ChevronLeft, ChevronRight, MapPin, Loader2, Save, Database, AlertTriangle, Clock, Merge } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { 
@@ -13,7 +11,8 @@ import {
   prioritizeDays, 
   savePlanToDatabase, 
   loadPlanFromDatabase,
-  UnderMinimumAction,
+  handleUnderMinimumForDay,
+  UnderMinimumRoute,
   DeferredJob
 } from "@/services/weeklyPlanningService";
 import { format, addWeeks, startOfWeek, addDays } from "date-fns";
@@ -34,7 +33,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [optimizingDay, setOptimizingDay] = useState<string | null>(null);
-  const [underMinimumAction, setUnderMinimumAction] = useState<UnderMinimumAction>('defer');
+  const [processingDay, setProcessingDay] = useState<string | null>(null);
 
   const workingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'];
 
@@ -78,16 +77,17 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
   const handleGeneratePlan = async () => {
     setIsGenerating(true);
     try {
-      const plan = assignOrdersToWeek(orders, weekStart, underMinimumAction);
+      const plan = assignOrdersToWeek(orders, weekStart);
       setWeeklyPlan(plan);
       
       const totalJobs = plan.days.reduce((sum, day) => sum + day.totalJobs, 0);
       const totalDistance = plan.days.reduce((sum, day) => sum + day.totalDistance, 0);
       const totalDriverDays = Object.values(plan.driversPerDay).reduce((sum, count) => sum + count, 0);
       
+      const underMinCount = Object.values(plan.underMinimumByDay).reduce((sum, routes) => sum + routes.length, 0);
       let message = `Weekly plan generated: ${totalJobs} jobs, ${totalDriverDays} driver-days, ${Math.round(totalDistance)} miles`;
-      if (plan.deferredJobs.length > 0) {
-        message += `. ${plan.deferredJobs.length} jobs deferred (under 10-stop minimum)`;
+      if (underMinCount > 0) {
+        message += `. ${underMinCount} routes have <10 stops - review each day to defer or combine.`;
       }
       
       toast.success(message);
@@ -141,9 +141,42 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
     }
   };
 
-  const getDayPlan = () => {
-    if (!weeklyPlan) return null;
-    return weeklyPlan.days.find(d => d.day === selectedDay);
+  const handleDeferForDay = (dayName: string) => {
+    if (!weeklyPlan) return;
+    
+    setProcessingDay(dayName);
+    try {
+      const updatedPlan = handleUnderMinimumForDay(weeklyPlan, dayName, 'defer');
+      setWeeklyPlan(updatedPlan);
+      
+      const deferredCount = updatedPlan.deferredJobs.filter(j => j.originalDay === dayName).length;
+      if (deferredCount > 0) {
+        toast.success(`Deferred ${deferredCount} jobs from ${dayName} to later days or pending`);
+      } else {
+        toast.success(`Jobs from ${dayName} absorbed into later days`);
+      }
+    } catch (error: any) {
+      console.error('Error deferring jobs:', error);
+      toast.error(`Failed to defer: ${error.message}`);
+    } finally {
+      setProcessingDay(null);
+    }
+  };
+
+  const handleCombineForDay = (dayName: string) => {
+    if (!weeklyPlan) return;
+    
+    setProcessingDay(dayName);
+    try {
+      const updatedPlan = handleUnderMinimumForDay(weeklyPlan, dayName, 'combine');
+      setWeeklyPlan(updatedPlan);
+      toast.success(`Combined under-minimum routes for ${dayName}`);
+    } catch (error: any) {
+      console.error('Error combining routes:', error);
+      toast.error(`Failed to combine: ${error.message}`);
+    } finally {
+      setProcessingDay(null);
+    }
   };
 
   const totalDriverDays = weeklyPlan ? Object.values(weeklyPlan.driversPerDay).reduce((sum, count) => sum + count, 0) : 0;
@@ -193,38 +226,6 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
           </Button>
         </div>
 
-        {/* Under-Minimum Action Selection */}
-        <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
-          <div className="text-sm font-medium">
-            When a route has fewer than 10 stops:
-          </div>
-          <RadioGroup 
-            value={underMinimumAction} 
-            onValueChange={(value) => setUnderMinimumAction(value as UnderMinimumAction)}
-            className="flex gap-6"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="defer" id="defer" />
-              <Label htmlFor="defer" className="flex items-center gap-2 cursor-pointer">
-                <Clock className="h-4 w-4 text-amber-500" />
-                Defer to later days
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="combine" id="combine" />
-              <Label htmlFor="combine" className="flex items-center gap-2 cursor-pointer">
-                <Merge className="h-4 w-4 text-blue-500" />
-                Combine across regions
-              </Label>
-            </div>
-          </RadioGroup>
-          <p className="text-xs text-muted-foreground">
-            {underMinimumAction === 'defer' 
-              ? "Jobs from routes with <10 stops will be moved to later days or marked as pending."
-              : "Routes with <10 stops will be merged with other routes, even if from different regions."}
-          </p>
-        </div>
-
         {/* Auto-Calculated Drivers Display */}
         {weeklyPlan && (
           <div className="space-y-3">
@@ -233,13 +234,17 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
             </div>
             <div className="grid grid-cols-6 gap-3">
               {workingDays.map((day, index) => {
-                const dayIndices = [0, 1, 2, 3, 5, 6]; // Mon, Tue, Wed, Thu, Sat, Sun
+                const dayIndices = [0, 1, 2, 3, 5, 6];
                 const dayDate = addDays(weekStart, dayIndices[index]);
                 const driversCount = weeklyPlan.driversPerDay[day] || 0;
                 const dayPlan = weeklyPlan.days.find(d => d.day === day);
+                const hasUnderMinimum = (weeklyPlan.underMinimumByDay[day]?.length || 0) > 0;
                 
                 return (
-                  <div key={day} className="text-center p-3 border rounded-lg bg-muted/30">
+                  <div 
+                    key={day} 
+                    className={`text-center p-3 border rounded-lg ${hasUnderMinimum ? 'border-amber-500/50 bg-amber-500/10' : 'bg-muted/30'}`}
+                  >
                     <div className="text-xs font-medium mb-1 capitalize">
                       {day.substring(0, 3)}
                     </div>
@@ -255,6 +260,12 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
                     {dayPlan && dayPlan.totalJobs > 0 && (
                       <div className="text-xs text-muted-foreground mt-1">
                         {dayPlan.totalJobs} jobs
+                      </div>
+                    )}
+                    {hasUnderMinimum && (
+                      <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center justify-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {weeklyPlan.underMinimumByDay[day].length}
                       </div>
                     )}
                   </div>
@@ -317,109 +328,139 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
           <div className="space-y-4">
             <Tabs value={selectedDay} onValueChange={setSelectedDay}>
               <TabsList className="grid grid-cols-6 w-full">
-                {weeklyPlan.days.map(day => (
-                  <TabsTrigger key={day.day} value={day.day} className="capitalize">
-                    {day.day.slice(0, 3)}
-                    <Badge variant="secondary" className="ml-1">
-                      {day.totalJobs}
-                    </Badge>
-                  </TabsTrigger>
-                ))}
+                {weeklyPlan.days.map(day => {
+                  const hasUnderMinimum = (weeklyPlan.underMinimumByDay[day.day]?.length || 0) > 0;
+                  return (
+                    <TabsTrigger key={day.day} value={day.day} className="capitalize relative">
+                      {day.day.slice(0, 3)}
+                      <Badge variant="secondary" className="ml-1">
+                        {day.totalJobs}
+                      </Badge>
+                      {hasUnderMinimum && (
+                        <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
+                      )}
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
 
-              {weeklyPlan.days.map(day => (
-                <TabsContent key={day.day} value={day.day} className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold capitalize">{day.day}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {format(day.date, 'MMMM d, yyyy')} • {day.totalJobs} jobs • {day.drivers.length} {day.drivers.length === 1 ? 'driver' : 'drivers'} • {Math.round(day.totalDistance)} miles
-                      </p>
+              {weeklyPlan.days.map(day => {
+                const underMinRoutes = weeklyPlan.underMinimumByDay[day.day] || [];
+                const hasUnderMinimum = underMinRoutes.length > 0;
+                
+                return (
+                  <TabsContent key={day.day} value={day.day} className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold capitalize">{day.day}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {format(day.date, 'MMMM d, yyyy')} • {day.totalJobs} jobs • {day.drivers.length} {day.drivers.length === 1 ? 'driver' : 'drivers'} • {Math.round(day.totalDistance)} miles
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => handleOptimizeDay(day.day)}
+                        disabled={optimizingDay === day.day || day.totalJobs === 0}
+                        size="sm"
+                      >
+                        {optimizingDay === day.day ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Optimizing...
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-4 w-4 mr-2" />
+                            Optimize Route
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    <Button
-                      onClick={() => handleOptimizeDay(day.day)}
-                      disabled={optimizingDay === day.day || day.totalJobs === 0}
-                      size="sm"
-                    >
-                      {optimizingDay === day.day ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Optimizing...
-                        </>
-                      ) : (
-                        <>
-                          <MapPin className="h-4 w-4 mr-2" />
-                          Optimize Route
-                        </>
-                      )}
-                    </Button>
-                  </div>
 
-                  {/* Driver Assignments */}
-                  {day.drivers.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No jobs scheduled for this day
-                    </div>
-                  ) : (
-                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(day.drivers.length, 4)}, 1fr)` }}>
-                      {day.drivers.map((driver) => (
-                        <Card key={driver.driverIndex}>
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center justify-between">
-                              <span>Driver {driver.driverIndex + 1}</span>
-                              <div className="flex gap-1">
-                                {driver.region && (
-                                  <Badge variant="outline" className="capitalize">
-                                    {driver.region}
-                                  </Badge>
-                                )}
-                                <Badge variant="secondary">
-                                  {driver.jobs.length} jobs
-                                </Badge>
-                              </div>
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground">
-                              {Math.round(driver.estimatedDistance)} miles
-                            </p>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              {driver.jobs.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No jobs assigned</p>
-                              ) : (
-                                driver.jobs.map((job, idx) => (
-                                  <div key={`${job.orderId}-${job.type}-${idx}`} className="text-sm border-l-2 border-primary pl-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-medium">
-                                        {idx + 1}. {job.type === 'collection' ? '📦' : '🚚'} {job.contactName}
-                                      </span>
-                                      <Badge variant={job.type === 'collection' ? 'default' : 'secondary'} className="text-xs">
-                                        {job.type}
+                    {/* Under-Minimum Alert for this day */}
+                    {hasUnderMinimum && (
+                      <UnderMinimumDayAlert
+                        dayName={day.day}
+                        routes={underMinRoutes}
+                        onDefer={() => handleDeferForDay(day.day)}
+                        onCombine={() => handleCombineForDay(day.day)}
+                        isProcessing={processingDay === day.day}
+                      />
+                    )}
+
+                    {/* Driver Assignments */}
+                    {day.drivers.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No jobs scheduled for this day
+                      </div>
+                    ) : (
+                      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(day.drivers.length, 4)}, 1fr)` }}>
+                        {day.drivers.map((driver) => {
+                          const isUnderMinimum = driver.jobs.length > 0 && driver.jobs.length < 10;
+                          return (
+                            <Card key={driver.driverIndex} className={isUnderMinimum ? 'border-amber-500/50' : ''}>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm flex items-center justify-between">
+                                  <span className="flex items-center gap-2">
+                                    Driver {driver.driverIndex + 1}
+                                    {isUnderMinimum && (
+                                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                    )}
+                                  </span>
+                                  <div className="flex gap-1">
+                                    {driver.region && (
+                                      <Badge variant="outline" className="capitalize">
+                                        {driver.region}
                                       </Badge>
-                                    </div>
-                                    {job.order.tracking_number && (
-                                      <div className="text-xs font-mono text-primary mt-1">
-                                        #{job.order.tracking_number}
-                                      </div>
                                     )}
-                                    {(job.order.bike_brand || job.order.bike_model) && (
-                                      <div className="text-xs text-muted-foreground">
-                                        🚲 {[job.order.bike_brand, job.order.bike_model].filter(Boolean).join(' ')}
-                                        {job.bikeQuantity > 1 && ` (×${job.bikeQuantity})`}
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-muted-foreground mt-1">{job.address}</div>
+                                    <Badge variant={isUnderMinimum ? "destructive" : "secondary"}>
+                                      {driver.jobs.length} jobs
+                                    </Badge>
                                   </div>
-                                ))
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-              ))}
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground">
+                                  {Math.round(driver.estimatedDistance)} miles
+                                </p>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-2">
+                                  {driver.jobs.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No jobs assigned</p>
+                                  ) : (
+                                    driver.jobs.map((job, idx) => (
+                                      <div key={`${job.orderId}-${job.type}-${idx}`} className="text-sm border-l-2 border-primary pl-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-medium">
+                                            {idx + 1}. {job.type === 'collection' ? '📦' : '🚚'} {job.contactName}
+                                          </span>
+                                          <Badge variant={job.type === 'collection' ? 'default' : 'secondary'} className="text-xs">
+                                            {job.type}
+                                          </Badge>
+                                        </div>
+                                        {job.order.tracking_number && (
+                                          <div className="text-xs font-mono text-primary mt-1">
+                                            #{job.order.tracking_number}
+                                          </div>
+                                        )}
+                                        {(job.order.bike_brand || job.order.bike_model) && (
+                                          <div className="text-xs text-muted-foreground">
+                                            🚲 {[job.order.bike_brand, job.order.bike_model].filter(Boolean).join(' ')}
+                                            {job.bikeQuantity > 1 && ` (×${job.bikeQuantity})`}
+                                          </div>
+                                        )}
+                                        <div className="text-xs text-muted-foreground mt-1">{job.address}</div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </TabsContent>
+                );
+              })}
             </Tabs>
 
             {/* Apply Schedule Button */}
@@ -437,6 +478,76 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Under-Minimum Day Alert Component
+interface UnderMinimumDayAlertProps {
+  dayName: string;
+  routes: UnderMinimumRoute[];
+  onDefer: () => void;
+  onCombine: () => void;
+  isProcessing: boolean;
+}
+
+const UnderMinimumDayAlert: React.FC<UnderMinimumDayAlertProps> = ({ 
+  dayName, 
+  routes, 
+  onDefer, 
+  onCombine,
+  isProcessing 
+}) => {
+  const totalJobs = routes.reduce((sum, r) => sum + r.driver.jobs.length, 0);
+  
+  return (
+    <div className="p-4 border rounded-lg border-amber-500/50 bg-amber-500/10 space-y-3">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="h-5 w-5 text-amber-500" />
+        <span className="font-medium text-amber-700 dark:text-amber-400">
+          {routes.length} {routes.length === 1 ? 'route has' : 'routes have'} fewer than 10 stops ({totalJobs} jobs total)
+        </span>
+      </div>
+      
+      <div className="text-sm text-muted-foreground">
+        Routes with fewer than 10 stops are not efficient. Choose how to handle them:
+      </div>
+      
+      <div className="flex gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onDefer}
+          disabled={isProcessing}
+          className="flex items-center gap-2"
+        >
+          {isProcessing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Clock className="h-4 w-4 text-amber-500" />
+          )}
+          Defer to Later Days
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onCombine}
+          disabled={isProcessing}
+          className="flex items-center gap-2"
+        >
+          {isProcessing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Merge className="h-4 w-4 text-blue-500" />
+          )}
+          Combine with Other Routes
+        </Button>
+      </div>
+      
+      <div className="text-xs text-muted-foreground">
+        • <strong>Defer:</strong> Move jobs to later days in the week or mark as pending<br />
+        • <strong>Combine:</strong> Merge with existing routes (respecting 600-mile limit)
+      </div>
+    </div>
   );
 };
 
@@ -461,7 +572,7 @@ const DeferredJobsPanel: React.FC<{ deferredJobs: DeferredJob[] }> = ({ deferred
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-amber-500" />
           <span className="font-medium text-amber-700 dark:text-amber-400">
-            {deferredJobs.length} Jobs Pending (Under 10-Stop Minimum)
+            {deferredJobs.length} Jobs Pending (Could not be scheduled)
           </span>
         </div>
         <Button variant="ghost" size="sm">
