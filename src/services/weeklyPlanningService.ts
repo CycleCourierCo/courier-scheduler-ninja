@@ -5,11 +5,14 @@ import { DEPOT_LOCATION } from "@/constants/depot";
 
 const MAX_BIKES_ON_VAN = 10;
 const MAX_ROUTE_DISTANCE_MILES = 600;
+const MIN_STOPS_PER_ROUTE = 10;
 const DEPOT = DEPOT_LOCATION;
 
 // Working days: Mon-Thu + Sat-Sun (Friday removed)
 const WORKING_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'] as const;
 const DAY_INDICES = [0, 1, 2, 3, 5, 6]; // addDays indices from Monday
+
+export type UnderMinimumAction = 'defer' | 'combine';
 
 export type Region = 'midlands' | 'north' | 'wales' | 'south' | 'scotland';
 
@@ -41,11 +44,17 @@ export interface DayPlan {
   totalDistance: number;
 }
 
+export interface DeferredJob extends Job {
+  originalDay: string;
+  reason: string;
+}
+
 export interface WeeklyPlan {
   weekStart: Date;
   weekEnd: Date;
   days: DayPlan[];
   driversPerDay: Record<string, number>;
+  deferredJobs: DeferredJob[];
   isSaved?: boolean;
 }
 
@@ -341,10 +350,241 @@ const enforceCollectionBeforeDelivery = (dayPlans: DayPlan[], orders: OrderData[
   return dayPlans;
 };
 
+// Enforce minimum stops per route - returns routes that don't meet minimum
+const findUnderMinimumRoutes = (dayPlans: DayPlan[]): { dayIdx: number; driverIdx: number; driver: DriverAssignment }[] => {
+  const underMinimum: { dayIdx: number; driverIdx: number; driver: DriverAssignment }[] = [];
+  
+  dayPlans.forEach((dayPlan, dayIdx) => {
+    dayPlan.drivers.forEach((driver, driverIdx) => {
+      if (driver.jobs.length > 0 && driver.jobs.length < MIN_STOPS_PER_ROUTE) {
+        underMinimum.push({ dayIdx, driverIdx, driver });
+      }
+    });
+  });
+  
+  return underMinimum;
+};
+
+// Handle routes under minimum by deferring jobs to later days
+const handleUnderMinimumDefer = (
+  dayPlans: DayPlan[],
+  underMinimumRoutes: { dayIdx: number; driverIdx: number; driver: DriverAssignment }[]
+): { updatedPlans: DayPlan[]; deferredJobs: DeferredJob[] } => {
+  const deferredJobs: DeferredJob[] = [];
+  const updatedPlans = [...dayPlans];
+  
+  // Sort by day index so we process earlier days first (defer to later days)
+  underMinimumRoutes.sort((a, b) => a.dayIdx - b.dayIdx);
+  
+  underMinimumRoutes.forEach(({ dayIdx, driverIdx, driver }) => {
+    const dayName = WORKING_DAYS[dayIdx];
+    
+    // Find a later day with enough jobs to absorb these + still meet minimum
+    let absorbed = false;
+    
+    for (let laterDayIdx = dayIdx + 1; laterDayIdx < WORKING_DAYS.length && !absorbed; laterDayIdx++) {
+      const laterDayPlan = updatedPlans[laterDayIdx];
+      
+      // Check if any driver on later day can absorb these jobs
+      for (const laterDriver of laterDayPlan.drivers) {
+        const combinedJobs = [...laterDriver.jobs, ...driver.jobs];
+        const peakBikes = calculatePeakBikeCount(combinedJobs);
+        const testDistance = calculateRouteDistance(combinedJobs);
+        
+        if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
+          // Absorb into this driver
+          laterDriver.jobs.push(...driver.jobs);
+          laterDriver.estimatedDistance = calculateRouteDistance(laterDriver.jobs);
+          absorbed = true;
+          break;
+        }
+      }
+      
+      // If no existing driver can absorb, add as new driver on later day if total would meet minimum
+      if (!absorbed) {
+        const laterDayTotalJobs = laterDayPlan.drivers.reduce((sum, d) => sum + d.jobs.length, 0);
+        if (laterDayTotalJobs + driver.jobs.length >= MIN_STOPS_PER_ROUTE) {
+          laterDayPlan.drivers.push({
+            ...driver,
+            driverIndex: laterDayPlan.drivers.length
+          });
+          absorbed = true;
+        }
+      }
+    }
+    
+    // If couldn't absorb into later days, mark as deferred
+    if (!absorbed) {
+      driver.jobs.forEach(job => {
+        deferredJobs.push({
+          ...job,
+          originalDay: dayName,
+          reason: `Only ${driver.jobs.length} stops scheduled (minimum ${MIN_STOPS_PER_ROUTE} required)`
+        });
+      });
+    }
+    
+    // Remove the under-minimum driver from original day
+    updatedPlans[dayIdx].drivers = updatedPlans[dayIdx].drivers.filter((_, idx) => idx !== driverIdx);
+  });
+  
+  // Recalculate totals
+  updatedPlans.forEach(dayPlan => {
+    dayPlan.totalJobs = dayPlan.drivers.reduce((sum, d) => sum + d.jobs.length, 0);
+    dayPlan.totalDistance = dayPlan.drivers.reduce((sum, d) => sum + d.estimatedDistance, 0);
+    // Re-index drivers
+    dayPlan.drivers.forEach((d, idx) => { d.driverIndex = idx; });
+  });
+  
+  return { updatedPlans, deferredJobs };
+};
+
+// Handle routes under minimum by combining across regions
+const handleUnderMinimumCombine = (
+  dayPlans: DayPlan[],
+  underMinimumRoutes: { dayIdx: number; driverIdx: number; driver: DriverAssignment }[]
+): { updatedPlans: DayPlan[]; deferredJobs: DeferredJob[] } => {
+  const deferredJobs: DeferredJob[] = [];
+  const updatedPlans = [...dayPlans];
+  
+  // Group under-minimum routes by day
+  const byDay = new Map<number, { driverIdx: number; driver: DriverAssignment }[]>();
+  underMinimumRoutes.forEach(item => {
+    const existing = byDay.get(item.dayIdx) || [];
+    existing.push({ driverIdx: item.driverIdx, driver: item.driver });
+    byDay.set(item.dayIdx, existing);
+  });
+  
+  byDay.forEach((driversToMerge, dayIdx) => {
+    const dayPlan = updatedPlans[dayIdx];
+    const dayName = WORKING_DAYS[dayIdx];
+    
+    // Collect all jobs from under-minimum routes
+    const jobsToMerge: Job[] = [];
+    const driverIndicesToRemove: number[] = [];
+    
+    driversToMerge.forEach(({ driverIdx, driver }) => {
+      jobsToMerge.push(...driver.jobs);
+      driverIndicesToRemove.push(driverIdx);
+    });
+    
+    // Also collect jobs from routes that already meet minimum (to combine with)
+    const existingMeetingMinimum = dayPlan.drivers.filter((d, idx) => 
+      !driverIndicesToRemove.includes(idx) && d.jobs.length >= MIN_STOPS_PER_ROUTE
+    );
+    
+    // Try to absorb into existing routes first
+    let remainingJobs = [...jobsToMerge];
+    
+    existingMeetingMinimum.forEach(driver => {
+      const absorbable: Job[] = [];
+      remainingJobs = remainingJobs.filter(job => {
+        const testJobs = [...driver.jobs, ...absorbable, job];
+        const peakBikes = calculatePeakBikeCount(testJobs);
+        const testDistance = calculateRouteDistance(testJobs);
+        
+        if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
+          absorbable.push(job);
+          return false;
+        }
+        return true;
+      });
+      
+      driver.jobs.push(...absorbable);
+      driver.estimatedDistance = calculateRouteDistance(driver.jobs);
+    });
+    
+    // Create new combined routes from remaining jobs
+    if (remainingJobs.length >= MIN_STOPS_PER_ROUTE) {
+      // Sort by distance from depot for better grouping
+      remainingJobs.sort((a, b) => {
+        const distA = calculateDistance(DEPOT.lat, DEPOT.lon, a.lat, a.lon);
+        const distB = calculateDistance(DEPOT.lat, DEPOT.lon, b.lat, b.lon);
+        return distA - distB;
+      });
+      
+      // Create new drivers with combined routes
+      let currentDriver: DriverAssignment = {
+        driverIndex: dayPlan.drivers.length,
+        jobs: [],
+        estimatedDistance: 0,
+        region: undefined
+      };
+      const newDrivers: DriverAssignment[] = [];
+      
+      remainingJobs.forEach(job => {
+        const testJobs = [...currentDriver.jobs, job];
+        const peakBikes = calculatePeakBikeCount(testJobs);
+        const testDistance = calculateRouteDistance(testJobs);
+        
+        if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
+          currentDriver.jobs.push(job);
+          currentDriver.estimatedDistance = testDistance;
+        } else {
+          // Start new driver
+          if (currentDriver.jobs.length > 0) {
+            newDrivers.push(currentDriver);
+          }
+          currentDriver = {
+            driverIndex: dayPlan.drivers.length + newDrivers.length,
+            jobs: [job],
+            estimatedDistance: calculateRouteDistance([job]),
+            region: job.region
+          };
+        }
+      });
+      
+      if (currentDriver.jobs.length > 0) {
+        newDrivers.push(currentDriver);
+      }
+      
+      // Filter out new drivers that still don't meet minimum (defer those)
+      newDrivers.forEach(driver => {
+        if (driver.jobs.length >= MIN_STOPS_PER_ROUTE) {
+          dayPlan.drivers.push(driver);
+        } else {
+          driver.jobs.forEach(job => {
+            deferredJobs.push({
+              ...job,
+              originalDay: dayName,
+              reason: `Combined route still only has ${driver.jobs.length} stops (minimum ${MIN_STOPS_PER_ROUTE} required)`
+            });
+          });
+        }
+      });
+    } else if (remainingJobs.length > 0) {
+      // Not enough to create a valid route - defer all
+      remainingJobs.forEach(job => {
+        deferredJobs.push({
+          ...job,
+          originalDay: dayName,
+          reason: `Only ${remainingJobs.length} jobs available to combine (minimum ${MIN_STOPS_PER_ROUTE} required)`
+        });
+      });
+    }
+    
+    // Remove original under-minimum drivers (sort indices descending to avoid shifting issues)
+    driverIndicesToRemove.sort((a, b) => b - a).forEach(idx => {
+      dayPlan.drivers.splice(idx, 1);
+    });
+  });
+  
+  // Recalculate totals
+  updatedPlans.forEach(dayPlan => {
+    dayPlan.totalJobs = dayPlan.drivers.reduce((sum, d) => sum + d.jobs.length, 0);
+    dayPlan.totalDistance = dayPlan.drivers.reduce((sum, d) => sum + d.estimatedDistance, 0);
+    // Re-index drivers
+    dayPlan.drivers.forEach((d, idx) => { d.driverIndex = idx; });
+  });
+  
+  return { updatedPlans, deferredJobs };
+};
+
 // Assign orders to week with auto-calculated drivers
 export const assignOrdersToWeek = (
   orders: OrderData[],
-  weekStart: Date
+  weekStart: Date,
+  underMinimumAction: UnderMinimumAction = 'defer'
 ): WeeklyPlan => {
   // Step 1: Create all pending jobs (one per order per type)
   const pendingJobs: (Job & { availableDays: number[] })[] = [];
@@ -436,9 +676,25 @@ export const assignOrdersToWeek = (
   });
   
   // Step 5: Enforce collection before delivery
-  const finalDayPlans = enforceCollectionBeforeDelivery(dayPlans, orders);
+  let finalDayPlans = enforceCollectionBeforeDelivery(dayPlans, orders);
   
-  // Step 6: Recalculate driversPerDay based on actual assignments after enforcement
+  // Step 6: Handle routes under minimum stops
+  const underMinimumRoutes = findUnderMinimumRoutes(finalDayPlans);
+  let deferredJobs: DeferredJob[] = [];
+  
+  if (underMinimumRoutes.length > 0) {
+    if (underMinimumAction === 'defer') {
+      const result = handleUnderMinimumDefer(finalDayPlans, underMinimumRoutes);
+      finalDayPlans = result.updatedPlans;
+      deferredJobs = result.deferredJobs;
+    } else {
+      const result = handleUnderMinimumCombine(finalDayPlans, underMinimumRoutes);
+      finalDayPlans = result.updatedPlans;
+      deferredJobs = result.deferredJobs;
+    }
+  }
+  
+  // Step 7: Recalculate driversPerDay based on actual assignments
   WORKING_DAYS.forEach((dayName, dayIdx) => {
     driversPerDay[dayName] = finalDayPlans[dayIdx].drivers.length;
   });
@@ -448,6 +704,7 @@ export const assignOrdersToWeek = (
     weekEnd: endOfWeek(weekStart, { weekStartsOn: 1 }),
     days: finalDayPlans,
     driversPerDay,
+    deferredJobs,
     isSaved: false
   };
 };
@@ -537,6 +794,7 @@ export const loadPlanFromDatabase = async (weekStart: Date): Promise<WeeklyPlan 
       weekEnd: endOfWeek(weekStart, { weekStartsOn: 1 }),
       days: dayPlans,
       driversPerDay,
+      deferredJobs: [], // Saved plans don't have deferred jobs tracked
       isSaved: true
     };
   } catch (error) {

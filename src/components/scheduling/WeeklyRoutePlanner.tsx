@@ -3,13 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, MapPin, Loader2, Save, Database } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Calendar, ChevronLeft, ChevronRight, MapPin, Loader2, Save, Database, AlertTriangle, Clock, Merge } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
-import { assignOrdersToWeek, WeeklyPlan, prioritizeDays, savePlanToDatabase, loadPlanFromDatabase } from "@/services/weeklyPlanningService";
+import { 
+  assignOrdersToWeek, 
+  WeeklyPlan, 
+  prioritizeDays, 
+  savePlanToDatabase, 
+  loadPlanFromDatabase,
+  UnderMinimumAction,
+  DeferredJob
+} from "@/services/weeklyPlanningService";
 import { format, addWeeks, startOfWeek, addDays } from "date-fns";
 import { toast } from "sonner";
-
-import { Cluster, getClusterName } from "@/services/clusteringService";
+import { Cluster } from "@/services/clusteringService";
 
 interface WeeklyRoutePlannerProps {
   orders: OrderData[];
@@ -25,6 +34,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [optimizingDay, setOptimizingDay] = useState<string | null>(null);
+  const [underMinimumAction, setUnderMinimumAction] = useState<UnderMinimumAction>('defer');
 
   const workingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'];
 
@@ -68,14 +78,19 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
   const handleGeneratePlan = async () => {
     setIsGenerating(true);
     try {
-      const plan = assignOrdersToWeek(orders, weekStart);
+      const plan = assignOrdersToWeek(orders, weekStart, underMinimumAction);
       setWeeklyPlan(plan);
       
       const totalJobs = plan.days.reduce((sum, day) => sum + day.totalJobs, 0);
       const totalDistance = plan.days.reduce((sum, day) => sum + day.totalDistance, 0);
       const totalDriverDays = Object.values(plan.driversPerDay).reduce((sum, count) => sum + count, 0);
       
-      toast.success(`Weekly plan generated: ${totalJobs} jobs, ${totalDriverDays} driver-days needed, ${Math.round(totalDistance)} miles total`);
+      let message = `Weekly plan generated: ${totalJobs} jobs, ${totalDriverDays} driver-days, ${Math.round(totalDistance)} miles`;
+      if (plan.deferredJobs.length > 0) {
+        message += `. ${plan.deferredJobs.length} jobs deferred (under 10-stop minimum)`;
+      }
+      
+      toast.success(message);
       
       const prioritized = prioritizeDays(plan);
       if (prioritized.length > 0) {
@@ -178,11 +193,43 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
           </Button>
         </div>
 
+        {/* Under-Minimum Action Selection */}
+        <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+          <div className="text-sm font-medium">
+            When a route has fewer than 10 stops:
+          </div>
+          <RadioGroup 
+            value={underMinimumAction} 
+            onValueChange={(value) => setUnderMinimumAction(value as UnderMinimumAction)}
+            className="flex gap-6"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="defer" id="defer" />
+              <Label htmlFor="defer" className="flex items-center gap-2 cursor-pointer">
+                <Clock className="h-4 w-4 text-amber-500" />
+                Defer to later days
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="combine" id="combine" />
+              <Label htmlFor="combine" className="flex items-center gap-2 cursor-pointer">
+                <Merge className="h-4 w-4 text-blue-500" />
+                Combine across regions
+              </Label>
+            </div>
+          </RadioGroup>
+          <p className="text-xs text-muted-foreground">
+            {underMinimumAction === 'defer' 
+              ? "Jobs from routes with <10 stops will be moved to later days or marked as pending."
+              : "Routes with <10 stops will be merged with other routes, even if from different regions."}
+          </p>
+        </div>
+
         {/* Auto-Calculated Drivers Display */}
         {weeklyPlan && (
           <div className="space-y-3">
             <div className="text-sm font-medium text-center">
-              Drivers Required (Auto-Calculated: Max 15 jobs or 600 miles per driver)
+              Drivers Required (Min 10 stops, Max 10 bikes, Max 600 miles per route)
             </div>
             <div className="grid grid-cols-6 gap-3">
               {workingDays.map((day, index) => {
@@ -220,6 +267,11 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
               </span>
             </div>
           </div>
+        )}
+
+        {/* Deferred Jobs Warning */}
+        {weeklyPlan && weeklyPlan.deferredJobs.length > 0 && (
+          <DeferredJobsPanel deferredJobs={weeklyPlan.deferredJobs} />
         )}
 
         {/* Action Buttons */}
@@ -309,7 +361,7 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
                       No jobs scheduled for this day
                     </div>
                   ) : (
-                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${day.drivers.length}, 1fr)` }}>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(day.drivers.length, 4)}, 1fr)` }}>
                       {day.drivers.map((driver) => (
                         <Card key={driver.driverIndex}>
                           <CardHeader className="pb-3">
@@ -385,6 +437,79 @@ const WeeklyRoutePlanner: React.FC<WeeklyRoutePlannerProps> = ({ orders, onSched
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Deferred Jobs Panel Component
+const DeferredJobsPanel: React.FC<{ deferredJobs: DeferredJob[] }> = ({ deferredJobs }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Group by original day
+  const byDay = deferredJobs.reduce((acc, job) => {
+    const day = job.originalDay;
+    if (!acc[day]) acc[day] = [];
+    acc[day].push(job);
+    return acc;
+  }, {} as Record<string, DeferredJob[]>);
+
+  return (
+    <div className="p-4 border rounded-lg border-amber-500/50 bg-amber-500/10 space-y-3">
+      <div 
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <span className="font-medium text-amber-700 dark:text-amber-400">
+            {deferredJobs.length} Jobs Pending (Under 10-Stop Minimum)
+          </span>
+        </div>
+        <Button variant="ghost" size="sm">
+          {isExpanded ? 'Hide' : 'Show'}
+        </Button>
+      </div>
+      
+      {isExpanded && (
+        <div className="space-y-4 pt-2">
+          {Object.entries(byDay).map(([day, jobs]) => (
+            <div key={day} className="space-y-2">
+              <div className="text-sm font-medium capitalize text-muted-foreground">
+                From {day}:
+              </div>
+              <div className="grid gap-2">
+                {jobs.map((job, idx) => (
+                  <div 
+                    key={`${job.orderId}-${job.type}-${idx}`} 
+                    className="text-sm p-2 bg-background rounded border"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">
+                        {job.type === 'collection' ? '📦' : '🚚'} {job.contactName}
+                      </span>
+                      <Badge variant={job.type === 'collection' ? 'default' : 'secondary'} className="text-xs">
+                        {job.type}
+                      </Badge>
+                    </div>
+                    {job.order.tracking_number && (
+                      <div className="text-xs font-mono text-primary mt-1">
+                        #{job.order.tracking_number}
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">{job.address}</div>
+                    <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 italic">
+                      {job.reason}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            These jobs will need to be scheduled manually or wait for more volume.
+          </p>
+        </div>
+      )}
+    </div>
   );
 };
 
