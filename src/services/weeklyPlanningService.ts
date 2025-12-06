@@ -2,6 +2,7 @@ import { OrderData } from "@/pages/JobScheduling";
 import { format, addDays, isWithinInterval, startOfWeek, endOfWeek } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { DEPOT_LOCATION } from "@/constants/depot";
+import { clusterJobs, ClusterPoint, haversineDistance } from "./clusteringService";
 
 const MAX_BIKES_ON_VAN = 10;
 const MAX_ROUTE_DISTANCE_MILES = 600;
@@ -215,90 +216,119 @@ const calculatePeakBikeCount = (jobs: Job[]): number => {
   return totalCollected;
 };
 
-// Calculate required drivers for a set of jobs
+// Calculate required drivers for a set of jobs - prioritize 10-job minimum per route
 export const calculateRequiredDrivers = (jobs: Job[]): number => {
   if (jobs.length === 0) return 0;
   
-  const regionGroups = groupJobsByRegion(jobs);
-  let totalDriversNeeded = 0;
+  // Primary constraint: minimum 10 jobs per route
+  const driversByMinStops = Math.ceil(jobs.length / MIN_STOPS_PER_ROUTE);
   
-  regionGroups.forEach((regionJobs) => {
-    // Calculate drivers needed based on:
-    // 1. Bike capacity (max 10 bikes on van at peak)
-    const totalBikesToCollect = regionJobs
-      .filter(j => j.type === 'collection')
-      .reduce((sum, j) => sum + j.bikeQuantity, 0);
-    const driversByBikeCapacity = Math.ceil(totalBikesToCollect / MAX_BIKES_ON_VAN);
-    
-    // 2. Route distance (max 600 miles)
-    const estimatedRegionDistance = calculateRouteDistance(regionJobs);
-    const driversByDistance = Math.ceil(estimatedRegionDistance / MAX_ROUTE_DISTANCE_MILES);
-    
-    // Take the higher of the two constraints
-    totalDriversNeeded += Math.max(driversByBikeCapacity, driversByDistance);
-  });
+  // Secondary: bike capacity (max 10 bikes on van at peak)
+  const totalBikesToCollect = jobs
+    .filter(j => j.type === 'collection')
+    .reduce((sum, j) => sum + j.bikeQuantity, 0);
+  const driversByBikeCapacity = Math.ceil(totalBikesToCollect / MAX_BIKES_ON_VAN);
   
-  return Math.max(1, totalDriversNeeded);
+  // Return the higher constraint (fewer routes = better, but must respect constraints)
+  return Math.max(1, driversByMinStops, driversByBikeCapacity);
 };
 
-// Balance workload across drivers for a single day with regional clustering
+// Balance workload across drivers for a single day using K-Means clustering
 export const balanceDriverWorkload = (
   dayJobs: Job[],
   numberOfDrivers: number
 ): DriverAssignment[] => {
   if (dayJobs.length === 0) return [];
   
-  const regionGroups = groupJobsByRegion(dayJobs);
-  const drivers: DriverAssignment[] = [];
-  let driverIdx = 0;
+  // Convert jobs to cluster points for K-Means
+  const clusterPoints: ClusterPoint[] = dayJobs.map(job => ({
+    id: `${job.orderId}-${job.type}`,
+    lat: job.lat,
+    lon: job.lon,
+    type: job.type,
+    orderId: job.orderId,
+    bikeQuantity: job.bikeQuantity
+  }));
   
-  const createDriver = (): DriverAssignment => ({
-    driverIndex: driverIdx++,
-    jobs: [],
-    estimatedDistance: 0,
-    region: undefined
+  // Calculate optimal number of clusters prioritizing 10-job minimum
+  // Target: each route should have at least MIN_STOPS_PER_ROUTE jobs
+  const targetClusters = Math.max(1, Math.ceil(dayJobs.length / MIN_STOPS_PER_ROUTE));
+  
+  // Use K-Means clustering for geographic grouping
+  const clusterResult = clusterJobs(clusterPoints, {
+    maxBikesPerVan: MAX_BIKES_ON_VAN,
+    maxDistancePerRoute: MAX_ROUTE_DISTANCE_MILES,
+    forceK: targetClusters
   });
   
-  // Check if adding a job is valid (bike capacity + distance)
-  const canAddJob = (driver: DriverAssignment, job: Job): boolean => {
-    const testJobs = [...driver.jobs, job];
+  // Convert clusters back to driver assignments
+  const drivers: DriverAssignment[] = clusterResult.clusters.map((cluster, idx) => {
+    // Find the original jobs for each cluster point
+    const clusterJobsList: Job[] = cluster.points.map(point => {
+      return dayJobs.find(job => 
+        job.orderId === point.orderId && job.type === point.type
+      )!;
+    }).filter(Boolean);
     
-    // Check bike capacity
-    const peakBikes = calculatePeakBikeCount(testJobs);
-    if (peakBikes > MAX_BIKES_ON_VAN) return false;
-    
-    // Check distance
-    const testDistance = calculateRouteDistance(testJobs);
-    if (testDistance > MAX_ROUTE_DISTANCE_MILES) return false;
-    
-    return true;
-  };
+    return {
+      driverIndex: idx,
+      jobs: clusterJobsList,
+      estimatedDistance: calculateRouteDistance(clusterJobsList),
+      region: undefined // K-Means handles geographic grouping, no fixed regions
+    };
+  });
   
-  // Process each region's jobs
-  regionGroups.forEach((regionJobs, region) => {
-    regionJobs.forEach(job => {
-      // Find an existing driver that can take this job (same region preferred)
-      let assignedDriver = drivers.find(d => 
-        d.region === region && canAddJob(d, job)
+  // Handle any outliers by adding to the nearest cluster that has capacity
+  if (clusterResult.outliers.length > 0) {
+    clusterResult.outliers.forEach(outlier => {
+      const outlierJob = dayJobs.find(job => 
+        job.orderId === outlier.orderId && job.type === outlier.type
       );
       
-      // If no same-region driver, find any driver with capacity
-      if (!assignedDriver) {
-        assignedDriver = drivers.find(d => canAddJob(d, job));
+      if (outlierJob) {
+        // Find nearest driver with capacity
+        let bestDriver: DriverAssignment | null = null;
+        let bestDistance = Infinity;
+        
+        for (const driver of drivers) {
+          if (driver.jobs.length === 0) continue;
+          
+          // Check if can add (capacity constraints)
+          const testJobs = [...driver.jobs, outlierJob];
+          const peakBikes = calculatePeakBikeCount(testJobs);
+          const testDistance = calculateRouteDistance(testJobs);
+          
+          if (peakBikes <= MAX_BIKES_ON_VAN && testDistance <= MAX_ROUTE_DISTANCE_MILES) {
+            // Calculate distance to cluster centroid
+            const centroidLat = driver.jobs.reduce((sum, j) => sum + j.lat, 0) / driver.jobs.length;
+            const centroidLon = driver.jobs.reduce((sum, j) => sum + j.lon, 0) / driver.jobs.length;
+            const dist = haversineDistance(outlierJob.lat, outlierJob.lon, centroidLat, centroidLon);
+            
+            if (dist < bestDistance) {
+              bestDistance = dist;
+              bestDriver = driver;
+            }
+          }
+        }
+        
+        if (bestDriver) {
+          bestDriver.jobs.push(outlierJob);
+          bestDriver.estimatedDistance = calculateRouteDistance(bestDriver.jobs);
+        } else {
+          // Create new driver for outlier
+          drivers.push({
+            driverIndex: drivers.length,
+            jobs: [outlierJob],
+            estimatedDistance: calculateRouteDistance([outlierJob]),
+            region: undefined
+          });
+        }
       }
-      
-      // If no existing driver can take it, create a new one
-      if (!assignedDriver) {
-        assignedDriver = createDriver();
-        assignedDriver.region = region;
-        drivers.push(assignedDriver);
-      }
-      
-      // Add job and recalculate distance
-      assignedDriver.jobs.push(job);
-      assignedDriver.estimatedDistance = calculateRouteDistance(assignedDriver.jobs);
     });
-  });
+  }
+  
+  // Re-index drivers
+  drivers.forEach((d, idx) => { d.driverIndex = idx; });
   
   return drivers;
 };
