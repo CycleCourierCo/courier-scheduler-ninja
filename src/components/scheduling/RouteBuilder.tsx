@@ -568,8 +568,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
           );
         
-        // If "collected only" is on, don't show pickups
-        if ((!applyFilters || !showCollectedOnly) && pickupAvailable) {
+          // Always show pickups that pass the date filter (showCollectedOnly only affects deliveries)
+          if (pickupAvailable) {
           jobs.push({
             orderId: order.id,
             type: 'pickup',
