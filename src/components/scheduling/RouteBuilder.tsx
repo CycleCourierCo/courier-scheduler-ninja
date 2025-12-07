@@ -109,21 +109,50 @@ const getAvailabilityBadge = (
 
 // Helper function to get collection status badge
 const getCollectionStatusBadge = (
-  collectionConfirmedAt?: string | null
-): { text: string; color: string; icon: JSX.Element } | null => {
+  collectionConfirmedAt: string | null | undefined,
+  orderId: string,
+  deliveryIndex: number | undefined,
+  allJobs: SelectedJob[]
+): { text: string; color: string; icon: JSX.Element } => {
+  // If already collected, show "Collected"
   if (collectionConfirmedAt) {
     return {
       text: 'Collected',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
       icon: <Package className="h-3 w-3" />
     };
-  } else {
-    return {
-      text: 'Not Collected',
-      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
-      icon: <PackageX className="h-3 w-3" />
-    };
   }
+  
+  // Check if there's a pickup/collection job for the same order on this route
+  const matchingCollection = allJobs.find(
+    j => j.orderId === orderId && j.type === 'pickup'
+  );
+  
+  if (matchingCollection && matchingCollection.order !== undefined && deliveryIndex !== undefined) {
+    // Same-day collection exists on this route
+    if (matchingCollection.order < deliveryIndex) {
+      // Collection is BEFORE delivery in sequence
+      return {
+        text: 'Collecting on Route',
+        color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+        icon: <Package className="h-3 w-3" />
+      };
+    } else {
+      // Collection is AFTER delivery - this is a problem!
+      return {
+        text: 'Collection After Delivery!',
+        color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
+        icon: <PackageX className="h-3 w-3" />
+      };
+    }
+  }
+  
+  // No matching collection on this route
+  return {
+    text: 'Not Collected',
+    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+    icon: <PackageX className="h-3 w-3" />
+  };
 };
 
 const JobItem: React.FC<JobItemProps> = ({ 
@@ -231,7 +260,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       );
                       
                       const collectionBadge = groupedJob.type === 'delivery' 
-                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at)
+                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at, groupedJob.orderId, job.order, allJobs)
                         : null;
                     
                       return (
@@ -306,7 +335,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
-                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at);
+                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
                         return collectionBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
