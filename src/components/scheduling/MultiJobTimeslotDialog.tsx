@@ -89,21 +89,50 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   };
 
   const getCollectionStatusBadge = (
-    collectionConfirmedAt?: string | null
-  ): { text: string; color: string; icon: JSX.Element } | null => {
+    collectionConfirmedAt: string | null | undefined,
+    orderId: string,
+    deliverySequenceOrder: number | undefined,
+    allJobs: any[]
+  ): { text: string; color: string; icon: JSX.Element } => {
+    // If already collected, show "Collected"
     if (collectionConfirmedAt) {
       return {
         text: 'Collected',
         color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
         icon: <Package className="h-3 w-3" />
       };
-    } else {
-      return {
-        text: 'Not Collected',
-        color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
-        icon: <PackageX className="h-3 w-3" />
-      };
     }
+    
+    // Check if there's a collection job for the same order on this route
+    const matchingCollection = allJobs.find(
+      j => j.orderId === orderId && j.type === 'collection'
+    );
+    
+    if (matchingCollection && matchingCollection.sequenceOrder !== undefined && deliverySequenceOrder !== undefined) {
+      // Same-day collection exists on this route
+      if (matchingCollection.sequenceOrder < deliverySequenceOrder) {
+        // Collection is BEFORE delivery - this is good!
+        return {
+          text: 'Collecting on Route',
+          color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+          icon: <Package className="h-3 w-3" />
+        };
+      } else {
+        // Collection is AFTER delivery - this is a problem!
+        return {
+          text: 'Collection After Delivery!',
+          color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
+          icon: <PackageX className="h-3 w-3" />
+        };
+      }
+    }
+    
+    // No matching collection on this route - show "Not Collected"
+    return {
+      text: 'Not Collected',
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+      icon: <PackageX className="h-3 w-3" />
+    };
   };
 
   // Determine if mobile on mount
@@ -388,13 +417,18 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                         })()}
                         
                         {(() => {
-                          const collectionBadge = getCollectionStatusBadge(job.collectionConfirmedAt);
-                          return collectionBadge ? (
+                          const collectionBadge = getCollectionStatusBadge(
+                            job.collectionConfirmedAt,
+                            job.orderId,
+                            job.sequenceOrder,
+                            displayJobs
+                          );
+                          return (
                             <Badge className={`text-xs flex items-center gap-1 ${collectionBadge.color}`}>
                               {collectionBadge.icon}
                               {collectionBadge.text}
                             </Badge>
-                          ) : null;
+                          );
                         })()}
                       </div>
                       
