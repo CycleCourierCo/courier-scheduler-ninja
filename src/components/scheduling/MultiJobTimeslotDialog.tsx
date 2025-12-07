@@ -105,7 +105,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     
     // Check if there's a collection job for the same order on this route
     const matchingCollection = allJobs.find(
-      j => j.orderId === orderId && j.type === 'collection'
+      j => j.orderId === orderId && (j.type === 'collection' || j.type === 'pickup')
     );
     
     if (matchingCollection && matchingCollection.sequenceOrder !== undefined && deliverySequenceOrder !== undefined) {
