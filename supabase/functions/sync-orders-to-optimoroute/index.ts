@@ -125,23 +125,7 @@ serve(async (req) => {
             }
 
             // date = order creation date (REQUIRED)
-            // allowedDates = scheduling window (OPTIONAL)
             pickupPayload.date = formatDate(order.created_at) || getTodayDate();
-
-            // Add allowedDates for scheduling window if pickup dates are specified
-            if (order.pickup_date && Array.isArray(order.pickup_date) && order.pickup_date.length > 0) {
-              const sortedDates = order.pickup_date.map(formatDate).filter(Boolean).sort();
-              if (sortedDates.length > 0) {
-                pickupPayload.allowedDates = {
-                  from: sortedDates[0],
-                  to: sortedDates[sortedDates.length - 1]
-                };
-              }
-            } else if (order.scheduled_pickup_date) {
-              // Use scheduled date as single-day window
-              const scheduledDate = formatDate(order.scheduled_pickup_date);
-              pickupPayload.allowedDates = { from: scheduledDate, to: scheduledDate };
-            }
 
             console.log(`Creating pickup for ${trackingNumber}`, JSON.stringify(pickupPayload));
             const pickupResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
@@ -214,23 +198,7 @@ serve(async (req) => {
             }
 
             // date = order creation date (REQUIRED)
-            // allowedDates = scheduling window (OPTIONAL)
             deliveryPayload.date = formatDate(order.created_at) || getTodayDate();
-
-            // Add allowedDates for scheduling window if delivery dates are specified
-            if (order.delivery_date && Array.isArray(order.delivery_date) && order.delivery_date.length > 0) {
-              const sortedDates = order.delivery_date.map(formatDate).filter(Boolean).sort();
-              if (sortedDates.length > 0) {
-                deliveryPayload.allowedDates = {
-                  from: sortedDates[0],
-                  to: sortedDates[sortedDates.length - 1]
-                };
-              }
-            } else if (order.scheduled_delivery_date) {
-              // Use scheduled date as single-day window
-              const scheduledDate = formatDate(order.scheduled_delivery_date);
-              deliveryPayload.allowedDates = { from: scheduledDate, to: scheduledDate };
-            }
 
             // ONLY link to pickup if:
             // 1. We have a valid pickup ID AND
