@@ -609,6 +609,70 @@ const OrderDetail = () => {
     }
   };
 
+  const handleAddPickupToOptimoRoute = async () => {
+    console.log("handleAddPickupToOptimoRoute called", { id, isSubmitting });
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      console.log("About to call create-optimoroute-order for pickup");
+      
+      const { data, error } = await supabase.functions.invoke('create-optimoroute-order', {
+        body: { orderId: id, jobType: 'pickup' }
+      });
+      
+      console.log("OptimoRoute pickup response:", data, error);
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success(data.message || "Collection added to OptimoRoute successfully");
+        // Refresh order to get updated OptimoRoute IDs
+        const updatedOrder = await getOrderById(id);
+        if (updatedOrder) setOrder(updatedOrder);
+      } else {
+        toast.error(data?.message || "Failed to add collection to OptimoRoute");
+      }
+    } catch (error) {
+      console.error("Error adding collection to OptimoRoute:", error);
+      toast.error(`Failed to add collection to OptimoRoute: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddDeliveryToOptimoRoute = async () => {
+    console.log("handleAddDeliveryToOptimoRoute called", { id, isSubmitting });
+    if (!id) return;
+    
+    try {
+      setIsSubmitting(true);
+      console.log("About to call create-optimoroute-order for delivery");
+      
+      const { data, error } = await supabase.functions.invoke('create-optimoroute-order', {
+        body: { orderId: id, jobType: 'delivery' }
+      });
+      
+      console.log("OptimoRoute delivery response:", data, error);
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success(data.message || "Delivery added to OptimoRoute successfully");
+        // Refresh order to get updated OptimoRoute IDs
+        const updatedOrder = await getOrderById(id);
+        if (updatedOrder) setOrder(updatedOrder);
+      } else {
+        toast.error(data?.message || "Failed to add delivery to OptimoRoute");
+      }
+    } catch (error) {
+      console.error("Error adding delivery to OptimoRoute:", error);
+      toast.error(`Failed to add delivery to OptimoRoute: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCreateShipment = async () => {
     if (!id) return;
     
@@ -1221,6 +1285,25 @@ const OrderDetail = () => {
                     className="w-full"
                   >
                     {isSubmitting ? "Adding..." : "Add Delivery to Shipday"}
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleAddPickupToOptimoRoute}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Collection to OptimoRoute"}
+                  </Button>
+                  <Button 
+                    onClick={handleAddDeliveryToOptimoRoute}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Delivery to OptimoRoute"}
                   </Button>
                 </div>
               </div>

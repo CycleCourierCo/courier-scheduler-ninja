@@ -48,3 +48,6 @@ verify_jwt = false
 
 [functions.create-quickbooks-bill]
 verify_jwt = false
+
+[functions.create-optimoroute-order]
+verify_jwt = false
