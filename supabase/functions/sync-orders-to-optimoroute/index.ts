@@ -84,8 +84,8 @@ serve(async (req) => {
         let pickupCreatedThisSync = false;
         let orderSynced = false;
 
-        // Create pickup order if NOT collected and not already in OptimoRoute
-        if (!orderCollected && !order.optimoroute_pickup_id) {
+        // Sync pickup order if NOT collected (SYNC will create or update automatically)
+        if (!orderCollected) {
           const senderAddress = sender?.address || {};
           // Use street/city/zipCode fields (actual data structure)
           const pickupAddress = [
@@ -102,9 +102,9 @@ serve(async (req) => {
           }
 
           if (pickupAddress) {
-            // Build pickup order payload
+            // Build pickup order payload - SYNC will create if new or update if exists
             const pickupPayload: any = {
-              operation: 'CREATE',
+              operation: 'SYNC',
               orderNo: pickupOrderNo,
               type: 'P',
               duration: 15,
@@ -157,8 +157,8 @@ serve(async (req) => {
           }
         }
 
-        // Create delivery order if not already in OptimoRoute
-        if (!order.optimoroute_delivery_id) {
+        // Sync delivery order (SYNC will create or update automatically)
+        {
           const receiverAddress = receiver?.address || {};
           // Use street/city/zipCode fields (actual data structure)
           const deliveryAddress = [
@@ -175,9 +175,9 @@ serve(async (req) => {
           }
 
           if (deliveryAddress) {
-            // Build delivery order payload
+            // Build delivery order payload - SYNC will create if new or update if exists
             const deliveryPayload: any = {
-              operation: 'CREATE',
+              operation: 'SYNC',
               orderNo: deliveryOrderNo,
               type: 'D',
               duration: 15,
@@ -276,32 +276,14 @@ serve(async (req) => {
         if (orderSynced) {
           synced++;
         } else {
-          // Determine what this order actually needs
-          const needsPickup = !orderCollected && !order.optimoroute_pickup_id;
-          const needsDelivery = !order.optimoroute_delivery_id;
-          const gotPickup = !!updateData.optimoroute_pickup_id;
-          const gotDelivery = !!updateData.optimoroute_delivery_id;
-          
-          if (!needsPickup && !needsDelivery) {
-            // Fully synced or doesn't need more work
-            console.log(`Order ${trackingNumber} already fully synced, skipping`);
-            skipped++;
-          } else if ((needsPickup && !gotPickup && !order.optimoroute_pickup_id) || 
-                     (needsDelivery && !gotDelivery && !order.optimoroute_delivery_id)) {
-            // Needed something and didn't get it - check if there was an actual error logged
-            // Only count as failed if we actually tried and failed (errors were logged above)
-            const hasErrors = errorsByType.geocoding.some(e => e.includes(trackingNumber)) ||
-                              errorsByType.relatedId.some(e => e.includes(trackingNumber)) ||
-                              errorsByType.other.some(e => e.includes(trackingNumber));
-            if (hasErrors) {
-              failed++;
-            } else {
-              // No errors logged, order is in a valid waiting state
-              console.log(`Order ${trackingNumber} in partial sync state, skipping`);
-              skipped++;
-            }
+          // Check if there were any errors for this order
+          const hasErrors = errorsByType.geocoding.some(e => e.includes(trackingNumber)) ||
+                            errorsByType.relatedId.some(e => e.includes(trackingNumber)) ||
+                            errorsByType.other.some(e => e.includes(trackingNumber));
+          if (hasErrors) {
+            failed++;
           } else {
-            // Partial progress made or waiting state
+            // No sync happened and no errors - order was skipped (e.g., no address)
             skipped++;
           }
         }
