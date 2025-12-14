@@ -125,8 +125,8 @@ serve(async (req) => {
               pickupPayload.location.longitude = senderAddress.longitude;
             }
 
-            // date = order creation date (REQUIRED)
-            pickupPayload.date = formatDate(order.created_at) || getTodayDate();
+            // date = sync date (when this sync is run)
+            pickupPayload.date = getTodayDate();
 
             console.log(`Creating pickup for ${trackingNumber}`, JSON.stringify(pickupPayload));
             const pickupResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
@@ -199,8 +199,8 @@ serve(async (req) => {
               deliveryPayload.location.longitude = receiverAddress.longitude;
             }
 
-            // date = order creation date (REQUIRED)
-            deliveryPayload.date = formatDate(order.created_at) || getTodayDate();
+            // date = sync date (when this sync is run)
+            deliveryPayload.date = getTodayDate();
 
             // ONLY link to pickup if:
             // 1. We have a valid pickup ID AND
