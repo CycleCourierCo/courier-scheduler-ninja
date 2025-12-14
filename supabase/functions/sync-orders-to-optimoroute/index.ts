@@ -108,6 +108,7 @@ serve(async (req) => {
               orderNo: pickupOrderNo,
               type: 'P',
               duration: 15,
+              load1: order.bike_quantity || 1, // "Bikes in Rack" capacity in OptimoRoute
               location: {
                 address: pickupAddress,
                 locationName: sender?.name || 'Sender',
@@ -181,6 +182,7 @@ serve(async (req) => {
               orderNo: deliveryOrderNo,
               type: 'D',
               duration: 15,
+              load1: order.bike_quantity || 1, // "Bikes in Rack" capacity in OptimoRoute
               location: {
                 address: deliveryAddress,
                 locationName: receiver?.name || 'Receiver',
