@@ -18,13 +18,6 @@ const getTodayDate = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
-// Get tomorrow's date in YYYY-MM-DD format
-const getTomorrowDate = (): string => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -57,7 +50,11 @@ serve(async (req) => {
     let synced = 0;
     let skipped = 0;
     let failed = 0;
-    const errors: string[] = [];
+    const errorsByType: Record<string, string[]> = {
+      geocoding: [],
+      relatedId: [],
+      other: []
+    };
 
     for (const order of orders || []) {
       try {
@@ -84,6 +81,7 @@ serve(async (req) => {
         const deliveryOrderNo = `${trackingNumber}-DELIVERY`;
         const updateData: any = {};
         let pickupId: string | null = order.optimoroute_pickup_id || null;
+        let pickupCreatedThisSync = false;
         let orderSynced = false;
 
         // Create pickup order if NOT collected and not already in OptimoRoute
@@ -95,6 +93,13 @@ serve(async (req) => {
             senderAddress.city,
             senderAddress.zipCode || senderAddress.postcode
           ].filter(Boolean).join(', ');
+
+          // Warn if no coordinates available
+          const hasCoordinates = (senderAddress.lat && senderAddress.lon) || 
+                                 (senderAddress.latitude && senderAddress.longitude);
+          if (!hasCoordinates) {
+            console.warn(`Order ${trackingNumber}: Sender address has no coordinates, geocoding may fail`);
+          }
 
           if (pickupAddress) {
             // Build pickup order payload
@@ -151,10 +156,19 @@ serve(async (req) => {
             if (pickupResult.success && pickupResult.id) {
               pickupId = pickupResult.id;
               updateData.optimoroute_pickup_id = pickupResult.id;
+              pickupCreatedThisSync = true;
               orderSynced = true;
             } else {
               console.error(`Pickup creation failed for ${trackingNumber}:`, pickupResult);
-              errors.push(`${trackingNumber}-PICKUP: ${pickupResult.message || 'Unknown error'}`);
+              const errorMsg = pickupResult.message || 'Unknown error';
+              // Categorize error
+              if (errorMsg.toLowerCase().includes('geocod') || errorMsg.toLowerCase().includes('address')) {
+                errorsByType.geocoding.push(`${trackingNumber}-PICKUP: ${errorMsg}`);
+              } else {
+                errorsByType.other.push(`${trackingNumber}-PICKUP: ${errorMsg}`);
+              }
+              // Mark pickup as failed - don't try to link delivery
+              pickupId = null;
             }
           }
         }
@@ -168,6 +182,13 @@ serve(async (req) => {
             receiverAddress.city,
             receiverAddress.zipCode || receiverAddress.postcode
           ].filter(Boolean).join(', ');
+
+          // Warn if no coordinates available
+          const hasCoordinates = (receiverAddress.lat && receiverAddress.lon) || 
+                                 (receiverAddress.latitude && receiverAddress.longitude);
+          if (!hasCoordinates) {
+            console.warn(`Order ${trackingNumber}: Receiver address has no coordinates, geocoding may fail`);
+          }
 
           if (deliveryAddress) {
             // Build delivery order payload
@@ -211,31 +232,63 @@ serve(async (req) => {
               deliveryPayload.allowedDates = { from: scheduledDate, to: scheduledDate };
             }
 
-            // Link to pickup order if we have an ID
-            if (pickupId) {
+            // ONLY link to pickup if:
+            // 1. We have a valid pickup ID AND
+            // 2. Either the pickup was created this sync OR it already existed in DB
+            // Do NOT link if pickup creation failed this sync
+            if (pickupId && (pickupCreatedThisSync || order.optimoroute_pickup_id)) {
               deliveryPayload.relatedOrderNo = pickupOrderNo;
               deliveryPayload.relatedId = pickupId;
-            } else if (!orderCollected) {
-              // Just link by order number if pickup exists but we don't have ID
-              deliveryPayload.relatedOrderNo = pickupOrderNo;
             }
+            // If order is already collected, no pickup linkage needed
 
             console.log(`Creating delivery for ${trackingNumber}`, JSON.stringify(deliveryPayload));
-            const deliveryResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
+            let deliveryResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(deliveryPayload)
             });
 
-            const deliveryResult = await deliveryResponse.json();
+            let deliveryResult = await deliveryResponse.json();
             console.log(`Delivery response for ${trackingNumber}:`, JSON.stringify(deliveryResult));
+
+            // Handle stale relatedId - if OptimoRoute says pickup doesn't exist, retry without linking
+            if (!deliveryResult.success && deliveryResult.message?.includes('relatedId does not exist')) {
+              console.warn(`${trackingNumber}: Stale pickup ID detected, clearing and retrying delivery without link`);
+              
+              // Clear stale pickup ID from update data
+              updateData.optimoroute_pickup_id = null;
+              
+              // Remove pickup linking from payload
+              delete deliveryPayload.relatedOrderNo;
+              delete deliveryPayload.relatedId;
+              
+              // Retry delivery creation without linking
+              console.log(`Retrying delivery for ${trackingNumber} without pickup link`);
+              deliveryResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deliveryPayload)
+              });
+              
+              deliveryResult = await deliveryResponse.json();
+              console.log(`Delivery retry response for ${trackingNumber}:`, JSON.stringify(deliveryResult));
+            }
 
             if (deliveryResult.success && deliveryResult.id) {
               updateData.optimoroute_delivery_id = deliveryResult.id;
               orderSynced = true;
             } else {
               console.error(`Delivery creation failed for ${trackingNumber}:`, deliveryResult);
-              errors.push(`${trackingNumber}-DELIVERY: ${deliveryResult.message || 'Unknown error'}`);
+              const errorMsg = deliveryResult.message || 'Unknown error';
+              // Categorize error
+              if (errorMsg.toLowerCase().includes('geocod') || errorMsg.toLowerCase().includes('address')) {
+                errorsByType.geocoding.push(`${trackingNumber}-DELIVERY: ${errorMsg}`);
+              } else if (errorMsg.toLowerCase().includes('relatedid')) {
+                errorsByType.relatedId.push(`${trackingNumber}-DELIVERY: ${errorMsg}`);
+              } else {
+                errorsByType.other.push(`${trackingNumber}-DELIVERY: ${errorMsg}`);
+              }
             }
           }
         }
@@ -263,9 +316,24 @@ serve(async (req) => {
 
       } catch (orderError) {
         console.error(`Error processing order ${order.id}:`, orderError);
-        errors.push(`${order.tracking_number || order.id}: ${orderError.message}`);
+        errorsByType.other.push(`${order.tracking_number || order.id}: ${orderError.message}`);
         failed++;
       }
+    }
+
+    // Build error summary with categorization
+    const allErrors: string[] = [];
+    if (errorsByType.geocoding.length > 0) {
+      allErrors.push(`=== GEOCODING ERRORS (${errorsByType.geocoding.length}) ===`);
+      allErrors.push(...errorsByType.geocoding.slice(0, 5));
+    }
+    if (errorsByType.relatedId.length > 0) {
+      allErrors.push(`=== RELATED ID ERRORS (${errorsByType.relatedId.length}) ===`);
+      allErrors.push(...errorsByType.relatedId.slice(0, 5));
+    }
+    if (errorsByType.other.length > 0) {
+      allErrors.push(`=== OTHER ERRORS (${errorsByType.other.length}) ===`);
+      allErrors.push(...errorsByType.other.slice(0, 5));
     }
 
     const summary = {
@@ -274,10 +342,15 @@ serve(async (req) => {
       skipped,
       failed,
       total: orders?.length || 0,
-      errors: errors.length > 0 ? errors.slice(0, 10) : undefined
+      errorCounts: {
+        geocoding: errorsByType.geocoding.length,
+        relatedId: errorsByType.relatedId.length,
+        other: errorsByType.other.length
+      },
+      errors: allErrors.length > 0 ? allErrors : undefined
     };
 
-    console.log('Sync complete:', summary);
+    console.log('Sync complete:', JSON.stringify(summary, null, 2));
 
     return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
