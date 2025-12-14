@@ -275,11 +275,35 @@ serve(async (req) => {
 
         if (orderSynced) {
           synced++;
-        } else if (order.optimoroute_pickup_id && order.optimoroute_delivery_id) {
-          console.log(`Order ${trackingNumber} already fully synced, skipping`);
-          skipped++;
-        } else if (!updateData.optimoroute_pickup_id && !updateData.optimoroute_delivery_id) {
-          failed++;
+        } else {
+          // Determine what this order actually needs
+          const needsPickup = !orderCollected && !order.optimoroute_pickup_id;
+          const needsDelivery = !order.optimoroute_delivery_id;
+          const gotPickup = !!updateData.optimoroute_pickup_id;
+          const gotDelivery = !!updateData.optimoroute_delivery_id;
+          
+          if (!needsPickup && !needsDelivery) {
+            // Fully synced or doesn't need more work
+            console.log(`Order ${trackingNumber} already fully synced, skipping`);
+            skipped++;
+          } else if ((needsPickup && !gotPickup && !order.optimoroute_pickup_id) || 
+                     (needsDelivery && !gotDelivery && !order.optimoroute_delivery_id)) {
+            // Needed something and didn't get it - check if there was an actual error logged
+            // Only count as failed if we actually tried and failed (errors were logged above)
+            const hasErrors = errorsByType.geocoding.some(e => e.includes(trackingNumber)) ||
+                              errorsByType.relatedId.some(e => e.includes(trackingNumber)) ||
+                              errorsByType.other.some(e => e.includes(trackingNumber));
+            if (hasErrors) {
+              failed++;
+            } else {
+              // No errors logged, order is in a valid waiting state
+              console.log(`Order ${trackingNumber} in partial sync state, skipping`);
+              skipped++;
+            }
+          } else {
+            // Partial progress made or waiting state
+            skipped++;
+          }
         }
 
       } catch (orderError) {
