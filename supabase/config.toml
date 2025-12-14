@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.create-optimoroute-order]
 verify_jwt = false
+
+[functions.sync-orders-to-optimoroute]
+verify_jwt = false
