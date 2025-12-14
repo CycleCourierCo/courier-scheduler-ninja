@@ -6,6 +6,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to convert ISO timestamp to YYYY-MM-DD format
+const formatDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // Handle both "2025-12-15T00:00:00.000Z" and "2025-12-15" formats
+  return dateStr.split('T')[0];
+};
+
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = (): string => {
+  return new Date().toISOString().split('T')[0];
+};
+
+// Get tomorrow's date in YYYY-MM-DD format
+const getTomorrowDate = (): string => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0];
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -70,11 +89,11 @@ serve(async (req) => {
         // Create pickup order if NOT collected and not already in OptimoRoute
         if (!orderCollected && !order.optimoroute_pickup_id) {
           const senderAddress = sender?.address || {};
+          // Use street/city/zipCode fields (actual data structure)
           const pickupAddress = [
-            senderAddress.line1,
-            senderAddress.line2,
+            senderAddress.street || senderAddress.line1,
             senderAddress.city,
-            senderAddress.postcode
+            senderAddress.zipCode || senderAddress.postcode
           ].filter(Boolean).join(', ');
 
           if (pickupAddress) {
@@ -91,27 +110,33 @@ serve(async (req) => {
               notes: `Phone: ${sender?.phone || 'N/A'}. ${order.sender_notes || ''} Bike: ${order.bike_brand || ''} ${order.bike_model || ''}. Tracking: ${trackingNumber}`,
             };
 
-            // Add coordinates if available
-            if (senderAddress.latitude && senderAddress.longitude) {
+            // Add coordinates if available (use lat/lon field names)
+            if (senderAddress.lat && senderAddress.lon) {
+              pickupPayload.location.latitude = senderAddress.lat;
+              pickupPayload.location.longitude = senderAddress.lon;
+            } else if (senderAddress.latitude && senderAddress.longitude) {
               pickupPayload.location.latitude = senderAddress.latitude;
               pickupPayload.location.longitude = senderAddress.longitude;
             }
 
-            // Add allowed dates if specified
-            if (order.pickup_date) {
-              const pickupDates = Array.isArray(order.pickup_date) 
-                ? order.pickup_date 
-                : [order.pickup_date];
-              if (pickupDates.length > 0) {
-                const sortedDates = pickupDates.sort();
+            // Handle dates - OptimoRoute requires YYYY-MM-DD format
+            if (order.pickup_date && Array.isArray(order.pickup_date) && order.pickup_date.length > 0) {
+              const sortedDates = order.pickup_date.map(formatDate).filter(Boolean).sort();
+              if (sortedDates.length > 0) {
                 pickupPayload.allowedDates = {
                   from: sortedDates[0],
                   to: sortedDates[sortedDates.length - 1]
                 };
               }
+            } else if (order.scheduled_pickup_date) {
+              // Use scheduled date if no pickup_date array
+              pickupPayload.date = formatDate(order.scheduled_pickup_date);
+            } else {
+              // Default to today if no date specified
+              pickupPayload.date = getTodayDate();
             }
 
-            console.log(`Creating pickup for ${trackingNumber}`);
+            console.log(`Creating pickup for ${trackingNumber}`, JSON.stringify(pickupPayload));
             const pickupResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -135,11 +160,11 @@ serve(async (req) => {
         // Create delivery order if not already in OptimoRoute
         if (!order.optimoroute_delivery_id) {
           const receiverAddress = receiver?.address || {};
+          // Use street/city/zipCode fields (actual data structure)
           const deliveryAddress = [
-            receiverAddress.line1,
-            receiverAddress.line2,
+            receiverAddress.street || receiverAddress.line1,
             receiverAddress.city,
-            receiverAddress.postcode
+            receiverAddress.zipCode || receiverAddress.postcode
           ].filter(Boolean).join(', ');
 
           if (deliveryAddress) {
@@ -156,24 +181,30 @@ serve(async (req) => {
               notes: `Phone: ${receiver?.phone || 'N/A'}. ${order.receiver_notes || ''} ${order.delivery_instructions || ''} Bike: ${order.bike_brand || ''} ${order.bike_model || ''}. Tracking: ${trackingNumber}`,
             };
 
-            // Add coordinates if available
-            if (receiverAddress.latitude && receiverAddress.longitude) {
+            // Add coordinates if available (use lat/lon field names)
+            if (receiverAddress.lat && receiverAddress.lon) {
+              deliveryPayload.location.latitude = receiverAddress.lat;
+              deliveryPayload.location.longitude = receiverAddress.lon;
+            } else if (receiverAddress.latitude && receiverAddress.longitude) {
               deliveryPayload.location.latitude = receiverAddress.latitude;
               deliveryPayload.location.longitude = receiverAddress.longitude;
             }
 
-            // Add allowed dates if specified
-            if (order.delivery_date) {
-              const deliveryDates = Array.isArray(order.delivery_date) 
-                ? order.delivery_date 
-                : [order.delivery_date];
-              if (deliveryDates.length > 0) {
-                const sortedDates = deliveryDates.sort();
+            // Handle dates - OptimoRoute requires YYYY-MM-DD format
+            if (order.delivery_date && Array.isArray(order.delivery_date) && order.delivery_date.length > 0) {
+              const sortedDates = order.delivery_date.map(formatDate).filter(Boolean).sort();
+              if (sortedDates.length > 0) {
                 deliveryPayload.allowedDates = {
                   from: sortedDates[0],
                   to: sortedDates[sortedDates.length - 1]
                 };
               }
+            } else if (order.scheduled_delivery_date) {
+              // Use scheduled date if no delivery_date array
+              deliveryPayload.date = formatDate(order.scheduled_delivery_date);
+            } else {
+              // Default to tomorrow if no date specified
+              deliveryPayload.date = getTomorrowDate();
             }
 
             // Link to pickup order if we have an ID
@@ -185,7 +216,7 @@ serve(async (req) => {
               deliveryPayload.relatedOrderNo = pickupOrderNo;
             }
 
-            console.log(`Creating delivery for ${trackingNumber}`);
+            console.log(`Creating delivery for ${trackingNumber}`, JSON.stringify(deliveryPayload));
             const deliveryResponse = await fetch(`https://api.optimoroute.com/v1/create_order?key=${optimoRouteApiKey}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
