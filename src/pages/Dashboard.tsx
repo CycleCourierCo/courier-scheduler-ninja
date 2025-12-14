@@ -20,6 +20,7 @@ const Dashboard: React.FC = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isSyncingOptimoRoute, setIsSyncingOptimoRoute] = useState(false);
   const [filters, setFilters] = useState({
     status: [],
     search: "",
@@ -124,6 +125,26 @@ const Dashboard: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleSyncToOptimoRoute = async () => {
+    try {
+      setIsSyncingOptimoRoute(true);
+      const { data, error } = await supabase.functions.invoke('sync-orders-to-optimoroute');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast.success(`Synced ${data.synced} orders to OptimoRoute. Skipped: ${data.skipped}, Failed: ${data.failed}`);
+        fetchOrders();
+      } else {
+        toast.error(data.message || "Failed to sync orders");
+      }
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast.error(`Sync failed: ${error.message}`);
+    } finally {
+      setIsSyncingOptimoRoute(false);
+    }
+  };
 
   if (userRole === null) {
     return (
@@ -138,7 +159,11 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
-        <DashboardHeader />
+        <DashboardHeader 
+          onSyncToOptimoRoute={handleSyncToOptimoRoute}
+          isSyncingOptimoRoute={isSyncingOptimoRoute}
+          userRole={userRole}
+        />
         
         <OrderFilters 
           onFilterChange={handleFilterChange} 
