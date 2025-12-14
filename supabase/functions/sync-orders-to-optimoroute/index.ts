@@ -119,7 +119,11 @@ serve(async (req) => {
               pickupPayload.location.longitude = senderAddress.longitude;
             }
 
-            // Handle dates - OptimoRoute requires YYYY-MM-DD format
+            // date = order creation date (REQUIRED)
+            // allowedDates = scheduling window (OPTIONAL)
+            pickupPayload.date = formatDate(order.created_at) || getTodayDate();
+
+            // Add allowedDates for scheduling window if pickup dates are specified
             if (order.pickup_date && Array.isArray(order.pickup_date) && order.pickup_date.length > 0) {
               const sortedDates = order.pickup_date.map(formatDate).filter(Boolean).sort();
               if (sortedDates.length > 0) {
@@ -129,11 +133,9 @@ serve(async (req) => {
                 };
               }
             } else if (order.scheduled_pickup_date) {
-              // Use scheduled date if no pickup_date array
-              pickupPayload.date = formatDate(order.scheduled_pickup_date);
-            } else {
-              // Default to today if no date specified
-              pickupPayload.date = getTodayDate();
+              // Use scheduled date as single-day window
+              const scheduledDate = formatDate(order.scheduled_pickup_date);
+              pickupPayload.allowedDates = { from: scheduledDate, to: scheduledDate };
             }
 
             console.log(`Creating pickup for ${trackingNumber}`, JSON.stringify(pickupPayload));
@@ -190,7 +192,11 @@ serve(async (req) => {
               deliveryPayload.location.longitude = receiverAddress.longitude;
             }
 
-            // Handle dates - OptimoRoute requires YYYY-MM-DD format
+            // date = order creation date (REQUIRED)
+            // allowedDates = scheduling window (OPTIONAL)
+            deliveryPayload.date = formatDate(order.created_at) || getTodayDate();
+
+            // Add allowedDates for scheduling window if delivery dates are specified
             if (order.delivery_date && Array.isArray(order.delivery_date) && order.delivery_date.length > 0) {
               const sortedDates = order.delivery_date.map(formatDate).filter(Boolean).sort();
               if (sortedDates.length > 0) {
@@ -200,11 +206,9 @@ serve(async (req) => {
                 };
               }
             } else if (order.scheduled_delivery_date) {
-              // Use scheduled date if no delivery_date array
-              deliveryPayload.date = formatDate(order.scheduled_delivery_date);
-            } else {
-              // Default to tomorrow if no date specified
-              deliveryPayload.date = getTomorrowDate();
+              // Use scheduled date as single-day window
+              const scheduledDate = formatDate(order.scheduled_delivery_date);
+              deliveryPayload.allowedDates = { from: scheduledDate, to: scheduledDate };
             }
 
             // Link to pickup order if we have an ID
