@@ -85,14 +85,19 @@ export const getOrderStatusAnalytics = (orders: Order[]): OrderCountByStatus[] =
 };
 
 export const getOrderTimeAnalytics = (orders: Order[]): OrderCountByTime[] => {
-  const dateCountMap: Record<string, number> = {};
+  const weekCountMap: Record<string, number> = {};
   
   orders.forEach(order => {
-    const date = new Date(order.createdAt).toISOString().split('T')[0];
-    dateCountMap[date] = (dateCountMap[date] || 0) + 1;
+    // Get the start of the week (Monday) for each order
+    const orderDate = new Date(order.createdAt);
+    const dayOfWeek = orderDate.getDay();
+    const diff = orderDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
+    const weekStart = new Date(orderDate.setDate(diff));
+    const weekKey = weekStart.toISOString().split('T')[0];
+    weekCountMap[weekKey] = (weekCountMap[weekKey] || 0) + 1;
   });
   
-  return Object.entries(dateCountMap)
+  return Object.entries(weekCountMap)
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
 };

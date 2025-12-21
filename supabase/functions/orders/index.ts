@@ -1,6 +1,31 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// Get ONLY lat/lon coordinates from an address string - does NOT modify any other fields
+async function getCoordinates(addressString: string): Promise<{ lat: number; lon: number } | null> {
+  const geoapifyKey = Deno.env.get('GEOAPIFY_API_KEY');
+  if (!geoapifyKey) {
+    console.log('No Geoapify API key, skipping geocoding');
+    return null;
+  }
+  
+  try {
+    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressString)}&filter=countrycode:gb&apiKey=${geoapifyKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.features && data.features.length > 0) {
+      const coords = data.features[0].geometry.coordinates;
+      console.log(`Geocoded "${addressString}" -> lat: ${coords[1]}, lon: ${coords[0]}`);
+      return { lat: coords[1], lon: coords[0] };
+    }
+    console.log(`No geocoding results for: ${addressString}`);
+  } catch (error) {
+    console.error('Geocoding failed:', error);
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -117,7 +142,7 @@ Deno.serve(async (req) => {
         body: {
           generateSingle: true,
           senderName: body.sender.name || 'Unknown',
-          receiverZipCode: body.receiver.address?.zipCode || body.receiver.address?.postal_code || body.receiver.postcode || body.receiver.postal_code || '00'
+          receiverZipCode: body.receiver.address?.zipCode || body.receiver.address?.postal_code || body.receiver.address?.postcode || body.receiver.postcode || body.receiver.postal_code || '00'
         }
       })
       
@@ -136,6 +161,42 @@ Deno.serve(async (req) => {
       }
 
       const trackingNumber = trackingData.trackingNumber
+
+      // Geocode addresses to add ONLY lat/lon (does not modify any other address fields)
+      const senderAddress = body.sender.address;
+      const receiverAddress = body.receiver.address;
+
+      const senderAddressString = [
+        senderAddress?.street,
+        senderAddress?.city,
+        senderAddress?.zipCode || senderAddress?.postal_code || senderAddress?.postcode,
+        'UK'
+      ].filter(Boolean).join(', ');
+
+      const receiverAddressString = [
+        receiverAddress?.street,
+        receiverAddress?.city,
+        receiverAddress?.zipCode || receiverAddress?.postal_code || receiverAddress?.postcode,
+        'UK'
+      ].filter(Boolean).join(', ');
+
+      console.log('Geocoding addresses - Sender:', senderAddressString, 'Receiver:', receiverAddressString);
+
+      // Geocode in parallel
+      const [senderCoords, receiverCoords] = await Promise.all([
+        getCoordinates(senderAddressString),
+        getCoordinates(receiverAddressString)
+      ]);
+
+      // Add ONLY lat/lon to existing address objects (non-destructive - all other fields remain unchanged)
+      if (senderCoords) {
+        body.sender.address = { ...body.sender.address, lat: senderCoords.lat, lon: senderCoords.lon };
+      }
+      if (receiverCoords) {
+        body.receiver.address = { ...body.receiver.address, lat: receiverCoords.lat, lon: receiverCoords.lon };
+      }
+
+      console.log('Geocoding complete - Sender coords:', senderCoords, 'Receiver coords:', receiverCoords);
 
       // Create order with user_id from API key
       const orderData = {

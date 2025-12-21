@@ -91,6 +91,8 @@ export type Order = {
       updates?: ShipdayUpdate[];
     };
   };
+  optimoroute_pickup_id?: string;
+  optimoroute_delivery_id?: string;
 };
 
 export type CreateOrderFormData = {
