@@ -11,23 +11,27 @@ import {
   ResponsiveContainer 
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addDays } from "date-fns";
 
 interface OrderTimeChartProps {
   data: OrderCountByTime[];
 }
 
 const OrderTimeChart = ({ data }: OrderTimeChartProps) => {
-  // Format date for display
-  const formattedData = data.map(item => ({
-    ...item,
-    formattedDate: format(parseISO(item.date), 'MMM d, yyyy')
-  }));
+  // Format date for display as week range (Mon-Sun)
+  const formattedData = data.map(item => {
+    const weekStart = parseISO(item.date);
+    const weekEnd = addDays(weekStart, 6);
+    return {
+      ...item,
+      formattedDate: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+    };
+  });
 
   return (
     <Card className="col-span-2">
       <CardHeader>
-        <CardTitle>Orders Over Time</CardTitle>
+        <CardTitle>Orders by Week</CardTitle>
       </CardHeader>
       <CardContent className="h-80">
         <ResponsiveContainer width="100%" height="100%">
