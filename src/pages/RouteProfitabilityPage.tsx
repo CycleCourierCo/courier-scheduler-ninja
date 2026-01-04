@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -21,10 +21,16 @@ import {
   getTotalJobs,
   getCurrentWeekRange,
   getTimeslipsForWeek,
-  calculateDailyProfitability
+  calculateDailyProfitability,
+  getTimeslipsForMonth,
+  getTimeslipsForYear,
+  calculateWeeklyProfitabilityForMonth,
+  calculateMonthlyProfitabilityForYear
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
 import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
+import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabilityChart";
+import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -37,6 +43,10 @@ const RouteProfitabilityPage = () => {
     const { monday } = getCurrentWeekRange();
     return monday;
   });
+
+  // State for monthly and yearly views
+  const [selectedMonth, setSelectedMonth] = useState<Date>(startOfMonth(new Date()));
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
 
@@ -96,6 +106,51 @@ const RouteProfitabilityPage = () => {
     queryKey: ['profitability-timeslips', dateString],
     queryFn: () => getTimeslipsForDate(dateString),
   });
+
+  // Monthly profitability queries
+  const selectedMonthNum = selectedMonth.getMonth();
+  const selectedMonthYear = selectedMonth.getFullYear();
+
+  const { data: monthTimeslips = [] } = useQuery({
+    queryKey: ['profitability-month', selectedMonthYear, selectedMonthNum],
+    queryFn: () => getTimeslipsForMonth(selectedMonthYear, selectedMonthNum),
+  });
+
+  const { data: weeklyChartData = [] } = useQuery({
+    queryKey: ['profitability-weekly-chart', monthTimeslips, revenuePerStop, costPerMile, selectedMonthYear, selectedMonthNum],
+    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile),
+    enabled: monthTimeslips.length > 0,
+  });
+
+  const monthlyTotals = weeklyChartData.reduce(
+    (acc, week) => ({
+      revenue: acc.revenue + week.revenue,
+      costs: acc.costs + week.costs,
+      profit: acc.profit + week.profit,
+    }),
+    { revenue: 0, costs: 0, profit: 0 }
+  );
+
+  // Yearly profitability queries
+  const { data: yearTimeslips = [] } = useQuery({
+    queryKey: ['profitability-year', selectedYear],
+    queryFn: () => getTimeslipsForYear(selectedYear),
+  });
+
+  const { data: monthlyChartData = [] } = useQuery({
+    queryKey: ['profitability-monthly-chart', yearTimeslips, revenuePerStop, costPerMile, selectedYear],
+    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile),
+    enabled: yearTimeslips.length > 0,
+  });
+
+  const yearlyTotals = monthlyChartData.reduce(
+    (acc, month) => ({
+      revenue: acc.revenue + month.revenue,
+      costs: acc.costs + month.costs,
+      profit: acc.profit + month.profit,
+    }),
+    { revenue: 0, costs: 0, profit: 0 }
+  );
 
   const updateMileageMutation = useMutation({
     mutationFn: ({ id, mileage }: { id: string; mileage: number }) =>
@@ -221,6 +276,22 @@ const RouteProfitabilityPage = () => {
         {weekTimeslips.length > 0 && (
           <WeeklyProfitabilityChart data={dailyChartData} />
         )}
+
+        {/* Monthly Profitability Chart */}
+        <MonthlyProfitabilityChart
+          data={weeklyChartData}
+          selectedMonth={selectedMonth}
+          onMonthChange={setSelectedMonth}
+          totals={weeklyChartData.length > 0 ? monthlyTotals : undefined}
+        />
+
+        {/* Yearly Profitability Chart */}
+        <YearlyProfitabilityChart
+          data={monthlyChartData}
+          selectedYear={selectedYear}
+          onYearChange={setSelectedYear}
+          totals={monthlyChartData.length > 0 ? yearlyTotals : undefined}
+        />
 
         {/* Settings Section */}
         <Card>
