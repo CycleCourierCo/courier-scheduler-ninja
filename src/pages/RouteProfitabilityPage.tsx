@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth } from "date-fns";
 import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
-import DashboardHeader from "@/components/DashboardHeader";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,7 +180,7 @@ const RouteProfitabilityPage = () => {
 
   return (
     <Layout>
-      <DashboardHeader />
+      
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-8 w-8 text-primary" />
