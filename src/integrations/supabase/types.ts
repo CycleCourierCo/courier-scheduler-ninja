@@ -308,6 +308,10 @@ export type Database = {
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
           needs_payment_on_collection: boolean | null
+          optimoroute_delivery_id: string | null
+          optimoroute_pickup_id: string | null
+          order_collected: boolean | null
+          order_delivered: boolean | null
           payment_collection_phone: string | null
           pickup_date: Json | null
           pickup_timeslot: string | null
@@ -350,6 +354,10 @@ export type Database = {
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_payment_on_collection?: boolean | null
+          optimoroute_delivery_id?: string | null
+          optimoroute_pickup_id?: string | null
+          order_collected?: boolean | null
+          order_delivered?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
           pickup_timeslot?: string | null
@@ -392,6 +400,10 @@ export type Database = {
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_payment_on_collection?: boolean | null
+          optimoroute_delivery_id?: string | null
+          optimoroute_pickup_id?: string | null
+          order_collected?: boolean | null
+          order_delivered?: boolean | null
           payment_collection_phone?: string | null
           pickup_date?: Json | null
           pickup_timeslot?: string | null

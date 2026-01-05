@@ -8,7 +8,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,7 @@ import TimeslotEditDialog from './TimeslotEditDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { countJobsForOrders } from "@/utils/jobUtils";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
@@ -107,21 +109,50 @@ const getAvailabilityBadge = (
 
 // Helper function to get collection status badge
 const getCollectionStatusBadge = (
-  collectionConfirmedAt?: string | null
-): { text: string; color: string; icon: JSX.Element } | null => {
+  collectionConfirmedAt: string | null | undefined,
+  orderId: string,
+  deliveryIndex: number | undefined,
+  allJobs: SelectedJob[]
+): { text: string; color: string; icon: JSX.Element } => {
+  // If already collected, show "Collected"
   if (collectionConfirmedAt) {
     return {
       text: 'Collected',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
       icon: <Package className="h-3 w-3" />
     };
-  } else {
-    return {
-      text: 'Not Collected',
-      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
-      icon: <PackageX className="h-3 w-3" />
-    };
   }
+  
+  // Check if there's a pickup/collection job for the same order on this route
+  const matchingCollection = allJobs.find(
+    j => j.orderId === orderId && j.type === 'pickup'
+  );
+  
+  if (matchingCollection && matchingCollection.order !== undefined && deliveryIndex !== undefined) {
+    // Same-day collection exists on this route
+    if (matchingCollection.order < deliveryIndex) {
+      // Collection is BEFORE delivery in sequence
+      return {
+        text: 'Collecting on Route',
+        color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+        icon: <Package className="h-3 w-3" />
+      };
+    } else {
+      // Collection is AFTER delivery - this is a problem!
+      return {
+        text: 'Collection After Delivery!',
+        color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
+        icon: <PackageX className="h-3 w-3" />
+      };
+    }
+  }
+  
+  // No matching collection on this route
+  return {
+    text: 'Not Collected',
+    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+    icon: <PackageX className="h-3 w-3" />
+  };
 };
 
 const JobItem: React.FC<JobItemProps> = ({ 
@@ -229,7 +260,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       );
                       
                       const collectionBadge = groupedJob.type === 'delivery' 
-                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at)
+                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at, groupedJob.orderId, job.order, allJobs)
                         : null;
                     
                       return (
@@ -304,7 +335,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
-                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at);
+                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
                         return collectionBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
@@ -444,6 +475,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
+  
+  // Filter states
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+  const [showCollectedOnly, setShowCollectedOnly] = useState(false);
 
   // Detect mobile on mount
   React.useEffect(() => {
@@ -534,7 +569,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     return bikeCount;
   };
 
-  const getJobsFromOrders = () => {
+  const getJobsFromOrders = (applyFilters: boolean = true) => {
     const jobs: Array<{ 
       orderId: string; 
       type: 'pickup' | 'delivery'; 
@@ -547,32 +582,60 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }> = [];
     
     orderList.forEach(order => {
+      // Check if order is collected (for "collected only" filter)
+      const isCollected = !!order.collection_confirmation_sent_at || 
+        ['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(order.status);
+      
       // Add pickup job if not scheduled
       if (!order.scheduled_pickup_date) {
-        jobs.push({
-          orderId: order.id,
-          type: 'pickup',
-          address: formatAddress(order.sender.address),
-          contactName: order.sender.name,
-          phoneNumber: order.sender.phone,
-          order,
-          lat: order.sender.address.lat,
-          lon: order.sender.address.lon
-        });
+        // Check date filter for pickups
+        const pickupDates = order.pickup_date as string[] | null;
+        const pickupAvailable = !applyFilters || !filterDate || 
+          !pickupDates || 
+          pickupDates.length === 0 ||
+          pickupDates.some(date => 
+            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
+          );
+        
+          // Always show pickups that pass the date filter (showCollectedOnly only affects deliveries)
+          if (pickupAvailable) {
+          jobs.push({
+            orderId: order.id,
+            type: 'pickup',
+            address: formatAddress(order.sender.address),
+            contactName: order.sender.name,
+            phoneNumber: order.sender.phone,
+            order,
+            lat: order.sender.address.lat,
+            lon: order.sender.address.lon
+          });
+        }
       }
       
       // Add delivery job if not scheduled
       if (!order.scheduled_delivery_date) {
-        jobs.push({
-          orderId: order.id,
-          type: 'delivery',
-          address: formatAddress(order.receiver.address),
-          contactName: order.receiver.name,
-          phoneNumber: order.receiver.phone,
-          order,
-          lat: order.receiver.address.lat,
-          lon: order.receiver.address.lon
-        });
+        // Check date filter for deliveries
+        const deliveryDates = order.delivery_date as string[] | null;
+        const deliveryAvailable = !applyFilters || !filterDate || 
+          !deliveryDates || 
+          deliveryDates.length === 0 ||
+          deliveryDates.some(date => 
+            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
+          );
+        
+        // If "collected only" is on, only show collected deliveries
+        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable) {
+          jobs.push({
+            orderId: order.id,
+            type: 'delivery',
+            address: formatAddress(order.receiver.address),
+            contactName: order.receiver.name,
+            phoneNumber: order.receiver.phone,
+            order,
+            lat: order.receiver.address.lat,
+            lon: order.receiver.address.lon
+          });
+        }
       }
     });
     
@@ -1696,17 +1759,99 @@ Route Link: ${routeLink}`;
   };
 
   const availableJobs = getJobsFromOrders();
+  const totalUnfilteredJobs = getJobsFromOrders(false).length;
+  const hasActiveFilters = filterDate || showCollectedOnly;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Route className="h-5 w-5" />
-            Route Builder
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Route className="h-5 w-5" />
+              Route Builder
+            </span>
+            <div className="flex gap-2">
+              {(() => {
+                const { total, collections, deliveries } = countJobsForOrders(orders);
+                return (
+                  <>
+                    <Badge variant="outline">{collections} collections</Badge>
+                    <Badge variant="outline">{deliveries} deliveries</Badge>
+                    <Badge variant="secondary">{total} total jobs</Badge>
+                  </>
+                );
+              })()}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Filter Section */}
+          <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg border">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filters:</span>
+            </div>
+            
+            {/* Date Filter */}
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Available on:</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-40 justify-start text-left font-normal",
+                      !filterDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {filterDate ? format(filterDate, "dd MMM yyyy") : "Any date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={filterDate}
+                    onSelect={setFilterDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {filterDate && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setFilterDate(undefined)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Collected Only Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch 
+                id="collected-filter"
+                checked={showCollectedOnly} 
+                onCheckedChange={setShowCollectedOnly}
+              />
+              <Label htmlFor="collected-filter" className="text-sm cursor-pointer">
+                Collected (ready to deliver)
+              </Label>
+            </div>
+            
+            {/* Results Count */}
+            <div className="ml-auto">
+              <Badge variant={hasActiveFilters ? "secondary" : "outline"}>
+                {availableJobs.length} of {totalUnfilteredJobs} jobs
+              </Badge>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {availableJobs.map((job, index) => {
               const isSelected = selectedJobs.some(j => j.orderId === job.orderId && j.type === job.type);

@@ -400,7 +400,38 @@ const CreateOrder = () => {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                // Handle validation errors with user feedback
+                console.log("Form validation errors:", errors);
+                
+                // Check which tab has errors and navigate there
+                const hasDetailsErrors = errors.bikes || errors.bikeQuantity || errors.isEbayOrder || 
+                  errors.collectionCode || errors.needsPaymentOnCollection || 
+                  errors.paymentCollectionPhone || errors.isBikeSwap || 
+                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel;
+                
+                const hasSenderErrors = errors.sender;
+                const hasReceiverErrors = errors.receiver;
+                
+                if (hasDetailsErrors) {
+                  setActiveTab("details");
+                  toast.error("Please complete all required fields in Bike Details.");
+                } else if (hasSenderErrors) {
+                  setActiveTab("sender");
+                  toast.error("Please complete all required fields in Collection Information.");
+                } else if (hasReceiverErrors) {
+                  setActiveTab("receiver");
+                  toast.error("Please complete all required fields in Delivery Information.");
+                } else {
+                  // Generic error for any other validation failure
+                  const firstErrorKey = Object.keys(errors)[0];
+                  const firstError = errors[firstErrorKey as keyof typeof errors];
+                  const errorMessage = typeof firstError === 'object' && firstError && 'message' in firstError 
+                    ? String(firstError.message) 
+                    : "Please complete all required fields.";
+                  toast.error(errorMessage);
+                }
+              })} className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col lg:flex-row gap-6">
                   <div className="w-full lg:w-64 space-y-4 shrink-0">
                     <h3 className="text-base font-medium mb-2">Order Steps</h3>
