@@ -65,6 +65,7 @@ export type Order = {
   trackingNumber?: string;
   bikeBrand?: string;
   bikeModel?: string;
+  bikeType?: string;
   bikeQuantity?: number;
   customerOrderNumber?: string;
   needsPaymentOnCollection?: boolean;
