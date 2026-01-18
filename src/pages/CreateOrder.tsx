@@ -66,6 +66,7 @@ const orderSchema = z.object({
   bikes: z.array(z.object({
     brand: z.string().min(1, "Bike brand is required"),
     model: z.string().min(1, "Bike model is required"),
+    type: z.string().min(1, "Bike type is required"),
   })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
@@ -156,7 +157,7 @@ const CreateOrder = () => {
         },
       },
       bikeQuantity: 1,
-      bikes: [{ brand: "", model: "" }],
+      bikes: [{ brand: "", model: "", type: "" }],
       customerOrderNumber: "",
       needsPaymentOnCollection: false,
       paymentCollectionPhone: "",
@@ -208,8 +209,8 @@ const CreateOrder = () => {
     const bikeQuantity = form.getValues("bikeQuantity");
     const bikes = form.getValues("bikes") || [];
     const bikesValid = bikeQuantity >= 1 && bikes.length === bikeQuantity && 
-           bikes.every(bike => bike && bike.brand && bike.model && 
-                             bike.brand.trim() !== '' && bike.model.trim() !== '');
+           bikes.every(bike => bike && bike.brand && bike.model && bike.type &&
+                             bike.brand.trim() !== '' && bike.model.trim() !== '' && bike.type.trim() !== '');
     
     // Check conditional field requirements
     const isEbayOrder = form.getValues("isEbayOrder");
@@ -268,7 +269,7 @@ const CreateOrder = () => {
       // Add bike details when multiple bikes
       if (data.bikes && data.bikes.length > 1) {
         const bikeList = data.bikes
-          .map((bike, index) => `${index + 1}. ${bike.brand} ${bike.model}`)
+          .map((bike, index) => `${index + 1}. ${bike.brand} ${bike.model} (${bike.type})`)
           .join('\n');
         deliveryInstructions += `\n\nBikes to collect:\n${bikeList}`;
       }
@@ -287,6 +288,7 @@ const CreateOrder = () => {
         ...data,
         bikeBrand: data.bikes.length > 1 ? 'Multiple bikes' : (data.bikes[0]?.brand || ''),
         bikeModel: data.bikes.length > 1 ? `${data.bikes.length} bikes` : (data.bikes[0]?.model || ''),
+        bikeType: data.bikes.length > 1 ? 'Multiple types' : (data.bikes[0]?.type || ''),
         bikeQuantity: data.bikeQuantity,
         deliveryInstructions: deliveryInstructions.trim(),
       };
