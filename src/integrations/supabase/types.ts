@@ -58,6 +58,63 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          city: string | null
+          contact_type: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          lat: number | null
+          lon: number | null
+          name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          street: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          contact_type?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          street?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          contact_type?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          street?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       driver_checkins: {
         Row: {
           checkin_date: string
@@ -318,12 +375,14 @@ export type Database = {
           pickup_timeslot: string | null
           receiver: Json
           receiver_confirmed_at: string | null
+          receiver_contact_id: string | null
           receiver_notes: string | null
           scheduled_at: string | null
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
           sender: Json
           sender_confirmed_at: string | null
+          sender_contact_id: string | null
           sender_notes: string | null
           shipday_delivery_id: string | null
           shipday_pickup_id: string | null
@@ -365,12 +424,14 @@ export type Database = {
           pickup_timeslot?: string | null
           receiver: Json
           receiver_confirmed_at?: string | null
+          receiver_contact_id?: string | null
           receiver_notes?: string | null
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender: Json
           sender_confirmed_at?: string | null
+          sender_contact_id?: string | null
           sender_notes?: string | null
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
@@ -412,12 +473,14 @@ export type Database = {
           pickup_timeslot?: string | null
           receiver?: Json
           receiver_confirmed_at?: string | null
+          receiver_contact_id?: string | null
           receiver_notes?: string | null
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender?: Json
           sender_confirmed_at?: string | null
+          sender_contact_id?: string | null
           sender_notes?: string | null
           shipday_delivery_id?: string | null
           shipday_pickup_id?: string | null
@@ -430,6 +493,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_receiver_contact_id_fkey"
+            columns: ["receiver_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_sender_contact_id_fkey"
+            columns: ["sender_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_user_id_fkey"
             columns: ["user_id"]
