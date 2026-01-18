@@ -292,6 +292,7 @@ export type Database = {
           bike_brand: string | null
           bike_model: string | null
           bike_quantity: number | null
+          bike_type: string | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
@@ -338,6 +339,7 @@ export type Database = {
           bike_brand?: string | null
           bike_model?: string | null
           bike_quantity?: number | null
+          bike_type?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -384,6 +386,7 @@ export type Database = {
           bike_brand?: string | null
           bike_model?: string | null
           bike_quantity?: number | null
+          bike_type?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null

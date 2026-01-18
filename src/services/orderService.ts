@@ -227,7 +227,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, isEbayOrder, collectionCode, deliveryInstructions } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, isEbayOrder, collectionCode, deliveryInstructions } = data;
 
     const {
       street: senderStreet,
@@ -316,6 +316,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         },
         bike_brand: bikeBrand || bikes?.[0]?.brand,
         bike_model: bikeModel || bikes?.[0]?.model,
+        bike_type: bikeType || bikes?.[0]?.type,
         bike_quantity: bikeQuantity || 1,
         customer_order_number: customerOrderNumber,
         needs_payment_on_collection: needsPaymentOnCollection,

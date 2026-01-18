@@ -128,6 +128,7 @@ export type CreateOrderFormData = {
   bikes: Array<{
     brand: string;
     model: string;
+    type: string;
   }>;
   customerOrderNumber?: string;
   needsPaymentOnCollection: boolean;
@@ -141,4 +142,5 @@ export type CreateOrderFormData = {
   // Legacy fields for backward compatibility
   bikeBrand?: string;
   bikeModel?: string;
+  bikeType?: string;
 };
