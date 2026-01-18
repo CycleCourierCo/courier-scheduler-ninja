@@ -459,7 +459,12 @@ const LoadingUnloadingPage = () => {
       
       // Generate labels grouped by driver
       sortedDriverNames.forEach((driverName) => {
-        const driverOrders = ordersByDriver[driverName];
+        // Sort orders by pickup timeslot (orders without timeslot appear last)
+        const driverOrders = [...ordersByDriver[driverName]].sort((a, b) => {
+          const timeA = a.pickupTimeslot || '99:99';
+          const timeB = b.pickupTimeslot || '99:99';
+          return timeA.localeCompare(timeB);
+        });
         const totalBikes = driverOrders.reduce((sum, order) => sum + (order.bikeQuantity || 1), 0);
         
         // Add driver separator page
@@ -526,7 +531,13 @@ const LoadingUnloadingPage = () => {
               } else {
                 pdf.text(itemName, margin, currentY);
               }
-              currentY += 20;
+              currentY += 12;
+              
+              // Add bike type
+              if (order.bikeType) {
+                pdf.text(`Type: ${order.bikeType}`, margin, currentY);
+              }
+              currentY += 15;
             }
             
             // Sender info (FROM)

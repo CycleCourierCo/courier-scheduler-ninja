@@ -26,6 +26,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     trackingNumber: dbOrder.tracking_number,
     bikeBrand: dbOrder.bike_brand,
     bikeModel: dbOrder.bike_model,
+    bikeType: dbOrder.bike_type,
     bikeQuantity: dbOrder.bike_quantity || 1,
     customerOrderNumber: dbOrder.customer_order_number,
     needsPaymentOnCollection: dbOrder.needs_payment_on_collection,
