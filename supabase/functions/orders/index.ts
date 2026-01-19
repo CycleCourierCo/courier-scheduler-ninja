@@ -245,6 +245,92 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Upsert sender and receiver contacts, then link to order
+      console.log('===== UPSERTING CONTACTS =====')
+      try {
+        let senderContactId: string | null = null
+        let receiverContactId: string | null = null
+
+        // Upsert sender contact if email exists
+        if (body.sender?.email?.trim()) {
+          const { data: senderContact, error: senderError } = await supabase
+            .from('contacts')
+            .upsert({
+              user_id: userId,
+              name: body.sender.name,
+              email: body.sender.email.trim().toLowerCase(),
+              phone: body.sender.phone || null,
+              street: body.sender.address?.street || null,
+              city: body.sender.address?.city || null,
+              state: body.sender.address?.state || null,
+              postal_code: body.sender.address?.zipCode || body.sender.address?.postal_code || body.sender.address?.postcode || null,
+              country: body.sender.address?.country || null,
+              lat: body.sender.address?.lat || null,
+              lon: body.sender.address?.lon || null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id,email' })
+            .select('id')
+            .single()
+          
+          if (senderError) {
+            console.error('Failed to upsert sender contact:', senderError)
+          } else {
+            senderContactId = senderContact?.id || null
+            console.log('Sender contact upserted:', senderContactId)
+          }
+        }
+
+        // Upsert receiver contact if email exists
+        if (body.receiver?.email?.trim()) {
+          const { data: receiverContact, error: receiverError } = await supabase
+            .from('contacts')
+            .upsert({
+              user_id: userId,
+              name: body.receiver.name,
+              email: body.receiver.email.trim().toLowerCase(),
+              phone: body.receiver.phone || null,
+              street: body.receiver.address?.street || null,
+              city: body.receiver.address?.city || null,
+              state: body.receiver.address?.state || null,
+              postal_code: body.receiver.address?.zipCode || body.receiver.address?.postal_code || body.receiver.address?.postcode || null,
+              country: body.receiver.address?.country || null,
+              lat: body.receiver.address?.lat || null,
+              lon: body.receiver.address?.lon || null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id,email' })
+            .select('id')
+            .single()
+          
+          if (receiverError) {
+            console.error('Failed to upsert receiver contact:', receiverError)
+          } else {
+            receiverContactId = receiverContact?.id || null
+            console.log('Receiver contact upserted:', receiverContactId)
+          }
+        }
+
+        // Link contacts to order
+        if (senderContactId || receiverContactId) {
+          const { error: linkError } = await supabase
+            .from('orders')
+            .update({
+              sender_contact_id: senderContactId,
+              receiver_contact_id: receiverContactId,
+            })
+            .eq('id', order.id)
+          
+          if (linkError) {
+            console.error('Failed to link contacts to order:', linkError)
+          } else {
+            console.log('Order linked to contacts:', { senderContactId, receiverContactId })
+          }
+        }
+      } catch (contactError) {
+        console.error('Error upserting contacts:', contactError)
+        // Don't fail order creation if contact upsert fails
+      }
+      console.log('===== CONTACT UPSERT COMPLETED =====')
+
       // Get user profile for confirmation email
       const { data: userProfile } = await supabase
         .from('profiles')
