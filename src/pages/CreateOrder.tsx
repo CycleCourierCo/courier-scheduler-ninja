@@ -123,10 +123,10 @@ const orderSchema = z.object({
 
 const CreateOrder = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts();
+  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(user?.id);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
