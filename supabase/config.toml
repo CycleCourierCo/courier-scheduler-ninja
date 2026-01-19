@@ -1,4 +1,3 @@
-
 project_id = "axigtrmaxhetyfzjjdve"
 
 [functions.calculate-weekly-bonuses]
@@ -53,4 +52,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.sync-orders-to-optimoroute]
+verify_jwt = false
+
+[functions.query-database-completed-jobs]
 verify_jwt = false

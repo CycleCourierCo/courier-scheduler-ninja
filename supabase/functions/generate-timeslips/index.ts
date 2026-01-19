@@ -11,33 +11,28 @@ interface GenerateTimeslipsRequest {
   date: string; // YYYY-MM-DD format
 }
 
-interface ShipdayOrder {
-  orderId: number;
-  orderNumber: string;
-  deliveryTime: string;
-  carrier: {
-    id: number;
-    name: string;
-    phone: string;
-    email: string;
-  };
-  pickup: {
-    id: number;
-    name: string;
-    address: string;
-    formattedAddress: string;
-    lat: number;
-    lng: number;
-  };
-  delivery: {
-    id: number;
-    name: string;
-    address: string;
-    formattedAddress: string;
-    lat: number;
-    lng: number;
-  };
-  status: string;
+interface JobInfo {
+  orderId: string;
+  trackingNumber: string;
+  address: string;
+  postcode: string;
+  lat: number | null;
+  lng: number | null;
+  confirmedAt: string;
+  bikeQuantity: number;
+}
+
+interface DriverJobs {
+  driverName: string;
+  jobs: JobInfo[];
+}
+
+interface DatabaseQueryResponse {
+  date: string;
+  collections: DriverJobs[];
+  deliveries: DriverJobs[];
+  totalCollections: number;
+  totalDeliveries: number;
 }
 
 interface JobLocation {
@@ -45,7 +40,8 @@ interface JobLocation {
   lng: number;
   type: 'pickup' | 'delivery';
   address: string;
-  deliveryTime: string;
+  postcode: string;
+  confirmedAt: string;
   order_id: string;
 }
 
@@ -67,23 +63,25 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('=== GENERATE TIMESLIPS STARTED ===');
     console.log('Timestamp:', new Date().toISOString());
     console.log('Request date:', date);
-    console.log('Triggered by:', req.headers.get('user-agent') || 'unknown');
+    console.log('Data source: Database (collection_confirmation_sent_at, delivery_confirmation_sent_at)');
 
-    // Query Shipday for completed orders on this date
-    const { data: shipdayData, error: shipdayError } = await supabaseClient.functions.invoke(
-      'query-shipday-completed-orders',
+    // Query database for completed jobs on this date
+    const { data: databaseData, error: dbError } = await supabaseClient.functions.invoke(
+      'query-database-completed-jobs',
       {
         body: { date }
       }
     );
 
-    if (shipdayError) {
-      console.error('❌ Error querying Shipday:', shipdayError);
-      throw shipdayError;
+    if (dbError) {
+      console.error('❌ Error querying database:', dbError);
+      throw dbError;
     }
 
-    if (!shipdayData || !shipdayData.drivers || shipdayData.drivers.length === 0) {
-      console.log('⚠️ No completed orders found in Shipday for this date');
+    const queryResult = databaseData as DatabaseQueryResponse;
+
+    if (!queryResult || (queryResult.totalCollections === 0 && queryResult.totalDeliveries === 0)) {
+      console.log('⚠️ No completed jobs found in database for this date');
       
       // Log the run
       await supabaseClient.from('timeslip_generation_logs').insert({
@@ -97,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'No completed orders found for this date',
+          message: 'No completed jobs found for this date',
           count: 0,
           timeslips: []
         }),
@@ -108,133 +106,129 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const totalOrderCount = shipdayData.drivers.reduce((sum: number, d: any) => sum + d.orders.length, 0);
-    console.log(`📊 Shipday query result: ${shipdayData.drivers.length} drivers, ${totalOrderCount} total orders`);
+    console.log(`📊 Database query result: ${queryResult.totalCollections} collections, ${queryResult.totalDeliveries} deliveries`);
+
+    // Build a map of all unique driver names with their jobs
+    const driverJobsMap: Map<string, { collections: JobInfo[], deliveries: JobInfo[] }> = new Map();
+
+    // Add collections
+    for (const driverData of queryResult.collections) {
+      if (!driverJobsMap.has(driverData.driverName)) {
+        driverJobsMap.set(driverData.driverName, { collections: [], deliveries: [] });
+      }
+      driverJobsMap.get(driverData.driverName)!.collections = driverData.jobs;
+    }
+
+    // Add deliveries
+    for (const driverData of queryResult.deliveries) {
+      if (!driverJobsMap.has(driverData.driverName)) {
+        driverJobsMap.set(driverData.driverName, { collections: [], deliveries: [] });
+      }
+      driverJobsMap.get(driverData.driverName)!.deliveries = driverData.jobs;
+    }
+
+    console.log(`📋 Unique drivers found: ${driverJobsMap.size}`);
 
     const createdTimeslips = [];
     const warnings: string[] = [];
     const depotCoords = "52.4707965,-1.8749747"; // Depot coordinates
 
-    // Process each driver's orders
-    for (let index = 0; index < shipdayData.drivers.length; index++) {
-      const driverData = shipdayData.drivers[index];
-      const driverName = driverData.driverName;
-      const orders: ShipdayOrder[] = driverData.orders;
+    // Process each driver
+    let driverIndex = 0;
+    for (const [driverName, jobs] of driverJobsMap) {
+      driverIndex++;
+      console.log(`\n[Driver ${driverIndex}/${driverJobsMap.size}] Processing: ${driverName}`);
+      console.log(`  └─ ${jobs.collections.length} collections, ${jobs.deliveries.length} deliveries`);
 
-      console.log(`\n[Driver ${index + 1}/${shipdayData.drivers.length}] Processing: ${driverName}`);
-      console.log(`  └─ ${orders.length} orders to process`);
-
-      // Find driver ONLY by Shipday carrier ID (no name fallback)
-      const carrierId = orders[0]?.carrier?.id;
+      // Look up driver by shipday_driver_name first, then by name
       let driver = null;
-
-      if (!carrierId) {
-        const warning = `No carrier ID found for driver: ${driverName}`;
-        console.warn(`  ⚠️ ${warning}`);
-        warnings.push(warning);
-        continue;
-      }
-
-      console.log(`  └─ Looking up driver by Shipday Carrier ID: ${carrierId}`);
-
-      const { data: driverByShipdayId, error: driverLookupError } = await supabaseClient
+      
+      // Try shipday_driver_name match
+      const { data: driverByShipdayName, error: shipdayNameError } = await supabaseClient
         .from('profiles')
         .select('*')
-        .eq('shipday_driver_id', carrierId.toString())
+        .ilike('shipday_driver_name', `%${driverName}%`)
         .eq('role', 'driver')
         .limit(1);
 
-      if (driverLookupError) {
-        const warning = `Database error looking up driver ${carrierId}: ${driverLookupError.message}`;
-        console.error(`  ❌ ${warning}`);
-        warnings.push(warning);
-        continue;
+      if (shipdayNameError) {
+        console.warn(`  ⚠️ Error looking up by shipday_driver_name: ${shipdayNameError.message}`);
+      } else if (driverByShipdayName && driverByShipdayName.length > 0) {
+        driver = driverByShipdayName[0];
+        console.log(`  ✅ Found driver by shipday_driver_name: ${driver.name} (ID: ${driver.id.substring(0, 8)}...)`);
       }
 
-      if (driverByShipdayId && driverByShipdayId.length > 0) {
-        driver = driverByShipdayId[0];
-        console.log(`  ✅ Found driver: ${driver.name} (DB ID: ${driver.id.substring(0, 8)}...)`);
-      } else {
-        const warning = `Driver not found in database with Shipday ID: ${carrierId} (Shipday name: ${driverName})`;
+      // Fallback: try name match
+      if (!driver) {
+        const { data: driverByName, error: nameError } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .ilike('name', `%${driverName}%`)
+          .eq('role', 'driver')
+          .limit(1);
+
+        if (nameError) {
+          console.warn(`  ⚠️ Error looking up by name: ${nameError.message}`);
+        } else if (driverByName && driverByName.length > 0) {
+          driver = driverByName[0];
+          console.log(`  ✅ Found driver by name: ${driver.name} (ID: ${driver.id.substring(0, 8)}...)`);
+        }
+      }
+
+      if (!driver) {
+        const warning = `Driver not found in database: ${driverName}`;
         console.warn(`  ⚠️ ${warning}`);
         warnings.push(warning);
         continue;
       }
 
-      // Extract all stops from orders and calculate total jobs
+      // Build all stops from collections and deliveries
       const allStops: JobLocation[] = [];
-      const orderIdsForJobs: string[] = [];
-      
-      orders.forEach(order => {
-        // Track order ID for job calculation (use orderId which matches shipday_pickup_id/delivery_id)
-        if (order.orderId) {
-          orderIdsForJobs.push(order.orderId.toString());
-        }
-        
-        // Add pickup stop
-        if (order.pickup && order.pickup.lat && order.pickup.lng) {
+
+      // Add collection stops (pickup type)
+      for (const job of jobs.collections) {
+        if (job.lat && job.lng) {
           allStops.push({
-            lat: order.pickup.lat,
-            lng: order.pickup.lng,
+            lat: job.lat,
+            lng: job.lng,
             type: 'pickup',
-            address: order.pickup.formattedAddress || order.pickup.address,
-            deliveryTime: order.deliveryTime,
-            order_id: order.orderNumber || ''
+            address: job.address,
+            postcode: job.postcode,
+            confirmedAt: job.confirmedAt,
+            order_id: job.trackingNumber || job.orderId
           });
         }
-        
-        // Add delivery stop
-        if (order.delivery && order.delivery.lat && order.delivery.lng) {
-          allStops.push({
-            lat: order.delivery.lat,
-            lng: order.delivery.lng,
-            type: 'delivery',
-            address: order.delivery.formattedAddress || order.delivery.address,
-            deliveryTime: order.deliveryTime,
-            order_id: order.orderNumber || ''
-          });
-        }
-      });
-      
-      // Calculate total jobs (sum of bike_quantity from orders table)
-      let totalJobs = 0;
-      if (orderIdsForJobs.length > 0) {
-        console.log(`  └─ Querying orders for IDs: ${orderIdsForJobs.join(', ')}`);
-        
-        // Query pickup orders
-        const { data: pickupOrders, error: pickupError } = await supabaseClient
-          .from('orders')
-          .select('id, bike_quantity, shipday_pickup_id')
-          .in('shipday_pickup_id', orderIdsForJobs);
-        
-        // Query delivery orders
-        const { data: deliveryOrders, error: deliveryError } = await supabaseClient
-          .from('orders')
-          .select('id, bike_quantity, shipday_delivery_id')
-          .in('shipday_delivery_id', orderIdsForJobs);
-        
-        if (pickupError) {
-          console.warn(`  ⚠️ Pickup orders query error: ${pickupError.message}`);
-        }
-        if (deliveryError) {
-          console.warn(`  ⚠️ Delivery orders query error: ${deliveryError.message}`);
-        }
-        
-        // Sum jobs from pickup and delivery separately (no deduplication)
-        const pickupJobs = (pickupOrders || []).reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
-        const deliveryJobs = (deliveryOrders || []).reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
-        totalJobs = pickupJobs + deliveryJobs;
-        
-        console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs} (${pickupJobs} from ${pickupOrders?.length || 0} pickups, ${deliveryJobs} from ${deliveryOrders?.length || 0} deliveries)`);
       }
 
-      // Sort stops by delivery time (chronological)
-      allStops.sort((a, b) => new Date(a.deliveryTime).getTime() - new Date(b.deliveryTime).getTime());
+      // Add delivery stops
+      for (const job of jobs.deliveries) {
+        if (job.lat && job.lng) {
+          allStops.push({
+            lat: job.lat,
+            lng: job.lng,
+            type: 'delivery',
+            address: job.address,
+            postcode: job.postcode,
+            confirmedAt: job.confirmedAt,
+            order_id: job.trackingNumber || job.orderId
+          });
+        }
+      }
+
+      // Calculate total jobs (sum of bike_quantity from all jobs)
+      const totalJobs = 
+        jobs.collections.reduce((sum, job) => sum + job.bikeQuantity, 0) +
+        jobs.deliveries.reduce((sum, job) => sum + job.bikeQuantity, 0);
+
+      console.log(`  └─ Total jobs (bike_quantity sum): ${totalJobs}`);
+
+      // Sort stops by confirmation time (chronological)
+      allStops.sort((a, b) => new Date(a.confirmedAt).getTime() - new Date(b.confirmedAt).getTime());
 
       // Remove duplicate locations while preserving order
       const uniqueStops = allStops.filter((stop, index, self) => {
-        const key = `${stop.lat},${stop.lng}`;
-        const firstIndex = self.findIndex(s => `${s.lat},${s.lng}` === key);
+        const key = `${stop.lat.toFixed(5)},${stop.lng.toFixed(5)}`;
+        const firstIndex = self.findIndex(s => `${s.lat.toFixed(5)},${s.lng.toFixed(5)}` === key);
         return index === firstIndex;
       });
 
@@ -250,13 +244,13 @@ const handler = async (req: Request): Promise<Response> => {
       const stopCoords = uniqueStops.map(s => `${s.lat},${s.lng}`);
 
       if (stopCoords.length > 10) {
-        // Split into two routes
-        const firstHalf = stopCoords.slice(0, 10).join('|');
-        const secondHalf = stopCoords.slice(10).join('|');
-        routeLinks.push(
-          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${firstHalf}&travelmode=driving`,
-          `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${secondHalf}&travelmode=driving`
-        );
+        // Split into multiple routes of 10 stops each
+        for (let i = 0; i < stopCoords.length; i += 10) {
+          const chunk = stopCoords.slice(i, i + 10).join('|');
+          routeLinks.push(
+            `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${chunk}&travelmode=driving`
+          );
+        }
       } else if (stopCoords.length > 0) {
         const waypoints = stopCoords.join('|');
         routeLinks.push(
@@ -299,8 +293,9 @@ const handler = async (req: Request): Promise<Response> => {
       createdTimeslips.push(timeslip);
       const totalPay = timeslip.total_pay || 0;
       console.log(`  ✅ Created/updated draft timeslip:`);
+      console.log(`     - Collections: ${jobs.collections.length}, Deliveries: ${jobs.deliveries.length}`);
       console.log(`     - Stops: ${totalStops}, Stop Hours: ${stopHours.toFixed(2)}h`);
-      console.log(`     - Total Pay: £${totalPay.toFixed(2)}`);
+      console.log(`     - Total Jobs: ${totalJobs}, Total Pay: £${totalPay.toFixed(2)}`);
     }
 
     // Send email notification
@@ -323,6 +318,7 @@ const handler = async (req: Request): Promise<Response> => {
           return {
             name: driver?.name || 'Unknown Driver',
             stops: timeslip.total_stops,
+            totalJobs: timeslip.total_jobs,
             stopHours: timeslip.stop_hours,
             totalPay: timeslip.total_pay
           };
@@ -331,7 +327,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Determine email subject based on outcome
       let subject = '';
-      if (createdTimeslips.length === 0 && shipdayData.drivers.length > 0) {
+      if (createdTimeslips.length === 0 && driverJobsMap.size > 0) {
         subject = `❌ Timeslip Generation Failed - ${date}`;
       } else if (warnings.length > 0) {
         subject = `⚠️ Timeslips Generated - ${date} (${createdTimeslips.length} created, ${warnings.length} warnings)`;
@@ -344,20 +340,22 @@ const handler = async (req: Request): Promise<Response> => {
         <p><strong>Execution Time:</strong> ${new Date().toISOString()}</p>
         <p><strong>Duration:</strong> ${(executionTime / 1000).toFixed(2)}s</p>
         <p><strong>Status:</strong> ${status.toUpperCase()}</p>
+        <p><strong>Data Source:</strong> Database (collection/delivery confirmation timestamps)</p>
         
         <hr />
         
         <h3>📊 Summary:</h3>
         <ul>
-          <li><strong>Drivers with orders:</strong> ${shipdayData.drivers.length}</li>
-          <li><strong>Total orders processed:</strong> ${totalOrderCount}</li>
+          <li><strong>Total collections:</strong> ${queryResult.totalCollections}</li>
+          <li><strong>Total deliveries:</strong> ${queryResult.totalDeliveries}</li>
+          <li><strong>Unique drivers:</strong> ${driverJobsMap.size}</li>
           <li><strong>Timeslips created:</strong> ${createdTimeslips.length}</li>
         </ul>
         
         ${createdTimeslips.length > 0 ? `
           <h3>✅ Created Timeslips:</h3>
           <ul>
-            ${driverDetails.map(d => `<li><strong>${d.name}:</strong> ${d.stops} stops, ${d.stopHours.toFixed(2)}h, £${d.totalPay.toFixed(2)}</li>`).join('\n')}
+            ${driverDetails.map(d => `<li><strong>${d.name}:</strong> ${d.stops} stops, ${d.totalJobs || 0} jobs, ${d.stopHours.toFixed(2)}h, £${d.totalPay.toFixed(2)}</li>`).join('\n')}
           </ul>
         ` : ''}
         
@@ -368,12 +366,12 @@ const handler = async (req: Request): Promise<Response> => {
           </ul>
         ` : ''}
         
-        ${createdTimeslips.length === 0 && shipdayData.drivers.length > 0 ? `
+        ${createdTimeslips.length === 0 && driverJobsMap.size > 0 ? `
           <h3>🚨 Alert: No Timeslips Created</h3>
-          <p>The system found ${shipdayData.drivers.length} drivers with orders, but created 0 timeslips.</p>
+          <p>The system found ${driverJobsMap.size} drivers with completed jobs, but created 0 timeslips.</p>
           <p><strong>Possible Issues:</strong></p>
           <ul>
-            <li>Driver Shipday IDs don't match database profiles</li>
+            <li>Driver names don't match database profiles</li>
             <li>Database connection issues</li>
             <li>Data validation failures</li>
           </ul>
@@ -404,7 +402,7 @@ const handler = async (req: Request): Promise<Response> => {
         run_date: date,
         status: status,
         timeslips_created: createdTimeslips.length,
-        drivers_processed: shipdayData.drivers.length,
+        drivers_processed: driverJobsMap.size,
         warnings: warnings.length > 0 ? warnings : null,
         execution_duration_ms: executionTime
       });
