@@ -525,10 +525,9 @@ const CreateOrder = () => {
                           <h3 className="text-lg font-medium">Collection Contact Information</h3>
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
                             onClick={() => fillMyDetails("sender")}
-                            className="flex items-center gap-2 w-full sm:w-auto"
+                            className="flex items-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
@@ -580,10 +579,9 @@ const CreateOrder = () => {
                           <h3 className="text-lg font-medium">Delivery Contact Information</h3>
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
                             onClick={() => fillMyDetails("receiver")}
-                            className="flex items-center gap-2 w-full sm:w-auto"
+                            className="flex items-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
