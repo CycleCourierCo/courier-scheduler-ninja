@@ -6,6 +6,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Control, useWatch } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
+const BIKE_TYPES = [
+  "Non-Electric Bikes",
+  "Electric Bikes",
+  "Stationary Bikes",
+  "Kids Bikes",
+  "BMX Bikes",
+  "Boxed Kids Bikes",
+  "Folding Bikes",
+  "Tandem Bikes",
+  "Travel Bike Boxes",
+] as const;
+
 interface OrderDetailsProps {
   control: Control<CreateOrderFormData>;
 }
@@ -51,7 +63,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
 
         <div className="space-y-4">
           {Array.from({ length: bikeQuantity || 1 }, (_, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
               <FormField
                 control={control}
                 name={`bikes.${index}.brand` as any}
@@ -74,6 +86,30 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
                     <FormControl>
                       <Input placeholder="e.g. Domane SL5, Stumpjumper" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name={`bikes.${index}.type` as any}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bike {index + 1} Type *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bike type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {BIKE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -47,7 +47,13 @@ export const generateSingleOrderLabel = async (order: Order) => {
         } else {
           pdf.text(itemName, margin, currentY);
         }
-        currentY += 20;
+        currentY += 12;
+        
+        // Add bike type
+        if (order.bikeType) {
+          pdf.text(`Type: ${order.bikeType}`, margin, currentY);
+        }
+        currentY += 15;
       }
       
       // Sender info (FROM)

@@ -18,6 +18,9 @@ import { CreateOrderFormData } from "@/types/order";
 import OrderDetails from "@/components/create-order/OrderDetails";
 import OrderOptions from "@/components/create-order/OrderOptions";
 import DeliveryInstructions from "@/components/create-order/DeliveryInstructions";
+import { ContactSelector } from "@/components/create-order/ContactSelector";
+import { useContacts } from "@/hooks/useContacts";
+import { Contact } from "@/services/contactService";
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -66,6 +69,7 @@ const orderSchema = z.object({
   bikes: z.array(z.object({
     brand: z.string().min(1, "Bike brand is required"),
     model: z.string().min(1, "Bike model is required"),
+    type: z.string().min(1, "Bike type is required"),
   })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
@@ -119,9 +123,10 @@ const orderSchema = z.object({
 
 const CreateOrder = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(user?.id);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -156,7 +161,7 @@ const CreateOrder = () => {
         },
       },
       bikeQuantity: 1,
-      bikes: [{ brand: "", model: "" }],
+      bikes: [{ brand: "", model: "", type: "" }],
       customerOrderNumber: "",
       needsPaymentOnCollection: false,
       paymentCollectionPhone: "",
@@ -208,8 +213,8 @@ const CreateOrder = () => {
     const bikeQuantity = form.getValues("bikeQuantity");
     const bikes = form.getValues("bikes") || [];
     const bikesValid = bikeQuantity >= 1 && bikes.length === bikeQuantity && 
-           bikes.every(bike => bike && bike.brand && bike.model && 
-                             bike.brand.trim() !== '' && bike.model.trim() !== '');
+           bikes.every(bike => bike && bike.brand && bike.model && bike.type &&
+                             bike.brand.trim() !== '' && bike.model.trim() !== '' && bike.type.trim() !== '');
     
     // Check conditional field requirements
     const isEbayOrder = form.getValues("isEbayOrder");
@@ -268,7 +273,7 @@ const CreateOrder = () => {
       // Add bike details when multiple bikes
       if (data.bikes && data.bikes.length > 1) {
         const bikeList = data.bikes
-          .map((bike, index) => `${index + 1}. ${bike.brand} ${bike.model}`)
+          .map((bike, index) => `${index + 1}. ${bike.brand} ${bike.model} (${bike.type})`)
           .join('\n');
         deliveryInstructions += `\n\nBikes to collect:\n${bikeList}`;
       }
@@ -287,6 +292,7 @@ const CreateOrder = () => {
         ...data,
         bikeBrand: data.bikes.length > 1 ? 'Multiple bikes' : (data.bikes[0]?.brand || ''),
         bikeModel: data.bikes.length > 1 ? `${data.bikes.length} bikes` : (data.bikes[0]?.model || ''),
+        bikeType: data.bikes.length > 1 ? 'Multiple types' : (data.bikes[0]?.type || ''),
         bikeQuantity: data.bikeQuantity,
         deliveryInstructions: deliveryInstructions.trim(),
       };
@@ -385,6 +391,35 @@ const CreateOrder = () => {
     }
 
     toast.success("Details filled from your profile");
+  };
+
+  const fillFromContact = (contact: Contact, prefix: "sender" | "receiver") => {
+    // Format phone number to ensure +44 prefix
+    let formattedPhone = contact.phone || "+44";
+    if (formattedPhone && !formattedPhone.startsWith("+44")) {
+      formattedPhone = formattedPhone.replace(/^0+/, "");
+      formattedPhone = `+44${formattedPhone}`;
+    }
+
+    // Fill contact information
+    form.setValue(`${prefix}.name`, contact.name || "");
+    form.setValue(`${prefix}.email`, contact.email || "");
+    form.setValue(`${prefix}.phone`, formattedPhone);
+
+    // Fill address information
+    form.setValue(`${prefix}.address.street`, contact.street || "");
+    form.setValue(`${prefix}.address.city`, contact.city || "");
+    form.setValue(`${prefix}.address.state`, contact.state || "");
+    form.setValue(`${prefix}.address.zipCode`, contact.postal_code || "");
+    form.setValue(`${prefix}.address.country`, contact.country || "United Kingdom");
+    
+    // Set coordinates if available
+    if (contact.lat && contact.lon) {
+      form.setValue(`${prefix}.address.lat`, contact.lat);
+      form.setValue(`${prefix}.address.lon`, contact.lon);
+    }
+
+    toast.success(`Filled from ${contact.name}`);
   };
 
   return (
@@ -490,14 +525,21 @@ const CreateOrder = () => {
                           <h3 className="text-lg font-medium">Collection Contact Information</h3>
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
                             onClick={() => fillMyDetails("sender")}
-                            className="flex items-center gap-2 w-full sm:w-auto"
+                            className="flex items-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
                           </Button>
+                        </div>
+                        <div className="mb-4">
+                          <ContactSelector
+                            contacts={contacts}
+                            onSelect={(contact) => fillFromContact(contact, "sender")}
+                            isLoading={isLoadingContacts}
+                            placeholder="Select from address book..."
+                          />
                         </div>
                         <ContactForm control={form.control} prefix="sender" />
                       </div>
@@ -537,14 +579,21 @@ const CreateOrder = () => {
                           <h3 className="text-lg font-medium">Delivery Contact Information</h3>
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
                             onClick={() => fillMyDetails("receiver")}
-                            className="flex items-center gap-2 w-full sm:w-auto"
+                            className="flex items-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
                           </Button>
+                        </div>
+                        <div className="mb-4">
+                          <ContactSelector
+                            contacts={contacts}
+                            onSelect={(contact) => fillFromContact(contact, "receiver")}
+                            isLoading={isLoadingContacts}
+                            placeholder="Select from address book..."
+                          />
                         </div>
                         <ContactForm control={form.control} prefix="receiver" />
                       </div>

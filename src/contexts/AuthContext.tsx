@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Check if URL has reset password token
   const checkForPasswordResetToken = () => {
@@ -260,6 +262,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Clear React Query cache to prevent data leakage between users
+      queryClient.clear();
       
       navigate("/auth");
       toast.success("Signed out successfully");
