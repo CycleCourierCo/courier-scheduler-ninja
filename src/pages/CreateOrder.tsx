@@ -18,6 +18,9 @@ import { CreateOrderFormData } from "@/types/order";
 import OrderDetails from "@/components/create-order/OrderDetails";
 import OrderOptions from "@/components/create-order/OrderOptions";
 import DeliveryInstructions from "@/components/create-order/DeliveryInstructions";
+import { ContactSelector } from "@/components/create-order/ContactSelector";
+import { useContacts } from "@/hooks/useContacts";
+import { Contact } from "@/services/contactService";
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -123,6 +126,7 @@ const CreateOrder = () => {
   const { userProfile } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts();
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -389,6 +393,35 @@ const CreateOrder = () => {
     toast.success("Details filled from your profile");
   };
 
+  const fillFromContact = (contact: Contact, prefix: "sender" | "receiver") => {
+    // Format phone number to ensure +44 prefix
+    let formattedPhone = contact.phone || "+44";
+    if (formattedPhone && !formattedPhone.startsWith("+44")) {
+      formattedPhone = formattedPhone.replace(/^0+/, "");
+      formattedPhone = `+44${formattedPhone}`;
+    }
+
+    // Fill contact information
+    form.setValue(`${prefix}.name`, contact.name || "");
+    form.setValue(`${prefix}.email`, contact.email || "");
+    form.setValue(`${prefix}.phone`, formattedPhone);
+
+    // Fill address information
+    form.setValue(`${prefix}.address.street`, contact.street || "");
+    form.setValue(`${prefix}.address.city`, contact.city || "");
+    form.setValue(`${prefix}.address.state`, contact.state || "");
+    form.setValue(`${prefix}.address.zipCode`, contact.postal_code || "");
+    form.setValue(`${prefix}.address.country`, contact.country || "United Kingdom");
+    
+    // Set coordinates if available
+    if (contact.lat && contact.lon) {
+      form.setValue(`${prefix}.address.lat`, contact.lat);
+      form.setValue(`${prefix}.address.lon`, contact.lon);
+    }
+
+    toast.success(`Filled from ${contact.name}`);
+  };
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
@@ -501,6 +534,14 @@ const CreateOrder = () => {
                             Fill in my details
                           </Button>
                         </div>
+                        <div className="mb-4">
+                          <ContactSelector
+                            contacts={contacts}
+                            onSelect={(contact) => fillFromContact(contact, "sender")}
+                            isLoading={isLoadingContacts}
+                            placeholder="Select from address book..."
+                          />
+                        </div>
                         <ContactForm control={form.control} prefix="sender" />
                       </div>
 
@@ -547,6 +588,14 @@ const CreateOrder = () => {
                             <User className="h-4 w-4" />
                             Fill in my details
                           </Button>
+                        </div>
+                        <div className="mb-4">
+                          <ContactSelector
+                            contacts={contacts}
+                            onSelect={(contact) => fillFromContact(contact, "receiver")}
+                            isLoading={isLoadingContacts}
+                            placeholder="Select from address book..."
+                          />
                         </div>
                         <ContactForm control={form.control} prefix="receiver" />
                       </div>
