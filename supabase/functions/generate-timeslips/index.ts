@@ -266,35 +266,33 @@ const handler = async (req: Request): Promise<Response> => {
           const remainingStops = stopCoords.length - currentIndex;
           
           // Determine how many stops to include in this route
-          // We need to leave room for origin and destination in the URL
-          // Waypoints are the intermediate stops
-          let stopsInThisRoute: number;
+          // Google Maps allows: origin + up to 10 waypoints + destination
+          // So waypoints must NEVER exceed maxWaypoints (10)
           
-          if (remainingStops <= maxWaypoints + 1) {
-            // This is the last route - include all remaining stops
-            stopsInThisRoute = remainingStops;
-          } else {
-            // More routes to come - take maxWaypoints + 1 stops (waypoints + destination)
-            stopsInThisRoute = maxWaypoints + 1;
-          }
+          // Check if this is the last route:
+          // - Last route if remaining stops fit as waypoints (destination = depot)
+          const isLastRoute = remainingStops <= maxWaypoints;
           
-          const routeStops = stopCoords.slice(currentIndex, currentIndex + stopsInThisRoute);
-          const isLastRoute = currentIndex + stopsInThisRoute >= stopCoords.length;
-          
-          // Origin: depot for first route, last stop of previous route otherwise
+          // Origin: depot for first route, previous stop otherwise
           const origin = isFirstRoute ? depotCoords : stopCoords[currentIndex - 1];
           
-          // Destination: depot for last route, last stop of this chunk otherwise
-          const destination = isLastRoute ? depotCoords : routeStops[routeStops.length - 1];
-          
-          // Waypoints: all stops except the destination (if destination is a stop, not depot)
           let waypoints: string[];
+          let destination: string;
+          let stopsConsumed: number;
+          
           if (isLastRoute) {
-            // Last route: all stops are waypoints, destination is depot
-            waypoints = routeStops;
+            // Last route: all remaining stops become waypoints, destination is depot
+            waypoints = stopCoords.slice(currentIndex);
+            destination = depotCoords;
+            stopsConsumed = remainingStops;
           } else {
-            // Not last route: all stops except the last one (which is the destination)
-            waypoints = routeStops.slice(0, -1);
+            // Not last route: take maxWaypoints stops
+            // First (maxWaypoints - 1) are waypoints, last one is destination
+            // This ensures waypoints never exceeds maxWaypoints - 1 = 9
+            const chunk = stopCoords.slice(currentIndex, currentIndex + maxWaypoints);
+            waypoints = chunk.slice(0, -1); // All but last (9 waypoints max)
+            destination = chunk[chunk.length - 1]; // Last stop is destination
+            stopsConsumed = maxWaypoints;
           }
           
           if (waypoints.length > 0) {
@@ -308,7 +306,7 @@ const handler = async (req: Request): Promise<Response> => {
             );
           }
           
-          currentIndex += stopsInThisRoute;
+          currentIndex += stopsConsumed;
         }
       }
 
