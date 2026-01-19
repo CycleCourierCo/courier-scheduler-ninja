@@ -11,6 +11,7 @@ import {
   sendReceiverAvailabilityEmail
 } from "@/services/emailService";
 import { generateTrackingNumber } from "@/services/trackingService";
+import { upsertContact } from "@/services/contactService";
 
 export const getOrder = async (id: string): Promise<Order | null> => {
   try {
@@ -335,6 +336,51 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     
     if (error) {
       throw error;
+    }
+
+    // Upsert contacts and link them to the order
+    try {
+      const [senderContactId, receiverContactId] = await Promise.all([
+        upsertContact(user.id, {
+          name: sender.name,
+          email: sender.email,
+          phone: sender.phone,
+          street: senderStreet,
+          city: senderCity,
+          state: senderState,
+          postal_code: senderZipCode,
+          country: senderCountry,
+          lat: senderLat,
+          lon: senderLon,
+        }),
+        upsertContact(user.id, {
+          name: receiver.name,
+          email: receiver.email,
+          phone: receiver.phone,
+          street: receiverStreet,
+          city: receiverCity,
+          state: receiverState,
+          postal_code: receiverZipCode,
+          country: receiverCountry,
+          lat: receiverLat,
+          lon: receiverLon,
+        }),
+      ]);
+
+      // Update order with contact IDs if we got them
+      if (senderContactId || receiverContactId) {
+        await supabase
+          .from('orders')
+          .update({
+            sender_contact_id: senderContactId,
+            receiver_contact_id: receiverContactId,
+          })
+          .eq('id', order.id);
+        console.log('Order linked to contacts:', { senderContactId, receiverContactId });
+      }
+    } catch (contactError) {
+      // Don't fail order creation if contact upsert fails
+      console.error('Failed to upsert contacts:', contactError);
     }
     
     // Create reverse order for part exchange
