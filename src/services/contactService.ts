@@ -18,10 +18,11 @@ export interface Contact {
   updated_at: string;
 }
 
-export const fetchUserContacts = async (): Promise<Contact[]> => {
+export const fetchUserContacts = async (userId: string): Promise<Contact[]> => {
   const { data, error } = await supabase
     .from('contacts')
     .select('*')
+    .eq('user_id', userId)
     .order('name');
 
   if (error) throw error;
