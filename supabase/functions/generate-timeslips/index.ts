@@ -239,23 +239,77 @@ const handler = async (req: Request): Promise<Response> => {
       }).length;
       const stopHours = Math.round((totalStops * 10 / 60) * 100) / 100; // 10 mins per stop
 
-      // Generate route links (handle 10+ stops by splitting)
+      // Generate route links (handle 10+ stops by splitting into chained routes)
       const routeLinks: string[] = [];
       const stopCoords = uniqueStops.map(s => `${s.lat},${s.lng}`);
+      const maxWaypoints = 10; // Google Maps limit for waypoints
 
-      if (stopCoords.length > 10) {
-        // Split into multiple routes of 10 stops each
-        for (let i = 0; i < stopCoords.length; i += 10) {
-          const chunk = stopCoords.slice(i, i + 10).join('|');
-          routeLinks.push(
-            `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${chunk}&travelmode=driving`
-          );
-        }
-      } else if (stopCoords.length > 0) {
+      if (stopCoords.length === 0) {
+        // No stops, no route
+      } else if (stopCoords.length <= maxWaypoints) {
+        // Single route: depot -> all stops -> depot
         const waypoints = stopCoords.join('|');
         routeLinks.push(
           `https://www.google.com/maps/dir/?api=1&origin=${depotCoords}&destination=${depotCoords}&waypoints=${waypoints}&travelmode=driving`
         );
+      } else {
+        // Multiple routes needed - chain them together
+        // Each route can have: origin + up to 10 waypoints + destination = 12 points total
+        // But we want continuity, so last stop of route N = origin of route N+1
+        
+        let currentIndex = 0;
+        let routeNumber = 0;
+        
+        while (currentIndex < stopCoords.length) {
+          routeNumber++;
+          const isFirstRoute = routeNumber === 1;
+          const remainingStops = stopCoords.length - currentIndex;
+          
+          // Determine how many stops to include in this route
+          // We need to leave room for origin and destination in the URL
+          // Waypoints are the intermediate stops
+          let stopsInThisRoute: number;
+          
+          if (remainingStops <= maxWaypoints + 1) {
+            // This is the last route - include all remaining stops
+            stopsInThisRoute = remainingStops;
+          } else {
+            // More routes to come - take maxWaypoints + 1 stops (waypoints + destination)
+            stopsInThisRoute = maxWaypoints + 1;
+          }
+          
+          const routeStops = stopCoords.slice(currentIndex, currentIndex + stopsInThisRoute);
+          const isLastRoute = currentIndex + stopsInThisRoute >= stopCoords.length;
+          
+          // Origin: depot for first route, last stop of previous route otherwise
+          const origin = isFirstRoute ? depotCoords : stopCoords[currentIndex - 1];
+          
+          // Destination: depot for last route, last stop of this chunk otherwise
+          const destination = isLastRoute ? depotCoords : routeStops[routeStops.length - 1];
+          
+          // Waypoints: all stops except the destination (if destination is a stop, not depot)
+          let waypoints: string[];
+          if (isLastRoute) {
+            // Last route: all stops are waypoints, destination is depot
+            waypoints = routeStops;
+          } else {
+            // Not last route: all stops except the last one (which is the destination)
+            waypoints = routeStops.slice(0, -1);
+          }
+          
+          if (waypoints.length > 0) {
+            routeLinks.push(
+              `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints.join('|')}&travelmode=driving`
+            );
+          } else {
+            // Edge case: only origin and destination, no waypoints
+            routeLinks.push(
+              `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`
+            );
+          }
+          
+          currentIndex += stopsInThisRoute;
+        }
       }
 
       // Create or update timeslip (upsert on driver_id, date)
