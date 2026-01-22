@@ -76,68 +76,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Safety timeout to prevent infinite loading states
   useEffect(() => {
-    const setData = async () => {
-      try {
-        // Check for password reset token first
-        const hasResetToken = checkForPasswordResetToken();
-        
-        // Explicitly check URL path as well
-        const isOnResetPage = 
-          window.location.pathname.includes('/reset-password') || 
-          window.location.pathname.includes('/reset') ||
-          window.location.pathname.includes('/auth') && window.location.search.includes('action=resetPassword');
-          
-        if (hasResetToken || isOnResetPage) {
-          setIsPasswordReset(true);
-          setIsLoading(false);
-          return;
-        }
-
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        
-        setSession(session);
-        setUser(session?.user || null);
-
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        }
-      } catch (error) {
-        toast.error("Error loading user session");
-      } finally {
+    const safetyTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Auth loading timeout - forcing reset");
         setIsLoading(false);
       }
-    };
+    }, 10000);
+    
+    return () => clearTimeout(safetyTimeout);
+  }, [isLoading]);
 
-    setData();
+  useEffect(() => {
+    let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Check for password reset token first
+    const hasResetToken = checkForPasswordResetToken();
+    const isOnResetPage = 
+      window.location.pathname.includes('/reset-password') || 
+      window.location.pathname.includes('/reset') ||
+      (window.location.pathname.includes('/auth') && window.location.search.includes('action=resetPassword'));
       
-      // Only update state if session actually changed
-      if (session?.user?.id !== user?.id) {
-        setSession(session);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          // Only fetch profile if we don't have one or user changed
-          if (!userProfile || userProfile.id !== session.user.id) {
+    if (hasResetToken || isOnResetPage) {
+      setIsPasswordReset(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Set up auth state listener FIRST (before getSession)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      
+      // Synchronous state updates only - no stale closures
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        // Use setTimeout to defer async operations (prevents auth deadlock)
+        setTimeout(() => {
+          if (mounted) {
             fetchUserProfile(session.user.id)
               .catch(() => {})
-              .finally(() => setIsLoading(false));
-          } else {
-            setIsLoading(false);
+              .finally(() => {
+                if (mounted) setIsLoading(false);
+              });
           }
-        } else {
-          setUserProfile(null);
-          setIsLoading(false);
-        }
+        }, 0);
+      } else {
+        setUserProfile(null);
+        setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+      
+      if (error) {
+        console.error("Session error:", error);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no session, ensure loading is false
+      // (session presence will be handled by onAuthStateChange)
+      if (!session) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
