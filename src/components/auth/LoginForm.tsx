@@ -40,6 +40,22 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     }
   }, [authLoading]);
 
+  // Safety timeout - if stuck loading for more than 5 seconds, reset
+  useEffect(() => {
+    let timeout: NodeJS.Timeout | undefined;
+    if (localLoading || authLoading) {
+      timeout = setTimeout(() => {
+        if (localLoading) {
+          setLocalLoading(false);
+          toast.error("Sign in is taking too long. Please try again.");
+        }
+      }, 5000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [localLoading, authLoading]);
+
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setLocalLoading(true);
