@@ -5,9 +5,12 @@ import App from './App.tsx';
 import './index.css';
 
 // Initialize Sentry before rendering
+// Enable if DSN is configured (works in both dev preview and production)
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+
 Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.PROD ? "production" : "development",
+  dsn: sentryDsn,
+  environment: import.meta.env.PROD ? "production" : "preview",
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration(),
@@ -17,8 +20,8 @@ Sentry.init({
   // Session replay - capture 10% of sessions, 100% on error
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
-  // Only send errors in production
-  enabled: import.meta.env.PROD,
+  // Enable if DSN is configured
+  enabled: !!sentryDsn,
 });
 
 // Global handler for unhandled promise rejections
