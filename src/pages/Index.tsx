@@ -1,11 +1,39 @@
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Layout from "@/components/Layout";
-import { Package, CalendarCheck, LogIn } from "lucide-react";
+import { Package, CalendarCheck, LogIn, Bug } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+// Test button to verify Sentry error tracking
+const SentryTestButton = () => {
+  const handleTestError = () => {
+    Sentry.startSpan(
+      {
+        op: "ui.click",
+        name: "Sentry Test Error Button",
+      },
+      () => {
+        throw new Error("This is a test error for Sentry!");
+      }
+    );
+  };
+
+  return (
+    <Button 
+      variant="destructive" 
+      size="sm" 
+      onClick={handleTestError}
+      className="fixed bottom-4 right-4 z-50"
+    >
+      <Bug className="mr-2 h-4 w-4" />
+      Test Sentry Error
+    </Button>
+  );
+};
 const features = [{
   title: "Easy Order Creation",
   description: "Create shipping orders in minutes with our intuitive form.",
@@ -80,6 +108,9 @@ Fast, friendly and reliable courier services for your business needs</p>
           </div>
         </div>
       </section>
+      
+      {/* Sentry test button - remove after testing */}
+      <SentryTestButton />
     </Layout>;
 };
 export default Index;
