@@ -11,15 +11,12 @@ import { toast } from "sonner";
 // Test button to verify Sentry error tracking
 const SentryTestButton = () => {
   const handleTestError = () => {
-    Sentry.startSpan(
-      {
-        op: "ui.click",
-        name: "Sentry Test Error Button",
-      },
-      () => {
-        throw new Error("This is a test error for Sentry!");
-      }
-    );
+    try {
+      throw new Error("This is a test error for Sentry!");
+    } catch (error) {
+      Sentry.captureException(error);
+      toast.success("Error sent to Sentry! Check your dashboard.");
+    }
   };
 
   return (
