@@ -176,6 +176,15 @@ const LoadingUnloadingPage = () => {
     return hasCollection && !hasDelivery && !isCancelled && !hasStorage && !isLoadedOntoVan;
   });
 
+  // Get bikes that are loaded onto van but not yet delivered
+  const bikesLoadedOntoVan = orders.filter(order => {
+    const hasDelivery = hasBeenDelivered(order);
+    const isCancelled = order.status === 'cancelled';
+    const isLoadedOntoVan = order.loaded_onto_van;
+    
+    return isLoadedOntoVan && !hasDelivery && !isCancelled;
+  });
+
   // Get all bikes that have storage allocations (excluding loaded bikes)
   const bikesInStorage = storageAllocations.map(allocation => {
     const order = orders.find(o => o.id === allocation.orderId);
@@ -1275,11 +1284,13 @@ const LoadingUnloadingPage = () => {
               <CardTitle className="text-lg sm:text-xl">Bikes Pending Storage Allocation</CardTitle>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {collectedBikes.length} bike(s) collected and awaiting storage allocation
+                {bikesLoadedOntoVan.length > 0 && ` • ${bikesLoadedOntoVan.length} bike(s) loaded onto van`}
               </p>
             </CardHeader>
             <CardContent>
               <PendingStorageAllocation 
                 collectedBikes={collectedBikes}
+                bikesLoadedOntoVan={bikesLoadedOntoVan}
                 storageAllocations={storageAllocations}
                 onAllocateStorage={handleAllocateStorage}
               />
