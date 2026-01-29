@@ -1,120 +1,81 @@
 
 
-# Add Unload from Van Button
+# Fix: "Load onto Van" Button Not Setting Loaded Status for Single Bikes
 
-## Overview
-Add an "Unload from Van" button to bikes that are currently shown as loaded onto the van in the Pending Storage Allocation section. This will allow users to reverse the loading action if a bike needs to be returned to pending allocation status.
+## Problem Identified
+When clicking "Load onto Van" from the Bikes In Storage section for a **single-bike order**, the `handleRemoveFromStorage` function is called. This function only removes the storage allocation but **does NOT set `loaded_onto_van: true`**. 
+
+As a result:
+- The bike disappears from storage (storage_locations cleared)
+- It reappears in the "Pending Allocation" section under the **collection driver** (not the delivery driver)
+- It never shows in the "Loaded onto Van" section
+
+The multi-bike "Load All X" button uses `handleRemoveAllBikesFromOrder` which correctly sets `loaded_onto_van: true`.
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/LoadingUnloadingPage.tsx` | Add `handleUnloadFromVan` function and pass it as prop |
-| `src/components/loading/PendingStorageAllocation.tsx` | Accept new `onUnloadFromVan` prop and add Unload button |
+| `src/pages/LoadingUnloadingPage.tsx` | Update `handleRemoveFromStorage` to also set `loaded_onto_van: true` |
 
 ## Implementation Details
 
-### 1. LoadingUnloadingPage.tsx Changes
+### LoadingUnloadingPage.tsx - handleRemoveFromStorage Fix
 
-Add a new handler function to unload a bike from the van:
-
+**Current broken code (lines 266-298):**
 ```typescript
-const handleUnloadFromVan = async (orderId: string) => {
-  try {
-    const { error } = await supabase
-      .from('orders')
-      .update({ 
-        loaded_onto_van: false,
-        loaded_onto_van_at: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId);
-
-    if (error) {
-      console.error('Error unloading bike from van:', error);
-      toast.error('Failed to unload bike from van');
-      return;
-    }
-
-    await fetchData();
-    toast.success('Bike unloaded from van');
-  } catch (error) {
-    console.error('Error unloading bike from van:', error);
-    toast.error('Failed to unload bike from van');
-  }
+const handleRemoveFromStorage = async (allocationId: string) => {
+  // ... finds allocation and order ...
+  
+  const { error } = await supabase
+    .from('orders')
+    .update({ storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null })  // ❌ Missing loaded_onto_van!
+    .eq('id', allocationToRemove.orderId);
+    
+  // ...
 };
 ```
 
-Pass the handler to PendingStorageAllocation:
-```tsx
-<PendingStorageAllocation 
-  collectedBikes={collectedBikes}
-  bikesLoadedOntoVan={bikesLoadedOntoVan}
-  storageAllocations={storageAllocations}
-  onAllocateStorage={handleAllocateStorage}
-  onUnloadFromVan={handleUnloadFromVan}  // NEW PROP
-/>
-```
-
-### 2. PendingStorageAllocation.tsx Changes
-
-**Updated Props Interface:**
+**Fixed code:**
 ```typescript
-interface PendingStorageAllocationProps {
-  collectedBikes: Order[];
-  bikesLoadedOntoVan: Order[];
-  storageAllocations: StorageAllocation[];
-  onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
-  onUnloadFromVan: (orderId: string) => void;  // NEW PROP
-}
+const handleRemoveFromStorage = async (allocationId: string) => {
+  // ... finds allocation and order ...
+  
+  // Prepare update data - always clear this allocation
+  const updateData: any = {
+    storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+    updated_at: new Date().toISOString()
+  };
+  
+  // If this was the last allocation (storage fully cleared), mark as loaded onto van
+  if (updatedAllocations.length === 0) {
+    updateData.loaded_onto_van = true;
+    updateData.loaded_onto_van_at = new Date().toISOString();
+  }
+  
+  const { error } = await supabase
+    .from('orders')
+    .update(updateData)
+    .eq('id', allocationToRemove.orderId);
+    
+  // ...
+};
 ```
 
-**Add new icon import:**
-```typescript
-import { Package, MapPin, Truck, Printer, Image, PackageMinus } from "lucide-react";
-```
+## Logic Explanation
 
-**Add Unload Button to loaded bike cards:**
-After the Print Label and See Image buttons, add a new row with the Unload button:
+The fix adds `loaded_onto_van: true` and `loaded_onto_van_at` when the **last** storage allocation is removed. This ensures:
 
-```tsx
-<Button
-  size="sm"
-  variant="outline"
-  onClick={() => onUnloadFromVan(bike.id)}
-  className="h-9 text-xs flex-1 min-h-[44px] border-destructive text-destructive hover:bg-destructive/10"
->
-  <PackageMinus className="h-3 w-3 sm:mr-1" />
-  <span className="ml-1">Unload from Van</span>
-</Button>
-```
+1. Single-bike orders: When the only allocation is removed, it's marked as loaded onto van
+2. Multi-bike orders: Only when all allocations are removed does it get marked (for partial loading, you'd use individual allocations)
 
-## UI Layout for Loaded Bikes (Updated)
+This matches the behavior of `handleRemoveAllBikesFromOrder` which correctly sets these fields.
 
-```
-+--------------------------------------------------+
-| Bike Card (LOADED)                               |
-|   Customer Name                                  |
-|   Bike Brand Model                               |
-|   Destination: City, PostCode                   |
-|   Tracking: CC-XXXXX                             |
-|   [Loaded onto Van] badge (green)                |
-|                                                  |
-|   [Print Label] [See Image]                      |
-|   [Unload from Van]  <-- NEW BUTTON              |
-+--------------------------------------------------+
-```
+## Data Flow After Fix
 
-## Button Styling
-- **Unload from Van**: Destructive outline style (red border/text) to indicate this is a reversal action
-- Uses `PackageMinus` icon to indicate removal from van
-
-## Data Flow
-1. User clicks "Unload from Van" button
-2. `onUnloadFromVan(orderId)` is called
-3. `handleUnloadFromVan` in LoadingUnloadingPage updates the order:
-   - Sets `loaded_onto_van` to `false`
-   - Clears `loaded_onto_van_at`
-4. Data is refreshed from database
-5. Bike moves from "loaded onto van" section back to "pending allocation" section
+1. User clicks "Load onto Van" on a single-bike order in storage
+2. `handleRemoveFromStorage` is called
+3. Storage allocation is removed (`storage_locations: null`)
+4. **Now also sets:** `loaded_onto_van: true`, `loaded_onto_van_at: timestamp`
+5. Bike appears in "Loaded onto Van" section under the **delivery driver** (not collection driver)
 
