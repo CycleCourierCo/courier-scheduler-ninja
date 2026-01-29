@@ -31,12 +31,14 @@ const getCollectionImages = (order: Order | undefined): string[] => {
 
 interface PendingStorageAllocationProps {
   collectedBikes: Order[];
+  bikesLoadedOntoVan: Order[];
   storageAllocations: StorageAllocation[];
   onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
 }
 
 export const PendingStorageAllocation = ({ 
   collectedBikes, 
+  bikesLoadedOntoVan,
   storageAllocations, 
   onAllocateStorage 
 }: PendingStorageAllocationProps) => {
@@ -115,17 +117,17 @@ export const PendingStorageAllocation = ({
     });
   };
 
-  if (collectedBikes.length === 0) {
+  if (collectedBikes.length === 0 && bikesLoadedOntoVan.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No bikes pending storage allocation</p>
+        <p>No bikes pending storage allocation or loaded onto van</p>
       </div>
     );
   }
 
-  // Group bikes by driver
-  const bikesByDriver = collectedBikes.reduce((groups, bike) => {
+  // Group collected bikes by collection driver
+  const collectedByDriver = collectedBikes.reduce((groups, bike) => {
     const driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
     if (!groups[driverName]) {
       groups[driverName] = [];
@@ -134,8 +136,18 @@ export const PendingStorageAllocation = ({
     return groups;
   }, {} as Record<string, Order[]>);
 
-  // Sort driver names alphabetically, with "No Driver Assigned" last
-  const sortedDriverNames = Object.keys(bikesByDriver).sort((a, b) => {
+  // Group loaded bikes by delivery driver
+  const loadedByDriver = bikesLoadedOntoVan.reduce((groups, bike) => {
+    const driverName = bike.delivery_driver_name || 'No Driver Assigned';
+    if (!groups[driverName]) {
+      groups[driverName] = [];
+    }
+    groups[driverName].push(bike);
+    return groups;
+  }, {} as Record<string, Order[]>);
+
+  // Combine all driver names and sort
+  const allDriverNames = [...new Set([...Object.keys(collectedByDriver), ...Object.keys(loadedByDriver)])].sort((a, b) => {
     if (a === 'No Driver Assigned') return 1;
     if (b === 'No Driver Assigned') return -1;
     return a.localeCompare(b);
@@ -143,158 +155,224 @@ export const PendingStorageAllocation = ({
 
   return (
     <div className="space-y-6">
-      {sortedDriverNames.map((driverName) => (
-        <div key={driverName} className="space-y-3">
-          {/* Driver Section Header */}
-          <div className="flex items-center gap-2 pt-2 pb-2 border-b border-border">
-            <Truck className="h-5 w-5 text-muted-foreground" />
-            <h3 className="font-semibold text-lg">{driverName}</h3>
-            <Badge variant="secondary">
-              {bikesByDriver[driverName].length} bike{bikesByDriver[driverName].length > 1 ? 's' : ''}
-            </Badge>
-          </div>
+      {allDriverNames.map((driverName) => {
+        const collectedForDriver = collectedByDriver[driverName] || [];
+        const loadedForDriver = loadedByDriver[driverName] || [];
+        const totalBikes = collectedForDriver.length + loadedForDriver.length;
 
-          {/* Bikes for this driver */}
-          {bikesByDriver[driverName].map((bike) => {
-        const bikeQuantity = bike.bikeQuantity || 1;
-        const allocatedCount = storageAllocations.filter(a => a.orderId === bike.id).length;
-        const remainingToAllocate = bikeQuantity - allocatedCount;
-        
-        if (remainingToAllocate <= 0) return null; // All bikes already allocated
-        
         return (
-          <Card key={bike.id} className="p-2 sm:p-4">
-            <CardContent className="space-y-4 p-0">
-              <div className="flex flex-col space-y-2 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
-                <div className="space-y-2 min-w-0 flex-1">
-                  <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                    {bike.bikeBrand} {bike.bikeModel}
-                  </p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{bike.sender.address.city}, {bike.sender.address.zipCode}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Tracking: <span className="font-mono">{bike.trackingNumber}</span>
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {bikeQuantity} bike{bikeQuantity > 1 ? 's' : ''} total
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {remainingToAllocate} remaining to allocate
-                    </Badge>
-                    {(() => {
-                       // Find driver name from collection completion event
-                       const driverName = getCompletedDriverName(bike, 'pickup');
-                      
-                      if (driverName) {
-                        return (
-                          <Badge variant="default" className="text-xs bg-blue-600 text-white">
-                            In {driverName} Van
-                          </Badge>
-                        );
-                      }
-                      return null;
-                    })()}
-                    {bike.delivery_driver_name && (
-                      <Badge variant="default" className="text-xs bg-orange-600 text-white">
-                        Load onto {bike.delivery_driver_name} van
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Print Label and See Image buttons */}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => generateSingleOrderLabel(bike)}
-                  className="h-9 text-xs flex-1 min-h-[44px] border-blue-500 text-blue-600 hover:bg-blue-50"
-                >
-                  <Printer className="h-3 w-3 sm:mr-1" />
-                  <span className="ml-1">Print Label</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setImageDialogOrder(bike)}
-                  disabled={getCollectionImages(bike).length === 0}
-                  className="h-9 text-xs flex-1 min-h-[44px]"
-                >
-                  <Image className="h-3 w-3 sm:mr-1" />
-                  <span className="ml-1">See Image</span>
-                </Button>
-              </div>
-              
-              {/* Show allocation inputs for each remaining bike */}
-              <div className="space-y-3">
-                {Array.from({ length: remainingToAllocate }, (_, index) => {
-                  const bikeIndex = allocatedCount + index;
-                  const key = `${bike.id}-${bikeIndex}`;
-                  
-                  return (
-                    <div key={key} className="border rounded-lg p-2 sm:p-3 bg-muted/10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Package className="h-4 w-4 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-medium">
-                          Bike {bikeIndex + 1} of {bikeQuantity}
-                        </span>
+          <div key={driverName} className="space-y-3">
+            {/* Driver Section Header */}
+            <div className="flex items-center gap-2 pt-2 pb-2 border-b border-border">
+              <Truck className="h-5 w-5 text-muted-foreground" />
+              <h3 className="font-semibold text-lg">{driverName}</h3>
+              <Badge variant="secondary">
+                {totalBikes} bike{totalBikes > 1 ? 's' : ''}
+              </Badge>
+              {loadedForDriver.length > 0 && (
+                <Badge variant="success" className="text-xs">
+                  {loadedForDriver.length} on van
+                </Badge>
+              )}
+            </div>
+
+            {/* Bikes loaded onto van (simplified cards - no allocation) */}
+            {loadedForDriver.map((bike) => (
+              <Card key={bike.id} className="p-2 sm:p-4 bg-success/10 border-success/30">
+                <CardContent className="space-y-4 p-0">
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
+                    <div className="space-y-2 min-w-0 flex-1">
+                      <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                        {bike.bikeBrand} {bike.bikeModel}
+                      </p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{bike.receiver.address.city}, {bike.receiver.address.zipCode}</span>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label htmlFor={`bay-${key}`} className="text-xs">Bay (A-D)</Label>
-                          <Input
-                            id={`bay-${key}`}
-                            value={allocations[key]?.bay || ''}
-                            onChange={(e) => handleBayChange(key, e.target.value)}
-                            placeholder="A"
-                            maxLength={1}
-                            className="text-center uppercase h-8 sm:h-9"
-                          />
+                      <p className="text-xs text-muted-foreground">
+                        Tracking: <span className="font-mono">{bike.trackingNumber}</span>
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="success" className="text-xs">
+                          <Truck className="h-3 w-3 mr-1" />
+                          Loaded onto Van
+                        </Badge>
+                        {bike.bikeQuantity && bike.bikeQuantity > 1 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {bike.bikeQuantity} bikes
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Print Label and See Image buttons */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => generateSingleOrderLabel(bike)}
+                      className="h-9 text-xs flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
+                    >
+                      <Printer className="h-3 w-3 sm:mr-1" />
+                      <span className="ml-1">Print Label</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setImageDialogOrder(bike)}
+                      disabled={getCollectionImages(bike).length === 0}
+                      className="h-9 text-xs flex-1 min-h-[44px]"
+                    >
+                      <Image className="h-3 w-3 sm:mr-1" />
+                      <span className="ml-1">See Image</span>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Bikes pending storage allocation (with inputs) */}
+            {collectedForDriver.map((bike) => {
+              const bikeQuantity = bike.bikeQuantity || 1;
+              const allocatedCount = storageAllocations.filter(a => a.orderId === bike.id).length;
+              const remainingToAllocate = bikeQuantity - allocatedCount;
+              
+              if (remainingToAllocate <= 0) return null;
+              
+              return (
+                <Card key={bike.id} className="p-2 sm:p-4">
+                  <CardContent className="space-y-4 p-0">
+                    <div className="flex flex-col space-y-2 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                          {bike.bikeBrand} {bike.bikeModel}
+                        </p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{bike.sender.address.city}, {bike.sender.address.zipCode}</span>
                         </div>
-                        <div>
-                          <Label htmlFor={`position-${key}`} className="text-xs">Position (1-20)</Label>
-                          <Input
-                            id={`position-${key}`}
-                            value={allocations[key]?.position || ''}
-                            onChange={(e) => handlePositionChange(key, e.target.value)}
-                            placeholder="1"
-                            type="number"
-                            min="1"
-                            max="20"
-                            className="text-center h-8 sm:h-9"
-                          />
+                        <p className="text-xs text-muted-foreground">
+                          Tracking: <span className="font-mono">{bike.trackingNumber}</span>
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {bikeQuantity} bike{bikeQuantity > 1 ? 's' : ''} total
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {remainingToAllocate} remaining to allocate
+                          </Badge>
+                          {(() => {
+                            const collectionDriverName = getCompletedDriverName(bike, 'pickup');
+                            if (collectionDriverName) {
+                              return (
+                                <Badge variant="active" className="text-xs">
+                                  In {collectionDriverName} Van
+                                </Badge>
+                              );
+                            }
+                            return null;
+                          })()}
+                          {bike.delivery_driver_name && (
+                            <Badge variant="warning" className="text-xs">
+                              Load onto {bike.delivery_driver_name} van
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-                
-                {/* Single allocate button for all bikes */}
-                <Button 
-                  onClick={() => handleAllocateAll(bike.id, bikeQuantity, allocatedCount)}
-                  size="sm"
-                  disabled={!Array.from({ length: remainingToAllocate }, (_, index) => {
-                    const bikeIndex = allocatedCount + index;
-                    const key = `${bike.id}-${bikeIndex}`;
-                    return allocations[key]?.bay && allocations[key]?.position;
-                  }).every(Boolean)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
-                >
-                  Allocate All {remainingToAllocate} Bike{remainingToAllocate > 1 ? 's' : ''}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    
+                    {/* Print Label and See Image buttons */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generateSingleOrderLabel(bike)}
+                        className="h-9 text-xs flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
+                      >
+                        <Printer className="h-3 w-3 sm:mr-1" />
+                        <span className="ml-1">Print Label</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setImageDialogOrder(bike)}
+                        disabled={getCollectionImages(bike).length === 0}
+                        className="h-9 text-xs flex-1 min-h-[44px]"
+                      >
+                        <Image className="h-3 w-3 sm:mr-1" />
+                        <span className="ml-1">See Image</span>
+                      </Button>
+                    </div>
+                    
+                    {/* Show allocation inputs for each remaining bike */}
+                    <div className="space-y-3">
+                      {Array.from({ length: remainingToAllocate }, (_, index) => {
+                        const bikeIndex = allocatedCount + index;
+                        const key = `${bike.id}-${bikeIndex}`;
+                        
+                        return (
+                          <div key={key} className="border rounded-lg p-2 sm:p-3 bg-muted/10">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Package className="h-4 w-4 flex-shrink-0" />
+                              <span className="text-xs sm:text-sm font-medium">
+                                Bike {bikeIndex + 1} of {bikeQuantity}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label htmlFor={`bay-${key}`} className="text-xs">Bay (A-D)</Label>
+                                <Input
+                                  id={`bay-${key}`}
+                                  value={allocations[key]?.bay || ''}
+                                  onChange={(e) => handleBayChange(key, e.target.value)}
+                                  placeholder="A"
+                                  maxLength={1}
+                                  className="text-center uppercase h-8 sm:h-9"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`position-${key}`} className="text-xs">Position (1-20)</Label>
+                                <Input
+                                  id={`position-${key}`}
+                                  value={allocations[key]?.position || ''}
+                                  onChange={(e) => handlePositionChange(key, e.target.value)}
+                                  placeholder="1"
+                                  type="number"
+                                  min="1"
+                                  max="20"
+                                  className="text-center h-8 sm:h-9"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Single allocate button for all bikes */}
+                      <Button 
+                        onClick={() => handleAllocateAll(bike.id, bikeQuantity, allocatedCount)}
+                        size="sm"
+                        disabled={!Array.from({ length: remainingToAllocate }, (_, index) => {
+                          const bikeIndex = allocatedCount + index;
+                          const key = `${bike.id}-${bikeIndex}`;
+                          return allocations[key]?.bay && allocations[key]?.position;
+                        }).every(Boolean)}
+                        className="w-full bg-primary hover:bg-primary/90 text-xs sm:text-sm"
+                      >
+                        Allocate All {remainingToAllocate} Bike{remainingToAllocate > 1 ? 's' : ''}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         );
       })}
-        </div>
-      ))}
 
       {/* Collection Images Dialog */}
       <Dialog open={!!imageDialogOrder} onOpenChange={(open) => !open && setImageDialogOrder(null)}>
