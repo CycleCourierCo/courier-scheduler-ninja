@@ -7,10 +7,28 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit, Clock } from "lucide-react";
+import { Package, MapPin, Truck, Edit, Clock, Printer, Image } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
+
+// Helper to extract collection images from tracking events
+const getCollectionImages = (order: Order | undefined): string[] => {
+  if (!order?.trackingEvents?.shipday?.updates) return [];
+  
+  const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
+  
+  // Find collection events with POD images
+  const collectionEvent = order.trackingEvents.shipday.updates.find(
+    (update: any) => 
+      (update.event === 'ORDER_COMPLETED' || update.event === 'ORDER_POD_UPLOAD') &&
+      update.orderId === pickupId &&
+      update.podUrls && update.podUrls.length > 0
+  );
+  
+  return collectionEvent?.podUrls || [];
+};
 
 interface BikesInStorageProps {
   bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
@@ -24,6 +42,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [newBays, setNewBays] = useState<string[]>([]);
   const [newPositions, setNewPositions] = useState<string[]>([]);
+  const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
 
   const handleChangeLocation = () => {
     if (!editingOrderAllocations.length) return;
@@ -246,42 +265,64 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                 <p className="text-xs mt-1">
                   Stored: {format(allocations[0].allocatedAt, 'MMM dd, yyyy HH:mm')}
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openEditDialog(allocations[0])}
-                    className="h-9 text-xs flex-1 min-h-[44px]"
-                  >
-                    <Edit className="h-3 w-3 sm:mr-1" />
-                    <span className="hidden sm:inline ml-1">
-                      {isMultiBike ? 'Manage Locations' : 'Change Location'}
-                    </span>
-                    <span className="sm:hidden ml-1">
-                      {isMultiBike ? 'Manage' : 'Change'}
-                    </span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (isMultiBike) {
-                        // Remove all bikes for this order at once
-                        onRemoveAllBikesFromOrder(orderId);
-                      } else {
-                        // Single bike - use existing function
-                        onRemoveFromStorage(allocations[0].id);
-                      }
-                    }}
-                    className="h-9 text-xs flex-1 min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <Truck className="h-3 w-3 sm:mr-1" />
-                    <span className="hidden sm:inline ml-1">
-                      {isMultiBike ? `Load All ${allocations.length}` : 'Load onto Van'}
-                    </span>
-                    <span className="sm:hidden ml-1">
-                      Load {isMultiBike ? `All ${allocations.length}` : ''}
-                    </span>
-                  </Button>
+                <div className="flex flex-col gap-2 mt-3">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditDialog(allocations[0])}
+                      className="h-9 text-xs flex-1 min-h-[44px]"
+                    >
+                      <Edit className="h-3 w-3 sm:mr-1" />
+                      <span className="hidden sm:inline ml-1">
+                        {isMultiBike ? 'Manage Locations' : 'Change Location'}
+                      </span>
+                      <span className="sm:hidden ml-1">
+                        {isMultiBike ? 'Manage' : 'Change'}
+                      </span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (isMultiBike) {
+                          onRemoveAllBikesFromOrder(orderId);
+                        } else {
+                          onRemoveFromStorage(allocations[0].id);
+                        }
+                      }}
+                      className="h-9 text-xs flex-1 min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Truck className="h-3 w-3 sm:mr-1" />
+                      <span className="hidden sm:inline ml-1">
+                        {isMultiBike ? `Load All ${allocations.length}` : 'Load onto Van'}
+                      </span>
+                      <span className="sm:hidden ml-1">
+                        Load {isMultiBike ? `All ${allocations.length}` : ''}
+                      </span>
+                    </Button>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => order && generateSingleOrderLabel(order)}
+                      disabled={!order}
+                      className="h-9 text-xs flex-1 min-h-[44px] border-blue-500 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Printer className="h-3 w-3 sm:mr-1" />
+                      <span className="ml-1">Print Label</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => order && setImageDialogOrder(order)}
+                      disabled={!order || getCollectionImages(order).length === 0}
+                      className="h-9 text-xs flex-1 min-h-[44px]"
+                    >
+                      <Image className="h-3 w-3 sm:mr-1" />
+                      <span className="ml-1">See Image</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -422,6 +463,37 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                 </span>
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Collection Images Dialog */}
+      <Dialog open={!!imageDialogOrder} onOpenChange={(open) => !open && setImageDialogOrder(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Collection Photos - {imageDialogOrder?.sender?.name || 'Unknown'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {imageDialogOrder && getCollectionImages(imageDialogOrder).length > 0 ? (
+              <div className="grid gap-4">
+                {getCollectionImages(imageDialogOrder).map((url, index) => (
+                  <div key={index} className="rounded-lg overflow-hidden border">
+                    <img 
+                      src={url} 
+                      alt={`Collection photo ${index + 1}`} 
+                      className="w-full h-auto object-contain max-h-[400px]"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No collection images available yet</p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

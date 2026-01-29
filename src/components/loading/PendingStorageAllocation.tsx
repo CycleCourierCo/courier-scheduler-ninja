@@ -4,11 +4,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
-import { Package, MapPin, Truck } from "lucide-react";
+import { Package, MapPin, Truck, Printer, Image } from "lucide-react";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
+
+// Helper to extract collection images from tracking events
+const getCollectionImages = (order: Order | undefined): string[] => {
+  if (!order?.trackingEvents?.shipday?.updates) return [];
+  
+  const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
+  
+  // Find collection events with POD images
+  const collectionEvent = order.trackingEvents.shipday.updates.find(
+    (update: any) => 
+      (update.event === 'ORDER_COMPLETED' || update.event === 'ORDER_POD_UPLOAD') &&
+      update.orderId === pickupId &&
+      update.podUrls && update.podUrls.length > 0
+  );
+  
+  return collectionEvent?.podUrls || [];
+};
 
 interface PendingStorageAllocationProps {
   collectedBikes: Order[];
@@ -22,6 +41,7 @@ export const PendingStorageAllocation = ({
   onAllocateStorage 
 }: PendingStorageAllocationProps) => {
   const [allocations, setAllocations] = useState<{ [key: string]: { bay: string; position: string } }>({});
+  const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
 
   const handleBayChange = (key: string, bay: string) => {
     setAllocations(prev => ({
@@ -179,12 +199,35 @@ export const PendingStorageAllocation = ({
                       return null;
                     })()}
                     {bike.delivery_driver_name && (
-                      <Badge variant="warning" className="text-xs">
+                      <Badge variant="default" className="text-xs bg-orange-600 text-white">
                         Load onto {bike.delivery_driver_name} van
                       </Badge>
                     )}
                   </div>
                 </div>
+              </div>
+              
+              {/* Print Label and See Image buttons */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => generateSingleOrderLabel(bike)}
+                  className="h-9 text-xs flex-1 min-h-[44px] border-blue-500 text-blue-600 hover:bg-blue-50"
+                >
+                  <Printer className="h-3 w-3 sm:mr-1" />
+                  <span className="ml-1">Print Label</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setImageDialogOrder(bike)}
+                  disabled={getCollectionImages(bike).length === 0}
+                  className="h-9 text-xs flex-1 min-h-[44px]"
+                >
+                  <Image className="h-3 w-3 sm:mr-1" />
+                  <span className="ml-1">See Image</span>
+                </Button>
               </div>
               
               {/* Show allocation inputs for each remaining bike */}
@@ -252,6 +295,37 @@ export const PendingStorageAllocation = ({
       })}
         </div>
       ))}
+
+      {/* Collection Images Dialog */}
+      <Dialog open={!!imageDialogOrder} onOpenChange={(open) => !open && setImageDialogOrder(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Collection Photos - {imageDialogOrder?.sender?.name || 'Unknown'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {imageDialogOrder && getCollectionImages(imageDialogOrder).length > 0 ? (
+              <div className="grid gap-4">
+                {getCollectionImages(imageDialogOrder).map((url, index) => (
+                  <div key={index} className="rounded-lg overflow-hidden border">
+                    <img 
+                      src={url} 
+                      alt={`Collection photo ${index + 1}`} 
+                      className="w-full h-auto object-contain max-h-[400px]"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No collection images available yet</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

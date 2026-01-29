@@ -1,4 +1,4 @@
-
+import * as Sentry from "@sentry/react";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -113,6 +113,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        // Set Sentry user context
+        Sentry.setUser({
+          id: session.user.id,
+          email: session.user.email,
+        });
+        
         // Use setTimeout to defer async operations (prevents auth deadlock)
         setTimeout(() => {
           if (mounted) {
@@ -124,6 +130,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }, 0);
       } else {
+        // Clear Sentry user context when signed out
+        Sentry.setUser(null);
         setUserProfile(null);
         setIsLoading(false);
       }
@@ -273,6 +281,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       setIsLoading(true);
+      
+      // Clear Sentry user context
+      Sentry.setUser(null);
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
