@@ -1,107 +1,100 @@
 
-# Add Print Label and View Image Buttons to Loading Page
+
+# Show Bikes Loaded onto Van in Pending Storage Allocation Section
 
 ## Overview
-Add two action buttons to bike cards on both the **Bikes In Storage** tab and the **Pending Storage Allocation** tab:
-1. **Print Label** - Generates a 4x6 shipping label PDF for the bike
-2. **See Image** - Opens a popup dialog showing the collection proof-of-delivery photos
+Enhance the Pending Storage Allocation tab to also display bikes that have been loaded onto a van but have not yet been delivered. These bikes will be displayed with a different UI - showing just their details and "Loaded onto Van" status without allocation inputs or allocate buttons.
+
+This allows tracking exactly how many bikes are in each driver's van, including those that may not get delivered on the route.
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/loading/BikesInStorage.tsx` | Add Print Label button, See Image button with popup dialog |
-| `src/components/loading/PendingStorageAllocation.tsx` | Add Print Label button, See Image button with popup dialog |
+| `src/pages/LoadingUnloadingPage.tsx` | Add new `bikesLoadedOntoVan` list and pass to PendingStorageAllocation |
+| `src/components/loading/PendingStorageAllocation.tsx` | Accept new prop and render loaded bikes with different UI |
 
 ## Implementation Details
 
-### 1. BikesInStorage.tsx Changes
+### 1. LoadingUnloadingPage.tsx Changes
 
-**New Imports:**
-- Add `Printer` and `Image` icons from lucide-react
-- Import `generateSingleOrderLabel` from `@/utils/labelUtils`
+Add a new filtered list for bikes that are loaded onto van but not delivered:
 
-**New State:**
 ```typescript
-const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
+// Get bikes that are loaded onto van but not yet delivered
+const bikesLoadedOntoVan = orders.filter(order => {
+  const hasDelivery = hasBeenDelivered(order);
+  const isCancelled = order.status === 'cancelled';
+  const isLoadedOntoVan = order.loaded_onto_van;
+  
+  return isLoadedOntoVan && !hasDelivery && !isCancelled;
+});
 ```
 
-**Helper Function to Extract Collection Images:**
-```typescript
-const getCollectionImages = (order: Order | undefined): string[] => {
-  if (!order?.trackingEvents?.shipday?.updates) return [];
-  
-  const pickupId = order.trackingEvents.shipday.pickup_id?.toString();
-  
-  // Find collection events with POD images
-  const collectionEvent = order.trackingEvents.shipday.updates.find(
-    (update) => 
-      (update.event === 'ORDER_COMPLETED' || update.event === 'ORDER_POD_UPLOAD') &&
-      update.orderId === pickupId &&
-      update.podUrls && update.podUrls.length > 0
-  );
-  
-  return collectionEvent?.podUrls || [];
-};
+Pass this to the PendingStorageAllocation component:
+```tsx
+<PendingStorageAllocation 
+  collectedBikes={collectedBikes}
+  bikesLoadedOntoVan={bikesLoadedOntoVan}  // NEW PROP
+  storageAllocations={storageAllocations}
+  onAllocateStorage={handleAllocateStorage}
+/>
 ```
-
-**New Button Layout (per bike card):**
-```
-[Edit Location] [Load onto Van]
-[Print Label]   [See Image]
-```
-
-**Image Dialog:**
-- Modal popup showing collection photos
-- Gallery view with large images
-- "No collection images available" message if none exist
 
 ### 2. PendingStorageAllocation.tsx Changes
 
-**New Imports:**
-- Add `Printer` and `Image` icons from lucide-react
-- Import Dialog components
-- Import `generateSingleOrderLabel` from `@/utils/labelUtils`
-
-**New State:**
+**Updated Props Interface:**
 ```typescript
-const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
+interface PendingStorageAllocationProps {
+  collectedBikes: Order[];
+  bikesLoadedOntoVan: Order[];  // NEW PROP
+  storageAllocations: StorageAllocation[];
+  onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
+}
 ```
 
-**Same Helper Function** for extracting collection images
+**Render Logic:**
+- Group both `collectedBikes` AND `bikesLoadedOntoVan` by driver (using `delivery_driver_name` for loaded bikes)
+- For `collectedBikes`: Show existing UI with allocation inputs and buttons
+- For `bikesLoadedOntoVan`: Show simplified card with:
+  - Bike details (sender name, brand/model, tracking number)
+  - "Loaded onto Van" badge (purple/green styling)
+  - Print Label and See Image buttons (keep these)
+  - NO allocation inputs or allocate button
 
-**New Button Layout (per bike card):**
-- Add a row with Print Label and See Image buttons above the allocation inputs
-- Uses same styling for consistency
+**Visual Differentiation:**
+- Bikes pending allocation: Current card styling with allocation inputs
+- Bikes loaded onto van: Card with a subtle "loaded" indicator, possibly different background tint
 
-**Image Dialog:**
-- Same modal popup implementation as BikesInStorage
+## UI Layout for Loaded Bikes
 
-## UI Design
-
-### Button Styling
-- **Print Label**: Blue outline button with Printer icon
-- **See Image**: Standard outline button with Image icon, disabled if no images available
-
-### Image Dialog
-- Title: "Collection Photos - [Customer Name]"
-- Gallery grid showing all POD images from collection
-- Images displayed at max-width with responsive sizing
-- Empty state: "No collection images available yet"
+```
++--------------------------------------------------+
+| [Driver Name] - X bikes                          |
++--------------------------------------------------+
+| Bike Card (LOADED - no allocation inputs)        |
+|   Customer Name                                  |
+|   Bike Brand Model                               |
+|   Tracking: CC-XXXXX                             |
+|   [Loaded onto Van] badge (green)                |
+|   [Print Label] [See Image]                      |
++--------------------------------------------------+
+| Bike Card (PENDING - with allocation inputs)     |
+|   Customer Name                                  |
+|   (... existing allocation UI ...)               |
++--------------------------------------------------+
+```
 
 ## Data Flow
 
-The collection images are stored in the order's tracking events:
-```
-order.trackingEvents.shipday.updates[] 
-  -> find event where event === 'ORDER_COMPLETED' or 'ORDER_POD_UPLOAD'
-  -> podUrls array contains image URLs
-```
+1. `LoadingUnloadingPage` creates two separate lists:
+   - `collectedBikes`: Collected, not in storage, not loaded onto van
+   - `bikesLoadedOntoVan`: Loaded onto van, not delivered yet
 
-The `pickup_id` in tracking events identifies collection-related updates (vs delivery updates).
+2. Both lists passed to `PendingStorageAllocation`
 
-## Technical Notes
+3. Component groups all bikes by driver and renders appropriately based on their status
 
-- The `generateSingleOrderLabel` function from `labelUtils.ts` already handles multi-bike orders and generates proper 4x6 label PDFs
-- Collection images come from the Shipday integration when drivers complete pickups with photo proof
-- Both components receive the full `Order` object which includes `trackingEvents`
+## Empty State
+Update the empty state message to reflect that there are no bikes pending allocation OR loaded onto van.
+
