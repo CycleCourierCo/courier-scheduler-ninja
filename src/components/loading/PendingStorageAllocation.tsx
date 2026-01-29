@@ -128,9 +128,22 @@ export const PendingStorageAllocation = ({
     );
   }
 
-  // Group collected bikes by collection driver
+  // Group collected bikes by who physically has the bike
+  // - If bike was previously loaded onto a van (has loaded_onto_van_at timestamp), use delivery driver
+  // - If bike was never loaded (freshly collected), use collection driver
   const collectedByDriver = collectedBikes.reduce((groups, bike) => {
-    const driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
+    // Check if bike was previously loaded onto a van (has timestamp = was on a van before)
+    const wasLoadedOntoVan = !!bike.loaded_onto_van_at;
+    
+    let driverName: string;
+    if (wasLoadedOntoVan && bike.delivery_driver_name) {
+      // Bike was unloaded from delivery van - group by delivery driver (who has it physically)
+      driverName = bike.delivery_driver_name;
+    } else {
+      // Freshly collected bike - group by collection driver
+      driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
+    }
+    
     if (!groups[driverName]) {
       groups[driverName] = [];
     }

@@ -357,7 +357,7 @@ const LoadingUnloadingPage = () => {
         .from('orders')
         .update({ 
           loaded_onto_van: false,
-          loaded_onto_van_at: null,
+          // Keep loaded_onto_van_at as history marker - used to determine who had the bike last
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
