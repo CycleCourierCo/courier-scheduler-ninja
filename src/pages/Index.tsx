@@ -1,36 +1,11 @@
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import * as Sentry from "@sentry/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import Layout from "@/components/Layout";
-import { Package, CalendarCheck, LogIn, Bug } from "lucide-react";
+import { Package, CalendarCheck, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-// Test button to verify Sentry error tracking
-const SentryTestButton = () => {
-  const handleTestError = () => {
-    try {
-      throw new Error("This is a test error for Sentry!");
-    } catch (error) {
-      Sentry.captureException(error);
-      toast.success("Error sent to Sentry! Check your dashboard.");
-    }
-  };
-
-  return (
-    <Button 
-      variant="destructive" 
-      size="sm" 
-      onClick={handleTestError}
-      className="fixed bottom-4 right-4 z-50"
-    >
-      <Bug className="mr-2 h-4 w-4" />
-      Test Sentry Error
-    </Button>
-  );
-};
 const features = [{
   title: "Easy Order Creation",
   description: "Create shipping orders in minutes with our intuitive form.",
@@ -40,6 +15,7 @@ const features = [{
   description: "Automatically coordinate pickup and delivery times between sender and receiver.",
   icon: <CalendarCheck className="h-12 w-12 text-courier-500" />
 }];
+
 const Index = () => {
   const {
     user,
@@ -57,15 +33,17 @@ const Index = () => {
       toast.info("Please set your new password");
     }
   }, [navigate]);
-  return <Layout>
+
+  return (
+    <Layout>
       {/* Hero Section with stunning gradient background filling entire space */}
       <section className="relative flex-1 flex items-center justify-center overflow-hidden py-12 md:py-0">
         <div className="absolute inset-0 bg-gradient-hero opacity-90"></div>
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-glow/10 rounded-full blur-3xl animate-float" style={{
-          animationDelay: '-3s'
-        }}></div>
+            animationDelay: '-3s'
+          }}></div>
         </div>
         
         <div className="container px-4 md:px-6 relative z-10 mx-auto">
@@ -76,14 +54,17 @@ const Index = () => {
                 <br />
                 <span className="text-primary">Delivery</span> now!
               </h1>
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">Streamlining Bike Transport
-Fast, friendly and reliable courier services for your business needs</p>
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                Streamlining Bike Transport
+                Fast, friendly and reliable courier services for your business needs
+              </p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 animate-slide-up justify-center" style={{
-            animationDelay: '0.3s'
-          }}>
-              {user ? <>
+              animationDelay: '0.3s'
+            }}>
+              {user ? (
+                <>
                   <Link to="/create-order">
                     <Button variant="premium" size="lg" className="min-w-[200px]">
                       <Package className="mr-2 h-5 w-5" />
@@ -95,19 +76,21 @@ Fast, friendly and reliable courier services for your business needs</p>
                       View Dashboard
                     </Button>
                   </Link>
-                </> : <Link to="/auth">
+                </>
+              ) : (
+                <Link to="/auth">
                   <Button variant="premium" size="lg" className="min-w-[250px]">
                     <LogIn className="mr-2 h-5 w-5" />
                     Sign In / Sign Up
                   </Button>
-                </Link>}
+                </Link>
+              )}
             </div>
           </div>
         </div>
       </section>
-      
-      {/* Sentry test button - remove after testing */}
-      <SentryTestButton />
-    </Layout>;
+    </Layout>
+  );
 };
+
 export default Index;

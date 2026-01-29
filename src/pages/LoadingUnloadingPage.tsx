@@ -176,6 +176,15 @@ const LoadingUnloadingPage = () => {
     return hasCollection && !hasDelivery && !isCancelled && !hasStorage && !isLoadedOntoVan;
   });
 
+  // Get bikes that are loaded onto van but not yet delivered
+  const bikesLoadedOntoVan = orders.filter(order => {
+    const hasDelivery = hasBeenDelivered(order);
+    const isCancelled = order.status === 'cancelled';
+    const isLoadedOntoVan = order.loaded_onto_van;
+    
+    return isLoadedOntoVan && !hasDelivery && !isCancelled;
+  });
+
   // Get all bikes that have storage allocations (excluding loaded bikes)
   const bikesInStorage = storageAllocations.map(allocation => {
     const order = orders.find(o => o.id === allocation.orderId);
@@ -267,9 +276,21 @@ const LoadingUnloadingPage = () => {
       const existingAllocations = order.storage_locations || [];
       const updatedAllocations = existingAllocations.filter((a: any) => a.id !== allocationId);
 
+      // Prepare update data - always clear this allocation
+      const updateData: any = {
+        storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+        updated_at: new Date().toISOString()
+      };
+
+      // If this was the last allocation (storage fully cleared), mark as loaded onto van
+      if (updatedAllocations.length === 0) {
+        updateData.loaded_onto_van = true;
+        updateData.loaded_onto_van_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('orders')
-        .update({ storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null })
+        .update(updateData)
         .eq('id', allocationToRemove.orderId);
 
       if (error) {
@@ -327,6 +348,31 @@ const LoadingUnloadingPage = () => {
     } catch (error) {
       console.error('Error loading bikes onto van:', error);
       toast.error('Failed to load bikes onto van');
+    }
+  };
+
+  const handleUnloadFromVan = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          loaded_onto_van: false,
+          // Keep loaded_onto_van_at as history marker - used to determine who had the bike last
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error unloading bike from van:', error);
+        toast.error('Failed to unload bike from van');
+        return;
+      }
+
+      await fetchData();
+      toast.success('Bike unloaded from van');
+    } catch (error) {
+      console.error('Error unloading bike from van:', error);
+      toast.error('Failed to unload bike from van');
     }
   };
 
@@ -1275,13 +1321,17 @@ const LoadingUnloadingPage = () => {
               <CardTitle className="text-lg sm:text-xl">Bikes Pending Storage Allocation</CardTitle>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {collectedBikes.length} bike(s) collected and awaiting storage allocation
+                {bikesLoadedOntoVan.length > 0 && ` • ${bikesLoadedOntoVan.length} bike(s) loaded onto van`}
               </p>
             </CardHeader>
             <CardContent>
               <PendingStorageAllocation 
                 collectedBikes={collectedBikes}
+                bikesLoadedOntoVan={bikesLoadedOntoVan}
                 storageAllocations={storageAllocations}
                 onAllocateStorage={handleAllocateStorage}
+                onUnloadFromVan={handleUnloadFromVan}
+                onLoadOntoVan={handleRemoveAllBikesFromOrder}
               />
             </CardContent>
           </Card>
