@@ -25,6 +25,8 @@ export interface OrderData {
   pickup_date: string[] | null;
   delivery_date: string[] | null;
   collection_confirmation_sent_at: string | null;
+  order_collected: boolean | null;
+  order_delivered: boolean | null;
 }
 
 const JobScheduling = () => {
