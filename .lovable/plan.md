@@ -1,34 +1,120 @@
-# Show Bikes Loaded onto Van in Pending Storage Allocation Section
 
-## Status: ✅ COMPLETED
+
+# Add Unload from Van Button
 
 ## Overview
-Enhanced the Pending Storage Allocation tab to also display bikes that have been loaded onto a van but have not yet been delivered. These bikes are displayed with a different UI - showing just their details and "Loaded onto Van" status without allocation inputs or allocate buttons.
+Add an "Unload from Van" button to bikes that are currently shown as loaded onto the van in the Pending Storage Allocation section. This will allow users to reverse the loading action if a bike needs to be returned to pending allocation status.
 
-This allows tracking exactly how many bikes are in each driver's van, including those that may not get delivered on the route.
-
-## Files Modified
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/LoadingUnloadingPage.tsx` | Added `bikesLoadedOntoVan` filter and passed to PendingStorageAllocation |
-| `src/components/loading/PendingStorageAllocation.tsx` | Accepts new prop and renders loaded bikes with simplified UI |
+| `src/pages/LoadingUnloadingPage.tsx` | Add `handleUnloadFromVan` function and pass it as prop |
+| `src/components/loading/PendingStorageAllocation.tsx` | Accept new `onUnloadFromVan` prop and add Unload button |
 
-## Implementation Summary
+## Implementation Details
 
-### LoadingUnloadingPage.tsx
-- Added `bikesLoadedOntoVan` filter: orders where `loaded_onto_van=true`, not delivered, not cancelled
-- Passed as new prop to `PendingStorageAllocation` component
-- Updated header text to show both pending allocation and loaded onto van counts
+### 1. LoadingUnloadingPage.tsx Changes
 
-### PendingStorageAllocation.tsx
-- Updated props interface to accept `bikesLoadedOntoVan: Order[]`
-- Groups collected bikes by collection driver and loaded bikes by delivery driver
-- Renders loaded bikes with:
-  - Green-tinted card background
-  - "Loaded onto Van" success badge
-  - Bike details (sender, brand/model, receiver destination, tracking)
-  - Print Label and See Image buttons
-  - NO allocation inputs or allocate button
-- Renders pending bikes with existing UI (allocation inputs + allocate button)
-- Updated empty state message to reflect both categories
+Add a new handler function to unload a bike from the van:
+
+```typescript
+const handleUnloadFromVan = async (orderId: string) => {
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        loaded_onto_van: false,
+        loaded_onto_van_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error unloading bike from van:', error);
+      toast.error('Failed to unload bike from van');
+      return;
+    }
+
+    await fetchData();
+    toast.success('Bike unloaded from van');
+  } catch (error) {
+    console.error('Error unloading bike from van:', error);
+    toast.error('Failed to unload bike from van');
+  }
+};
+```
+
+Pass the handler to PendingStorageAllocation:
+```tsx
+<PendingStorageAllocation 
+  collectedBikes={collectedBikes}
+  bikesLoadedOntoVan={bikesLoadedOntoVan}
+  storageAllocations={storageAllocations}
+  onAllocateStorage={handleAllocateStorage}
+  onUnloadFromVan={handleUnloadFromVan}  // NEW PROP
+/>
+```
+
+### 2. PendingStorageAllocation.tsx Changes
+
+**Updated Props Interface:**
+```typescript
+interface PendingStorageAllocationProps {
+  collectedBikes: Order[];
+  bikesLoadedOntoVan: Order[];
+  storageAllocations: StorageAllocation[];
+  onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
+  onUnloadFromVan: (orderId: string) => void;  // NEW PROP
+}
+```
+
+**Add new icon import:**
+```typescript
+import { Package, MapPin, Truck, Printer, Image, PackageMinus } from "lucide-react";
+```
+
+**Add Unload Button to loaded bike cards:**
+After the Print Label and See Image buttons, add a new row with the Unload button:
+
+```tsx
+<Button
+  size="sm"
+  variant="outline"
+  onClick={() => onUnloadFromVan(bike.id)}
+  className="h-9 text-xs flex-1 min-h-[44px] border-destructive text-destructive hover:bg-destructive/10"
+>
+  <PackageMinus className="h-3 w-3 sm:mr-1" />
+  <span className="ml-1">Unload from Van</span>
+</Button>
+```
+
+## UI Layout for Loaded Bikes (Updated)
+
+```
++--------------------------------------------------+
+| Bike Card (LOADED)                               |
+|   Customer Name                                  |
+|   Bike Brand Model                               |
+|   Destination: City, PostCode                   |
+|   Tracking: CC-XXXXX                             |
+|   [Loaded onto Van] badge (green)                |
+|                                                  |
+|   [Print Label] [See Image]                      |
+|   [Unload from Van]  <-- NEW BUTTON              |
++--------------------------------------------------+
+```
+
+## Button Styling
+- **Unload from Van**: Destructive outline style (red border/text) to indicate this is a reversal action
+- Uses `PackageMinus` icon to indicate removal from van
+
+## Data Flow
+1. User clicks "Unload from Van" button
+2. `onUnloadFromVan(orderId)` is called
+3. `handleUnloadFromVan` in LoadingUnloadingPage updates the order:
+   - Sets `loaded_onto_van` to `false`
+   - Clears `loaded_onto_van_at`
+4. Data is refreshed from database
+5. Bike moves from "loaded onto van" section back to "pending allocation" section
+
