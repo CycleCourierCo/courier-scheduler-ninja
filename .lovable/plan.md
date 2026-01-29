@@ -1,81 +1,103 @@
 
 
-# Fix: "Load onto Van" Button Not Setting Loaded Status for Single Bikes
+# Fix: Smart Driver Grouping for Pending Allocation
 
-## Problem Identified
-When clicking "Load onto Van" from the Bikes In Storage section for a **single-bike order**, the `handleRemoveFromStorage` function is called. This function only removes the storage allocation but **does NOT set `loaded_onto_van: true`**. 
+## Problem
+Need to group pending allocation bikes by who **physically has the bike**:
 
-As a result:
-- The bike disappears from storage (storage_locations cleared)
-- It reappears in the "Pending Allocation" section under the **collection driver** (not the delivery driver)
-- It never shows in the "Loaded onto Van" section
+| Scenario | Physical Location | Should Group By |
+|----------|------------------|-----------------|
+| Freshly collected, assigned to another driver | Collection driver's van | Collection driver |
+| Unloaded from delivery van | Delivery driver's van | Delivery driver |
 
-The multi-bike "Load All X" button uses `handleRemoveAllBikesFromOrder` which correctly sets `loaded_onto_van: true`.
+## Solution
+Use `loaded_onto_van_at` timestamp to distinguish:
+- **Has timestamp** = Was previously loaded onto van = Group by delivery driver
+- **No timestamp** = Never loaded = Group by collection driver
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/LoadingUnloadingPage.tsx` | Update `handleRemoveFromStorage` to also set `loaded_onto_van: true` |
+| `src/pages/LoadingUnloadingPage.tsx` | Keep `loaded_onto_van_at` timestamp when unloading (don't clear it) |
+| `src/components/loading/PendingStorageAllocation.tsx` | Update grouping logic to check `loaded_onto_van_at` |
 
 ## Implementation Details
 
-### LoadingUnloadingPage.tsx - handleRemoveFromStorage Fix
+### 1. LoadingUnloadingPage.tsx - Keep Timestamp on Unload
 
-**Current broken code (lines 266-298):**
+**Current code:**
 ```typescript
-const handleRemoveFromStorage = async (allocationId: string) => {
-  // ... finds allocation and order ...
-  
-  const { error } = await supabase
-    .from('orders')
-    .update({ storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null })  // ❌ Missing loaded_onto_van!
-    .eq('id', allocationToRemove.orderId);
-    
-  // ...
-};
+const handleUnloadFromVan = async (orderId: string) => {
+  await supabase.from('orders').update({ 
+    loaded_onto_van: false,
+    loaded_onto_van_at: null,  // ❌ Clearing the history!
+    updated_at: new Date().toISOString()
+  })
 ```
 
 **Fixed code:**
 ```typescript
-const handleRemoveFromStorage = async (allocationId: string) => {
-  // ... finds allocation and order ...
-  
-  // Prepare update data - always clear this allocation
-  const updateData: any = {
-    storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+const handleUnloadFromVan = async (orderId: string) => {
+  await supabase.from('orders').update({ 
+    loaded_onto_van: false,
+    // Don't clear loaded_onto_van_at - keep it as history marker
     updated_at: new Date().toISOString()
-  };
-  
-  // If this was the last allocation (storage fully cleared), mark as loaded onto van
-  if (updatedAllocations.length === 0) {
-    updateData.loaded_onto_van = true;
-    updateData.loaded_onto_van_at = new Date().toISOString();
-  }
-  
-  const { error } = await supabase
-    .from('orders')
-    .update(updateData)
-    .eq('id', allocationToRemove.orderId);
-    
-  // ...
-};
+  })
 ```
 
-## Logic Explanation
+### 2. PendingStorageAllocation.tsx - Smart Grouping Logic
 
-The fix adds `loaded_onto_van: true` and `loaded_onto_van_at` when the **last** storage allocation is removed. This ensures:
+**Current code:**
+```typescript
+const collectedByDriver = collectedBikes.reduce((groups, bike) => {
+  const driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
+  // ...
+}, {});
+```
 
-1. Single-bike orders: When the only allocation is removed, it's marked as loaded onto van
-2. Multi-bike orders: Only when all allocations are removed does it get marked (for partial loading, you'd use individual allocations)
+**Fixed code:**
+```typescript
+const collectedByDriver = collectedBikes.reduce((groups, bike) => {
+  // Check if bike was previously loaded onto a van (has timestamp)
+  const wasLoadedOntoVan = !!bike.loaded_onto_van_at;
+  
+  let driverName: string;
+  if (wasLoadedOntoVan && bike.delivery_driver_name) {
+    // Bike was unloaded from delivery van - group by delivery driver
+    driverName = bike.delivery_driver_name;
+  } else {
+    // Freshly collected bike - group by collection driver
+    driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
+  }
+  
+  if (!groups[driverName]) {
+    groups[driverName] = [];
+  }
+  groups[driverName].push(bike);
+  return groups;
+}, {} as Record<string, Order[]>);
+```
 
-This matches the behavior of `handleRemoveAllBikesFromOrder` which correctly sets these fields.
+## Logic Summary
 
-## Data Flow After Fix
+```
+If bike.loaded_onto_van_at exists:
+  → Bike was on a van before → Use delivery_driver_name
+Else:
+  → Fresh collection → Use collection driver
+```
 
-1. User clicks "Load onto Van" on a single-bike order in storage
-2. `handleRemoveFromStorage` is called
-3. Storage allocation is removed (`storage_locations: null`)
-4. **Now also sets:** `loaded_onto_van: true`, `loaded_onto_van_at: timestamp`
-5. Bike appears in "Loaded onto Van" section under the **delivery driver** (not collection driver)
+## Data Flow Examples
+
+**Example 1: Fresh Collection**
+1. Sal collects bike, assigned to Qam for delivery
+2. `loaded_onto_van_at: null` (never loaded)
+3. Groups under **Sal** ✓
+
+**Example 2: Failed Delivery Unload**
+1. Bike loaded onto Qam's van at 10:00 AM
+2. Delivery fails, bike unloaded
+3. `loaded_onto_van_at: "2024-01-29T10:00:00"` (kept)
+4. Groups under **Qam** ✓
 
