@@ -276,9 +276,21 @@ const LoadingUnloadingPage = () => {
       const existingAllocations = order.storage_locations || [];
       const updatedAllocations = existingAllocations.filter((a: any) => a.id !== allocationId);
 
+      // Prepare update data - always clear this allocation
+      const updateData: any = {
+        storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+        updated_at: new Date().toISOString()
+      };
+
+      // If this was the last allocation (storage fully cleared), mark as loaded onto van
+      if (updatedAllocations.length === 0) {
+        updateData.loaded_onto_van = true;
+        updateData.loaded_onto_van_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('orders')
-        .update({ storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null })
+        .update(updateData)
         .eq('id', allocationToRemove.orderId);
 
       if (error) {
