@@ -1868,9 +1868,23 @@ Route Link: ${routeLink}`;
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
-                        {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
+                          {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+                        </Badge>
+                        {/* Collection Status Badge - only for delivery jobs */}
+                        {job.type === 'delivery' && (
+                          job.order.order_collected ? (
+                            <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              Collected
+                            </Badge>
+                          ) : (
+                            <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                              Awaiting Collection
+                            </Badge>
+                          )
+                        )}
+                      </div>
                       {isSelected && (
                         <Badge variant="outline" className="bg-primary text-primary-foreground">
                           #{selectedOrder}
@@ -1879,13 +1893,18 @@ Route Link: ${routeLink}`;
                     </div>
                     
                     <div className="space-y-2">
-                      <p className="font-medium text-sm">{job.contactName}</p>
+                      {/* Tracking Number */}
+                      <p className="font-medium text-sm flex items-center gap-1">
+                        <Package className="h-3 w-3 text-muted-foreground" />
+                        #{job.order.tracking_number}
+                      </p>
+                      <p className="text-sm">{job.contactName}</p>
                       <div className="flex items-start gap-1">
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
                         <p className="text-xs text-muted-foreground">{job.address}</p>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Order: {job.order.bike_brand} {job.order.bike_model}
+                        {job.order.bike_brand} {job.order.bike_model}
                       </p>
                       {!hasCoordinates && (
                         <div className="space-y-2">
