@@ -35,6 +35,7 @@ interface PendingStorageAllocationProps {
   storageAllocations: StorageAllocation[];
   onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
   onUnloadFromVan: (orderId: string) => void;
+  onLoadOntoVan: (orderId: string) => void;
 }
 
 export const PendingStorageAllocation = ({ 
@@ -42,7 +43,8 @@ export const PendingStorageAllocation = ({
   bikesLoadedOntoVan,
   storageAllocations, 
   onAllocateStorage,
-  onUnloadFromVan
+  onUnloadFromVan,
+  onLoadOntoVan
 }: PendingStorageAllocationProps) => {
   const [allocations, setAllocations] = useState<{ [key: string]: { bay: string; position: string } }>({});
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
@@ -332,6 +334,19 @@ export const PendingStorageAllocation = ({
                         <span className="ml-1">See Image</span>
                       </Button>
                     </div>
+                    
+                    {/* Load onto Van button - only show if delivery driver assigned */}
+                    {bike.delivery_driver_name && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onLoadOntoVan(bike.id)}
+                        className="h-9 text-xs w-full min-h-[44px] border-success text-success hover:bg-success/10"
+                      >
+                        <Truck className="h-3 w-3 sm:mr-1" />
+                        <span className="ml-1">Load onto {bike.delivery_driver_name} Van</span>
+                      </Button>
+                    )}
                     
                     {/* Show allocation inputs for each remaining bike */}
                     <div className="space-y-3">

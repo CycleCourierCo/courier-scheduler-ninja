@@ -1331,6 +1331,7 @@ const LoadingUnloadingPage = () => {
                 storageAllocations={storageAllocations}
                 onAllocateStorage={handleAllocateStorage}
                 onUnloadFromVan={handleUnloadFromVan}
+                onLoadOntoVan={handleRemoveAllBikesFromOrder}
               />
             </CardContent>
           </Card>
