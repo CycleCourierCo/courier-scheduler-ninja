@@ -229,33 +229,40 @@ Cycle Courier Co.`;
       // Update Shipday for each order
       const shipdayResults: any[] = [];
       for (const orderToUpdate of ordersToUpdate) {
-        // Determine the correct Shipday ID based on the ORDER's status, not the global recipientType
-        // This is important for consolidated messages where different orders may have different contexts
+        // Determine the correct Shipday ID based on recipientType for the primary order
+        // For related orders in consolidated messages, use status-based logic as fallback
         let shipdayId: string | null = null;
         
         const orderStatus = orderToUpdate.status;
-        const isCollectionJob = orderStatus === 'collection_scheduled' || 
-                                orderStatus === 'sender_availability_pending' ||
-                                orderStatus === 'sender_availability_confirmed' ||
-                                orderStatus === 'scheduled_dates_pending';
-        const isDeliveryJob = orderStatus === 'delivery_scheduled' || 
-                              orderStatus === 'receiver_availability_pending' ||
-                              orderStatus === 'receiver_availability_confirmed' ||
-                              orderStatus === 'scheduled' ||
-                              orderStatus === 'collected';
+        const isPrimaryOrder = orderToUpdate.id === order.id;
         
-        if (isCollectionJob) {
-          // This is a pickup/collection - update the pickup Shipday job
-          shipdayId = orderToUpdate.shipday_pickup_id;
-        } else if (isDeliveryJob) {
-          // This is a delivery - update the delivery Shipday job
-          shipdayId = orderToUpdate.shipday_delivery_id;
-        } else {
-          // Fallback to the recipientType-based logic for other statuses
+        if (isPrimaryOrder) {
+          // For the primary order, ALWAYS use recipientType since that's what the user clicked
+          // recipientType = 'sender' means pickup job, 'receiver' means delivery job
           shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+          console.log(`Primary order ${orderToUpdate.id}: Using recipientType '${recipientType}' → Shipday ID ${shipdayId}`);
+        } else {
+          // For related orders in consolidated messages, use status-based logic
+          const isCollectionJob = orderStatus === 'collection_scheduled' || 
+                                  orderStatus === 'sender_availability_pending' ||
+                                  orderStatus === 'sender_availability_confirmed' ||
+                                  orderStatus === 'scheduled_dates_pending';
+          const isDeliveryJob = orderStatus === 'delivery_scheduled' || 
+                                orderStatus === 'receiver_availability_pending' ||
+                                orderStatus === 'receiver_availability_confirmed' ||
+                                orderStatus === 'scheduled' ||
+                                orderStatus === 'collected';
+          
+          if (isCollectionJob) {
+            shipdayId = orderToUpdate.shipday_pickup_id;
+          } else if (isDeliveryJob) {
+            shipdayId = orderToUpdate.shipday_delivery_id;
+          } else {
+            // Fallback to recipientType for 'created' or other unrecognized statuses
+            shipdayId = recipientType === 'sender' ? orderToUpdate.shipday_pickup_id : orderToUpdate.shipday_delivery_id;
+          }
+          console.log(`Related order ${orderToUpdate.id} (status: ${orderStatus}): Using Shipday ID ${shipdayId}`);
         }
-        
-        console.log(`Order ${orderToUpdate.id} (status: ${orderStatus}): Using Shipday ID ${shipdayId} (${isCollectionJob ? 'pickup' : isDeliveryJob ? 'delivery' : 'fallback'})`);
         
         if (!shipdayId) {
           console.log(`No Shipday ID found for order ${orderToUpdate.id} - skipping`);
