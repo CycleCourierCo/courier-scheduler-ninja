@@ -1079,7 +1079,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     setEditDialogOpen(true);
   };
 
-  const sendTimeslot = async (job: SelectedJob, customTime?: string) => {
+  const sendTimeslot = async (job: SelectedJob, customTime?: string, customDate?: Date) => {
     const timeToUse = customTime || job.estimatedTime;
     if (!timeToUse) return;
 
@@ -1087,9 +1087,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     try {
       const deliveryTime = `${timeToUse}:00`;
       
-      // Create datetime from selected date and estimated time
+      // Create datetime from selected date (use customDate from dialog if provided, otherwise fall back to route's selectedDate)
       const [hours, minutes] = timeToUse.split(':').map(Number);
-      const scheduledDateTime = new Date(selectedDate);
+      const dateToUse = customDate || selectedDate;
+      const scheduledDateTime = new Date(dateToUse);
       scheduledDateTime.setHours(hours, minutes, 0, 0);
       
       // First save the timeslot and scheduled date to the database
@@ -2224,9 +2225,9 @@ Route Link: ${routeLink}`;
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         job={jobToEdit}
-        onConfirm={(job, editedTime) => {
+        onConfirm={(job, editedTime, date) => {
           setEditDialogOpen(false);
-          sendTimeslot(job, editedTime);
+          sendTimeslot(job, editedTime, date);
         }}
         isLoading={isSendingTimeslots}
       />

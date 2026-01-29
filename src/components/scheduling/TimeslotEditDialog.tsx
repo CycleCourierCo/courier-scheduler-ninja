@@ -33,7 +33,7 @@ interface TimeslotEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: SelectedJob | null;
-  onConfirm: (job: SelectedJob, editedTime: string) => void;
+  onConfirm: (job: SelectedJob, editedTime: string, selectedDate: Date) => void;
   isLoading?: boolean;
 }
 
@@ -56,7 +56,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
 
   const handleConfirm = () => {
     if (job && editedTime && selectedDate) {
-      onConfirm(job, editedTime);
+      onConfirm(job, editedTime, selectedDate);
     }
   };
 
