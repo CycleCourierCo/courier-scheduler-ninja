@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
-import { Package, MapPin, Truck, Printer, Image } from "lucide-react";
+import { Package, MapPin, Truck, Printer, Image, PackageMinus } from "lucide-react";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
@@ -34,13 +34,15 @@ interface PendingStorageAllocationProps {
   bikesLoadedOntoVan: Order[];
   storageAllocations: StorageAllocation[];
   onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
+  onUnloadFromVan: (orderId: string) => void;
 }
 
 export const PendingStorageAllocation = ({ 
   collectedBikes, 
   bikesLoadedOntoVan,
   storageAllocations, 
-  onAllocateStorage 
+  onAllocateStorage,
+  onUnloadFromVan
 }: PendingStorageAllocationProps) => {
   const [allocations, setAllocations] = useState<{ [key: string]: { bay: string; position: string } }>({});
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
@@ -207,28 +209,39 @@ export const PendingStorageAllocation = ({
                     </div>
                   </div>
                   
-                  {/* Print Label and See Image buttons */}
-                  <div className="flex flex-col sm:flex-row gap-2">
+                    {/* Print Label and See Image buttons */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generateSingleOrderLabel(bike)}
+                        className="h-9 text-xs flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
+                      >
+                        <Printer className="h-3 w-3 sm:mr-1" />
+                        <span className="ml-1">Print Label</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setImageDialogOrder(bike)}
+                        disabled={getCollectionImages(bike).length === 0}
+                        className="h-9 text-xs flex-1 min-h-[44px]"
+                      >
+                        <Image className="h-3 w-3 sm:mr-1" />
+                        <span className="ml-1">See Image</span>
+                      </Button>
+                    </div>
+                    
+                    {/* Unload from Van button */}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => generateSingleOrderLabel(bike)}
-                      className="h-9 text-xs flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
+                      onClick={() => onUnloadFromVan(bike.id)}
+                      className="h-9 text-xs w-full min-h-[44px] border-destructive text-destructive hover:bg-destructive/10"
                     >
-                      <Printer className="h-3 w-3 sm:mr-1" />
-                      <span className="ml-1">Print Label</span>
+                      <PackageMinus className="h-3 w-3 sm:mr-1" />
+                      <span className="ml-1">Unload from Van</span>
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setImageDialogOrder(bike)}
-                      disabled={getCollectionImages(bike).length === 0}
-                      className="h-9 text-xs flex-1 min-h-[44px]"
-                    >
-                      <Image className="h-3 w-3 sm:mr-1" />
-                      <span className="ml-1">See Image</span>
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             ))}
