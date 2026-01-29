@@ -339,6 +339,31 @@ const LoadingUnloadingPage = () => {
     }
   };
 
+  const handleUnloadFromVan = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          loaded_onto_van: false,
+          loaded_onto_van_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error unloading bike from van:', error);
+        toast.error('Failed to unload bike from van');
+        return;
+      }
+
+      await fetchData();
+      toast.success('Bike unloaded from van');
+    } catch (error) {
+      console.error('Error unloading bike from van:', error);
+      toast.error('Failed to unload bike from van');
+    }
+  };
+
   const handleChangeLocation = async (allocationId: string, newBay: string, newPosition: number) => {
     // Find the allocation to update
     const allocationToUpdate = storageAllocations.find(a => a.id === allocationId);
@@ -1293,6 +1318,7 @@ const LoadingUnloadingPage = () => {
                 bikesLoadedOntoVan={bikesLoadedOntoVan}
                 storageAllocations={storageAllocations}
                 onAllocateStorage={handleAllocateStorage}
+                onUnloadFromVan={handleUnloadFromVan}
               />
             </CardContent>
           </Card>
