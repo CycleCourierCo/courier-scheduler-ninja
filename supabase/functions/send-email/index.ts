@@ -328,7 +328,10 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
     if (senderSent || receiverSent) {
       await supabase
         .from("orders")
-        .update({ delivery_confirmation_sent_at: new Date().toISOString() })
+        .update({ 
+          delivery_confirmation_sent_at: new Date().toISOString(),
+          order_delivered: true  // Mark order as delivered
+        })
         .eq("id", orderId);
       console.log("Marked delivery confirmation emails as sent for order:", orderId);
     }
@@ -494,7 +497,10 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
     if (senderSent || receiverSent) {
       await supabase
         .from("orders")
-        .update({ collection_confirmation_sent_at: new Date().toISOString() })
+        .update({ 
+          collection_confirmation_sent_at: new Date().toISOString(),
+          order_collected: true  // Mark order as collected
+        })
         .eq("id", orderId);
       console.log("Marked collection confirmation emails as sent for order:", orderId);
     }
