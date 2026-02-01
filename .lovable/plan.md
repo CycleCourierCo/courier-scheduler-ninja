@@ -1,177 +1,159 @@
 
+# Fix: Update order_collected and order_delivered Booleans
 
-# Add Tracking Number and Collection Status to RouteBuilder Job Cards
+## Problem
 
-## Overview
-Enhance the job cards in the **RouteBuilder** component on the Job Scheduling page to display:
-1. **Tracking Number** - Show the order's tracking number on each job card
-2. **Collection Status Badge** - For delivery jobs, show whether the bike has been collected using the `order_collected` database field
+The `order_collected` and `order_delivered` boolean fields on orders are **never updated** after the initial database migration. This causes:
+- Route Builder showing "Awaiting Collection" even after collection is complete
+- OptimoRoute sync potentially creating unnecessary pickup jobs
 
-## Current State
-- The RouteBuilder shows job cards in a grid (lines 1856-1912)
-- Each card displays: job type badge, contact name, address, and bike brand/model
-- The `OrderData` interface has `tracking_number` but not `order_collected`
-- The database query in `JobScheduling.tsx` uses `select('*')` so all fields are available
+## Root Cause
+
+The migration created these columns and populated them for existing orders, but the ongoing processes that mark orders as collected/delivered only update the timestamp fields, not the boolean fields.
+
+| Event | Currently Updates | Should Also Update |
+|-------|------------------|-------------------|
+| Collection confirmation email sent | `collection_confirmation_sent_at` | `order_collected = true` |
+| Delivery confirmation email sent | `delivery_confirmation_sent_at` | `order_delivered = true` |
+| Status → "collected" via webhook | `status` | `order_collected = true` |
+| Status → "delivered" via webhook | `status` | `order_delivered = true` |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/JobScheduling.tsx` | Add `order_collected` and `order_delivered` to the `OrderData` interface |
-| `src/components/scheduling/RouteBuilder.tsx` | Add tracking number display and collection status badge to job cards |
+| `supabase/functions/send-email/index.ts` | Add `order_collected: true` and `order_delivered: true` to update statements |
+| `supabase/functions/shipday-webhook/index.ts` | Add `order_collected: true` when status is "collected", `order_delivered: true` when status is "delivered" |
 
 ## Implementation Details
 
-### 1. JobScheduling.tsx - Update OrderData Interface
+### 1. send-email/index.ts - Collection Confirmation (around line 497)
 
-Add the `order_collected` field to the interface:
-
+**Before:**
 ```typescript
-export interface OrderData {
-  id: string;
-  status: OrderStatus;
-  tracking_number: string;
-  bike_brand: string | null;
-  bike_model: string | null;
-  bike_quantity: number | null;
-  created_at: string;
-  sender: ContactInfo & { address: Address };
-  receiver: ContactInfo & { address: Address };
-  scheduled_pickup_date: string | null;
-  scheduled_delivery_date: string | null;
-  pickup_date: string[] | null;
-  delivery_date: string[] | null;
-  collection_confirmation_sent_at: string | null;
-  order_collected: boolean | null;  // NEW
-  order_delivered: boolean | null;  // NEW
+await supabase
+  .from("orders")
+  .update({ collection_confirmation_sent_at: new Date().toISOString() })
+  .eq("id", orderId);
+```
+
+**After:**
+```typescript
+await supabase
+  .from("orders")
+  .update({ 
+    collection_confirmation_sent_at: new Date().toISOString(),
+    order_collected: true  // Mark as collected
+  })
+  .eq("id", orderId);
+```
+
+### 2. send-email/index.ts - Delivery Confirmation (around line 331)
+
+**Before:**
+```typescript
+await supabase
+  .from("orders")
+  .update({ delivery_confirmation_sent_at: new Date().toISOString() })
+  .eq("id", orderId);
+```
+
+**After:**
+```typescript
+await supabase
+  .from("orders")
+  .update({ 
+    delivery_confirmation_sent_at: new Date().toISOString(),
+    order_delivered: true  // Mark as delivered
+  })
+  .eq("id", orderId);
+```
+
+### 3. shipday-webhook/index.ts - Status Update (around line 282)
+
+**Before:**
+```typescript
+.update({
+  status: newStatus,
+  tracking_events: trackingEvents,
+  updated_at: new Date().toISOString(),
+})
+```
+
+**After:**
+```typescript
+// Build update object
+const updateData: any = {
+  status: newStatus,
+  tracking_events: trackingEvents,
+  updated_at: new Date().toISOString(),
+};
+
+// Set collection/delivery booleans based on status
+if (newStatus === 'collected' || newStatus === 'driver_to_delivery' || newStatus === 'delivery_scheduled') {
+  updateData.order_collected = true;
 }
+if (newStatus === 'delivered') {
+  updateData.order_collected = true;  // Must be collected to be delivered
+  updateData.order_delivered = true;
+}
+
+await supabase
+  .from("orders")
+  .update(updateData)
+  .eq("id", dbOrder.id);
 ```
 
-### 2. RouteBuilder.tsx - Update Job Cards (around lines 1868-1909)
+## Data Flow After Fix
 
-Add the tracking number and collection status to each job card. The current card structure:
+```
+Collection Confirmed:
+─────────────────────
+Shipday Webhook (status: "collected")
+    ↓
+Updates: status, tracking_events, order_collected = true
+    ↓
+send-email (collection_confirmation)
+    ↓
+Updates: collection_confirmation_sent_at, order_collected = true
+    ↓
+Route Builder: Shows "Collected" badge ✓
 
-```tsx
-<CardContent className="p-4">
-  <div className="flex justify-between items-start mb-2">
-    <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
-      {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-    </Badge>
-    {isSelected && (
-      <Badge variant="outline" className="bg-primary text-primary-foreground">
-        #{selectedOrder}
-      </Badge>
-    )}
-  </div>
-  
-  <div className="space-y-2">
-    <p className="font-medium text-sm">{job.contactName}</p>
-    <div className="flex items-start gap-1">
-      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-      <p className="text-xs text-muted-foreground">{job.address}</p>
-    </div>
-    <p className="text-xs text-muted-foreground">
-      Order: {job.order.bike_brand} {job.order.bike_model}
-    </p>
-    ...
-  </div>
-</CardContent>
+Delivery Confirmed:
+─────────────────────
+Shipday Webhook (status: "delivered")
+    ↓
+Updates: status, tracking_events, order_collected = true, order_delivered = true
+    ↓
+send-email (delivery_confirmation)
+    ↓
+Updates: delivery_confirmation_sent_at, order_delivered = true
+    ↓
+Order complete ✓
 ```
 
-Updated structure with tracking number and collection status:
+## Optional: Backfill Existing Data
 
-```tsx
-<CardContent className="p-4">
-  <div className="flex justify-between items-start mb-2">
-    <div className="flex items-center gap-2">
-      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
-        {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-      </Badge>
-      {/* Collection Status Badge - only for delivery jobs */}
-      {job.type === 'delivery' && (
-        job.order.order_collected ? (
-          <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-            Collected
-          </Badge>
-        ) : (
-          <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
-            Awaiting Collection
-          </Badge>
-        )
-      )}
-    </div>
-    {isSelected && (
-      <Badge variant="outline" className="bg-primary text-primary-foreground">
-        #{selectedOrder}
-      </Badge>
-    )}
-  </div>
-  
-  <div className="space-y-2">
-    {/* Tracking Number */}
-    <p className="font-medium text-sm flex items-center gap-1">
-      <Package className="h-3 w-3 text-muted-foreground" />
-      #{job.order.tracking_number}
-    </p>
-    <p className="text-sm">{job.contactName}</p>
-    <div className="flex items-start gap-1">
-      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-      <p className="text-xs text-muted-foreground">{job.address}</p>
-    </div>
-    <p className="text-xs text-muted-foreground">
-      {job.order.bike_brand} {job.order.bike_model}
-    </p>
-    ...
-  </div>
-</CardContent>
-```
+For existing orders where the timestamp exists but the boolean is still false, you can run this SQL once:
 
-Also add `Package` to the imports (already imported on line 12).
+```sql
+UPDATE orders
+SET 
+  order_collected = true
+WHERE collection_confirmation_sent_at IS NOT NULL 
+  AND (order_collected IS NULL OR order_collected = false);
 
-## Visual Result
-
-**Collection Card:**
-```
-┌─────────────────────────────────────────┐
-│ [Collection]                       [#3] │
-├─────────────────────────────────────────┤
-│ 📦 #CC-123456                           │
-│ John Smith                              │
-│ 📍 123 High Street, London SW1A 1AA     │
-│ Trek Domane SL6                         │
-└─────────────────────────────────────────┘
-```
-
-**Delivery Card (Collected):**
-```
-┌─────────────────────────────────────────┐
-│ [Delivery] [Collected]             [#5] │
-├─────────────────────────────────────────┤
-│ 📦 #CC-123456                           │
-│ Jane Doe                                │
-│ 📍 456 Park Lane, Manchester M1 2AB     │
-│ Specialized Tarmac                      │
-└─────────────────────────────────────────┘
-```
-
-**Delivery Card (Not Collected):**
-```
-┌─────────────────────────────────────────┐
-│ [Delivery] [Awaiting Collection]        │
-├─────────────────────────────────────────┤
-│ 📦 #CC-789012                           │
-│ Bob Wilson                              │
-│ 📍 789 Oak Road, Birmingham B1 1AA      │
-│ Canyon Aeroad                           │
-└─────────────────────────────────────────┘
+UPDATE orders
+SET 
+  order_delivered = true
+WHERE delivery_confirmation_sent_at IS NOT NULL 
+  AND (order_delivered IS NULL OR order_delivered = false);
 ```
 
 ## Summary
 
-| Change | Purpose |
-|--------|---------|
-| Add `order_collected` to OrderData | Access collection status from database |
-| Show tracking number with package icon | Quick order identification |
-| Show "Collected" badge (green) on deliveries | Indicate bike is ready for delivery |
-| Show "Awaiting Collection" badge (amber) on deliveries | Indicate bike still needs pickup |
-
+After this fix:
+- `order_collected` will be set to `true` when status changes to "collected" or later
+- `order_delivered` will be set to `true` when status changes to "delivered"
+- RouteBuilder will correctly show collection status badges
+- OptimoRoute sync will correctly skip pickup jobs for collected orders
