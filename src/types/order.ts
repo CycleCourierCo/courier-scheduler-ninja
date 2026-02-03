@@ -95,6 +95,7 @@ export type Order = {
   };
   optimoroute_pickup_id?: string;
   optimoroute_delivery_id?: string;
+  inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
 };
 
 export type CreateOrderFormData = {

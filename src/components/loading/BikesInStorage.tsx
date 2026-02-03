@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit, Clock, Printer, Image } from "lucide-react";
+import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
@@ -242,6 +242,20 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                           </Badge>
                         )}
                       </div>
+                    );
+                  })()}
+                  {/* Inspection Status Badge */}
+                  {order?.needsInspection && (() => {
+                    const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+                    return (
+                      <Badge className={`text-xs flex items-center gap-1 ${
+                        isComplete 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                      }`}>
+                        <Wrench className="h-3 w-3" />
+                        {isComplete ? 'Inspection Done' : 'Inspection Pending'}
+                      </Badge>
                     );
                   })()}
                 </div>
