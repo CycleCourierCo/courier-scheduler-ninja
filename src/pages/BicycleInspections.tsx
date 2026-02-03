@@ -40,6 +40,7 @@ import {
   markIssueRepaired,
   moveToRepaired,
   checkAllApprovedRepaired,
+  reconcileInspectionStatuses,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
@@ -64,6 +65,8 @@ const BicycleInspections = () => {
     queryKey: ["bicycle-inspections", isAdmin, user?.id],
     queryFn: async () => {
       if (isAdmin) {
+        // Reconcile any stuck inspections before fetching
+        await reconcileInspectionStatuses();
         return getPendingInspections();
       } else if (user?.id) {
         return getMyInspections(user.id);
