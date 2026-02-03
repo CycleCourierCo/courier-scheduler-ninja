@@ -1,26 +1,179 @@
 
 
-# Show Inspection Status on Order Page & Fix Bicycle Inspections Display
+# Multi-Issue Report Dialog with Accept/Reject Actions
 
 ## Overview
 
-This plan addresses two issues:
-1. **Display inspection status** on the order page's Item Details section to show when a bike will be inspected and serviced
-2. **Fix the Bicycle Inspections page** so it shows all bikes requiring inspection, not just those with specific statuses
+This plan enhances the "Report Issue" dialog to allow admins to add multiple issues at once. Each issue will have its own description and estimated cost field. Issues are then inserted individually into the database, and customers can accept or reject each issue separately.
 
 ---
 
-## Issue 1: Why Bikes Don't Appear on Bicycle Inspections Page
+## Current State
 
-**Root Cause:** The `getPendingInspections()` function in `inspectionService.ts` filters orders by status:
+The existing dialog has:
+- Single issue description textarea
+- Single estimated cost input
+- One "Report Issue" button that submits a single issue
 
+---
+
+## Proposed Changes
+
+### 1. Enhanced Dialog State Management
+
+Replace single issue fields with an array-based approach:
+
+**Current state:**
 ```typescript
-.in('status', ['collected', 'driver_to_delivery', 'delivery_scheduled', 'scheduled'])
+const [issueDescription, setIssueDescription] = useState("");
+const [estimatedCost, setEstimatedCost] = useState("");
 ```
 
-Order `CCC754938090143BROB10` has `status = 'created'`, which is **not in the filter list**, so it doesn't appear.
+**New state:**
+```typescript
+interface IssueEntry {
+  description: string;
+  estimatedCost: string;
+}
 
-**Solution:** Include all relevant statuses including early stages like `created`, `sender_availability_pending`, etc. Alternatively, show all orders with `needs_inspection = true` regardless of status so admins have full visibility.
+const [issueCount, setIssueCount] = useState(1);
+const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
+```
+
+### 2. Updated Dialog UI
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚠️ Report Issues                                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Number of Issues: [1 ▼]                                        │
+│                   (dropdown: 1, 2, 3, 4, 5)                     │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  Issue #1                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ What's wrong with the bike?                                 ││
+│  │ [Front brake pads worn                               ]      ││
+│  └─────────────────────────────────────────────────────────────┘│
+│  Estimated Repair Cost (£)                                      │
+│  [45.00                                                 ]       │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  Issue #2                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Chain needs replacing                                       ││
+│  └─────────────────────────────────────────────────────────────┘│
+│  Estimated Repair Cost (£)                                      │
+│  [35.00                                                 ]       │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                               [Cancel]  [Report 2 Issues]       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3. Mutation Update for Batch Issues
+
+Create a new mutation that loops through all issues and inserts them individually:
+
+```typescript
+const addMultipleIssuesMutation = useMutation({
+  mutationFn: async ({ orderId, issues }: { orderId: string; issues: IssueEntry[] }) => {
+    if (!user?.id || !userProfile?.name) {
+      throw new Error("User not authenticated");
+    }
+    
+    // Insert each issue individually
+    const results = [];
+    for (const issue of issues) {
+      if (issue.description.trim()) {
+        const cost = issue.estimatedCost ? parseFloat(issue.estimatedCost) : null;
+        const result = await addInspectionIssue(
+          orderId,
+          issue.description,
+          cost,
+          user.id,
+          userProfile.name || user.email || "Admin"
+        );
+        results.push(result);
+      }
+    }
+    return results;
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    setIssueDialogOpen(false);
+    resetIssueForm();
+    toast.success("Issues reported successfully");
+  },
+  onError: (error) => {
+    toast.error("Failed to report issues");
+    console.error(error);
+  },
+});
+```
+
+### 4. Customer Accept/Reject Actions
+
+Add new service functions and UI for customers to accept or reject issues:
+
+**New service functions in `inspectionService.ts`:**
+
+```typescript
+// Accept issue (customer approves the repair)
+export const acceptIssue = async (issueId: string): Promise<InspectionIssue | null> => {
+  const { data, error } = await supabase
+    .from('inspection_issues')
+    .update({
+      status: 'approved' as IssueStatus,
+      customer_response: 'Approved',
+      customer_responded_at: new Date().toISOString(),
+    })
+    .eq('id', issueId)
+    .select()
+    .single();
+  // ...
+};
+
+// Decline issue (customer rejects the repair)
+export const declineIssue = async (
+  issueId: string,
+  reason?: string
+): Promise<InspectionIssue | null> => {
+  const { data, error } = await supabase
+    .from('inspection_issues')
+    .update({
+      status: 'declined' as IssueStatus,
+      customer_response: reason || 'Declined',
+      customer_responded_at: new Date().toISOString(),
+    })
+    .eq('id', issueId)
+    .select()
+    .single();
+  // ...
+};
+```
+
+**Updated Customer UI for issues:**
+
+Replace the free-text response with Accept/Decline buttons:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚠️ Front brake pads worn                                       │
+│  Estimated Cost: £45.00                                         │
+│  Reported by Admin                                              │
+│                                                     [pending]   │
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐                              │
+│  │ ✓ Accept    │  │ ✗ Decline   │                              │
+│  └─────────────┘  └─────────────┘                              │
+│                                                                 │
+│  [Optional: Add notes...]                                       │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -28,109 +181,149 @@ Order `CCC754938090143BROB10` has `status = 'created'`, which is **not in the fi
 
 | File | Changes |
 |------|---------|
-| `src/components/order-detail/ItemDetails.tsx` | Add inspection status display with icon |
-| `src/services/inspectionService.ts` | Update status filter to include more order statuses |
-| `src/pages/CustomerOrderDetail.tsx` | Add inspection status display in item details section |
+| `src/pages/BicycleInspections.tsx` | Add issue count selector, dynamic issue fields, accept/decline mutations |
+| `src/services/inspectionService.ts` | Add `acceptIssue` and `declineIssue` functions |
 
 ---
 
 ## Implementation Details
 
-### 1. Update ItemDetails Component (`src/components/order-detail/ItemDetails.tsx`)
-
-Add a visual indicator when the order requires inspection and servicing:
+### Dialog State Updates
 
 ```typescript
-import { Package, FileText, Wrench } from "lucide-react";
+// New state variables
+const [issueCount, setIssueCount] = useState(1);
+const [issues, setIssues] = useState<Array<{ description: string; estimatedCost: string }>>([
+  { description: "", estimatedCost: "" }
+]);
 
-// Inside the component, add after payment collection display:
-{order.needsInspection && (
-  <div className="flex items-center gap-2 text-amber-600 font-medium mt-2">
-    <Wrench className="h-4 w-4" />
-    Bike will be inspected and serviced
+// Update issues array when count changes
+const handleIssueCountChange = (count: string) => {
+  const newCount = parseInt(count);
+  setIssueCount(newCount);
+  
+  // Resize the issues array
+  setIssues(prev => {
+    if (newCount > prev.length) {
+      // Add empty entries
+      return [...prev, ...Array(newCount - prev.length).fill({ description: "", estimatedCost: "" })];
+    } else {
+      // Trim excess entries
+      return prev.slice(0, newCount);
+    }
+  });
+};
+
+// Update individual issue fields
+const updateIssue = (index: number, field: 'description' | 'estimatedCost', value: string) => {
+  setIssues(prev => prev.map((issue, i) => 
+    i === index ? { ...issue, [field]: value } : issue
+  ));
+};
+
+// Reset form when dialog closes
+const resetIssueForm = () => {
+  setIssueCount(1);
+  setIssues([{ description: "", estimatedCost: "" }]);
+  setSelectedOrderId(null);
+};
+```
+
+### Customer Accept/Decline UI
+
+```typescript
+{/* Customer Actions - Accept/Decline */}
+{!isAdmin && isOwner && issue.status === "pending" && (
+  <div className="mt-3 space-y-2">
+    <div className="flex gap-2">
+      <Button
+        size="sm"
+        variant="default"
+        className="bg-green-600 hover:bg-green-700"
+        onClick={() => acceptIssueMutation.mutate(issue.id)}
+        disabled={acceptIssueMutation.isPending}
+      >
+        {acceptIssueMutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+        ) : (
+          <CheckCircle className="h-4 w-4 mr-1" />
+        )}
+        Accept
+      </Button>
+      <Button
+        size="sm"
+        variant="destructive"
+        onClick={() => declineIssueMutation.mutate({ 
+          issueId: issue.id, 
+          reason: customerResponses[issue.id] 
+        })}
+        disabled={declineIssueMutation.isPending}
+      >
+        {declineIssueMutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+        ) : (
+          <X className="h-4 w-4 mr-1" />
+        )}
+        Decline
+      </Button>
+    </div>
+    <Input
+      placeholder="Optional: Add notes..."
+      value={customerResponses[issue.id] || ""}
+      onChange={(e) =>
+        setCustomerResponses((prev) => ({
+          ...prev,
+          [issue.id]: e.target.value,
+        }))
+      }
+      className="text-sm"
+    />
   </div>
 )}
 ```
 
-This will display an amber wrench icon with text "Bike will be inspected and serviced" in the Item Details section when the order has `needsInspection = true`.
+### Badge Colors by Status
 
-### 2. Fix Inspection Service Status Filter (`src/services/inspectionService.ts`)
-
-Update the `getPendingInspections()` function to include all order statuses so admins can see bikes requiring inspection at any stage:
-
-**Current code (line 57):**
-```typescript
-.in('status', ['collected', 'driver_to_delivery', 'delivery_scheduled', 'scheduled'])
-```
-
-**Updated code:**
-```typescript
-.in('status', [
-  'created',
-  'sender_availability_pending',
-  'sender_availability_confirmed', 
-  'receiver_availability_pending',
-  'receiver_availability_confirmed',
-  'scheduled_dates_pending',
-  'pending_approval',
-  'scheduled',
-  'collection_scheduled',
-  'driver_to_collection',
-  'collected',
-  'driver_to_delivery',
-  'delivery_scheduled'
-])
-```
-
-This ensures orders like `CCC754938090143BROB10` (status = 'created') will now appear on the Bicycle Inspections page.
-
-### 3. Update CustomerOrderDetail Page (`src/pages/CustomerOrderDetail.tsx`)
-
-Add inspection status display in the item details section (around line 196-211) to match the admin view:
-
-```typescript
-{order.needsInspection && (
-  <p className="text-amber-600 font-medium mt-2 flex items-center gap-2">
-    <Wrench className="h-4 w-4" />
-    Bike will be inspected and serviced
-  </p>
-)}
-```
+| Status | Badge Color | Meaning |
+|--------|-------------|---------|
+| pending | warning (amber) | Awaiting customer response |
+| approved | success (green) | Customer approved the repair |
+| declined | destructive (red) | Customer declined the repair |
+| resolved | success (green) | Admin marked as completed |
 
 ---
 
-## Visual Result
+## Data Flow
 
-### Order Detail Page - Item Details Section
-
-Before:
 ```text
-┌─────────────────────────────────────────┐
-│ 📦 Item Details                         │
-├─────────────────────────────────────────┤
-│ Item: Trek Domane SL7                   │
-│ Quantity: 1                             │
-│ Order #: 12345                          │
-│ This is a bike swap                     │
-└─────────────────────────────────────────┘
+Admin Reports Multiple Issues:
+────────────────────────────────────────────────────────
+Admin opens "Report Issue" dialog
+    ↓
+Selects "3" from issue count dropdown
+    ↓
+3 issue forms appear with description + cost fields
+    ↓
+Fills in all 3 issues
+    ↓
+Clicks "Report 3 Issues"
+    ↓
+Each issue is inserted individually into inspection_issues table
+    ↓
+Customer sees 3 separate issues to respond to
+
+Customer Response:
+────────────────────────────────────────────────────────
+Customer views their inspection
+    ↓
+Sees 3 pending issues, each with Accept/Decline buttons
+    ↓
+Clicks "Accept" on Issue #1 → status: 'approved'
+Clicks "Decline" on Issue #2 (with notes) → status: 'declined'
+Clicks "Accept" on Issue #3 → status: 'approved'
+    ↓
+Admin sees responses and can proceed accordingly
 ```
-
-After:
-```text
-┌─────────────────────────────────────────┐
-│ 📦 Item Details                         │
-├─────────────────────────────────────────┤
-│ Item: Trek Domane SL7                   │
-│ Quantity: 1                             │
-│ Order #: 12345                          │
-│ This is a bike swap                     │
-│ 🔧 Bike will be inspected and serviced  │  ← New line (amber)
-└─────────────────────────────────────────┘
-```
-
-### Bicycle Inspections Page
-
-Will now show order `CCC754938090143BROB10` (and all other orders with `needs_inspection = true`) regardless of their current status, giving admins complete visibility over all bikes that will require inspection.
 
 ---
 
@@ -138,7 +331,10 @@ Will now show order `CCC754938090143BROB10` (and all other orders with `needs_in
 
 | Task | Description |
 |------|-------------|
-| ItemDetails update | Add wrench icon + "Bike will be inspected and serviced" text |
-| CustomerOrderDetail update | Add same inspection display for customer view |
-| Inspection service fix | Expand status filter to include all order statuses |
+| Issue count selector | Dropdown to select 1-5 issues to add |
+| Dynamic issue fields | Generate description + cost fields based on count |
+| Batch submission | Submit all issues individually to the database |
+| Accept/Decline buttons | Replace free-text response for customers |
+| New service functions | `acceptIssue` and `declineIssue` in inspectionService |
+| Status badges | Color-coded by pending/approved/declined/resolved |
 
