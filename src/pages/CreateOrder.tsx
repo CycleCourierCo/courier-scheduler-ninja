@@ -80,6 +80,7 @@ const orderSchema = z.object({
   isEbayOrder: z.boolean().default(false),
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
+  needsInspection: z.boolean().default(false),
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
@@ -171,6 +172,7 @@ const CreateOrder = () => {
       isEbayOrder: false,
       collectionCode: "",
       deliveryInstructions: "",
+      needsInspection: false,
       // Legacy fields for backward compatibility
       bikeBrand: "",
       bikeModel: "",

@@ -58,6 +58,57 @@ export type Database = {
           },
         ]
       }
+      bicycle_inspections: {
+        Row: {
+          created_at: string
+          id: string
+          inspected_at: string | null
+          inspected_by_id: string | null
+          inspected_by_name: string | null
+          notes: string | null
+          order_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inspected_at?: string | null
+          inspected_by_id?: string | null
+          inspected_by_name?: string | null
+          notes?: string | null
+          order_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inspected_at?: string | null
+          inspected_by_id?: string | null
+          inspected_by_name?: string | null
+          notes?: string | null
+          order_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bicycle_inspections_inspected_by_id_fkey"
+            columns: ["inspected_by_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bicycle_inspections_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           city: string | null
@@ -159,6 +210,89 @@ export type Database = {
           {
             foreignKeyName: "driver_checkins_driver_id_fkey"
             columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_issues: {
+        Row: {
+          created_at: string
+          customer_responded_at: string | null
+          customer_response: string | null
+          estimated_cost: number | null
+          id: string
+          inspection_id: string
+          issue_description: string
+          order_id: string
+          requested_by_id: string
+          requested_by_name: string
+          resolved_at: string | null
+          resolved_by_id: string | null
+          resolved_by_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_responded_at?: string | null
+          customer_response?: string | null
+          estimated_cost?: number | null
+          id?: string
+          inspection_id: string
+          issue_description: string
+          order_id: string
+          requested_by_id: string
+          requested_by_name: string
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_responded_at?: string | null
+          customer_response?: string | null
+          estimated_cost?: number | null
+          id?: string
+          inspection_id?: string
+          issue_description?: string
+          order_id?: string
+          requested_by_id?: string
+          requested_by_name?: string
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_issues_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "bicycle_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_issues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_issues_requested_by_id_fkey"
+            columns: ["requested_by_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_issues_resolved_by_id_fkey"
+            columns: ["resolved_by_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -362,6 +496,7 @@ export type Database = {
           is_ebay_order: boolean | null
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
+          needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
           optimoroute_delivery_id: string | null
           optimoroute_pickup_id: string | null
@@ -411,6 +546,7 @@ export type Database = {
           is_ebay_order?: boolean | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           optimoroute_delivery_id?: string | null
           optimoroute_pickup_id?: string | null
@@ -460,6 +596,7 @@ export type Database = {
           is_ebay_order?: boolean | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           optimoroute_delivery_id?: string | null
           optimoroute_pickup_id?: string | null
