@@ -1,294 +1,170 @@
 
 
-# Add "In Repair" and "Repaired" Statuses with Enhanced Workflow
+# Admin-Triggered Inspection Status Reconciliation
 
 ## Overview
 
-This plan adds two new inspection statuses (`in_repair` and `repaired`) to create a complete repair workflow. It also renames the existing "inspected" status to "inspected with no issues" for clarity.
+Instead of giving customers UPDATE permissions on `bicycle_inspections`, we'll create a reconciliation function that runs when an admin opens the inspections page. This function will find all inspections stuck in `issues_found` status where the customer has already responded to all issues, and move them to `in_repair`.
 
 ---
 
-## New Workflow
+## Solution Approach
 
-```text
-Awaiting Inspection
-        ↓
-    [Admin inspects bike]
-        ↓
-   ┌────┴────┐
-   ↓         ↓
-No Issues   Issues Found
-(inspected)  (issues_found)
-   ↓              ↓
-   │    [Customer responds to ALL issues]
-   │              ↓
-   │         In Repair
-   │         (in_repair)
-   │              ↓
-   │    [Admin marks approved issues as repaired]
-   │              ↓
-   │          Repaired
-   │          (repaired)
-   │              ↓
-   └──────────────┘
-        Done
-```
+When an admin loads the Bicycle Inspections page:
+1. A reconciliation function runs automatically
+2. It finds all inspections with `status = 'issues_found'`
+3. For each, checks if all issues have been addressed (approved/declined/repaired/resolved)
+4. If yes, updates the inspection status to `in_repair`
+5. Only admins can trigger this (they have UPDATE permission via RLS)
 
 ---
 
-## Changes Required
-
-### 1. Type Updates (`src/types/inspection.ts`)
-
-Add new statuses to `InspectionStatus`:
-
-**Current:**
-```typescript
-export type InspectionStatus = 'pending' | 'inspected' | 'issues_found';
-```
-
-**Updated:**
-```typescript
-export type InspectionStatus = 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired';
-```
-
-Add new status to `IssueStatus` for tracking repaired issues:
-
-**Current:**
-```typescript
-export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved';
-```
-
-**Updated:**
-```typescript
-export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
-```
-
----
-
-### 2. Service Layer Updates (`src/services/inspectionService.ts`)
-
-Add new functions:
-
-**Move to "In Repair" status:**
-```typescript
-export const moveToInRepair = async (inspectionId: string): Promise<BicycleInspection | null> => {
-  const { data, error } = await supabase
-    .from('bicycle_inspections')
-    .update({ status: 'in_repair' as InspectionStatus })
-    .eq('id', inspectionId)
-    .select()
-    .single();
-  // ...
-};
-```
-
-**Mark issue as repaired (admin action):**
-```typescript
-export const markIssueRepaired = async (
-  issueId: string,
-  repairerId: string,
-  repairerName: string
-): Promise<InspectionIssue | null> => {
-  const { data, error } = await supabase
-    .from('inspection_issues')
-    .update({
-      status: 'repaired' as IssueStatus,
-      resolved_at: new Date().toISOString(),
-      resolved_by_id: repairerId,
-      resolved_by_name: repairerName,
-    })
-    .eq('id', issueId)
-    .select()
-    .single();
-  // ...
-};
-```
-
-**Move to "Repaired" status:**
-```typescript
-export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspection | null> => {
-  const { data, error } = await supabase
-    .from('bicycle_inspections')
-    .update({ status: 'repaired' as InspectionStatus })
-    .eq('id', inspectionId)
-    .select()
-    .single();
-  // ...
-};
-```
-
-**Check if all issues are resolved by customer:**
-```typescript
-export const checkAllIssuesResolved = (issues: InspectionIssue[]): boolean => {
-  // All issues must have a status of 'approved' or 'declined' (customer responded)
-  return issues.length > 0 && issues.every(
-    issue => issue.status === 'approved' || issue.status === 'declined' || issue.status === 'repaired' || issue.status === 'resolved'
-  );
-};
-```
-
-**Check if all approved issues are repaired:**
-```typescript
-export const checkAllApprovedRepaired = (issues: InspectionIssue[]): boolean => {
-  const approvedIssues = issues.filter(i => i.status === 'approved' || i.status === 'repaired');
-  return approvedIssues.length > 0 && approvedIssues.every(issue => issue.status === 'repaired');
-};
-```
-
----
-
-### 3. UI Updates (`src/pages/BicycleInspections.tsx`)
-
-#### A. Add New Tabs
-
-Update tabs from 3 to 5:
-
-| Tab | Status | Description |
-|-----|--------|-------------|
-| Awaiting | `pending` | Bikes waiting to be inspected |
-| No Issues | `inspected` | Inspected with no problems found (renamed) |
-| Issues | `issues_found` | Issues reported, awaiting customer response |
-| In Repair | `in_repair` | Customer responded, repairs in progress |
-| Repaired | `repaired` | All approved repairs completed |
-
-#### B. Rename "Mark Inspected" Button
-
-**Current:**
-```typescript
-Mark Inspected
-```
-
-**Updated:**
-```typescript
-Mark Inspected (No Issues)
-```
-
-#### C. Add Filter for Each Status
-
-```typescript
-const awaitingInspection = inspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-const noIssues = inspections.filter((i: any) => i.inspection?.status === "inspected");
-const withIssues = inspections.filter((i: any) => i.inspection?.status === "issues_found");
-const inRepair = inspections.filter((i: any) => i.inspection?.status === "in_repair");
-const repaired = inspections.filter((i: any) => i.inspection?.status === "repaired");
-```
-
-#### D. Auto-Move to "In Repair" When Customer Finishes Responding
-
-After a customer accepts or declines an issue, check if all issues are resolved. If yes, automatically move the inspection to `in_repair`:
-
-```typescript
-const acceptIssueMutation = useMutation({
-  mutationFn: async (issueId: string) => {
-    const result = await acceptIssue(issueId);
-    // After accepting, check if all issues are now resolved
-    // and move to in_repair if needed
-    return result;
-  },
-  onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-    // Check and auto-transition handled in service layer
-    toast.success("Issue accepted");
-  },
-});
-```
-
-Better approach: Add logic in the service layer to check after each accept/decline if all issues are resolved, then update inspection status.
-
-#### E. "In Repair" Tab Admin Actions
-
-For bikes in the "In Repair" tab, show:
-- List of approved issues with "Mark as Repaired" button for each
-- Once all approved issues are marked repaired, show "Complete Repairs" button to move to "Repaired" status
-
-```typescript
-{/* Admin actions for In Repair status */}
-{isAdmin && inspection?.status === "in_repair" && (
-  <div className="space-y-3">
-    {/* Show approved issues with repair button */}
-    {approvedIssues.map((issue) => (
-      <div key={issue.id} className="flex items-center justify-between">
-        <span>{issue.issue_description}</span>
-        {issue.status === "approved" && (
-          <Button size="sm" onClick={() => markRepairedMutation.mutate(issue.id)}>
-            <Wrench className="h-4 w-4 mr-1" />
-            Mark Repaired
-          </Button>
-        )}
-        {issue.status === "repaired" && (
-          <Badge variant="success">Repaired</Badge>
-        )}
-      </div>
-    ))}
-    
-    {/* Complete button when all approved are repaired */}
-    {allApprovedRepaired && (
-      <Button onClick={() => completeRepairsMutation.mutate(inspection.id)}>
-        <CheckCircle className="h-4 w-4 mr-1" />
-        Complete Repairs
-      </Button>
-    )}
-  </div>
-)}
-```
-
-#### F. Badge Status Updates
-
-Update badge rendering to include new statuses:
-
-| Status | Badge Color | Label |
-|--------|-------------|-------|
-| pending | secondary | Awaiting Inspection |
-| inspected | success | Inspected (No Issues) |
-| issues_found | destructive | Issues Found |
-| in_repair | warning (amber) | In Repair |
-| repaired | success | Repaired |
-
----
-
-### 4. Database Migration
-
-Add new enum values to the database for `inspection_status` and `issue_status`:
-
-```sql
--- Add new inspection statuses
-ALTER TYPE inspection_status ADD VALUE IF NOT EXISTS 'in_repair';
-ALTER TYPE inspection_status ADD VALUE IF NOT EXISTS 'repaired';
-
--- Add new issue status
-ALTER TYPE issue_status ADD VALUE IF NOT EXISTS 'repaired';
-```
-
----
-
-## Summary of Changes
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/types/inspection.ts` | Add `in_repair`, `repaired` to InspectionStatus; add `repaired` to IssueStatus |
-| `src/services/inspectionService.ts` | Add `moveToInRepair`, `markIssueRepaired`, `moveToRepaired`, helper functions |
-| `src/pages/BicycleInspections.tsx` | Add 2 new tabs, rename labels, add repair workflow mutations and UI |
-| Database migration | Add new enum values |
+| `src/services/inspectionService.ts` | Add `reconcileInspectionStatuses()` function, remove auto-check from accept/decline |
+| `src/pages/BicycleInspections.tsx` | Call reconciliation when admin loads page |
 
 ---
 
-## User Experience Flow
+## Implementation Details
 
-### Admin Workflow:
-1. See bike in "Awaiting" tab
-2. Click "Mark Inspected (No Issues)" OR "Report Issue"
-3. If issues reported, bike moves to "Issues" tab
-4. Customer responds (accept/decline each issue)
-5. Once all issues responded, bike auto-moves to "In Repair" tab
-6. Admin marks each approved issue as "Repaired"
-7. Once all approved issues repaired, admin clicks "Complete Repairs"
-8. Bike moves to "Repaired" tab
+### 1. New Service Function (`inspectionService.ts`)
 
-### Customer Workflow:
-1. See bike in "Issues" tab with pending issues
-2. Click "Accept" or "Decline" for each issue
-3. Once all issues responded, bike moves to "In Repair" (visible status change)
-4. Customer can view progress as issues are marked repaired
-5. Final status shows "Repaired" when complete
+```typescript
+// Reconcile inspection statuses - moves issues_found to in_repair when all issues addressed
+// This runs when an admin opens the inspections page
+export const reconcileInspectionStatuses = async (): Promise<number> => {
+  try {
+    // Get all inspections in 'issues_found' status with their issues
+    const { data: inspections, error } = await supabase
+      .from('bicycle_inspections')
+      .select('id, status, inspection_issues(status)')
+      .eq('status', 'issues_found');
+
+    if (error) throw error;
+    if (!inspections || inspections.length === 0) return 0;
+
+    let updatedCount = 0;
+
+    for (const inspection of inspections) {
+      const issues = inspection.inspection_issues as { status: string }[];
+      
+      // Check if all issues have been responded to
+      const allResolved = issues.length > 0 && issues.every(
+        issue => ['approved', 'declined', 'repaired', 'resolved'].includes(issue.status)
+      );
+
+      if (allResolved) {
+        const { error: updateError } = await supabase
+          .from('bicycle_inspections')
+          .update({ status: 'in_repair' })
+          .eq('id', inspection.id);
+
+        if (!updateError) {
+          updatedCount++;
+        }
+      }
+    }
+
+    return updatedCount;
+  } catch (error) {
+    console.error('Error reconciling inspection statuses:', error);
+    return 0;
+  }
+};
+```
+
+### 2. Remove Auto-Check from Customer Actions
+
+In `acceptIssue` and `declineIssue` functions, remove the call to `checkAndMoveToInRepair()` since it won't work due to RLS anyway:
+
+**Before:**
+```typescript
+if (data) {
+  await checkAndMoveToInRepair(data.inspection_id);
+}
+```
+
+**After:**
+```typescript
+// Status reconciliation happens when admin views the page
+// (removed checkAndMoveToInRepair call - customer doesn't have UPDATE permission)
+```
+
+### 3. Call Reconciliation on Admin Page Load (`BicycleInspections.tsx`)
+
+Modify the query to call reconciliation before fetching when admin:
+
+```typescript
+const { data: inspections = [], isLoading } = useQuery({
+  queryKey: ["bicycle-inspections", isAdmin, user?.id],
+  queryFn: async () => {
+    if (isAdmin) {
+      // Reconcile any stuck inspections before fetching
+      await reconcileInspectionStatuses();
+      return getPendingInspections();
+    } else if (user?.id) {
+      return getMyInspections(user.id);
+    }
+    return [];
+  },
+  enabled: !!user,
+});
+```
+
+---
+
+## Data Flow
+
+```text
+Customer responds to issues:
+─────────────────────────────────────────────────
+Customer clicks "Accept" or "Decline"
+    ↓
+Issue status updated (approved/declined)
+    ↓
+Inspection remains in "issues_found" status
+    ↓
+(No status change - customer lacks UPDATE permission)
+
+Admin opens inspections page:
+─────────────────────────────────────────────────
+Admin navigates to /bicycle-inspections
+    ↓
+reconcileInspectionStatuses() runs
+    ↓
+Finds inspections where all issues addressed
+    ↓
+Moves them to "in_repair" status
+    ↓
+Data refreshes with correct statuses
+```
+
+---
+
+## Security Benefits
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Who can update inspection status | Attempted by customer (failed due to RLS) | Only admins |
+| Attack surface | Would need customer UPDATE policy | No new policies needed |
+| Control | Automatic (tried to run on customer action) | Explicit (runs on admin page load) |
+
+---
+
+## Immediate Fix for Existing Data
+
+When you approve the plan and I implement it, the next time an admin opens the Bicycle Inspections page, the stuck inspection (`2f7acfe5-610a-4138-879d-d4be8abfc46a`) will automatically move to `in_repair` status.
+
+---
+
+## Summary
+
+| Task | Description |
+|------|-------------|
+| Add `reconcileInspectionStatuses()` | New function to find and fix stuck inspections |
+| Remove customer auto-check | Remove `checkAndMoveToInRepair` calls from accept/decline |
+| Call on admin page load | Reconcile before fetching inspection data |
 
