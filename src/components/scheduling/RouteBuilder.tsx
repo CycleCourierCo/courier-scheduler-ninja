@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -155,6 +155,21 @@ const getCollectionStatusBadge = (
   };
 };
 
+// Helper function to get inspection status badge
+const getInspectionStatusBadge = (
+  needsInspection: boolean | null | undefined
+): { text: string; color: string; icon: JSX.Element } | null => {
+  // If inspection is not required, don't show any badge
+  if (!needsInspection) return null;
+  
+  // Show amber badge for bikes needing inspection
+  return {
+    text: 'Needs Inspection',
+    color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
+    icon: <Wrench className="h-3 w-3" />
+  };
+};
+
 const JobItem: React.FC<JobItemProps> = ({ 
   job, 
   index, 
@@ -289,6 +304,16 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {collectionBadge.text}
                               </Badge>
                             )}
+                            {/* Inspection Badge */}
+                            {(() => {
+                              const inspectionBadge = getInspectionStatusBadge(groupedJob.orderData?.needs_inspection);
+                              return inspectionBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
+                                  {inspectionBadge.icon}
+                                  {inspectionBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       );
@@ -340,6 +365,17 @@ const JobItem: React.FC<JobItemProps> = ({
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
                             {collectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+                      
+                      {/* Inspection Status Badge */}
+                      {(() => {
+                        const inspectionBadge = getInspectionStatusBadge(job.orderData?.needs_inspection);
+                        return inspectionBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
+                            {inspectionBadge.icon}
+                            {inspectionBadge.text}
                           </Badge>
                         ) : null;
                       })()}
