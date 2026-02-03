@@ -1,5 +1,5 @@
-export type InspectionStatus = 'pending' | 'inspected' | 'issues_found';
-export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved';
+export type InspectionStatus = 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired';
+export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
 
 export interface BicycleInspection {
   id: string;

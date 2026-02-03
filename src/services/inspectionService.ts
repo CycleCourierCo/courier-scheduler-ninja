@@ -262,6 +262,33 @@ export const resolveIssue = async (
   }
 };
 
+// Reset inspection back to pending (awaiting inspection)
+export const resetToPending = async (
+  inspectionId: string
+): Promise<BicycleInspection | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('bicycle_inspections')
+      .update({
+        status: 'pending' as InspectionStatus,
+        inspected_at: null,
+        inspected_by_id: null,
+        inspected_by_name: null,
+        notes: null,
+      })
+      .eq('id', inspectionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return data as BicycleInspection;
+  } catch (error) {
+    console.error('Error resetting inspection to pending:', error);
+    throw error;
+  }
+};
+
 // Accept issue (customer approves the repair)
 export const acceptIssue = async (issueId: string): Promise<InspectionIssue | null> => {
   try {
@@ -277,6 +304,11 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
       .single();
 
     if (error) throw error;
+    
+    // After accepting, check if we should move inspection to in_repair
+    if (data) {
+      await checkAndMoveToInRepair(data.inspection_id);
+    }
     
     return data as InspectionIssue;
   } catch (error) {
@@ -304,6 +336,11 @@ export const declineIssue = async (
 
     if (error) throw error;
     
+    // After declining, check if we should move inspection to in_repair
+    if (data) {
+      await checkAndMoveToInRepair(data.inspection_id);
+    }
+    
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error declining issue:', error);
@@ -311,20 +348,39 @@ export const declineIssue = async (
   }
 };
 
-// Reset inspection back to pending (awaiting inspection)
-export const resetToPending = async (
-  inspectionId: string
-): Promise<BicycleInspection | null> => {
+// Check if all issues are responded and move to in_repair
+export const checkAndMoveToInRepair = async (inspectionId: string): Promise<void> => {
+  try {
+    // Get all issues for this inspection
+    const { data: issues, error } = await supabase
+      .from('inspection_issues')
+      .select('status')
+      .eq('inspection_id', inspectionId);
+
+    if (error) throw error;
+
+    // Check if all issues have been responded to (approved or declined)
+    const allResolved = issues && issues.length > 0 && issues.every(
+      issue => issue.status === 'approved' || issue.status === 'declined' || issue.status === 'repaired' || issue.status === 'resolved'
+    );
+
+    if (allResolved) {
+      await supabase
+        .from('bicycle_inspections')
+        .update({ status: 'in_repair' as InspectionStatus })
+        .eq('id', inspectionId);
+    }
+  } catch (error) {
+    console.error('Error checking/moving to in_repair:', error);
+  }
+};
+
+// Move to "In Repair" status
+export const moveToInRepair = async (inspectionId: string): Promise<BicycleInspection | null> => {
   try {
     const { data, error } = await supabase
       .from('bicycle_inspections')
-      .update({
-        status: 'pending' as InspectionStatus,
-        inspected_at: null,
-        inspected_by_id: null,
-        inspected_by_name: null,
-        notes: null,
-      })
+      .update({ status: 'in_repair' as InspectionStatus })
       .eq('id', inspectionId)
       .select()
       .single();
@@ -333,9 +389,71 @@ export const resetToPending = async (
     
     return data as BicycleInspection;
   } catch (error) {
-    console.error('Error resetting inspection to pending:', error);
+    console.error('Error moving to in_repair:', error);
     throw error;
   }
+};
+
+// Mark issue as repaired (admin action)
+export const markIssueRepaired = async (
+  issueId: string,
+  repairerId: string,
+  repairerName: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        status: 'repaired' as IssueStatus,
+        resolved_at: new Date().toISOString(),
+        resolved_by_id: repairerId,
+        resolved_by_name: repairerName,
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error marking issue as repaired:', error);
+    throw error;
+  }
+};
+
+// Move to "Repaired" status
+export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspection | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('bicycle_inspections')
+      .update({ status: 'repaired' as InspectionStatus })
+      .eq('id', inspectionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return data as BicycleInspection;
+  } catch (error) {
+    console.error('Error moving to repaired:', error);
+    throw error;
+  }
+};
+
+// Check if all issues have been responded to by customer
+export const checkAllIssuesResolved = (issues: InspectionIssue[]): boolean => {
+  return issues.length > 0 && issues.every(
+    issue => issue.status === 'approved' || issue.status === 'declined' || issue.status === 'repaired' || issue.status === 'resolved'
+  );
+};
+
+// Check if all approved issues are repaired
+export const checkAllApprovedRepaired = (issues: InspectionIssue[]): boolean => {
+  const approvedIssues = issues.filter(i => i.status === 'approved' || i.status === 'repaired');
+  // If no approved issues exist (all declined), consider it complete
+  if (approvedIssues.length === 0) return true;
+  return approvedIssues.every(issue => issue.status === 'repaired');
 };
 
 // Get inspection status for an order (for badges on job scheduling)

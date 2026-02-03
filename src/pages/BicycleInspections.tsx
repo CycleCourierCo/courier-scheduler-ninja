@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, MessageSquare, Loader2, RotateCcw, X } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X } from "lucide-react";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +37,9 @@ import {
   resetToPending,
   acceptIssue,
   declineIssue,
+  markIssueRepaired,
+  moveToRepaired,
+  checkAllApprovedRepaired,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
@@ -80,7 +83,7 @@ const BicycleInspections = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      toast.success("Bike marked as inspected");
+      toast.success("Bike marked as inspected (no issues)");
     },
     onError: (error) => {
       toast.error("Failed to mark as inspected");
@@ -188,6 +191,39 @@ const BicycleInspections = () => {
     },
   });
 
+  // Mark issue as repaired mutation
+  const markRepairedMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      if (!user?.id || !userProfile?.name) {
+        throw new Error("User not authenticated");
+      }
+      return markIssueRepaired(issueId, user.id, userProfile.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Issue marked as repaired");
+    },
+    onError: (error) => {
+      toast.error("Failed to mark as repaired");
+      console.error(error);
+    },
+  });
+
+  // Complete repairs mutation (move to repaired status)
+  const completeRepairsMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      return moveToRepaired(inspectionId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Repairs completed");
+    },
+    onError: (error) => {
+      toast.error("Failed to complete repairs");
+      console.error(error);
+    },
+  });
+
   // Reset to pending mutation
   const resetToPendingMutation = useMutation({
     mutationFn: async (inspectionId: string) => {
@@ -255,22 +291,43 @@ const BicycleInspections = () => {
       case "declined":
         return "destructive";
       case "resolved":
+      case "repaired":
         return "success";
       default:
         return "warning";
     }
   };
 
+  const getInspectionBadge = (status: string | undefined) => {
+    switch (status) {
+      case "inspected":
+        return { variant: "success" as const, label: "No Issues" };
+      case "issues_found":
+        return { variant: "destructive" as const, label: "Issues Found" };
+      case "in_repair":
+        return { variant: "warning" as const, label: "In Repair" };
+      case "repaired":
+        return { variant: "success" as const, label: "Repaired" };
+      default:
+        return { variant: "secondary" as const, label: "Awaiting Inspection" };
+    }
+  };
+
   // Filter inspections by status
   const awaitingInspection = inspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const inspected = inspections.filter((i: any) => i.inspection?.status === "inspected");
+  const noIssues = inspections.filter((i: any) => i.inspection?.status === "inspected");
   const withIssues = inspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const inRepair = inspections.filter((i: any) => i.inspection?.status === "in_repair");
+  const repaired = inspections.filter((i: any) => i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
-    const issues = order.issues || [];
-    const pendingIssues = issues.filter((issue: InspectionIssue) => issue.status === "pending");
+    const orderIssues = order.issues || [];
+    const pendingIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "pending");
+    const approvedIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "approved" || issue.status === "repaired");
     const isOwner = order.user_id === user?.id;
+    const badgeConfig = getInspectionBadge(inspection?.status);
+    const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
 
     return (
       <Card key={order.id} className="mb-4">
@@ -288,32 +345,20 @@ const BicycleInspections = () => {
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
             </div>
-            <Badge
-              variant={
-                inspection?.status === "inspected"
-                  ? "success"
-                  : inspection?.status === "issues_found"
-                  ? "destructive"
-                  : "secondary"
-              }
-            >
-              {inspection?.status === "inspected"
-                ? "Inspected"
-                : inspection?.status === "issues_found"
-                ? "Issues Found"
-                : "Awaiting Inspection"}
+            <Badge variant={badgeConfig.variant}>
+              {badgeConfig.label}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Issues Section */}
-          {issues.length > 0 && (
+          {orderIssues.length > 0 && (
             <div className="space-y-3">
-              {issues.map((issue: InspectionIssue) => (
+              {orderIssues.map((issue: InspectionIssue) => (
                 <div
                   key={issue.id}
                   className={`p-3 rounded-lg border-l-4 ${
-                    issue.status === "resolved" || issue.status === "approved"
+                    issue.status === "resolved" || issue.status === "approved" || issue.status === "repaired"
                       ? "bg-muted/50 border-green-500"
                       : issue.status === "declined"
                       ? "bg-muted/50 border-destructive"
@@ -397,8 +442,28 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Resolve Button (admin only) */}
-                  {isAdmin && (issue.status === "approved" || issue.status === "declined") && (
+                  {/* Mark as Repaired Button (admin only for in_repair status, approved issues) */}
+                  {isAdmin && inspection?.status === "in_repair" && issue.status === "approved" && (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                        onClick={() => markRepairedMutation.mutate(issue.id)}
+                        disabled={markRepairedMutation.isPending}
+                      >
+                        {markRepairedMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Wrench className="h-4 w-4 mr-1" />
+                        )}
+                        Mark as Repaired
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Resolve Button (admin only, for issues_found status) */}
+                  {isAdmin && inspection?.status === "issues_found" && (issue.status === "approved" || issue.status === "declined") && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -420,7 +485,24 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Admin Actions */}
+          {/* Complete Repairs Button (admin only for in_repair when all approved are repaired) */}
+          {isAdmin && inspection?.status === "in_repair" && allApprovedRepaired && (
+            <div className="pt-2">
+              <Button
+                onClick={() => completeRepairsMutation.mutate(inspection.id)}
+                disabled={completeRepairsMutation.isPending}
+              >
+                {completeRepairsMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                )}
+                Complete Repairs
+              </Button>
+            </div>
+          )}
+
+          {/* Admin Actions for awaiting inspection */}
           {isAdmin && (!inspection || inspection.status === "pending") && (
             <div className="flex gap-2 pt-2">
               <Button
@@ -433,7 +515,7 @@ const BicycleInspections = () => {
                 ) : (
                   <CheckCircle className="h-4 w-4 mr-1" />
                 )}
-                Mark Inspected
+                Mark Inspected (No Issues)
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleOpenIssueDialog(order.id)}>
                 <AlertTriangle className="h-4 w-4 mr-1" />
@@ -503,7 +585,7 @@ const BicycleInspections = () => {
           </Card>
         ) : (
           <Tabs defaultValue="awaiting" className="space-y-4">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
@@ -512,11 +594,11 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="inspected" className="flex items-center gap-1">
-                Inspected
-                {inspected.length > 0 && (
+              <TabsTrigger value="no-issues" className="flex items-center gap-1">
+                No Issues
+                {noIssues.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
-                    {inspected.length}
+                    {noIssues.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -525,6 +607,22 @@ const BicycleInspections = () => {
                 {withIssues.length > 0 && (
                   <Badge variant="destructive" className="ml-1">
                     {withIssues.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="in-repair" className="flex items-center gap-1">
+                In Repair
+                {inRepair.length > 0 && (
+                  <Badge variant="warning" className="ml-1">
+                    {inRepair.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="repaired" className="flex items-center gap-1">
+                Repaired
+                {repaired.length > 0 && (
+                  <Badge variant="success" className="ml-1">
+                    {repaired.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -540,23 +638,43 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="inspected" className="space-y-4">
-              {inspected.length === 0 ? (
+            <TabsContent value="no-issues" className="space-y-4">
+              {noIssues.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No inspected bikes
+                  No bikes inspected with no issues
                 </p>
               ) : (
-                inspected.map(renderInspectionCard)
+                noIssues.map(renderInspectionCard)
               )}
             </TabsContent>
 
             <TabsContent value="issues" className="space-y-4">
               {withIssues.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No bikes with issues
+                  No bikes with issues awaiting customer response
                 </p>
               ) : (
                 withIssues.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="in-repair" className="space-y-4">
+              {inRepair.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No bikes currently in repair
+                </p>
+              ) : (
+                inRepair.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="repaired" className="space-y-4">
+              {repaired.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No repaired bikes
+                </p>
+              ) : (
+                repaired.map(renderInspectionCard)
               )}
             </TabsContent>
           </Tabs>
