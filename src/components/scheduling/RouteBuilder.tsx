@@ -1931,6 +1931,20 @@ Route Link: ${routeLink}`;
                             </Badge>
                           )
                         )}
+                        {/* Inspection Status Badge */}
+                        {job.order.needs_inspection && (() => {
+                          const isInspectionComplete = job.order.inspection_status === 'inspected' || job.order.inspection_status === 'repaired';
+                          return (
+                            <Badge className={`text-xs flex items-center gap-1 ${
+                              isInspectionComplete 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                            }`}>
+                              <Wrench className="h-3 w-3" />
+                              {isInspectionComplete ? 'Inspection Done' : 'Inspection Pending'}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       {isSelected && (
                         <Badge variant="outline" className="bg-primary text-primary-foreground">
