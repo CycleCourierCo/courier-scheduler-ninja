@@ -1,153 +1,102 @@
 
 
-# Multi-Issue Report Dialog with Accept/Reject Actions
+# Add "In Repair" and "Repaired" Statuses with Enhanced Workflow
 
 ## Overview
 
-This plan enhances the "Report Issue" dialog to allow admins to add multiple issues at once. Each issue will have its own description and estimated cost field. Issues are then inserted individually into the database, and customers can accept or reject each issue separately.
+This plan adds two new inspection statuses (`in_repair` and `repaired`) to create a complete repair workflow. It also renames the existing "inspected" status to "inspected with no issues" for clarity.
 
 ---
 
-## Current State
-
-The existing dialog has:
-- Single issue description textarea
-- Single estimated cost input
-- One "Report Issue" button that submits a single issue
-
----
-
-## Proposed Changes
-
-### 1. Enhanced Dialog State Management
-
-Replace single issue fields with an array-based approach:
-
-**Current state:**
-```typescript
-const [issueDescription, setIssueDescription] = useState("");
-const [estimatedCost, setEstimatedCost] = useState("");
-```
-
-**New state:**
-```typescript
-interface IssueEntry {
-  description: string;
-  estimatedCost: string;
-}
-
-const [issueCount, setIssueCount] = useState(1);
-const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
-```
-
-### 2. Updated Dialog UI
+## New Workflow
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ⚠️ Report Issues                                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Number of Issues: [1 ▼]                                        │
-│                   (dropdown: 1, 2, 3, 4, 5)                     │
-│                                                                 │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│  Issue #1                                                       │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ What's wrong with the bike?                                 ││
-│  │ [Front brake pads worn                               ]      ││
-│  └─────────────────────────────────────────────────────────────┘│
-│  Estimated Repair Cost (£)                                      │
-│  [45.00                                                 ]       │
-│                                                                 │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│  Issue #2                                                       │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Chain needs replacing                                       ││
-│  └─────────────────────────────────────────────────────────────┘│
-│  Estimated Repair Cost (£)                                      │
-│  [35.00                                                 ]       │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                               [Cancel]  [Report 2 Issues]       │
-└─────────────────────────────────────────────────────────────────┘
+Awaiting Inspection
+        ↓
+    [Admin inspects bike]
+        ↓
+   ┌────┴────┐
+   ↓         ↓
+No Issues   Issues Found
+(inspected)  (issues_found)
+   ↓              ↓
+   │    [Customer responds to ALL issues]
+   │              ↓
+   │         In Repair
+   │         (in_repair)
+   │              ↓
+   │    [Admin marks approved issues as repaired]
+   │              ↓
+   │          Repaired
+   │          (repaired)
+   │              ↓
+   └──────────────┘
+        Done
 ```
 
-### 3. Mutation Update for Batch Issues
+---
 
-Create a new mutation that loops through all issues and inserts them individually:
+## Changes Required
 
+### 1. Type Updates (`src/types/inspection.ts`)
+
+Add new statuses to `InspectionStatus`:
+
+**Current:**
 ```typescript
-const addMultipleIssuesMutation = useMutation({
-  mutationFn: async ({ orderId, issues }: { orderId: string; issues: IssueEntry[] }) => {
-    if (!user?.id || !userProfile?.name) {
-      throw new Error("User not authenticated");
-    }
-    
-    // Insert each issue individually
-    const results = [];
-    for (const issue of issues) {
-      if (issue.description.trim()) {
-        const cost = issue.estimatedCost ? parseFloat(issue.estimatedCost) : null;
-        const result = await addInspectionIssue(
-          orderId,
-          issue.description,
-          cost,
-          user.id,
-          userProfile.name || user.email || "Admin"
-        );
-        results.push(result);
-      }
-    }
-    return results;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-    setIssueDialogOpen(false);
-    resetIssueForm();
-    toast.success("Issues reported successfully");
-  },
-  onError: (error) => {
-    toast.error("Failed to report issues");
-    console.error(error);
-  },
-});
+export type InspectionStatus = 'pending' | 'inspected' | 'issues_found';
 ```
 
-### 4. Customer Accept/Reject Actions
-
-Add new service functions and UI for customers to accept or reject issues:
-
-**New service functions in `inspectionService.ts`:**
-
+**Updated:**
 ```typescript
-// Accept issue (customer approves the repair)
-export const acceptIssue = async (issueId: string): Promise<InspectionIssue | null> => {
+export type InspectionStatus = 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired';
+```
+
+Add new status to `IssueStatus` for tracking repaired issues:
+
+**Current:**
+```typescript
+export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved';
+```
+
+**Updated:**
+```typescript
+export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
+```
+
+---
+
+### 2. Service Layer Updates (`src/services/inspectionService.ts`)
+
+Add new functions:
+
+**Move to "In Repair" status:**
+```typescript
+export const moveToInRepair = async (inspectionId: string): Promise<BicycleInspection | null> => {
   const { data, error } = await supabase
-    .from('inspection_issues')
-    .update({
-      status: 'approved' as IssueStatus,
-      customer_response: 'Approved',
-      customer_responded_at: new Date().toISOString(),
-    })
-    .eq('id', issueId)
+    .from('bicycle_inspections')
+    .update({ status: 'in_repair' as InspectionStatus })
+    .eq('id', inspectionId)
     .select()
     .single();
   // ...
 };
+```
 
-// Decline issue (customer rejects the repair)
-export const declineIssue = async (
+**Mark issue as repaired (admin action):**
+```typescript
+export const markIssueRepaired = async (
   issueId: string,
-  reason?: string
+  repairerId: string,
+  repairerName: string
 ): Promise<InspectionIssue | null> => {
   const { data, error } = await supabase
     .from('inspection_issues')
     .update({
-      status: 'declined' as IssueStatus,
-      customer_response: reason || 'Declined',
-      customer_responded_at: new Date().toISOString(),
+      status: 'repaired' as IssueStatus,
+      resolved_at: new Date().toISOString(),
+      resolved_by_id: repairerId,
+      resolved_by_name: repairerName,
     })
     .eq('id', issueId)
     .select()
@@ -156,185 +105,190 @@ export const declineIssue = async (
 };
 ```
 
-**Updated Customer UI for issues:**
+**Move to "Repaired" status:**
+```typescript
+export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspection | null> => {
+  const { data, error } = await supabase
+    .from('bicycle_inspections')
+    .update({ status: 'repaired' as InspectionStatus })
+    .eq('id', inspectionId)
+    .select()
+    .single();
+  // ...
+};
+```
 
-Replace the free-text response with Accept/Decline buttons:
+**Check if all issues are resolved by customer:**
+```typescript
+export const checkAllIssuesResolved = (issues: InspectionIssue[]): boolean => {
+  // All issues must have a status of 'approved' or 'declined' (customer responded)
+  return issues.length > 0 && issues.every(
+    issue => issue.status === 'approved' || issue.status === 'declined' || issue.status === 'repaired' || issue.status === 'resolved'
+  );
+};
+```
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ⚠️ Front brake pads worn                                       │
-│  Estimated Cost: £45.00                                         │
-│  Reported by Admin                                              │
-│                                                     [pending]   │
-│                                                                 │
-│  ┌─────────────┐  ┌─────────────┐                              │
-│  │ ✓ Accept    │  │ ✗ Decline   │                              │
-│  └─────────────┘  └─────────────┘                              │
-│                                                                 │
-│  [Optional: Add notes...]                                       │
-└─────────────────────────────────────────────────────────────────┘
+**Check if all approved issues are repaired:**
+```typescript
+export const checkAllApprovedRepaired = (issues: InspectionIssue[]): boolean => {
+  const approvedIssues = issues.filter(i => i.status === 'approved' || i.status === 'repaired');
+  return approvedIssues.length > 0 && approvedIssues.every(issue => issue.status === 'repaired');
+};
 ```
 
 ---
 
-## Files to Modify
+### 3. UI Updates (`src/pages/BicycleInspections.tsx`)
 
-| File | Changes |
-|------|---------|
-| `src/pages/BicycleInspections.tsx` | Add issue count selector, dynamic issue fields, accept/decline mutations |
-| `src/services/inspectionService.ts` | Add `acceptIssue` and `declineIssue` functions |
+#### A. Add New Tabs
 
----
+Update tabs from 3 to 5:
 
-## Implementation Details
+| Tab | Status | Description |
+|-----|--------|-------------|
+| Awaiting | `pending` | Bikes waiting to be inspected |
+| No Issues | `inspected` | Inspected with no problems found (renamed) |
+| Issues | `issues_found` | Issues reported, awaiting customer response |
+| In Repair | `in_repair` | Customer responded, repairs in progress |
+| Repaired | `repaired` | All approved repairs completed |
 
-### Dialog State Updates
+#### B. Rename "Mark Inspected" Button
 
+**Current:**
 ```typescript
-// New state variables
-const [issueCount, setIssueCount] = useState(1);
-const [issues, setIssues] = useState<Array<{ description: string; estimatedCost: string }>>([
-  { description: "", estimatedCost: "" }
-]);
-
-// Update issues array when count changes
-const handleIssueCountChange = (count: string) => {
-  const newCount = parseInt(count);
-  setIssueCount(newCount);
-  
-  // Resize the issues array
-  setIssues(prev => {
-    if (newCount > prev.length) {
-      // Add empty entries
-      return [...prev, ...Array(newCount - prev.length).fill({ description: "", estimatedCost: "" })];
-    } else {
-      // Trim excess entries
-      return prev.slice(0, newCount);
-    }
-  });
-};
-
-// Update individual issue fields
-const updateIssue = (index: number, field: 'description' | 'estimatedCost', value: string) => {
-  setIssues(prev => prev.map((issue, i) => 
-    i === index ? { ...issue, [field]: value } : issue
-  ));
-};
-
-// Reset form when dialog closes
-const resetIssueForm = () => {
-  setIssueCount(1);
-  setIssues([{ description: "", estimatedCost: "" }]);
-  setSelectedOrderId(null);
-};
+Mark Inspected
 ```
 
-### Customer Accept/Decline UI
+**Updated:**
+```typescript
+Mark Inspected (No Issues)
+```
+
+#### C. Add Filter for Each Status
 
 ```typescript
-{/* Customer Actions - Accept/Decline */}
-{!isAdmin && isOwner && issue.status === "pending" && (
-  <div className="mt-3 space-y-2">
-    <div className="flex gap-2">
-      <Button
-        size="sm"
-        variant="default"
-        className="bg-green-600 hover:bg-green-700"
-        onClick={() => acceptIssueMutation.mutate(issue.id)}
-        disabled={acceptIssueMutation.isPending}
-      >
-        {acceptIssueMutation.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin mr-1" />
-        ) : (
-          <CheckCircle className="h-4 w-4 mr-1" />
+const awaitingInspection = inspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+const noIssues = inspections.filter((i: any) => i.inspection?.status === "inspected");
+const withIssues = inspections.filter((i: any) => i.inspection?.status === "issues_found");
+const inRepair = inspections.filter((i: any) => i.inspection?.status === "in_repair");
+const repaired = inspections.filter((i: any) => i.inspection?.status === "repaired");
+```
+
+#### D. Auto-Move to "In Repair" When Customer Finishes Responding
+
+After a customer accepts or declines an issue, check if all issues are resolved. If yes, automatically move the inspection to `in_repair`:
+
+```typescript
+const acceptIssueMutation = useMutation({
+  mutationFn: async (issueId: string) => {
+    const result = await acceptIssue(issueId);
+    // After accepting, check if all issues are now resolved
+    // and move to in_repair if needed
+    return result;
+  },
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    // Check and auto-transition handled in service layer
+    toast.success("Issue accepted");
+  },
+});
+```
+
+Better approach: Add logic in the service layer to check after each accept/decline if all issues are resolved, then update inspection status.
+
+#### E. "In Repair" Tab Admin Actions
+
+For bikes in the "In Repair" tab, show:
+- List of approved issues with "Mark as Repaired" button for each
+- Once all approved issues are marked repaired, show "Complete Repairs" button to move to "Repaired" status
+
+```typescript
+{/* Admin actions for In Repair status */}
+{isAdmin && inspection?.status === "in_repair" && (
+  <div className="space-y-3">
+    {/* Show approved issues with repair button */}
+    {approvedIssues.map((issue) => (
+      <div key={issue.id} className="flex items-center justify-between">
+        <span>{issue.issue_description}</span>
+        {issue.status === "approved" && (
+          <Button size="sm" onClick={() => markRepairedMutation.mutate(issue.id)}>
+            <Wrench className="h-4 w-4 mr-1" />
+            Mark Repaired
+          </Button>
         )}
-        Accept
-      </Button>
-      <Button
-        size="sm"
-        variant="destructive"
-        onClick={() => declineIssueMutation.mutate({ 
-          issueId: issue.id, 
-          reason: customerResponses[issue.id] 
-        })}
-        disabled={declineIssueMutation.isPending}
-      >
-        {declineIssueMutation.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin mr-1" />
-        ) : (
-          <X className="h-4 w-4 mr-1" />
+        {issue.status === "repaired" && (
+          <Badge variant="success">Repaired</Badge>
         )}
-        Decline
+      </div>
+    ))}
+    
+    {/* Complete button when all approved are repaired */}
+    {allApprovedRepaired && (
+      <Button onClick={() => completeRepairsMutation.mutate(inspection.id)}>
+        <CheckCircle className="h-4 w-4 mr-1" />
+        Complete Repairs
       </Button>
-    </div>
-    <Input
-      placeholder="Optional: Add notes..."
-      value={customerResponses[issue.id] || ""}
-      onChange={(e) =>
-        setCustomerResponses((prev) => ({
-          ...prev,
-          [issue.id]: e.target.value,
-        }))
-      }
-      className="text-sm"
-    />
+    )}
   </div>
 )}
 ```
 
-### Badge Colors by Status
+#### F. Badge Status Updates
 
-| Status | Badge Color | Meaning |
-|--------|-------------|---------|
-| pending | warning (amber) | Awaiting customer response |
-| approved | success (green) | Customer approved the repair |
-| declined | destructive (red) | Customer declined the repair |
-| resolved | success (green) | Admin marked as completed |
+Update badge rendering to include new statuses:
+
+| Status | Badge Color | Label |
+|--------|-------------|-------|
+| pending | secondary | Awaiting Inspection |
+| inspected | success | Inspected (No Issues) |
+| issues_found | destructive | Issues Found |
+| in_repair | warning (amber) | In Repair |
+| repaired | success | Repaired |
 
 ---
 
-## Data Flow
+### 4. Database Migration
 
-```text
-Admin Reports Multiple Issues:
-────────────────────────────────────────────────────────
-Admin opens "Report Issue" dialog
-    ↓
-Selects "3" from issue count dropdown
-    ↓
-3 issue forms appear with description + cost fields
-    ↓
-Fills in all 3 issues
-    ↓
-Clicks "Report 3 Issues"
-    ↓
-Each issue is inserted individually into inspection_issues table
-    ↓
-Customer sees 3 separate issues to respond to
+Add new enum values to the database for `inspection_status` and `issue_status`:
 
-Customer Response:
-────────────────────────────────────────────────────────
-Customer views their inspection
-    ↓
-Sees 3 pending issues, each with Accept/Decline buttons
-    ↓
-Clicks "Accept" on Issue #1 → status: 'approved'
-Clicks "Decline" on Issue #2 (with notes) → status: 'declined'
-Clicks "Accept" on Issue #3 → status: 'approved'
-    ↓
-Admin sees responses and can proceed accordingly
+```sql
+-- Add new inspection statuses
+ALTER TYPE inspection_status ADD VALUE IF NOT EXISTS 'in_repair';
+ALTER TYPE inspection_status ADD VALUE IF NOT EXISTS 'repaired';
+
+-- Add new issue status
+ALTER TYPE issue_status ADD VALUE IF NOT EXISTS 'repaired';
 ```
 
 ---
 
-## Summary
+## Summary of Changes
 
-| Task | Description |
-|------|-------------|
-| Issue count selector | Dropdown to select 1-5 issues to add |
-| Dynamic issue fields | Generate description + cost fields based on count |
-| Batch submission | Submit all issues individually to the database |
-| Accept/Decline buttons | Replace free-text response for customers |
-| New service functions | `acceptIssue` and `declineIssue` in inspectionService |
-| Status badges | Color-coded by pending/approved/declined/resolved |
+| File | Changes |
+|------|---------|
+| `src/types/inspection.ts` | Add `in_repair`, `repaired` to InspectionStatus; add `repaired` to IssueStatus |
+| `src/services/inspectionService.ts` | Add `moveToInRepair`, `markIssueRepaired`, `moveToRepaired`, helper functions |
+| `src/pages/BicycleInspections.tsx` | Add 2 new tabs, rename labels, add repair workflow mutations and UI |
+| Database migration | Add new enum values |
+
+---
+
+## User Experience Flow
+
+### Admin Workflow:
+1. See bike in "Awaiting" tab
+2. Click "Mark Inspected (No Issues)" OR "Report Issue"
+3. If issues reported, bike moves to "Issues" tab
+4. Customer responds (accept/decline each issue)
+5. Once all issues responded, bike auto-moves to "In Repair" tab
+6. Admin marks each approved issue as "Repaired"
+7. Once all approved issues repaired, admin clicks "Complete Repairs"
+8. Bike moves to "Repaired" tab
+
+### Customer Workflow:
+1. See bike in "Issues" tab with pending issues
+2. Click "Accept" or "Decline" for each issue
+3. Once all issues responded, bike moves to "In Repair" (visible status change)
+4. Customer can view progress as issues are marked repaired
+5. Final status shows "Repaired" when complete
 
