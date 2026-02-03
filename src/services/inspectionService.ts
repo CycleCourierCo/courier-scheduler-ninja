@@ -1,6 +1,48 @@
 import { supabase } from "@/integrations/supabase/client";
 import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
 
+// Reconcile inspection statuses - moves issues_found to in_repair when all issues addressed
+// This runs when an admin opens the inspections page
+export const reconcileInspectionStatuses = async (): Promise<number> => {
+  try {
+    // Get all inspections in 'issues_found' status with their issues
+    const { data: inspections, error } = await supabase
+      .from('bicycle_inspections')
+      .select('id, status, inspection_issues(status)')
+      .eq('status', 'issues_found');
+
+    if (error) throw error;
+    if (!inspections || inspections.length === 0) return 0;
+
+    let updatedCount = 0;
+
+    for (const inspection of inspections) {
+      const issues = inspection.inspection_issues as { status: string }[];
+      
+      // Check if all issues have been responded to
+      const allResolved = issues.length > 0 && issues.every(
+        issue => ['approved', 'declined', 'repaired', 'resolved'].includes(issue.status)
+      );
+
+      if (allResolved) {
+        const { error: updateError } = await supabase
+          .from('bicycle_inspections')
+          .update({ status: 'in_repair' as InspectionStatus })
+          .eq('id', inspection.id);
+
+        if (!updateError) {
+          updatedCount++;
+        }
+      }
+    }
+
+    return updatedCount;
+  } catch (error) {
+    console.error('Error reconciling inspection statuses:', error);
+    return 0;
+  }
+};
+
 // Get or create inspection record for an order
 export const getOrCreateInspection = async (orderId: string): Promise<BicycleInspection | null> => {
   try {
@@ -305,10 +347,8 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
 
     if (error) throw error;
     
-    // After accepting, check if we should move inspection to in_repair
-    if (data) {
-      await checkAndMoveToInRepair(data.inspection_id);
-    }
+// Status reconciliation happens when admin views the page
+    // (customer doesn't have UPDATE permission on bicycle_inspections)
     
     return data as InspectionIssue;
   } catch (error) {
@@ -336,10 +376,8 @@ export const declineIssue = async (
 
     if (error) throw error;
     
-    // After declining, check if we should move inspection to in_repair
-    if (data) {
-      await checkAndMoveToInRepair(data.inspection_id);
-    }
+// Status reconciliation happens when admin views the page
+    // (customer doesn't have UPDATE permission on bicycle_inspections)
     
     return data as InspectionIssue;
   } catch (error) {
