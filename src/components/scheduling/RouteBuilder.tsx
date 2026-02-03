@@ -157,14 +157,24 @@ const getCollectionStatusBadge = (
 
 // Helper function to get inspection status badge
 const getInspectionStatusBadge = (
-  needsInspection: boolean | null | undefined
+  needsInspection: boolean | null | undefined,
+  inspectionStatus: string | null | undefined
 ): { text: string; color: string; icon: JSX.Element } | null => {
   // If inspection is not required, don't show any badge
   if (!needsInspection) return null;
   
-  // Show amber badge for bikes needing inspection
+  // Check if inspection is complete (inspected with no issues OR repaired)
+  if (inspectionStatus === 'inspected' || inspectionStatus === 'repaired') {
+    return {
+      text: 'Inspection Done',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      icon: <Wrench className="h-3 w-3" />
+    };
+  }
+  
+  // Show pending badge for all other cases (pending, issues_found, in_repair, or no record)
   return {
-    text: 'Needs Inspection',
+    text: 'Inspection Pending',
     color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
     icon: <Wrench className="h-3 w-3" />
   };
@@ -306,7 +316,7 @@ const JobItem: React.FC<JobItemProps> = ({
                             )}
                             {/* Inspection Badge */}
                             {(() => {
-                              const inspectionBadge = getInspectionStatusBadge(groupedJob.orderData?.needs_inspection);
+                              const inspectionBadge = getInspectionStatusBadge(groupedJob.orderData?.needs_inspection, groupedJob.orderData?.inspection_status);
                               return inspectionBadge ? (
                                 <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
                                   {inspectionBadge.icon}
@@ -371,7 +381,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Inspection Status Badge */}
                       {(() => {
-                        const inspectionBadge = getInspectionStatusBadge(job.orderData?.needs_inspection);
+                        const inspectionBadge = getInspectionStatusBadge(job.orderData?.needs_inspection, job.orderData?.inspection_status);
                         return inspectionBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
                             {inspectionBadge.icon}
