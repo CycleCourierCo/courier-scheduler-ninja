@@ -73,7 +73,7 @@ export const getOrdersForLoading = async (): Promise<Order[]> => {
   try {
     const { data, error } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, bicycle_inspections(status)")
       .not('status', 'eq', 'cancelled')
       .not('status', 'eq', 'delivered')
       .order("created_at", { ascending: false })
@@ -85,7 +85,14 @@ export const getOrdersForLoading = async (): Promise<Order[]> => {
     }
 
     console.log(`Fetched ${data?.length || 0} orders for loading page`);
-    return data.map(mapDbOrderToOrderType);
+    return data.map(order => {
+      const mappedOrder = mapDbOrderToOrderType(order);
+      const inspections = order.bicycle_inspections as { status: string }[] | null;
+      return {
+        ...mappedOrder,
+        inspection_status: inspections?.[0]?.status as Order['inspection_status'] || null
+      };
+    });
   } catch (error) {
     console.error('Error in getOrdersForLoading:', error);
     return [];
