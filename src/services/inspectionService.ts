@@ -262,6 +262,33 @@ export const resolveIssue = async (
   }
 };
 
+// Reset inspection back to pending (awaiting inspection)
+export const resetToPending = async (
+  inspectionId: string
+): Promise<BicycleInspection | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('bicycle_inspections')
+      .update({
+        status: 'pending' as InspectionStatus,
+        inspected_at: null,
+        inspected_by_id: null,
+        inspected_by_name: null,
+        notes: null,
+      })
+      .eq('id', inspectionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return data as BicycleInspection;
+  } catch (error) {
+    console.error('Error resetting inspection to pending:', error);
+    throw error;
+  }
+};
+
 // Get inspection status for an order (for badges on job scheduling)
 export const getInspectionStatusForOrder = async (orderId: string): Promise<{
   status: InspectionStatus | null;
