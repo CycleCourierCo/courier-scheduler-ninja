@@ -54,7 +54,7 @@ export const getPendingInspections = async () => {
         needs_inspection
       `)
       .eq('needs_inspection', true)
-      .in('status', ['collected', 'driver_to_delivery', 'delivery_scheduled', 'scheduled'])
+      .not('status', 'in', '("delivered","cancelled")')
       .order('created_at', { ascending: true });
 
     if (error) throw error;
