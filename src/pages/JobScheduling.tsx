@@ -27,6 +27,8 @@ export interface OrderData {
   collection_confirmation_sent_at: string | null;
   order_collected: boolean | null;
   order_delivered: boolean | null;
+  needs_inspection: boolean | null;
+  inspection_status: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
 }
 
 const JobScheduling = () => {
@@ -38,7 +40,7 @@ const JobScheduling = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, bicycle_inspections(status)')
         .not('status', 'in', '(cancelled,delivered)')
         .order('created_at', { ascending: false });
       
@@ -48,7 +50,8 @@ const JobScheduling = () => {
         ...order,
         sender: order.sender as ContactInfo & { address: Address },
         receiver: order.receiver as ContactInfo & { address: Address },
-        status: order.status as OrderStatus
+        status: order.status as OrderStatus,
+        inspection_status: (order.bicycle_inspections as { status: string }[] | null)?.[0]?.status || null
       })) as OrderData[];
     }
   });

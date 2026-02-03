@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Package, FileText } from "lucide-react";
+import { Package, FileText, Wrench } from "lucide-react";
 import { Order } from "@/types/order";
 
 interface ItemDetailsProps {
@@ -31,6 +31,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order }) => {
         )}
         {order.needsPaymentOnCollection && (
           <p className="text-courier-600 font-medium">Payment required on collection</p>
+        )}
+        {order.needsInspection && (
+          <div className="flex items-center gap-2 text-amber-600 font-medium mt-2">
+            <Wrench className="h-4 w-4" />
+            Bike will be inspected and serviced
+          </div>
         )}
       </div>
       

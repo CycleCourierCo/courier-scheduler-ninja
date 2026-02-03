@@ -49,6 +49,7 @@ export type Order = {
   id: string;
   user_id: string;  // This property is needed for user filtering
   sender: ContactInfo & { address: Address };
+  needsInspection?: boolean;
   receiver: ContactInfo & { address: Address };
   pickupDate?: Date | Date[];
   deliveryDate?: Date | Date[];
@@ -94,6 +95,7 @@ export type Order = {
   };
   optimoroute_pickup_id?: string;
   optimoroute_delivery_id?: string;
+  inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
 };
 
 export type CreateOrderFormData = {
@@ -140,6 +142,7 @@ export type CreateOrderFormData = {
   isEbayOrder: boolean;
   collectionCode?: string;
   deliveryInstructions?: string;
+  needsInspection: boolean;
   // Legacy fields for backward compatibility
   bikeBrand?: string;
   bikeModel?: string;

@@ -1,177 +1,148 @@
 
 
-# Add Tracking Number and Collection Status to RouteBuilder Job Cards
+# Add Inspection Status Badge to Loading/Storage Page
 
 ## Overview
-Enhance the job cards in the **RouteBuilder** component on the Job Scheduling page to display:
-1. **Tracking Number** - Show the order's tracking number on each job card
-2. **Collection Status Badge** - For delivery jobs, show whether the bike has been collected using the `order_collected` database field
+
+Add an "Inspection Pending" or "Inspection Done" badge to bike cards on the Loading/Storage page for bicycles that have been collected and require inspection. This mirrors the badge already implemented on the Job Scheduling page.
+
+---
 
 ## Current State
-- The RouteBuilder shows job cards in a grid (lines 1856-1912)
-- Each card displays: job type badge, contact name, address, and bike brand/model
-- The `OrderData` interface has `tracking_number` but not `order_collected`
-- The database query in `JobScheduling.tsx` uses `select('*')` so all fields are available
+
+| Component | Shows Inspection Badge |
+|-----------|----------------------|
+| Job Scheduling page | ✅ Yes (after recent fix) |
+| Loading page - Bikes In Storage | ❌ No |
+| Loading page - Pending Storage Allocation | ❌ No |
+
+---
+
+## Solution Approach
+
+1. **Add inspection_status to Order type** - Enable tracking actual inspection status
+2. **Update getOrdersForLoading** - Join `bicycle_inspections` table to fetch status
+3. **Add badges to both components** - Show status on bike cards
+
+---
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/JobScheduling.tsx` | Add `order_collected` and `order_delivered` to the `OrderData` interface |
-| `src/components/scheduling/RouteBuilder.tsx` | Add tracking number display and collection status badge to job cards |
+| `src/types/order.ts` | Add `inspection_status` field to Order type |
+| `src/services/orderService.ts` | Update `getOrdersForLoading` to join bicycle_inspections |
+| `src/components/loading/BikesInStorage.tsx` | Add inspection badge to storage cards |
+| `src/components/loading/PendingStorageAllocation.tsx` | Add inspection badge to pending allocation cards |
+
+---
 
 ## Implementation Details
 
-### 1. JobScheduling.tsx - Update OrderData Interface
+### 1. Update Order Type (`src/types/order.ts`)
 
-Add the `order_collected` field to the interface:
+Add new field to track inspection status:
 
 ```typescript
-export interface OrderData {
-  id: string;
-  status: OrderStatus;
-  tracking_number: string;
-  bike_brand: string | null;
-  bike_model: string | null;
-  bike_quantity: number | null;
-  created_at: string;
-  sender: ContactInfo & { address: Address };
-  receiver: ContactInfo & { address: Address };
-  scheduled_pickup_date: string | null;
-  scheduled_delivery_date: string | null;
-  pickup_date: string[] | null;
-  delivery_date: string[] | null;
-  collection_confirmation_sent_at: string | null;
-  order_collected: boolean | null;  // NEW
-  order_delivered: boolean | null;  // NEW
-}
+export type Order = {
+  // ... existing fields ...
+  inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
+};
 ```
 
-### 2. RouteBuilder.tsx - Update Job Cards (around lines 1868-1909)
+### 2. Update Data Fetching (`src/services/orderService.ts`)
 
-Add the tracking number and collection status to each job card. The current card structure:
+Modify the query to join inspection data:
 
-```tsx
-<CardContent className="p-4">
-  <div className="flex justify-between items-start mb-2">
-    <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
-      {job.type === 'pickup' ? 'Collection' : 'Delivery'}
+```typescript
+export const getOrdersForLoading = async (): Promise<Order[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*, bicycle_inspections(status)")  // JOIN inspection table
+      .not('status', 'eq', 'cancelled')
+      .not('status', 'eq', 'delivered')
+      .order("created_at", { ascending: false })
+      .limit(5000);
+
+    // Map the inspection status from joined data
+    return data.map(order => ({
+      ...mapDbOrderToOrderType(order),
+      inspection_status: order.bicycle_inspections?.[0]?.status || null
+    }));
+  } catch (error) {
+    // ... error handling
+  }
+};
+```
+
+### 3. Add Badge to Bikes In Storage (`src/components/loading/BikesInStorage.tsx`)
+
+Add inspection badge in the badges section (after status badge):
+
+```typescript
+{/* Inspection Status Badge */}
+{order?.needsInspection && (() => {
+  const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+  return (
+    <Badge className={`text-xs flex items-center gap-1 ${
+      isComplete 
+        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+        : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+    }`}>
+      <Wrench className="h-3 w-3" />
+      {isComplete ? 'Inspection Done' : 'Inspection Pending'}
     </Badge>
-    {isSelected && (
-      <Badge variant="outline" className="bg-primary text-primary-foreground">
-        #{selectedOrder}
-      </Badge>
-    )}
-  </div>
-  
-  <div className="space-y-2">
-    <p className="font-medium text-sm">{job.contactName}</p>
-    <div className="flex items-start gap-1">
-      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-      <p className="text-xs text-muted-foreground">{job.address}</p>
-    </div>
-    <p className="text-xs text-muted-foreground">
-      Order: {job.order.bike_brand} {job.order.bike_model}
-    </p>
-    ...
-  </div>
-</CardContent>
+  );
+})()}
 ```
 
-Updated structure with tracking number and collection status:
+### 4. Add Badge to Pending Storage Allocation (`src/components/loading/PendingStorageAllocation.tsx`)
 
-```tsx
-<CardContent className="p-4">
-  <div className="flex justify-between items-start mb-2">
-    <div className="flex items-center gap-2">
-      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
-        {job.type === 'pickup' ? 'Collection' : 'Delivery'}
-      </Badge>
-      {/* Collection Status Badge - only for delivery jobs */}
-      {job.type === 'delivery' && (
-        job.order.order_collected ? (
-          <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-            Collected
-          </Badge>
-        ) : (
-          <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
-            Awaiting Collection
-          </Badge>
-        )
-      )}
-    </div>
-    {isSelected && (
-      <Badge variant="outline" className="bg-primary text-primary-foreground">
-        #{selectedOrder}
-      </Badge>
-    )}
-  </div>
-  
-  <div className="space-y-2">
-    {/* Tracking Number */}
-    <p className="font-medium text-sm flex items-center gap-1">
-      <Package className="h-3 w-3 text-muted-foreground" />
-      #{job.order.tracking_number}
-    </p>
-    <p className="text-sm">{job.contactName}</p>
-    <div className="flex items-start gap-1">
-      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-      <p className="text-xs text-muted-foreground">{job.address}</p>
-    </div>
-    <p className="text-xs text-muted-foreground">
-      {job.order.bike_brand} {job.order.bike_model}
-    </p>
-    ...
-  </div>
-</CardContent>
-```
+Add the same badge to both:
+- **Bikes loaded onto van** section
+- **Bikes pending storage allocation** section
 
-Also add `Package` to the imports (already imported on line 12).
+---
+
+## Badge States
+
+| Inspection Status | Badge | Color |
+|------------------|-------|-------|
+| `inspected` | Inspection Done | Green |
+| `repaired` | Inspection Done | Green |
+| `pending` | Inspection Pending | Amber |
+| `issues_found` | Inspection Pending | Amber |
+| `in_repair` | Inspection Pending | Amber |
+| No record | Inspection Pending | Amber |
+
+---
 
 ## Visual Result
 
-**Collection Card:**
+After implementation, bike cards will show:
+
+**Bikes In Storage tab:**
 ```
-┌─────────────────────────────────────────┐
-│ [Collection]                       [#3] │
-├─────────────────────────────────────────┤
-│ 📦 #CC-123456                           │
-│ John Smith                              │
-│ 📍 123 High Street, London SW1A 1AA     │
-│ Trek Domane SL6                         │
-└─────────────────────────────────────────┘
+[Bay Position] Customer Name
+[Days in Storage] [Status] [Collected by Driver] [Inspection Done ✓] or [Inspection Pending ⚠]
 ```
 
-**Delivery Card (Collected):**
+**Pending Storage Allocation tab:**
 ```
-┌─────────────────────────────────────────┐
-│ [Delivery] [Collected]             [#5] │
-├─────────────────────────────────────────┤
-│ 📦 #CC-123456                           │
-│ Jane Doe                                │
-│ 📍 456 Park Lane, Manchester M1 2AB     │
-│ Specialized Tarmac                      │
-└─────────────────────────────────────────┘
+Customer Name
+Bike details...
+[X bikes total] [X remaining] [In Driver Van] [Inspection Pending ⚠]
 ```
 
-**Delivery Card (Not Collected):**
-```
-┌─────────────────────────────────────────┐
-│ [Delivery] [Awaiting Collection]        │
-├─────────────────────────────────────────┤
-│ 📦 #CC-789012                           │
-│ Bob Wilson                              │
-│ 📍 789 Oak Road, Birmingham B1 1AA      │
-│ Canyon Aeroad                           │
-└─────────────────────────────────────────┘
-```
+---
 
 ## Summary
 
-| Change | Purpose |
-|--------|---------|
-| Add `order_collected` to OrderData | Access collection status from database |
-| Show tracking number with package icon | Quick order identification |
-| Show "Collected" badge (green) on deliveries | Indicate bike is ready for delivery |
-| Show "Awaiting Collection" badge (amber) on deliveries | Indicate bike still needs pickup |
+| Task | Description |
+|------|-------------|
+| Add `inspection_status` to Order | New optional field for inspection status |
+| Update `getOrdersForLoading` | Join bicycle_inspections table |
+| Add badge to BikesInStorage | Show inspection status on stored bikes |
+| Add badge to PendingStorageAllocation | Show inspection status on collected bikes awaiting allocation |
 

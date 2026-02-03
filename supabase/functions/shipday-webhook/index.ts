@@ -275,14 +275,26 @@ serve(async (req) => {
 
     trackingEvents.shipday = shipdayEvents;
 
+    // Build update object with status and tracking events
+    const updateData: Record<string, unknown> = {
+      status: newStatus,
+      tracking_events: trackingEvents,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Set collection/delivery booleans based on status
+    if (newStatus === 'collected' || newStatus === 'driver_to_delivery' || newStatus === 'delivery_scheduled') {
+      updateData.order_collected = true;
+    }
+    if (newStatus === 'delivered') {
+      updateData.order_collected = true;  // Must be collected to be delivered
+      updateData.order_delivered = true;
+    }
+
     // Update the order
     const { error: updateError } = await supabase
       .from("orders")
-      .update({
-        status: newStatus,
-        tracking_events: trackingEvents,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", dbOrder.id);
 
     if (updateError) {

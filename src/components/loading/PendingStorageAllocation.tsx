@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
-import { Package, MapPin, Truck, Printer, Image, PackageMinus } from "lucide-react";
+import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench } from "lucide-react";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
@@ -220,6 +220,20 @@ export const PendingStorageAllocation = ({
                             {bike.bikeQuantity} bikes
                           </Badge>
                         )}
+                        {/* Inspection Status Badge */}
+                        {bike.needsInspection && (() => {
+                          const isComplete = bike.inspection_status === 'inspected' || bike.inspection_status === 'repaired';
+                          return (
+                            <Badge className={`text-xs flex items-center gap-1 ${
+                              isComplete 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                            }`}>
+                              <Wrench className="h-3 w-3" />
+                              {isComplete ? 'Inspection Done' : 'Inspection Pending'}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -308,6 +322,20 @@ export const PendingStorageAllocation = ({
                               Load onto {bike.delivery_driver_name} van
                             </Badge>
                           )}
+                          {/* Inspection Status Badge */}
+                          {bike.needsInspection && (() => {
+                            const isComplete = bike.inspection_status === 'inspected' || bike.inspection_status === 'repaired';
+                            return (
+                              <Badge className={`text-xs flex items-center gap-1 ${
+                                isComplete 
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                              }`}>
+                                <Wrench className="h-3 w-3" />
+                                {isComplete ? 'Inspection Done' : 'Inspection Pending'}
+                              </Badge>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

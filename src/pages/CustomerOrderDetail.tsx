@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -278,6 +278,12 @@ const CustomerOrderDetail = () => {
                     )}
                     {order.needsPaymentOnCollection && (
                       <p className="text-courier-600 font-medium">Payment required on collection</p>
+                    )}
+                    {order.needsInspection && (
+                      <p className="text-amber-600 font-medium mt-2 flex items-center gap-2">
+                        <Wrench className="h-4 w-4" />
+                        Bike will be inspected and serviced
+                      </p>
                     )}
                   </div>
                 </div>

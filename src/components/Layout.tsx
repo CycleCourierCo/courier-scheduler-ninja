@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook, Wrench } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -132,12 +132,22 @@ const Layout: React.FC<LayoutProps> = ({
                             <FileText className="mr-2 h-4 w-4" />
                             Invoices
                           </Link>
+                          <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Wrench className="mr-2 h-4 w-4" />
+                            Bicycle Inspections
+                          </Link>
                         </>}
                       {isB2B && (
-                        <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Clock className="mr-2 h-4 w-4" />
-                          Bulk Availability
-                        </Link>
+                        <>
+                          <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Clock className="mr-2 h-4 w-4" />
+                            Bulk Availability
+                          </Link>
+                          <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Wrench className="mr-2 h-4 w-4" />
+                            My Inspections
+                          </Link>
+                        </>
                       )}
                       {isRoutePlanner && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
@@ -289,15 +299,29 @@ const Layout: React.FC<LayoutProps> = ({
                           <span>Invoices</span>
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
+                          <Wrench className="mr-2 h-4 w-4" />
+                          <span>Bicycle Inspections</span>
+                        </Link>
+                      </DropdownMenuItem>
                     </>}
                   
                   {isB2B && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
-                        <Clock className="mr-2 h-4 w-4" />
-                        <span>Bulk Availability</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
+                          <Clock className="mr-2 h-4 w-4" />
+                          <span>Bulk Availability</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
+                          <Wrench className="mr-2 h-4 w-4" />
+                          <span>My Inspections</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   
                   {isRoutePlanner && <DropdownMenuItem asChild>
