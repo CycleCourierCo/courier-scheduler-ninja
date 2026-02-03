@@ -262,6 +262,55 @@ export const resolveIssue = async (
   }
 };
 
+// Accept issue (customer approves the repair)
+export const acceptIssue = async (issueId: string): Promise<InspectionIssue | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        status: 'approved' as IssueStatus,
+        customer_response: 'Approved',
+        customer_responded_at: new Date().toISOString(),
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error accepting issue:', error);
+    throw error;
+  }
+};
+
+// Decline issue (customer rejects the repair)
+export const declineIssue = async (
+  issueId: string,
+  reason?: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        status: 'declined' as IssueStatus,
+        customer_response: reason || 'Declined',
+        customer_responded_at: new Date().toISOString(),
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error declining issue:', error);
+    throw error;
+  }
+};
+
 // Reset inspection back to pending (awaiting inspection)
 export const resetToPending = async (
   inspectionId: string

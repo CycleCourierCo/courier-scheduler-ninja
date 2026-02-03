@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, MessageSquare, Loader2, RotateCcw } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, MessageSquare, Loader2, RotateCcw, X } from "lucide-react";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -27,8 +35,15 @@ import {
   submitCustomerResponse,
   resolveIssue,
   resetToPending,
+  acceptIssue,
+  declineIssue,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
+
+interface IssueEntry {
+  description: string;
+  estimatedCost: string;
+}
 
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
@@ -37,8 +52,8 @@ const BicycleInspections = () => {
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [issueDescription, setIssueDescription] = useState("");
-  const [estimatedCost, setEstimatedCost] = useState("");
+  const [issueCount, setIssueCount] = useState(1);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
 
   // Fetch inspections based on role
@@ -73,24 +88,68 @@ const BicycleInspections = () => {
     },
   });
 
-  // Add issue mutation
-  const addIssueMutation = useMutation({
-    mutationFn: async ({ orderId, description, cost }: { orderId: string; description: string; cost: number | null }) => {
+  // Add multiple issues mutation
+  const addMultipleIssuesMutation = useMutation({
+    mutationFn: async ({ orderId, issues }: { orderId: string; issues: IssueEntry[] }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
-      return addInspectionIssue(orderId, description, cost, user.id, userProfile.name || user.email || "Admin");
+      
+      const results = [];
+      for (const issue of issues) {
+        if (issue.description.trim()) {
+          const cost = issue.estimatedCost ? parseFloat(issue.estimatedCost) : null;
+          const result = await addInspectionIssue(
+            orderId,
+            issue.description,
+            cost,
+            user.id,
+            userProfile.name || user.email || "Admin"
+          );
+          results.push(result);
+        }
+      }
+      return results;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setIssueDialogOpen(false);
-      setIssueDescription("");
-      setEstimatedCost("");
-      setSelectedOrderId(null);
-      toast.success("Issue reported successfully");
+      resetIssueForm();
+      toast.success("Issues reported successfully");
     },
     onError: (error) => {
-      toast.error("Failed to report issue");
+      toast.error("Failed to report issues");
+      console.error(error);
+    },
+  });
+
+  // Accept issue mutation
+  const acceptIssueMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      return acceptIssue(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Issue accepted");
+    },
+    onError: (error) => {
+      toast.error("Failed to accept issue");
+      console.error(error);
+    },
+  });
+
+  // Decline issue mutation
+  const declineIssueMutation = useMutation({
+    mutationFn: async ({ issueId, reason }: { issueId: string; reason?: string }) => {
+      return declineIssue(issueId, reason);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setCustomerResponses({});
+      toast.success("Issue declined");
+    },
+    onError: (error) => {
+      toast.error("Failed to decline issue");
       console.error(error);
     },
   });
@@ -149,13 +208,57 @@ const BicycleInspections = () => {
     setIssueDialogOpen(true);
   };
 
-  const handleSubmitIssue = () => {
-    if (!selectedOrderId || !issueDescription.trim()) {
-      toast.error("Please provide issue details");
+  const handleIssueCountChange = (count: string) => {
+    const newCount = parseInt(count);
+    setIssueCount(newCount);
+    
+    setIssues(prev => {
+      if (newCount > prev.length) {
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "" }))];
+      } else {
+        return prev.slice(0, newCount);
+      }
+    });
+  };
+
+  const updateIssue = (index: number, field: 'description' | 'estimatedCost', value: string) => {
+    setIssues(prev => prev.map((issue, i) => 
+      i === index ? { ...issue, [field]: value } : issue
+    ));
+  };
+
+  const resetIssueForm = () => {
+    setIssueCount(1);
+    setIssues([{ description: "", estimatedCost: "" }]);
+    setSelectedOrderId(null);
+  };
+
+  const handleSubmitIssues = () => {
+    if (!selectedOrderId) {
+      toast.error("No order selected");
       return;
     }
-    const cost = estimatedCost ? parseFloat(estimatedCost) : null;
-    addIssueMutation.mutate({ orderId: selectedOrderId, description: issueDescription, cost });
+    
+    const validIssues = issues.filter(issue => issue.description.trim());
+    if (validIssues.length === 0) {
+      toast.error("Please provide at least one issue description");
+      return;
+    }
+    
+    addMultipleIssuesMutation.mutate({ orderId: selectedOrderId, issues: validIssues });
+  };
+
+  const getIssueBadgeVariant = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "success";
+      case "declined":
+        return "destructive";
+      case "resolved":
+        return "success";
+      default:
+        return "warning";
+    }
   };
 
   // Filter inspections by status
@@ -210,9 +313,11 @@ const BicycleInspections = () => {
                 <div
                   key={issue.id}
                   className={`p-3 rounded-lg border-l-4 ${
-                    issue.status === "resolved"
-                      ? "bg-green-50 dark:bg-green-950 border-green-500"
-                      : "bg-amber-50 dark:bg-amber-950 border-amber-500"
+                    issue.status === "resolved" || issue.status === "approved"
+                      ? "bg-muted/50 border-green-500"
+                      : issue.status === "declined"
+                      ? "bg-muted/50 border-destructive"
+                      : "bg-muted/50 border-amber-500"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -230,12 +335,12 @@ const BicycleInspections = () => {
                         Reported by {issue.requested_by_name}
                       </p>
                     </div>
-                    <Badge variant={issue.status === "resolved" ? "success" : "warning"}>
+                    <Badge variant={getIssueBadgeVariant(issue.status)}>
                       {issue.status}
                     </Badge>
                   </div>
 
-                  {/* Customer Response */}
+                  {/* Customer Response Display */}
                   {issue.customer_response && (
                     <div className="mt-3 p-2 bg-background rounded border">
                       <p className="text-xs text-muted-foreground mb-1">Customer Response:</p>
@@ -243,11 +348,43 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Response Form (for customers) */}
-                  {!isAdmin && isOwner && issue.status === "pending" && !issue.customer_response && (
+                  {/* Accept/Decline Buttons (for customers) */}
+                  {!isAdmin && isOwner && issue.status === "pending" && (
                     <div className="mt-3 space-y-2">
-                      <Textarea
-                        placeholder="Enter your response..."
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                          onClick={() => acceptIssueMutation.mutate(issue.id)}
+                          disabled={acceptIssueMutation.isPending}
+                        >
+                          {acceptIssueMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                          )}
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => declineIssueMutation.mutate({ 
+                            issueId: issue.id, 
+                            reason: customerResponses[issue.id] || undefined 
+                          })}
+                          disabled={declineIssueMutation.isPending}
+                        >
+                          {declineIssueMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <X className="h-4 w-4 mr-1" />
+                          )}
+                          Decline
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="Optional: Add notes..."
                         value={customerResponses[issue.id] || ""}
                         onChange={(e) =>
                           setCustomerResponses((prev) => ({
@@ -257,28 +394,11 @@ const BicycleInspections = () => {
                         }
                         className="text-sm"
                       />
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          const response = customerResponses[issue.id];
-                          if (response?.trim()) {
-                            submitResponseMutation.mutate({ issueId: issue.id, response });
-                          }
-                        }}
-                        disabled={!customerResponses[issue.id]?.trim() || submitResponseMutation.isPending}
-                      >
-                        {submitResponseMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                        ) : (
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                        )}
-                        Submit Response
-                      </Button>
                     </div>
                   )}
 
                   {/* Resolve Button (admin only) */}
-                  {isAdmin && issue.status === "pending" && issue.customer_response && (
+                  {isAdmin && (issue.status === "approved" || issue.status === "declined") && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -443,45 +563,70 @@ const BicycleInspections = () => {
         )}
 
         {/* Issue Dialog */}
-        <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>
-          <DialogContent>
+        <Dialog open={issueDialogOpen} onOpenChange={(open) => {
+          setIssueDialogOpen(open);
+          if (!open) resetIssueForm();
+        }}>
+          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
-                Report Issue
+                Report Issues
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>What's wrong with the bike?</Label>
-                <Textarea
-                  placeholder="Describe the issue..."
-                  value={issueDescription}
-                  onChange={(e) => setIssueDescription(e.target.value)}
-                />
+                <Label>Number of Issues</Label>
+                <Select value={issueCount.toString()} onValueChange={handleIssueCountChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select number of issues" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {num === 1 ? "issue" : "issues"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Estimated Repair Cost (£)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g. 45.00"
-                  value={estimatedCost}
-                  onChange={(e) => setEstimatedCost(e.target.value)}
-                />
-              </div>
+
+              {issues.map((issue, index) => (
+                <div key={index} className="space-y-3">
+                  {index > 0 && <Separator />}
+                  <p className="font-medium text-sm">Issue #{index + 1}</p>
+                  <div className="space-y-2">
+                    <Label>What's wrong with the bike?</Label>
+                    <Textarea
+                      placeholder="Describe the issue..."
+                      value={issue.description}
+                      onChange={(e) => updateIssue(index, 'description', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Estimated Repair Cost (£)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 45.00"
+                      value={issue.estimatedCost}
+                      onChange={(e) => updateIssue(index, 'estimatedCost', e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmitIssue} disabled={addIssueMutation.isPending}>
-                {addIssueMutation.isPending ? (
+              <Button onClick={handleSubmitIssues} disabled={addMultipleIssuesMutation.isPending}>
+                {addMultipleIssuesMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
                 ) : (
                   <AlertTriangle className="h-4 w-4 mr-1" />
                 )}
-                Report Issue
+                Report {issues.filter(i => i.description.trim()).length || 1} Issue{issues.filter(i => i.description.trim()).length !== 1 ? "s" : ""}
               </Button>
             </DialogFooter>
           </DialogContent>
