@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, MessageSquare, Loader2 } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, MessageSquare, Loader2, RotateCcw } from "lucide-react";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +26,7 @@ import {
   addInspectionIssue,
   submitCustomerResponse,
   resolveIssue,
+  resetToPending,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
@@ -124,6 +125,21 @@ const BicycleInspections = () => {
     },
     onError: (error) => {
       toast.error("Failed to resolve issue");
+      console.error(error);
+    },
+  });
+
+  // Reset to pending mutation
+  const resetToPendingMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      return resetToPending(inspectionId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Bike moved back to awaiting inspection");
+    },
+    onError: (error) => {
+      toast.error("Failed to reset inspection status");
       console.error(error);
     },
   });
@@ -308,10 +324,27 @@ const BicycleInspections = () => {
 
           {/* Inspection Info */}
           {inspection?.inspected_at && (
-            <p className="text-xs text-muted-foreground">
-              Inspected by {inspection.inspected_by_name} on{" "}
-              {new Date(inspection.inspected_at).toLocaleDateString()}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Inspected by {inspection.inspected_by_name} on{" "}
+                {new Date(inspection.inspected_at).toLocaleDateString()}
+              </p>
+              {isAdmin && inspection?.status === "inspected" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => resetToPendingMutation.mutate(inspection.id)}
+                  disabled={resetToPendingMutation.isPending}
+                >
+                  {resetToPendingMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                  )}
+                  Reset to Awaiting
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
