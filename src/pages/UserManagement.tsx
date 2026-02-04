@@ -220,6 +220,7 @@ const UserManagement: React.FC = () => {
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="driver">Driver</SelectItem>
+                      <SelectItem value="mechanic">Mechanic</SelectItem>
                       <SelectItem value="route_planner">Route Planner</SelectItem>
                       <SelectItem value="sales">Sales</SelectItem>
                       <SelectItem value="loader">Loader</SelectItem>
@@ -259,16 +260,17 @@ const UserManagement: React.FC = () => {
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="driver">Driver</SelectItem>
-                  <SelectItem value="route_planner">Route Planner</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="loader">Loader</SelectItem>
-                  <SelectItem value="b2b_customer">B2B Customer</SelectItem>
-                  <SelectItem value="b2c_customer">B2C Customer</SelectItem>
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="driver">Driver</SelectItem>
+                    <SelectItem value="mechanic">Mechanic</SelectItem>
+                    <SelectItem value="route_planner">Route Planner</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="loader">Loader</SelectItem>
+                    <SelectItem value="b2b_customer">B2B Customer</SelectItem>
+                    <SelectItem value="b2c_customer">B2C Customer</SelectItem>
+                  </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-full md:w-48">
@@ -320,6 +322,7 @@ const UserManagement: React.FC = () => {
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="driver">Driver</SelectItem>
+                            <SelectItem value="mechanic">Mechanic</SelectItem>
                             <SelectItem value="route_planner">Route Planner</SelectItem>
                             <SelectItem value="sales">Sales</SelectItem>
                             <SelectItem value="loader">Loader</SelectItem>

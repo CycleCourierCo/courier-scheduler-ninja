@@ -63,6 +63,8 @@ const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = userProfile?.role === "admin";
+  const isMechanic = userProfile?.role === "mechanic";
+  const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -78,9 +80,9 @@ const BicycleInspections = () => {
 
   // Fetch inspections based on role
   const { data: inspections = [], isLoading } = useQuery({
-    queryKey: ["bicycle-inspections", isAdmin, user?.id],
+    queryKey: ["bicycle-inspections", canManageInspections, user?.id],
     queryFn: async () => {
-      if (isAdmin) {
+      if (canManageInspections) {
         // Reconcile any stuck inspections before fetching
         await reconcileInspectionStatuses();
         return getPendingInspections();

@@ -1318,6 +1318,7 @@ export type Database = {
         | "route_planner"
         | "sales"
         | "driver"
+        | "mechanic"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1472,6 +1473,7 @@ export const Constants = {
         "route_planner",
         "sales",
         "driver",
+        "mechanic",
       ],
     },
   },
