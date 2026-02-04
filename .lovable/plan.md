@@ -1,21 +1,34 @@
 
-# Add Bicycle Inspections to Sidebar and Fix Menu Scrolling
+# Add Mechanic User Role for Bicycle Inspections
 
 ## Overview
 
-Two changes are needed:
-1. Add "Bicycle Inspections" to the sidebar menu for admin users
-2. Fix scrolling issues on both desktop dropdown menu and mobile sheet so all menu items are accessible
+Create a new "mechanic" user role that has exclusive access to the Bicycle Inspections page, similar to how "loader" only has access to the Loading page. Mechanics will be able to perform all inspection tasks on the page.
 
 ---
 
-## Current Issues
+## Current Role System
 
-| Issue | Location | Problem |
-|-------|----------|---------|
-| Missing menu item | `sidebar.tsx` | Bicycle Inspections not in sidebar for admins |
-| Can't scroll desktop menu | `Layout.tsx` | Dropdown menu overflows viewport |
-| Can't scroll mobile menu | `Layout.tsx` | Sheet content doesn't scroll properly |
+| Role | Current Access |
+|------|----------------|
+| admin | Full access to all features |
+| driver | Timeslips, Check-in, Profile |
+| loader | Loading page only |
+| route_planner | Dashboard, Scheduling |
+| sales | Dashboard, Approvals, Invoices |
+| b2b_customer | Dashboard, Orders, Inspections (own) |
+| b2c_customer | Dashboard, Orders |
+
+---
+
+## New Mechanic Role
+
+| Attribute | Value |
+|-----------|-------|
+| Role Name | mechanic |
+| Access | Bicycle Inspections page only |
+| Capabilities | All inspection tasks (mark inspected, report issues, mark repaired, etc.) |
+| Default Redirect | /bicycle-inspections |
 
 ---
 
@@ -23,118 +36,120 @@ Two changes are needed:
 
 | File | Changes |
 |------|---------|
-| `src/components/ui/sidebar.tsx` | Add Bicycle Inspections link for admins |
-| `src/components/Layout.tsx` | Add scrolling to dropdown and sheet menus |
+| Database Migration | Add 'mechanic' to `user_role` enum |
+| `src/types/user.ts` | Add 'mechanic' to UserRole type |
+| `src/components/ProtectedRoute.tsx` | Add mechanic role restrictions |
+| `src/components/Layout.tsx` | Add navigation for mechanic role |
+| `src/pages/UserManagement.tsx` | Add mechanic option in role dropdowns |
+| `src/components/user-management/EditUserDialog.tsx` | No changes needed (uses role from select) |
+| `src/pages/BicycleInspections.tsx` | Update admin check to include mechanic |
 
 ---
 
 ## Implementation Details
 
-### 1. Add Bicycle Inspections to Sidebar (`src/components/ui/sidebar.tsx`)
+### 1. Database Migration
 
-Add the `Wrench` icon import and include Bicycle Inspections in the admin links section:
+```sql
+-- Add 'mechanic' to user_role enum
+ALTER TYPE user_role ADD VALUE 'mechanic';
+```
+
+### 2. Update TypeScript UserRole Type (`src/types/user.ts`)
 
 ```typescript
-import {
-  LayoutDashboard,
-  Plus,
-  User,
-  BarChart3,
-  CalendarDays,
-  Users,
-  ClipboardCheck,
-  Wrench,  // ADD THIS
-} from "lucide-react";
+export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales';
+```
 
-// In getDefaultLinks(), after Analytics:
-if (isAdmin) {
-  links.push({
-    href: "/analytics",
-    icon: <BarChart3 className="h-5 w-5" />,
-    label: "Analytics",
-  });
-  links.push({
-    href: "/bicycle-inspections",
-    icon: <Wrench className="h-5 w-5" />,
-    label: "Bicycle Inspections",
-  });
+### 3. Update ProtectedRoute (`src/components/ProtectedRoute.tsx`)
+
+Add mechanic role restrictions after the loader check:
+
+```typescript
+// After loader check (around line 70)
+// Mechanic role restrictions - only allow access to bicycle inspections
+const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
+if (userProfile?.role === 'mechanic') {
+  if (!isBicycleInspectionsPage) {
+    return <Navigate to="/bicycle-inspections" replace />;
+  }
+  return <>{children}</>;
 }
 ```
 
-### 2. Fix Desktop Dropdown Scrolling (`src/components/Layout.tsx`)
+### 4. Update Layout Navigation (`src/components/Layout.tsx`)
 
-Add max-height and overflow to the DropdownMenuContent:
+Add mechanic-specific navigation:
 
 ```typescript
-<DropdownMenuContent 
-  align="end" 
-  className="max-h-[calc(100vh-100px)] overflow-y-auto"
->
+// Add role check
+const isMechanic = userProfile?.role === 'mechanic';
+
+// Add mechanic nav links (similar to driver)
+const mechanicNavLinks = isMechanic ? <>
+  <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+    Bicycle Inspections
+  </Link>
+</> : null;
 ```
 
-This limits the dropdown height to viewport minus header space and enables vertical scrolling.
+Also update the mobile and desktop menus to show mechanic-specific options.
 
-### 3. Fix Mobile Sheet Scrolling (`src/components/Layout.tsx`)
+### 5. Update UserManagement Page (`src/pages/UserManagement.tsx`)
 
-Wrap the sheet content in a scrollable container:
+Add mechanic option to role select dropdowns:
 
 ```typescript
-<SheetContent side="right" className="w-[250px]">
-  <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
-    {/* existing menu items */}
-  </div>
-</SheetContent>
+<SelectItem value="mechanic">Mechanic</SelectItem>
+```
+
+### 6. Update BicycleInspections Page (`src/pages/BicycleInspections.tsx`)
+
+Update the admin check to include mechanic for full management access:
+
+```typescript
+const isAdmin = userProfile?.role === "admin";
+const isMechanic = userProfile?.role === "mechanic";
+const canManageInspections = isAdmin || isMechanic;
+
+// Replace isAdmin checks with canManageInspections where appropriate
 ```
 
 ---
 
-## Visual Result
+## Access Control Summary
 
-### Sidebar (Admin View)
-```
-┌──────────────────────┐
-│ 🚴 Cycle Courier     │
-├──────────────────────┤
-│ 📊 Dashboard         │
-│ ➕ New Order         │
-│ ✅ Jobs              │
-│ 📅 Scheduling        │
-│ 📈 Analytics         │
-│ 🔧 Bicycle Inspections│ ← NEW
-│ 👥 Account Approvals │
-│ 👤 Profile           │
-└──────────────────────┘
-```
-
-### Desktop Dropdown (with scroll)
-```
-┌────────────────────┐
-│ Dashboard          │↑
-│ Analytics          │░
-│ Your Profile       │░
-│ ──────────────     │░ ← Scrollable
-│ User Management    │░
-│ Loading & Storage  │░
-│ Job Scheduling     │░
-│ Driver Timeslips   │░
-│ ...                │↓
-└────────────────────┘
+```text
+┌─────────────────────────────────────────────────────────┐
+│              Mechanic Role Access                       │
+├─────────────────────────────────────────────────────────┤
+│ ✅ Bicycle Inspections Page                             │
+│    - View all pending inspections                       │
+│    - Mark inspected (no issues) with checklist          │
+│    - Report issues with costs                           │
+│    - Mark issues as repaired                            │
+│    - Complete repairs workflow                          │
+│    - Reset inspections                                  │
+├─────────────────────────────────────────────────────────┤
+│ ❌ All other pages redirect to /bicycle-inspections     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Mobile Sheet (with scroll)
-```
-┌─────────────────────────┐
-│ Home                    │↑
-│ Track Order             │░
-│ Create Order            │░
-│ ─────────────           │░
-│ Dashboard               │░ ← Scrollable
-│ Analytics               │░
-│ Your Profile            │░
-│ ...                     │░
-│ Bicycle Inspections     │░
-│ Logout                  │↓
-└─────────────────────────┘
+---
+
+## Navigation for Mechanic (Mobile & Desktop)
+
+```text
+┌────────────────────────┐
+│ [User Profile Icon] ▼  │
+├────────────────────────┤
+│ mechanic@example.com   │
+│ ─────────────────────  │
+│ 🔧 Bicycle Inspections │
+│ 👤 Your Profile        │
+│ ─────────────────────  │
+│ 🚪 Logout              │
+└────────────────────────┘
 ```
 
 ---
@@ -143,6 +158,9 @@ Wrap the sheet content in a scrollable container:
 
 | Task | Description |
 |------|-------------|
-| Add sidebar link | Add Bicycle Inspections to sidebar for admin users |
-| Desktop scroll | Add `max-h-[calc(100vh-100px)] overflow-y-auto` to DropdownMenuContent |
-| Mobile scroll | Add `overflow-y-auto` to Sheet content container |
+| Add database enum value | Add 'mechanic' to user_role enum |
+| Update TypeScript type | Add 'mechanic' to UserRole union |
+| Add route protection | Restrict mechanic to bicycle-inspections only |
+| Add navigation | Show inspection link in header menu |
+| Add to user management | Allow admins to assign mechanic role |
+| Grant inspection access | Allow mechanics to perform all inspection tasks |
