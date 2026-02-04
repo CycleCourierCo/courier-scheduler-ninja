@@ -1,139 +1,148 @@
 
 
-# Add Inspection Status Badge to Loading/Storage Page
+# Add "Inspect and Service" Button for Admins
 
 ## Overview
 
-Add an "Inspection Pending" or "Inspection Done" badge to bike cards on the Loading/Storage page for bicycles that have been collected and require inspection. This mirrors the badge already implemented on the Job Scheduling page.
+Add a button to the Order Detail page that allows admins to enable inspection for an existing order. This will:
+1. Create a `bicycle_inspections` record linked to the order
+2. Set `needs_inspection = true` on the order
 
 ---
 
 ## Current State
 
-| Component | Shows Inspection Badge |
-|-----------|----------------------|
-| Job Scheduling page | ✅ Yes (after recent fix) |
-| Loading page - Bikes In Storage | ❌ No |
-| Loading page - Pending Storage Allocation | ❌ No |
+| Feature | Status |
+|---------|--------|
+| Inspection enabled at order creation | ✅ Works |
+| Enable inspection for existing orders | ❌ Not available |
+| Inspection badge on scheduling page | ✅ Works |
+| Inspection badge on loading page | ✅ Works |
 
 ---
 
-## Solution Approach
+## Solution
 
-1. **Add inspection_status to Order type** - Enable tracking actual inspection status
-2. **Update getOrdersForLoading** - Join `bicycle_inspections` table to fetch status
-3. **Add badges to both components** - Show status on bike cards
-
----
-
-## Files to Modify
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/types/order.ts` | Add `inspection_status` field to Order type |
-| `src/services/orderService.ts` | Update `getOrdersForLoading` to join bicycle_inspections |
-| `src/components/loading/BikesInStorage.tsx` | Add inspection badge to storage cards |
-| `src/components/loading/PendingStorageAllocation.tsx` | Add inspection badge to pending allocation cards |
+| `src/services/inspectionService.ts` | Add new `enableInspectionForOrder` function |
+| `src/pages/OrderDetail.tsx` | Add "Inspect and Service" button (admin only) |
 
 ---
 
 ## Implementation Details
 
-### 1. Update Order Type (`src/types/order.ts`)
+### 1. Add New Service Function (`src/services/inspectionService.ts`)
 
-Add new field to track inspection status:
-
-```typescript
-export type Order = {
-  // ... existing fields ...
-  inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
-};
-```
-
-### 2. Update Data Fetching (`src/services/orderService.ts`)
-
-Modify the query to join inspection data:
+Create a function that enables inspection for an existing order:
 
 ```typescript
-export const getOrdersForLoading = async (): Promise<Order[]> => {
+// Enable inspection for an existing order (admin action)
+export const enableInspectionForOrder = async (orderId: string): Promise<BicycleInspection | null> => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*, bicycle_inspections(status)")  // JOIN inspection table
-      .not('status', 'eq', 'cancelled')
-      .not('status', 'eq', 'delivered')
-      .order("created_at", { ascending: false })
-      .limit(5000);
+    // Update order to require inspection
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({ needs_inspection: true })
+      .eq('id', orderId);
 
-    // Map the inspection status from joined data
-    return data.map(order => ({
-      ...mapDbOrderToOrderType(order),
-      inspection_status: order.bicycle_inspections?.[0]?.status || null
-    }));
+    if (orderError) throw orderError;
+
+    // Create or get the inspection record
+    const inspection = await getOrCreateInspection(orderId);
+    
+    return inspection;
   } catch (error) {
-    // ... error handling
+    console.error('Error enabling inspection for order:', error);
+    throw error;
   }
 };
 ```
 
-### 3. Add Badge to Bikes In Storage (`src/components/loading/BikesInStorage.tsx`)
+### 2. Add Button to Order Detail Page (`src/pages/OrderDetail.tsx`)
 
-Add inspection badge in the badges section (after status badge):
+Add the button in the admin control section, near the Item Details component. The button should:
+- Only show for admin users
+- Only show if the order doesn't already have inspection enabled
+- Call the new service function and refresh the order data
+
+**Location in UI**: After the Item Details section, within the admin-only area.
 
 ```typescript
-{/* Inspection Status Badge */}
-{order?.needsInspection && (() => {
-  const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
-  return (
-    <Badge className={`text-xs flex items-center gap-1 ${
-      isComplete 
-        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-        : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
-    }`}>
-      <Wrench className="h-3 w-3" />
-      {isComplete ? 'Inspection Done' : 'Inspection Pending'}
-    </Badge>
-  );
-})()}
+// Import the new function
+import { enableInspectionForOrder } from "@/services/inspectionService";
+
+// Add state for button loading
+const [isEnablingInspection, setIsEnablingInspection] = useState(false);
+
+// Add handler function
+const handleEnableInspection = async () => {
+  if (!id) return;
+  
+  try {
+    setIsEnablingInspection(true);
+    await enableInspectionForOrder(id);
+    await handleRefreshOrder();
+    toast.success("Inspection enabled for this order");
+  } catch (error) {
+    console.error("Error enabling inspection:", error);
+    toast.error("Failed to enable inspection");
+  } finally {
+    setIsEnablingInspection(false);
+  }
+};
+
+// Add button in JSX (admin only, when inspection not already enabled)
+{isAdmin && !order.needsInspection && (
+  <Button
+    onClick={handleEnableInspection}
+    disabled={isEnablingInspection}
+    variant="outline"
+    className="flex items-center gap-2"
+  >
+    <Wrench className="h-4 w-4" />
+    {isEnablingInspection ? "Enabling..." : "Inspect and Service"}
+  </Button>
+)}
 ```
-
-### 4. Add Badge to Pending Storage Allocation (`src/components/loading/PendingStorageAllocation.tsx`)
-
-Add the same badge to both:
-- **Bikes loaded onto van** section
-- **Bikes pending storage allocation** section
 
 ---
 
-## Badge States
+## UI Placement
 
-| Inspection Status | Badge | Color |
-|------------------|-------|-------|
-| `inspected` | Inspection Done | Green |
-| `repaired` | Inspection Done | Green |
-| `pending` | Inspection Pending | Amber |
-| `issues_found` | Inspection Pending | Amber |
-| `in_repair` | Inspection Pending | Amber |
-| No record | Inspection Pending | Amber |
+The button will be placed in the Item Details section, shown only when:
+- User is an admin
+- Order doesn't already have `needsInspection = true`
+
+```
+┌─────────────────────────────────────┐
+│ Item Details                    📦  │
+├─────────────────────────────────────┤
+│ Item: Brompton S2L                  │
+│ Quantity: 1                         │
+│ Order #: 12345                      │
+│                                     │
+│ [🔧 Inspect and Service]  ← NEW     │
+└─────────────────────────────────────┘
+```
+
+After clicking, the section updates to show:
+```
+│ 🔧 Bike will be inspected and serviced │
+```
 
 ---
 
-## Visual Result
+## Expected Behavior
 
-After implementation, bike cards will show:
-
-**Bikes In Storage tab:**
-```
-[Bay Position] Customer Name
-[Days in Storage] [Status] [Collected by Driver] [Inspection Done ✓] or [Inspection Pending ⚠]
-```
-
-**Pending Storage Allocation tab:**
-```
-Customer Name
-Bike details...
-[X bikes total] [X remaining] [In Driver Van] [Inspection Pending ⚠]
-```
+| Action | Result |
+|--------|--------|
+| Admin clicks "Inspect and Service" | `needs_inspection` set to `true`, `bicycle_inspections` record created with status `pending` |
+| Button disappears | Once enabled, button is hidden and replaced with the existing inspection indicator |
+| Scheduling page | Shows "Inspection Pending" badge (amber) |
+| Loading page | Shows "Inspection Pending" badge (amber) |
 
 ---
 
@@ -141,8 +150,7 @@ Bike details...
 
 | Task | Description |
 |------|-------------|
-| Add `inspection_status` to Order | New optional field for inspection status |
-| Update `getOrdersForLoading` | Join bicycle_inspections table |
-| Add badge to BikesInStorage | Show inspection status on stored bikes |
-| Add badge to PendingStorageAllocation | Show inspection status on collected bikes awaiting allocation |
+| New service function | `enableInspectionForOrder` - sets needs_inspection and creates inspection record |
+| Add admin button | "Inspect and Service" button in Item Details section |
+| Conditional display | Only show when admin AND inspection not already enabled |
 
