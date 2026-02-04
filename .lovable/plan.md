@@ -1,136 +1,141 @@
 
-
-# Add Order Status Badge and Storage Location to Bicycle Inspections Page
+# Add Bicycle Inspections to Sidebar and Fix Menu Scrolling
 
 ## Overview
 
-Add order status badge and storage bay allocation information to the inspection cards on the Bicycle Inspections page. This will help admins quickly see whether a bike has been collected and where it's located in storage.
+Two changes are needed:
+1. Add "Bicycle Inspections" to the sidebar menu for admin users
+2. Fix scrolling issues on both desktop dropdown menu and mobile sheet so all menu items are accessible
 
 ---
 
-## Current State
+## Current Issues
 
-| Information | Currently Shown |
-|-------------|----------------|
-| Bike brand/model | ✅ Yes |
-| Inspection status badge | ✅ Yes |
-| Order status (collected, scheduled, etc.) | ❌ No |
-| Storage bay allocation | ❌ No |
+| Issue | Location | Problem |
+|-------|----------|---------|
+| Missing menu item | `sidebar.tsx` | Bicycle Inspections not in sidebar for admins |
+| Can't scroll desktop menu | `Layout.tsx` | Dropdown menu overflows viewport |
+| Can't scroll mobile menu | `Layout.tsx` | Sheet content doesn't scroll properly |
 
 ---
 
-## Solution
-
-### Files to Modify
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/services/inspectionService.ts` | Add `storage_locations` to the query select fields |
-| `src/pages/BicycleInspections.tsx` | Add order status badge and storage location badges to cards |
+| `src/components/ui/sidebar.tsx` | Add Bicycle Inspections link for admins |
+| `src/components/Layout.tsx` | Add scrolling to dropdown and sheet menus |
 
 ---
 
 ## Implementation Details
 
-### 1. Update Query to Include Storage Locations (`src/services/inspectionService.ts`)
+### 1. Add Bicycle Inspections to Sidebar (`src/components/ui/sidebar.tsx`)
 
-Add `storage_locations` to both `getPendingInspections` and `getMyInspections` queries:
+Add the `Wrench` icon import and include Bicycle Inspections in the admin links section:
 
 ```typescript
-const { data, error } = await supabase
-  .from('orders')
-  .select(`
-    id,
-    tracking_number,
-    bike_brand,
-    bike_model,
-    bike_quantity,
-    status,
-    sender,
-    receiver,
-    user_id,
-    needs_inspection,
-    storage_locations   // ADD THIS
-  `)
+import {
+  LayoutDashboard,
+  Plus,
+  User,
+  BarChart3,
+  CalendarDays,
+  Users,
+  ClipboardCheck,
+  Wrench,  // ADD THIS
+} from "lucide-react";
+
+// In getDefaultLinks(), after Analytics:
+if (isAdmin) {
+  links.push({
+    href: "/analytics",
+    icon: <BarChart3 className="h-5 w-5" />,
+    label: "Analytics",
+  });
+  links.push({
+    href: "/bicycle-inspections",
+    icon: <Wrench className="h-5 w-5" />,
+    label: "Bicycle Inspections",
+  });
+}
 ```
 
-### 2. Add Badges to Inspection Cards (`src/pages/BicycleInspections.tsx`)
+### 2. Fix Desktop Dropdown Scrolling (`src/components/Layout.tsx`)
 
-#### Import StatusBadge Component
+Add max-height and overflow to the DropdownMenuContent:
 
 ```typescript
-import StatusBadge from "@/components/StatusBadge";
-import { MapPin } from "lucide-react";
+<DropdownMenuContent 
+  align="end" 
+  className="max-h-[calc(100vh-100px)] overflow-y-auto"
+>
 ```
 
-#### Update the renderInspectionCard Function
+This limits the dropdown height to viewport minus header space and enables vertical scrolling.
 
-Add badges section after the card description showing:
-- **Order Status Badge**: Using the existing `StatusBadge` component
-- **Storage Location Badges**: Show bay positions if allocated (e.g., "A12", "B5")
+### 3. Fix Mobile Sheet Scrolling (`src/components/Layout.tsx`)
+
+Wrap the sheet content in a scrollable container:
 
 ```typescript
-<CardDescription>
-  #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
-</CardDescription>
-{/* NEW: Order status and storage location badges */}
-<div className="flex flex-wrap gap-2 mt-2">
-  <StatusBadge status={order.status} />
-  {order.storage_locations && Array.isArray(order.storage_locations) && 
-   order.storage_locations.length > 0 && (
-    <>
-      {order.storage_locations.map((location: any, idx: number) => (
-        <Badge key={idx} variant="outline" className="flex items-center gap-1">
-          <MapPin className="h-3 w-3" />
-          {location.bay}{location.position}
-        </Badge>
-      ))}
-    </>
-  )}
-</div>
+<SheetContent side="right" className="w-[250px]">
+  <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
+    {/* existing menu items */}
+  </div>
+</SheetContent>
 ```
 
 ---
 
 ## Visual Result
 
-After implementation, inspection cards will show:
-
+### Sidebar (Admin View)
 ```
-┌────────────────────────────────────────────────────────┐
-│ 🔧 Brompton S2L                           [No Issues]  │
-│ #CC-240001 • John Smith → Jane Doe                     │
-│                                                        │
-│ [Bike Collected] [📍 A12] [📍 A13]  ← NEW BADGES       │
-│                                                        │
-│ Inspected by Admin on 15/01/2026                       │
-└────────────────────────────────────────────────────────┘
-```
-
-For multi-bike orders, all storage locations will be shown:
-```
-│ [Driver En Route to Delivery] [📍 A12] [📍 A13] [📍 B5] │
+┌──────────────────────┐
+│ 🚴 Cycle Courier     │
+├──────────────────────┤
+│ 📊 Dashboard         │
+│ ➕ New Order         │
+│ ✅ Jobs              │
+│ 📅 Scheduling        │
+│ 📈 Analytics         │
+│ 🔧 Bicycle Inspections│ ← NEW
+│ 👥 Account Approvals │
+│ 👤 Profile           │
+└──────────────────────┘
 ```
 
----
+### Desktop Dropdown (with scroll)
+```
+┌────────────────────┐
+│ Dashboard          │↑
+│ Analytics          │░
+│ Your Profile       │░
+│ ──────────────     │░ ← Scrollable
+│ User Management    │░
+│ Loading & Storage  │░
+│ Job Scheduling     │░
+│ Driver Timeslips   │░
+│ ...                │↓
+└────────────────────┘
+```
 
-## Technical Notes
-
-### Status Badge Colors (from existing StatusBadge component)
-
-| Order Status | Badge Color |
-|--------------|-------------|
-| collected | Green |
-| driver_to_delivery | Blue |
-| scheduled | Purple |
-| delivery_scheduled | Blue |
-| created | Gray |
-
-### Storage Location Badge
-
-- Uses `outline` variant with a `MapPin` icon
-- Format: Bay letter + Position number (e.g., "A12", "B5", "C20")
-- Only shown when `storage_locations` array exists and has entries
+### Mobile Sheet (with scroll)
+```
+┌─────────────────────────┐
+│ Home                    │↑
+│ Track Order             │░
+│ Create Order            │░
+│ ─────────────           │░
+│ Dashboard               │░ ← Scrollable
+│ Analytics               │░
+│ Your Profile            │░
+│ ...                     │░
+│ Bicycle Inspections     │░
+│ Logout                  │↓
+└─────────────────────────┘
+```
 
 ---
 
@@ -138,8 +143,6 @@ For multi-bike orders, all storage locations will be shown:
 
 | Task | Description |
 |------|-------------|
-| Update queries | Add `storage_locations` field to inspection queries |
-| Import StatusBadge | Reuse existing component for consistency |
-| Add order status badge | Show current order status (collected, scheduled, etc.) |
-| Add storage location badges | Show bay positions with MapPin icon |
-
+| Add sidebar link | Add Bicycle Inspections to sidebar for admin users |
+| Desktop scroll | Add `max-h-[calc(100vh-100px)] overflow-y-auto` to DropdownMenuContent |
+| Mobile scroll | Add `overflow-y-auto` to Sheet content container |
