@@ -72,8 +72,8 @@ const Layout: React.FC<LayoutProps> = ({
                   <span className="sr-only">Toggle Menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[250px]">
-                <div className="flex flex-col space-y-4 py-4">
+              <SheetContent side="right" className="w-[250px] overflow-hidden">
+                <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
                   {navLinks}
                   {driverNavLinks}
                   
@@ -210,7 +210,7 @@ const Layout: React.FC<LayoutProps> = ({
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="max-h-[calc(100vh-100px)] overflow-y-auto">
                   <DropdownMenuItem disabled>
                     <span className="text-sm">{user.email}</span>
                   </DropdownMenuItem>

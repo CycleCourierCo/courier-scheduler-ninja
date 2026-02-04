@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Users,
   ClipboardCheck,
+  Wrench,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,6 +69,11 @@ export function Sidebar({
         href: "/analytics",
         icon: <BarChart3 className="h-5 w-5" />,
         label: "Analytics",
+      });
+      links.push({
+        href: "/bicycle-inspections",
+        icon: <Wrench className="h-5 w-5" />,
+        label: "Bicycle Inspections",
       });
     }
     
