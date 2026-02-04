@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -49,22 +51,38 @@ interface IssueEntry {
   estimatedCost: string;
 }
 
+// Standard inspection checklist items
+const INSPECTION_ITEMS = [
+  { id: 'brakes_gears', label: 'Brake and gear tuning' },
+  { id: 'safety_inspection', label: 'Full safety inspection (frame, wheels, drivetrain, tyres)' },
+  { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
+  { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
+];
+
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = userProfile?.role === "admin";
+  const isMechanic = userProfile?.role === "mechanic";
+  const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
+  
+  // Inspection checklist dialog state
+  const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
+  const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
+  const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
+  const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
 
   // Fetch inspections based on role
   const { data: inspections = [], isLoading } = useQuery({
-    queryKey: ["bicycle-inspections", isAdmin, user?.id],
+    queryKey: ["bicycle-inspections", canManageInspections, user?.id],
     queryFn: async () => {
-      if (isAdmin) {
+      if (canManageInspections) {
         // Reconcile any stuck inspections before fetching
         await reconcileInspectionStatuses();
         return getPendingInspections();
@@ -78,11 +96,11 @@ const BicycleInspections = () => {
 
   // Mark as inspected mutation
   const markInspectedMutation = useMutation({
-    mutationFn: async (orderId: string) => {
+    mutationFn: async ({ orderId, notes }: { orderId: string; notes?: string }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
-      return markAsInspected(orderId, user.id, userProfile.name || user.email || "Admin");
+      return markAsInspected(orderId, user.id, userProfile.name || user.email || "Admin", notes);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
@@ -247,6 +265,47 @@ const BicycleInspections = () => {
     setIssueDialogOpen(true);
   };
 
+  // Inspection checklist handlers
+  const handleOpenInspectionChecklist = (orderId: string) => {
+    setSelectedOrderForInspection(orderId);
+    setInspectionChecklist({});
+    setInspectionComments({});
+    setInspectionChecklistOpen(true);
+  };
+
+  const handleChecklistItemToggle = (itemId: string) => {
+    setInspectionChecklist(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  const handleChecklistCommentChange = (itemId: string, comment: string) => {
+    setInspectionComments(prev => ({
+      ...prev,
+      [itemId]: comment
+    }));
+  };
+
+  const allItemsChecked = INSPECTION_ITEMS.every(
+    item => inspectionChecklist[item.id]
+  );
+
+  const handleConfirmInspection = () => {
+    if (!selectedOrderForInspection || !allItemsChecked) return;
+    
+    // Format notes with checklist and comments
+    const notes = INSPECTION_ITEMS.map(item => {
+      const comment = inspectionComments[item.id];
+      return comment 
+        ? `✓ ${item.label}: ${comment}`
+        : `✓ ${item.label}`;
+    }).join('\n');
+    
+    markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
+    setInspectionChecklistOpen(false);
+  };
+
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
     setIssueCount(newCount);
@@ -347,6 +406,21 @@ const BicycleInspections = () => {
               <CardDescription>
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              {/* Order status and storage location badges */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <StatusBadge status={order.status} />
+                {order.storage_locations && Array.isArray(order.storage_locations) && 
+                 order.storage_locations.length > 0 && (
+                  <>
+                    {order.storage_locations.map((location: any, idx: number) => (
+                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {location.bay}{location.position}
+                      </Badge>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
             <Badge variant={badgeConfig.variant}>
               {badgeConfig.label}
@@ -510,7 +584,7 @@ const BicycleInspections = () => {
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
-                onClick={() => markInspectedMutation.mutate(order.id)}
+                onClick={() => handleOpenInspectionChecklist(order.id)}
                 disabled={markInspectedMutation.isPending}
               >
                 {markInspectedMutation.isPending ? (
@@ -748,6 +822,61 @@ const BicycleInspections = () => {
                   <AlertTriangle className="h-4 w-4 mr-1" />
                 )}
                 Report {issues.filter(i => i.description.trim()).length || 1} Issue{issues.filter(i => i.description.trim()).length !== 1 ? "s" : ""}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Inspection Checklist Dialog */}
+        <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                Inspection Checklist
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Please confirm all inspection tasks have been completed:
+              </p>
+              {INSPECTION_ITEMS.map((item) => (
+                <div key={item.id} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id={item.id}
+                      checked={inspectionChecklist[item.id] || false}
+                      onCheckedChange={() => handleChecklistItemToggle(item.id)}
+                    />
+                    <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer leading-tight">
+                      {item.label}
+                    </Label>
+                  </div>
+                  {inspectionChecklist[item.id] && (
+                    <Input
+                      placeholder="Optional: Add notes..."
+                      value={inspectionComments[item.id] || ""}
+                      onChange={(e) => handleChecklistCommentChange(item.id, e.target.value)}
+                      className="mt-2 text-sm"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setInspectionChecklistOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmInspection}
+                disabled={!allItemsChecked || markInspectedMutation.isPending}
+              >
+                {markInspectedMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                )}
+                Confirm Inspection Complete
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -1,5 +1,5 @@
 
-export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'route_planner' | 'sales';
+export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales';
 
 export interface UserProfile {
   id: string;

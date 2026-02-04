@@ -74,7 +74,28 @@ export const getOrCreateInspection = async (orderId: string): Promise<BicycleIns
     return newInspection as BicycleInspection;
   } catch (error) {
     console.error('Error getting or creating inspection:', error);
-    return null;
+  return null;
+  }
+};
+
+// Enable inspection for an existing order (admin action)
+export const enableInspectionForOrder = async (orderId: string): Promise<BicycleInspection | null> => {
+  try {
+    // Update order to require inspection
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({ needs_inspection: true })
+      .eq('id', orderId);
+
+    if (orderError) throw orderError;
+
+    // Create or get the inspection record
+    const inspection = await getOrCreateInspection(orderId);
+    
+    return inspection;
+  } catch (error) {
+    console.error('Error enabling inspection for order:', error);
+    throw error;
   }
 };
 
@@ -93,7 +114,8 @@ export const getPendingInspections = async () => {
         sender,
         receiver,
         user_id,
-        needs_inspection
+        needs_inspection,
+        storage_locations
       `)
       .eq('needs_inspection', true)
       .not('status', 'in', '("delivered","cancelled")')
@@ -137,7 +159,8 @@ export const getMyInspections = async (userId: string) => {
         sender,
         receiver,
         user_id,
-        needs_inspection
+        needs_inspection,
+        storage_locations
       `)
       .eq('user_id', userId)
       .eq('needs_inspection', true)

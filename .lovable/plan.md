@@ -1,28 +1,34 @@
 
-
-# Add Inspection Status Badge to Loading/Storage Page
+# Add Mechanic User Role for Bicycle Inspections
 
 ## Overview
 
-Add an "Inspection Pending" or "Inspection Done" badge to bike cards on the Loading/Storage page for bicycles that have been collected and require inspection. This mirrors the badge already implemented on the Job Scheduling page.
+Create a new "mechanic" user role that has exclusive access to the Bicycle Inspections page, similar to how "loader" only has access to the Loading page. Mechanics will be able to perform all inspection tasks on the page.
 
 ---
 
-## Current State
+## Current Role System
 
-| Component | Shows Inspection Badge |
-|-----------|----------------------|
-| Job Scheduling page | ✅ Yes (after recent fix) |
-| Loading page - Bikes In Storage | ❌ No |
-| Loading page - Pending Storage Allocation | ❌ No |
+| Role | Current Access |
+|------|----------------|
+| admin | Full access to all features |
+| driver | Timeslips, Check-in, Profile |
+| loader | Loading page only |
+| route_planner | Dashboard, Scheduling |
+| sales | Dashboard, Approvals, Invoices |
+| b2b_customer | Dashboard, Orders, Inspections (own) |
+| b2c_customer | Dashboard, Orders |
 
 ---
 
-## Solution Approach
+## New Mechanic Role
 
-1. **Add inspection_status to Order type** - Enable tracking actual inspection status
-2. **Update getOrdersForLoading** - Join `bicycle_inspections` table to fetch status
-3. **Add badges to both components** - Show status on bike cards
+| Attribute | Value |
+|-----------|-------|
+| Role Name | mechanic |
+| Access | Bicycle Inspections page only |
+| Capabilities | All inspection tasks (mark inspected, report issues, mark repaired, etc.) |
+| Default Redirect | /bicycle-inspections |
 
 ---
 
@@ -30,109 +36,120 @@ Add an "Inspection Pending" or "Inspection Done" badge to bike cards on the Load
 
 | File | Changes |
 |------|---------|
-| `src/types/order.ts` | Add `inspection_status` field to Order type |
-| `src/services/orderService.ts` | Update `getOrdersForLoading` to join bicycle_inspections |
-| `src/components/loading/BikesInStorage.tsx` | Add inspection badge to storage cards |
-| `src/components/loading/PendingStorageAllocation.tsx` | Add inspection badge to pending allocation cards |
+| Database Migration | Add 'mechanic' to `user_role` enum |
+| `src/types/user.ts` | Add 'mechanic' to UserRole type |
+| `src/components/ProtectedRoute.tsx` | Add mechanic role restrictions |
+| `src/components/Layout.tsx` | Add navigation for mechanic role |
+| `src/pages/UserManagement.tsx` | Add mechanic option in role dropdowns |
+| `src/components/user-management/EditUserDialog.tsx` | No changes needed (uses role from select) |
+| `src/pages/BicycleInspections.tsx` | Update admin check to include mechanic |
 
 ---
 
 ## Implementation Details
 
-### 1. Update Order Type (`src/types/order.ts`)
+### 1. Database Migration
 
-Add new field to track inspection status:
-
-```typescript
-export type Order = {
-  // ... existing fields ...
-  inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
-};
+```sql
+-- Add 'mechanic' to user_role enum
+ALTER TYPE user_role ADD VALUE 'mechanic';
 ```
 
-### 2. Update Data Fetching (`src/services/orderService.ts`)
-
-Modify the query to join inspection data:
+### 2. Update TypeScript UserRole Type (`src/types/user.ts`)
 
 ```typescript
-export const getOrdersForLoading = async (): Promise<Order[]> => {
-  try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*, bicycle_inspections(status)")  // JOIN inspection table
-      .not('status', 'eq', 'cancelled')
-      .not('status', 'eq', 'delivered')
-      .order("created_at", { ascending: false })
-      .limit(5000);
+export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales';
+```
 
-    // Map the inspection status from joined data
-    return data.map(order => ({
-      ...mapDbOrderToOrderType(order),
-      inspection_status: order.bicycle_inspections?.[0]?.status || null
-    }));
-  } catch (error) {
-    // ... error handling
+### 3. Update ProtectedRoute (`src/components/ProtectedRoute.tsx`)
+
+Add mechanic role restrictions after the loader check:
+
+```typescript
+// After loader check (around line 70)
+// Mechanic role restrictions - only allow access to bicycle inspections
+const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
+if (userProfile?.role === 'mechanic') {
+  if (!isBicycleInspectionsPage) {
+    return <Navigate to="/bicycle-inspections" replace />;
   }
-};
+  return <>{children}</>;
+}
 ```
 
-### 3. Add Badge to Bikes In Storage (`src/components/loading/BikesInStorage.tsx`)
+### 4. Update Layout Navigation (`src/components/Layout.tsx`)
 
-Add inspection badge in the badges section (after status badge):
+Add mechanic-specific navigation:
 
 ```typescript
-{/* Inspection Status Badge */}
-{order?.needsInspection && (() => {
-  const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
-  return (
-    <Badge className={`text-xs flex items-center gap-1 ${
-      isComplete 
-        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-        : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
-    }`}>
-      <Wrench className="h-3 w-3" />
-      {isComplete ? 'Inspection Done' : 'Inspection Pending'}
-    </Badge>
-  );
-})()}
+// Add role check
+const isMechanic = userProfile?.role === 'mechanic';
+
+// Add mechanic nav links (similar to driver)
+const mechanicNavLinks = isMechanic ? <>
+  <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+    Bicycle Inspections
+  </Link>
+</> : null;
 ```
 
-### 4. Add Badge to Pending Storage Allocation (`src/components/loading/PendingStorageAllocation.tsx`)
+Also update the mobile and desktop menus to show mechanic-specific options.
 
-Add the same badge to both:
-- **Bikes loaded onto van** section
-- **Bikes pending storage allocation** section
+### 5. Update UserManagement Page (`src/pages/UserManagement.tsx`)
+
+Add mechanic option to role select dropdowns:
+
+```typescript
+<SelectItem value="mechanic">Mechanic</SelectItem>
+```
+
+### 6. Update BicycleInspections Page (`src/pages/BicycleInspections.tsx`)
+
+Update the admin check to include mechanic for full management access:
+
+```typescript
+const isAdmin = userProfile?.role === "admin";
+const isMechanic = userProfile?.role === "mechanic";
+const canManageInspections = isAdmin || isMechanic;
+
+// Replace isAdmin checks with canManageInspections where appropriate
+```
 
 ---
 
-## Badge States
+## Access Control Summary
 
-| Inspection Status | Badge | Color |
-|------------------|-------|-------|
-| `inspected` | Inspection Done | Green |
-| `repaired` | Inspection Done | Green |
-| `pending` | Inspection Pending | Amber |
-| `issues_found` | Inspection Pending | Amber |
-| `in_repair` | Inspection Pending | Amber |
-| No record | Inspection Pending | Amber |
+```text
+┌─────────────────────────────────────────────────────────┐
+│              Mechanic Role Access                       │
+├─────────────────────────────────────────────────────────┤
+│ ✅ Bicycle Inspections Page                             │
+│    - View all pending inspections                       │
+│    - Mark inspected (no issues) with checklist          │
+│    - Report issues with costs                           │
+│    - Mark issues as repaired                            │
+│    - Complete repairs workflow                          │
+│    - Reset inspections                                  │
+├─────────────────────────────────────────────────────────┤
+│ ❌ All other pages redirect to /bicycle-inspections     │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Visual Result
+## Navigation for Mechanic (Mobile & Desktop)
 
-After implementation, bike cards will show:
-
-**Bikes In Storage tab:**
-```
-[Bay Position] Customer Name
-[Days in Storage] [Status] [Collected by Driver] [Inspection Done ✓] or [Inspection Pending ⚠]
-```
-
-**Pending Storage Allocation tab:**
-```
-Customer Name
-Bike details...
-[X bikes total] [X remaining] [In Driver Van] [Inspection Pending ⚠]
+```text
+┌────────────────────────┐
+│ [User Profile Icon] ▼  │
+├────────────────────────┤
+│ mechanic@example.com   │
+│ ─────────────────────  │
+│ 🔧 Bicycle Inspections │
+│ 👤 Your Profile        │
+│ ─────────────────────  │
+│ 🚪 Logout              │
+└────────────────────────┘
 ```
 
 ---
@@ -141,8 +158,9 @@ Bike details...
 
 | Task | Description |
 |------|-------------|
-| Add `inspection_status` to Order | New optional field for inspection status |
-| Update `getOrdersForLoading` | Join bicycle_inspections table |
-| Add badge to BikesInStorage | Show inspection status on stored bikes |
-| Add badge to PendingStorageAllocation | Show inspection status on collected bikes awaiting allocation |
-
+| Add database enum value | Add 'mechanic' to user_role enum |
+| Update TypeScript type | Add 'mechanic' to UserRole union |
+| Add route protection | Restrict mechanic to bicycle-inspections only |
+| Add navigation | Show inspection link in header menu |
+| Add to user management | Allow admins to assign mechanic role |
+| Grant inspection access | Allow mechanics to perform all inspection tasks |

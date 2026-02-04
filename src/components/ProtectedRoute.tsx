@@ -69,7 +69,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 5. Route planner role restrictions - only allow scheduling and dashboard
+  // 5. Mechanic role restrictions - only allow access to bicycle inspections
+  const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
+  if (userProfile?.role === 'mechanic') {
+    if (!isBicycleInspectionsPage) {
+      return <Navigate to="/bicycle-inspections" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  // 6. Route planner role restrictions - only allow scheduling and dashboard
   const isSchedulingPage = location.pathname === '/scheduling';
   const isDashboardPage = location.pathname === '/dashboard';
   if (userProfile?.role === 'route_planner') {
@@ -79,7 +88,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 6. Sales role restrictions - only allow approvals, invoices, and dashboard
+  // 7. Sales role restrictions - only allow approvals, invoices, and dashboard
   const isApprovalsPage = location.pathname === '/account-approvals';
   const isInvoicesPage = location.pathname === '/invoices';
   if (userProfile?.role === 'sales') {
@@ -89,7 +98,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 7. Driver role restrictions - only allow timeslips, check-in, and profile
+  // 8. Driver role restrictions - only allow timeslips, check-in, and profile
   const isTimeslipsPage = location.pathname === '/driver-timeslips';
   const isCheckinPage = location.pathname === '/driver-checkin';
   const isProfilePage = location.pathname === '/profile';
@@ -100,12 +109,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 8. Block B2C users from admin-only pages
+  // 9. Block B2C users from admin-only pages
   if (noB2CAccess && userProfile?.role === 'b2c_customer') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // 9. Admin-only route protection
+  // 10. Admin-only route protection
   if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
