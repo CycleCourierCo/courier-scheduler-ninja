@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -403,6 +404,21 @@ const BicycleInspections = () => {
               <CardDescription>
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              {/* Order status and storage location badges */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <StatusBadge status={order.status} />
+                {order.storage_locations && Array.isArray(order.storage_locations) && 
+                 order.storage_locations.length > 0 && (
+                  <>
+                    {order.storage_locations.map((location: any, idx: number) => (
+                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {location.bay}{location.position}
+                      </Badge>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
             <Badge variant={badgeConfig.variant}>
               {badgeConfig.label}

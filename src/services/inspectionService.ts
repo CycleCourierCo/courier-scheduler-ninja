@@ -114,7 +114,8 @@ export const getPendingInspections = async () => {
         sender,
         receiver,
         user_id,
-        needs_inspection
+        needs_inspection,
+        storage_locations
       `)
       .eq('needs_inspection', true)
       .not('status', 'in', '("delivered","cancelled")')
@@ -158,7 +159,8 @@ export const getMyInspections = async (userId: string) => {
         sender,
         receiver,
         user_id,
-        needs_inspection
+        needs_inspection,
+        storage_locations
       `)
       .eq('user_id', userId)
       .eq('needs_inspection', true)
