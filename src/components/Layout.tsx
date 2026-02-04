@@ -25,9 +25,10 @@ const Layout: React.FC<LayoutProps> = ({
   const isSales = userProfile?.role === 'sales';
   const isB2B = userProfile?.role === 'b2b_customer';
   const isDriver = userProfile?.role === 'driver';
+  const isMechanic = userProfile?.role === 'mechanic';
   
-  // Loaders should not see any navigation
-  const navLinks = !isLoader ? <>
+  // Loaders and mechanics should not see general navigation
+  const navLinks = !isLoader && !isMechanic ? <>
       <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Home
       </Link>
@@ -50,6 +51,12 @@ const Layout: React.FC<LayoutProps> = ({
       </Link>
     </> : null;
 
+  const mechanicNavLinks = isMechanic ? <>
+      <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Bicycle Inspections
+      </Link>
+    </> : null;
+
   return <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -60,6 +67,7 @@ const Layout: React.FC<LayoutProps> = ({
           <nav className="hidden md:flex space-x-6">
             {navLinks}
             {driverNavLinks}
+            {mechanicNavLinks}
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
@@ -76,8 +84,9 @@ const Layout: React.FC<LayoutProps> = ({
                 <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
                   {navLinks}
                   {driverNavLinks}
+                  {mechanicNavLinks}
                   
-                  {user && !isLoader && !isDriver && <>
+                  {user && !isLoader && !isDriver && !isMechanic && <>
                       <DropdownMenuSeparator className="my-2" />
                       <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <Home className="mr-2 h-4 w-4" />
@@ -196,6 +205,20 @@ const Layout: React.FC<LayoutProps> = ({
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout
                     </button>}
+                  {user && isMechanic && <>
+                      <DropdownMenuSeparator className="my-2" />
+                      <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Wrench className="mr-2 h-4 w-4" />
+                        Bicycle Inspections
+                      </Link>
+                      <button onClick={() => {
+                    signOut();
+                    closeSheet();
+                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                      </button>
+                    </>}
                 </div>
               </SheetContent>
             </Sheet>
@@ -204,7 +227,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
-            {user && !isLoader && <DropdownMenu>
+            {user && !isLoader && !isMechanic && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <User className="h-5 w-5" />
@@ -352,6 +375,13 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                     </>}
+                  
+                  {isMechanic && <DropdownMenuItem asChild>
+                      <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
+                        <Wrench className="mr-2 h-4 w-4" />
+                        <span>Bicycle Inspections</span>
+                      </Link>
+                    </DropdownMenuItem>}
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
