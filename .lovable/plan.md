@@ -1,34 +1,41 @@
 
-# Add Mechanic User Role for Bicycle Inspections
+# Add Email Loading Lists Alongside WhatsApp
 
 ## Overview
 
-Create a new "mechanic" user role that has exclusive access to the Bicycle Inspections page, similar to how "loader" only has access to the Loading page. Mechanics will be able to perform all inspection tasks on the page.
+Add email capability to the existing loading list functionality so that:
+1. Individual drivers receive their personalized loading lists via email (in addition to WhatsApp)
+2. Admin receives the management overview email at `Info@cyclecourierco.com`
 
 ---
 
-## Current Role System
+## Current System
 
-| Role | Current Access |
-|------|----------------|
-| admin | Full access to all features |
-| driver | Timeslips, Check-in, Profile |
-| loader | Loading page only |
-| route_planner | Dashboard, Scheduling |
-| sales | Dashboard, Approvals, Invoices |
-| b2b_customer | Dashboard, Orders, Inspections (own) |
-| b2c_customer | Dashboard, Orders |
+| Channel | Recipient | Content |
+|---------|-----------|---------|
+| WhatsApp | Management (+441217980767) | Full overview with FROM/TO depot sections |
+| WhatsApp | Individual Drivers | Personalized loading list with 4 sections |
+
+## New System (After Changes)
+
+| Channel | Recipient | Content |
+|---------|-----------|---------|
+| WhatsApp | Management (+441217980767) | Full overview with FROM/TO depot sections |
+| WhatsApp | Individual Drivers | Personalized loading list with 4 sections |
+| Email | Info@cyclecourierco.com | Full management overview (HTML formatted) |
+| Email | Individual Drivers | Personalized loading list (HTML formatted) |
 
 ---
 
-## New Mechanic Role
+## Implementation Approach
 
-| Attribute | Value |
-|-----------|-------|
-| Role Name | mechanic |
-| Access | Bicycle Inspections page only |
-| Capabilities | All inspection tasks (mark inspected, report issues, mark repaired, etc.) |
-| Default Redirect | /bicycle-inspections |
+### Option 1: Extend Existing WhatsApp Function (Recommended)
+Add email sending to the same `send-loading-list-whatsapp` edge function, reusing the existing message formatting logic.
+
+### Option 2: Create Separate Email Function
+Create a new `send-loading-list-email` edge function and call both from the frontend.
+
+**Recommendation**: Option 1 - keeps all loading list logic in one place and ensures consistency.
 
 ---
 
@@ -36,120 +43,150 @@ Create a new "mechanic" user role that has exclusive access to the Bicycle Inspe
 
 | File | Changes |
 |------|---------|
-| Database Migration | Add 'mechanic' to `user_role` enum |
-| `src/types/user.ts` | Add 'mechanic' to UserRole type |
-| `src/components/ProtectedRoute.tsx` | Add mechanic role restrictions |
-| `src/components/Layout.tsx` | Add navigation for mechanic role |
-| `src/pages/UserManagement.tsx` | Add mechanic option in role dropdowns |
-| `src/components/user-management/EditUserDialog.tsx` | No changes needed (uses role from select) |
-| `src/pages/BicycleInspections.tsx` | Update admin check to include mechanic |
+| `supabase/functions/send-loading-list-whatsapp/index.ts` | Add email sending logic using Resend API |
+| `src/pages/LoadingUnloadingPage.tsx` | Add driver email input fields and pass to function |
+| Database (optional) | Store driver emails in profiles for future use |
 
 ---
 
-## Implementation Details
+## Technical Implementation
 
-### 1. Database Migration
+### 1. Update Edge Function (`send-loading-list-whatsapp/index.ts`)
 
-```sql
--- Add 'mechanic' to user_role enum
-ALTER TYPE user_role ADD VALUE 'mechanic';
-```
-
-### 2. Update TypeScript UserRole Type (`src/types/user.ts`)
+Add Resend import and email sending logic:
 
 ```typescript
-export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales';
-```
+import { Resend } from "npm:resend@4.0.0";
 
-### 3. Update ProtectedRoute (`src/components/ProtectedRoute.tsx`)
-
-Add mechanic role restrictions after the loader check:
-
-```typescript
-// After loader check (around line 70)
-// Mechanic role restrictions - only allow access to bicycle inspections
-const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
-if (userProfile?.role === 'mechanic') {
-  if (!isBicycleInspectionsPage) {
-    return <Navigate to="/bicycle-inspections" replace />;
-  }
-  return <>{children}</>;
+// Add to request interface
+interface LoadingListRequest {
+  date: string;
+  bikesNeedingLoading: { ... }[];
+  driverPhoneNumbers?: Record<string, string>;
+  driverEmails?: Record<string, string>;  // NEW
 }
 ```
 
-### 4. Update Layout Navigation (`src/components/Layout.tsx`)
+Create HTML email templates:
+- Management email with styled tables for FROM/TO depot sections
+- Driver emails with styled sections for their tasks
 
-Add mechanic-specific navigation:
-
+Send emails after WhatsApp:
 ```typescript
-// Add role check
-const isMechanic = userProfile?.role === 'mechanic';
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+const resend = new Resend(RESEND_API_KEY);
 
-// Add mechanic nav links (similar to driver)
-const mechanicNavLinks = isMechanic ? <>
-  <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-    Bicycle Inspections
-  </Link>
-</> : null;
+// Send admin email
+await resend.emails.send({
+  from: "Ccc@notification.cyclecourierco.com",
+  to: "Info@cyclecourierco.com",
+  subject: `Loading List - ${date}`,
+  html: managementEmailHtml
+});
+
+// Send driver emails
+for (const [driverName, driverEmail] of Object.entries(driverEmails)) {
+  const driverHtml = buildDriverEmailHtml(driverName, categories, date);
+  await resend.emails.send({
+    from: "Ccc@notification.cyclecourierco.com", 
+    to: driverEmail,
+    subject: `Your Loading List - ${date}`,
+    html: driverHtml
+  });
+}
 ```
 
-Also update the mobile and desktop menus to show mechanic-specific options.
+### 2. Update LoadingUnloadingPage.tsx
 
-### 5. Update UserManagement Page (`src/pages/UserManagement.tsx`)
+Add email fields to the driver phone dialog:
+- Add `driverEmails` state alongside `driverPhoneNumbers`
+- Add email input field for each driver in the dialog
+- Pass `driverEmails` to the edge function call
 
-Add mechanic option to role select dropdowns:
+### 3. Email Templates
 
-```typescript
-<SelectItem value="mechanic">Mechanic</SelectItem>
+Create HTML-formatted versions of the existing WhatsApp messages:
+
+**Management Email:**
+```text
+┌────────────────────────────────────────────┐
+│       LOADING LIST - 2026-02-04            │
+├────────────────────────────────────────────┤
+│                                            │
+│  📤 FROM DEPOT → DRIVERS (Outbound)        │
+│  ┌────────────────────────────────────┐    │
+│  │ Driver Name (3 bikes)              │    │
+│  │ • Bay A1: Trek Domane - Customer X │    │
+│  │ • Bay B5: Specialized - Customer Y │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  📥 TO DEPOT ← DRIVERS (Inbound)           │
+│  ┌────────────────────────────────────┐    │
+│  │ Driver Name bringing in (2 bikes)  │    │
+│  │ • Trek Emonda - No delivery driver │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  📊 SUMMARY                                │
+│  • Outbound: 5 bikes                       │
+│  • Inbound: 2 bikes                        │
+│  • Total drivers: 3                        │
+└────────────────────────────────────────────┘
 ```
 
-### 6. Update BicycleInspections Page (`src/pages/BicycleInspections.tsx`)
+**Driver Email:**
+- Same 4 sections as WhatsApp but formatted as HTML tables
+- Mobile-responsive design
 
-Update the admin check to include mechanic for full management access:
+---
+
+## Response Structure Update
 
 ```typescript
-const isAdmin = userProfile?.role === "admin";
-const isMechanic = userProfile?.role === "mechanic";
-const canManageInspections = isAdmin || isMechanic;
-
-// Replace isAdmin checks with canManageInspections where appropriate
+return new Response(JSON.stringify({ 
+  success: true,
+  whatsapp: {
+    management: { sent: true },
+    drivers: { count: 3, sent: 3 }
+  },
+  email: {
+    management: { sent: true, to: "Info@cyclecourierco.com" },
+    drivers: { count: 2, sent: 2 }  // Only drivers with emails
+  },
+  totalBikes: 10
+}));
 ```
 
 ---
 
-## Access Control Summary
+## UI Changes
+
+### Driver Phone/Email Dialog
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
-│              Mechanic Role Access                       │
+│  Send Loading List                                       │
 ├─────────────────────────────────────────────────────────┤
-│ ✅ Bicycle Inspections Page                             │
-│    - View all pending inspections                       │
-│    - Mark inspected (no issues) with checklist          │
-│    - Report issues with costs                           │
-│    - Mark issues as repaired                            │
-│    - Complete repairs workflow                          │
-│    - Reset inspections                                  │
-├─────────────────────────────────────────────────────────┤
-│ ❌ All other pages redirect to /bicycle-inspections     │
+│                                                          │
+│  Enter contact details for each driver:                  │
+│                                                          │
+│  Driver: John Smith                                      │
+│  ┌─────────────────────────────────────────────────────┐│
+│  │ Phone: +44 7xxx xxx xxx                             ││
+│  └─────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────┐│
+│  │ Email: john@example.com                             ││
+│  └─────────────────────────────────────────────────────┘│
+│                                                          │
+│  Driver: Jane Doe                                        │
+│  ┌─────────────────────────────────────────────────────┐│
+│  │ Phone: +44 7xxx xxx xxx                             ││
+│  └─────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────┐│
+│  │ Email: jane@example.com                             ││
+│  └─────────────────────────────────────────────────────┘│
+│                                                          │
+│            [Cancel]    [Send Loading List]               │
 └─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Navigation for Mechanic (Mobile & Desktop)
-
-```text
-┌────────────────────────┐
-│ [User Profile Icon] ▼  │
-├────────────────────────┤
-│ mechanic@example.com   │
-│ ─────────────────────  │
-│ 🔧 Bicycle Inspections │
-│ 👤 Your Profile        │
-│ ─────────────────────  │
-│ 🚪 Logout              │
-└────────────────────────┘
 ```
 
 ---
@@ -158,9 +195,9 @@ const canManageInspections = isAdmin || isMechanic;
 
 | Task | Description |
 |------|-------------|
-| Add database enum value | Add 'mechanic' to user_role enum |
-| Update TypeScript type | Add 'mechanic' to UserRole union |
-| Add route protection | Restrict mechanic to bicycle-inspections only |
-| Add navigation | Show inspection link in header menu |
-| Add to user management | Allow admins to assign mechanic role |
-| Grant inspection access | Allow mechanics to perform all inspection tasks |
+| Extend edge function | Add Resend email sending to existing WhatsApp function |
+| Create HTML templates | Convert WhatsApp text format to styled HTML emails |
+| Add email fields | Add driver email inputs to the dialog |
+| Send admin email | Always send to Info@cyclecourierco.com |
+| Send driver emails | Send to drivers who have email addresses provided |
+| Update response | Return status for both WhatsApp and email sends |
