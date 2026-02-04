@@ -1,252 +1,136 @@
 
 
-# Add Inspection Checklist Dialog for "Mark Inspected (No Issues)"
+# Add Order Status Badge and Storage Location to Bicycle Inspections Page
 
 ## Overview
 
-Add a confirmation popup dialog when marking a bicycle inspection as "inspected (no issues)". The dialog will require the user to check off each standard inspection item and optionally add comments before completing the inspection.
+Add order status badge and storage bay allocation information to the inspection cards on the Bicycle Inspections page. This will help admins quickly see whether a bike has been collected and where it's located in storage.
 
 ---
 
-## Current Flow
+## Current State
 
-| Step | Current Behavior |
-|------|-----------------|
-| Admin clicks "Mark Inspected (No Issues)" | Immediately marks as inspected |
-| No checklist | No verification of work done |
-| No notes required | Notes are optional and not prompted |
-
----
-
-## New Flow
-
-| Step | New Behavior |
-|------|--------------|
-| Admin clicks "Mark Inspected (No Issues)" | Opens checklist dialog |
-| Checklist presented | 4 inspection items must be checked |
-| Comments optional | Each item can have optional notes |
-| Confirm button | Only enabled when all items checked |
-| On confirm | Saves notes and marks as inspected |
+| Information | Currently Shown |
+|-------------|----------------|
+| Bike brand/model | ✅ Yes |
+| Inspection status badge | ✅ Yes |
+| Order status (collected, scheduled, etc.) | ❌ No |
+| Storage bay allocation | ❌ No |
 
 ---
 
-## Inspection Items
+## Solution
 
-| Item | Description |
-|------|-------------|
-| Brake and gear tuning | Brakes and gears adjusted and functioning |
-| Full safety inspection | Frame, wheels, drivetrain, tyres checked |
-| Tyre pressure check and adjustment | Tyres inflated to correct pressure |
-| Light cleaning and bolt tightening | Bike cleaned and bolts secured |
-
----
-
-## Files to Modify
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/BicycleInspections.tsx` | Add inspection checklist dialog with checkboxes and comments |
-| `src/services/inspectionService.ts` | Update `markAsInspected` to store checklist data in notes |
+| `src/services/inspectionService.ts` | Add `storage_locations` to the query select fields |
+| `src/pages/BicycleInspections.tsx` | Add order status badge and storage location badges to cards |
 
 ---
 
 ## Implementation Details
 
-### 1. Add State for Checklist Dialog (`src/pages/BicycleInspections.tsx`)
+### 1. Update Query to Include Storage Locations (`src/services/inspectionService.ts`)
+
+Add `storage_locations` to both `getPendingInspections` and `getMyInspections` queries:
 
 ```typescript
-// Define inspection items
-const INSPECTION_ITEMS = [
-  { id: 'brakes_gears', label: 'Brake and gear tuning' },
-  { id: 'safety_inspection', label: 'Full safety inspection (frame, wheels, drivetrain, tyres)' },
-  { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
-  { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
-];
-
-// Add state
-const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
-const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
-const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
-const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
+const { data, error } = await supabase
+  .from('orders')
+  .select(`
+    id,
+    tracking_number,
+    bike_brand,
+    bike_model,
+    bike_quantity,
+    status,
+    sender,
+    receiver,
+    user_id,
+    needs_inspection,
+    storage_locations   // ADD THIS
+  `)
 ```
 
-### 2. Add Handler Functions
+### 2. Add Badges to Inspection Cards (`src/pages/BicycleInspections.tsx`)
+
+#### Import StatusBadge Component
 
 ```typescript
-const handleOpenInspectionChecklist = (orderId: string) => {
-  setSelectedOrderForInspection(orderId);
-  setInspectionChecklist({});
-  setInspectionComments({});
-  setInspectionChecklistOpen(true);
-};
-
-const handleChecklistItemToggle = (itemId: string) => {
-  setInspectionChecklist(prev => ({
-    ...prev,
-    [itemId]: !prev[itemId]
-  }));
-};
-
-const handleChecklistCommentChange = (itemId: string, comment: string) => {
-  setInspectionComments(prev => ({
-    ...prev,
-    [itemId]: comment
-  }));
-};
-
-const allItemsChecked = INSPECTION_ITEMS.every(
-  item => inspectionChecklist[item.id]
-);
-
-const handleConfirmInspection = () => {
-  if (!selectedOrderForInspection || !allItemsChecked) return;
-  
-  // Format notes with checklist and comments
-  const notes = INSPECTION_ITEMS.map(item => {
-    const comment = inspectionComments[item.id];
-    return comment 
-      ? `✓ ${item.label}: ${comment}`
-      : `✓ ${item.label}`;
-  }).join('\n');
-  
-  markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
-  setInspectionChecklistOpen(false);
-};
+import StatusBadge from "@/components/StatusBadge";
+import { MapPin } from "lucide-react";
 ```
 
-### 3. Update Mutation
+#### Update the renderInspectionCard Function
+
+Add badges section after the card description showing:
+- **Order Status Badge**: Using the existing `StatusBadge` component
+- **Storage Location Badges**: Show bay positions if allocated (e.g., "A12", "B5")
 
 ```typescript
-const markInspectedMutation = useMutation({
-  mutationFn: async ({ orderId, notes }: { orderId: string; notes?: string }) => {
-    if (!user?.id || !userProfile?.name) {
-      throw new Error("User not authenticated");
-    }
-    return markAsInspected(orderId, user.id, userProfile.name || user.email || "Admin", notes);
-  },
-  // ... rest unchanged
-});
-```
-
-### 4. Update Button to Open Dialog
-
-```typescript
-<Button
-  size="sm"
-  onClick={() => handleOpenInspectionChecklist(order.id)}
-  disabled={markInspectedMutation.isPending}
->
-  <CheckCircle className="h-4 w-4 mr-1" />
-  Mark Inspected (No Issues)
-</Button>
-```
-
-### 5. Add Checklist Dialog
-
-```typescript
-<Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
-  <DialogContent className="max-w-md">
-    <DialogHeader>
-      <DialogTitle className="flex items-center gap-2">
-        <CheckCircle className="h-5 w-5 text-green-500" />
-        Inspection Checklist
-      </DialogTitle>
-    </DialogHeader>
-    <div className="space-y-4 py-4">
-      <p className="text-sm text-muted-foreground">
-        Please confirm all inspection tasks have been completed:
-      </p>
-      {INSPECTION_ITEMS.map((item) => (
-        <div key={item.id} className="space-y-2 p-3 border rounded-lg">
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id={item.id}
-              checked={inspectionChecklist[item.id] || false}
-              onCheckedChange={() => handleChecklistItemToggle(item.id)}
-            />
-            <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer">
-              {item.label}
-            </Label>
-          </div>
-          {inspectionChecklist[item.id] && (
-            <Input
-              placeholder="Optional: Add notes..."
-              value={inspectionComments[item.id] || ""}
-              onChange={(e) => handleChecklistCommentChange(item.id, e.target.value)}
-              className="mt-2 text-sm"
-            />
-          )}
-        </div>
+<CardDescription>
+  #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
+</CardDescription>
+{/* NEW: Order status and storage location badges */}
+<div className="flex flex-wrap gap-2 mt-2">
+  <StatusBadge status={order.status} />
+  {order.storage_locations && Array.isArray(order.storage_locations) && 
+   order.storage_locations.length > 0 && (
+    <>
+      {order.storage_locations.map((location: any, idx: number) => (
+        <Badge key={idx} variant="outline" className="flex items-center gap-1">
+          <MapPin className="h-3 w-3" />
+          {location.bay}{location.position}
+        </Badge>
       ))}
-    </div>
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setInspectionChecklistOpen(false)}>
-        Cancel
-      </Button>
-      <Button 
-        onClick={handleConfirmInspection}
-        disabled={!allItemsChecked || markInspectedMutation.isPending}
-      >
-        {markInspectedMutation.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin mr-1" />
-        ) : (
-          <CheckCircle className="h-4 w-4 mr-1" />
-        )}
-        Confirm Inspection Complete
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+    </>
+  )}
+</div>
 ```
 
 ---
 
-## User Experience
+## Visual Result
+
+After implementation, inspection cards will show:
 
 ```
-┌──────────────────────────────────────────┐
-│ ✓ Inspection Checklist                   │
-├──────────────────────────────────────────┤
-│ Please confirm all inspection tasks      │
-│ have been completed:                     │
-│                                          │
-│ ┌──────────────────────────────────────┐ │
-│ │ ☑ Brake and gear tuning              │ │
-│ │ [Optional: Add notes...            ] │ │
-│ └──────────────────────────────────────┘ │
-│                                          │
-│ ┌──────────────────────────────────────┐ │
-│ │ ☑ Full safety inspection (frame,    │ │
-│ │   wheels, drivetrain, tyres)         │ │
-│ │ [Replaced worn brake pads          ] │ │
-│ └──────────────────────────────────────┘ │
-│                                          │
-│ ┌──────────────────────────────────────┐ │
-│ │ ☑ Tyre pressure check and adjustment│ │
-│ │ [Optional: Add notes...            ] │ │
-│ └──────────────────────────────────────┘ │
-│                                          │
-│ ┌──────────────────────────────────────┐ │
-│ │ ☑ Light cleaning and bolt tightening│ │
-│ │ [Optional: Add notes...            ] │ │
-│ └──────────────────────────────────────┘ │
-│                                          │
-│              [Cancel] [Confirm ✓]        │
-└──────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│ 🔧 Brompton S2L                           [No Issues]  │
+│ #CC-240001 • John Smith → Jane Doe                     │
+│                                                        │
+│ [Bike Collected] [📍 A12] [📍 A13]  ← NEW BADGES       │
+│                                                        │
+│ Inspected by Admin on 15/01/2026                       │
+└────────────────────────────────────────────────────────┘
+```
+
+For multi-bike orders, all storage locations will be shown:
+```
+│ [Driver En Route to Delivery] [📍 A12] [📍 A13] [📍 B5] │
 ```
 
 ---
 
-## Notes Storage
+## Technical Notes
 
-The notes will be stored as a formatted string in the `bicycle_inspections.notes` field:
+### Status Badge Colors (from existing StatusBadge component)
 
-```
-✓ Brake and gear tuning
-✓ Full safety inspection (frame, wheels, drivetrain, tyres): Replaced worn brake pads
-✓ Tyre pressure check and adjustment
-✓ Light cleaning and bolt tightening
-```
+| Order Status | Badge Color |
+|--------------|-------------|
+| collected | Green |
+| driver_to_delivery | Blue |
+| scheduled | Purple |
+| delivery_scheduled | Blue |
+| created | Gray |
+
+### Storage Location Badge
+
+- Uses `outline` variant with a `MapPin` icon
+- Format: Bay letter + Position number (e.g., "A12", "B5", "C20")
+- Only shown when `storage_locations` array exists and has entries
 
 ---
 
@@ -254,9 +138,8 @@ The notes will be stored as a formatted string in the `bicycle_inspections.notes
 
 | Task | Description |
 |------|-------------|
-| Add checklist state | Track checked items and comments |
-| Add dialog component | Show checklist with checkboxes and optional comment fields |
-| Update button | Open dialog instead of direct mutation |
-| Update mutation | Accept notes parameter |
-| Store checklist in notes | Format and save to inspection record |
+| Update queries | Add `storage_locations` field to inspection queries |
+| Import StatusBadge | Reuse existing component for consistency |
+| Add order status badge | Show current order status (collected, scheduled, etc.) |
+| Add storage location badges | Show bay positions with MapPin icon |
 
