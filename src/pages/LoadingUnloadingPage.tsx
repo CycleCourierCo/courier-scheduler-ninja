@@ -57,6 +57,7 @@ const LoadingUnloadingPage = () => {
   const [showDriverPhoneDialog, setShowDriverPhoneDialog] = useState(false);
   const [driversForLoading, setDriversForLoading] = useState<string[]>([]);
   const [driverPhoneNumbers, setDriverPhoneNumbers] = useState<Record<string, string>>({});
+  const [driverEmails, setDriverEmails] = useState<Record<string, string>>({});
   const [showRemoveBikesDialog, setShowRemoveBikesDialog] = useState(false);
 
   const { user } = useAuth();
@@ -822,6 +823,7 @@ const LoadingUnloadingPage = () => {
     const uniqueDrivers = Object.keys(driverGroups);
     setDriversForLoading(uniqueDrivers);
     setDriverPhoneNumbers({});
+    setDriverEmails({});
     setShowDriverPhoneDialog(true);
   };
 
@@ -886,7 +888,8 @@ const LoadingUnloadingPage = () => {
           date: format(selectedLoadingDate, 'yyyy-MM-dd'),
           bikesNeedingLoading: bikesNeedingLoadingData,
           bikesAlreadyLoaded: bikesAlreadyLoadedData,
-          driverPhoneNumbers: driverPhoneNumbers
+          driverPhoneNumbers: driverPhoneNumbers,
+          driverEmails: driverEmails
         }
       });
 
@@ -1366,27 +1369,43 @@ const LoadingUnloadingPage = () => {
 
         {/* Driver Phone Numbers Dialog */}
         <Dialog open={showDriverPhoneDialog} onOpenChange={setShowDriverPhoneDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Send Loading List</DialogTitle>
               <DialogDescription>
-                Enter phone numbers for drivers (optional). The management team will always receive the list.
+                Enter contact details for drivers (optional). The management team will always receive the list via WhatsApp and email.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {driversForLoading.map((driver) => (
-                <div key={driver} className="space-y-2">
-                  <Label htmlFor={`phone-${driver}`}>{driver}</Label>
-                  <Input
-                    id={`phone-${driver}`}
-                    type="tel"
-                    placeholder="+44..."
-                    value={driverPhoneNumbers[driver] || ''}
-                    onChange={(e) => setDriverPhoneNumbers(prev => ({
-                      ...prev,
-                      [driver]: e.target.value
-                    }))}
-                  />
+                <div key={driver} className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="font-medium text-sm">{driver}</div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`phone-${driver}`} className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
+                    <Input
+                      id={`phone-${driver}`}
+                      type="tel"
+                      placeholder="+44..."
+                      value={driverPhoneNumbers[driver] || ''}
+                      onChange={(e) => setDriverPhoneNumbers(prev => ({
+                        ...prev,
+                        [driver]: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`email-${driver}`} className="text-xs text-muted-foreground">Email</Label>
+                    <Input
+                      id={`email-${driver}`}
+                      type="email"
+                      placeholder="driver@example.com"
+                      value={driverEmails[driver] || ''}
+                      onChange={(e) => setDriverEmails(prev => ({
+                        ...prev,
+                        [driver]: e.target.value
+                      }))}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
