@@ -57,13 +57,16 @@ export const upsertContact = async (
     return null;
   }
 
-  const { data, error } = await supabase
+  const email = contactData.email.trim().toLowerCase();
+
+  // Step 1: Upsert the contact (don't rely on return value due to CITEXT issues)
+  const { error: upsertError } = await supabase
     .from('contacts')
     .upsert(
       {
         user_id: userId,
         name: contactData.name,
-        email: contactData.email.trim().toLowerCase(),
+        email: email,
         phone: contactData.phone || null,
         street: contactData.street || null,
         city: contactData.city || null,
@@ -78,12 +81,23 @@ export const upsertContact = async (
         onConflict: 'user_id,email',
         ignoreDuplicates: false,
       }
-    )
+    );
+
+  if (upsertError) {
+    console.error('Failed to upsert contact:', upsertError);
+    return null;
+  }
+
+  // Step 2: Fetch the contact ID explicitly (handles CITEXT case-insensitive matching)
+  const { data, error } = await supabase
+    .from('contacts')
     .select('id')
-    .single();
+    .eq('user_id', userId)
+    .ilike('email', email)
+    .maybeSingle();
 
   if (error) {
-    console.error('Failed to upsert contact:', error);
+    console.error('Failed to fetch contact ID after upsert:', error);
     return null;
   }
 
