@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +28,7 @@ interface LoadingListRequest {
     hasBeenCollected?: boolean;
   }[];
   driverPhoneNumbers?: Record<string, string>;
+  driverEmails?: Record<string, string>;
 }
 
 function normalizeDateToYYYYMMDD(dateString: string): string {
@@ -43,7 +44,6 @@ function categorizeBikesForDriver(
   allBikes: LoadingListRequest['bikesNeedingLoading'],
   loadingDate: string
 ) {
-  // Normalize loading date to YYYY-MM-DD
   const normalizedLoadingDate = normalizeDateToYYYYMMDD(loadingDate);
   
   console.log(`Categorizing bikes for ${driverName}, loading date: ${normalizedLoadingDate}`);
@@ -98,7 +98,6 @@ function categorizeBikesForDriver(
 
   const bikesToDeposit = allBikes.filter(b => {
     const bikeDate = b.scheduledDeliveryDate ? normalizeDateToYYYYMMDD(b.scheduledDeliveryDate) : null;
-    // Only include bikes that have ACTUALLY BEEN COLLECTED
     return b.hasBeenCollected &&
       b.collectionDriverName === driverName &&
       (
@@ -218,22 +217,271 @@ function buildDriverMessage(
   return message;
 }
 
+// HTML Email template builders
+function buildManagementEmailHtml(
+  date: string,
+  bikesFromDepot: LoadingListRequest['bikesNeedingLoading'],
+  bikesToDepot: LoadingListRequest['bikesNeedingLoading'],
+  allDrivers: Set<string>
+): string {
+  const fromDepotByDriver = bikesFromDepot.reduce((acc, bike) => {
+    const driver = bike.deliveryDriverName || 'Unassigned';
+    if (!acc[driver]) acc[driver] = [];
+    acc[driver].push(bike);
+    return acc;
+  }, {} as Record<string, typeof bikesFromDepot>);
+
+  const toDepotByDriver = bikesToDepot.reduce((acc, bike) => {
+    const driver = bike.collectionDriverName || 'Unknown';
+    if (!acc[driver]) acc[driver] = [];
+    acc[driver].push(bike);
+    return acc;
+  }, {} as Record<string, typeof bikesToDepot>);
+
+  let fromDepotHtml = '';
+  for (const [driverName, bikes] of Object.entries(fromDepotByDriver)) {
+    fromDepotHtml += `
+      <div style="margin-bottom: 16px;">
+        <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} (${bikes.length})</div>
+        ${bikes.map((bike, i) => {
+          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+          return `
+            <div style="background: #f8f8f8; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+              <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+              <div style="color: #666;">📍 ${location}</div>
+              <div style="color: #666;">📦 ${bike.receiver.name}</div>
+              <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+              ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity} bikes</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  let toDepotHtml = '';
+  for (const [driverName, bikes] of Object.entries(toDepotByDriver)) {
+    toDepotHtml += `
+      <div style="margin-bottom: 16px;">
+        <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} bringing in (${bikes.length})</div>
+        ${bikes.map((bike, i) => {
+          let reason = '';
+          if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
+            reason = '⚠️ No delivery driver';
+          } else if (bike.scheduledDeliveryDate) {
+            const deliveryDate = new Date(bike.scheduledDeliveryDate).toLocaleDateString('en-GB');
+            reason = `📅 Delivery: ${deliveryDate}`;
+          }
+          return `
+            <div style="background: #f8f8f8; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+              <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+              <div style="color: #666;">📦 ${bike.receiver.name}</div>
+              <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+              ${reason ? `<div style="color: #c45500;">${reason}</div>` : ''}
+              ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity} bikes</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+      <div style="background: #1a1a1a; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 24px;">🚛 LOADING LIST - MANAGEMENT OVERVIEW</h1>
+        <p style="margin: 10px 0 0; font-size: 16px;">📅 Date: ${date}</p>
+      </div>
+      
+      <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <h2 style="margin: 0 0 12px; color: #2e7d32; font-size: 18px;">📤 FROM DEPOT → DRIVERS (${bikesFromDepot.length} bikes)</h2>
+        <p style="margin: 0 0 16px; color: #666; font-size: 14px;">Bikes in storage going OUT today</p>
+        ${fromDepotHtml || '<p style="color: #666;">No bikes going out from depot</p>'}
+      </div>
+
+      <div style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <h2 style="margin: 0 0 12px; color: #e65100; font-size: 18px;">📥 TO DEPOT ← DRIVERS (${bikesToDepot.length} bikes)</h2>
+        <p style="margin: 0 0 16px; color: #666; font-size: 14px;">Bikes collected that need to come IN</p>
+        ${toDepotHtml || '<p style="color: #666;">No bikes coming to depot</p>'}
+      </div>
+
+      <div style="background: #f5f5f5; border-radius: 8px; padding: 16px;">
+        <h2 style="margin: 0 0 12px; color: #1a1a1a; font-size: 18px;">📊 SUMMARY</h2>
+        <ul style="margin: 0; padding-left: 20px; color: #333;">
+          <li>Outbound: ${bikesFromDepot.length} bikes leaving depot</li>
+          <li>Inbound: ${bikesToDepot.length} bikes coming to depot</li>
+          <li>Total drivers: ${allDrivers.size}</li>
+        </ul>
+      </div>
+
+      <p style="margin-top: 20px; color: #999; font-size: 12px; text-align: center;">
+        Sent by Cycle Courier Co. Loading System
+      </p>
+    </body>
+    </html>
+  `;
+}
+
+function buildDriverEmailHtml(
+  driverName: string,
+  categories: ReturnType<typeof categorizeBikesForDriver>,
+  date: string
+): string {
+  const sections: string[] = [];
+
+  if (categories.bikesToKeep.length > 0) {
+    sections.push(`
+      <div style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #1565c0;">🔒 BIKES YOU NEED TO KEEP (${categories.bikesToKeep.length})</h3>
+        <p style="margin: 0 0 12px; color: #666; font-size: 14px;">You collected these and will deliver them</p>
+        ${categories.bikesToKeep.map((bike, i) => `
+          <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+            <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+            <div style="color: #666;">📦 ${bike.receiver.name}</div>
+            <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+            ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `);
+  }
+
+  if (Object.keys(categories.bikesByRecipient).length > 0) {
+    let recipientHtml = '';
+    for (const [recipientDriver, bikes] of Object.entries(categories.bikesByRecipient)) {
+      recipientHtml += `
+        <div style="margin-bottom: 12px;">
+          <div style="font-weight: bold; margin-bottom: 8px;">📦 Give to ${recipientDriver} (${bikes.length} bike${bikes.length > 1 ? 's' : ''})</div>
+          ${bikes.map((bike, i) => `
+            <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+              <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+              <div style="color: #666;">📦 ${bike.receiver.name}</div>
+              <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    sections.push(`
+      <div style="background: #fce4ec; border: 2px solid #e91e63; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #c2185b;">🤝 BIKES TO GIVE TO OTHER DRIVERS</h3>
+        ${recipientHtml}
+      </div>
+    `);
+  }
+
+  if (Object.keys(categories.bikesByProvider).length > 0) {
+    let providerHtml = '';
+    for (const [providerName, bikes] of Object.entries(categories.bikesByProvider)) {
+      providerHtml += `
+        <div style="margin-bottom: 12px;">
+          <div style="font-weight: bold; margin-bottom: 8px;">📦 Receive from ${providerName} (${bikes.length} bike${bikes.length > 1 ? 's' : ''})</div>
+          ${bikes.map((bike, i) => `
+            <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+              <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+              <div style="color: #666;">📦 ${bike.receiver.name}</div>
+              <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    sections.push(`
+      <div style="background: #f3e5f5; border: 2px solid #9c27b0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #7b1fa2;">📥 BIKES TO RECEIVE FROM OTHER DRIVERS</h3>
+        ${providerHtml}
+      </div>
+    `);
+  }
+
+  if (categories.bikesToCollect.length > 0) {
+    sections.push(`
+      <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #2e7d32;">🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})</h3>
+        ${categories.bikesToCollect.map((bike, i) => {
+          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+          return `
+            <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+              <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+              <div style="color: #666;">📍 ${location}</div>
+              <div style="color: #666;">📦 ${bike.receiver.name}</div>
+              <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+              ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `);
+  }
+
+  if (categories.bikesToDeposit.length > 0) {
+    sections.push(`
+      <div style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #e65100;">📥 BIKES TO PUT INTO DEPOT (${categories.bikesToDeposit.length})</h3>
+        <p style="margin: 0 0 12px; color: #666; font-size: 14px;">Drop these at the depot - not going out today</p>
+        ${categories.bikesToDeposit.map((bike, i) => `
+          <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+            <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+            <div style="color: #666;">📦 ${bike.receiver.name}</div>
+            <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+            ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `);
+  }
+
+  if (sections.length === 0) {
+    return '';
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+      <div style="background: #1a1a1a; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 24px;">🚛 YOUR LOADING LIST</h1>
+        <p style="margin: 10px 0 0; font-size: 16px;">📅 Date: ${date}</p>
+        <p style="margin: 5px 0 0; font-size: 16px;">👨‍💼 ${driverName}</p>
+      </div>
+      
+      ${sections.join('')}
+
+      <p style="margin-top: 20px; color: #999; font-size: 12px; text-align: center;">
+        Sent by Cycle Courier Co. Loading System
+      </p>
+    </body>
+    </html>
+  `;
+}
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { date, bikesNeedingLoading, driverPhoneNumbers = {} }: LoadingListRequest = await req.json();
+    const { date, bikesNeedingLoading, driverPhoneNumbers = {}, driverEmails = {} }: LoadingListRequest = await req.json();
 
     console.log('Sending loading list for date:', date);
     console.log('Bikes needing loading:', bikesNeedingLoading);
     console.log('Driver phone numbers:', driverPhoneNumbers);
+    console.log('Driver emails:', driverEmails);
 
-    // Get API credentials from environment
+    // Get API credentials
     const apiKey = Deno.env.get('TWOCHAT_API_KEY');
     const fromNumber = Deno.env.get('TWOCHAT_FROM_NUMBER');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
     if (!apiKey || !fromNumber) {
       console.error('Missing WhatsApp API credentials');
@@ -245,6 +493,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+
+    // Initialize Resend if API key is available
+    const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
     // Get all unique drivers
     const allDrivers = new Set<string>();
@@ -281,15 +532,13 @@ const handler = async (req: Request): Promise<Response> => {
       });
     };
 
-    // Build management message with FROM/TO depot sections
+    // Build management WhatsApp message
     let managementMessage = `🚛 LOADING LIST - MANAGEMENT OVERVIEW\n\n📅 Date: ${date}\n\n`;
 
-    // SECTION 1: FROM Depot → Drivers (Outbound)
     const bikesFromDepot = getBikesFromDepot(bikesNeedingLoading, date);
     managementMessage += `📤 FROM DEPOT → DRIVERS (${bikesFromDepot.length} bikes)\n`;
     managementMessage += `Bikes in storage going OUT today\n\n`;
 
-    // Group by delivery driver
     const fromDepotByDriver = bikesFromDepot.reduce((acc, bike) => {
       const driver = bike.deliveryDriverName || 'Unassigned';
       if (!acc[driver]) acc[driver] = [];
@@ -313,12 +562,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
     managementMessage += '━━━━━━━━━━━━━━━━━━━━\n\n';
 
-    // SECTION 2: TO Depot (Inbound)
     const bikesToDepot = getBikesToDepot(bikesNeedingLoading, date);
     managementMessage += `📥 TO DEPOT ← DRIVERS (${bikesToDepot.length} bikes)\n`;
     managementMessage += `Bikes collected that need to come IN\n\n`;
 
-    // Group by collection driver
     const toDepotByDriver = bikesToDepot.reduce((acc, bike) => {
       const driver = bike.collectionDriverName || 'Unknown';
       if (!acc[driver]) acc[driver] = [];
@@ -348,7 +595,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
     managementMessage += '━━━━━━━━━━━━━━━━━━━━\n\n';
 
-    // SECTION 3: Summary
     managementMessage += `📊 SUMMARY\n`;
     managementMessage += `• Outbound: ${bikesFromDepot.length} bikes leaving depot\n`;
     managementMessage += `• Inbound: ${bikesToDepot.length} bikes coming to depot\n`;
@@ -357,11 +603,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Formatted management message:', managementMessage);
 
     const managementPhone = '+441217980767';
-    const results = [];
+    const managementEmail = 'Info@cyclecourierco.com';
+    const results: any[] = [];
 
-    // Send to management
+    // === WHATSAPP: Send to management ===
     const managementCleanPhone = managementPhone.replace(/[^\d]/g, '');
-    const managementResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
+    const managementWhatsAppResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -374,49 +621,98 @@ const handler = async (req: Request): Promise<Response> => {
       }),
     });
 
-    const managementResult = await managementResponse.json();
-    console.log('Management WhatsApp response:', managementResult);
-    results.push({ recipient: 'management', phone: managementPhone, result: managementResult });
+    const managementWhatsAppResult = await managementWhatsAppResponse.json();
+    console.log('Management WhatsApp response:', managementWhatsAppResult);
+    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: managementWhatsAppResult });
 
-    if (!managementResponse.ok) {
-      throw new Error(`Management WhatsApp API error: ${JSON.stringify(managementResult)}`);
+    if (!managementWhatsAppResponse.ok) {
+      console.error(`Management WhatsApp API error: ${JSON.stringify(managementWhatsAppResult)}`);
     }
 
-    // Send to individual drivers with new 4-section format
-    let driverMessagesSent = 0;
+    // === EMAIL: Send to management ===
+    let managementEmailSent = false;
+    if (resend) {
+      try {
+        const managementEmailHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        const emailResult = await resend.emails.send({
+          from: "Ccc@notification.cyclecourierco.com",
+          to: managementEmail,
+          subject: `Loading List - ${date}`,
+          html: managementEmailHtml
+        });
+        console.log('Management email sent:', emailResult);
+        results.push({ recipient: 'management', channel: 'email', to: managementEmail, result: emailResult });
+        managementEmailSent = true;
+      } catch (emailError: any) {
+        console.error('Error sending management email:', emailError);
+        results.push({ recipient: 'management', channel: 'email', to: managementEmail, error: emailError.message });
+      }
+    } else {
+      console.log('Resend API key not configured, skipping management email');
+    }
+
+    // === Send to individual drivers ===
+    let driverWhatsAppsSent = 0;
+    let driverEmailsSent = 0;
+    
     for (const driverName of allDrivers) {
-      const driverPhone = driverPhoneNumbers[driverName];
+      const categories = categorizeBikesForDriver(driverName, bikesNeedingLoading, date);
+      const driverMessage = buildDriverMessage(driverName, categories, date);
       
+      if (!driverMessage) {
+        console.log(`No bikes for driver ${driverName}, skipping`);
+        continue;
+      }
+
+      // WhatsApp to driver
+      const driverPhone = driverPhoneNumbers[driverName];
       if (driverPhone && driverPhone.trim()) {
-        const categories = categorizeBikesForDriver(driverName, bikesNeedingLoading, date);
-        const driverMessage = buildDriverMessage(driverName, categories, date);
+        console.log(`Sending WhatsApp to ${driverName}:`, driverMessage);
+        const driverCleanPhone = driverPhone.replace(/[^\d]/g, '');
+        const driverWhatsAppResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-API-Key': apiKey,
+          },
+          body: JSON.stringify({
+            to_number: `+${driverCleanPhone}`,
+            from_number: fromNumber,
+            text: driverMessage
+          }),
+        });
+
+        const driverWhatsAppResult = await driverWhatsAppResponse.json();
+        console.log(`Driver ${driverName} WhatsApp response:`, driverWhatsAppResult);
+        results.push({ recipient: driverName, channel: 'whatsapp', phone: driverPhone, result: driverWhatsAppResult });
         
-        if (driverMessage) {
-          console.log(`Sending to ${driverName}:`, driverMessage);
-          const driverCleanPhone = driverPhone.replace(/[^\d]/g, '');
-          const driverResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-User-API-Key': apiKey,
-            },
-            body: JSON.stringify({
-              to_number: `+${driverCleanPhone}`,
-              from_number: fromNumber,
-              text: driverMessage
-            }),
-          });
-
-          const driverResult = await driverResponse.json();
-          console.log(`Driver ${driverName} WhatsApp response:`, driverResult);
-          results.push({ recipient: driverName, phone: driverPhone, result: driverResult });
-          driverMessagesSent++;
-
-          if (!driverResponse.ok) {
-            console.error(`Failed to send to driver ${driverName}:`, driverResult);
-          }
+        if (driverWhatsAppResponse.ok) {
+          driverWhatsAppsSent++;
         } else {
-          console.log(`No bikes for driver ${driverName}, skipping message`);
+          console.error(`Failed to send WhatsApp to driver ${driverName}:`, driverWhatsAppResult);
+        }
+      }
+
+      // Email to driver
+      const driverEmail = driverEmails[driverName];
+      if (resend && driverEmail && driverEmail.trim()) {
+        try {
+          const driverEmailHtml = buildDriverEmailHtml(driverName, categories, date);
+          if (driverEmailHtml) {
+            console.log(`Sending email to ${driverName} at ${driverEmail}`);
+            const emailResult = await resend.emails.send({
+              from: "Ccc@notification.cyclecourierco.com",
+              to: driverEmail,
+              subject: `Your Loading List - ${date}`,
+              html: driverEmailHtml
+            });
+            console.log(`Driver ${driverName} email sent:`, emailResult);
+            results.push({ recipient: driverName, channel: 'email', to: driverEmail, result: emailResult });
+            driverEmailsSent++;
+          }
+        } catch (emailError: any) {
+          console.error(`Error sending email to driver ${driverName}:`, emailError);
+          results.push({ recipient: driverName, channel: 'email', to: driverEmail, error: emailError.message });
         }
       }
     }
@@ -428,7 +724,14 @@ const handler = async (req: Request): Promise<Response> => {
         results,
         driversCount: allDrivers.size,
         totalBikes: bikesNeedingLoading.length,
-        sentToDrivers: driverMessagesSent
+        whatsapp: {
+          management: { sent: managementWhatsAppResponse.ok },
+          drivers: { count: allDrivers.size, sent: driverWhatsAppsSent }
+        },
+        email: {
+          management: { sent: managementEmailSent, to: managementEmail },
+          drivers: { count: Object.keys(driverEmails).filter(k => driverEmails[k]?.trim()).length, sent: driverEmailsSent }
+        }
       }),
       {
         status: 200,
