@@ -1,92 +1,79 @@
 
-# Add Tracking Number to Sender Availability Email
+# Move Track Order Button Inside Info Box
 
 ## Overview
 
-Update the sender availability confirmation email to include the tracking number in:
-1. The email subject line
-2. The email body with a tracking link
+Reorganize the availability confirmation email to:
+1. Move the "Track Order" button inside the grey info box, below the tracking number
+2. Remove the "You can track your order's progress:" text
+3. Change the Track Order button color from grey (`#6b7280`) to blue (`#4a65d5`) to match the Confirm Availability button
 
-## Current State
+## Current Structure
 
-**Frontend (`src/services/emailService.ts`)**:
-- `sendSenderAvailabilityEmail` passes: `to`, `name`, `orderId`, `baseUrl`, `emailType`, `item`
-- Missing: `trackingNumber`
+```
+┌─────────────────────────────────────┐
+│ Grey Box                            │
+│   Item Name (Quantity: X)           │
+│   Tracking Number: CCC-XXX          │
+└─────────────────────────────────────┘
 
-**Edge Function (`supabase/functions/send-email/index.ts`)**:
-- Subject: `"Please confirm your pickup availability"` (no tracking number)
-- Body: Shows item name and quantity but no tracking number or link
+   [Confirm Availability Button - Blue]
 
-## Changes Required
-
-### 1. Update Frontend Service
-
-**File**: `src/services/emailService.ts`
-
-Add `trackingNumber` to the request body in `sendSenderAvailabilityEmail`:
-
-```typescript
-const response = await supabase.functions.invoke("send-email", {
-  body: {
-    to: order.sender.email,
-    name: order.sender.name || "Sender",
-    orderId: id,
-    baseUrl,
-    emailType: "sender",
-    item: item,
-    trackingNumber: order.trackingNumber  // NEW
-  }
-});
+   "You can track your order's progress:"
+   [Track Order Button - Grey]
 ```
 
-Also update `sendReceiverAvailabilityEmail` for consistency.
+## New Structure
 
-### 2. Update Edge Function
+```
+┌─────────────────────────────────────┐
+│ Grey Box                            │
+│   Item Name (Quantity: X)           │
+│   Tracking Number: CCC-XXX          │
+│   [Track Order Button - Blue]       │
+└─────────────────────────────────────┘
+
+   [Confirm Availability Button - Blue]
+```
+
+## Technical Changes
 
 **File**: `supabase/functions/send-email/index.ts`
 
-Update the `emailType === 'sender' || emailType === 'receiver'` handler:
+### 1. Remove the separate tracking section variable (lines 96-104)
 
-**Subject Line** (line 89):
-```typescript
-// Before
-emailOptions.subject = `Please confirm your ${availabilityType} availability`;
+Delete the `trackingSection` variable that creates the standalone button with grey styling.
 
-// After
-const trackingNumber = reqData.trackingNumber || '';
-emailOptions.subject = trackingNumber 
-  ? `${trackingNumber} - Please confirm your ${availabilityType} availability`
-  : `Please confirm your ${availabilityType} availability`;
-```
+### 2. Update the grey info box (lines 111-114)
 
-**Email Body** - Add tracking info box and link after the item details:
+Add the Track Order button inside the box with matching blue color:
+
 ```html
 <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
   <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
-  <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
-</div>
-<p>You can track your order's progress:</p>
-<div style="text-align: center; margin: 20px 0;">
-  <a href="${trackingUrl}" style="background-color: #6b7280; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
-    Track Order
-  </a>
+  ${trackingNumber ? `
+    <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+    <div style="text-align: center; margin-top: 15px;">
+      <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+        Track Order
+      </a>
+    </div>
+  ` : ''}
 </div>
 ```
 
-## Technical Details
+### 3. Remove the trackingSection insertion (line 123)
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/services/emailService.ts` | 476-485 | Add `trackingNumber: order.trackingNumber` to sender request body |
-| `src/services/emailService.ts` | 539-548 | Add `trackingNumber: order.trackingNumber` to receiver request body |
-| `supabase/functions/send-email/index.ts` | 79-122 | Extract `trackingNumber`, update subject, add tracking info to HTML/text body |
+Remove `${trackingSection}` from the HTML template.
 
-## Result
+### 4. Update plain text version (line 138)
 
-**Before**:
-- Subject: `Please confirm your pickup availability`
-- Body: Item details only
+Keep the tracking URL in the text version but simplify the format.
 
-**After**:
-- Subject: `CCC-123456 - Please confirm your pickup availability`
-- Body: Item details + tracking number + "Track Order" button linking to `/tracking/CCC-123456`
+## Summary
+
+| Change | Before | After |
+|--------|--------|-------|
+| Track Order location | Separate section below box | Inside the grey info box |
+| Track Order color | Grey (`#6b7280`) | Blue (`#4a65d5`) |
+| "You can track..." text | Present | Removed |
