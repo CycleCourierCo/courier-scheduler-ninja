@@ -1,142 +1,134 @@
 
-# CSV Upload for Bulk Timeslot Sending
+# Fix Recalculate Button to Fetch Latest Coordinates
 
-## Overview
+## Problem
 
-Add CSV upload capability to the Job Scheduling page that will:
-1. Parse an uploaded CSV file containing a pre-optimized route
-2. Match CSV rows to existing orders based on contact name and/or address
-3. Pre-populate the route builder with matched jobs in the correct sequence
-4. Open the timeslot dialog with all jobs ready for sending
+When you click "Recalculate" on the Get Timeslot popup, the system uses the coordinates stored in local state (`selectedJobs`) rather than fetching the latest values from Supabase. If you manually update coordinates in the database, clicking Recalculate still uses the old/stale coordinates.
 
 ---
 
-## CSV Structure Analysis
+## Root Cause
 
-Your uploaded CSV has the following format:
-
-| Column | Example | Purpose |
-|--------|---------|---------|
-| sequence | 0, 1, 2... | Stop order in the route |
-| name | "Sarah Cowper" | Contact name to match |
-| address | "6 Clarence avenue, Great Boughton..." | Address for the stop |
-
-**Note:** Row 0 and the last row are the depot (Lawden Road) - these should be excluded from job matching.
+| Current Flow | Issue |
+|--------------|-------|
+| Jobs selected → lat/lon saved to `selectedJobs` state | Coordinates captured at selection time |
+| You fix coordinates in Supabase | Changes are in database only |
+| Click "Recalculate" | Uses stale `selectedJobs.lat/lon` |
+| Result: Wrong timeslots | Doesn't reflect your fixes |
 
 ---
 
-## Matching Strategy
+## Solution
 
-Since the CSV doesn't contain order IDs or tracking numbers, jobs will be matched using:
+Create a new function `refreshAndCalculateTimeslots()` that:
 
-1. **Fuzzy name matching** - Compare CSV name against sender/receiver names in pending orders
-2. **Address similarity** - Use address components (postcode, city) as secondary match criteria
-3. **Ambiguous matches** - Flag jobs where multiple orders match the same CSV row for manual selection
-
----
-
-## Implementation Approach
-
-### UI Changes
-
-Add an "Upload Route CSV" button to the RouteBuilder component with:
-- File input accepting `.csv` files
-- Progress indicator during parsing/matching
-- Summary showing matched vs unmatched rows
-- Option to proceed with matched jobs or cancel
-
-### New Components
-
-| Component | Purpose |
-|-----------|---------|
-| `CSVUploadButton` | File input with styling |
-| `CSVMatchReviewDialog` | Shows matching results before loading route |
-
-### Matching Logic
-
-```text
-For each CSV row (excluding depot rows):
-  1. Search pending orders (not yet scheduled)
-  2. Find where sender.name OR receiver.name matches CSV name
-  3. If multiple matches found, check address similarity
-  4. Store match with confidence score (exact, fuzzy, address-only)
-```
+1. Fetches the latest order data from Supabase for all selected job order IDs
+2. Updates the `selectedJobs` state with fresh lat/lon coordinates
+3. Proceeds with the timeslot calculation using the updated values
 
 ---
 
-## Workflow After Implementation
+## Implementation
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│  1. User clicks "Upload Route CSV"                      │
-│                        ↓                                │
-│  2. Select CSV file from computer                       │
-│                        ↓                                │
-│  3. System parses CSV and matches to pending orders     │
-│                        ↓                                │
-│  4. Review dialog shows:                                │
-│     ✓ 26 of 28 rows matched                             │
-│     ⚠ 2 rows unmatched (depot start/end)                │
-│                        ↓                                │
-│  5. Click "Load Route" to populate jobs                 │
-│                        ↓                                │
-│  6. Click "Get Timeslots" to calculate times            │
-│                        ↓                                │
-│  7. Dialog opens with all 26 jobs ready                 │
-│                        ↓                                │
-│  8. Click "Send All Timeslots" or edit individually     │
-└─────────────────────────────────────────────────────────┘
-```
+### File to Modify
 
----
+`src/components/scheduling/RouteBuilder.tsx`
 
-## Files to Create/Modify
+### Changes
 
-| File | Changes |
-|------|---------|
-| `src/components/scheduling/CSVUploadButton.tsx` | New component for file upload |
-| `src/components/scheduling/CSVMatchReviewDialog.tsx` | New dialog showing match results |
-| `src/components/scheduling/RouteBuilder.tsx` | Add upload button and CSV processing logic |
-| `src/utils/csvRouteParser.ts` | CSV parsing and order matching utilities |
-
----
-
-## CSV Parsing Logic
+1. **Add new function** `refreshAndCalculateTimeslots()`:
 
 ```typescript
-interface CSVRow {
-  sequence: number;
-  name: string;
-  address: string;
-}
+const refreshAndCalculateTimeslots = async () => {
+  if (selectedJobs.length === 0) return;
 
-interface MatchResult {
-  csvRow: CSVRow;
-  matchedOrder: OrderData | null;
-  matchType: 'exact' | 'fuzzy' | 'address' | 'none';
-  jobType: 'pickup' | 'delivery';
-  confidence: number;
-}
+  // Get unique order IDs from selected jobs
+  const orderIds = [...new Set(
+    selectedJobs
+      .filter(job => job.type !== 'break')
+      .map(job => job.orderId)
+  )];
+
+  // Fetch latest order data from Supabase
+  const { data: freshOrders, error } = await supabase
+    .from('orders')
+    .select('id, sender, receiver')
+    .in('id', orderIds);
+
+  if (error) {
+    console.error('Error fetching latest coordinates:', error);
+    toast.error('Failed to fetch latest coordinates');
+    return;
+  }
+
+  // Update selectedJobs with fresh coordinates
+  const updatedJobs = selectedJobs.map(job => {
+    if (job.type === 'break') return job;
+    
+    const freshOrder = freshOrders?.find(o => o.id === job.orderId);
+    if (!freshOrder) return job;
+
+    const contact = job.type === 'pickup' 
+      ? freshOrder.sender 
+      : freshOrder.receiver;
+
+    return {
+      ...job,
+      lat: contact?.address?.lat,
+      lon: contact?.address?.lon
+    };
+  });
+
+  setSelectedJobs(updatedJobs);
+  
+  // Now calculate with fresh data
+  // (small delay to ensure state is updated)
+  setTimeout(() => {
+    calculateTimeslots();
+  }, 100);
+};
 ```
 
-**Matching algorithm:**
-1. Skip rows where address contains "Lawden Road" or "b100ad" (depot)
-2. Normalize names (lowercase, trim whitespace)
-3. Find orders where `sender.name` or `receiver.name` contains the CSV name
-4. For duplicate matches, use postcode from address to disambiguate
-5. Determine if it's a pickup (matches sender) or delivery (matches receiver)
+2. **Update "Recalculate" buttons** to call the new function:
+
+| Location | Line | Change |
+|----------|------|--------|
+| Mobile drawer | ~2128 | `onClick={refreshAndCalculateTimeslots}` |
+| Desktop dialog | ~2232 | `onClick={refreshAndCalculateTimeslots}` |
 
 ---
 
-## Edge Cases
+## Technical Details
 
-| Case | Handling |
-|------|----------|
-| Same customer has multiple orders | Use address matching to select correct one |
-| Name spelling differs | Use Levenshtein distance for fuzzy matching |
-| No match found | Flag for manual selection from order list |
-| Order already scheduled | Exclude from matching (show warning) |
-| Multiple bikes at same address | Group correctly like current system does |
+### Before (Current)
+
+```text
+User clicks "Recalculate"
+         ↓
+calculateTimeslots() runs
+         ↓
+Uses job.lat/job.lon from state (STALE)
+         ↓
+Wrong timeslots calculated
+```
+
+### After (Fixed)
+
+```text
+User clicks "Recalculate"
+         ↓
+refreshAndCalculateTimeslots() runs
+         ↓
+Fetch fresh orders from Supabase
+         ↓
+Update selectedJobs with new lat/lon
+         ↓
+calculateTimeslots() runs
+         ↓
+Uses fresh coordinates
+         ↓
+Correct timeslots calculated
+```
 
 ---
 
@@ -144,11 +136,8 @@ interface MatchResult {
 
 | Task | Description |
 |------|-------------|
-| Create CSV parser | Parse route CSV and extract job data |
-| Implement name matching | Match CSV names to order sender/receiver names |
-| Add upload UI | Button to trigger file selection |
-| Add review dialog | Show matches before loading |
-| Pre-populate route | Load matched jobs into selectedJobs state |
-| Calculate timeslots | Automatically open timeslot dialog |
+| Add `refreshAndCalculateTimeslots` function | Fetches fresh coordinates before calculating |
+| Update Recalculate button handlers | Switch from `calculateTimeslots` to `refreshAndCalculateTimeslots` |
+| Add loading state (optional) | Show "Refreshing..." while fetching |
 
-This approach keeps the existing timeslot dialog and sending logic intact, simply automating the job selection process from a CSV file instead of manual clicking.
+This ensures that any coordinate changes you make directly in Supabase will be picked up when you click Recalculate.

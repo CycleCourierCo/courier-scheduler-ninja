@@ -1048,6 +1048,77 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     return groupedJobs;
   };
 
+  // Function to refresh coordinates from database and then calculate timeslots
+  const refreshAndCalculateTimeslots = async () => {
+    if (selectedJobs.length === 0) return;
+
+    // Get unique order IDs from selected jobs (excluding breaks)
+    const orderIds = [...new Set(
+      selectedJobs
+        .filter(job => job.type !== 'break')
+        .map(job => job.orderId)
+    )];
+
+    if (orderIds.length === 0) {
+      calculateTimeslots();
+      return;
+    }
+
+    toast.info('Fetching latest coordinates from database...');
+
+    // Fetch latest order data from Supabase
+    const { data: freshOrders, error } = await supabase
+      .from('orders')
+      .select('id, sender, receiver')
+      .in('id', orderIds);
+
+    if (error) {
+      console.error('Error fetching latest coordinates:', error);
+      toast.error('Failed to fetch latest coordinates, using cached values');
+      calculateTimeslots();
+      return;
+    }
+
+    // Update selectedJobs with fresh coordinates
+    const updatedJobs = selectedJobs.map(job => {
+      if (job.type === 'break') return job;
+      
+      const freshOrder = freshOrders?.find(o => o.id === job.orderId);
+      if (!freshOrder) return job;
+
+      // Parse the contact JSON properly
+      const contactJson = job.type === 'pickup' 
+        ? freshOrder.sender 
+        : freshOrder.receiver;
+
+      // Type guard for the contact JSON structure
+      const contact = contactJson && typeof contactJson === 'object' && !Array.isArray(contactJson)
+        ? contactJson as { address?: { lat?: number; lon?: number } }
+        : null;
+
+      const newLat = contact?.address?.lat;
+      const newLon = contact?.address?.lon;
+
+      // Log if coordinates changed
+      if (newLat !== job.lat || newLon !== job.lon) {
+        console.log(`Updated coordinates for ${job.contactName}: (${job.lat}, ${job.lon}) -> (${newLat}, ${newLon})`);
+      }
+
+      return {
+        ...job,
+        lat: newLat,
+        lon: newLon
+      };
+    });
+
+    setSelectedJobs(updatedJobs);
+    
+    // Small delay to ensure state is updated before calculating
+    setTimeout(() => {
+      calculateTimeslots();
+    }, 100);
+  };
+
   const calculateTimeslots = async () => {
     if (selectedJobs.length === 0) return;
 
@@ -2125,7 +2196,7 @@ Route Link: ${routeLink}`;
                     </Popover>
                   </div>
                   
-                  <Button onClick={calculateTimeslots} size="sm" className="w-full h-8 text-xs">
+                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-xs">
                     Recalculate
                   </Button>
                 </div>
@@ -2229,7 +2300,7 @@ Route Link: ${routeLink}`;
                   </Popover>
                 </div>
                 
-                <Button onClick={calculateTimeslots} size="sm">
+                <Button onClick={refreshAndCalculateTimeslots} size="sm">
                   Recalculate
                 </Button>
               </div>
