@@ -1118,17 +1118,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
     setSelectedJobs(updatedJobs);
     
-    // Small delay to ensure state is updated before calculating
-    setTimeout(() => {
-      calculateTimeslots();
-    }, 100);
+    // Pass the fresh jobs directly instead of relying on state update timing
+    calculateTimeslots(updatedJobs);
   };
 
-  const calculateTimeslots = async () => {
-    if (selectedJobs.length === 0) return;
+  const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
+    // Use passed jobs or fall back to state
+    const jobs = jobsToCalculate || selectedJobs;
+    
+    if (jobs.length === 0) return;
 
     // Group jobs by location first
-    const groupedJobs = groupJobsByLocation(selectedJobs);
+    const groupedJobs = groupJobsByLocation(jobs);
 
     // Filter out breaks for coordinate validation and routing
     const routeJobs = groupedJobs.filter(job => job.type !== 'break');
@@ -2144,7 +2145,7 @@ Route Link: ${routeLink}`;
 
           {selectedJobs.length > 0 && (
             <div className="flex gap-4">
-              <Button onClick={calculateTimeslots} className="flex items-center gap-2">
+              <Button onClick={() => calculateTimeslots()} className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Get Timeslots ({selectedJobs.length} jobs)
               </Button>
