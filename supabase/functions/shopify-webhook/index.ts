@@ -44,31 +44,6 @@ function getPropertyValue(properties: any[], name: string): string {
   return prop?.value || '';
 }
 
-// Helper function to parse address string (e.g., "339 haunch Lane, Birmingham, b130pl")
-function parseAddress(addressStr: string): { street: string; city: string; zipCode: string } {
-  const parts = addressStr.split(',').map(p => p.trim());
-  
-  if (parts.length >= 3) {
-    return {
-      street: parts[0],
-      city: parts[1],
-      zipCode: parts[2]
-    };
-  } else if (parts.length === 2) {
-    return {
-      street: parts[0],
-      city: parts[1],
-      zipCode: ''
-    };
-  } else {
-    return {
-      street: addressStr,
-      city: '',
-      zipCode: ''
-    };
-  }
-}
-
 // Helper function to format UK phone numbers to +44 format
 function formatPhoneNumber(phone: string): string {
   if (!phone) return '';
@@ -95,17 +70,10 @@ function formatPhoneNumber(phone: string): string {
   return phone;
 }
 
-// Helper function to geocode address using Geoapify API
-async function geocodeAddress(addressString: string): Promise<{
-  street: string;
-  city: string;
-  zipCode: string;
-  state: string;
-  country: string;
-  lat?: number;
-  lon?: number;
-  formatted?: string;
-} | null> {
+// Helper function to geocode postcode only using Geoapify API
+async function geocodePostcode(postcode: string): Promise<{lat?: number; lon?: number} | null> {
+  if (!postcode) return null;
+  
   try {
     const apiKey = Deno.env.get('VITE_GEOAPIFY_API_KEY');
     if (!apiKey) {
@@ -113,9 +81,10 @@ async function geocodeAddress(addressString: string): Promise<{
       return null;
     }
 
-    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressString)}&filter=countrycode:gb&apiKey=${apiKey}`;
+    const cleanPostcode = postcode.trim().toUpperCase();
+    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(cleanPostcode)}&filter=countrycode:gb&apiKey=${apiKey}`;
     
-    console.log('Geocoding address:', addressString);
+    console.log('Geocoding postcode:', cleanPostcode);
     const response = await fetch(url);
     if (!response.ok) {
       console.error('Geocoding failed:', response.status);
@@ -125,32 +94,15 @@ async function geocodeAddress(addressString: string): Promise<{
     const data = await response.json();
     
     if (!data.features || data.features.length === 0) {
-      console.warn('No geocoding results found for:', addressString);
+      console.warn('No geocoding results found for postcode:', cleanPostcode);
       return null;
     }
 
     const result = data.features[0].properties;
-    
-    // Construct full street address including house number
-    const houseNumber = result.housenumber || result.house_number || '';
-    const street = result.street || result.address_line1 || '';
-    const fullStreet = houseNumber ? `${houseNumber} ${street}`.trim() : street;
-    
-    const geocoded = {
-      street: fullStreet,
-      city: result.city || '',
-      zipCode: result.postcode || '',
-      state: result.county || result.state || '',
-      country: result.country || 'United Kingdom',
-      lat: result.lat,
-      lon: result.lon,
-      formatted: result.formatted
-    };
-    
-    console.log('Geocoded address:', geocoded);
-    return geocoded;
+    console.log('Geocoded postcode result:', { lat: result.lat, lon: result.lon });
+    return { lat: result.lat, lon: result.lon };
   } catch (error) {
-    console.error('Error geocoding address:', error);
+    console.error('Error geocoding postcode:', error);
     return null;
   }
 }
@@ -226,74 +178,77 @@ const handler = async (req: Request): Promise<Response> => {
       const firstItem = shopifyOrder.line_items[0];
       const properties = firstItem.properties || [];
       
-      console.log('Extracting data from line item properties...');
+      console.log('Extracting data from line item properties:', JSON.stringify(properties, null, 2));
       
-      // Extract bike brand and model from "Bike Brand and Model" property
-      const bikeBrandAndModel = getPropertyValue(properties, 'Bike Brand and Model');
-      if (bikeBrandAndModel) {
-        // Split on space - first part is brand, rest is model
-        const parts = bikeBrandAndModel.split(' ');
-        bikeBrand = parts[0] || '';
-        bikeModel = parts.slice(1).join(' ') || '';
-        console.log('Parsed bike:', { bikeBrand, bikeModel });
-      } else {
-        // Fallback to product title
-        bikeBrand = firstItem.title || 'Collection';
-        bikeModel = firstItem.variant_title || 'and Delivery within England and Wales';
-      }
+      // Extract bike brand and model from separate properties
+      bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
+      bikeModel = getPropertyValue(properties, 'Bike Model') || firstItem.variant_title || '';
+      console.log('Parsed bike:', { bikeBrand, bikeModel });
       
       // Get bike quantity
       bikeQuantity = firstItem.quantity || 1;
       
-      // Extract collection (sender) details from properties
+      // Extract collection (sender) details from individual properties
       const collectionName = getPropertyValue(properties, 'Collection Name');
       const collectionEmail = getPropertyValue(properties, 'Collection Email');
       const collectionPhone = getPropertyValue(properties, 'Collection Mobile Number');
-      const collectionAddressStr = getPropertyValue(properties, 'Collection Address');
       
-      // Geocode collection address with fallback to manual parsing
-      const geocodedCollectionAddress = await geocodeAddress(collectionAddressStr);
-      const collectionAddress = geocodedCollectionAddress || parseAddress(collectionAddressStr);
+      // Extract collection address from individual properties
+      const collectionStreet = getPropertyValue(properties, 'Collection Street Address');
+      const collectionCity = getPropertyValue(properties, 'Collection City');
+      const collectionCounty = getPropertyValue(properties, 'Collection County');
+      const collectionPostcode = getPropertyValue(properties, 'Collection Postcode');
+      
+      console.log('Parsed collection address:', { collectionStreet, collectionCity, collectionCounty, collectionPostcode });
+      
+      // Geocode using ONLY the postcode
+      const collectionGeo = await geocodePostcode(collectionPostcode);
       
       sender = {
         name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
         email: collectionEmail || shopifyOrder.email || '',
         phone: formatPhoneNumber(collectionPhone) || '',
         address: {
-          street: collectionAddress.street,
-          city: collectionAddress.city,
-          state: collectionAddress.state || shopifyOrder.billing_address?.province || 'England',
-          zip: collectionAddress.zipCode,
-          country: collectionAddress.country || shopifyOrder.billing_address?.country || 'United Kingdom',
-          lat: collectionAddress.lat,
-          lon: collectionAddress.lon
+          street: collectionStreet,
+          city: collectionCity,
+          state: collectionCounty || shopifyOrder.billing_address?.province || 'England',
+          zip: collectionPostcode,
+          country: 'United Kingdom',
+          lat: collectionGeo?.lat,
+          lon: collectionGeo?.lon
         }
       };
       
       console.log('Parsed sender:', sender);
       
-      // Extract delivery (receiver) details from properties
+      // Extract delivery (receiver) details from individual properties
       const deliveryName = getPropertyValue(properties, 'Delivery Name');
       const deliveryEmail = getPropertyValue(properties, 'Delivery Email');
       const deliveryPhone = getPropertyValue(properties, 'Delivery Mobile Number');
-      const deliveryAddressStr = getPropertyValue(properties, 'Delivery Address');
       
-      // Geocode delivery address with fallback to manual parsing
-      const geocodedDeliveryAddress = await geocodeAddress(deliveryAddressStr);
-      const deliveryAddress = geocodedDeliveryAddress || parseAddress(deliveryAddressStr);
+      // Extract delivery address from individual properties
+      const deliveryStreet = getPropertyValue(properties, 'Delivery Street Address');
+      const deliveryCity = getPropertyValue(properties, 'Delivery City');
+      const deliveryCounty = getPropertyValue(properties, 'Delivery County');
+      const deliveryPostcode = getPropertyValue(properties, 'Delivery Postcode');
+      
+      console.log('Parsed delivery address:', { deliveryStreet, deliveryCity, deliveryCounty, deliveryPostcode });
+      
+      // Geocode using ONLY the postcode
+      const deliveryGeo = await geocodePostcode(deliveryPostcode);
       
       receiver = {
         name: deliveryName || sender.name,
         email: deliveryEmail || sender.email,
         phone: formatPhoneNumber(deliveryPhone) || sender.phone,
         address: {
-          street: deliveryAddress.street,
-          city: deliveryAddress.city,
-          state: deliveryAddress.state || '',
-          zip: deliveryAddress.zipCode,
-          country: deliveryAddress.country || 'UK',
-          lat: deliveryAddress.lat,
-          lon: deliveryAddress.lon
+          street: deliveryStreet,
+          city: deliveryCity,
+          state: deliveryCounty || '',
+          zip: deliveryPostcode,
+          country: 'United Kingdom',
+          lat: deliveryGeo?.lat,
+          lon: deliveryGeo?.lon
         }
       };
       
