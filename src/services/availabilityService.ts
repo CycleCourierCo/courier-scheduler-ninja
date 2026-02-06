@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
-import { resendReceiverAvailabilityEmail } from "./emailService";
+import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail } from "./emailService";
 
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
@@ -33,6 +33,14 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
     }
     
     console.log("Sender availability confirmed. Proceeding to update status and notify receiver.");
+    
+    // Send confirmation email to sender with their selected dates
+    try {
+      const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
+      console.log("Sender dates confirmed email sent:", confirmEmailSent);
+    } catch (confirmError) {
+      console.error("Error sending sender dates confirmed email:", confirmError);
+    }
     
     // Automatically update status to receiver_availability_pending
     const { error: updateError } = await supabase
@@ -152,6 +160,14 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     
     // Map the database response to our Order type
     const order = mapDbOrderToOrderType(data);
+    
+    // Send confirmation email to sender with their selected dates
+    try {
+      const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
+      console.log("Sender dates confirmed email sent:", confirmEmailSent);
+    } catch (confirmError) {
+      console.error("Error sending sender dates confirmed email:", confirmError);
+    }
     
     // Send receiver availability email
     try {
