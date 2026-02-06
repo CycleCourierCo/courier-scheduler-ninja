@@ -1,130 +1,92 @@
 
-# Fix Contact Creation & Linking for Shopify Orders
+# Add Tracking Number to Sender Availability Email
 
-## Problem Confirmed
+## Overview
 
-All Shopify orders have `sender_contact_id` and `receiver_contact_id` as NULL:
+Update the sender availability confirmation email to include the tracking number in:
+1. The email subject line
+2. The email body with a tracking link
 
-| Order ID | Created At | sender_contact_id | receiver_contact_id |
-|----------|------------|-------------------|---------------------|
-| 01152b24-4290-4300-ae2d-f0da09e8c2b7 | 2026-02-06 22:43 | NULL | NULL |
-| 44433355-9a0a-4271-8608-98bb2c413d5e | 2026-02-06 19:57 | NULL | NULL |
-| c3cb316d-96eb-421c-8e12-b5352b71197d | 2026-02-06 15:19 | NULL | NULL |
+## Current State
 
-The contacts themselves exist in the database, but they're never being linked to orders.
+**Frontend (`src/services/emailService.ts`)**:
+- `sendSenderAvailabilityEmail` passes: `to`, `name`, `orderId`, `baseUrl`, `emailType`, `item`
+- Missing: `trackingNumber`
 
----
+**Edge Function (`supabase/functions/send-email/index.ts`)**:
+- Subject: `"Please confirm your pickup availability"` (no tracking number)
+- Body: Shows item name and quantity but no tracking number or link
 
-## Root Cause
+## Changes Required
 
-The `contacts` table has a **partial unique INDEX**:
-```sql
-CREATE UNIQUE INDEX contacts_user_email_unique ON public.contacts 
-USING btree (user_id, email) WHERE (email IS NOT NULL)
-```
+### 1. Update Frontend Service
 
-But PostgreSQL's `upsert` with `onConflict: 'user_id,email'` requires a proper **CONSTRAINT**, not just an index. The upsert fails silently, causing the contact linking to fail.
+**File**: `src/services/emailService.ts`
 
----
+Add `trackingNumber` to the request body in `sendSenderAvailabilityEmail`:
 
-## Solution
-
-### Step 1: Add a Proper Unique Constraint (SQL Migration)
-
-```sql
--- Add a unique constraint (required for ON CONFLICT to work)
-ALTER TABLE public.contacts
-ADD CONSTRAINT contacts_user_id_email_unique UNIQUE (user_id, email);
-```
-
-### Step 2: Update Orders Edge Function
-
-Modify `supabase/functions/orders/index.ts` to use the constraint name explicitly and add better error handling:
-
-**Current code (lines 259-274):**
 ```typescript
-const { error: senderUpsertError } = await supabase
-  .from('contacts')
-  .upsert({
-    user_id: userId,
-    name: body.sender.name,
-    // ...
-  }, { onConflict: 'user_id,email' })  // ❌ This doesn't work with partial index
+const response = await supabase.functions.invoke("send-email", {
+  body: {
+    to: order.sender.email,
+    name: order.sender.name || "Sender",
+    orderId: id,
+    baseUrl,
+    emailType: "sender",
+    item: item,
+    trackingNumber: order.trackingNumber  // NEW
+  }
+});
 ```
 
-**Fixed code:**
+Also update `sendReceiverAvailabilityEmail` for consistency.
+
+### 2. Update Edge Function
+
+**File**: `supabase/functions/send-email/index.ts`
+
+Update the `emailType === 'sender' || emailType === 'receiver'` handler:
+
+**Subject Line** (line 89):
 ```typescript
-const { data: senderContact, error: senderUpsertError } = await supabase
-  .from('contacts')
-  .upsert({
-    user_id: userId,
-    name: body.sender.name,
-    email: senderEmail,
-    phone: body.sender.phone || null,
-    street: body.sender.address?.street || null,
-    city: body.sender.address?.city || null,
-    state: body.sender.address?.state || null,
-    postal_code: body.sender.address?.zipCode || body.sender.address?.postal_code || body.sender.address?.postcode || null,
-    country: body.sender.address?.country || null,
-    lat: body.sender.address?.lat || null,
-    lon: body.sender.address?.lon || null,
-    updated_at: new Date().toISOString(),
-  }, { 
-    onConflict: 'user_id,email',
-    ignoreDuplicates: false 
-  })
-  .select('id')
-  .single()
+// Before
+emailOptions.subject = `Please confirm your ${availabilityType} availability`;
 
-if (senderUpsertError) {
-  console.error('Failed to upsert sender contact:', senderUpsertError)
-} else {
-  senderContactId = senderContact?.id || null
-  console.log('Sender contact upserted successfully:', senderContactId)
-}
+// After
+const trackingNumber = reqData.trackingNumber || '';
+emailOptions.subject = trackingNumber 
+  ? `${trackingNumber} - Please confirm your ${availabilityType} availability`
+  : `Please confirm your ${availabilityType} availability`;
 ```
 
-Same pattern for receiver contact.
-
----
-
-## Files to Change
-
-| File | Change |
-|------|--------|
-| New SQL Migration | Add `UNIQUE (user_id, email)` constraint to contacts table |
-| `supabase/functions/orders/index.ts` | Simplify contact upsert to use single `.upsert().select()` pattern now that constraint exists |
-
----
-
-## Step 3: Fix Existing Shopify Orders
-
-After deploying the fix, run a one-time query to link existing Shopify orders to their contacts:
-
-```sql
--- Link sender contacts
-UPDATE orders o
-SET sender_contact_id = c.id
-FROM contacts c
-WHERE o.user_id = c.user_id
-  AND o.sender_contact_id IS NULL
-  AND o.sender->>'email' IS NOT NULL
-  AND LOWER(o.sender->>'email') = LOWER(c.email);
-
--- Link receiver contacts  
-UPDATE orders o
-SET receiver_contact_id = c.id
-FROM contacts c
-WHERE o.user_id = c.user_id
-  AND o.receiver_contact_id IS NULL
-  AND o.receiver->>'email' IS NOT NULL
-  AND LOWER(o.receiver->>'email') = LOWER(c.email);
+**Email Body** - Add tracking info box and link after the item details:
+```html
+<div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+  <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
+  <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+</div>
+<p>You can track your order's progress:</p>
+<div style="text-align: center; margin: 20px 0;">
+  <a href="${trackingUrl}" style="background-color: #6b7280; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+    Track Order
+  </a>
+</div>
 ```
 
----
+## Technical Details
 
-## Summary
+| File | Lines | Change |
+|------|-------|--------|
+| `src/services/emailService.ts` | 476-485 | Add `trackingNumber: order.trackingNumber` to sender request body |
+| `src/services/emailService.ts` | 539-548 | Add `trackingNumber: order.trackingNumber` to receiver request body |
+| `supabase/functions/send-email/index.ts` | 79-122 | Extract `trackingNumber`, update subject, add tracking info to HTML/text body |
 
-1. **Database**: Add proper UNIQUE constraint to `contacts` table
-2. **Edge Function**: Simplify upsert logic now that constraint exists
-3. **Backfill**: Link existing orders to their contacts
+## Result
+
+**Before**:
+- Subject: `Please confirm your pickup availability`
+- Body: Item details only
+
+**After**:
+- Subject: `CCC-123456 - Please confirm your pickup availability`
+- Body: Item details + tracking number + "Track Order" button linking to `/tracking/CCC-123456`
