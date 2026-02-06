@@ -16,10 +16,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
 import TimeslotEditDialog from './TimeslotEditDialog';
+import CSVUploadButton from './CSVUploadButton';
+import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
+import { parseCSV, matchCSVToOrders, MatchResult } from "@/utils/csvRouteParser";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
@@ -522,6 +525,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
   
+  // CSV upload states
+  const [csvMatchResults, setCsvMatchResults] = useState<MatchResult[]>([]);
+  const [showCsvReviewDialog, setShowCsvReviewDialog] = useState(false);
+  const [isProcessingCsv, setIsProcessingCsv] = useState(false);
+  
   // Filter states
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
@@ -817,6 +825,64 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
       setSelectedJobs(prev => [...prev, newJob]);
       // Starting bikes will auto-update via useEffect
     }
+  };
+
+  // CSV Upload handlers
+  const handleCsvFileSelect = (content: string) => {
+    setIsProcessingCsv(true);
+    try {
+      const csvRows = parseCSV(content);
+      if (csvRows.length === 0) {
+        toast.error('No valid rows found in CSV file');
+        setIsProcessingCsv(false);
+        return;
+      }
+      
+      const results = matchCSVToOrders(csvRows, orderList);
+      setCsvMatchResults(results);
+      setShowCsvReviewDialog(true);
+    } catch (error) {
+      console.error('Error parsing CSV:', error);
+      toast.error('Failed to parse CSV file');
+    } finally {
+      setIsProcessingCsv(false);
+    }
+  };
+
+  const handleCsvConfirm = () => {
+    // Get all matched jobs and convert to SelectedJob format
+    const matchedJobs = csvMatchResults
+      .filter(result => result.matchedOrder && result.jobType)
+      .map((result, index) => {
+        const order = result.matchedOrder!;
+        const jobType = result.jobType!;
+        const contact = jobType === 'pickup' ? order.sender : order.receiver;
+        
+        return {
+          orderId: order.id,
+          type: jobType,
+          address: formatAddress(contact.address),
+          contactName: contact.name,
+          orderData: order,
+          phoneNumber: contact.phone,
+          order: index + 1,
+          lat: contact.address.lat,
+          lon: contact.address.lon
+        } as SelectedJob;
+      });
+
+    if (matchedJobs.length > 0) {
+      setSelectedJobs(matchedJobs);
+      toast.success(`Loaded ${matchedJobs.length} jobs from CSV`);
+    }
+    
+    setShowCsvReviewDialog(false);
+    setCsvMatchResults([]);
+  };
+
+  const handleCsvCancel = () => {
+    setShowCsvReviewDialog(false);
+    setCsvMatchResults([]);
   };
 
   const reorderJobs = (dragIndex: number, hoverIndex: number) => {
@@ -1891,6 +1957,13 @@ Route Link: ${routeLink}`;
               </Label>
             </div>
             
+            {/* CSV Upload Button */}
+            <CSVUploadButton 
+              onFileSelect={handleCsvFileSelect}
+              isLoading={isProcessingCsv}
+              disabled={isProcessingCsv}
+            />
+            
             {/* Results Count */}
             <div className="ml-auto">
               <Badge variant={hasActiveFilters ? "secondary" : "outline"}>
@@ -2290,6 +2363,14 @@ Route Link: ${routeLink}`;
           sendTimeslot(job, editedTime, date);
         }}
         isLoading={isSendingTimeslots}
+      />
+
+      <CSVMatchReviewDialog
+        open={showCsvReviewDialog}
+        onOpenChange={setShowCsvReviewDialog}
+        matchResults={csvMatchResults}
+        onConfirm={handleCsvConfirm}
+        onCancel={handleCsvCancel}
       />
     </div>
   );
