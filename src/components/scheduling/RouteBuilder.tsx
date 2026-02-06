@@ -56,6 +56,11 @@ interface RouteBuilderProps {
   orders: OrderData[];
 }
 
+// Safe mapping to normalize job type for edge function
+// Handles both 'pickup'/'collection' terminology used across codebase
+const toEdgeFunctionJobType = (t: string): 'pickup' | 'delivery' =>
+  (t === 'pickup' || t === 'collection') ? 'pickup' : 'delivery';
+
   // JobItem component interface and component for drag and drop functionality
 interface JobItemProps {
   job: SelectedJob;
@@ -1494,21 +1499,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           .eq('id', job.orderId);
       }
       
-      // Send ONE consolidated message to the primary contact, but include all related order IDs
-      // so that ALL Shipday jobs get updated
-      const relatedOrderIds = jobsAtLocation
+      // Send ONE consolidated message to the primary contact, but include all related jobs
+      // with explicit job types so that ALL Shipday jobs get updated correctly
+      const relatedJobs = jobsAtLocation
         .filter(job => job.orderId !== primaryJob.orderId)
-        .map(job => job.orderId);
+        .map(job => ({ orderId: job.orderId, jobType: toEdgeFunctionJobType(job.type) }));
       
-      console.log(`Sending consolidated message for primary order ${primaryJob.orderId} with ${relatedOrderIds.length} related orders`);
+      console.log(`Sending consolidated message for primary order ${primaryJob.orderId} with ${relatedJobs.length} related jobs`);
       
       const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId: primaryJob.orderId,
-          recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+          recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
           customMessage: message,
-          relatedOrderIds: relatedOrderIds.length > 0 ? relatedOrderIds : undefined
+          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
         }
       });
 
@@ -1709,18 +1714,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
               .eq('id', job.orderId);
           }
           
-          // Send ONE consolidated message
-          const relatedOrderIds = jobsAtLocation
+          // Send ONE consolidated message with explicit job types
+          const relatedJobs = jobsAtLocation
             .filter(job => job.orderId !== primaryJob.orderId)
-            .map(job => job.orderId);
+            .map(job => ({ orderId: job.orderId, jobType: toEdgeFunctionJobType(job.type) }));
           
           const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
             body: {
               orderId: primaryJob.orderId,
-              recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+              recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
               deliveryTime,
               customMessage: message,
-              relatedOrderIds: relatedOrderIds.length > 0 ? relatedOrderIds : undefined
+              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
             }
           });
 
