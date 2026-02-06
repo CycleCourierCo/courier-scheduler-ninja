@@ -88,10 +88,7 @@ serve(async (req) => {
       const availabilityUrl = `${baseUrl}/${reqData.emailType}-availability/${orderId}`;
       const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
       
-      // Include tracking number in subject if available
-      emailOptions.subject = trackingNumber 
-        ? `${trackingNumber} - Please confirm your ${availabilityType} availability`
-        : `Please confirm your ${availabilityType} availability`;
+      emailOptions.subject = `Please confirm your ${availabilityType} availability`;
       
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
