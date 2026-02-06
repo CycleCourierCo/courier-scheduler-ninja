@@ -1,200 +1,233 @@
 
 
-# Fix: Contact Links Not Being Created for Orders
+# Update Shopify Webhook for New Metafield Structure
 
-## Problem Summary
+## Problem
 
-Order `00d7d814-d511-4c9b-8ba4-ed60e70ecc87` (and all recent orders from February 2026) do not have `sender_contact_id` and `receiver_contact_id` linked, even though both sender and receiver have email addresses.
+The webhook received the new metafields but the code still looks for the old field names:
 
----
+| Data | Old Field (Code Expects) | New Field (Webhook Receives) |
+|------|--------------------------|------------------------------|
+| Bike Info | `Bike Brand and Model` | `Bike Brand` + `Bike Model` |
+| Collection Address | `Collection Address` | 4 separate fields |
+| Delivery Address | `Delivery Address` | 4 separate fields |
 
-## Root Cause Analysis
-
-1. **Pattern Identified**: All orders created in February 2026 have `null` contact links, while older January 2026 orders have valid links
-2. **Orders are created via API**: The Edge Function `supabase/functions/orders/index.ts` handles order creation
-3. **Upsert silently failing**: The contact upsert code runs but doesn't successfully return contact IDs
-
-**Technical Issue**: When using Supabase `.upsert()` with `.single()` and a CITEXT email column, the conflict resolution may fail to return the row's ID when:
-- The row already exists (update path)
-- The `onConflict` column uses CITEXT type
-- The `.select('id').single()` pattern expects exactly one row but may get none on conflict
+**Current result**: Empty addresses and bike brand shows "Collection and Delivery within England and Wales" instead of "Specialized".
 
 ---
 
-## Solution
+## New Metafield Names (From Webhook Logs)
 
-Modify both the Edge Function and frontend service to use a more robust approach:
+**Bike:**
+- `Bike Brand` → "Specialized"
+- `Bike Model` → "Tarmac"
 
-1. **Try INSERT first, then SELECT on conflict** - More reliable than upsert for getting the ID
-2. **OR use separate INSERT/SELECT pattern** - First check if contact exists, then insert or update accordingly
+**Collection:**
+- `Collection Name`
+- `Collection Email`
+- `Collection Mobile Number`
+- `Collection Street Address`
+- `Collection City`
+- `Collection County`
+- `Collection Postcode`
 
-### Preferred Approach: Two-Step Upsert Pattern
+**Delivery:**
+- `Delivery Name`
+- `Delivery Email`
+- `Delivery Mobile Number`
+- `Delivery Street Address`
+- `Delivery City`
+- `Delivery County`
+- `Delivery Postcode`
 
-Instead of relying on `.upsert().select().single()`, use:
+---
+
+## Changes Required
+
+### File: `supabase/functions/shopify-webhook/index.ts`
+
+### 1. Add Postcode-Only Geocoding Function
+
+Replace the current `geocodeAddress` function with a simpler postcode-only version:
 
 ```typescript
-// Step 1: Try to insert, ignore conflict
-await supabase.from('contacts').upsert({...}, { 
-  onConflict: 'user_id,email',
-  ignoreDuplicates: false 
-})
-
-// Step 2: Fetch the contact ID by email
-const { data: contact } = await supabase
-  .from('contacts')
-  .select('id')
-  .eq('user_id', userId)
-  .ilike('email', email.trim())
-  .single()
-
-return contact?.id || null
-```
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/orders/index.ts` | Update contact upsert logic to use two-step pattern |
-| `src/services/contactService.ts` | Update `upsertContact` function with same robust pattern |
-
----
-
-## Implementation Details
-
-### 1. Update Edge Function: `orders/index.ts`
-
-**Lines 254-310** - Replace upsert + single pattern:
-
-```typescript
-// Upsert sender contact if email exists
-if (body.sender?.email?.trim()) {
-  const senderEmail = body.sender.email.trim().toLowerCase()
+async function geocodePostcode(postcode: string): Promise<{lat?: number; lon?: number} | null> {
+  if (!postcode) return null;
   
-  // Step 1: Upsert the contact (don't rely on return value)
-  await supabase
-    .from('contacts')
-    .upsert({
-      user_id: userId,
-      name: body.sender.name,
-      email: senderEmail,
-      phone: body.sender.phone || null,
-      street: body.sender.address?.street || null,
-      city: body.sender.address?.city || null,
-      state: body.sender.address?.state || null,
-      postal_code: body.sender.address?.zipCode || body.sender.address?.postal_code || body.sender.address?.postcode || null,
-      country: body.sender.address?.country || null,
-      lat: body.sender.address?.lat || null,
-      lon: body.sender.address?.lon || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,email' })
-  
-  // Step 2: Fetch the contact ID
-  const { data: senderContact } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('user_id', userId)
-    .ilike('email', senderEmail)
-    .maybeSingle()
-  
-  senderContactId = senderContact?.id || null
-  console.log('Sender contact ID:', senderContactId)
+  try {
+    const apiKey = Deno.env.get('VITE_GEOAPIFY_API_KEY');
+    if (!apiKey) {
+      console.warn('Geoapify API key not configured');
+      return null;
+    }
+
+    const cleanPostcode = postcode.trim().toUpperCase();
+    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(cleanPostcode)}&filter=countrycode:gb&apiKey=${apiKey}`;
+    
+    console.log('Geocoding postcode:', cleanPostcode);
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error('Geocoding failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data.features?.length) {
+      console.warn('No geocoding results for postcode:', cleanPostcode);
+      return null;
+    }
+
+    const result = data.features[0].properties;
+    console.log('Geocoded postcode result:', { lat: result.lat, lon: result.lon });
+    return { lat: result.lat, lon: result.lon };
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return null;
+  }
 }
 ```
 
-Apply same pattern for receiver contact.
+### 2. Update Bike Brand/Model Extraction (Lines 231-243)
 
----
-
-### 2. Update Frontend Service: `contactService.ts`
-
-**Function `upsertContact`** - Use same two-step pattern:
-
+**Before:**
 ```typescript
-export const upsertContact = async (
-  userId: string,
-  contactData: UpsertContactData
-): Promise<string | null> => {
-  if (!contactData.email?.trim()) {
-    console.log('Skipping contact upsert - no email provided')
-    return null
-  }
-
-  const email = contactData.email.trim().toLowerCase()
-
-  // Step 1: Upsert the contact
-  await supabase.from('contacts').upsert(
-    {
-      user_id: userId,
-      name: contactData.name,
-      email: email,
-      phone: contactData.phone || null,
-      street: contactData.street || null,
-      city: contactData.city || null,
-      state: contactData.state || null,
-      postal_code: contactData.postal_code || null,
-      country: contactData.country || null,
-      lat: contactData.lat || null,
-      lon: contactData.lon || null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,email' }
-  )
-
-  // Step 2: Fetch the contact ID
-  const { data, error } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('user_id', userId)
-    .ilike('email', email)
-    .maybeSingle()
-
-  if (error) {
-    console.error('Failed to fetch contact ID:', error)
-    return null
-  }
-
-  console.log('Contact upserted successfully:', data?.id)
-  return data?.id || null
+const bikeBrandAndModel = getPropertyValue(properties, 'Bike Brand and Model');
+if (bikeBrandAndModel) {
+  const parts = bikeBrandAndModel.split(' ');
+  bikeBrand = parts[0] || '';
+  bikeModel = parts.slice(1).join(' ') || '';
+} else {
+  bikeBrand = firstItem.title || 'Collection';
+  bikeModel = firstItem.variant_title || 'and Delivery';
 }
 ```
 
+**After:**
+```typescript
+// Extract bike brand and model from separate properties
+bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
+bikeModel = getPropertyValue(properties, 'Bike Model') || firstItem.variant_title || '';
+console.log('Parsed bike:', { bikeBrand, bikeModel });
+```
+
+### 3. Update Sender (Collection) Extraction (Lines 248-271)
+
+**Before:**
+```typescript
+const collectionAddressStr = getPropertyValue(properties, 'Collection Address');
+const geocodedCollectionAddress = await geocodeAddress(collectionAddressStr);
+const collectionAddress = geocodedCollectionAddress || parseAddress(collectionAddressStr);
+
+sender = {
+  name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
+  email: collectionEmail || shopifyOrder.email || '',
+  phone: formatPhoneNumber(collectionPhone) || '',
+  address: {
+    street: collectionAddress.street,
+    city: collectionAddress.city,
+    state: collectionAddress.state || ...,
+    zip: collectionAddress.zipCode,
+    ...
+  }
+};
+```
+
+**After:**
+```typescript
+// Extract collection address from individual properties
+const collectionStreet = getPropertyValue(properties, 'Collection Street Address') || '';
+const collectionCity = getPropertyValue(properties, 'Collection City') || '';
+const collectionCounty = getPropertyValue(properties, 'Collection County') || '';
+const collectionPostcode = getPropertyValue(properties, 'Collection Postcode') || '';
+
+// Geocode using ONLY the postcode
+const collectionGeo = await geocodePostcode(collectionPostcode);
+
+sender = {
+  name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
+  email: collectionEmail || shopifyOrder.email || '',
+  phone: formatPhoneNumber(collectionPhone) || '',
+  address: {
+    street: collectionStreet,
+    city: collectionCity,
+    state: collectionCounty || shopifyOrder.billing_address?.province || 'England',
+    zip: collectionPostcode,
+    country: 'United Kingdom',
+    lat: collectionGeo?.lat,
+    lon: collectionGeo?.lon
+  }
+};
+
+console.log('Parsed sender:', sender);
+```
+
+### 4. Update Receiver (Delivery) Extraction (Lines 275-298)
+
+**After:**
+```typescript
+// Extract delivery address from individual properties
+const deliveryStreet = getPropertyValue(properties, 'Delivery Street Address') || '';
+const deliveryCity = getPropertyValue(properties, 'Delivery City') || '';
+const deliveryCounty = getPropertyValue(properties, 'Delivery County') || '';
+const deliveryPostcode = getPropertyValue(properties, 'Delivery Postcode') || '';
+
+// Geocode using ONLY the postcode
+const deliveryGeo = await geocodePostcode(deliveryPostcode);
+
+receiver = {
+  name: deliveryName || sender.name,
+  email: deliveryEmail || sender.email,
+  phone: formatPhoneNumber(deliveryPhone) || sender.phone,
+  address: {
+    street: deliveryStreet,
+    city: deliveryCity,
+    state: deliveryCounty || '',
+    zip: deliveryPostcode,
+    country: 'United Kingdom',
+    lat: deliveryGeo?.lat,
+    lon: deliveryGeo?.lon
+  }
+};
+
+console.log('Parsed receiver:', receiver);
+```
+
+### 5. Remove Obsolete Functions
+
+Remove the old `geocodeAddress` and `parseAddress` functions (lines 47-107) as they are no longer needed.
+
 ---
 
-## Backfill Existing Orders (Optional)
+## Expected Result After Fix
 
-After fixing the code, you can optionally backfill existing orders that are missing contact links:
-
-```sql
--- Find orders missing contact links where contacts exist
-UPDATE orders o
-SET 
-  sender_contact_id = (
-    SELECT c.id FROM contacts c 
-    WHERE c.user_id = o.user_id 
-    AND LOWER(c.email::text) = LOWER(o.sender->>'email')
-    LIMIT 1
-  ),
-  receiver_contact_id = (
-    SELECT c.id FROM contacts c 
-    WHERE c.user_id = o.user_id 
-    AND LOWER(c.email::text) = LOWER(o.receiver->>'email')
-    LIMIT 1
-  )
-WHERE 
-  sender_contact_id IS NULL 
-  OR receiver_contact_id IS NULL;
+When a Shopify order comes in with:
+```json
+{ "name": "Bike Brand", "value": "Specialized" },
+{ "name": "Bike Model", "value": "Tarmac" },
+{ "name": "Collection Street Address", "value": "339 Haunch lane" },
+{ "name": "Collection City", "value": "Birmingham" },
+{ "name": "Collection County", "value": "West midlands" },
+{ "name": "Collection Postcode", "value": "B130pl" },
+...
 ```
+
+The order will be created with:
+- **Bike Brand**: "Specialized"
+- **Bike Model**: "Tarmac"
+- **Sender Address**: 339 Haunch lane, Birmingham, West midlands, B13 0PL
+- **Sender Coordinates**: Geocoded from "B130pl"
+- **Receiver Address**: 108 Brentford Road, London, Bucks, HP13 6XU
+- **Receiver Coordinates**: Geocoded from "Hp136xu"
 
 ---
 
 ## Summary
 
-| Task | Description |
-|------|-------------|
-| Fix Edge Function | Use two-step upsert pattern (upsert then select) |
-| Fix Frontend Service | Apply same pattern to `contactService.ts` |
-| Deploy | Redeploy Edge Function |
-| Optional Backfill | Run SQL to link existing orders to contacts |
+| Change | Description |
+|--------|-------------|
+| Bike fields | Read `Bike Brand` and `Bike Model` separately |
+| Collection address | Read from 4 individual fields |
+| Delivery address | Read from 4 individual fields |
+| Geocoding | Use postcode-only function |
+| Cleanup | Remove obsolete `geocodeAddress` and `parseAddress` |
 
