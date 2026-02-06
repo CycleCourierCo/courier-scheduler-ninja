@@ -1,233 +1,130 @@
 
+# Fix Contact Creation & Linking for Shopify Orders
 
-# Update Shopify Webhook for New Metafield Structure
+## Problem Confirmed
 
-## Problem
+All Shopify orders have `sender_contact_id` and `receiver_contact_id` as NULL:
 
-The webhook received the new metafields but the code still looks for the old field names:
+| Order ID | Created At | sender_contact_id | receiver_contact_id |
+|----------|------------|-------------------|---------------------|
+| 01152b24-4290-4300-ae2d-f0da09e8c2b7 | 2026-02-06 22:43 | NULL | NULL |
+| 44433355-9a0a-4271-8608-98bb2c413d5e | 2026-02-06 19:57 | NULL | NULL |
+| c3cb316d-96eb-421c-8e12-b5352b71197d | 2026-02-06 15:19 | NULL | NULL |
 
-| Data | Old Field (Code Expects) | New Field (Webhook Receives) |
-|------|--------------------------|------------------------------|
-| Bike Info | `Bike Brand and Model` | `Bike Brand` + `Bike Model` |
-| Collection Address | `Collection Address` | 4 separate fields |
-| Delivery Address | `Delivery Address` | 4 separate fields |
-
-**Current result**: Empty addresses and bike brand shows "Collection and Delivery within England and Wales" instead of "Specialized".
-
----
-
-## New Metafield Names (From Webhook Logs)
-
-**Bike:**
-- `Bike Brand` → "Specialized"
-- `Bike Model` → "Tarmac"
-
-**Collection:**
-- `Collection Name`
-- `Collection Email`
-- `Collection Mobile Number`
-- `Collection Street Address`
-- `Collection City`
-- `Collection County`
-- `Collection Postcode`
-
-**Delivery:**
-- `Delivery Name`
-- `Delivery Email`
-- `Delivery Mobile Number`
-- `Delivery Street Address`
-- `Delivery City`
-- `Delivery County`
-- `Delivery Postcode`
+The contacts themselves exist in the database, but they're never being linked to orders.
 
 ---
 
-## Changes Required
+## Root Cause
 
-### File: `supabase/functions/shopify-webhook/index.ts`
-
-### 1. Add Postcode-Only Geocoding Function
-
-Replace the current `geocodeAddress` function with a simpler postcode-only version:
-
-```typescript
-async function geocodePostcode(postcode: string): Promise<{lat?: number; lon?: number} | null> {
-  if (!postcode) return null;
-  
-  try {
-    const apiKey = Deno.env.get('VITE_GEOAPIFY_API_KEY');
-    if (!apiKey) {
-      console.warn('Geoapify API key not configured');
-      return null;
-    }
-
-    const cleanPostcode = postcode.trim().toUpperCase();
-    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(cleanPostcode)}&filter=countrycode:gb&apiKey=${apiKey}`;
-    
-    console.log('Geocoding postcode:', cleanPostcode);
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error('Geocoding failed:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    if (!data.features?.length) {
-      console.warn('No geocoding results for postcode:', cleanPostcode);
-      return null;
-    }
-
-    const result = data.features[0].properties;
-    console.log('Geocoded postcode result:', { lat: result.lat, lon: result.lon });
-    return { lat: result.lat, lon: result.lon };
-  } catch (error) {
-    console.error('Geocoding error:', error);
-    return null;
-  }
-}
+The `contacts` table has a **partial unique INDEX**:
+```sql
+CREATE UNIQUE INDEX contacts_user_email_unique ON public.contacts 
+USING btree (user_id, email) WHERE (email IS NOT NULL)
 ```
 
-### 2. Update Bike Brand/Model Extraction (Lines 231-243)
+But PostgreSQL's `upsert` with `onConflict: 'user_id,email'` requires a proper **CONSTRAINT**, not just an index. The upsert fails silently, causing the contact linking to fail.
 
-**Before:**
+---
+
+## Solution
+
+### Step 1: Add a Proper Unique Constraint (SQL Migration)
+
+```sql
+-- Add a unique constraint (required for ON CONFLICT to work)
+ALTER TABLE public.contacts
+ADD CONSTRAINT contacts_user_id_email_unique UNIQUE (user_id, email);
+```
+
+### Step 2: Update Orders Edge Function
+
+Modify `supabase/functions/orders/index.ts` to use the constraint name explicitly and add better error handling:
+
+**Current code (lines 259-274):**
 ```typescript
-const bikeBrandAndModel = getPropertyValue(properties, 'Bike Brand and Model');
-if (bikeBrandAndModel) {
-  const parts = bikeBrandAndModel.split(' ');
-  bikeBrand = parts[0] || '';
-  bikeModel = parts.slice(1).join(' ') || '';
+const { error: senderUpsertError } = await supabase
+  .from('contacts')
+  .upsert({
+    user_id: userId,
+    name: body.sender.name,
+    // ...
+  }, { onConflict: 'user_id,email' })  // ❌ This doesn't work with partial index
+```
+
+**Fixed code:**
+```typescript
+const { data: senderContact, error: senderUpsertError } = await supabase
+  .from('contacts')
+  .upsert({
+    user_id: userId,
+    name: body.sender.name,
+    email: senderEmail,
+    phone: body.sender.phone || null,
+    street: body.sender.address?.street || null,
+    city: body.sender.address?.city || null,
+    state: body.sender.address?.state || null,
+    postal_code: body.sender.address?.zipCode || body.sender.address?.postal_code || body.sender.address?.postcode || null,
+    country: body.sender.address?.country || null,
+    lat: body.sender.address?.lat || null,
+    lon: body.sender.address?.lon || null,
+    updated_at: new Date().toISOString(),
+  }, { 
+    onConflict: 'user_id,email',
+    ignoreDuplicates: false 
+  })
+  .select('id')
+  .single()
+
+if (senderUpsertError) {
+  console.error('Failed to upsert sender contact:', senderUpsertError)
 } else {
-  bikeBrand = firstItem.title || 'Collection';
-  bikeModel = firstItem.variant_title || 'and Delivery';
+  senderContactId = senderContact?.id || null
+  console.log('Sender contact upserted successfully:', senderContactId)
 }
 ```
 
-**After:**
-```typescript
-// Extract bike brand and model from separate properties
-bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
-bikeModel = getPropertyValue(properties, 'Bike Model') || firstItem.variant_title || '';
-console.log('Parsed bike:', { bikeBrand, bikeModel });
-```
-
-### 3. Update Sender (Collection) Extraction (Lines 248-271)
-
-**Before:**
-```typescript
-const collectionAddressStr = getPropertyValue(properties, 'Collection Address');
-const geocodedCollectionAddress = await geocodeAddress(collectionAddressStr);
-const collectionAddress = geocodedCollectionAddress || parseAddress(collectionAddressStr);
-
-sender = {
-  name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
-  email: collectionEmail || shopifyOrder.email || '',
-  phone: formatPhoneNumber(collectionPhone) || '',
-  address: {
-    street: collectionAddress.street,
-    city: collectionAddress.city,
-    state: collectionAddress.state || ...,
-    zip: collectionAddress.zipCode,
-    ...
-  }
-};
-```
-
-**After:**
-```typescript
-// Extract collection address from individual properties
-const collectionStreet = getPropertyValue(properties, 'Collection Street Address') || '';
-const collectionCity = getPropertyValue(properties, 'Collection City') || '';
-const collectionCounty = getPropertyValue(properties, 'Collection County') || '';
-const collectionPostcode = getPropertyValue(properties, 'Collection Postcode') || '';
-
-// Geocode using ONLY the postcode
-const collectionGeo = await geocodePostcode(collectionPostcode);
-
-sender = {
-  name: collectionName || shopifyOrder.billing_address?.name || 'Unknown',
-  email: collectionEmail || shopifyOrder.email || '',
-  phone: formatPhoneNumber(collectionPhone) || '',
-  address: {
-    street: collectionStreet,
-    city: collectionCity,
-    state: collectionCounty || shopifyOrder.billing_address?.province || 'England',
-    zip: collectionPostcode,
-    country: 'United Kingdom',
-    lat: collectionGeo?.lat,
-    lon: collectionGeo?.lon
-  }
-};
-
-console.log('Parsed sender:', sender);
-```
-
-### 4. Update Receiver (Delivery) Extraction (Lines 275-298)
-
-**After:**
-```typescript
-// Extract delivery address from individual properties
-const deliveryStreet = getPropertyValue(properties, 'Delivery Street Address') || '';
-const deliveryCity = getPropertyValue(properties, 'Delivery City') || '';
-const deliveryCounty = getPropertyValue(properties, 'Delivery County') || '';
-const deliveryPostcode = getPropertyValue(properties, 'Delivery Postcode') || '';
-
-// Geocode using ONLY the postcode
-const deliveryGeo = await geocodePostcode(deliveryPostcode);
-
-receiver = {
-  name: deliveryName || sender.name,
-  email: deliveryEmail || sender.email,
-  phone: formatPhoneNumber(deliveryPhone) || sender.phone,
-  address: {
-    street: deliveryStreet,
-    city: deliveryCity,
-    state: deliveryCounty || '',
-    zip: deliveryPostcode,
-    country: 'United Kingdom',
-    lat: deliveryGeo?.lat,
-    lon: deliveryGeo?.lon
-  }
-};
-
-console.log('Parsed receiver:', receiver);
-```
-
-### 5. Remove Obsolete Functions
-
-Remove the old `geocodeAddress` and `parseAddress` functions (lines 47-107) as they are no longer needed.
+Same pattern for receiver contact.
 
 ---
 
-## Expected Result After Fix
+## Files to Change
 
-When a Shopify order comes in with:
-```json
-{ "name": "Bike Brand", "value": "Specialized" },
-{ "name": "Bike Model", "value": "Tarmac" },
-{ "name": "Collection Street Address", "value": "339 Haunch lane" },
-{ "name": "Collection City", "value": "Birmingham" },
-{ "name": "Collection County", "value": "West midlands" },
-{ "name": "Collection Postcode", "value": "B130pl" },
-...
+| File | Change |
+|------|--------|
+| New SQL Migration | Add `UNIQUE (user_id, email)` constraint to contacts table |
+| `supabase/functions/orders/index.ts` | Simplify contact upsert to use single `.upsert().select()` pattern now that constraint exists |
+
+---
+
+## Step 3: Fix Existing Shopify Orders
+
+After deploying the fix, run a one-time query to link existing Shopify orders to their contacts:
+
+```sql
+-- Link sender contacts
+UPDATE orders o
+SET sender_contact_id = c.id
+FROM contacts c
+WHERE o.user_id = c.user_id
+  AND o.sender_contact_id IS NULL
+  AND o.sender->>'email' IS NOT NULL
+  AND LOWER(o.sender->>'email') = LOWER(c.email);
+
+-- Link receiver contacts  
+UPDATE orders o
+SET receiver_contact_id = c.id
+FROM contacts c
+WHERE o.user_id = c.user_id
+  AND o.receiver_contact_id IS NULL
+  AND o.receiver->>'email' IS NOT NULL
+  AND LOWER(o.receiver->>'email') = LOWER(c.email);
 ```
-
-The order will be created with:
-- **Bike Brand**: "Specialized"
-- **Bike Model**: "Tarmac"
-- **Sender Address**: 339 Haunch lane, Birmingham, West midlands, B13 0PL
-- **Sender Coordinates**: Geocoded from "B130pl"
-- **Receiver Address**: 108 Brentford Road, London, Bucks, HP13 6XU
-- **Receiver Coordinates**: Geocoded from "Hp136xu"
 
 ---
 
 ## Summary
 
-| Change | Description |
-|--------|-------------|
-| Bike fields | Read `Bike Brand` and `Bike Model` separately |
-| Collection address | Read from 4 individual fields |
-| Delivery address | Read from 4 individual fields |
-| Geocoding | Use postcode-only function |
-| Cleanup | Remove obsolete `geocodeAddress` and `parseAddress` |
-
+1. **Database**: Add proper UNIQUE constraint to `contacts` table
+2. **Edge Function**: Simplify upsert logic now that constraint exists
+3. **Backfill**: Link existing orders to their contacts
