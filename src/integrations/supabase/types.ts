@@ -1179,6 +1179,57 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_outbox: {
+        Row: {
+          attempts: number
+          created_at: string
+          dedupe_key: string | null
+          error: string | null
+          from_number: string
+          id: string
+          job_type: string | null
+          last_attempt_at: string | null
+          message: string
+          order_id: string | null
+          request_id: string | null
+          sent_at: string | null
+          status: string
+          to_number: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          dedupe_key?: string | null
+          error?: string | null
+          from_number: string
+          id?: string
+          job_type?: string | null
+          last_attempt_at?: string | null
+          message: string
+          order_id?: string | null
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_number: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          dedupe_key?: string | null
+          error?: string | null
+          from_number?: string
+          id?: string
+          job_type?: string | null
+          last_attempt_at?: string | null
+          message?: string
+          order_id?: string | null
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_number?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
