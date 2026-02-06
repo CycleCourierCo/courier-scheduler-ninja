@@ -81,12 +81,28 @@ serve(async (req) => {
       const orderId = reqData.orderId || '';
       const name = reqData.name || 'Customer';
       const item = reqData.item || { name: 'Bicycle', quantity: 1 };
+      const trackingNumber = reqData.trackingNumber || '';
       
       const availabilityType = reqData.emailType === 'sender' ? 'pickup' : 'delivery';
       
       const availabilityUrl = `${baseUrl}/${reqData.emailType}-availability/${orderId}`;
+      const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
       
-      emailOptions.subject = `Please confirm your ${availabilityType} availability`;
+      // Include tracking number in subject if available
+      emailOptions.subject = trackingNumber 
+        ? `${trackingNumber} - Please confirm your ${availabilityType} availability`
+        : `Please confirm your ${availabilityType} availability`;
+      
+      // Build tracking section HTML if tracking number exists
+      const trackingSection = trackingNumber ? `
+          <p>You can track your order's progress:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${trackingUrl}" style="background-color: #6b7280; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+              Track Order
+            </a>
+          </div>
+      ` : '';
+      
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
@@ -94,6 +110,7 @@ serve(async (req) => {
           <p>We need to confirm your availability for the ${availabilityType} of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
+            ${trackingNumber ? `<p><strong>Tracking Number:</strong> ${trackingNumber}</p>` : ''}
           </div>
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
@@ -103,6 +120,7 @@ serve(async (req) => {
           </div>
           <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
           <p style="word-break: break-all; color: #4a65d5;">${availabilityUrl}</p>
+          ${trackingSection}
           <p>Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
       `;
@@ -113,9 +131,11 @@ Thank you for using The Cycle Courier Co.
 
 We need to confirm your availability for the ${availabilityType} of your item:
 ${item.name} (Quantity: ${item.quantity})
+${trackingNumber ? `Tracking Number: ${trackingNumber}` : ''}
 
 Please visit the following link to confirm your availability:
 ${availabilityUrl}
+${trackingNumber ? `\nTrack your order: ${trackingUrl}` : ''}
 
 Thank you,
 The Cycle Courier Co. Team
