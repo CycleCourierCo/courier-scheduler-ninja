@@ -480,7 +480,8 @@ export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> 
         orderId: id,
         baseUrl,
         emailType: "sender",
-        item: item
+        item: item,
+        trackingNumber: order.trackingNumber
       }
     });
     
@@ -543,7 +544,8 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
         orderId: id,
         baseUrl,
         emailType: "receiver",
-        item: item
+        item: item,
+        trackingNumber: order.trackingNumber
       }
     });
     
