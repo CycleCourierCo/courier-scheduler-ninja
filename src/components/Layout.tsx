@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle } from "lucide-react";
@@ -140,7 +141,9 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                           <button 
                             onClick={() => {
-                              throw new Error('Sentry Test Error - Triggered by admin');
+                              const error = new Error('Sentry Test Error - Triggered by admin');
+                              Sentry.captureException(error);
+                              throw error;
                             }}
                             className="flex items-center text-destructive hover:text-destructive/80 transition-colors"
                           >
@@ -326,7 +329,9 @@ const Layout: React.FC<LayoutProps> = ({
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
-                          throw new Error('Sentry Test Error - Triggered by admin');
+                          const error = new Error('Sentry Test Error - Triggered by admin');
+                          Sentry.captureException(error);
+                          throw error;
                         }}
                         className="text-destructive hover:text-destructive/80 cursor-pointer"
                       >
