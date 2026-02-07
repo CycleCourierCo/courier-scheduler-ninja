@@ -132,6 +132,7 @@ Idempotency-Key: unique_request_id (optional)`}
   "isBikeSwap": false,
   "isEbayOrder": true,
   "collectionCode": "EBAY123456",
+  "needsInspection": true,
   "deliveryInstructions": "Please ring doorbell and wait"
 }`}
                   </pre>
@@ -148,6 +149,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     <div><strong>isBikeSwap:</strong> <em>(optional)</em> Whether this is a bike exchange/swap</div>
                     <div><strong>isEbayOrder:</strong> <em>(optional)</em> Whether this is an eBay order</div>
                     <div><strong>collectionCode:</strong> <em>(optional)</em> eBay collection code or similar reference</div>
+                    <div><strong>needsInspection:</strong> <em>(optional)</em> Whether the bicycle requires inspection before delivery</div>
                     <div><strong>deliveryInstructions:</strong> <em>(optional)</em> Special delivery instructions</div>
                   </div>
                 </div>
@@ -191,6 +193,7 @@ Idempotency-Key: unique_request_id (optional)`}
   "is_ebay_order": true,
   "collection_code": "EBAY123456",
   "needs_payment_on_collection": false,
+  "needs_inspection": true,
   "delivery_instructions": "Please ring doorbell and wait"
 }`}
                   </pre>
@@ -235,6 +238,7 @@ Idempotency-Key: unique_request_id (optional)`}
   "is_ebay_order": true,
   "collection_code": "EBAY123456",
   "needs_payment_on_collection": false,
+  "needs_inspection": true,
   "delivery_instructions": "Please ring doorbell and wait"
 }`}
                   </pre>
