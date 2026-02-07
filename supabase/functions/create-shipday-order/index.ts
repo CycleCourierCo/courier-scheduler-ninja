@@ -1,7 +1,7 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { initSentry, captureException } from "../_shared/sentry.ts";
 
 interface OrderRequest {
   orderNumber: string;
@@ -53,6 +53,9 @@ const formatTimeOnly = (date: Date | null) => {
 };
 
 serve(async (req) => {
+  // Initialize Sentry for this request
+  initSentry("create-shipday-order");
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { 
       status: 204,
@@ -394,6 +397,7 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("Error processing request:", err);
+    captureException(err as Error, { context: 'create_shipday_order_handler' });
     
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Internal server error" }),

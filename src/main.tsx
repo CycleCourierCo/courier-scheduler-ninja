@@ -20,6 +20,12 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
   enabled: !!sentryDsn,
+  // Distributed tracing targets - headers sent to these endpoints
+  tracePropagationTargets: [
+    "localhost",
+    /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/,
+    /^https:\/\/api\.geoapify\.com/,
+  ],
 });
 
 // Global handler for unhandled promise rejections

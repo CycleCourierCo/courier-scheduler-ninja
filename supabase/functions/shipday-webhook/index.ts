@@ -1,6 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { initSentry, captureException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +9,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Initialize Sentry for this request
+  initSentry("shipday-webhook");
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -395,6 +398,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("Error processing webhook:", err);
+    captureException(err as Error, { context: 'shipday_webhook_handler' });
     return new Response(JSON.stringify({ error: "Internal server error", details: err instanceof Error ? err.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
