@@ -1,58 +1,50 @@
 
 
-# Enable Sentry Logs
+# Add Sentry Test Log Button
 
-## Current State
+## Overview
 
-The Sentry configuration in `src/main.tsx` currently has:
-- Browser tracing integration
-- Session replay integration
-- Distributed tracing targets
+Add a test button to verify Sentry logging is working by sending a test log using `Sentry.logger.info()`.
 
-But it's **missing** the logging configuration.
+## Implementation
 
-## Changes Required
+### File: `src/components/Layout.tsx`
 
-### File: `src/main.tsx`
+Add a new button next to the existing "Test Sentry Error" button in the admin menu (both mobile and desktop versions).
 
-Update the Sentry initialization to enable logs:
-
+**New button code:**
 ```typescript
-Sentry.init({
-  dsn: sentryDsn,
-  environment: import.meta.env.PROD ? "production" : "preview",
-  sendDefaultPii: true,
-  integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration(),
-    // NEW: Send console logs to Sentry
-    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
-  ],
-  tracesSampleRate: 0.1,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-  enabled: !!sentryDsn,
-  // NEW: Enable logs to be sent to Sentry
-  enableLogs: true,
-  // Distributed tracing targets
-  tracePropagationTargets: [
-    "localhost",
-    /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/,
-    /^https:\/\/api\.geoapify\.com/,
-  ],
-});
+<button 
+  onClick={() => {
+    const { logger } = Sentry;
+    logger.info('User triggered test log', { log_source: 'sentry_test' });
+    toast.success('Test log sent to Sentry');
+  }}
+  className="flex items-center text-amber-600 hover:text-amber-500 transition-colors"
+>
+  <Info className="mr-2 h-4 w-4" />
+  Test Sentry Log
+</button>
 ```
 
-## What This Enables
+### Changes Required
 
-| Feature | Description |
-|---------|-------------|
-| `enableLogs: true` | Activates Sentry's logging infrastructure |
-| `consoleLoggingIntegration` | Automatically captures `console.log`, `console.warn`, and `console.error` calls and sends them to Sentry |
+| Location | Change |
+|----------|--------|
+| Mobile menu (line ~142-152) | Add test log button after "Test Sentry Error" button |
+| Desktop dropdown (line ~290-300) | Add test log button after "Test Sentry Error" menu item |
 
-## After Implementation
+### Additional Import
 
-1. All `console.log`, `console.warn`, and `console.error` calls will appear in Sentry
-2. You can view logs in Sentry under the **Logs** section
-3. Logs will be correlated with errors and traces for better debugging context
+Add `Info` icon from lucide-react (already used elsewhere in the codebase).
+
+Import `toast` from sonner for user feedback confirmation.
+
+## Verification
+
+1. Sign in as an admin user
+2. Open the user menu dropdown (desktop) or mobile menu
+3. Click "Test Sentry Log"
+4. See success toast confirmation
+5. Check Sentry dashboard **Logs** section for the test log with `log_source: 'sentry_test'`
 
