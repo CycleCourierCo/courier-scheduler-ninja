@@ -613,6 +613,45 @@ export const sendSenderDatesConfirmedEmail = async (orderId: string, selectedDat
   }
 };
 
+export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedDates: string[]): Promise<boolean> => {
+  try {
+    console.log("Sending receiver dates confirmed email for order ID:", orderId);
+    console.log("Selected dates:", selectedDates);
+    
+    // Get the order details
+    const order = await getOrder(orderId);
+    
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", orderId);
+      return false;
+    }
+    
+    const baseUrl = window.location.origin;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.receiver.email,
+        emailType: "receiver_dates_confirmed",
+        name: order.receiver.name || "Customer",
+        trackingNumber: order.trackingNumber,
+        selectedDates: selectedDates,
+        baseUrl
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending receiver dates confirmed email:", response.error);
+      return false;
+    }
+    
+    console.log("Receiver dates confirmed email sent successfully to:", order.receiver.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send receiver dates confirmed email:", error);
+    return false;
+  }
+};
+
 // === NEW FUNCTION: Send confirmation to user (not sender/receiver) ===
 export const sendOrderCreationConfirmationToUser = async (
   orderId: string,
