@@ -15,7 +15,7 @@ import CreateOrder from "./pages/CreateOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
-import JobsPage from "./pages/JobsPage";
+
 import TrackingPage from "./pages/TrackingPage";
 import UserProfile from "./pages/UserProfile";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -62,11 +62,6 @@ function App() {
               <Route path="/orders/:id" element={
                 <ProtectedRoute>
                   <OrderDetail />
-                </ProtectedRoute>
-              } />
-              <Route path="/jobs" element={
-                <ProtectedRoute>
-                  <JobsPage />
                 </ProtectedRoute>
               } />
               <Route path="/customer-orders/:id" element={

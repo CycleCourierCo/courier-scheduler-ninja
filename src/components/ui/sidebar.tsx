@@ -9,7 +9,7 @@ import {
   BarChart3,
   CalendarDays,
   Users,
-  ClipboardCheck,
+  
   Wrench,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -50,11 +50,6 @@ export function Sidebar({
         href: "/create-order",
         icon: <Plus className="h-5 w-5" />,
         label: "New Order",
-      },
-      {
-        href: "/jobs",
-        icon: <ClipboardCheck className="h-5 w-5" />,
-        label: "Jobs",
       },
       {
         href: "/scheduling",
