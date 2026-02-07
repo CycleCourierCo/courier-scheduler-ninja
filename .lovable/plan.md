@@ -1,71 +1,63 @@
 
+## What’s happening (why “Get timeslot” only adds 15 minutes)
+- Your Route Builder calculates **travel time** by calling Geoapify in the browser (`fetch("https://api.geoapify.com/v1/routing?...")`).
+- That request is currently **blocked by the browser** due to CORS:
+  - Geoapify’s CORS preflight response does **not** allow the request header `sentry-trace`.
+  - Sentry is adding `sentry-trace` (and usually `baggage`) because your Sentry config explicitly enables trace header propagation to Geoapify.
+- Because the fetch fails, the code falls back to a **default 15 minutes** travel time:
+  - `calculateTravelTime(...)` catches the error and returns `15`
+  - So you end up seeing only the fixed **service time** behavior and/or the fallback behavior, instead of real between-stop travel times.
 
-# Remove +44 Validation for Payment Collection Phone
+## Root cause in your codebase
+In `src/main.tsx`, Sentry is configured with:
+- `tracePropagationTargets: [..., /^https:\/\/api\.geoapify\.com/]`
 
-## Overview
+That tells Sentry: “attach tracing headers to requests to Geoapify”.
+Geoapify blocks those headers via CORS → the request fails → travel time becomes the fallback 15 minutes.
 
-Remove the strict `+44` format validation from the payment collection phone number field, allowing any valid phone number format.
+## Fix (recommended): stop sending Sentry trace headers to Geoapify
+### Change
+Update `src/main.tsx`:
+- Remove Geoapify from `tracePropagationTargets`:
+  - Remove this entry:
+    - `^https:\/\/api\.geoapify\.com`
 
-## Current Behavior
+### Why this works
+- The browser will no longer include the `sentry-trace` header on Geoapify requests.
+- The CORS preflight will succeed.
+- `calculateTravelTime` will receive real routing data and return actual travel time minutes.
 
-The `paymentCollectionPhone` field currently requires:
-- Exactly `+44` prefix
-- Followed by exactly 10 digits
-- Error message: "Must be +44 followed by 10 digits"
+### Notes
+- This does **not** disable Sentry in general.
+- It keeps trace propagation to Supabase (good) while avoiding a third-party CORS limitation.
 
-## Changes Required
+## Implementation steps (code changes)
+1. **Edit** `src/main.tsx`
+   - In `Sentry.init({ ... tracePropagationTargets: [...] })`
+   - Remove the Geoapify regex target:
+     - From:
+       - `tracePropagationTargets: ["localhost", /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/, /^https:\/\/api\.geoapify\.com/]`
+     - To:
+       - `tracePropagationTargets: ["localhost", /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/]`
+2. (Optional but nice) Add a short comment explaining why Geoapify is excluded (CORS).
 
-### File: `src/pages/CreateOrder.tsx`
+## Verification steps (how we’ll confirm it’s fixed)
+1. Go to **/scheduling**
+2. Build a route and click **Get timeslot**
+3. Confirm in DevTools:
+   - No CORS error mentioning `sentry-trace`
+   - The Geoapify request returns `200`
+4. Confirm behavior:
+   - Times between stops are no longer always 15 minutes (they should vary depending on distance/traffic)
+5. Re-test your example order (CCC754608952426BEDCH5) route timing
 
-**Change 1**: Update the `paymentCollectionPhone` validation (line 76)
+## If it still fails after this (backup plan)
+If Geoapify still blocks requests for other reasons (less likely given the specific error), we’ll implement a **Supabase Edge Function proxy** for Geoapify routing:
+- Frontend calls our edge function (same origin / allowed headers)
+- Edge function calls Geoapify server-to-server (no browser CORS)
+- Also lets us keep the Geoapify key off the client if desired
 
-Replace the strict `phoneValidation` with a simple string validation that only requires the field to not be empty when payment on collection is enabled.
-
-```typescript
-// Before (line 76)
-paymentCollectionPhone: phoneValidation.optional().or(z.literal("")),
-
-// After
-paymentCollectionPhone: z.string().optional(),
-```
-
-**Change 2**: Update the `superRefine` validation (lines 97-105)
-
-The existing check ensures a phone is provided when needed - keep this but remove any format validation:
-
-```typescript
-// Keep existing check (lines 97-105)
-if (data.needsPaymentOnCollection && !data.paymentCollectionPhone?.trim()) {
-  ctx.addIssue({
-    code: z.ZodIssueCode.custom,
-    message: "Payment collection phone is required",
-    path: ["paymentCollectionPhone"],
-  });
-}
-```
-
-### File: `src/components/create-order/OrderOptions.tsx`
-
-**Change 3**: Update the placeholder text (line 139)
-
-```typescript
-// Before
-<Input placeholder="+44XXXXXXXXXX" {...field} />
-
-// After
-<Input placeholder="Enter phone number" {...field} />
-```
-
-## Summary of Changes
-
-| File | Line | Change |
-|------|------|--------|
-| `CreateOrder.tsx` | 76 | Replace `phoneValidation.optional().or(z.literal(""))` with `z.string().optional()` |
-| `OrderOptions.tsx` | 139 | Change placeholder from `"+44XXXXXXXXXX"` to `"Enter phone number"` |
-
-## Result
-
-- Payment collection phone will accept any format (e.g., `07123456789`, `+44 7123 456789`, `0044 7123456789`)
-- Validation only requires the field to be non-empty when "Payment Required on Collection" is enabled
-- Sender and receiver phone fields remain unchanged with the `+44` validation
-
+## Technical reference (where the timing fallback comes from)
+- `src/components/scheduling/RouteBuilder.tsx`
+  - `calculateTravelTime()` returns `15` minutes on any error (including CORS fetch failures)
+  - That’s why the timing only increases by the stop/service time + fallback travel time
