@@ -1,7 +1,7 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { initSentry, captureException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +13,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || "";
 
 serve(async (req) => {
+  // Initialize Sentry for this request
+  initSentry("send-email");
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -311,6 +314,7 @@ The Cycle Courier Co. Team
       );
     } catch (sendError) {
       console.error('Error sending email via Resend:', sendError);
+      captureException(sendError as Error, { context: 'resend_send' });
       return new Response(
         JSON.stringify({ error: sendError instanceof Error ? sendError.message : 'Failed to send email via Resend API' }),
         {
@@ -321,6 +325,7 @@ The Cycle Courier Co. Team
     }
   } catch (error) {
     console.error('General error in send-email function:', error);
+    captureException(error as Error, { context: 'send_email_handler' });
     
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to send email' }),

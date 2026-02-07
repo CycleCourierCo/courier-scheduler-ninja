@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
+import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 
 // Get ONLY lat/lon coordinates from an address string - does NOT modify any other fields
 async function getCoordinates(addressString: string): Promise<{ lat: number; lon: number } | null> {
@@ -27,6 +28,9 @@ async function getCoordinates(addressString: string): Promise<{ lat: number; lon
 }
 
 Deno.serve(async (req) => {
+  // Initialize Sentry for this request
+  initSentry("orders");
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
