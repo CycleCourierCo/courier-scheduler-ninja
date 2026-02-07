@@ -308,12 +308,6 @@ serve(async (req) => {
     console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);
     console.log("Updated tracking events:", JSON.stringify(trackingEvents, null, 2));
 
-    // Update jobs if available
-    try {
-      await updateJobStatuses(dbOrder.id, newStatus);
-    } catch (jobError) {
-      console.error("Error updating job statuses:", jobError);
-    }
 
     // Send collection confirmation emails if status is "collected"
     if (newStatus === "collected") {
