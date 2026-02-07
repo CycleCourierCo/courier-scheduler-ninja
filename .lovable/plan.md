@@ -1,59 +1,75 @@
 
 
-# Add Sentry Test Error Button (Admin Only)
+# Fix Sentry Error Capture
 
-## Overview
+## Problem Identified
 
-Add a "Test Sentry" button to the navigation menu that intentionally throws an error to verify Sentry error tracking is working correctly. This button will only be visible to admin users.
+There are **two issues** preventing Sentry from receiving events:
 
-## Implementation Details
+### Issue 1: DSN Mismatch
+The DSN stored in your `VITE_SENTRY_DSN` secret might not match the one from your Sentry setup instructions. 
+
+- **Your setup instructions show**: `https://04d51685aa182c5a5f8655bb134e8821@o4510751261130752.ingest.de.sentry.io/4510751293898832`
+- **Previously configured**: `https://ad71dbb0ad62ea54873b39aa66adb52f@o4510751261130752.ingest.de.sentry.io/4510751278301264`
+
+**Action Required**: Update the `VITE_SENTRY_DSN` secret in Project Settings with the correct DSN from your Sentry dashboard.
+
+### Issue 2: Event Handler Errors Not Captured
+
+Errors thrown in React event handlers (like `onClick`) do **NOT** automatically get captured by:
+- React ErrorBoundary (only catches render errors)
+- Sentry's global error handler
+
+The error happens but Sentry never sees it because it's caught by React's synthetic event system.
+
+## Solution
+
+Modify the test button to explicitly capture the error using `Sentry.captureException()`:
 
 ### File to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/Layout.tsx` | Add test error button to both mobile and desktop menus |
+| `src/components/Layout.tsx` | Use `Sentry.captureException()` instead of just throwing |
 
-### Changes
+### Code Changes
 
-1. **Import `AlertTriangle` icon** from lucide-react for the button icon
+Update both test buttons (mobile and desktop) from:
 
-2. **Add button to admin section of mobile Sheet menu** (around line 140, after Bicycle Inspections link):
-   ```tsx
-   <button 
-     onClick={() => {
-       throw new Error('Sentry Test Error - Triggered by admin');
-     }}
-     className="flex items-center text-red-500 hover:text-red-700 transition-colors"
-   >
-     <AlertTriangle className="mr-2 h-4 w-4" />
-     Test Sentry Error
-   </button>
-   ```
+```tsx
+onClick={() => {
+  throw new Error('Sentry Test Error - Triggered by admin');
+}}
+```
 
-3. **Add button to admin section of desktop DropdownMenu** (around line 317, after Bicycle Inspections):
-   ```tsx
-   <DropdownMenuItem
-     onClick={() => {
-       throw new Error('Sentry Test Error - Triggered by admin');
-     }}
-     className="text-red-500 hover:text-red-600 cursor-pointer"
-   >
-     <AlertTriangle className="mr-2 h-4 w-4" />
-     <span>Test Sentry Error</span>
-   </DropdownMenuItem>
-   ```
+To:
 
-### Security
+```tsx
+onClick={() => {
+  const error = new Error('Sentry Test Error - Triggered by admin');
+  Sentry.captureException(error);
+  throw error; // Still throw to show ErrorFallback UI
+}}
+```
 
-- Button is only rendered inside `{isAdmin && <>...</>}` blocks
-- Role check uses `userProfile?.role === 'admin'` from AuthContext
-- Non-admin users will never see this button
+This ensures:
+1. The error is explicitly sent to Sentry via `captureException()`
+2. The error still throws to trigger the ErrorBoundary UI feedback
 
-### User Experience
+### Additional Import
 
-- Button has red styling to indicate it's a destructive/test action
-- Uses AlertTriangle icon to visually distinguish it from normal navigation
-- When clicked, throws an intentional error that Sentry will capture
-- The ErrorFallback component (already configured in App.tsx) will display
+Add Sentry import at the top of Layout.tsx:
+
+```tsx
+import * as Sentry from "@sentry/react";
+```
+
+## Verification Steps
+
+After implementing:
+
+1. **Update the DSN secret** in Project Settings → Secrets with your correct DSN
+2. Click "Test Sentry Error" button
+3. Check Sentry dashboard - event should appear within seconds
+4. The ErrorFallback component will also display in the app
 
