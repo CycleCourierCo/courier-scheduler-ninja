@@ -1,6 +1,8 @@
+import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook, Wrench } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -138,6 +140,28 @@ const Layout: React.FC<LayoutProps> = ({
                             <Wrench className="mr-2 h-4 w-4" />
                             Bicycle Inspections
                           </Link>
+                          <button 
+                            onClick={() => {
+                              const error = new Error('Sentry Test Error - Triggered by admin');
+                              Sentry.captureException(error);
+                              throw error;
+                            }}
+                            className="flex items-center text-destructive hover:text-destructive/80 transition-colors"
+                          >
+                            <AlertTriangle className="mr-2 h-4 w-4" />
+                            Test Sentry Error
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const { logger } = Sentry;
+                              logger.info('User triggered test log', { log_source: 'sentry_test' });
+                              toast.success('Test log sent to Sentry');
+                            }}
+                            className="flex items-center text-amber-600 hover:text-amber-500 transition-colors"
+                          >
+                            <Info className="mr-2 h-4 w-4" />
+                            Test Sentry Log
+                          </button>
                         </>}
                       {isB2B && (
                         <>
@@ -314,6 +338,28 @@ const Layout: React.FC<LayoutProps> = ({
                           <Wrench className="mr-2 h-4 w-4" />
                           <span>Bicycle Inspections</span>
                         </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const error = new Error('Sentry Test Error - Triggered by admin');
+                          Sentry.captureException(error);
+                          throw error;
+                        }}
+                        className="text-destructive hover:text-destructive/80 cursor-pointer"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        <span>Test Sentry Error</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const { logger } = Sentry;
+                          logger.info('User triggered test log', { log_source: 'sentry_test' });
+                          toast.success('Test log sent to Sentry');
+                        }}
+                        className="text-amber-600 hover:text-amber-500 cursor-pointer"
+                      >
+                        <Info className="mr-2 h-4 w-4" />
+                        <span>Test Sentry Log</span>
                       </DropdownMenuItem>
                     </>}
                   

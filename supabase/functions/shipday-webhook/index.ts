@@ -1,6 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { initSentry, captureException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +9,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Initialize Sentry for this request
+  initSentry("shipday-webhook");
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -308,12 +311,6 @@ serve(async (req) => {
     console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);
     console.log("Updated tracking events:", JSON.stringify(trackingEvents, null, 2));
 
-    // Update jobs if available
-    try {
-      await updateJobStatuses(dbOrder.id, newStatus);
-    } catch (jobError) {
-      console.error("Error updating job statuses:", jobError);
-    }
 
     // Send collection confirmation emails if status is "collected"
     if (newStatus === "collected") {
@@ -401,6 +398,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("Error processing webhook:", err);
+    captureException(err as Error, { context: 'shipday_webhook_handler' });
     return new Response(JSON.stringify({ error: "Internal server error", details: err instanceof Error ? err.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
@@ -408,64 +406,3 @@ serve(async (req) => {
   }
 });
 
-// Helper function to update job statuses
-async function updateJobStatuses(orderId: string, orderStatus: string): Promise<boolean> {
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") || "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-  );
-  
-  let collectionStatus: string | null = null;
-  let deliveryStatus: string | null = null;
-  
-  switch (orderStatus) {
-    case 'scheduled':
-      collectionStatus = 'scheduled';
-      deliveryStatus = 'scheduled';
-      break;
-    case 'scheduled_dates_pending':
-      collectionStatus = 'scheduled';
-      deliveryStatus = 'scheduled';
-      break;
-    case 'driver_to_collection':
-      collectionStatus = 'in_progress';
-      deliveryStatus = 'pending';
-      break;
-    case 'collected':
-      collectionStatus = 'completed';
-      deliveryStatus = 'pending';
-      break;
-    case 'driver_to_delivery':
-      collectionStatus = 'completed';
-      deliveryStatus = 'in_progress';
-      break;
-    case 'delivered':
-      collectionStatus = 'completed';
-      deliveryStatus = 'completed';
-      break;
-    default:
-      return true;
-  }
-  
-  if (collectionStatus) {
-    const { error: collectionError } = await supabase
-      .from("jobs")
-      .update({ status: collectionStatus })
-      .eq("order_id", orderId)
-      .eq("type", 'collection');
-    
-    if (collectionError) throw collectionError;
-  }
-  
-  if (deliveryStatus) {
-    const { error: deliveryError } = await supabase
-      .from("jobs")
-      .update({ status: deliveryStatus })
-      .eq("order_id", orderId)
-      .eq("type", 'delivery');
-    
-    if (deliveryError) throw deliveryError;
-  }
-  
-  return true;
-}

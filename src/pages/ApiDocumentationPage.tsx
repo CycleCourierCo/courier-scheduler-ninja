@@ -132,6 +132,7 @@ Idempotency-Key: unique_request_id (optional)`}
   "isBikeSwap": false,
   "isEbayOrder": true,
   "collectionCode": "EBAY123456",
+  "needsInspection": true,
   "deliveryInstructions": "Please ring doorbell and wait"
 }`}
                   </pre>
@@ -142,12 +143,13 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div className="space-y-2 text-sm">
                     <div><strong>bikeQuantity:</strong> <em>(required)</em> Number of bikes being transported</div>
                     <div><strong>bikes:</strong> <em>(required)</em> Array of bike details with brand and model</div>
-                    <div><strong>customerOrderNumber:</strong> <em>(optional)</em> Your internal order reference</div>
+                    <div><strong>customerOrderNumber:</strong> <em>(optional)</em> Your internal order reference (stored but not returned in response)</div>
                     <div><strong>needsPaymentOnCollection:</strong> <em>(optional)</em> Whether payment is required on collection</div>
                     <div><strong>paymentCollectionPhone:</strong> <em>(optional)</em> Phone number for payment collection</div>
                     <div><strong>isBikeSwap:</strong> <em>(optional)</em> Whether this is a bike exchange/swap</div>
                     <div><strong>isEbayOrder:</strong> <em>(optional)</em> Whether this is an eBay order</div>
                     <div><strong>collectionCode:</strong> <em>(optional)</em> eBay collection code or similar reference</div>
+                    <div><strong>needsInspection:</strong> <em>(optional)</em> Whether the bicycle requires inspection before delivery</div>
                     <div><strong>deliveryInstructions:</strong> <em>(optional)</em> Special delivery instructions</div>
                   </div>
                 </div>
@@ -157,8 +159,9 @@ Idempotency-Key: unique_request_id (optional)`}
                   <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "id": "ord_1234567890",
-  "trackingNumber": "CC-TR-ABC123",
+  "tracking_number": "CC-TR-ABC123",
   "status": "created",
+  "created_at": "2024-01-15T10:30:00.000Z",
   "sender": {
     "name": "John Smith",
     "email": "john@example.com",
@@ -183,19 +186,15 @@ Idempotency-Key: unique_request_id (optional)`}
       "country": "UK"
     }
   },
-  "bikeQuantity": 1,
-  "bikes": [
-    {
-      "brand": "Trek",
-      "model": "Domane AL 2"
-    }
-  ],
-  "customerOrderNumber": "ORD-12345",
-  "needsPaymentOnCollection": false,
-  "isEbayOrder": true,
-  "collectionCode": "EBAY123456",
-  "createdAt": "2024-01-15T10:30:00.000Z",
-  "updatedAt": "2024-01-15T10:30:00.000Z"
+  "bike_brand": "Trek",
+  "bike_model": "Domane AL 2",
+  "bike_quantity": 1,
+  "is_bike_swap": false,
+  "is_ebay_order": true,
+  "collection_code": "EBAY123456",
+  "needs_payment_on_collection": false,
+  "needs_inspection": true,
+  "delivery_instructions": "Please ring doorbell and wait"
 }`}
                   </pre>
                 </div>
@@ -219,30 +218,28 @@ Idempotency-Key: unique_request_id (optional)`}
                 
                 <div>
                   <h4 className="font-semibold mb-2">Example Response</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Returns the full order record including additional fields like <code>customer_order_number</code> and <code>updated_at</code>.
+                  </p>
                   <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "id": "ord_1234567890",
-  "trackingNumber": "CC-TR-ABC123",
+  "tracking_number": "CC-TR-ABC123",
   "status": "collected",
+  "created_at": "2024-01-15T10:30:00.000Z",
+  "updated_at": "2024-01-15T14:30:00.000Z",
+  "customer_order_number": "ORD-12345",
   "sender": { ... },
   "receiver": { ... },
-  "trackingEvents": [
-    {
-      "status": "created",
-      "timestamp": "2024-01-15T10:30:00.000Z",
-      "description": "Order created"
-    },
-    {
-      "status": "driver_to_collection", 
-      "timestamp": "2024-01-15T14:00:00.000Z",
-      "description": "Driver en route to collection"
-    },
-    {
-      "status": "collected",
-      "timestamp": "2024-01-15T14:30:00.000Z", 
-      "description": "Item collected from sender"
-    }
-  ]
+  "bike_brand": "Trek",
+  "bike_model": "Domane AL 2",
+  "bike_quantity": 1,
+  "is_bike_swap": false,
+  "is_ebay_order": true,
+  "collection_code": "EBAY123456",
+  "needs_payment_on_collection": false,
+  "needs_inspection": true,
+  "delivery_instructions": "Please ring doorbell and wait"
 }`}
                   </pre>
                 </div>
@@ -381,10 +378,10 @@ Idempotency-Key: unique_request_id (optional)`}
   "data": {
     "order": {
       "id": "ord_1234567890",
-      "trackingNumber": "CC-TR-ABC123",
+      "tracking_number": "CC-TR-ABC123",
       "status": "collected",
-      "previousStatus": "driver_to_collection",
-      "updatedAt": "2024-01-15T14:30:00.000Z"
+      "previous_status": "driver_to_collection",
+      "updated_at": "2024-01-15T14:30:00.000Z"
     }
   }
 }`}
