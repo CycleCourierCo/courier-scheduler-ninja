@@ -4,7 +4,7 @@ import { DayPicker } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isBefore, startOfDay } from 'date-fns';
-import { Calendar, X, AlertCircle, Calendar as CalendarIcon, RotateCcw } from 'lucide-react';
+import { Calendar, X, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -141,23 +141,11 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
               </h3>
               {dates.length > 0 ? (
                 <div className="space-y-2 flex-grow">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">
-                      {dates.length >= 7 
-                        ? `You've selected ${dates.length} dates. Great!` 
-                        : `Please select at least ${7 - dates.length} more date${7 - dates.length > 1 ? 's' : ''}.`}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDates([])}
-                      className="text-xs"
-                    >
-                      <RotateCcw className="h-3 w-3 mr-1" />
-                      Reset
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {dates.length >= 7 
+                      ? `You've selected ${dates.length} dates. Great!` 
+                      : `Please select at least ${7 - dates.length} more date${7 - dates.length > 1 ? 's' : ''}.`}
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {dates.map((date, index) => (
                       <Badge 
