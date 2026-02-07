@@ -300,63 +300,6 @@ export type Database = {
         }
         Relationships: []
       }
-      jobs: {
-        Row: {
-          created_at: string
-          id: string
-          lat: number | null
-          location: string
-          lon: number | null
-          order_id: string
-          preferred_date: Json | null
-          related_job_id: string | null
-          status: string | null
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          lat?: number | null
-          location: string
-          lon?: number | null
-          order_id: string
-          preferred_date?: Json | null
-          related_job_id?: string | null
-          status?: string | null
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          lat?: number | null
-          location?: string
-          lon?: number | null
-          order_id?: string
-          preferred_date?: Json | null
-          related_job_id?: string | null
-          status?: string | null
-          type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "jobs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "jobs_related_job_id_fkey"
-            columns: ["related_job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       oauth_states: {
         Row: {
           created_at: string
