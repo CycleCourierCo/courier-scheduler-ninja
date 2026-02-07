@@ -136,7 +136,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
               <FormItem>
                 <FormLabel>Payment Collection Phone Number *</FormLabel>
                 <FormControl>
-                  <Input placeholder="+44XXXXXXXXXX" {...field} />
+                  <Input placeholder="Enter phone number" {...field} />
                 </FormControl>
                 <FormDescription>
                   Phone number for the driver to call to process payment on collection.

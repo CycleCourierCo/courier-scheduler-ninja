@@ -73,7 +73,7 @@ const orderSchema = z.object({
   })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
-  paymentCollectionPhone: phoneValidation.optional().or(z.literal("")),
+  paymentCollectionPhone: z.string().optional(),
   isBikeSwap: z.boolean().default(false),
   partExchangeBikeBrand: z.string().optional(),
   partExchangeBikeModel: z.string().optional(),
