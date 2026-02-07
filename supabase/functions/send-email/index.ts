@@ -616,7 +616,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const receiverHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.receiver.name || "Customer"},</h2>
-          <p>Great news! Your bicycle has been collected and is now on its way to you.</p>
+          <p>Great news! Your bicycle has been collected and is now with us.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
             <p>- Tracking Number: ${order.tracking_number || "N/A"}</p>
@@ -629,7 +629,14 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
               Track Your Delivery
             </a>
           </div>
-          <p>We'll notify you when your bicycle is out for delivery.</p>
+          <div style="margin: 25px 0; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #4a65d5;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">This is what happens next:</p>
+            <ol style="margin: 0; padding-left: 20px; color: #555;">
+              <li style="margin-bottom: 8px;">We send you a timeslot the day before we are due to deliver</li>
+              <li style="margin-bottom: 8px;">You receive a tracking link when the driver is on the way to you</li>
+              <li style="margin-bottom: 0;">Your bicycle will be delivered on the scheduled date</li>
+            </ol>
+          </div>
           <p>Best regards,<br>The Cycle Courier Co. Team</p>
         </div>
       `;
@@ -638,7 +645,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
         const { data: receiverData, error: receiverError } = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
           to: order.receiver.email,
-          subject: `Bike Collected - On Its Way - ${order.tracking_number || orderId}`,
+          subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: receiverHtml
         });
         
