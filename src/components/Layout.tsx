@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -149,6 +150,17 @@ const Layout: React.FC<LayoutProps> = ({
                           >
                             <AlertTriangle className="mr-2 h-4 w-4" />
                             Test Sentry Error
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const { logger } = Sentry;
+                              logger.info('User triggered test log', { log_source: 'sentry_test' });
+                              toast.success('Test log sent to Sentry');
+                            }}
+                            className="flex items-center text-amber-600 hover:text-amber-500 transition-colors"
+                          >
+                            <Info className="mr-2 h-4 w-4" />
+                            Test Sentry Log
                           </button>
                         </>}
                       {isB2B && (
@@ -337,6 +349,17 @@ const Layout: React.FC<LayoutProps> = ({
                       >
                         <AlertTriangle className="mr-2 h-4 w-4" />
                         <span>Test Sentry Error</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const { logger } = Sentry;
+                          logger.info('User triggered test log', { log_source: 'sentry_test' });
+                          toast.success('Test log sent to Sentry');
+                        }}
+                        className="text-amber-600 hover:text-amber-500 cursor-pointer"
+                      >
+                        <Info className="mr-2 h-4 w-4" />
+                        <span>Test Sentry Log</span>
                       </DropdownMenuItem>
                     </>}
                   
