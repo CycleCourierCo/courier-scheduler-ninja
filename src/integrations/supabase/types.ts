@@ -432,6 +432,7 @@ export type Database = {
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
           created_at: string
+          created_via_api: boolean
           customer_order_number: string | null
           delivery_confirmation_sent_at: string | null
           delivery_date: Json | null
@@ -480,6 +481,7 @@ export type Database = {
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
           created_at?: string
+          created_via_api?: boolean
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
@@ -528,6 +530,7 @@ export type Database = {
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
           created_at?: string
+          created_via_api?: boolean
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null

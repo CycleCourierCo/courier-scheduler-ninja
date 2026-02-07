@@ -48,7 +48,8 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     loaded_onto_van_at: dbOrder.loaded_onto_van_at ? parseDate(dbOrder.loaded_onto_van_at) : undefined,
     collection_driver_name: dbOrder.collection_driver_name,
     delivery_driver_name: dbOrder.delivery_driver_name,
-    needsInspection: dbOrder.needs_inspection || false
+    needsInspection: dbOrder.needs_inspection || false,
+    createdViaApi: dbOrder.created_via_api || false
   };
 
   // Add optional date fields only if they exist in the DB record

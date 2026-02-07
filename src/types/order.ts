@@ -94,6 +94,7 @@ export type Order = {
     };
   };
   inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
+  createdViaApi?: boolean;
 };
 
 export type CreateOrderFormData = {
