@@ -1,50 +1,71 @@
 
 
-# Add Sentry Test Log Button
+# Remove +44 Validation for Payment Collection Phone
 
 ## Overview
 
-Add a test button to verify Sentry logging is working by sending a test log using `Sentry.logger.info()`.
+Remove the strict `+44` format validation from the payment collection phone number field, allowing any valid phone number format.
 
-## Implementation
+## Current Behavior
 
-### File: `src/components/Layout.tsx`
+The `paymentCollectionPhone` field currently requires:
+- Exactly `+44` prefix
+- Followed by exactly 10 digits
+- Error message: "Must be +44 followed by 10 digits"
 
-Add a new button next to the existing "Test Sentry Error" button in the admin menu (both mobile and desktop versions).
+## Changes Required
 
-**New button code:**
+### File: `src/pages/CreateOrder.tsx`
+
+**Change 1**: Update the `paymentCollectionPhone` validation (line 76)
+
+Replace the strict `phoneValidation` with a simple string validation that only requires the field to not be empty when payment on collection is enabled.
+
 ```typescript
-<button 
-  onClick={() => {
-    const { logger } = Sentry;
-    logger.info('User triggered test log', { log_source: 'sentry_test' });
-    toast.success('Test log sent to Sentry');
-  }}
-  className="flex items-center text-amber-600 hover:text-amber-500 transition-colors"
->
-  <Info className="mr-2 h-4 w-4" />
-  Test Sentry Log
-</button>
+// Before (line 76)
+paymentCollectionPhone: phoneValidation.optional().or(z.literal("")),
+
+// After
+paymentCollectionPhone: z.string().optional(),
 ```
 
-### Changes Required
+**Change 2**: Update the `superRefine` validation (lines 97-105)
 
-| Location | Change |
-|----------|--------|
-| Mobile menu (line ~142-152) | Add test log button after "Test Sentry Error" button |
-| Desktop dropdown (line ~290-300) | Add test log button after "Test Sentry Error" menu item |
+The existing check ensures a phone is provided when needed - keep this but remove any format validation:
 
-### Additional Import
+```typescript
+// Keep existing check (lines 97-105)
+if (data.needsPaymentOnCollection && !data.paymentCollectionPhone?.trim()) {
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "Payment collection phone is required",
+    path: ["paymentCollectionPhone"],
+  });
+}
+```
 
-Add `Info` icon from lucide-react (already used elsewhere in the codebase).
+### File: `src/components/create-order/OrderOptions.tsx`
 
-Import `toast` from sonner for user feedback confirmation.
+**Change 3**: Update the placeholder text (line 139)
 
-## Verification
+```typescript
+// Before
+<Input placeholder="+44XXXXXXXXXX" {...field} />
 
-1. Sign in as an admin user
-2. Open the user menu dropdown (desktop) or mobile menu
-3. Click "Test Sentry Log"
-4. See success toast confirmation
-5. Check Sentry dashboard **Logs** section for the test log with `log_source: 'sentry_test'`
+// After
+<Input placeholder="Enter phone number" {...field} />
+```
+
+## Summary of Changes
+
+| File | Line | Change |
+|------|------|--------|
+| `CreateOrder.tsx` | 76 | Replace `phoneValidation.optional().or(z.literal(""))` with `z.string().optional()` |
+| `OrderOptions.tsx` | 139 | Change placeholder from `"+44XXXXXXXXXX"` to `"Enter phone number"` |
+
+## Result
+
+- Payment collection phone will accept any format (e.g., `07123456789`, `+44 7123 456789`, `0044 7123456789`)
+- Validation only requires the field to be non-empty when "Payment Required on Collection" is enabled
+- Sender and receiver phone fields remain unchanged with the `+44` validation
 
