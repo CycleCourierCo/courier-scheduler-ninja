@@ -221,7 +221,8 @@ Deno.serve(async (req) => {
         pickup_date: body.pickup_date || null,
         delivery_date: body.delivery_date || null,
         scheduled_pickup_date: body.scheduled_pickup_date || null,
-        scheduled_delivery_date: body.scheduled_delivery_date || null
+        scheduled_delivery_date: body.scheduled_delivery_date || null,
+        created_via_api: true
       }
 
       const { data: order, error: orderError } = await supabase
