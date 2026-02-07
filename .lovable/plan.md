@@ -1,94 +1,74 @@
 
-
-# Update Receiver Collection Confirmation Email
+# Add "Created via API" Flag to Orders
 
 ## Overview
 
-When a bike is collected, the receiver receives an email notification. This plan updates that email to:
-1. Remove "On Its Way" from the subject line
-2. Add a "What happens next" section explaining the timeslot notification process
+This feature adds a boolean field to orders that indicates whether they were created through the external API (vs the web UI). This will help distinguish orders created programmatically by integrations from those created manually.
 
 ## Current State
 
-**Current Subject Line (line 641):**
-```
-Bike Collected - On Its Way - CCC-XXXXX
-```
-
-**Current Email Body:**
-- Greeting
-- "Great news! Your bicycle has been collected and is now on its way to you."
-- Order details box
-- Track Your Delivery button
-- "We'll notify you when your bicycle is out for delivery."
+Orders created via the API endpoint (`/functions/v1/orders`) and orders created through the web UI both look identical in the database. There's no way to distinguish the source of order creation.
 
 ## Proposed Changes
 
-### 1. Update Subject Line
+### 1. Database Schema
 
-**New Subject:**
-```
-Bike Collected - CCC-XXXXX
-```
+Add a new boolean column to the `orders` table:
 
-Simply remove the "On Its Way" portion to make the subject cleaner.
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `created_via_api` | BOOLEAN | `false` | Indicates if order was created via API |
 
-### 2. Update Email Body Content
+### 2. Edge Function Update
 
-**Updated Message:**
-- Change "...and is now on its way to you" to "...and is now with us"
-- Add "What happens next" section after the order details box
+Modify the orders edge function to set this flag to `true` when creating orders:
 
-**New "What happens next" section:**
-```
-This is what happens next:
+**File:** `supabase/functions/orders/index.ts`
 
-1. We send you a timeslot the day before we are due to deliver
-2. You receive a tracking link when the driver is on the way to you
-3. Your bicycle will be delivered on the scheduled date
-```
-
-## Updated Email Template Design
-
-```text
-+-------------------------------------------------------------+
-|  Dear [Receiver Name],                                      |
-|                                                             |
-|  Great news! Your bicycle has been collected and is now     |
-|  with us.                                                   |
-|                                                             |
-|  +-------------------------------------------------------+  |
-|  |  Order Details:                                       |  |
-|  |  - Tracking Number: CCC-XXXXX                         |  |
-|  |  - Bicycle: Brand Model                               |  |
-|  |                                                       |  |
-|  |            [Track Your Delivery]                      |  |
-|  +-------------------------------------------------------+  |
-|                                                             |
-|  This is what happens next:                                 |
-|                                                             |
-|  1. We send you a timeslot the day before we are due to     |
-|     deliver                                                 |
-|  2. You receive a tracking link when the driver is on       |
-|     the way to you                                          |
-|  3. Your bicycle will be delivered on the scheduled date    |
-|                                                             |
-|  Best regards,                                              |
-|  The Cycle Courier Co. Team                                 |
-+-------------------------------------------------------------+
+```typescript
+const orderData = {
+  // ... existing fields
+  created_via_api: true,  // Add this line
+  status: 'created',
+  tracking_number: trackingNumber,
+  // ...
+}
 ```
 
-## File to Modify
+### 3. Type Definition Update
+
+Add the field to the Order type:
+
+**File:** `src/types/order.ts`
+
+```typescript
+export type Order = {
+  // ... existing fields
+  createdViaApi?: boolean;
+};
+```
+
+### 4. Data Mapping Update
+
+Map the database field to the frontend type:
+
+**File:** `src/services/orderServiceUtils.ts`
+
+```typescript
+createdViaApi: dbOrder.created_via_api || false,
+```
+
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/send-email/index.ts` | Update receiver email in `handleCollectionConfirmation` function (lines 616-641) |
+| Database | Add `created_via_api` boolean column |
+| `supabase/functions/orders/index.ts` | Set `created_via_api: true` during order creation |
+| `src/types/order.ts` | Add `createdViaApi` property |
+| `src/services/orderServiceUtils.ts` | Map `created_via_api` to `createdViaApi` |
 
-## Specific Code Changes
+## Notes
 
-**Line 619**: Change message from "...and is now on its way to you" to "...and is now with us"
-
-**Line 632-633**: Replace "We'll notify you when your bicycle is out for delivery." with the "What happens next" section
-
-**Line 641**: Change subject from `Bike Collected - On Its Way - ${tracking}` to `Bike Collected - ${tracking}`
-
+- Existing orders will have `created_via_api = false` by default
+- Web UI order creation does not need modification (default `false` applies)
+- The field is optional in the frontend type to handle backward compatibility
