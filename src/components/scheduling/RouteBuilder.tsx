@@ -1768,9 +1768,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             successCount++;
           }
 
-          // Add 30-second delay after each grouped location
+          // Add 1-minute delay after each grouped location
           if (groupedLocationMap.size > 1 || standaloneJobs.length > 0) {
-            await new Promise(resolve => setTimeout(resolve, 30 * 1000));
+            await new Promise(resolve => setTimeout(resolve, 60 * 1000));
           }
 
         } catch (groupError) {
@@ -1874,9 +1874,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
             successCount++;
           }
 
-          // Add 30-second delay between standalone jobs
+          // Add 1-minute delay between standalone jobs
           if (i < standaloneJobs.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 30 * 1000));
+            await new Promise(resolve => setTimeout(resolve, 60 * 1000));
           }
 
         } catch (jobError) {
