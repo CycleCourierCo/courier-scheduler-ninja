@@ -1,108 +1,74 @@
 
 
-# Fix API Documentation Field Accuracy
+# Add `needs_inspection` Field to API
 
 ## Overview
 
-The API documentation page contains several inaccuracies between what's documented and what the actual API returns. The main issues are:
-
-1. **Response fields use snake_case, not camelCase** - Documentation shows `trackingNumber`, actual API returns `tracking_number`
-2. **`customerOrderNumber` is NOT in the response** - It's accepted in requests but not returned
-3. **Response structure differs from documentation** - No `bikes` array, no `updatedAt`, separate `bike_brand`/`bike_model` fields
-
-## Detailed Field Comparison
-
-### Request Body (Currently Accurate)
-
-The documentation correctly shows camelCase input fields. The API accepts both camelCase and snake_case, but documenting camelCase is fine.
-
-| Documented Field | API Accepts | Status |
-|------------------|-------------|--------|
-| `bikeQuantity` | ✓ `bikeQuantity` or `bike_quantity` | OK |
-| `bikes[].brand/model` | ✓ `bikes` array or `bike_brand` | OK |
-| `customerOrderNumber` | ✓ `customerOrderNumber` or `customer_order_number` | OK |
-| `isEbayOrder` | ✓ `isEbayOrder` or `is_ebay_order` | OK |
-| `collectionCode` | ✓ `collectionCode` or `collection_code` | OK |
-| `needsPaymentOnCollection` | ✓ both formats | OK |
-| `deliveryInstructions` | ✓ both formats | OK |
-
-### Response Body (Needs Fixing)
-
-| Documented (Wrong) | Actual API Response | Fix Required |
-|--------------------|---------------------|--------------|
-| `trackingNumber` | `tracking_number` | Change to snake_case |
-| `bikeQuantity` | `bike_quantity` | Change to snake_case |
-| `bikes: [...]` | `bike_brand`, `bike_model` | Replace with separate fields |
-| `customerOrderNumber` | Not returned | Remove from response |
-| `needsPaymentOnCollection` | `needs_payment_on_collection` | Change to snake_case |
-| `isEbayOrder` | `is_ebay_order` | Change to snake_case |
-| `collectionCode` | `collection_code` | Change to snake_case |
-| `createdAt` | `created_at` | Change to snake_case |
-| `updatedAt` | Not returned | Remove from response |
-| `isBikeSwap` | `is_bike_swap` | Add (was missing) |
+Add support for the `needs_inspection` boolean field in the Orders API. This field indicates whether a bicycle requires inspection before delivery. It already exists in the database but is not currently exposed through the API.
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/ApiDocumentationPage.tsx` | Update response examples to match actual API output |
+| `supabase/functions/orders/index.ts` | Accept and store `needs_inspection` field |
+| `src/pages/ApiDocumentationPage.tsx` | Document the new field |
 
-## Corrected Response Example
+## Implementation Details
 
-```json
-{
-  "id": "ord_1234567890",
-  "tracking_number": "CC-TR-ABC123",
-  "status": "created",
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "sender": {
-    "name": "John Smith",
-    "email": "john@example.com",
-    "phone": "+44 7700 900123",
-    "address": {
-      "street": "123 High Street",
-      "city": "London",
-      "state": "London",
-      "zipCode": "SW1A 1AA",
-      "country": "UK"
-    }
-  },
-  "receiver": {
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "phone": "+44 7700 900456",
-    "address": {
-      "street": "456 Oak Avenue",
-      "city": "London",
-      "state": "London",
-      "zipCode": "E1 6AN",
-      "country": "UK"
-    }
-  },
-  "bike_brand": "Trek",
-  "bike_model": "Domane AL 2",
-  "bike_quantity": 1,
-  "is_bike_swap": false,
-  "is_ebay_order": true,
-  "collection_code": "EBAY123456",
-  "needs_payment_on_collection": false,
-  "delivery_instructions": "Please ring doorbell and wait"
+### 1. Edge Function (`supabase/functions/orders/index.ts`)
+
+Add `needs_inspection` to the `orderData` object (around line 225):
+
+```typescript
+const orderData = {
+  // ... existing fields ...
+  needs_inspection: body.needsInspection || body.needs_inspection || false,
+  // ... rest of fields ...
 }
 ```
 
-## Additional Documentation Updates
+**Location**: Line 225, add before `created_via_api: true`
 
-### Field Descriptions Section
+### 2. API Documentation (`src/pages/ApiDocumentationPage.tsx`)
 
-Update to clarify that `customerOrderNumber` is stored but not echoed back in the response.
+#### Request Body Example (Lines 129-135)
 
-### Get Order Response
+Add the new field to the request example:
 
-The GET endpoint returns the full order object from the database (line 553-554), so it includes all fields. Add note that GET returns additional fields like `customer_order_number`, `updated_at`, etc.
+```json
+"isEbayOrder": true,
+"collectionCode": "EBAY123456",
+"needsInspection": true,
+"deliveryInstructions": "Please ring doorbell and wait"
+```
 
-## Summary of Changes
+#### Field Descriptions (Lines 148-151)
 
-1. **Lines 157-199**: Update success response example to use snake_case and correct field list
-2. **Lines 142-152**: Add note that `customerOrderNumber` is stored but not returned in create response
-3. **Lines 221-246**: Update GET order response example if needed
+Add description after `collectionCode`:
+
+```
+needsInspection: (optional) Whether the bicycle requires inspection before delivery
+```
+
+#### Success Response (Lines 187-194)
+
+Add to the response example:
+
+```json
+"collection_code": "EBAY123456",
+"needs_payment_on_collection": false,
+"needs_inspection": true,
+"delivery_instructions": "Please ring doorbell and wait"
+```
+
+#### GET Order Response (Lines 230-238)
+
+Add `needs_inspection` to the GET response example as well.
+
+## Summary
+
+| Change | Description |
+|--------|-------------|
+| Edge function | Accept `needsInspection` or `needs_inspection` from request body |
+| Documentation | Add field to request example, field descriptions, and both response examples |
 
