@@ -15,11 +15,15 @@ Sentry.init({
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration(),
+    // Send console.log, console.warn, and console.error calls as logs to Sentry
+    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
   ],
   tracesSampleRate: 0.1,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
   enabled: !!sentryDsn,
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
   // Distributed tracing targets - headers sent to these endpoints
   tracePropagationTargets: [
     "localhost",
