@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
-import { resendReceiverAvailabilityEmail } from "./emailService";
+import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail, sendReceiverDatesConfirmedEmail } from "./emailService";
 
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
@@ -33,6 +33,14 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
     }
     
     console.log("Sender availability confirmed. Proceeding to update status and notify receiver.");
+    
+    // Send confirmation email to sender with their selected dates
+    try {
+      const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
+      console.log("Sender dates confirmed email sent:", confirmEmailSent);
+    } catch (confirmError) {
+      console.error("Error sending sender dates confirmed email:", confirmError);
+    }
     
     // Automatically update status to receiver_availability_pending
     const { error: updateError } = await supabase
@@ -96,6 +104,14 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
     
     console.log("Receiver availability confirmed successfully");
     
+    // Send confirmation email to receiver with their selected dates
+    try {
+      const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
+      console.log("Receiver dates confirmed email sent:", confirmEmailSent);
+    } catch (confirmError) {
+      console.error("Error sending receiver dates confirmed email:", confirmError);
+    }
+    
     // Automatically update status to scheduled_dates_pending
     const { error: updateError } = await supabase
       .from("orders")
@@ -153,6 +169,14 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     // Map the database response to our Order type
     const order = mapDbOrderToOrderType(data);
     
+    // Send confirmation email to sender with their selected dates
+    try {
+      const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
+      console.log("Sender dates confirmed email sent:", confirmEmailSent);
+    } catch (confirmError) {
+      console.error("Error sending sender dates confirmed email:", confirmError);
+    }
+    
     // Send receiver availability email
     try {
       const emailSent = await resendReceiverAvailabilityEmail(orderId);
@@ -208,6 +232,14 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     }
     
     console.log("Receiver availability confirmed successfully");
+    
+    // Send confirmation email to receiver with their selected dates
+    try {
+      const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
+      console.log("Receiver dates confirmed email sent:", confirmEmailSent);
+    } catch (confirmError) {
+      console.error("Error sending receiver dates confirmed email:", confirmError);
+    }
     
     // Map the database response to our Order type
     const order = mapDbOrderToOrderType(data);

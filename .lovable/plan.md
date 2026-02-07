@@ -1,143 +1,149 @@
 
-# Fix Recalculate Button to Fetch Latest Coordinates
 
-## Problem
+# Enable Sender & Receiver Address Editing with Geocoding
 
-When you click "Recalculate" on the Get Timeslot popup, the system uses the coordinates stored in local state (`selectedJobs`) rather than fetching the latest values from Supabase. If you manually update coordinates in the database, clicking Recalculate still uses the old/stale coordinates.
+## Overview
 
----
+This feature extends the `AdminContactEditor` component to allow full address editing, including automatic geocoding to update coordinates when addresses change.
 
-## Root Cause
+## Current Architecture
 
-| Current Flow | Issue |
-|--------------|-------|
-| Jobs selected → lat/lon saved to `selectedJobs` state | Coordinates captured at selection time |
-| You fix coordinates in Supabase | Changes are in database only |
-| Click "Recalculate" | Uses stale `selectedJobs.lat/lon` |
-| Result: Wrong timeslots | Doesn't reflect your fixes |
+| Storage | Purpose | What This Feature Will Do |
+|---------|---------|---------------------------|
+| **JSONB columns** (`sender`, `receiver`) | Snapshot of contact details for each order | Update all fields including coordinates |
+| **Contact references** (`sender_contact_id`, `receiver_contact_id`) | Links to address book | NOT modified (preserves master records) |
 
----
+The edited values will update only the order's JSONB snapshot, not the related contact records in the address book.
 
-## Solution
+## Implementation Details
 
-Create a new function `refreshAndCalculateTimeslots()` that:
+### 1. Create Geocoding Utility
 
-1. Fetches the latest order data from Supabase for all selected job order IDs
-2. Updates the `selectedJobs` state with fresh lat/lon coordinates
-3. Proceeds with the timeslot calculation using the updated values
+**New File:** `src/utils/geocoding.ts`
 
----
-
-## Implementation
-
-### File to Modify
-
-`src/components/scheduling/RouteBuilder.tsx`
-
-### Changes
-
-1. **Add new function** `refreshAndCalculateTimeslots()`:
+A reusable utility function that mirrors the edge function's geocoding logic:
 
 ```typescript
-const refreshAndCalculateTimeslots = async () => {
-  if (selectedJobs.length === 0) return;
-
-  // Get unique order IDs from selected jobs
-  const orderIds = [...new Set(
-    selectedJobs
-      .filter(job => job.type !== 'break')
-      .map(job => job.orderId)
-  )];
-
-  // Fetch latest order data from Supabase
-  const { data: freshOrders, error } = await supabase
-    .from('orders')
-    .select('id, sender, receiver')
-    .in('id', orderIds);
-
-  if (error) {
-    console.error('Error fetching latest coordinates:', error);
-    toast.error('Failed to fetch latest coordinates');
-    return;
-  }
-
-  // Update selectedJobs with fresh coordinates
-  const updatedJobs = selectedJobs.map(job => {
-    if (job.type === 'break') return job;
-    
-    const freshOrder = freshOrders?.find(o => o.id === job.orderId);
-    if (!freshOrder) return job;
-
-    const contact = job.type === 'pickup' 
-      ? freshOrder.sender 
-      : freshOrder.receiver;
-
-    return {
-      ...job,
-      lat: contact?.address?.lat,
-      lon: contact?.address?.lon
-    };
-  });
-
-  setSelectedJobs(updatedJobs);
+export async function geocodeAddress(addressString: string): Promise<{ lat: number; lon: number } | null> {
+  const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+  const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressString)}&filter=countrycode:gb&apiKey=${apiKey}`;
   
-  // Now calculate with fresh data
-  // (small delay to ensure state is updated)
-  setTimeout(() => {
-    calculateTimeslots();
-  }, 100);
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  if (data.features?.length > 0) {
+    const coords = data.features[0].geometry.coordinates;
+    return { lat: coords[1], lon: coords[0] };
+  }
+  return null;
+}
+```
+
+### 2. Extend AdminContactEditor Component
+
+**File:** `src/components/order-detail/AdminContactEditor.tsx`
+
+#### State Expansion
+
+Current state (email, phone only):
+```typescript
+const [editedContact, setEditedContact] = useState({
+  email: contact.email,
+  phone: contact.phone
+});
+```
+
+Updated state (all editable fields):
+```typescript
+const [editedContact, setEditedContact] = useState({
+  name: contact.name,
+  email: contact.email,
+  phone: contact.phone,
+  street: contact.address.street,
+  city: contact.address.city,
+  state: contact.address.state,
+  zipCode: contact.address.zipCode,
+  country: contact.address.country
+});
+```
+
+#### Save Handler with Geocoding
+
+```typescript
+const handleSave = async () => {
+  setIsSaving(true);
+  
+  // Build full address string for geocoding
+  const addressString = [
+    editedContact.street,
+    editedContact.city,
+    editedContact.state,
+    editedContact.zipCode,
+    editedContact.country
+  ].filter(Boolean).join(', ');
+  
+  // Fetch new coordinates
+  const coordinates = await geocodeAddress(addressString);
+  
+  // Merge all fields including new coordinates
+  const updatedContact = {
+    ...currentOrder[fieldName],
+    name: editedContact.name,
+    email: editedContact.email,
+    phone: editedContact.phone,
+    address: {
+      ...currentOrder[fieldName].address,
+      street: editedContact.street,
+      city: editedContact.city,
+      state: editedContact.state,
+      zipCode: editedContact.zipCode,
+      country: editedContact.country,
+      ...(coordinates && { lat: coordinates.lat, lon: coordinates.lon })
+    }
+  };
+  
+  // Save to database
+  await supabase.from('orders').update({ [fieldName]: updatedContact }).eq('id', orderId);
 };
 ```
 
-2. **Update "Recalculate" buttons** to call the new function:
+#### Updated UI Layout
 
-| Location | Line | Change |
-|----------|------|--------|
-| Mobile drawer | ~2128 | `onClick={refreshAndCalculateTimeslots}` |
-| Desktop dialog | ~2232 | `onClick={refreshAndCalculateTimeslots}` |
-
----
-
-## Technical Details
-
-### Before (Current)
+When in edit mode, the form displays:
 
 ```text
-User clicks "Recalculate"
-         ↓
-calculateTimeslots() runs
-         ↓
-Uses job.lat/job.lon from state (STALE)
-         ↓
-Wrong timeslots calculated
++--------------------------------------------+
+| Name                                       |
++--------------------------------------------+
+| Email                    | Phone           |
++--------------------------------------------+
+| Street Address                             |
++--------------------------------------------+
+| City                     | County/State    |
++--------------------------------------------+
+| Postcode                 | Country         |
++--------------------------------------------+
 ```
 
-### After (Fixed)
+## Files to Create/Modify
 
-```text
-User clicks "Recalculate"
-         ↓
-refreshAndCalculateTimeslots() runs
-         ↓
-Fetch fresh orders from Supabase
-         ↓
-Update selectedJobs with new lat/lon
-         ↓
-calculateTimeslots() runs
-         ↓
-Uses fresh coordinates
-         ↓
-Correct timeslots calculated
-```
+| File | Action |
+|------|--------|
+| `src/utils/geocoding.ts` | **Create** - Geocoding utility function |
+| `src/components/order-detail/AdminContactEditor.tsx` | **Modify** - Add address fields and geocoding on save |
 
----
+## User Experience
 
-## Summary
+1. Admin clicks "Edit Contact" on sender or receiver section
+2. All fields become editable: name, email, phone, street, city, state, postcode, country
+3. Admin makes changes and clicks "Save"
+4. System geocodes the new address to get updated coordinates
+5. Order's JSONB column is updated with all new values including lat/lon
+6. Toast confirms success (or shows geocoding warning if coordinates couldn't be fetched)
 
-| Task | Description |
-|------|-------------|
-| Add `refreshAndCalculateTimeslots` function | Fetches fresh coordinates before calculating |
-| Update Recalculate button handlers | Switch from `calculateTimeslots` to `refreshAndCalculateTimeslots` |
-| Add loading state (optional) | Show "Refreshing..." while fetching |
+## Notes
 
-This ensures that any coordinate changes you make directly in Supabase will be picked up when you click Recalculate.
+- If geocoding fails, the address is still saved but coordinates may be stale - a warning toast will inform the admin
+- The `VITE_GEOAPIFY_API_KEY` environment variable is already configured in the project
+- Only admins see the Edit button (existing conditional rendering)
+

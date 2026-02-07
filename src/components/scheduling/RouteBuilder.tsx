@@ -56,6 +56,11 @@ interface RouteBuilderProps {
   orders: OrderData[];
 }
 
+// Safe mapping to normalize job type for edge function
+// Handles both 'pickup'/'collection' terminology used across codebase
+const toEdgeFunctionJobType = (t: string): 'pickup' | 'delivery' =>
+  (t === 'pickup' || t === 'collection') ? 'pickup' : 'delivery';
+
   // JobItem component interface and component for drag and drop functionality
 interface JobItemProps {
   job: SelectedJob;
@@ -1113,17 +1118,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
 
     setSelectedJobs(updatedJobs);
     
-    // Small delay to ensure state is updated before calculating
-    setTimeout(() => {
-      calculateTimeslots();
-    }, 100);
+    // Pass the fresh jobs directly instead of relying on state update timing
+    calculateTimeslots(updatedJobs);
   };
 
-  const calculateTimeslots = async () => {
-    if (selectedJobs.length === 0) return;
+  const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
+    // Use passed jobs or fall back to state
+    const jobs = jobsToCalculate || selectedJobs;
+    
+    if (jobs.length === 0) return;
 
     // Group jobs by location first
-    const groupedJobs = groupJobsByLocation(selectedJobs);
+    const groupedJobs = groupJobsByLocation(jobs);
 
     // Filter out breaks for coordinate validation and routing
     const routeJobs = groupedJobs.filter(job => job.type !== 'break');
@@ -1494,21 +1500,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           .eq('id', job.orderId);
       }
       
-      // Send ONE consolidated message to the primary contact, but include all related order IDs
-      // so that ALL Shipday jobs get updated
-      const relatedOrderIds = jobsAtLocation
+      // Send ONE consolidated message to the primary contact, but include all related jobs
+      // with explicit job types so that ALL Shipday jobs get updated correctly
+      const relatedJobs = jobsAtLocation
         .filter(job => job.orderId !== primaryJob.orderId)
-        .map(job => job.orderId);
+        .map(job => ({ orderId: job.orderId, jobType: toEdgeFunctionJobType(job.type) }));
       
-      console.log(`Sending consolidated message for primary order ${primaryJob.orderId} with ${relatedOrderIds.length} related orders`);
+      console.log(`Sending consolidated message for primary order ${primaryJob.orderId} with ${relatedJobs.length} related jobs`);
       
       const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
         body: {
           orderId: primaryJob.orderId,
-          recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+          recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
           customMessage: message,
-          relatedOrderIds: relatedOrderIds.length > 0 ? relatedOrderIds : undefined
+          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
         }
       });
 
@@ -1565,6 +1571,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }
 
     setIsSendingTimeslots(true);
+    
+    // Track detailed results for each job
+    interface JobResult {
+      job: SelectedJob;
+      bikeCount: number;
+      results: {
+        whatsapp: { success: boolean; error?: string };
+        shipday: { success: boolean; error?: string };
+        email: { success: boolean; error?: string };
+      };
+    }
+    
+    const jobResults: JobResult[] = [];
     let successCount = 0;
     let failureCount = 0;
 
@@ -1709,20 +1728,38 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
               .eq('id', job.orderId);
           }
           
-          // Send ONE consolidated message
-          const relatedOrderIds = jobsAtLocation
+          // Send ONE consolidated message with explicit job types
+          const relatedJobs = jobsAtLocation
             .filter(job => job.orderId !== primaryJob.orderId)
-            .map(job => job.orderId);
+            .map(job => ({ orderId: job.orderId, jobType: toEdgeFunctionJobType(job.type) }));
           
           const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
             body: {
               orderId: primaryJob.orderId,
-              recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+              recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
               deliveryTime,
               customMessage: message,
-              relatedOrderIds: relatedOrderIds.length > 0 ? relatedOrderIds : undefined
+              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
             }
           });
+
+          // Track results for each job in the group
+          const groupResults = {
+            whatsapp: { success: data?.results?.whatsapp?.success ?? false, error: data?.results?.whatsapp?.error },
+            shipday: { success: data?.results?.shipday?.success ?? false, error: data?.results?.shipday?.error },
+            email: { success: data?.results?.email?.success ?? false, error: data?.results?.email?.error },
+          };
+
+          for (const job of jobsAtLocation) {
+            const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+            const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
+            
+            jobResults.push({
+              job,
+              bikeCount,
+              results: groupResults
+            });
+          }
 
           if (error) {
             console.error(`Error sending grouped timeslots for location ${locationGroupId}:`, error);
@@ -1739,6 +1776,22 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         } catch (groupError) {
           console.error(`Error processing grouped location ${locationGroupId}:`, groupError);
           failureCount++;
+          
+          // Still track failed jobs with error results
+          for (const job of jobsAtLocation) {
+            const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+            const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
+            
+            jobResults.push({
+              job,
+              bikeCount,
+              results: {
+                whatsapp: { success: false, error: 'Group processing failed' },
+                shipday: { success: false, error: 'Group processing failed' },
+                email: { success: false, error: 'Group processing failed' },
+              }
+            });
+          }
         }
       }
 
@@ -1770,6 +1823,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
           if (updateError) {
             console.error(`Error saving timeslot for ${job.contactName}:`, updateError);
             failureCount++;
+            
+            const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+            const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
+            
+            jobResults.push({
+              job,
+              bikeCount,
+              results: {
+                whatsapp: { success: false, error: 'Database update failed' },
+                shipday: { success: false, error: 'Database update failed' },
+                email: { success: false, error: 'Database update failed' },
+              }
+            });
             continue;
           }
 
@@ -1779,6 +1845,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
               orderId: job.orderId,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
               deliveryTime: job.estimatedTime
+            }
+          });
+
+          const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+          const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
+
+          jobResults.push({
+            job,
+            bikeCount,
+            results: {
+              whatsapp: { success: data?.results?.whatsapp?.success ?? false, error: data?.results?.whatsapp?.error },
+              shipday: { success: data?.results?.shipday?.success ?? false, error: data?.results?.shipday?.error },
+              email: { success: data?.results?.email?.success ?? false, error: data?.results?.email?.error },
             }
           });
 
@@ -1803,6 +1882,98 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
         } catch (jobError) {
           console.error(`Error processing standalone job for ${job.contactName}:`, jobError);
           failureCount++;
+          
+          const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+          const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
+          
+          jobResults.push({
+            job,
+            bikeCount,
+            results: {
+              whatsapp: { success: false, error: 'Processing failed' },
+              shipday: { success: false, error: 'Processing failed' },
+              email: { success: false, error: 'Processing failed' },
+            }
+          });
+        }
+      }
+
+      // Also include breaks in the report (without notification results)
+      const breakJobs = selectedJobs.filter(job => job.type === 'break');
+      for (const breakJob of breakJobs) {
+        const jobIndex = selectedJobs.findIndex(j => j.orderId === breakJob.orderId && j.type === breakJob.type);
+        const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : startingBikes;
+        
+        jobResults.push({
+          job: breakJob,
+          bikeCount,
+          results: {
+            whatsapp: { success: false },
+            shipday: { success: false },
+            email: { success: false },
+          }
+        });
+      }
+
+      // Sort job results by original order in selectedJobs
+      jobResults.sort((a, b) => {
+        const indexA = selectedJobs.findIndex(j => j.orderId === a.job.orderId && j.type === a.job.type);
+        const indexB = selectedJobs.findIndex(j => j.orderId === b.job.orderId && j.type === b.job.type);
+        return indexA - indexB;
+      });
+
+      // Build and send route report
+      if (jobResults.length > 0) {
+        const summary = {
+          totalStops: jobResults.length,
+          totalPickups: jobResults.filter(r => r.job.type === 'pickup').length,
+          totalDeliveries: jobResults.filter(r => r.job.type === 'delivery').length,
+          totalBreaks: jobResults.filter(r => r.job.type === 'break').length,
+          whatsappSuccess: jobResults.filter(r => r.job.type !== 'break' && r.results.whatsapp.success).length,
+          whatsappFailed: jobResults.filter(r => r.job.type !== 'break' && !r.results.whatsapp.success).length,
+          shipdaySuccess: jobResults.filter(r => r.job.type !== 'break' && r.results.shipday.success).length,
+          shipdayFailed: jobResults.filter(r => r.job.type !== 'break' && !r.results.shipday.success).length,
+          emailSuccess: jobResults.filter(r => r.job.type !== 'break' && r.results.email.success).length,
+          emailFailed: jobResults.filter(r => r.job.type !== 'break' && !r.results.email.success).length,
+        };
+
+        const reportPayload = {
+          date: format(selectedDate, 'EEEE, d MMMM yyyy'),
+          startTime,
+          startingBikes,
+          stops: jobResults.map((result, index) => ({
+            sequence: index + 1,
+            type: result.job.type,
+            contactName: result.job.contactName,
+            address: result.job.address,
+            estimatedTime: result.job.estimatedTime || '',
+            bikesOnboard: result.bikeCount,
+            bikeQuantity: result.job.orderData?.bike_quantity || 1,
+            trackingNumber: result.job.orderData?.tracking_number,
+            bikeBrand: result.job.orderData?.bike_brand,
+            bikeModel: result.job.orderData?.bike_model,
+            breakDuration: result.job.breakDuration,
+            breakType: result.job.breakType,
+            results: result.results,
+          })),
+          summary,
+        };
+
+        try {
+          const { data: reportData, error: reportError } = await supabase.functions.invoke('send-route-report', {
+            body: reportPayload
+          });
+
+          if (reportError) {
+            console.error('Error sending route report:', reportError);
+            toast.warning('Route report email failed to send');
+          } else {
+            console.log('Route report sent successfully:', reportData);
+            toast.success('Route report emailed to info@cyclecourierco.com');
+          }
+        } catch (reportErr) {
+          console.error('Exception sending route report:', reportErr);
+          toast.warning('Route report email failed');
         }
       }
 
@@ -2139,7 +2310,7 @@ Route Link: ${routeLink}`;
 
           {selectedJobs.length > 0 && (
             <div className="flex gap-4">
-              <Button onClick={calculateTimeslots} className="flex items-center gap-2">
+              <Button onClick={() => calculateTimeslots()} className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Get Timeslots ({selectedJobs.length} jobs)
               </Button>

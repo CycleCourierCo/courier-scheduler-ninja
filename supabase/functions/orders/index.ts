@@ -221,7 +221,8 @@ Deno.serve(async (req) => {
         pickup_date: body.pickup_date || null,
         delivery_date: body.delivery_date || null,
         scheduled_pickup_date: body.scheduled_pickup_date || null,
-        scheduled_delivery_date: body.scheduled_delivery_date || null
+        scheduled_delivery_date: body.scheduled_delivery_date || null,
+        created_via_api: true
       }
 
       const { data: order, error: orderError } = await supabase
@@ -251,14 +252,17 @@ Deno.serve(async (req) => {
         let senderContactId: string | null = null
         let receiverContactId: string | null = null
 
-        // Upsert sender contact if email exists
+        // Upsert sender contact if email exists (now using proper constraint)
         if (body.sender?.email?.trim()) {
-          const { data: senderContact, error: senderError } = await supabase
+          const senderEmail = body.sender.email.trim().toLowerCase()
+          console.log('Upserting sender contact with email:', senderEmail)
+          
+          const { data: senderContact, error: senderUpsertError } = await supabase
             .from('contacts')
             .upsert({
               user_id: userId,
               name: body.sender.name,
-              email: body.sender.email.trim().toLowerCase(),
+              email: senderEmail,
               phone: body.sender.phone || null,
               street: body.sender.address?.street || null,
               city: body.sender.address?.city || null,
@@ -268,26 +272,32 @@ Deno.serve(async (req) => {
               lat: body.sender.address?.lat || null,
               lon: body.sender.address?.lon || null,
               updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id,email' })
+            }, { 
+              onConflict: 'user_id,email',
+              ignoreDuplicates: false 
+            })
             .select('id')
             .single()
           
-          if (senderError) {
-            console.error('Failed to upsert sender contact:', senderError)
+          if (senderUpsertError) {
+            console.error('Failed to upsert sender contact:', senderUpsertError)
           } else {
             senderContactId = senderContact?.id || null
-            console.log('Sender contact upserted:', senderContactId)
+            console.log('Sender contact upserted successfully:', senderContactId)
           }
         }
 
-        // Upsert receiver contact if email exists
+        // Upsert receiver contact if email exists (now using proper constraint)
         if (body.receiver?.email?.trim()) {
-          const { data: receiverContact, error: receiverError } = await supabase
+          const receiverEmail = body.receiver.email.trim().toLowerCase()
+          console.log('Upserting receiver contact with email:', receiverEmail)
+          
+          const { data: receiverContact, error: receiverUpsertError } = await supabase
             .from('contacts')
             .upsert({
               user_id: userId,
               name: body.receiver.name,
-              email: body.receiver.email.trim().toLowerCase(),
+              email: receiverEmail,
               phone: body.receiver.phone || null,
               street: body.receiver.address?.street || null,
               city: body.receiver.address?.city || null,
@@ -297,20 +307,24 @@ Deno.serve(async (req) => {
               lat: body.receiver.address?.lat || null,
               lon: body.receiver.address?.lon || null,
               updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id,email' })
+            }, { 
+              onConflict: 'user_id,email',
+              ignoreDuplicates: false 
+            })
             .select('id')
             .single()
           
-          if (receiverError) {
-            console.error('Failed to upsert receiver contact:', receiverError)
+          if (receiverUpsertError) {
+            console.error('Failed to upsert receiver contact:', receiverUpsertError)
           } else {
             receiverContactId = receiverContact?.id || null
-            console.log('Receiver contact upserted:', receiverContactId)
+            console.log('Receiver contact upserted successfully:', receiverContactId)
           }
         }
 
         // Link contacts to order
         if (senderContactId || receiverContactId) {
+          console.log('Linking contacts to order:', order.id, { senderContactId, receiverContactId })
           const { error: linkError } = await supabase
             .from('orders')
             .update({
@@ -322,8 +336,10 @@ Deno.serve(async (req) => {
           if (linkError) {
             console.error('Failed to link contacts to order:', linkError)
           } else {
-            console.log('Order linked to contacts:', { senderContactId, receiverContactId })
+            console.log('Order linked to contacts successfully:', { senderContactId, receiverContactId })
           }
+        } else {
+          console.log('No contacts to link - sender or receiver email missing')
         }
       } catch (contactError) {
         console.error('Error upserting contacts:', contactError)

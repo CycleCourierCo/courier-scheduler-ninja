@@ -63,7 +63,7 @@ export default function ApiKeysPage() {
         .from('api_keys')
         .select(`
           *,
-          profiles!api_keys_user_id_fkey (
+          profiles:user_id (
             name,
             email,
             company_name
@@ -73,7 +73,14 @@ export default function ApiKeysPage() {
 
       if (error) throw error;
       
-      setApiKeys(data || []);
+      // Map the profiles data to the expected structure
+      const mappedData = (data || []).map(key => ({
+        ...key,
+        profile: key.profiles
+      }));
+      
+      console.log('Fetched API keys:', mappedData); // Debug log
+      setApiKeys(mappedData);
     } catch (error) {
       console.error('Error fetching API keys:', error);
       toast.error('Failed to fetch API keys');

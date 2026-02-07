@@ -81,12 +81,15 @@ serve(async (req) => {
       const orderId = reqData.orderId || '';
       const name = reqData.name || 'Customer';
       const item = reqData.item || { name: 'Bicycle', quantity: 1 };
+      const trackingNumber = reqData.trackingNumber || '';
       
       const availabilityType = reqData.emailType === 'sender' ? 'pickup' : 'delivery';
       
       const availabilityUrl = `${baseUrl}/${reqData.emailType}-availability/${orderId}`;
+      const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
+      
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
@@ -94,6 +97,14 @@ serve(async (req) => {
           <p>We need to confirm your availability for the ${availabilityType} of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
+            ${trackingNumber ? `
+              <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+              <div style="text-align: center; margin-top: 15px;">
+                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                  Track Order
+                </a>
+              </div>
+            ` : ''}
           </div>
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
@@ -113,9 +124,158 @@ Thank you for using The Cycle Courier Co.
 
 We need to confirm your availability for the ${availabilityType} of your item:
 ${item.name} (Quantity: ${item.quantity})
+${trackingNumber ? `Tracking Number: ${trackingNumber}\nTrack your order: ${trackingUrl}` : ''}
 
 Please visit the following link to confirm your availability:
 ${availabilityUrl}
+
+Thank you,
+The Cycle Courier Co. Team
+      `;
+    } else if (reqData.emailType === 'sender_dates_confirmed') {
+      // Sender dates confirmation email
+      const baseUrl = reqData.baseUrl || 'https://booking.cyclecourierco.com';
+      const name = reqData.name || 'Customer';
+      const trackingNumber = reqData.trackingNumber || '';
+      const selectedDates = reqData.selectedDates || [];
+      
+      const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
+      
+      // Format dates nicely
+      const formattedDates = selectedDates.map((dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+      });
+      
+      const datesHtml = formattedDates.map((d: string) => `<li style="margin-bottom: 5px;">${d}</li>`).join('');
+      const datesText = formattedDates.join('\n  - ');
+      
+      emailOptions.subject = 'Thanks for confirming your availability';
+      
+      emailOptions.html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Hello ${name},</h2>
+          <p>Thank you for confirming your availability dates.</p>
+          
+          <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin-top: 0;"><strong>Your Selected Dates:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              ${datesHtml}
+            </ul>
+            ${trackingNumber ? `
+              <p style="margin-top: 15px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
+              <div style="text-align: center; margin-top: 15px;">
+                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                  Track Order
+                </a>
+              </div>
+            ` : ''}
+          </div>
+          
+          <p><strong>This is what happens next:</strong></p>
+          <ol style="line-height: 1.8; color: #333;">
+            <li>We send you a timeslot the day before we are due on one of the dates you have selected</li>
+            <li>You receive a tracking link when the driver is on the way to you</li>
+            <li>The bike is delivered to the receiver based on their dates for availability</li>
+          </ol>
+          
+          <p style="margin-top: 30px;">Thank you,<br>The Cycle Courier Co. Team</p>
+        </div>
+      `;
+      emailOptions.text = `
+Hello ${name},
+
+Thank you for confirming your availability dates.
+
+Your Selected Dates:
+  - ${datesText}
+
+${trackingNumber ? `Tracking Number: ${trackingNumber}\nTrack your order: ${trackingUrl}` : ''}
+
+This is what happens next:
+
+1. We send you a timeslot the day before we are due on one of the dates you have selected
+2. You receive a tracking link when the driver is on the way to you
+3. The bike is delivered to the receiver based on their dates for availability
+
+Thank you,
+The Cycle Courier Co. Team
+      `;
+    } else if (reqData.emailType === 'receiver_dates_confirmed') {
+      // Receiver dates confirmation email
+      const baseUrl = reqData.baseUrl || 'https://booking.cyclecourierco.com';
+      const name = reqData.name || 'Customer';
+      const trackingNumber = reqData.trackingNumber || '';
+      const selectedDates = reqData.selectedDates || [];
+      
+      const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
+      
+      // Format dates nicely
+      const formattedDates = selectedDates.map((dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+      });
+      
+      const datesHtml = formattedDates.map((d: string) => `<li style="margin-bottom: 5px;">${d}</li>`).join('');
+      const datesText = formattedDates.join('\n  - ');
+      
+      emailOptions.subject = 'Thanks for confirming your availability';
+      
+      emailOptions.html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Hello ${name},</h2>
+          <p>Thank you for confirming your availability dates for delivery.</p>
+          
+          <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin-top: 0;"><strong>Your Selected Dates:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              ${datesHtml}
+            </ul>
+            ${trackingNumber ? `
+              <p style="margin-top: 15px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
+              <div style="text-align: center; margin-top: 15px;">
+                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                  Track Order
+                </a>
+              </div>
+            ` : ''}
+          </div>
+          
+          <p><strong>This is what happens next:</strong></p>
+          <ol style="line-height: 1.8; color: #333;">
+            <li>We send you a timeslot the day before we are due on one of the dates you have selected</li>
+            <li>You receive a tracking link when the driver is on the way to you</li>
+            <li>Your bicycle will be delivered on the scheduled date</li>
+          </ol>
+          
+          <p style="margin-top: 30px;">Thank you,<br>The Cycle Courier Co. Team</p>
+        </div>
+      `;
+      emailOptions.text = `
+Hello ${name},
+
+Thank you for confirming your availability dates for delivery.
+
+Your Selected Dates:
+  - ${datesText}
+
+${trackingNumber ? `Tracking Number: ${trackingNumber}\nTrack your order: ${trackingUrl}` : ''}
+
+This is what happens next:
+
+1. We send you a timeslot the day before we are due on one of the dates you have selected
+2. You receive a tracking link when the driver is on the way to you
+3. Your bicycle will be delivered on the scheduled date
 
 Thank you,
 The Cycle Courier Co. Team
@@ -456,7 +616,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const receiverHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.receiver.name || "Customer"},</h2>
-          <p>Great news! Your bicycle has been collected and is now on its way to you.</p>
+          <p>Great news! Your bicycle has been collected and is now with us.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
             <p>- Tracking Number: ${order.tracking_number || "N/A"}</p>
@@ -469,7 +629,14 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
               Track Your Delivery
             </a>
           </div>
-          <p>We'll notify you when your bicycle is out for delivery.</p>
+          <div style="margin: 25px 0; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #4a65d5;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">This is what happens next:</p>
+            <ol style="margin: 0; padding-left: 20px; color: #555;">
+              <li style="margin-bottom: 8px;">We send you a timeslot the day before we are due to deliver</li>
+              <li style="margin-bottom: 8px;">You receive a tracking link when the driver is on the way to you</li>
+              <li style="margin-bottom: 0;">Your bicycle will be delivered on the scheduled date</li>
+            </ol>
+          </div>
           <p>Best regards,<br>The Cycle Courier Co. Team</p>
         </div>
       `;
@@ -478,7 +645,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
         const { data: receiverData, error: receiverError } = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
           to: order.receiver.email,
-          subject: `Bike Collected - On Its Way - ${order.tracking_number || orderId}`,
+          subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: receiverHtml
         });
         

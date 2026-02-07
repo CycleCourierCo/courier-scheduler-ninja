@@ -480,7 +480,8 @@ export const sendSenderAvailabilityEmail = async (id: string): Promise<boolean> 
         orderId: id,
         baseUrl,
         emailType: "sender",
-        item: item
+        item: item,
+        trackingNumber: order.trackingNumber
       }
     });
     
@@ -543,7 +544,8 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
         orderId: id,
         baseUrl,
         emailType: "receiver",
-        item: item
+        item: item,
+        trackingNumber: order.trackingNumber
       }
     });
     
@@ -568,6 +570,84 @@ export const resendReceiverAvailabilityEmail = async (id: string): Promise<boole
     return await sendReceiverAvailabilityEmail(id);
   } catch (error) {
     console.error("Error resending receiver availability email:", error);
+    return false;
+  }
+};
+
+export const sendSenderDatesConfirmedEmail = async (orderId: string, selectedDates: string[]): Promise<boolean> => {
+  try {
+    console.log("Sending sender dates confirmed email for order ID:", orderId);
+    console.log("Selected dates:", selectedDates);
+    
+    // Get the order details
+    const order = await getOrder(orderId);
+    
+    if (!order || !order.sender || !order.sender.email) {
+      console.error("Order or sender information not found for ID:", orderId);
+      return false;
+    }
+    
+    const baseUrl = window.location.origin;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.sender.email,
+        emailType: "sender_dates_confirmed",
+        name: order.sender.name || "Customer",
+        trackingNumber: order.trackingNumber,
+        selectedDates: selectedDates,
+        baseUrl
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending sender dates confirmed email:", response.error);
+      return false;
+    }
+    
+    console.log("Sender dates confirmed email sent successfully to:", order.sender.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send sender dates confirmed email:", error);
+    return false;
+  }
+};
+
+export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedDates: string[]): Promise<boolean> => {
+  try {
+    console.log("Sending receiver dates confirmed email for order ID:", orderId);
+    console.log("Selected dates:", selectedDates);
+    
+    // Get the order details
+    const order = await getOrder(orderId);
+    
+    if (!order || !order.receiver || !order.receiver.email) {
+      console.error("Order or receiver information not found for ID:", orderId);
+      return false;
+    }
+    
+    const baseUrl = window.location.origin;
+    
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: order.receiver.email,
+        emailType: "receiver_dates_confirmed",
+        name: order.receiver.name || "Customer",
+        trackingNumber: order.trackingNumber,
+        selectedDates: selectedDates,
+        baseUrl
+      }
+    });
+    
+    if (response.error) {
+      console.error("Error sending receiver dates confirmed email:", response.error);
+      return false;
+    }
+    
+    console.log("Receiver dates confirmed email sent successfully to:", order.receiver.email);
+    return true;
+  } catch (error) {
+    console.error("Failed to send receiver dates confirmed email:", error);
     return false;
   }
 };

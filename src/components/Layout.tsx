@@ -43,9 +43,6 @@ const Layout: React.FC<LayoutProps> = ({
     </> : null;
 
   const driverNavLinks = isDriver ? <>
-      <Link to="/driver-checkin" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Check-In
-      </Link>
       <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         My Timeslips
       </Link>
@@ -116,10 +113,6 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             Driver Timeslips
-                          </Link>
-                          <Link to="/driver-checkin" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Shield className="mr-2 h-4 w-4" />
-                            Driver Check-Ins
                           </Link>
                           <Link to="/route-profitability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <TrendingUp className="mr-2 h-4 w-4" />
@@ -284,12 +277,6 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                           <Clock className="mr-2 h-4 w-4" />
                           <span>Driver Timeslips</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/driver-checkin" className="cursor-pointer flex w-full items-center">
-                          <Shield className="mr-2 h-4 w-4" />
-                          <span>Driver Check-Ins</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>

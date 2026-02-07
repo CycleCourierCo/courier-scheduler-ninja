@@ -561,6 +561,70 @@ const OrderDetail = () => {
     }
   };
 
+  const handleResetSenderAvailability = async () => {
+    if (!id) return;
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          pickup_date: null,
+          sender_confirmed_at: null,
+          sender_notes: null,
+          status: 'sender_availability_pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Resend availability email
+      await resendSenderAvailabilityEmail(id);
+      
+      toast.success("Sender availability reset. Email sent.");
+      // Refresh order
+      const updatedOrder = await getOrderById(id);
+      if (updatedOrder) setOrder(updatedOrder);
+    } catch (error) {
+      console.error("Error resetting sender availability:", error);
+      toast.error("Failed to reset sender availability");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetReceiverAvailability = async () => {
+    if (!id) return;
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          delivery_date: null,
+          receiver_confirmed_at: null,
+          receiver_notes: null,
+          status: 'receiver_availability_pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Resend availability email
+      await resendReceiverAvailabilityEmail(id);
+      
+      toast.success("Receiver availability reset. Email sent.");
+      // Refresh order
+      const updatedOrder = await getOrderById(id);
+      if (updatedOrder) setOrder(updatedOrder);
+    } catch (error) {
+      console.error("Error resetting receiver availability:", error);
+      toast.error("Failed to reset receiver availability");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleAddPickupToShipday = async () => {
     console.log("handleAddPickupToShipday called", { id, isSubmitting });
     if (!id) return;
@@ -604,70 +668,6 @@ const OrderDetail = () => {
     } catch (error) {
       console.error("Error adding delivery to Shipday:", error);
       toast.error(`Failed to add delivery to Shipday: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAddPickupToOptimoRoute = async () => {
-    console.log("handleAddPickupToOptimoRoute called", { id, isSubmitting });
-    if (!id) return;
-    
-    try {
-      setIsSubmitting(true);
-      console.log("About to call create-optimoroute-order for pickup");
-      
-      const { data, error } = await supabase.functions.invoke('create-optimoroute-order', {
-        body: { orderId: id, jobType: 'pickup' }
-      });
-      
-      console.log("OptimoRoute pickup response:", data, error);
-      
-      if (error) throw error;
-      
-      if (data?.success) {
-        toast.success(data.message || "Collection added to OptimoRoute successfully");
-        // Refresh order to get updated OptimoRoute IDs
-        const updatedOrder = await getOrderById(id);
-        if (updatedOrder) setOrder(updatedOrder);
-      } else {
-        toast.error(data?.message || "Failed to add collection to OptimoRoute");
-      }
-    } catch (error) {
-      console.error("Error adding collection to OptimoRoute:", error);
-      toast.error(`Failed to add collection to OptimoRoute: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAddDeliveryToOptimoRoute = async () => {
-    console.log("handleAddDeliveryToOptimoRoute called", { id, isSubmitting });
-    if (!id) return;
-    
-    try {
-      setIsSubmitting(true);
-      console.log("About to call create-optimoroute-order for delivery");
-      
-      const { data, error } = await supabase.functions.invoke('create-optimoroute-order', {
-        body: { orderId: id, jobType: 'delivery' }
-      });
-      
-      console.log("OptimoRoute delivery response:", data, error);
-      
-      if (error) throw error;
-      
-      if (data?.success) {
-        toast.success(data.message || "Delivery added to OptimoRoute successfully");
-        // Refresh order to get updated OptimoRoute IDs
-        const updatedOrder = await getOrderById(id);
-        if (updatedOrder) setOrder(updatedOrder);
-      } else {
-        toast.error(data?.message || "Failed to add delivery to OptimoRoute");
-      }
-    } catch (error) {
-      console.error("Error adding delivery to OptimoRoute:", error);
-      toast.error(`Failed to add delivery to OptimoRoute: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -1173,6 +1173,17 @@ const OrderDetail = () => {
                       <p className="text-muted-foreground">No sender availability provided</p>
                     </div>
                   )}
+                  {isAdmin && (
+                    <Button 
+                      onClick={handleResetSenderAvailability}
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950"
+                      disabled={isSubmitting || !order.pickupDate || !Array.isArray(order.pickupDate) || order.pickupDate.length === 0}
+                    >
+                      Reset Sender Availability
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -1199,6 +1210,17 @@ const OrderDetail = () => {
                     <div className="bg-muted/50 p-3 rounded-md">
                       <p className="text-muted-foreground">No receiver availability provided</p>
                     </div>
+                  )}
+                  {isAdmin && (
+                    <Button 
+                      onClick={handleResetReceiverAvailability}
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950"
+                      disabled={isSubmitting || !order.deliveryDate || !Array.isArray(order.deliveryDate) || order.deliveryDate.length === 0}
+                    >
+                      Reset Receiver Availability
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1288,24 +1310,6 @@ const OrderDetail = () => {
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button 
-                    onClick={handleAddPickupToOptimoRoute}
-                    disabled={isSubmitting}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {isSubmitting ? "Adding..." : "Add Collection to OptimoRoute"}
-                  </Button>
-                  <Button 
-                    onClick={handleAddDeliveryToOptimoRoute}
-                    disabled={isSubmitting}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {isSubmitting ? "Adding..." : "Add Delivery to OptimoRoute"}
-                  </Button>
-                </div>
               </div>
             </div>
             

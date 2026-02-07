@@ -1,8 +1,5 @@
 project_id = "axigtrmaxhetyfzjjdve"
 
-[functions.calculate-weekly-bonuses]
-verify_jwt = false
-
 [functions.trigger-webhook]
 verify_jwt = false
 
@@ -48,11 +45,8 @@ verify_jwt = false
 [functions.create-quickbooks-bill]
 verify_jwt = false
 
-[functions.create-optimoroute-order]
-verify_jwt = false
-
-[functions.sync-orders-to-optimoroute]
-verify_jwt = false
-
 [functions.query-database-completed-jobs]
+verify_jwt = false
+
+[functions.send-route-report]
 verify_jwt = false
