@@ -1,78 +1,108 @@
 
 
-# Remove Jobs Table and Related Code
+# Fix API Documentation Field Accuracy
 
 ## Overview
 
-This cleanup removes the orphaned `jobs` table and all related code from the project. The table contains 444 stale records (last activity: October 2025) and is no longer being populated or used by the current application logic. Current scheduling features derive job information directly from the `orders` table.
+The API documentation page contains several inaccuracies between what's documented and what the actual API returns. The main issues are:
 
-## Files to Delete
+1. **Response fields use snake_case, not camelCase** - Documentation shows `trackingNumber`, actual API returns `tracking_number`
+2. **`customerOrderNumber` is NOT in the response** - It's accepted in requests but not returned
+3. **Response structure differs from documentation** - No `bikes` array, no `updatedAt`, separate `bike_brand`/`bike_model` fields
 
-| File | Purpose |
-|------|---------|
-| `src/services/jobService.ts` | Service with job CRUD operations (never called) |
-| `src/pages/JobsPage.tsx` | Admin UI for viewing jobs table data |
+## Detailed Field Comparison
+
+### Request Body (Currently Accurate)
+
+The documentation correctly shows camelCase input fields. The API accepts both camelCase and snake_case, but documenting camelCase is fine.
+
+| Documented Field | API Accepts | Status |
+|------------------|-------------|--------|
+| `bikeQuantity` | ✓ `bikeQuantity` or `bike_quantity` | OK |
+| `bikes[].brand/model` | ✓ `bikes` array or `bike_brand` | OK |
+| `customerOrderNumber` | ✓ `customerOrderNumber` or `customer_order_number` | OK |
+| `isEbayOrder` | ✓ `isEbayOrder` or `is_ebay_order` | OK |
+| `collectionCode` | ✓ `collectionCode` or `collection_code` | OK |
+| `needsPaymentOnCollection` | ✓ both formats | OK |
+| `deliveryInstructions` | ✓ both formats | OK |
+
+### Response Body (Needs Fixing)
+
+| Documented (Wrong) | Actual API Response | Fix Required |
+|--------------------|---------------------|--------------|
+| `trackingNumber` | `tracking_number` | Change to snake_case |
+| `bikeQuantity` | `bike_quantity` | Change to snake_case |
+| `bikes: [...]` | `bike_brand`, `bike_model` | Replace with separate fields |
+| `customerOrderNumber` | Not returned | Remove from response |
+| `needsPaymentOnCollection` | `needs_payment_on_collection` | Change to snake_case |
+| `isEbayOrder` | `is_ebay_order` | Change to snake_case |
+| `collectionCode` | `collection_code` | Change to snake_case |
+| `createdAt` | `created_at` | Change to snake_case |
+| `updatedAt` | Not returned | Remove from response |
+| `isBikeSwap` | `is_bike_swap` | Add (was missing) |
 
 ## Files to Modify
 
-### 1. App Router (`src/App.tsx`)
+| File | Changes |
+|------|---------|
+| `src/pages/ApiDocumentationPage.tsx` | Update response examples to match actual API output |
 
-Remove the `/jobs` route and import:
+## Corrected Response Example
 
-| Line | Change |
-|------|--------|
-| 18 | Remove `import JobsPage from "./pages/JobsPage";` |
-| 67-71 | Remove the entire `/jobs` route block |
-
-### 2. Sidebar Navigation (`src/components/ui/sidebar.tsx`)
-
-Remove the Jobs link from the default navigation:
-
-| Lines | Change |
-|-------|--------|
-| 54-58 | Remove the Jobs entry from the `links` array |
-
-After removal, the `getDefaultLinks` function should go from Dashboard, New Order, Jobs, Scheduling... to Dashboard, New Order, Scheduling...
-
-### 3. Shipday Webhook (`supabase/functions/shipday-webhook/index.ts`)
-
-Remove the dead code that tries to sync with the jobs table:
-
-| Lines | Change |
-|-------|--------|
-| 311-316 | Remove the `updateJobStatuses` call and try/catch block |
-| 411-471 | Delete the entire `updateJobStatuses` helper function |
-
-### 4. Supabase Types (`src/integrations/supabase/types.ts`)
-
-The `jobs` table type definition will be automatically removed when the database migration runs (types are auto-generated from the schema).
-
-## Database Migration
-
-Drop the jobs table and its RLS policies:
-
-```sql
-DROP TABLE IF EXISTS public.jobs CASCADE;
+```json
+{
+  "id": "ord_1234567890",
+  "tracking_number": "CC-TR-ABC123",
+  "status": "created",
+  "created_at": "2024-01-15T10:30:00.000Z",
+  "sender": {
+    "name": "John Smith",
+    "email": "john@example.com",
+    "phone": "+44 7700 900123",
+    "address": {
+      "street": "123 High Street",
+      "city": "London",
+      "state": "London",
+      "zipCode": "SW1A 1AA",
+      "country": "UK"
+    }
+  },
+  "receiver": {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "phone": "+44 7700 900456",
+    "address": {
+      "street": "456 Oak Avenue",
+      "city": "London",
+      "state": "London",
+      "zipCode": "E1 6AN",
+      "country": "UK"
+    }
+  },
+  "bike_brand": "Trek",
+  "bike_model": "Domane AL 2",
+  "bike_quantity": 1,
+  "is_bike_swap": false,
+  "is_ebay_order": true,
+  "collection_code": "EBAY123456",
+  "needs_payment_on_collection": false,
+  "delivery_instructions": "Please ring doorbell and wait"
+}
 ```
 
-## What Will NOT Be Changed
+## Additional Documentation Updates
 
-These files use "job" terminology but operate on `orders` data directly:
+### Field Descriptions Section
 
-| File | Status |
-|------|--------|
-| `src/utils/jobUtils.ts` | Keep - derives jobs from orders |
-| `src/pages/JobScheduling.tsx` | Keep - queries orders directly |
-| `src/components/scheduling/*` | Keep - visualizes orders as jobs |
-| `supabase/functions/query-database-completed-jobs/index.ts` | Keep - queries orders for timeslips |
+Update to clarify that `customerOrderNumber` is stored but not echoed back in the response.
 
-These implement the current "derived approach" where collection/delivery jobs are computed from order data rather than stored separately.
+### Get Order Response
+
+The GET endpoint returns the full order object from the database (line 553-554), so it includes all fields. Add note that GET returns additional fields like `customer_order_number`, `updated_at`, etc.
 
 ## Summary of Changes
 
-| Action | Count |
-|--------|-------|
-| Files to delete | 2 |
-| Files to modify | 3 |
-| Database tables to drop | 1 |
+1. **Lines 157-199**: Update success response example to use snake_case and correct field list
+2. **Lines 142-152**: Add note that `customerOrderNumber` is stored but not returned in create response
+3. **Lines 221-246**: Update GET order response example if needed
 
