@@ -1,74 +1,59 @@
 
 
-# Add `needs_inspection` Field to API
+# Add Sentry Test Error Button (Admin Only)
 
 ## Overview
 
-Add support for the `needs_inspection` boolean field in the Orders API. This field indicates whether a bicycle requires inspection before delivery. It already exists in the database but is not currently exposed through the API.
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/orders/index.ts` | Accept and store `needs_inspection` field |
-| `src/pages/ApiDocumentationPage.tsx` | Document the new field |
+Add a "Test Sentry" button to the navigation menu that intentionally throws an error to verify Sentry error tracking is working correctly. This button will only be visible to admin users.
 
 ## Implementation Details
 
-### 1. Edge Function (`supabase/functions/orders/index.ts`)
+### File to Modify
 
-Add `needs_inspection` to the `orderData` object (around line 225):
+| File | Changes |
+|------|---------|
+| `src/components/Layout.tsx` | Add test error button to both mobile and desktop menus |
 
-```typescript
-const orderData = {
-  // ... existing fields ...
-  needs_inspection: body.needsInspection || body.needs_inspection || false,
-  // ... rest of fields ...
-}
-```
+### Changes
 
-**Location**: Line 225, add before `created_via_api: true`
+1. **Import `AlertTriangle` icon** from lucide-react for the button icon
 
-### 2. API Documentation (`src/pages/ApiDocumentationPage.tsx`)
+2. **Add button to admin section of mobile Sheet menu** (around line 140, after Bicycle Inspections link):
+   ```tsx
+   <button 
+     onClick={() => {
+       throw new Error('Sentry Test Error - Triggered by admin');
+     }}
+     className="flex items-center text-red-500 hover:text-red-700 transition-colors"
+   >
+     <AlertTriangle className="mr-2 h-4 w-4" />
+     Test Sentry Error
+   </button>
+   ```
 
-#### Request Body Example (Lines 129-135)
+3. **Add button to admin section of desktop DropdownMenu** (around line 317, after Bicycle Inspections):
+   ```tsx
+   <DropdownMenuItem
+     onClick={() => {
+       throw new Error('Sentry Test Error - Triggered by admin');
+     }}
+     className="text-red-500 hover:text-red-600 cursor-pointer"
+   >
+     <AlertTriangle className="mr-2 h-4 w-4" />
+     <span>Test Sentry Error</span>
+   </DropdownMenuItem>
+   ```
 
-Add the new field to the request example:
+### Security
 
-```json
-"isEbayOrder": true,
-"collectionCode": "EBAY123456",
-"needsInspection": true,
-"deliveryInstructions": "Please ring doorbell and wait"
-```
+- Button is only rendered inside `{isAdmin && <>...</>}` blocks
+- Role check uses `userProfile?.role === 'admin'` from AuthContext
+- Non-admin users will never see this button
 
-#### Field Descriptions (Lines 148-151)
+### User Experience
 
-Add description after `collectionCode`:
-
-```
-needsInspection: (optional) Whether the bicycle requires inspection before delivery
-```
-
-#### Success Response (Lines 187-194)
-
-Add to the response example:
-
-```json
-"collection_code": "EBAY123456",
-"needs_payment_on_collection": false,
-"needs_inspection": true,
-"delivery_instructions": "Please ring doorbell and wait"
-```
-
-#### GET Order Response (Lines 230-238)
-
-Add `needs_inspection` to the GET response example as well.
-
-## Summary
-
-| Change | Description |
-|--------|-------------|
-| Edge function | Accept `needsInspection` or `needs_inspection` from request body |
-| Documentation | Add field to request example, field descriptions, and both response examples |
+- Button has red styling to indicate it's a destructive/test action
+- Uses AlertTriangle icon to visually distinguish it from normal navigation
+- When clicked, throws an intentional error that Sentry will capture
+- The ErrorFallback component (already configured in App.tsx) will display
 
