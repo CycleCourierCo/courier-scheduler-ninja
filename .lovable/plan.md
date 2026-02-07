@@ -1,127 +1,127 @@
 
 
-# Receiver Confirmation Email and Reset Dates Button
+# Add Admin Reset Buttons for Sender/Receiver Availability Dates
 
 ## Overview
 
-This plan covers two features:
-1. Send a confirmation email to receivers when they confirm their availability dates (similar to sender confirmation email)
-2. Add a "Reset Dates" button to clear the selected dates in the availability form
+Add buttons on the admin order details page that allow admins to reset the sender/receiver availability dates. This is **different** from the existing "Reset Collection/Delivery Date" buttons which reset the admin-scheduled dates.
+
+| Feature | What it resets | Current State |
+|---------|---------------|---------------|
+| Reset Collection Date | `scheduled_pickup_date` (admin-set) | Already exists |
+| Reset Delivery Date | `scheduled_delivery_date` (admin-set) | Already exists |
+| **Reset Sender Availability** | `pickup_date` (customer-submitted) | **New** |
+| **Reset Receiver Availability** | `delivery_date` (customer-submitted) | **New** |
 
 ## Changes Required
 
-### 1. Add Receiver Dates Confirmed Email Type
+### 1. Add Reset Handler Functions
 
-**File**: `supabase/functions/send-email/index.ts`
+**File**: `src/pages/OrderDetail.tsx`
 
-Add a new email type handler `receiver_dates_confirmed` that will:
-- Thank the receiver for confirming their dates
-- Display the dates they selected
-- Explain what happens next (tailored for receiver perspective)
+Add two new async functions following the existing pattern:
 
-The email content will be:
-- Subject: "Thanks for confirming your availability"
-- List of selected delivery dates
-- Tracking number and Track Order button
-- "This is what happens next:" section with receiver-focused steps:
-  1. We send you a timeslot the day before we are due on one of the dates you have selected
-  2. You receive a tracking link when the driver is on the way to you
-  3. Your bicycle will be delivered on the scheduled date
+**handleResetSenderAvailability:**
+- Clears `pickup_date` (the sender's selected dates)
+- Clears `sender_confirmed_at` 
+- Clears `sender_notes`
+- Resets status to `sender_availability_pending`
+- Triggers `resendSenderAvailabilityEmail` to notify the sender to reselect dates
 
-### 2. Add Email Service Function for Receiver
+**handleResetReceiverAvailability:**
+- Clears `delivery_date` (the receiver's selected dates)
+- Clears `receiver_confirmed_at`
+- Clears `receiver_notes`
+- Resets status to `receiver_availability_pending`
+- Triggers `resendReceiverAvailabilityEmail` to notify the receiver to reselect dates
 
-**File**: `src/services/emailService.ts`
+### 2. Add UI Buttons
 
-Add a new function `sendReceiverDatesConfirmedEmail`:
-```typescript
-export const sendReceiverDatesConfirmedEmail = async (
-  orderId: string, 
-  selectedDates: string[]
-): Promise<boolean>
+**File**: `src/pages/OrderDetail.tsx`
+
+Add the reset buttons below the Sender/Receiver Availability cards (around line 1204), styled as outline buttons with a warning color to differentiate from the destructive "Reset Collection/Delivery Date" buttons:
+
+```
++-------------------------------------------+
+| Sender Availability       | Receiver Availability    |
+| [Dates...]                | [Dates...]               |
+| [Reset Sender Avail.]     | [Reset Receiver Avail.]  |
++-------------------------------------------+
 ```
 
-This will:
-- Fetch order details (receiver name, tracking number)
-- Call the edge function with `emailType: 'receiver_dates_confirmed'`
-- Return success/failure status
-
-### 3. Trigger Email After Receiver Confirms
-
-**File**: `src/services/availabilityService.ts`
-
-Update both `confirmReceiverAvailability` and `updateReceiverAvailability` functions to:
-- Import the new `sendReceiverDatesConfirmedEmail` function
-- Call it after successfully updating the database
-- Pass the selected dates to be displayed in the email
-
-### 4. Add Reset Dates Button to Availability Form
+### 3. Remove Reset Button from Customer Form (Cleanup)
 
 **File**: `src/components/availability/AvailabilityForm.tsx`
 
-Add a new prop and button:
-- Add optional `onReset` callback prop to the interface
-- Add a "Reset Dates" button in the "Selected Dates" section
-- Style it as a secondary/outline button with an icon
-- When clicked, clear all selected dates by calling `setDates([])`
+The Reset button that was previously added to the customer-facing form should be removed, as customers should not be able to clear their dates once they start selecting them. This also prevents confusion between the customer experience and admin controls.
 
-## Email Template Design (Receiver)
+## Implementation Details
 
-```text
-+-------------------------------------------------------------+
-|  Hello [Receiver Name],                                     |
-|                                                             |
-|  Thank you for confirming your availability dates.          |
-|                                                             |
-|  +-------------------------------------------------------+  |
-|  |  Your Selected Dates:                                 |  |
-|  |  - Monday, 10 February 2025                           |  |
-|  |  - Tuesday, 11 February 2025                          |  |
-|  |  - Wednesday, 12 February 2025                        |  |
-|  |                                                       |  |
-|  |  Tracking Number: CCC-XXXXX                           |  |
-|  |            [Track Order]                              |  |
-|  +-------------------------------------------------------+  |
-|                                                             |
-|  This is what happens next:                                 |
-|                                                             |
-|  1. We send you a timeslot the day before we are due on     |
-|     one of the dates you have selected                      |
-|  2. You receive a tracking link when the driver is on       |
-|     the way to you                                          |
-|  3. Your bicycle will be delivered on the scheduled date    |
-|                                                             |
-|  Thank you,                                                 |
-|  The Cycle Courier Co. Team                                 |
-+-------------------------------------------------------------+
+### New Handler Functions
+
+```typescript
+const handleResetSenderAvailability = async () => {
+  if (!id) return;
+  try {
+    setIsSubmitting(true);
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        pickup_date: null,
+        sender_confirmed_at: null,
+        sender_notes: null,
+        status: 'sender_availability_pending',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) throw error;
+    
+    // Resend availability email
+    await resendSenderAvailabilityEmail(id);
+    
+    toast.success("Sender availability reset. Email sent.");
+    // Refresh order
+    const updatedOrder = await getOrderById(id);
+    if (updatedOrder) setOrder(updatedOrder);
+  } catch (error) {
+    toast.error("Failed to reset sender availability");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 ```
 
-## Reset Button Design
+(Similar pattern for receiver)
 
-The button will appear in the "Selected Dates" section:
+### Button Styling
 
-```text
-+---------------------------------------+
-|  Selected Dates                       |
-|                                       |
-|  [Mon, Feb 10] [Tue, Feb 11] [x]     |
-|                                       |
-|  [Reset Dates]  <- New outline button |
-+---------------------------------------+
+The buttons will use `variant="outline"` with amber/orange border colors to indicate a warning-level action (different from red "destructive" for scheduled date resets):
+
+```tsx
+<Button 
+  onClick={handleResetSenderAvailability}
+  variant="outline"
+  size="sm"
+  className="w-full border-amber-500 text-amber-700 hover:bg-amber-50"
+  disabled={isSubmitting || !order.pickupDate}
+>
+  Reset Sender Availability
+</Button>
 ```
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/send-email/index.ts` | Add `receiver_dates_confirmed` email type handler |
-| `src/services/emailService.ts` | Add `sendReceiverDatesConfirmedEmail` function |
-| `src/services/availabilityService.ts` | Import and call receiver confirmation email after update |
-| `src/components/availability/AvailabilityForm.tsx` | Add Reset Dates button with clear functionality |
+| `src/pages/OrderDetail.tsx` | Add `handleResetSenderAvailability` and `handleResetReceiverAvailability` functions, add UI buttons |
+| `src/components/availability/AvailabilityForm.tsx` | Remove the Reset button from customer form |
 
-## Implementation Order
+## User Flow After Reset
 
-1. Add the `receiver_dates_confirmed` email type to the edge function
-2. Add the `sendReceiverDatesConfirmedEmail` service function
-3. Update `confirmReceiverAvailability` and `updateReceiverAvailability` to trigger the email
-4. Add the Reset Dates button to the AvailabilityForm component
+1. Admin clicks "Reset Sender Availability"
+2. Database clears sender's dates, resets status to pending
+3. Sender receives a new email asking them to select dates again
+4. Sender fills out the form and submits
+5. Flow continues as normal (receiver email sent, etc.)
 
