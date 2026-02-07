@@ -561,6 +561,70 @@ const OrderDetail = () => {
     }
   };
 
+  const handleResetSenderAvailability = async () => {
+    if (!id) return;
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          pickup_date: null,
+          sender_confirmed_at: null,
+          sender_notes: null,
+          status: 'sender_availability_pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Resend availability email
+      await resendSenderAvailabilityEmail(id);
+      
+      toast.success("Sender availability reset. Email sent.");
+      // Refresh order
+      const updatedOrder = await getOrderById(id);
+      if (updatedOrder) setOrder(updatedOrder);
+    } catch (error) {
+      console.error("Error resetting sender availability:", error);
+      toast.error("Failed to reset sender availability");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetReceiverAvailability = async () => {
+    if (!id) return;
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          delivery_date: null,
+          receiver_confirmed_at: null,
+          receiver_notes: null,
+          status: 'receiver_availability_pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Resend availability email
+      await resendReceiverAvailabilityEmail(id);
+      
+      toast.success("Receiver availability reset. Email sent.");
+      // Refresh order
+      const updatedOrder = await getOrderById(id);
+      if (updatedOrder) setOrder(updatedOrder);
+    } catch (error) {
+      console.error("Error resetting receiver availability:", error);
+      toast.error("Failed to reset receiver availability");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleAddPickupToShipday = async () => {
     console.log("handleAddPickupToShipday called", { id, isSubmitting });
     if (!id) return;
@@ -1173,6 +1237,17 @@ const OrderDetail = () => {
                       <p className="text-muted-foreground">No sender availability provided</p>
                     </div>
                   )}
+                  {isAdmin && (
+                    <Button 
+                      onClick={handleResetSenderAvailability}
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950"
+                      disabled={isSubmitting || !order.pickupDate || !Array.isArray(order.pickupDate) || order.pickupDate.length === 0}
+                    >
+                      Reset Sender Availability
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -1199,6 +1274,17 @@ const OrderDetail = () => {
                     <div className="bg-muted/50 p-3 rounded-md">
                       <p className="text-muted-foreground">No receiver availability provided</p>
                     </div>
+                  )}
+                  {isAdmin && (
+                    <Button 
+                      onClick={handleResetReceiverAvailability}
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950"
+                      disabled={isSubmitting || !order.deliveryDate || !Array.isArray(order.deliveryDate) || order.deliveryDate.length === 0}
+                    >
+                      Reset Receiver Availability
+                    </Button>
                   )}
                 </div>
               </div>
