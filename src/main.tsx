@@ -25,10 +25,10 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
   // Distributed tracing targets - headers sent to these endpoints
+  // Note: Geoapify excluded because their CORS policy doesn't allow sentry-trace header
   tracePropagationTargets: [
     "localhost",
     /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/,
-    /^https:\/\/api\.geoapify\.com/,
   ],
 });
 
