@@ -20,13 +20,21 @@ type Customer = {
   accounts_email?: string;
 };
 
+type BikeItem = {
+  brand: string;
+  model: string;
+  type: string;
+};
+
 type InvoiceItem = {
   id: string;
   created_at: string;
   tracking_number: string;
   bike_brand: string;
   bike_model: string;
+  bike_type: string;
   bike_quantity: number;
+  bikes: BikeItem[] | null;
   customer_order_number: string;
   sender: any;
   receiver: any;
@@ -152,7 +160,9 @@ export default function InvoicesPage() {
           tracking_number,
           bike_brand,
           bike_model,
+          bike_type,
           bike_quantity,
+          bikes,
           customer_order_number,
           sender,
           receiver

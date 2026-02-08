@@ -9,9 +9,9 @@ import { CreateOrderFormData } from "@/types/order";
 const BIKE_TYPES = [
   "Non-Electric - Mountain Bike",
   "Non-Electric - Road Bike",
+  "Non-Electric - Hybrid",
   "Electric Bike - Under 25kg",
-  "Electric Bike - 25-50kg",
-  "Hybrid Bike",
+  "Electric Bike - Over 50kg",
   "Cargo Bike",
   "Longtail Cargo Bike",
   "Stationary Bikes",
@@ -20,8 +20,10 @@ const BIKE_TYPES = [
   "Boxed Kids Bikes",
   "Folding Bikes",
   "Tandem Bikes",
-  "Travel Bike Boxes",
-  "Bike Wheels",
+  "Travel Bike Box",
+  "Wheelset/Frameset",
+  "Bike Rack",
+  "Turbo Trainer",
 ] as const;
 
 interface OrderDetailsProps {
