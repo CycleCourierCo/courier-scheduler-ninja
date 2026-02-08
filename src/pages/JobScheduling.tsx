@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -33,12 +34,37 @@ export interface OrderData {
 }
 
 const JobScheduling = () => {
+  const [searchParams] = useSearchParams();
   const [showClusters, setShowClusters] = useState(true);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  
+  // Initial jobs from URL parameters
+  const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
+  
+  // Parse URL parameters on mount
+  useEffect(() => {
+    const jobsParam = searchParams.get('jobs');
+    const dateParam = searchParams.get('date');
+    
+    if (jobsParam) {
+      const jobs = jobsParam.split(',').map(j => {
+        const [orderId, type] = j.split(':');
+        return { orderId, type: type as 'pickup' | 'delivery' };
+      }).filter(j => j.orderId && (j.type === 'pickup' || j.type === 'delivery'));
+      setInitialJobs(jobs);
+    }
+    
+    if (dateParam) {
+      const parsedDate = new Date(dateParam);
+      if (!isNaN(parsedDate.getTime())) {
+        setFilterDate(parsedDate);
+      }
+    }
+  }, [searchParams]);
   
   const { data: orders, isLoading } = useQuery({
     queryKey: ['scheduling-orders'],
@@ -142,6 +168,7 @@ const JobScheduling = () => {
                 showCollectedOnly={showCollectedOnly}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
+                initialJobs={initialJobs}
               />
             </div>
           </>
