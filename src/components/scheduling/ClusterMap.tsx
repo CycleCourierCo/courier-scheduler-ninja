@@ -26,15 +26,24 @@ interface ClusterMapProps {
 // Determine which jobs are needed based on order status
 const getJobsForOrder = (order: OrderData): ('collection' | 'delivery')[] => {
   const status = order.status;
+  const isCollected = order.order_collected === true;
   
   if (['delivered', 'cancelled'].includes(status)) return [];
   if (['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(status)) {
     return ['delivery'];
   }
   if (status === 'collection_scheduled') {
-    return ['collection'];
+    // Hide collection marker if already collected
+    return isCollected ? [] : ['collection'];
   }
-  return ['collection', 'delivery'];
+  
+  // For other statuses, hide collection if already collected
+  const jobs: ('collection' | 'delivery')[] = [];
+  if (!isCollected) {
+    jobs.push('collection');
+  }
+  jobs.push('delivery');
+  return jobs;
 };
 
 // Extract cluster points from orders
