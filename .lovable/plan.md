@@ -1,240 +1,50 @@
 
 
-## Multi-Route CSV Comparison Feature
+## Load All Matched Jobs from Route Comparison
 
-Add the ability to upload multiple route CSV files, analyze job viability (collection status AND date availability for BOTH collections and deliveries), compare routes, and load viable jobs into a new scheduling tab.
-
----
-
-## Viability Logic
-
-### Collection Job is Viable if:
-1. `pickup_date` array is empty (any date) OR contains the selected filter date
-
-### Delivery Job is Viable if:
-1. `order_collected === true` OR there's a matching pickup in the same route (sequence before delivery)
-2. AND: `delivery_date` array is empty (any date) OR contains the selected filter date
+A simple change to load ALL matched jobs (not just viable ones) when clicking "Load Route" in the comparison dialog.
 
 ---
 
-## New Components to Create
+## Changes Required
 
-### 1. `src/components/scheduling/MultiCSVUploadButton.tsx`
+### 1. Update Route Loading Handler
 
-Button component accepting multiple CSV files:
-- File input with `multiple` attribute
-- Returns array of `{ fileName: string; content: string }` objects
-- Similar styling to existing `CSVUploadButton`
+**File:** `src/components/scheduling/RouteBuilder.tsx`
 
-### 2. `src/components/scheduling/RouteComparisonDialog.tsx`
+Change line 956 from using `viableMatchResults` to `matchResults`:
 
-Dialog showing comparison of all uploaded routes:
-- Summary stats per route (matched, viable, issues)
-- Breakdown by job type
-- Issue counts (not collected, wrong date)
-- "Load Route" button per row
-- Sorted by viability (most viable first)
+| Before | After |
+|--------|-------|
+| `analysis.viableMatchResults` | `analysis.matchResults.filter(r => r.matchedOrder && r.jobType)` |
 
 ---
 
-## New Types and Functions
+### 2. Update Button Text and Enable Logic
 
-### `src/utils/csvRouteParser.ts` - Add:
+**File:** `src/components/scheduling/RouteComparisonDialog.tsx`
 
-```typescript
-export interface RouteAnalysis {
-  fileName: string;
-  totalMatched: number;
-  viableJobs: number;
-  collections: number;
-  viableCollections: number;
-  deliveries: number;
-  viableDeliveries: number;
-  issues: {
-    notCollected: number;
-    collectionWrongDate: number;
-    deliveryWrongDate: number;
-  };
-  matchResults: MatchResult[];
-  viableMatchResults: MatchResult[]; // Only viable jobs for loading
-}
-
-export const analyzeRouteViability = (
-  matchResults: MatchResult[],
-  targetDate: Date | undefined
-): RouteAnalysis => {
-  // For each matched job:
-  // - Collections: check pickup_date array
-  // - Deliveries: check order_collected OR pickup exists earlier in route, AND delivery_date array
-  // Return analysis with viable counts and filtered viable results
-}
-```
-
----
-
-## RouteBuilder Changes
-
-### New State:
-```typescript
-const [showRouteComparisonDialog, setShowRouteComparisonDialog] = useState(false);
-const [routeAnalyses, setRouteAnalyses] = useState<RouteAnalysis[]>([]);
-```
-
-### New Handler for Multi-CSV:
-```typescript
-const handleMultiCsvUpload = (files: { fileName: string; content: string }[]) => {
-  const analyses = files.map(file => {
-    const csvRows = parseCSV(file.content);
-    const matchResults = matchCSVToOrders(csvRows, orders);
-    return analyzeRouteViability(matchResults, filterDate);
-  });
-  
-  // Sort by viability (highest first)
-  analyses.sort((a, b) => b.viableJobs - a.viableJobs);
-  setRouteAnalyses(analyses);
-  setShowRouteComparisonDialog(true);
-}
-```
-
-### New Handler for "Load Route":
-```typescript
-const handleLoadViableRoute = (analysis: RouteAnalysis) => {
-  // Build URL with viable jobs
-  const jobParams = analysis.viableMatchResults
-    .map(r => `${r.matchedOrder!.id}:${r.jobType}`)
-    .join(',');
-  
-  const dateParam = filterDate ? `&date=${format(filterDate, 'yyyy-MM-dd')}` : '';
-  
-  // Open in new tab
-  window.open(`/scheduling?jobs=${jobParams}${dateParam}`, '_blank');
-}
-```
-
-### Updated UI (buttons section):
-```
-[Upload Route CSV]  [Compare Multiple Routes]  [Date Filter]  [Collected Toggle]
-```
-
----
-
-## JobScheduling Page Changes
-
-### Parse URL Parameters:
-```typescript
-import { useSearchParams } from 'react-router-dom';
-
-const [searchParams] = useSearchParams();
-const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
-
-useEffect(() => {
-  const jobsParam = searchParams.get('jobs');
-  const dateParam = searchParams.get('date');
-  
-  if (jobsParam) {
-    const jobs = jobsParam.split(',').map(j => {
-      const [orderId, type] = j.split(':');
-      return { orderId, type: type as 'pickup' | 'delivery' };
-    });
-    setInitialJobs(jobs);
-  }
-  
-  if (dateParam) {
-    setFilterDate(new Date(dateParam));
-  }
-}, [searchParams]);
-```
-
-### Pass to RouteBuilder:
-```typescript
-<RouteBuilder 
-  orders={orders || []}
-  initialJobs={initialJobs}  // NEW
-  filterDate={filterDate}
-  ...
-/>
-```
-
-### RouteBuilder handles initial jobs:
-```typescript
-useEffect(() => {
-  if (initialJobs?.length && orders.length) {
-    // Auto-populate selectedJobs from initialJobs
-    const jobs = initialJobs.map((ij, idx) => {
-      const order = orders.find(o => o.id === ij.orderId);
-      if (!order) return null;
-      // Build SelectedJob object
-      return { ... };
-    }).filter(Boolean);
-    
-    setSelectedJobs(jobs);
-  }
-}, [initialJobs, orders]);
-```
-
----
-
-## Files to Create
-
-| File | Description |
-|------|-------------|
-| `src/components/scheduling/MultiCSVUploadButton.tsx` | Multi-file upload button |
-| `src/components/scheduling/RouteComparisonDialog.tsx` | Route comparison dialog with viability stats |
+| Current | Updated |
+|---------|---------|
+| `disabled={analysis.viableJobs === 0}` | `disabled={analysis.totalMatched === 0}` |
+| `Load {analysis.viableJobs} Jobs` | `Load {analysis.totalMatched} Jobs` |
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/utils/csvRouteParser.ts` | Add `RouteAnalysis` interface and `analyzeRouteViability()` function |
-| `src/components/scheduling/RouteBuilder.tsx` | Add multi-CSV state, handlers, button, dialog, and initial jobs handling |
-| `src/pages/JobScheduling.tsx` | Add URL parameter parsing and pass initial jobs to RouteBuilder |
+| File | Line(s) | Change |
+|------|---------|--------|
+| `src/components/scheduling/RouteBuilder.tsx` | 956 | Use `matchResults` instead of `viableMatchResults` |
+| `src/components/scheduling/RouteComparisonDialog.tsx` | 133, 138 | Update disabled condition and button text to use `totalMatched` |
 
 ---
 
-## Route Comparison Dialog UI
+## Expected Behavior
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│  Compare Routes                              Selected: Feb 10 │
-├──────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ birmingham_north.csv                                     │ │
-│  │ ─────────────────────────────────────────────────────── │ │
-│  │ Matched: 12  │  Viable: 8  │  Issues: 4                  │ │
-│  │                                                          │ │
-│  │ Collections: 5 (4 viable)  │  Deliveries: 7 (4 viable)   │ │
-│  │                                                          │ │
-│  │ Issues:                                                  │ │
-│  │   - 2 deliveries not collected                           │ │
-│  │   - 1 collection wrong date                              │ │
-│  │   - 1 delivery wrong date                                │ │
-│  │                                                          │ │
-│  │                                          [Load 8 Jobs]   │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ birmingham_south.csv                                     │ │
-│  │ Matched: 10  │  Viable: 4  │  Issues: 6                  │ │
-│  │ ...                                      [Load 4 Jobs]   │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                               │
-│                                              [Close]          │
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Expected Flow
-
-1. User clicks "Compare Multiple Routes"
-2. Selects multiple CSV files
-3. System parses and matches each file to orders
-4. Analyzes viability using selected date filter
-5. Shows comparison dialog sorted by viable job count
-6. User clicks "Load X Jobs" on desired route
-7. Opens new tab at `/scheduling?jobs=...&date=...`
-8. New tab auto-populates RouteBuilder with viable jobs
+When clicking "Load Route":
+- Loads ALL matched jobs from the CSV, including those that are not viable
+- Button shows total matched count (e.g., "Load 12 Jobs")
+- Button is disabled only if no jobs were matched at all
+- Viability stats remain visible for reference (user can still see which jobs have issues)
 
