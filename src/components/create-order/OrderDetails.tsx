@@ -11,7 +11,7 @@ const BIKE_TYPES = [
   "Non-Electric - Road Bike",
   "Non-Electric - Hybrid",
   "Electric Bike - Under 25kg",
-  "Electric Bike - 25-50kg",
+  "Electric Bike - Over 50kg",
   "Cargo Bike",
   "Longtail Cargo Bike",
   "Stationary Bikes",
