@@ -962,7 +962,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     // Open in new tab
     window.open(`/scheduling?jobs=${jobParams}${dateParam}`, '_blank');
-    setShowRouteComparisonDialog(false);
   };
 
   // Handle initial jobs from URL parameters
