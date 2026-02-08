@@ -2335,6 +2335,16 @@ Route Link: ${routeLink}`;
               disabled={isAnalyzingRoutes}
             />
             
+            {/* Load Saved Route Button */}
+            <Button
+              variant="outline"
+              onClick={() => setShowLoadRouteDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Load Route
+            </Button>
+            
             {/* Results Count */}
             <div className="ml-auto">
               <Badge variant={hasActiveFilters ? "secondary" : "outline"}>
@@ -2550,15 +2560,6 @@ Route Link: ${routeLink}`;
                       <Save className="h-3 w-3" />
                       Save
                     </Button>
-                    <Button
-                      onClick={() => setShowLoadRouteDialog(true)}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 flex items-center justify-center gap-1 h-9 text-sm"
-                    >
-                      <FolderOpen className="h-3 w-3" />
-                      Load
-                    </Button>
                   </div>
                   
                   <Button
@@ -2674,15 +2675,6 @@ Route Link: ${routeLink}`;
                   >
                     <Save className="h-3 w-3" />
                     Save Route
-                  </Button>
-                  <Button
-                    onClick={() => setShowLoadRouteDialog(true)}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
-                    <FolderOpen className="h-3 w-3" />
-                    Load Route
                   </Button>
                   <Button
                     onClick={sendAllTimeslots}
