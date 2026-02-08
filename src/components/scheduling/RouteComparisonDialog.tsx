@@ -130,12 +130,12 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                     {/* Load Button */}
                     <Button
                       onClick={() => onLoadRoute(analysis)}
-                      disabled={analysis.viableJobs === 0}
+                      disabled={analysis.totalMatched === 0}
                       className="w-full"
                       size="sm"
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
-                      Load {analysis.viableJobs} Jobs
+                      Load {analysis.totalMatched} Jobs
                     </Button>
                   </CardContent>
                 </Card>
