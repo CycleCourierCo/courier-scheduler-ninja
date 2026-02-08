@@ -6,23 +6,94 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface BikeItem {
+  brand: string;
+  model: string;
+  type: string;
+}
+
 interface InvoiceRequest {
   customerId: string;
   customerEmail: string;
   customerName: string;
-  startDate: string; // Should be in YYYY-MM-DD format
-  endDate: string;   // Should be in YYYY-MM-DD format
+  startDate: string;
+  endDate: string;
   orders: Array<{
     id: string;
     created_at: string;
     tracking_number: string;
     bike_brand: string;
     bike_model: string;
+    bike_type: string;
     bike_quantity: number;
+    bikes: BikeItem[] | null;
     customer_order_number: string;
     sender: any;
     receiver: any;
   }>;
+}
+
+interface ProductInfo {
+  id: string;
+  name: string;
+  price: number;
+}
+
+// Cache for product lookups to avoid repeated API calls
+const productCache = new Map<string, ProductInfo | null>();
+
+async function findProductByBikeType(
+  accessToken: string, 
+  companyId: string, 
+  bikeType: string
+): Promise<ProductInfo | null> {
+  // Check cache first
+  if (productCache.has(bikeType)) {
+    console.log(`Using cached product for bike type: ${bikeType}`);
+    return productCache.get(bikeType) || null;
+  }
+
+  const productName = `Collection and Delivery within England and Wales - ${bikeType}`;
+  console.log(`Looking up QuickBooks product: ${productName}`);
+  
+  // QuickBooks query needs proper escaping for single quotes
+  const escapedProductName = productName.replace(/'/g, "\\'");
+  const query = `SELECT * FROM Item WHERE Name = '${escapedProductName}' AND Active=true`;
+  
+  const response = await fetch(
+    `https://quickbooks.api.intuit.com/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    }
+  );
+
+  if (response.ok) {
+    const data = await response.json();
+    const item = data.QueryResponse?.Item?.[0];
+    
+    if (item) {
+      const product: ProductInfo = { 
+        id: item.Id, 
+        name: item.Name, 
+        price: item.UnitPrice || 0
+      };
+      console.log(`Found product for ${bikeType}: ID=${product.id}, Price=${product.price}`);
+      productCache.set(bikeType, product);
+      return product;
+    } else {
+      console.warn(`No product found for bike type: ${bikeType}`);
+      productCache.set(bikeType, null);
+    }
+  } else {
+    const errorText = await response.text();
+    console.error(`Error querying product for ${bikeType}:`, errorText);
+  }
+  
+  return null;
 }
 
 async function refreshQuickBooksToken(
@@ -66,7 +137,6 @@ async function refreshQuickBooksToken(
 
     const tokenData = await tokenResponse.json();
     
-    // Update tokens in database
     const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
     
     const { error: updateError } = await supabase
@@ -102,7 +172,6 @@ async function getValidQuickBooksToken(
   userId: string
 ): Promise<{ access_token: string; company_id: string; expires_at: string } | null> {
   try {
-    // Get current tokens
     const { data: tokenData, error: tokenError } = await supabase
       .from('quickbooks_tokens')
       .select('access_token, refresh_token, expires_at, company_id')
@@ -114,15 +183,13 @@ async function getValidQuickBooksToken(
       return null;
     }
 
-    // Check if token is expired (with 5 minute buffer)
     const expiresAt = new Date(tokenData.expires_at);
     const now = new Date();
-    const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+    const bufferTime = 5 * 60 * 1000;
     
     if (expiresAt.getTime() - now.getTime() < bufferTime) {
       console.log('Token expired or expiring soon, attempting refresh...');
       
-      // Try to refresh the token
       const refreshResult = await refreshQuickBooksToken(
         supabase, 
         userId, 
@@ -141,7 +208,6 @@ async function getValidQuickBooksToken(
       }
     }
 
-    // Token is still valid
     return {
       access_token: tokenData.access_token,
       company_id: tokenData.company_id,
@@ -155,18 +221,19 @@ async function getValidQuickBooksToken(
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Clear product cache for each request to get fresh prices
+    productCache.clear();
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify admin access
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
@@ -179,7 +246,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Unauthorized');
     }
 
-    // Check if user is admin
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
@@ -193,15 +259,15 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceData: InvoiceRequest = await req.json();
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
     console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
+    console.log('Total orders:', invoiceData.orders.length);
 
-    // Get valid QuickBooks tokens (will auto-refresh if needed)
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
 
     if (!tokenData) {
       throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
     }
 
-    // First, fetch available tax codes from QuickBooks
+    // Fetch tax codes
     const taxCodesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode`;
     
     const taxCodesResponse = await fetch(taxCodesUrl, {
@@ -212,13 +278,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    let nonTaxableCode = "NON"; // Default fallback
+    let nonTaxableCode = "NON";
     
     if (taxCodesResponse.ok) {
       const taxCodesData = await taxCodesResponse.json();
       console.log('Available tax codes:', taxCodesData);
       
-      // Look for a non-taxable tax code
       const taxCodes = taxCodesData.QueryResponse?.TaxCode || [];
       const nonTaxable = taxCodes.find((code: any) => 
         code.Name?.toLowerCase().includes('non') || 
@@ -235,57 +300,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch tax codes, using default NON');
     }
 
-    // Query available items to find a valid service item
-    const itemsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Item WHERE Type='Service' AND Active=true`;
-    
-    let serviceItemId = "1"; // Default fallback
-    let serviceItemName = "Service";
-    let serviceItemPrice = 50.00; // Default fallback
-    
-    const itemsResponse = await fetch(itemsUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (itemsResponse.ok) {
-      const itemsData = await itemsResponse.json();
-      console.log('Available service items:', itemsData);
-      
-      const items = itemsData.QueryResponse?.Item || [];
-      
-      // Look for "Collection and Delivery within England and Wales - Including B2B rebate" first
-      const preferredItem = items.find((item: any) => 
-        item.Name === "Collection and Delivery within England and Wales - Including B2B rebate" && item.Active === true
-      );
-      
-      if (preferredItem) {
-        serviceItemId = preferredItem.Id;
-        serviceItemName = preferredItem.Name;
-        serviceItemPrice = preferredItem.UnitPrice || 65.00;
-        console.log('Using preferred B2B rebate item:', preferredItem);
-      } else {
-        // Fallback to first available service item
-        const firstServiceItem = items.find((item: any) => 
-          item.Type === 'Service' && item.Active === true
-        );
-        
-        if (firstServiceItem) {
-          serviceItemId = firstServiceItem.Id;
-          serviceItemName = firstServiceItem.Name;
-          serviceItemPrice = firstServiceItem.UnitPrice || 50.00;
-          console.log('Using first available service item:', firstServiceItem);
-        } else {
-          console.log('No service items found, will use default');
-        }
-      }
-    } else {
-      console.warn('Failed to fetch items, using default service item');
-    }
-
-    // Query for sales terms to find "Net 7 days"
+    // Query for sales terms
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
     
     let salesTermId = null;
@@ -317,42 +332,108 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch terms');
     }
 
-    // Let QuickBooks auto-assign the invoice number to avoid conflicts with other transaction types
-
-    const lineItems = invoiceData.orders.map((order, index) => {
+    // Build line items with bike-type-based pricing
+    const lineItems: any[] = [];
+    const missingProducts: string[] = [];
+    
+    for (const order of invoiceData.orders) {
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
       const serviceDate = new Date(order.created_at).toISOString().split('T')[0];
-      const quantity = order.bike_quantity || 1;
-      const totalAmount = serviceItemPrice * quantity;
       
-      console.log(`Processing order ${order.id}: quantity=${quantity}, unitPrice=${serviceItemPrice}, total=${totalAmount}`);
+      // Determine bikes to process
+      let bikesToProcess: BikeItem[];
       
-      // Build description with order number if available
-      let description = `${order.tracking_number || order.id}`;
-      if (order.customer_order_number) {
-        description += ` (Order #${order.customer_order_number})`;
+      if (order.bikes && Array.isArray(order.bikes) && order.bikes.length > 0) {
+        // New multi-bike orders with structured data
+        bikesToProcess = order.bikes;
+        console.log(`Order ${order.tracking_number}: Using structured bikes array with ${bikesToProcess.length} bikes`);
+      } else if (order.bike_type) {
+        // Legacy orders - use bike_type field
+        const quantity = order.bike_quantity || 1;
+        bikesToProcess = Array(quantity).fill({
+          brand: order.bike_brand || '',
+          model: order.bike_model || '',
+          type: order.bike_type
+        });
+        console.log(`Order ${order.tracking_number}: Legacy order with ${quantity} bikes of type ${order.bike_type}`);
+      } else {
+        // Fallback - create a single entry with whatever we have
+        console.warn(`Order ${order.tracking_number}: No bike type found, skipping product lookup`);
+        bikesToProcess = [{
+          brand: order.bike_brand || '',
+          model: order.bike_model || '',
+          type: 'Unknown'
+        }];
       }
-      description += ` - ${order.bike_brand || ''} ${order.bike_model || ''} - ${senderName} → ${receiverName}`;
       
-      return {
-        Amount: totalAmount,
-        DetailType: "SalesItemLineDetail",
-        SalesItemLineDetail: {
-          ItemRef: {
-            value: serviceItemId, // Use the found service item ID
-            name: serviceItemName
+      // Create line items for each bike
+      for (let i = 0; i < bikesToProcess.length; i++) {
+        const bike = bikesToProcess[i];
+        
+        // Look up product by bike type
+        const product = bike.type && bike.type !== 'Unknown' 
+          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, bike.type)
+          : null;
+        
+        if (!product && bike.type && bike.type !== 'Unknown') {
+          if (!missingProducts.includes(bike.type)) {
+            missingProducts.push(bike.type);
+          }
+          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type}`);
+          continue;
+        }
+        
+        // If no product found at all, skip this bike
+        if (!product) {
+          console.warn(`Skipping bike ${i + 1} in order ${order.tracking_number} - no product available`);
+          continue;
+        }
+        
+        // Build description
+        let description = `${order.tracking_number || order.id}`;
+        if (order.customer_order_number) {
+          description += ` (Order #${order.customer_order_number})`;
+        }
+        if (bike.brand || bike.model) {
+          description += ` - ${bike.brand || ''} ${bike.model || ''}`.trim();
+        }
+        description += ` - ${senderName} → ${receiverName}`;
+        
+        lineItems.push({
+          Amount: product.price,
+          DetailType: "SalesItemLineDetail",
+          SalesItemLineDetail: {
+            ItemRef: {
+              value: product.id,
+              name: product.name
+            },
+            Qty: 1,
+            UnitPrice: product.price,
+            TaxCodeRef: {
+              value: nonTaxableCode
+            },
+            ServiceDate: serviceDate
           },
-          Qty: quantity,
-          UnitPrice: serviceItemPrice,
-          TaxCodeRef: {
-            value: nonTaxableCode // Use the fetched tax code
-          },
-          ServiceDate: serviceDate
-        },
-        Description: description
-      };
-    });
+          Description: description
+        });
+        
+        console.log(`Added line item: ${description} @ £${product.price}`);
+      }
+    }
+    
+    // Check if we have any line items
+    if (lineItems.length === 0) {
+      const errorMsg = missingProducts.length > 0 
+        ? `No line items could be created. Missing QuickBooks products for bike types: ${missingProducts.join(', ')}`
+        : 'No line items could be created. Please ensure orders have bike types set.';
+      throw new Error(errorMsg);
+    }
+    
+    // Log any missing products as a warning
+    if (missingProducts.length > 0) {
+      console.warn(`Missing QuickBooks products for bike types: ${missingProducts.join(', ')}`);
+    }
 
     const invoice = {
       customer: {
@@ -360,16 +441,16 @@ const handler = async (req: Request): Promise<Response> => {
         name: invoiceData.customerName,
         email: invoiceData.customerEmail
       },
-      invoiceDate: invoiceData.endDate, // Use exact end date selected
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+      invoiceDate: invoiceData.endDate,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       terms: "7 days",
       lineItems: lineItems,
       totalAmount: lineItems.reduce((sum, item) => sum + item.Amount, 0)
     };
 
-    console.log('Invoice created:', invoice);
+    console.log('Invoice created with', lineItems.length, 'line items, total:', invoice.totalAmount);
 
-    // First, find the customer in QuickBooks by email
+    // Find customer in QuickBooks
     const customerEmail = invoiceData.customerEmail;
     const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${customerEmail}'`;
     
@@ -399,7 +480,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Failed to query QuickBooks customers');
     }
 
-    // Create invoice in QuickBooks using correct API format
+    // Create invoice in QuickBooks
     const quickbooksApiUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
     
     const quickbooksInvoice = {
@@ -410,9 +491,8 @@ const handler = async (req: Request): Promise<Response> => {
       BillEmail: {
         Address: customerEmail
       },
-      TxnDate: invoiceData.endDate, // Use exact end date
+      TxnDate: invoiceData.endDate,
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
-      // DocNumber omitted - let QuickBooks auto-assign to avoid conflicts
     };
 
     const response = await fetch(quickbooksApiUrl, {
@@ -434,15 +514,13 @@ const handler = async (req: Request): Promise<Response> => {
     const quickbooksResponse = await response.json();
     console.log('QuickBooks invoice created:', quickbooksResponse);
 
-    // Extract QuickBooks invoice details
     const qbInvoice = quickbooksResponse.QueryResponse?.Invoice?.[0] || quickbooksResponse.Invoice;
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
     
-    // Generate QuickBooks invoice URL (for production)
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
-    // Save invoice history to database
+    // Save invoice history
     const { error: historyError } = await supabase
       .from('invoice_history')
       .insert({
@@ -462,14 +540,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (historyError) {
       console.error('Error saving invoice history:', historyError);
-      // Don't fail the whole operation if history save fails
     }
     
     return new Response(JSON.stringify({
       success: true,
       invoice: invoice,
       quickbooksInvoice: quickbooksResponse,
-      message: `Invoice created in QuickBooks for ${invoiceData.customerName} with ${lineItems.length} line items`
+      message: `Invoice created in QuickBooks for ${invoiceData.customerName} with ${lineItems.length} line items`,
+      missingProducts: missingProducts.length > 0 ? missingProducts : undefined
     }), {
       status: 200,
       headers: {
