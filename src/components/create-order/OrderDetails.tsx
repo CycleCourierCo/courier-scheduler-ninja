@@ -20,7 +20,7 @@ const BIKE_TYPES = [
   "Boxed Kids Bikes",
   "Folding Bikes",
   "Tandem Bikes",
-  "Travel Bike Boxes",
+  "Travel Bike Box",
   "Wheelset/Frameset",
   "Bike Rack",
   "Turbo Trainer",
