@@ -952,8 +952,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const handleLoadViableRoute = (analysis: RouteAnalysis) => {
-    // Build URL with viable jobs
-    const jobParams = analysis.viableMatchResults
+    // Build URL with ALL matched jobs (not just viable)
+    const jobParams = analysis.matchResults
       .filter(r => r.matchedOrder && r.jobType)
       .map(r => `${r.matchedOrder!.id}:${r.jobType}`)
       .join(',');
