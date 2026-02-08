@@ -64,7 +64,8 @@ const extractClusterPoints = (orders: OrderData[]): ClusterPoint[] => {
           lon: contact.address.lon,
           type,
           orderId: order.id,
-          bikeQuantity: order.bike_quantity || 1
+          bikeQuantity: order.bike_quantity || 1,
+          trackingNumber: order.tracking_number || ''
         });
       }
     });
@@ -294,19 +295,29 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                 position={[point.lat, point.lon]}
                 icon={createColoredIcon(cluster.color, point.type === 'collection')}
               >
-                <Popup>
-                  <div className="p-2">
-                    <p className="font-semibold">
-                      {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Bikes: {point.bikeQuantity}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: cluster.color }}>
-                      Cluster: {getClusterName(cluster)}
-                    </p>
-                  </div>
-                </Popup>
+              <Popup>
+                <div className="p-2">
+                  <p className="font-semibold">
+                    {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Bikes: {point.bikeQuantity}
+                  </p>
+                  {point.trackingNumber && (
+                    <a 
+                      href={`/tracking/${point.trackingNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline block mt-1"
+                    >
+                      #{point.trackingNumber}
+                    </a>
+                  )}
+                  <p className="text-xs mt-1" style={{ color: cluster.color }}>
+                    Cluster: {getClusterName(cluster)}
+                  </p>
+                </div>
+              </Popup>
               </Marker>
             ))
           )}
@@ -318,16 +329,26 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
               position={[point.lat, point.lon]}
               icon={createColoredIcon('#3b82f6', point.type === 'collection')}
             >
-              <Popup>
-                <div className="p-2">
-                  <p className="font-semibold">
-                    {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Bikes: {point.bikeQuantity}
-                  </p>
-                </div>
-              </Popup>
+            <Popup>
+              <div className="p-2">
+                <p className="font-semibold">
+                  {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Bikes: {point.bikeQuantity}
+                </p>
+                {point.trackingNumber && (
+                  <a 
+                    href={`/tracking/${point.trackingNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline block mt-1"
+                  >
+                    #{point.trackingNumber}
+                  </a>
+                )}
+              </div>
+            </Popup>
             </Marker>
           ))}
         </MapContainer>

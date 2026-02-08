@@ -7,6 +7,7 @@ export interface ClusterPoint {
   type: 'collection' | 'delivery';
   orderId: string;
   bikeQuantity: number;
+  trackingNumber: string;
 }
 
 export interface Cluster {
