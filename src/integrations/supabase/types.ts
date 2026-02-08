@@ -705,6 +705,39 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_routes: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          job_data: Json
+          name: string
+          start_time: string | null
+          starting_bikes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          job_data?: Json
+          name: string
+          start_time?: string | null
+          starting_bikes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          job_data?: Json
+          name?: string
+          start_time?: string | null
+          starting_bikes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       timeslip_generation_logs: {
         Row: {
           drivers_processed: number | null
