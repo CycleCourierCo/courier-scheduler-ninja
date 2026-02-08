@@ -54,6 +54,10 @@ interface SelectedJob {
 
 interface RouteBuilderProps {
   orders: OrderData[];
+  filterDate?: Date;
+  showCollectedOnly?: boolean;
+  onFilterDateChange?: (date: Date | undefined) => void;
+  onShowCollectedOnlyChange?: (value: boolean) => void;
 }
 
 // Safe mapping to normalize job type for edge function
@@ -514,7 +518,13 @@ const JobItem: React.FC<JobItemProps> = ({
   );
 };
 
-const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
+const RouteBuilder: React.FC<RouteBuilderProps> = ({ 
+  orders, 
+  filterDate: externalFilterDate,
+  showCollectedOnly: externalShowCollectedOnly,
+  onFilterDateChange,
+  onShowCollectedOnlyChange
+}) => {
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
@@ -535,9 +545,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [showCsvReviewDialog, setShowCsvReviewDialog] = useState(false);
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
   
-  // Filter states
-  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
-  const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  // Filter states - use external state if provided, otherwise use internal state
+  const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
+  const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
+  
+  // Use external state if provided, otherwise fall back to internal state
+  const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
+  const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
+  
+  // Handle filter changes - notify parent if callbacks provided
+  const handleFilterDateChange = (date: Date | undefined) => {
+    if (onFilterDateChange) {
+      onFilterDateChange(date);
+    } else {
+      setInternalFilterDate(date);
+    }
+  };
+  
+  const handleShowCollectedOnlyChange = (value: boolean) => {
+    if (onShowCollectedOnlyChange) {
+      onShowCollectedOnlyChange(value);
+    } else {
+      setInternalShowCollectedOnly(value);
+    }
+  };
 
   // Detect mobile on mount
   React.useEffect(() => {
@@ -641,9 +672,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }> = [];
     
     orderList.forEach(order => {
-      // Check if order is collected (for "collected only" filter)
-      const isCollected = !!order.collection_confirmation_sent_at || 
-        ['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(order.status);
+      // Check if order is collected (for "collected only" filter) - use order_collected boolean
+      const isCollected = order.order_collected === true;
       
       // Add pickup job if not scheduled
       if (!order.scheduled_pickup_date) {
@@ -2169,7 +2199,7 @@ Route Link: ${routeLink}`;
                   <CalendarComponent
                     mode="single"
                     selected={filterDate}
-                    onSelect={setFilterDate}
+                    onSelect={handleFilterDateChange}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
@@ -2179,7 +2209,7 @@ Route Link: ${routeLink}`;
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => setFilterDate(undefined)}
+                  onClick={() => handleFilterDateChange(undefined)}
                   className="h-8 w-8 p-0"
                 >
                   <X className="h-4 w-4" />
@@ -2192,7 +2222,7 @@ Route Link: ${routeLink}`;
               <Switch 
                 id="collected-filter"
                 checked={showCollectedOnly} 
-                onCheckedChange={setShowCollectedOnly}
+                onCheckedChange={handleShowCollectedOnlyChange}
               />
               <Label htmlFor="collected-filter" className="text-sm cursor-pointer">
                 Collected (ready to deliver)
