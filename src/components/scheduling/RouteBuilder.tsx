@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen } from "lucide-react";
 import { OrderData } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,8 @@ import CSVUploadButton from './CSVUploadButton';
 import MultiCSVUploadButton, { UploadedFile } from './MultiCSVUploadButton';
 import RouteComparisonDialog from './RouteComparisonDialog';
 import CSVMatchReviewDialog from './CSVMatchReviewDialog';
+import SaveRouteDialog from './SaveRouteDialog';
+import LoadRouteDialog from './LoadRouteDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -554,6 +556,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [showRouteComparisonDialog, setShowRouteComparisonDialog] = useState(false);
   const [isAnalyzingRoutes, setIsAnalyzingRoutes] = useState(false);
   
+  // Save/Load route states
+  const [showSaveRouteDialog, setShowSaveRouteDialog] = useState(false);
+  const [showLoadRouteDialog, setShowLoadRouteDialog] = useState(false);
+  
   // Filter states - use external state if provided, otherwise use internal state
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
@@ -962,7 +968,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     // Open in new tab
     window.open(`/scheduling?jobs=${jobParams}${dateParam}`, '_blank');
-    setShowRouteComparisonDialog(false);
+  };
+
+  // Handle loading a saved route
+  const handleLoadSavedRoute = (
+    jobs: SelectedJob[], 
+    loadedStartTime: string, 
+    loadedStartingBikes: number
+  ) => {
+    setSelectedJobs(jobs);
+    setStartTime(loadedStartTime);
+    setStartingBikes(loadedStartingBikes);
   };
 
   // Handle initial jobs from URL parameters
@@ -2319,6 +2335,16 @@ Route Link: ${routeLink}`;
               disabled={isAnalyzingRoutes}
             />
             
+            {/* Load Saved Route Button */}
+            <Button
+              variant="outline"
+              onClick={() => setShowLoadRouteDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Load Route
+            </Button>
+            
             {/* Results Count */}
             <div className="ml-auto">
               <Badge variant={hasActiveFilters ? "secondary" : "outline"}>
@@ -2523,6 +2549,19 @@ Route Link: ${routeLink}`;
                     </Badge>
                   </div>
                   
+                  <div className="flex gap-2 mb-2">
+                    <Button
+                      onClick={() => setShowSaveRouteDialog(true)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 flex items-center justify-center gap-1 h-9 text-sm"
+                      disabled={selectedJobs.length === 0}
+                    >
+                      <Save className="h-3 w-3" />
+                      Save
+                    </Button>
+                  </div>
+                  
                   <Button
                     onClick={sendAllTimeslots}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
@@ -2627,6 +2666,16 @@ Route Link: ${routeLink}`;
                 </div>
                 
                 <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={() => setShowSaveRouteDialog(true)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    disabled={selectedJobs.length === 0}
+                  >
+                    <Save className="h-3 w-3" />
+                    Save Route
+                  </Button>
                   <Button
                     onClick={sendAllTimeslots}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
@@ -2734,6 +2783,24 @@ Route Link: ${routeLink}`;
         routeAnalyses={routeAnalyses}
         filterDate={filterDate}
         onLoadRoute={handleLoadViableRoute}
+      />
+
+      <SaveRouteDialog
+        open={showSaveRouteDialog}
+        onOpenChange={setShowSaveRouteDialog}
+        jobs={selectedJobs}
+        startTime={startTime}
+        startingBikes={startingBikes}
+        onSaved={(routeId, routeName) => {
+          toast.success(`Route "${routeName}" saved (ID: ${routeId.substring(0, 8)}...)`);
+        }}
+      />
+
+      <LoadRouteDialog
+        open={showLoadRouteDialog}
+        onOpenChange={setShowLoadRouteDialog}
+        orders={orderList}
+        onLoadRoute={handleLoadSavedRoute}
       />
     </div>
   );

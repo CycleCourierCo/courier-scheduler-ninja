@@ -1,50 +1,97 @@
 
 
-## Load All Matched Jobs from Route Comparison
+## Move Load Route Button to Route Builder Header
 
-A simple change to load ALL matched jobs (not just viable ones) when clicking "Load Route" in the comparison dialog.
-
----
-
-## Changes Required
-
-### 1. Update Route Loading Handler
-
-**File:** `src/components/scheduling/RouteBuilder.tsx`
-
-Change line 956 from using `viableMatchResults` to `matchResults`:
-
-| Before | After |
-|--------|-------|
-| `analysis.viableMatchResults` | `analysis.matchResults.filter(r => r.matchedOrder && r.jobType)` |
+Add the "Load Route" button alongside the existing "Upload Route" (CSVUploadButton) and "Compare Routes" (MultiCSVUploadButton) buttons in the Route Builder's filter section.
 
 ---
 
-### 2. Update Button Text and Enable Logic
+## Change Required
 
-**File:** `src/components/scheduling/RouteComparisonDialog.tsx`
+### File: `src/components/scheduling/RouteBuilder.tsx`
 
-| Current | Updated |
-|---------|---------|
-| `disabled={analysis.viableJobs === 0}` | `disabled={analysis.totalMatched === 0}` |
-| `Load {analysis.viableJobs} Jobs` | `Load {analysis.totalMatched} Jobs` |
+**Location:** Lines 2324-2336 (filter section)
+
+Add a new button after the MultiCSVUploadButton:
+
+### Current Code:
+```tsx
+{/* CSV Upload Button */}
+<CSVUploadButton 
+  onFileSelect={handleCsvFileSelect}
+  isLoading={isProcessingCsv}
+  disabled={isProcessingCsv}
+/>
+
+{/* Multi-CSV Comparison Button */}
+<MultiCSVUploadButton
+  onFilesSelect={handleMultiCsvUpload}
+  isLoading={isAnalyzingRoutes}
+  disabled={isAnalyzingRoutes}
+/>
+
+{/* Results Count */}
+<div className="ml-auto">
+```
+
+### Updated Code:
+```tsx
+{/* CSV Upload Button */}
+<CSVUploadButton 
+  onFileSelect={handleCsvFileSelect}
+  isLoading={isProcessingCsv}
+  disabled={isProcessingCsv}
+/>
+
+{/* Multi-CSV Comparison Button */}
+<MultiCSVUploadButton
+  onFilesSelect={handleMultiCsvUpload}
+  isLoading={isAnalyzingRoutes}
+  disabled={isAnalyzingRoutes}
+/>
+
+{/* Load Saved Route Button */}
+<Button
+  variant="outline"
+  onClick={() => setShowLoadRouteDialog(true)}
+  className="flex items-center gap-2"
+>
+  <FolderOpen className="h-4 w-4" />
+  Load Route
+</Button>
+
+{/* Results Count */}
+<div className="ml-auto">
+```
+
+---
+
+## Also: Remove Load Route from Timeslot Popup
+
+Since the Load Route button is moving to the header, it should be removed from the timeslot popup (both mobile and desktop views) to avoid duplication.
+
+### Mobile Drawer (around line 2591):
+Remove the Load Route button from the mobile drawer.
+
+### Desktop Dialog (around line 2710):
+Remove the Load Route button from the desktop dialog.
 
 ---
 
 ## Files to Modify
 
-| File | Line(s) | Change |
-|------|---------|--------|
-| `src/components/scheduling/RouteBuilder.tsx` | 956 | Use `matchResults` instead of `viableMatchResults` |
-| `src/components/scheduling/RouteComparisonDialog.tsx` | 133, 138 | Update disabled condition and button text to use `totalMatched` |
+| File | Changes |
+|------|---------|
+| `src/components/scheduling/RouteBuilder.tsx` | Add Load Route button to filter section (line ~2337), remove from mobile drawer and desktop dialog |
 
 ---
 
-## Expected Behavior
+## Expected Result
 
-When clicking "Load Route":
-- Loads ALL matched jobs from the CSV, including those that are not viable
-- Button shows total matched count (e.g., "Load 12 Jobs")
-- Button is disabled only if no jobs were matched at all
-- Viability stats remain visible for reference (user can still see which jobs have issues)
+The filter section will now show:
+```text
+Filters: [Available on: Date] [Collected toggle] [Upload Route] [Compare Routes] [Load Route]    [X of Y jobs]
+```
+
+This places all route management actions (upload, compare, load) together in a logical grouping.
 
