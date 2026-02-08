@@ -1,50 +1,68 @@
 
 
-## Load All Matched Jobs from Route Comparison
+## Keep Route Comparison Dialog Open After Loading
 
-A simple change to load ALL matched jobs (not just viable ones) when clicking "Load Route" in the comparison dialog.
-
----
-
-## Changes Required
-
-### 1. Update Route Loading Handler
-
-**File:** `src/components/scheduling/RouteBuilder.tsx`
-
-Change line 956 from using `viableMatchResults` to `matchResults`:
-
-| Before | After |
-|--------|-------|
-| `analysis.viableMatchResults` | `analysis.matchResults.filter(r => r.matchedOrder && r.jobType)` |
+Remove the line that closes the dialog when clicking "Load Route", so users can load multiple routes into different tabs while keeping the comparison view open.
 
 ---
 
-### 2. Update Button Text and Enable Logic
+## Change Required
 
-**File:** `src/components/scheduling/RouteComparisonDialog.tsx`
+### File: `src/components/scheduling/RouteBuilder.tsx`
 
-| Current | Updated |
-|---------|---------|
-| `disabled={analysis.viableJobs === 0}` | `disabled={analysis.totalMatched === 0}` |
-| `Load {analysis.viableJobs} Jobs` | `Load {analysis.totalMatched} Jobs` |
+**Line 965** - Remove or comment out this line:
+
+```typescript
+setShowRouteComparisonDialog(false);
+```
+
+### Before:
+```typescript
+const handleLoadViableRoute = (analysis: RouteAnalysis) => {
+  // Build URL with ALL matched jobs (not just viable)
+  const jobParams = analysis.matchResults
+    .filter(r => r.matchedOrder && r.jobType)
+    .map(r => `${r.matchedOrder!.id}:${r.jobType}`)
+    .join(',');
+  
+  const dateParam = filterDate ? `&date=${format(filterDate, 'yyyy-MM-dd')}` : '';
+  
+  // Open in new tab
+  window.open(`/scheduling?jobs=${jobParams}${dateParam}`, '_blank');
+  setShowRouteComparisonDialog(false);  // <-- REMOVE THIS
+};
+```
+
+### After:
+```typescript
+const handleLoadViableRoute = (analysis: RouteAnalysis) => {
+  // Build URL with ALL matched jobs (not just viable)
+  const jobParams = analysis.matchResults
+    .filter(r => r.matchedOrder && r.jobType)
+    .map(r => `${r.matchedOrder!.id}:${r.jobType}`)
+    .join(',');
+  
+  const dateParam = filterDate ? `&date=${format(filterDate, 'yyyy-MM-dd')}` : '';
+  
+  // Open in new tab
+  window.open(`/scheduling?jobs=${jobParams}${dateParam}`, '_blank');
+};
+```
 
 ---
 
 ## Files to Modify
 
-| File | Line(s) | Change |
-|------|---------|--------|
-| `src/components/scheduling/RouteBuilder.tsx` | 956 | Use `matchResults` instead of `viableMatchResults` |
-| `src/components/scheduling/RouteComparisonDialog.tsx` | 133, 138 | Update disabled condition and button text to use `totalMatched` |
+| File | Change |
+|------|--------|
+| `src/components/scheduling/RouteBuilder.tsx` | Remove line 965 (`setShowRouteComparisonDialog(false)`) |
 
 ---
 
 ## Expected Behavior
 
-When clicking "Load Route":
-- Loads ALL matched jobs from the CSV, including those that are not viable
-- Button shows total matched count (e.g., "Load 12 Jobs")
-- Button is disabled only if no jobs were matched at all
-- Viability stats remain visible for reference (user can still see which jobs have issues)
+- User opens Compare Routes dialog
+- Clicks "Load Route" on any route
+- Route opens in a new browser tab
+- Dialog stays open so user can load additional routes or close manually via the X button
 
