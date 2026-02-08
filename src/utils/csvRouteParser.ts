@@ -289,3 +289,134 @@ export const getMatchStats = (results: MatchResult[]) => {
   
   return { total, matched, exact, fuzzy, address, unmatched };
 };
+
+/**
+ * Route analysis result interface
+ */
+export interface RouteAnalysis {
+  fileName: string;
+  totalMatched: number;
+  viableJobs: number;
+  collections: number;
+  viableCollections: number;
+  deliveries: number;
+  viableDeliveries: number;
+  issues: {
+    notCollected: number;
+    collectionWrongDate: number;
+    deliveryWrongDate: number;
+  };
+  matchResults: MatchResult[];
+  viableMatchResults: MatchResult[];
+}
+
+/**
+ * Check if a date array contains the target date or is empty (any date)
+ */
+const isDateAvailable = (dateArray: string[] | null | undefined, targetDate: Date | undefined): boolean => {
+  // If no target date filter, everything is available
+  if (!targetDate) return true;
+  
+  // If date array is empty or null, it means "any date" which is available
+  if (!dateArray || dateArray.length === 0) return true;
+  
+  // Check if target date is in the array
+  const targetDateStr = targetDate.toISOString().split('T')[0];
+  return dateArray.some(date => {
+    const dateStr = new Date(date).toISOString().split('T')[0];
+    return dateStr === targetDateStr;
+  });
+};
+
+/**
+ * Analyze route viability based on collection status and date availability
+ */
+export const analyzeRouteViability = (
+  matchResults: MatchResult[],
+  targetDate: Date | undefined,
+  fileName: string
+): RouteAnalysis => {
+  const matched = matchResults.filter(r => r.matchedOrder !== null);
+  const collections = matched.filter(r => r.jobType === 'pickup');
+  const deliveries = matched.filter(r => r.jobType === 'delivery');
+  
+  // Build a set of order IDs that have a pickup in this route (for same-route collection check)
+  const pickupOrderIds = new Set<string>();
+  const pickupSequences = new Map<string, number>();
+  
+  matched.forEach(r => {
+    if (r.jobType === 'pickup' && r.matchedOrder) {
+      pickupOrderIds.add(r.matchedOrder.id);
+      pickupSequences.set(r.matchedOrder.id, r.csvRow.sequence);
+    }
+  });
+  
+  let viableCollections = 0;
+  let viableDeliveries = 0;
+  let notCollected = 0;
+  let collectionWrongDate = 0;
+  let deliveryWrongDate = 0;
+  
+  const viableMatchResults: MatchResult[] = [];
+  
+  for (const result of matched) {
+    const order = result.matchedOrder!;
+    
+    if (result.jobType === 'pickup') {
+      // Collection is viable if pickup_date is empty or contains target date
+      const pickupDates = order.pickup_date as string[] | null;
+      const dateAvailable = isDateAvailable(pickupDates, targetDate);
+      
+      if (dateAvailable) {
+        viableCollections++;
+        viableMatchResults.push(result);
+      } else {
+        collectionWrongDate++;
+      }
+    } else if (result.jobType === 'delivery') {
+      // Delivery is viable if:
+      // 1. order_collected === true OR there's a pickup earlier in this route
+      // 2. AND delivery_date is empty or contains target date
+      
+      const isCollected = order.order_collected === true;
+      const hasPickupInRoute = pickupOrderIds.has(order.id);
+      const pickupSequence = pickupSequences.get(order.id);
+      const deliverySequence = result.csvRow.sequence;
+      const isPickupBeforeDelivery = hasPickupInRoute && pickupSequence !== undefined && pickupSequence < deliverySequence;
+      
+      const collectionOk = isCollected || isPickupBeforeDelivery;
+      
+      const deliveryDates = order.delivery_date as string[] | null;
+      const dateAvailable = isDateAvailable(deliveryDates, targetDate);
+      
+      if (collectionOk && dateAvailable) {
+        viableDeliveries++;
+        viableMatchResults.push(result);
+      } else {
+        if (!collectionOk) {
+          notCollected++;
+        }
+        if (!dateAvailable) {
+          deliveryWrongDate++;
+        }
+      }
+    }
+  }
+  
+  return {
+    fileName,
+    totalMatched: matched.length,
+    viableJobs: viableCollections + viableDeliveries,
+    collections: collections.length,
+    viableCollections,
+    deliveries: deliveries.length,
+    viableDeliveries,
+    issues: {
+      notCollected,
+      collectionWrongDate,
+      deliveryWrongDate,
+    },
+    matchResults,
+    viableMatchResults,
+  };
+};
