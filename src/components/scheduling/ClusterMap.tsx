@@ -26,15 +26,24 @@ interface ClusterMapProps {
 // Determine which jobs are needed based on order status
 const getJobsForOrder = (order: OrderData): ('collection' | 'delivery')[] => {
   const status = order.status;
+  const isCollected = order.order_collected === true;
   
   if (['delivered', 'cancelled'].includes(status)) return [];
   if (['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(status)) {
     return ['delivery'];
   }
   if (status === 'collection_scheduled') {
-    return ['collection'];
+    // Hide collection marker if already collected
+    return isCollected ? [] : ['collection'];
   }
-  return ['collection', 'delivery'];
+  
+  // For other statuses, hide collection if already collected
+  const jobs: ('collection' | 'delivery')[] = [];
+  if (!isCollected) {
+    jobs.push('collection');
+  }
+  jobs.push('delivery');
+  return jobs;
 };
 
 // Extract cluster points from orders
@@ -55,7 +64,8 @@ const extractClusterPoints = (orders: OrderData[]): ClusterPoint[] => {
           lon: contact.address.lon,
           type,
           orderId: order.id,
-          bikeQuantity: order.bike_quantity || 1
+          bikeQuantity: order.bike_quantity || 1,
+          trackingNumber: order.tracking_number || ''
         });
       }
     });
@@ -285,19 +295,29 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                 position={[point.lat, point.lon]}
                 icon={createColoredIcon(cluster.color, point.type === 'collection')}
               >
-                <Popup>
-                  <div className="p-2">
-                    <p className="font-semibold">
-                      {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Bikes: {point.bikeQuantity}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: cluster.color }}>
-                      Cluster: {getClusterName(cluster)}
-                    </p>
-                  </div>
-                </Popup>
+              <Popup>
+                <div className="p-2">
+                  <p className="font-semibold">
+                    {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Bikes: {point.bikeQuantity}
+                  </p>
+                  {point.trackingNumber && (
+                    <a 
+                      href={`/tracking/${point.trackingNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline block mt-1"
+                    >
+                      #{point.trackingNumber}
+                    </a>
+                  )}
+                  <p className="text-xs mt-1" style={{ color: cluster.color }}>
+                    Cluster: {getClusterName(cluster)}
+                  </p>
+                </div>
+              </Popup>
               </Marker>
             ))
           )}
@@ -309,16 +329,26 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
               position={[point.lat, point.lon]}
               icon={createColoredIcon('#3b82f6', point.type === 'collection')}
             >
-              <Popup>
-                <div className="p-2">
-                  <p className="font-semibold">
-                    {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Bikes: {point.bikeQuantity}
-                  </p>
-                </div>
-              </Popup>
+            <Popup>
+              <div className="p-2">
+                <p className="font-semibold">
+                  {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Bikes: {point.bikeQuantity}
+                </p>
+                {point.trackingNumber && (
+                  <a 
+                    href={`/tracking/${point.trackingNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline block mt-1"
+                  >
+                    #{point.trackingNumber}
+                  </a>
+                )}
+              </div>
+            </Popup>
             </Marker>
           ))}
         </MapContainer>

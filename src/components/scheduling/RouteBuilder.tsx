@@ -17,12 +17,14 @@ import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
 import TimeslotEditDialog from './TimeslotEditDialog';
 import CSVUploadButton from './CSVUploadButton';
+import MultiCSVUploadButton, { UploadedFile } from './MultiCSVUploadButton';
+import RouteComparisonDialog from './RouteComparisonDialog';
 import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
-import { parseCSV, matchCSVToOrders, MatchResult } from "@/utils/csvRouteParser";
+import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
@@ -54,6 +56,11 @@ interface SelectedJob {
 
 interface RouteBuilderProps {
   orders: OrderData[];
+  filterDate?: Date;
+  showCollectedOnly?: boolean;
+  onFilterDateChange?: (date: Date | undefined) => void;
+  onShowCollectedOnlyChange?: (value: boolean) => void;
+  initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
 }
 
 // Safe mapping to normalize job type for edge function
@@ -514,7 +521,14 @@ const JobItem: React.FC<JobItemProps> = ({
   );
 };
 
-const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
+const RouteBuilder: React.FC<RouteBuilderProps> = ({ 
+  orders, 
+  filterDate: externalFilterDate,
+  showCollectedOnly: externalShowCollectedOnly,
+  onFilterDateChange,
+  onShowCollectedOnlyChange,
+  initialJobs
+}) => {
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
@@ -535,9 +549,35 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
   const [showCsvReviewDialog, setShowCsvReviewDialog] = useState(false);
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
   
-  // Filter states
-  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
-  const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  // Multi-CSV comparison states
+  const [routeAnalyses, setRouteAnalyses] = useState<RouteAnalysis[]>([]);
+  const [showRouteComparisonDialog, setShowRouteComparisonDialog] = useState(false);
+  const [isAnalyzingRoutes, setIsAnalyzingRoutes] = useState(false);
+  
+  // Filter states - use external state if provided, otherwise use internal state
+  const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
+  const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
+  
+  // Use external state if provided, otherwise fall back to internal state
+  const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
+  const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
+  
+  // Handle filter changes - notify parent if callbacks provided
+  const handleFilterDateChange = (date: Date | undefined) => {
+    if (onFilterDateChange) {
+      onFilterDateChange(date);
+    } else {
+      setInternalFilterDate(date);
+    }
+  };
+  
+  const handleShowCollectedOnlyChange = (value: boolean) => {
+    if (onShowCollectedOnlyChange) {
+      onShowCollectedOnlyChange(value);
+    } else {
+      setInternalShowCollectedOnly(value);
+    }
+  };
 
   // Detect mobile on mount
   React.useEffect(() => {
@@ -641,9 +681,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     }> = [];
     
     orderList.forEach(order => {
-      // Check if order is collected (for "collected only" filter)
-      const isCollected = !!order.collection_confirmation_sent_at || 
-        ['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(order.status);
+      // Check if order is collected (for "collected only" filter) - use order_collected boolean
+      const isCollected = order.order_collected === true;
       
       // Add pickup job if not scheduled
       if (!order.scheduled_pickup_date) {
@@ -889,6 +928,73 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({ orders }) => {
     setShowCsvReviewDialog(false);
     setCsvMatchResults([]);
   };
+
+  // Multi-CSV route comparison handlers
+  const handleMultiCsvUpload = (files: UploadedFile[]) => {
+    setIsAnalyzingRoutes(true);
+    try {
+      const analyses = files.map(file => {
+        const csvRows = parseCSV(file.content);
+        const matchResults = matchCSVToOrders(csvRows, orderList);
+        return analyzeRouteViability(matchResults, filterDate, file.fileName);
+      });
+      
+      // Sort by viability (highest first)
+      analyses.sort((a, b) => b.viableJobs - a.viableJobs);
+      setRouteAnalyses(analyses);
+      setShowRouteComparisonDialog(true);
+    } catch (error) {
+      console.error('Error analyzing routes:', error);
+      toast.error('Failed to analyze route files');
+    } finally {
+      setIsAnalyzingRoutes(false);
+    }
+  };
+
+  const handleLoadViableRoute = (analysis: RouteAnalysis) => {
+    // Build URL with ALL matched jobs (not just viable)
+    const jobParams = analysis.matchResults
+      .filter(r => r.matchedOrder && r.jobType)
+      .map(r => `${r.matchedOrder!.id}:${r.jobType}`)
+      .join(',');
+    
+    const dateParam = filterDate ? `&date=${format(filterDate, 'yyyy-MM-dd')}` : '';
+    
+    // Open in new tab
+    window.open(`/scheduling?jobs=${jobParams}${dateParam}`, '_blank');
+    setShowRouteComparisonDialog(false);
+  };
+
+  // Handle initial jobs from URL parameters
+  React.useEffect(() => {
+    if (initialJobs?.length && orderList.length && selectedJobs.length === 0) {
+      const jobs: SelectedJob[] = [];
+      
+      initialJobs.forEach((ij, idx) => {
+        const order = orderList.find(o => o.id === ij.orderId);
+        if (!order) return;
+        
+        const contact = ij.type === 'pickup' ? order.sender : order.receiver;
+        
+        jobs.push({
+          orderId: order.id,
+          type: ij.type,
+          address: formatAddress(contact.address),
+          contactName: contact.name,
+          orderData: order,
+          phoneNumber: contact.phone,
+          order: idx + 1,
+          lat: contact.address.lat,
+          lon: contact.address.lon
+        });
+      });
+      
+      if (jobs.length > 0) {
+        setSelectedJobs(jobs);
+        toast.success(`Loaded ${jobs.length} jobs from URL`);
+      }
+    }
+  }, [initialJobs, orderList]);
 
   const reorderJobs = (dragIndex: number, hoverIndex: number) => {
     const reorderedJobs = [...selectedJobs];
@@ -2169,7 +2275,7 @@ Route Link: ${routeLink}`;
                   <CalendarComponent
                     mode="single"
                     selected={filterDate}
-                    onSelect={setFilterDate}
+                    onSelect={handleFilterDateChange}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
@@ -2179,7 +2285,7 @@ Route Link: ${routeLink}`;
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => setFilterDate(undefined)}
+                  onClick={() => handleFilterDateChange(undefined)}
                   className="h-8 w-8 p-0"
                 >
                   <X className="h-4 w-4" />
@@ -2192,7 +2298,7 @@ Route Link: ${routeLink}`;
               <Switch 
                 id="collected-filter"
                 checked={showCollectedOnly} 
-                onCheckedChange={setShowCollectedOnly}
+                onCheckedChange={handleShowCollectedOnlyChange}
               />
               <Label htmlFor="collected-filter" className="text-sm cursor-pointer">
                 Collected (ready to deliver)
@@ -2204,6 +2310,13 @@ Route Link: ${routeLink}`;
               onFileSelect={handleCsvFileSelect}
               isLoading={isProcessingCsv}
               disabled={isProcessingCsv}
+            />
+            
+            {/* Multi-CSV Comparison Button */}
+            <MultiCSVUploadButton
+              onFilesSelect={handleMultiCsvUpload}
+              isLoading={isAnalyzingRoutes}
+              disabled={isAnalyzingRoutes}
             />
             
             {/* Results Count */}
@@ -2613,6 +2726,14 @@ Route Link: ${routeLink}`;
         matchResults={csvMatchResults}
         onConfirm={handleCsvConfirm}
         onCancel={handleCsvCancel}
+      />
+
+      <RouteComparisonDialog
+        open={showRouteComparisonDialog}
+        onOpenChange={setShowRouteComparisonDialog}
+        routeAnalyses={routeAnalyses}
+        filterDate={filterDate}
+        onLoadRoute={handleLoadViableRoute}
       />
     </div>
   );

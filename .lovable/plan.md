@@ -1,30 +1,50 @@
 
 
-## Change Timeslot Sending Delay to 1 Minute
+## Load All Matched Jobs from Route Comparison
 
-A simple update to increase the delay between WhatsApp messages from 30 seconds to 1 minute (60 seconds).
+A simple change to load ALL matched jobs (not just viable ones) when clicking "Load Route" in the comparison dialog.
 
 ---
 
 ## Changes Required
 
-### File: `src/components/scheduling/RouteBuilder.tsx`
+### 1. Update Route Loading Handler
 
-**Change 1 - Line 1771-1773** (delay after grouped locations):
-- Current: `await new Promise(resolve => setTimeout(resolve, 30 * 1000));`
-- New: `await new Promise(resolve => setTimeout(resolve, 60 * 1000));`
-- Update comment from "30-second delay" to "1-minute delay"
+**File:** `src/components/scheduling/RouteBuilder.tsx`
 
-**Change 2 - Line 1877-1879** (delay between standalone jobs):
-- Current: `await new Promise(resolve => setTimeout(resolve, 30 * 1000));`
-- New: `await new Promise(resolve => setTimeout(resolve, 60 * 1000));`
-- Update comment from "30-second delay" to "1-minute delay"
+Change line 956 from using `viableMatchResults` to `matchResults`:
+
+| Before | After |
+|--------|-------|
+| `analysis.viableMatchResults` | `analysis.matchResults.filter(r => r.matchedOrder && r.jobType)` |
 
 ---
 
-## Impact
+### 2. Update Button Text and Enable Logic
 
-- A route with 10 stops will now take approximately 9 minutes to send all messages (instead of 4.5 minutes)
-- The browser tab must remain open during sending
-- Individual "Send" buttons remain immediate (no delay)
+**File:** `src/components/scheduling/RouteComparisonDialog.tsx`
+
+| Current | Updated |
+|---------|---------|
+| `disabled={analysis.viableJobs === 0}` | `disabled={analysis.totalMatched === 0}` |
+| `Load {analysis.viableJobs} Jobs` | `Load {analysis.totalMatched} Jobs` |
+
+---
+
+## Files to Modify
+
+| File | Line(s) | Change |
+|------|---------|--------|
+| `src/components/scheduling/RouteBuilder.tsx` | 956 | Use `matchResults` instead of `viableMatchResults` |
+| `src/components/scheduling/RouteComparisonDialog.tsx` | 133, 138 | Update disabled condition and button text to use `totalMatched` |
+
+---
+
+## Expected Behavior
+
+When clicking "Load Route":
+- Loads ALL matched jobs from the CSV, including those that are not viable
+- Button shows total matched count (e.g., "Load 12 Jobs")
+- Button is disabled only if no jobs were matched at all
+- Viability stats remain visible for reference (user can still see which jobs have issues)
 

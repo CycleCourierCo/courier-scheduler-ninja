@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -9,6 +10,7 @@ import RouteBuilder from "@/components/scheduling/RouteBuilder";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Cluster } from "@/services/clusteringService";
+import { format } from "date-fns";
 
 export interface OrderData {
   id: string;
@@ -32,8 +34,37 @@ export interface OrderData {
 }
 
 const JobScheduling = () => {
+  const [searchParams] = useSearchParams();
   const [showClusters, setShowClusters] = useState(true);
   const [clusters, setClusters] = useState<Cluster[]>([]);
+  
+  // Lifted filter state from RouteBuilder
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+  const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  
+  // Initial jobs from URL parameters
+  const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
+  
+  // Parse URL parameters on mount
+  useEffect(() => {
+    const jobsParam = searchParams.get('jobs');
+    const dateParam = searchParams.get('date');
+    
+    if (jobsParam) {
+      const jobs = jobsParam.split(',').map(j => {
+        const [orderId, type] = j.split(':');
+        return { orderId, type: type as 'pickup' | 'delivery' };
+      }).filter(j => j.orderId && (j.type === 'pickup' || j.type === 'delivery'));
+      setInitialJobs(jobs);
+    }
+    
+    if (dateParam) {
+      const parsedDate = new Date(dateParam);
+      if (!isNaN(parsedDate.getTime())) {
+        setFilterDate(parsedDate);
+      }
+    }
+  }, [searchParams]);
   
   const { data: orders, isLoading } = useQuery({
     queryKey: ['scheduling-orders'],
@@ -55,6 +86,42 @@ const JobScheduling = () => {
       })) as OrderData[];
     }
   });
+
+  // Filter orders for the map based on the current filter state
+  // This ensures both ClusterMap and RouteBuilder show the same filtered data
+  const filteredOrdersForMap = useMemo(() => {
+    if (!orders) return [];
+    
+    return orders.filter(order => {
+      const pickupDates = order.pickup_date as string[] | null;
+      const deliveryDates = order.delivery_date as string[] | null;
+      const isCollected = order.order_collected === true;
+      
+      // Check if order has a valid pickup job (not scheduled, and passes date filter)
+      const hasUnscheduledPickup = !order.scheduled_pickup_date;
+      const pickupPassesDateFilter = !filterDate || 
+        !pickupDates || 
+        pickupDates.length === 0 ||
+        pickupDates.some(date => 
+          format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
+        );
+      const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter;
+      
+      // Check if order has a valid delivery job (not scheduled, passes date filter, and passes collected filter)
+      const hasUnscheduledDelivery = !order.scheduled_delivery_date;
+      const deliveryPassesDateFilter = !filterDate || 
+        !deliveryDates || 
+        deliveryDates.length === 0 ||
+        deliveryDates.some(date => 
+          format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
+        );
+      const deliveryPassesCollectedFilter = !showCollectedOnly || isCollected;
+      const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && deliveryPassesCollectedFilter;
+      
+      // Keep order if it has at least one valid job
+      return hasValidPickup || hasValidDelivery;
+    });
+  }, [orders, filterDate, showCollectedOnly]);
 
   return (
     <Layout>
@@ -88,14 +155,21 @@ const JobScheduling = () => {
             
             <div className="mb-8">
               <ClusterMap 
-                orders={orders || []} 
+                orders={filteredOrdersForMap} 
                 showClusters={showClusters}
                 onClusterChange={setClusters}
               />
             </div>
             
             <div className="mb-8">
-              <RouteBuilder orders={orders || []} />
+              <RouteBuilder 
+                orders={orders || []}
+                filterDate={filterDate}
+                showCollectedOnly={showCollectedOnly}
+                onFilterDateChange={setFilterDate}
+                onShowCollectedOnlyChange={setShowCollectedOnly}
+                initialJobs={initialJobs}
+              />
             </div>
           </>
         )}
