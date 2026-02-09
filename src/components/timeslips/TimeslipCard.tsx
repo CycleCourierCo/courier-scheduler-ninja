@@ -3,7 +3,7 @@ import { Timeslip } from '@/types/timeslip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink, Zap, CheckCircle } from 'lucide-react';
+import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink, Zap, CheckCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TimeslipCardProps {
@@ -13,6 +13,7 @@ interface TimeslipCardProps {
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onCreateBill?: (timeslip: Timeslip) => void;
+  onDelete?: (id: string) => void;
 }
 
 const TimeslipCard: React.FC<TimeslipCardProps> = ({
@@ -21,7 +22,8 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   onEdit,
   onApprove,
   onReject,
-  onCreateBill
+  onCreateBill,
+  onDelete
 }) => {
 
   const statusColors = {
@@ -210,6 +212,13 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                   Create Bill
                 </Button>
               )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onDelete?.(timeslip.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
         )}
       </CardContent>
