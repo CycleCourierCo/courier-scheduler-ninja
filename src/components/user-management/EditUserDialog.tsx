@@ -38,6 +38,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         city: user.city,
         postal_code: user.postal_code,
         account_status: user.account_status,
+        special_rate_code: user.special_rate_code,
         hourly_rate: user.hourly_rate,
         uses_own_van: user.uses_own_van,
         van_allowance: user.van_allowance,
@@ -158,6 +159,18 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     value={formData.accounts_email || ''}
                     onChange={(e) => setFormData({ ...formData, accounts_email: e.target.value })}
                   />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-special-rate-code">Special Rate Code</Label>
+                  <Input
+                    id="edit-special-rate-code"
+                    placeholder="e.g., CONTRACT-001"
+                    value={formData.special_rate_code || ''}
+                    onChange={(e) => setFormData({ ...formData, special_rate_code: e.target.value || null })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
+                  </p>
                 </div>
               </div>
             </TabsContent>

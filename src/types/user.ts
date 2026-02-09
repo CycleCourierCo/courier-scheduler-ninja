@@ -28,4 +28,6 @@ export interface UserProfile {
   available_hours: number | null;
   shipday_driver_id: string | null;
   shipday_driver_name: string | null;
+  // Invoice pricing
+  special_rate_code: string | null;
 }

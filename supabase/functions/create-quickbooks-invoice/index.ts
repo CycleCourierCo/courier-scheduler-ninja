@@ -364,7 +364,40 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch tax codes:', await taxCodeResponse.text());
     }
 
-    // Build line items with bike-type-based pricing
+    // Check for special rate code on customer profile
+    let specialRateProduct: ProductInfo | null = null;
+    let specialRateCode: string | null = null;
+    
+    const { data: customerProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('special_rate_code')
+      .eq('id', invoiceData.customerId)
+      .single();
+    
+    if (profileError) {
+      console.warn('Could not fetch customer profile for special rate check:', profileError.message);
+    } else if (customerProfile?.special_rate_code) {
+      specialRateCode = customerProfile.special_rate_code.trim();
+      if (specialRateCode) {
+        console.log(`Customer has special rate code: ${specialRateCode}`);
+        specialRateProduct = await findProductByBikeType(
+          tokenData.access_token, 
+          tokenData.company_id, 
+          `Special Rate - ${specialRateCode}`
+        );
+        
+        if (!specialRateProduct) {
+          throw new Error(
+            `Special rate product not found in QuickBooks: ` +
+            `"Collection and Delivery within England and Wales - Special Rate - ${specialRateCode}". ` +
+            `Please create this product in QuickBooks first.`
+          );
+        }
+        console.log(`Using special rate product: ${specialRateProduct.name} @ £${specialRateProduct.price}`);
+      }
+    }
+
+    // Build line items with bike-type-based pricing (or special rate if set)
     const lineItems: any[] = [];
     const missingProducts: string[] = [];
     
@@ -403,24 +436,32 @@ const handler = async (req: Request): Promise<Response> => {
       for (let i = 0; i < bikesToProcess.length; i++) {
         const bike = bikesToProcess[i];
         
-        // Normalize legacy bike type names and look up product
-        const normalizedType = normalizeBikeType(bike.type);
-        const product = normalizedType && normalizedType !== 'Unknown' 
-          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
-          : null;
+        // Use special rate product if customer has one, otherwise look up by bike type
+        let product: ProductInfo | null = null;
         
-        if (!product && normalizedType && normalizedType !== 'Unknown') {
-          if (!missingProducts.includes(normalizedType)) {
-            missingProducts.push(normalizedType);
+        if (specialRateProduct) {
+          // Use special rate for ALL bikes when customer has special rate code
+          product = specialRateProduct;
+        } else {
+          // Normalize legacy bike type names and look up product
+          const normalizedType = normalizeBikeType(bike.type);
+          product = normalizedType && normalizedType !== 'Unknown' 
+            ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
+            : null;
+          
+          if (!product && normalizedType && normalizedType !== 'Unknown') {
+            if (!missingProducts.includes(normalizedType)) {
+              missingProducts.push(normalizedType);
+            }
+            console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
+            continue;
           }
-          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
-          continue;
-        }
-        
-        // If no product found at all, skip this bike
-        if (!product) {
-          console.warn(`Skipping bike ${i + 1} in order ${order.tracking_number} - no product available`);
-          continue;
+          
+          // If no product found at all, skip this bike
+          if (!product) {
+            console.warn(`Skipping bike ${i + 1} in order ${order.tracking_number} - no product available`);
+            continue;
+          }
         }
         
         // Build description
