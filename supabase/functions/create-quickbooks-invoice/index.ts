@@ -368,14 +368,14 @@ const handler = async (req: Request): Promise<Response> => {
     let specialRateProduct: ProductInfo | null = null;
     let specialRateCode: string | null = null;
     
-    const { data: customerProfile, error: profileError } = await supabase
+    const { data: customerProfile, error: customerProfileError } = await supabase
       .from('profiles')
       .select('special_rate_code')
       .eq('id', invoiceData.customerId)
       .single();
     
-    if (profileError) {
-      console.warn('Could not fetch customer profile for special rate check:', profileError.message);
+    if (customerProfileError) {
+      console.warn('Could not fetch customer profile for special rate check:', customerProfileError.message);
     } else if (customerProfile?.special_rate_code) {
       specialRateCode = customerProfile.special_rate_code.trim();
       if (specialRateCode) {
