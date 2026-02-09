@@ -49,6 +49,12 @@ function normalizeBikeType(bikeType: string): string {
   return legacyMappings[bikeType] || bikeType;
 }
 
+// Escape a string for safe use inside a single-quoted QuickBooks query literal.
+// This escapes backslashes first, then single quotes.
+function escapeQuickBooksString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 // Cache for product lookups to avoid repeated API calls
 const productCache = new Map<string, ProductInfo | null>();
 
@@ -66,8 +72,8 @@ async function findProductByBikeType(
   const productName = `Collection and Delivery within England and Wales - ${bikeType}`;
   console.log(`Looking up QuickBooks product: ${productName}`);
   
-  // QuickBooks query needs proper escaping for single quotes
-  const escapedProductName = productName.replace(/'/g, "\\'");
+  // QuickBooks query needs proper escaping for backslashes and single quotes
+  const escapedProductName = escapeQuickBooksString(productName);
   const query = `SELECT * FROM Item WHERE Name = '${escapedProductName}' AND Active=true`;
   
   const response = await fetch(
