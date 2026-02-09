@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { Resend } from 'npm:resend@4.0.0';
+import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +50,16 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Require admin or cron authentication
+  const authResult = await requireAdminOrCronAuth(req);
+  if (!authResult.success) {
+    return createAuthErrorResponse(authResult.error!, authResult.status!);
+  }
+  console.log(`Authorized via: ${authResult.authType}`, {
+    timestamp: new Date().toISOString(),
+    userId: authResult.userId || 'cron',
+  });
 
   const startTime = Date.now();
   
