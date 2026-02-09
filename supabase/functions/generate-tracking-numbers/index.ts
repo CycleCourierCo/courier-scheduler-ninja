@@ -37,11 +37,20 @@ serve(async (req) => {
     // Handle single tracking number generation (no database update)
     // Allow any authenticated user for this operation
     if (reqBody.generateSingle === true) {
-      const authResult = await requireAuth(req);
-      if (!authResult.success) {
-        return createAuthErrorResponse(authResult.error!, authResult.status!);
+      // Allow service role key (used when called from other edge functions like orders)
+      const authHeader = req.headers.get('Authorization');
+      const token = authHeader?.replace('Bearer ', '') || '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+      if (token === serviceRoleKey) {
+        console.log('Authenticated via service role key for single tracking generation');
+      } else {
+        const authResult = await requireAuth(req);
+        if (!authResult.success) {
+          return createAuthErrorResponse(authResult.error!, authResult.status!);
+        }
+        console.log('Authenticated user for single tracking generation:', authResult.userId);
       }
-      console.log('Authenticated user for single tracking generation:', authResult.userId);
       
       console.log("Generating single tracking number");
       const senderName = reqBody.senderName || "UNKNOWN";
