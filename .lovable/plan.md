@@ -1,77 +1,80 @@
 
 
-# Add Delete Button to Driver Timeslips
+# Fix: Generate Timeslips Authentication Failure
 
-## Overview
+## Problem Identified
 
-Add a delete button to the TimeslipCard component that allows admins to delete timeslips. The deletion will require confirmation to prevent accidental deletions.
+The `generate-timeslips` edge function is failing because it calls `query-database-completed-jobs` as a nested function, but the authentication is not being passed correctly.
 
-## Changes Required
-
-### 1. Update TimeslipCard Component
-
-**File: `src/components/timeslips/TimeslipCard.tsx`**
-
-- Add `Trash2` icon import from lucide-react
-- Add `onDelete` callback prop to the interface
-- Add a delete button in the admin actions section with a trash icon
-- The button will use the `destructive` variant (red styling)
-
-### 2. Update DriverTimeslips Page
-
-**File: `src/pages/DriverTimeslips.tsx`**
-
-- Import `AlertDialog` components for delete confirmation
-- Add state for tracking which timeslip is pending deletion
-- Add a delete mutation using `timeslipService.deleteTimeslip`
-- Add a confirmation dialog that shows before deletion
-- Pass the `onDelete` handler to each `TimeslipCard`
-
-## Implementation Details
-
-### TimeslipCard Changes
-
-```text
-Add to interface:
-- onDelete?: (id: string) => void
-
-Add to admin actions section:
-- Delete button with Trash2 icon
-- Uses destructive variant
-- Positioned after existing action buttons
+From the logs:
+```
+generate-timeslips: Authorized via: admin
+query-database-completed-jobs: Auth failed: Invalid or expired token
 ```
 
-### DriverTimeslips Changes
+### Root Cause
 
-```text
-New state:
-- deletingTimeslipId: string | null
+In `generate-timeslips/index.ts` (lines 67-85):
 
-New mutation:
-- deleteMutation using timeslipService.deleteTimeslip
-- Shows success/error toast
-- Invalidates timeslips query cache
+```typescript
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
-New handler:
-- handleDelete(id: string) - opens confirmation dialog
-
-Confirmation dialog:
-- Shows warning about permanent deletion
-- Displays driver name and date for the timeslip
-- Cancel and Delete buttons
+// This call doesn't pass the auth header
+const { data: databaseData, error: dbError } = await supabaseClient.functions.invoke(
+  'query-database-completed-jobs',
+  { body: { date } }
+);
 ```
+
+The issue is that `supabase.functions.invoke()` does **not** automatically use the service role key for authorization. It uses the client's default behavior, which in this case results in an invalid/missing token being sent to the nested function.
+
+## Solution
+
+**Pass the original Authorization header from the parent request to the nested function call.**
+
+This ensures that when an admin calls `generate-timeslips`, their valid auth token is forwarded to `query-database-completed-jobs`.
+
+### Changes Required
+
+**File: `supabase/functions/generate-timeslips/index.ts`**
+
+1. Extract the Authorization header from the incoming request
+2. Pass it to the nested function call via the `headers` option
+
+```typescript
+// Around line 72, after parsing the request body:
+const authHeader = req.headers.get('Authorization');
+
+// Around line 80, update the functions.invoke call:
+const { data: databaseData, error: dbError } = await supabaseClient.functions.invoke(
+  'query-database-completed-jobs',
+  {
+    body: { date },
+    headers: authHeader ? { Authorization: authHeader } : {}
+  }
+);
+```
+
+## Why This Works
+
+1. When an admin calls `generate-timeslips`, they send an `Authorization: Bearer <token>` header
+2. The `generate-timeslips` function validates this token and confirms the user is an admin
+3. The same valid token is then passed to `query-database-completed-jobs`
+4. The nested function receives a valid token and successfully authenticates
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/timeslips/TimeslipCard.tsx` | Add Trash2 icon, onDelete prop, delete button |
-| `src/pages/DriverTimeslips.tsx` | Add delete mutation, confirmation dialog, pass onDelete to cards |
+| `supabase/functions/generate-timeslips/index.ts` | Extract auth header from request, pass it to nested function call |
 
-## User Experience
+## Post-Fix Testing
 
-- Delete button appears in the admin actions row alongside Edit, Approve, and Reject buttons
-- Clicking Delete opens a confirmation dialog
-- User must confirm before the timeslip is permanently deleted
-- Success/error feedback via toast notifications
+After deployment:
+1. Go to Driver Timeslips page
+2. Click "Generate Timeslips" for any date
+3. Verify the function completes successfully without 401 errors
 
