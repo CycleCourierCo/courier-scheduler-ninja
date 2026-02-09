@@ -1,6 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { requireAdminAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 // Function to generate a custom order ID
 // Format: CCC + 754 + 9-digit sequence + first 3 letters of sender name + first 3 letters of receiver zipcode
@@ -28,6 +28,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Require admin authentication
+  const authResult = await requireAdminAuth(req);
+  if (!authResult.success) {
+    return createAuthErrorResponse(authResult.error!, authResult.status!);
+  }
+  console.log('Authenticated admin:', authResult.userId);
 
   try {
     console.log("Received request to generate tracking numbers");

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { requireAdminAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -237,6 +238,13 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Require admin authentication
+  const authResult = await requireAdminAuth(req);
+  if (!authResult.success) {
+    return createAuthErrorResponse(authResult.error!, authResult.status!);
+  }
+  console.log('Authenticated admin:', authResult.userId);
 
   try {
     const data: RouteReportRequest = await req.json();
