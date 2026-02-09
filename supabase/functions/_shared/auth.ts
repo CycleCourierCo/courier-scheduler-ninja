@@ -8,9 +8,40 @@ const corsHeaders = {
 export interface AuthResult {
   success: boolean;
   userId?: string;
-  authType?: 'admin' | 'cron';
+  authType?: 'admin' | 'cron' | 'user';
   error?: string;
   status?: number;
+}
+
+/**
+ * Require basic authentication via JWT (any authenticated user)
+ * Validates token but does NOT check for admin role
+ */
+export async function requireAuth(req: Request): Promise<AuthResult> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    console.error('Auth failed: No bearer token provided', {
+      timestamp: new Date().toISOString(),
+    });
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+  if (authError || !user) {
+    console.error('Auth failed: Invalid or expired token', {
+      timestamp: new Date().toISOString(),
+      errorType: authError?.name,
+    });
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  return { success: true, userId: user.id, authType: 'user' };
 }
 
 /**
