@@ -277,39 +277,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
     }
 
-    // Fetch tax codes
-    const taxCodesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode`;
-    
-    const taxCodesResponse = await fetch(taxCodesUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    let nonTaxableCode = "NON";
-    
-    if (taxCodesResponse.ok) {
-      const taxCodesData = await taxCodesResponse.json();
-      console.log('Available tax codes:', taxCodesData);
-      
-      const taxCodes = taxCodesData.QueryResponse?.TaxCode || [];
-      const nonTaxable = taxCodes.find((code: any) => 
-        code.Name?.toLowerCase().includes('non') || 
-        code.Name?.toLowerCase().includes('zero') ||
-        code.Name?.toLowerCase().includes('exempt') ||
-        code.TaxRateRef?.value === "0"
-      );
-      
-      if (nonTaxable) {
-        nonTaxableCode = nonTaxable.Id;
-        console.log('Using tax code:', nonTaxableCode, 'for', nonTaxable.Name);
-      }
-    } else {
-      console.warn('Failed to fetch tax codes, using default NON');
-    }
-
     // Query for sales terms
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
     
@@ -421,9 +388,6 @@ const handler = async (req: Request): Promise<Response> => {
             },
             Qty: 1,
             UnitPrice: product.price,
-            TaxCodeRef: {
-              value: nonTaxableCode
-            },
             ServiceDate: serviceDate
           },
           Description: description
