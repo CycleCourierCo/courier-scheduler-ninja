@@ -1,120 +1,74 @@
 
-
-## Add Bike Type Filter to Dashboard
-
-Add a multi-select filter for bike types on the Dashboard, following the same pattern as the existing status filter.
-
----
+# Plan: Fix Sensitive Data Logging in Edge Functions
 
 ## Summary
 
-Add a new "Bike Type" filter dropdown that allows users to filter orders by one or more bike types. This will be implemented server-side for performance.
-
----
-
-## Changes Required
-
-### 1. Update Filter Types (`src/services/orderService.ts`)
-
-Add `bikeType` to the `OrderFilters` interface and apply it in the query:
-
-```typescript
-export interface OrderFilters {
-  // ... existing fields
-  bikeType?: string[];
-}
-```
-
-Add filtering logic:
-```typescript
-// Apply bike type filter
-if (bikeType && bikeType.length > 0) {
-  query = query.in("bike_type", bikeType);
-}
-```
-
-### 2. Update OrderFilters Component (`src/components/OrderFilters.tsx`)
-
-Add bike type filter state and UI:
-
-**Add bike type options constant:**
-```typescript
-const bikeTypeOptions = [
-  { value: "Non-Electric - Mountain Bike", label: "Non-Electric - Mountain Bike" },
-  { value: "Non-Electric - Road Bike", label: "Non-Electric - Road Bike" },
-  { value: "Non-Electric - Hybrid", label: "Non-Electric - Hybrid" },
-  { value: "Electric Bike - Under 25kg", label: "Electric Bike - Under 25kg" },
-  { value: "Electric Bike - Over 50kg", label: "Electric Bike - Over 50kg" },
-  { value: "Cargo Bike", label: "Cargo Bike" },
-  { value: "Longtail Cargo Bike", label: "Longtail Cargo Bike" },
-  { value: "Stationary Bike", label: "Stationary Bike" },
-  { value: "Kids Bikes", label: "Kids Bikes" },
-  { value: "BMX Bikes", label: "BMX Bikes" },
-  { value: "Boxed Kids Bikes", label: "Boxed Kids Bikes" },
-  { value: "Folding Bikes", label: "Folding Bikes" },
-  { value: "Tandem", label: "Tandem" },
-  { value: "Travel Bike Box", label: "Travel Bike Box" },
-  { value: "Wheelset/Frameset", label: "Wheelset/Frameset" },
-  { value: "Bike Rack", label: "Bike Rack" },
-  { value: "Turbo Trainer", label: "Turbo Trainer" },
-  // Legacy types for older orders
-  { value: "Electric Bikes", label: "Electric Bikes (Legacy)" },
-  { value: "Non-Electric Bikes", label: "Non-Electric Bikes (Legacy)" },
-];
-```
-
-**Add state and handlers:**
-```typescript
-const [bikeType, setBikeType] = useState<string[]>(initialFilters.bikeType || []);
-const [bikeTypePopoverOpen, setBikeTypePopoverOpen] = useState(false);
-
-const handleBikeTypeToggle = (value: string) => {
-  const newBikeType = bikeType.includes(value)
-    ? bikeType.filter(t => t !== value)
-    : [...bikeType, value];
-  setBikeType(newBikeType);
-  onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType });
-};
-```
-
-**Add UI popover (similar to status filter):**
-A multi-select popover with checkboxes showing all bike type options with selected badges.
-
-### 3. Update Dashboard Component (`src/pages/Dashboard.tsx`)
-
-Add `bikeType` to the filter state:
-
-```typescript
-const [filters, setFilters] = useState({
-  // ... existing fields
-  bikeType: [] as string[],
-});
-```
-
-Update the filter change handler and clear filters to include `bikeType`.
-
-### 4. Update Props Interface
-
-Update `OrderFiltersProps` to include `bikeType` in the filters type.
-
----
+Remove or sanitize all console.log statements that expose sensitive information (API keys, secrets, tokens) in Supabase Edge Functions. These logs persist in the Supabase dashboard and could be accessed by attackers who gain access to the logs.
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/services/orderService.ts` | Add `bikeType` to interface and query logic |
-| `src/components/OrderFilters.tsx` | Add bike type filter UI with multi-select popover |
-| `src/pages/Dashboard.tsx` | Add `bikeType` to filter state |
+### 1. supabase/functions/orders/index.ts
 
----
+**Current Issues:**
+- Line 59: Logs first 20 characters of API key
+- Line 61: Logs userId and full error object (may contain sensitive details)
+- Line 64: Logs userId in error case
 
-## UI Design
+**Changes:**
+```typescript
+// Line 59 - Replace:
+console.log('Received API key:', apiKey?.substring(0, 20) + '...')
+// With:
+console.log('API key received, verifying...')
 
-The bike type filter will appear as a dropdown button similar to the status filter:
-- Shows "All Bike Types" when none selected
-- Shows the type name when one selected
-- Shows "X types selected" when multiple selected
-- Clicking opens a popover with checkboxes for each bike type
-- Selected types shown as removable badges at the top of the popover
+// Line 61 - Replace:
+console.log('verify_api_key result - userId:', userId, 'error:', keyError)
+// With:
+console.log('API key verification:', userId ? 'success' : 'failed')
 
+// Line 64 - Replace:
+console.error('API key verification failed:', userId)
+// With:
+console.error('API key verification failed')
+```
+
+### 2. supabase/functions/create-webhook-config/index.ts
+
+**Current Issue:**
+- Line 119: Logs secretId and vaultKey which could be used to access the webhook secret
+
+**Changes:**
+```typescript
+// Line 119 - Replace:
+console.log('Webhook secret stored in vault:', { secretId, vaultKey })
+// With:
+console.log('Webhook secret stored in vault successfully')
+```
+
+## Files Reviewed but No Changes Needed
+
+The following files were reviewed and their logging is acceptable:
+
+- **refresh-quickbooks-tokens/index.ts**: Logs user IDs (not secrets) and token refresh status - acceptable
+- **create-quickbooks-invoice/index.ts**: Logs token refresh status - acceptable  
+- **create-quickbooks-bill/index.ts**: Logs token expiry status - acceptable
+- **send-loading-list-whatsapp/index.ts**: Logs that API key is not configured - acceptable
+- **create-shipday-order/index.ts**: Logs API response status/body - acceptable (responses, not keys)
+- **shopify-webhook/index.ts**: Logs order data - acceptable (business data, not credentials)
+
+## Technical Details
+
+### Why This Matters
+- Edge functions run in Deno on Supabase infrastructure
+- The `vite-plugin-remove-console` only affects frontend builds via Vite
+- Edge function logs persist in the Supabase dashboard and are accessible to anyone with project access
+- Partial key exposure (20 characters) significantly reduces brute-force keyspace
+
+### Logging Best Practices Applied
+1. Log the **action** being performed, not the **credential**
+2. Log **success/failure status**, not the **data** used
+3. Use generic identifiers when needed (e.g., "user authenticated" vs logging user tokens)
+
+## Deployment
+
+Changes will be deployed automatically when the edge functions are updated. No additional configuration needed.

@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('Webhook secret stored in vault:', { secretId, vaultKey })
+    console.log('Webhook secret stored in vault successfully')
 
     // Insert webhook configuration
     const { error: configError } = await supabaseAdmin
