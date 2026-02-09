@@ -19,7 +19,7 @@ const BIKE_TYPES = [
   "BMX Bikes",
   "Boxed Kids Bikes",
   "Folding Bikes",
-  "Tandem Bikes",
+  "Tandem",
   "Travel Bike Box",
   "Wheelset/Frameset",
   "Bike Rack",
