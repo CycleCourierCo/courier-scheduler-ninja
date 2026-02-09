@@ -1,62 +1,61 @@
 
 
-# Fix: Tracking Number Generation Auth Failure from Orders Edge Function
+# Fix: Notification Emails Failing Due to Service Role Key Auth
 
 ## Problem
 
-When the `orders` edge function calls `generate-tracking-numbers`, it passes the **service role key** as a Bearer token. The `generate-tracking-numbers` function validates this with `auth.getUser(token)`, which only works with **user JWTs** -- so it returns 401 and the Shopify webhook order creation fails.
+The `orders` edge function sends 3 emails via `send-email` after creating an order. Two of them fail because they don't have a whitelisted `emailType`:
 
-```text
-shopify-webhook --> orders (service role key)
-                      |
-                      +--> supabase.functions.invoke('generate-tracking-numbers')
-                           |
-                           +--> requireAuth(req) --> auth.getUser(serviceRoleKey) --> FAILS (401)
-```
+| Email | emailType | Auth Result |
+|-------|-----------|-------------|
+| User confirmation (STEP 1) | none | FAILS - hits requireAuth |
+| Sender availability (STEP 2) | `sender` | OK - whitelisted |
+| Receiver notification (STEP 3) | none | FAILS - hits requireAuth |
+
+The `send-email` function only bypasses auth for specific email types (`sender`, `receiver`, `sender_dates_confirmed`, `receiver_dates_confirmed`). All other emails go through `requireAuth`, which calls `auth.getUser()` and fails with the service role key.
 
 ## Solution
 
-Update the `generate-tracking-numbers` edge function to recognize the **service role key** as a valid authentication method for the `generateSingle` path. This is safe because tracking number generation is a pure string operation with no sensitive data access.
+Add service role key detection to the `send-email` function's auth check, exactly like the fix already applied to `generate-tracking-numbers`.
 
-### File: `supabase/functions/generate-tracking-numbers/index.ts`
+### File: `supabase/functions/send-email/index.ts`
 
-Update the `generateSingle` auth block (lines 39-43) to first check if the token is the service role key, and if so, skip `getUser()`:
+Update lines 48-53 to check for the service role key before falling back to `requireAuth`:
 
 **Before:**
 ```typescript
-if (reqBody.generateSingle === true) {
+if (!publicEmailTypes.includes(reqData.emailType)) {
   const authResult = await requireAuth(req);
   if (!authResult.success) {
     return createAuthErrorResponse(authResult.error!, authResult.status!);
   }
-  console.log('Authenticated user for single tracking generation:', authResult.userId);
+  console.log('Authenticated user:', authResult.userId);
+}
 ```
 
 **After:**
 ```typescript
-if (reqBody.generateSingle === true) {
+if (!publicEmailTypes.includes(reqData.emailType)) {
   // Allow service role key (used when called from other edge functions like orders)
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.replace('Bearer ', '') || '';
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
   if (token === serviceRoleKey) {
-    console.log('Authenticated via service role key for single tracking generation');
+    console.log('Authenticated via service role key for email sending');
   } else {
     const authResult = await requireAuth(req);
     if (!authResult.success) {
       return createAuthErrorResponse(authResult.error!, authResult.status!);
     }
-    console.log('Authenticated user for single tracking generation:', authResult.userId);
+    console.log('Authenticated user:', authResult.userId);
   }
+}
 ```
 
-This keeps the existing dependency chain intact while allowing the `orders` function (and `shopify-webhook` via `orders`) to generate tracking numbers without a user JWT.
+This is the same pattern already applied to `generate-tracking-numbers` and keeps security intact: public email types remain unauthenticated, non-public types require either a valid user JWT or the service role key.
 
 ## Testing
 
-After deployment:
-1. Send a test request to the shopify-webhook endpoint to verify the full chain works
-2. Verify that normal frontend tracking number generation (with user JWT) still works
-3. Confirm orders created via the API also generate tracking numbers correctly
+After deployment, trigger another Shopify test webhook to verify all 3 notification emails are sent successfully.
 
