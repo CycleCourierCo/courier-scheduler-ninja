@@ -516,13 +516,76 @@ const handler = async (req: Request): Promise<Response> => {
     if (historyError) {
       console.error('Error saving invoice history:', historyError);
     }
+
+    // Calculate stats for reporting
+    const totalBikesInOrders = invoiceData.orders.reduce((count, order) => {
+      const bikesInOrder = order.bikes?.length || order.bike_quantity || 1;
+      return count + bikesInOrder;
+    }, 0);
+    const skippedBikes = totalBikesInOrders - lineItems.length;
+
+    // Send email report after successful invoice creation
+    try {
+      const reportHtml = `
+        <h2>QuickBooks Invoice Created</h2>
+        <p><strong>Customer:</strong> ${invoiceData.customerName}</p>
+        <p><strong>Email:</strong> ${invoiceData.customerEmail}</p>
+        <p><strong>Invoice Number:</strong> ${invoiceNumber || 'N/A'}</p>
+        <p><strong>Date Range:</strong> ${invoiceData.startDate.split('T')[0]} to ${invoiceData.endDate.split('T')[0]}</p>
+        
+        <h3>Summary</h3>
+        <ul>
+          <li>Orders: ${invoiceData.orders.length}</li>
+          <li>Line Items (Bikes): ${lineItems.length}</li>
+          ${skippedBikes > 0 ? `<li style="color: #dc2626;">Skipped Bikes: ${skippedBikes}</li>` : ''}
+          <li>Total Amount: £${invoice.totalAmount.toFixed(2)}</li>
+        </ul>
+        
+        ${missingProducts.length > 0 ? `
+          <h3 style="color: #dc2626;">⚠️ Missing QuickBooks Products</h3>
+          <p>The following bike types could not be matched to QuickBooks products:</p>
+          <ul>
+            ${missingProducts.map(p => `<li>${p}</li>`).join('')}
+          </ul>
+          <p><strong>Action Required:</strong> Create these products in QuickBooks with the naming format:<br>
+          "Collection and Delivery within England and Wales - [Bike Type]"</p>
+        ` : '<p style="color: #16a34a;">✓ All bike types matched to QuickBooks products</p>'}
+        
+        <p><a href="${invoiceUrl}">View Invoice in QuickBooks</a></p>
+      `;
+
+      await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        },
+        body: JSON.stringify({
+          to: 'info@cyclecourierco.com',
+          subject: `Invoice Created: ${invoiceData.customerName} - ${invoiceNumber || 'Draft'}`,
+          html: reportHtml
+        })
+      });
+      console.log('Invoice report email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send invoice report email:', emailError);
+      // Don't fail the request if email fails
+    }
     
     return new Response(JSON.stringify({
       success: true,
       invoice: invoice,
       quickbooksInvoice: quickbooksResponse,
       message: `Invoice created in QuickBooks for ${invoiceData.customerName} with ${lineItems.length} line items`,
-      missingProducts: missingProducts.length > 0 ? missingProducts : undefined
+      missingProducts: missingProducts.length > 0 ? missingProducts : undefined,
+      stats: {
+        orderCount: invoiceData.orders.length,
+        bikeCount: lineItems.length,
+        skippedBikes: skippedBikes,
+        totalAmount: invoice.totalAmount,
+        invoiceNumber: invoiceNumber,
+        invoiceUrl: invoiceUrl
+      }
     }), {
       status: 200,
       headers: {
