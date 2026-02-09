@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
-import { requireAdminAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,12 +22,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Require admin authentication
-  const authResult = await requireAdminAuth(req);
+  // Require authentication (any authenticated user can send emails)
+  const authResult = await requireAuth(req);
   if (!authResult.success) {
     return createAuthErrorResponse(authResult.error!, authResult.status!);
   }
-  console.log('Authenticated admin:', authResult.userId);
+  console.log('Authenticated user:', authResult.userId);
 
   try {
     if (!RESEND_API_KEY) {
