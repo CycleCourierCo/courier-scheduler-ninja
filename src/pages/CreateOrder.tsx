@@ -77,6 +77,7 @@ const orderSchema = z.object({
   isBikeSwap: z.boolean().default(false),
   partExchangeBikeBrand: z.string().optional(),
   partExchangeBikeModel: z.string().optional(),
+  partExchangeBikeType: z.string().optional(),
   isEbayOrder: z.boolean().default(false),
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
@@ -117,6 +118,13 @@ const orderSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "Part exchange bike model is required",
         path: ["partExchangeBikeModel"],
+      });
+    }
+    if (!data.partExchangeBikeType?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Part exchange bike type is required",
+        path: ["partExchangeBikeType"],
       });
     }
   }
@@ -169,6 +177,7 @@ const CreateOrder = () => {
       isBikeSwap: false,
       partExchangeBikeBrand: "",
       partExchangeBikeModel: "",
+      partExchangeBikeType: "",
       isEbayOrder: false,
       collectionCode: "",
       deliveryInstructions: "",
@@ -226,6 +235,7 @@ const CreateOrder = () => {
     const isBikeSwap = form.getValues("isBikeSwap");
     const partExchangeBikeBrand = form.getValues("partExchangeBikeBrand");
     const partExchangeBikeModel = form.getValues("partExchangeBikeModel");
+    const partExchangeBikeType = form.getValues("partExchangeBikeType");
     
     // eBay validation
     const ebayValid = !isEbayOrder || (collectionCode && collectionCode.trim() !== '');
@@ -236,7 +246,8 @@ const CreateOrder = () => {
     // Part exchange validation
     const swapValid = !isBikeSwap || (
       partExchangeBikeBrand && partExchangeBikeBrand.trim() !== '' &&
-      partExchangeBikeModel && partExchangeBikeModel.trim() !== ''
+      partExchangeBikeModel && partExchangeBikeModel.trim() !== '' &&
+      partExchangeBikeType && partExchangeBikeType.trim() !== ''
     );
     
     return bikesValid && ebayValid && paymentValid && swapValid;
@@ -318,7 +329,8 @@ const CreateOrder = () => {
       "collectionCode",
       "paymentCollectionPhone",
       "partExchangeBikeBrand",
-      "partExchangeBikeModel"
+      "partExchangeBikeModel",
+      "partExchangeBikeType"
     ]);
     
     if (isDetailsValid) {
@@ -445,7 +457,7 @@ const CreateOrder = () => {
                 const hasDetailsErrors = errors.bikes || errors.bikeQuantity || errors.isEbayOrder || 
                   errors.collectionCode || errors.needsPaymentOnCollection || 
                   errors.paymentCollectionPhone || errors.isBikeSwap || 
-                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel;
+                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel || errors.partExchangeBikeType;
                 
                 const hasSenderErrors = errors.sender;
                 const hasReceiverErrors = errors.receiver;

@@ -1,10 +1,30 @@
-
 import React from "react";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Control, useWatch, useFormContext } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
+
+const BIKE_TYPES = [
+  "Non-Electric - Mountain Bike",
+  "Non-Electric - Road Bike",
+  "Non-Electric - Hybrid",
+  "Electric Bike - Under 25kg",
+  "Electric Bike - Over 50kg",
+  "Cargo Bike",
+  "Longtail Cargo Bike",
+  "Stationary Bike",
+  "Kids Bikes",
+  "BMX Bikes",
+  "Boxed Kids Bikes",
+  "Folding Bikes",
+  "Tandem",
+  "Travel Bike Box",
+  "Wheelset/Frameset",
+  "Bike Rack",
+  "Turbo Trainer",
+] as const;
 
 interface OrderOptionsProps {
   control: Control<CreateOrderFormData>;
@@ -54,8 +74,10 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     if (!isBikeSwap) {
       setValue("partExchangeBikeBrand", "");
       setValue("partExchangeBikeModel", "");
+      setValue("partExchangeBikeType", "");
       clearErrors("partExchangeBikeBrand");
       clearErrors("partExchangeBikeModel");
+      clearErrors("partExchangeBikeType");
     }
   }, [isBikeSwap, setValue, clearErrors]);
 
@@ -199,6 +221,33 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
                   </FormControl>
                   <FormDescription>
                     The bike model that will be collected from the receiver and delivered back to the sender.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="partExchangeBikeType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Type *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select bike type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {BIKE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    The bike type that will be collected from the receiver and delivered back to the sender.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
