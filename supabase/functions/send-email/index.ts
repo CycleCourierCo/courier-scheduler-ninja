@@ -46,11 +46,20 @@ serve(async (req) => {
 
     // Only require auth for non-public email types
     if (!publicEmailTypes.includes(reqData.emailType)) {
-      const authResult = await requireAuth(req);
-      if (!authResult.success) {
-        return createAuthErrorResponse(authResult.error!, authResult.status!);
+      // Allow service role key (used when called from other edge functions like orders)
+      const authHeader = req.headers.get('Authorization');
+      const token = authHeader?.replace('Bearer ', '') || '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+      if (token === serviceRoleKey) {
+        console.log('Authenticated via service role key for email sending');
+      } else {
+        const authResult = await requireAuth(req);
+        if (!authResult.success) {
+          return createAuthErrorResponse(authResult.error!, authResult.status!);
+        }
+        console.log('Authenticated user:', authResult.userId);
       }
-      console.log('Authenticated user:', authResult.userId);
     } else {
       console.log('Public email type:', reqData.emailType, '- no auth required');
     }
