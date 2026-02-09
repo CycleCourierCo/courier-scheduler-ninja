@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users } from "lucide-react";
+import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users, Bike } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,29 @@ const statusOptions = [
   { value: "cancelled", label: "Cancelled" }
 ];
 
+const bikeTypeOptions = [
+  { value: "Non-Electric - Mountain Bike", label: "Non-Electric - Mountain Bike" },
+  { value: "Non-Electric - Road Bike", label: "Non-Electric - Road Bike" },
+  { value: "Non-Electric - Hybrid", label: "Non-Electric - Hybrid" },
+  { value: "Electric Bike - Under 25kg", label: "Electric Bike - Under 25kg" },
+  { value: "Electric Bike - 25-50kg", label: "Electric Bike - 25-50kg" },
+  { value: "Cargo Bike", label: "Cargo Bike" },
+  { value: "Longtail Cargo Bike", label: "Longtail Cargo Bike" },
+  { value: "Stationary Bike", label: "Stationary Bike" },
+  { value: "Kids Bikes", label: "Kids Bikes" },
+  { value: "BMX Bikes", label: "BMX Bikes" },
+  { value: "Boxed Kids Bikes", label: "Boxed Kids Bikes" },
+  { value: "Folding Bikes", label: "Folding Bikes" },
+  { value: "Tandem", label: "Tandem" },
+  { value: "Travel Bike Box", label: "Travel Bike Box" },
+  { value: "Wheelset/Frameset", label: "Wheelset/Frameset" },
+  { value: "Bike Rack", label: "Bike Rack" },
+  { value: "Turbo Trainer", label: "Turbo Trainer" },
+  // Legacy types for older orders
+  { value: "Electric Bikes", label: "Electric Bikes (Legacy)" },
+  { value: "Non-Electric Bikes", label: "Non-Electric Bikes (Legacy)" },
+];
+
 const sortOptions = [
   { value: "created_desc", label: "Newest First" },
   { value: "created_asc", label: "Oldest First" },
@@ -57,6 +80,7 @@ interface OrderFiltersProps {
     dateFrom: Date | undefined;
     dateTo: Date | undefined;
     customerId?: string;
+    bikeType?: string[];
   }) => void;
   initialFilters?: {
     status: string[];
@@ -65,13 +89,14 @@ interface OrderFiltersProps {
     dateFrom: Date | undefined;
     dateTo: Date | undefined;
     customerId?: string;
+    bikeType?: string[];
   };
   userRole: string | null;
 }
 
 const OrderFilters: React.FC<OrderFiltersProps> = ({ 
   onFilterChange, 
-  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined },
+  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] },
   userRole
 }) => {
   const [status, setStatus] = useState<string[]>(initialFilters.status);
@@ -80,7 +105,9 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [dateFrom, setDateFrom] = useState<Date | undefined>(initialFilters.dateFrom);
   const [dateTo, setDateTo] = useState<Date | undefined>(initialFilters.dateTo);
   const [customerId, setCustomerId] = useState<string | undefined>(initialFilters.customerId);
+  const [bikeType, setBikeType] = useState<string[]>(initialFilters.bikeType || []);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
+  const [bikeTypePopoverOpen, setBikeTypePopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -118,7 +145,15 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
       ? status.filter(s => s !== value)
       : [...status, value];
     setStatus(newStatus);
-    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId });
+    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId, bikeType });
+  };
+
+  const handleBikeTypeToggle = (value: string) => {
+    const newBikeType = bikeType.includes(value)
+      ? bikeType.filter(t => t !== value)
+      : [...bikeType, value];
+    setBikeType(newBikeType);
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,39 +166,40 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     }
     
     searchTimeoutRef.current = setTimeout(() => {
-      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId });
+      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId, bikeType });
     }, 300);
   };
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
-    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId });
+    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId, bikeType });
   };
 
   const handleDateFromChange = (date: Date | undefined) => {
     setDateFrom(date);
-    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId });
+    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId, bikeType });
   };
 
   const handleDateToChange = (date: Date | undefined) => {
     setDateTo(date);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId, bikeType });
   };
 
   const handleCustomerChange = (value: string) => {
     const newCustomerId = value === "all" ? undefined : value;
     setCustomerId(newCustomerId);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType });
   };
 
   const handleClearFilters = () => {
-    const defaultFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined };
+    const defaultFilters = { status: [] as string[], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] as string[] };
     setStatus(defaultFilters.status);
     setSearch(defaultFilters.search);
     setSortBy(defaultFilters.sortBy);
     setDateFrom(defaultFilters.dateFrom);
     setDateTo(defaultFilters.dateTo);
     setCustomerId(defaultFilters.customerId);
+    setBikeType(defaultFilters.bikeType);
     onFilterChange(defaultFilters);
   };
 
@@ -182,6 +218,15 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     if (dateFrom) return `From ${format(dateFrom, "MMM d")}`;
     if (dateTo) return `Until ${format(dateTo, "MMM d")}`;
     return "All Dates";
+  };
+
+  const getBikeTypeDisplayText = () => {
+    if (bikeType.length === 0) return "All Bike Types";
+    if (bikeType.length === 1) {
+      const typeOption = bikeTypeOptions.find(opt => opt.value === bikeType[0]);
+      return typeOption?.label || bikeType[0];
+    }
+    return `${bikeType.length} types selected`;
   };
 
   return (
@@ -245,6 +290,63 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                         >
                           <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center">
                             {status.includes(option.value) && (
+                              <Check className="h-3 w-3" />
+                            )}
+                          </div>
+                          <span className="text-sm">{option.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="w-full md:w-48">
+              <Popover open={bikeTypePopoverOpen} onOpenChange={setBikeTypePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={bikeTypePopoverOpen}
+                    className="w-full justify-between"
+                  >
+                    <div className="flex items-center">
+                      <Bike className="mr-2 h-4 w-4" />
+                      <span className="truncate">{getBikeTypeDisplayText()}</span>
+                    </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0 max-h-96 overflow-y-auto">
+                  <div className="p-4 space-y-2">
+                    <div className="text-sm font-medium mb-3">Filter by Bike Type</div>
+                    {bikeType.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {bikeType.map((selectedType) => {
+                          const typeOption = bikeTypeOptions.find(opt => opt.value === selectedType);
+                          return (
+                            <Badge 
+                              key={selectedType} 
+                              variant="secondary" 
+                              className="text-xs cursor-pointer"
+                              onClick={() => handleBikeTypeToggle(selectedType)}
+                            >
+                              {typeOption?.label}
+                              <span className="ml-1">×</span>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      {bikeTypeOptions.map((option) => (
+                        <div
+                          key={option.value}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-muted rounded-sm p-2"
+                          onClick={() => handleBikeTypeToggle(option.value)}
+                        >
+                          <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center">
+                            {bikeType.includes(option.value) && (
                               <Check className="h-3 w-3" />
                             )}
                           </div>
@@ -335,7 +437,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                       onClick={() => {
                         setDateFrom(undefined);
                         setDateTo(undefined);
-                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId });
+                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId, bikeType });
                       }}
                       className="w-full"
                     >

@@ -21,12 +21,13 @@ const Dashboard: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filters, setFilters] = useState({
-    status: [],
+    status: [] as string[],
     search: "",
     sortBy: "created_desc",
     dateFrom: undefined as Date | undefined,
     dateTo: undefined as Date | undefined,
-    customerId: undefined as string | undefined
+    customerId: undefined as string | undefined,
+    bikeType: [] as string[]
   });
   const { user } = useAuth();
 
@@ -69,6 +70,7 @@ const Dashboard: React.FC = () => {
         pageSize: itemsPerPage,
         search: filters.search,
         status: filters.status.length > 0 ? filters.status : undefined,
+        bikeType: filters.bikeType.length > 0 ? filters.bikeType : undefined,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
         sortBy: filters.sortBy,
@@ -105,13 +107,22 @@ const Dashboard: React.FC = () => {
     dateFrom: Date | undefined;
     dateTo: Date | undefined;
     customerId?: string | undefined;
+    bikeType?: string[];
   }) => {
-    setFilters(newFilters as typeof filters);
+    setFilters({
+      status: newFilters.status,
+      search: newFilters.search,
+      sortBy: newFilters.sortBy,
+      dateFrom: newFilters.dateFrom,
+      dateTo: newFilters.dateTo,
+      customerId: newFilters.customerId,
+      bikeType: newFilters.bikeType || []
+    });
     setCurrentPage(1); // Reset to first page when filters change
   }, []);
 
   const handleClearFilters = useCallback(() => {
-    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined });
+    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] });
     setCurrentPage(1);
   }, []);
 
