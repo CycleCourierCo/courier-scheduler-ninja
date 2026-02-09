@@ -22,13 +22,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Require authentication (any authenticated user can send emails)
-  const authResult = await requireAuth(req);
-  if (!authResult.success) {
-    return createAuthErrorResponse(authResult.error!, authResult.status!);
-  }
-  console.log('Authenticated user:', authResult.userId);
-
   try {
     if (!RESEND_API_KEY) {
       console.error('RESEND_API_KEY environment variable is not set');
@@ -46,6 +39,21 @@ serve(async (req) => {
     // Parse request data and log it
     const reqData = await req.json();
     console.log('Request data:', JSON.stringify(reqData, null, 2));
+
+    // Email types that can be sent from public pages (no auth required)
+    // These are system-triggered emails from customer availability confirmations
+    const publicEmailTypes = ['sender', 'receiver', 'sender_dates_confirmed', 'receiver_dates_confirmed'];
+
+    // Only require auth for non-public email types
+    if (!publicEmailTypes.includes(reqData.emailType)) {
+      const authResult = await requireAuth(req);
+      if (!authResult.success) {
+        return createAuthErrorResponse(authResult.error!, authResult.status!);
+      }
+      console.log('Authenticated user:', authResult.userId);
+    } else {
+      console.log('Public email type:', reqData.emailType, '- no auth required');
+    }
 
     // Handle special actions
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
