@@ -1,131 +1,100 @@
 
-# Fix: B2B User Order Creation Failure
+
+# Fix: Receiver Availability Email Not Sent After Sender Confirmation
 
 ## Problem Identified
 
-When a B2B user tries to create an order, the process fails with a **403 Forbidden** error because:
+When a sender confirms their availability via the public link (`/sender-availability/:id`), the receiver availability email fails to send with "Auth failed: Invalid or expired token".
 
-1. Order creation calls `generateTrackingNumber()` in `src/services/trackingService.ts`
-2. This invokes the `generate-tracking-numbers` edge function
-3. The edge function uses `requireAdminAuth()` which requires the user to have admin role
-4. B2B users are not admins, so they get rejected with "User is not admin"
+### Root Cause
 
-From the logs:
-```
-Auth failed: User is not admin {
-  userId: "eb499436-60ec-48ac-8d2c-f66dc6126559"
-}
+The recent change to `send-email` edge function (switching from `requireAdminAuth` to `requireAuth`) still requires authentication. However:
+
+1. The sender availability page is **public** - no login required
+2. When sender confirms dates, `updateSenderAvailability()` calls `resendReceiverAvailabilityEmail()`
+3. This invokes `send-email` edge function with **no auth token** (unauthenticated user)
+4. The function rejects the request because `requireAuth` requires a valid JWT
+
+### Flow Diagram
+
+```text
+Sender clicks availability link (/sender-availability/:id)
+         ↓
+  [Public Page - No Login]
+         ↓
+Confirms dates → updateSenderAvailability()
+         ↓
+Calls resendReceiverAvailabilityEmail()
+         ↓
+Invokes send-email edge function
+         ↓
+❌ requireAuth() fails - no auth token
+         ↓
+Receiver email never sent
 ```
 
 ## Solution
 
-The `generate-tracking-numbers` function needs two different authentication levels:
+The `send-email` edge function needs to allow **specific email types** to be sent without authentication. These are system-triggered emails from public customer actions:
 
-| Operation | Who Can Call | Auth Required |
-|-----------|--------------|---------------|
-| `generateSingle: true` (new order) | Any authenticated user | Basic auth |
-| Bulk regeneration / specific order update | Admin only | Admin auth |
+| Email Type | Triggered From | Auth Required? |
+|------------|----------------|----------------|
+| `sender` | Sender availability confirmation | No (public page) |
+| `receiver` | Sender availability confirmation | No (public page) |
+| `sender_dates_confirmed` | Sender availability confirmation | No (public page) |
+| `receiver_dates_confirmed` | Receiver availability confirmation | No (public page) |
+| Admin/bulk operations | Dashboard | Yes |
 
 ### Changes Required
 
-**File: `supabase/functions/_shared/auth.ts`**
+**File: `supabase/functions/send-email/index.ts`**
 
-Add a new function for basic authenticated user validation (not admin-only):
+1. Check the `emailType` before requiring authentication
+2. Allow unauthenticated requests for specific customer-facing email types
+3. Require authentication for all other email operations (admin emails, custom emails)
 
 ```typescript
-/**
- * Require basic authentication via JWT (any authenticated user)
- * Validates token but does NOT check for admin role
- */
-export async function requireAuth(req: Request): Promise<AuthResult> {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+// After CORS handling, before auth check:
+const reqData = await req.json().catch(() => ({}));
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    console.error('Auth failed: No bearer token provided');
-    return { success: false, error: 'Unauthorized', status: 401 };
+// Email types that can be sent from public pages (no auth required)
+const publicEmailTypes = ['sender', 'receiver', 'sender_dates_confirmed', 'receiver_dates_confirmed'];
+
+// Only require auth for non-public email types
+if (!publicEmailTypes.includes(reqData.emailType)) {
+  const authResult = await requireAuth(req);
+  if (!authResult.success) {
+    return createAuthErrorResponse(authResult.error!, authResult.status!);
   }
-
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-  if (authError || !user) {
-    console.error('Auth failed: Invalid or expired token');
-    return { success: false, error: 'Unauthorized', status: 401 };
-  }
-
-  return { success: true, userId: user.id };
+  console.log('Authenticated user:', authResult.userId);
+} else {
+  console.log('Public email type:', reqData.emailType, '- no auth required');
 }
+
+// Continue with existing email sending logic...
 ```
 
-**File: `supabase/functions/generate-tracking-numbers/index.ts`**
+## Security Considerations
 
-Update the authentication logic to:
-1. Allow any authenticated user for single tracking number generation
-2. Require admin for bulk operations and order updates
-
-```typescript
-import { requireAuth, requireAdminAuth, createAuthErrorResponse } from '../_shared/auth.ts';
-
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const reqBody = await req.json().catch(() => ({}));
-    
-    // For single tracking number generation (new orders)
-    // Allow any authenticated user
-    if (reqBody.generateSingle === true) {
-      const authResult = await requireAuth(req);
-      if (!authResult.success) {
-        return createAuthErrorResponse(authResult.error!, authResult.status!);
-      }
-      
-      const senderName = reqBody.senderName || "UNKNOWN";
-      const receiverZipCode = reqBody.receiverZipCode || "000";
-      const trackingNumber = generateCustomOrderId(senderName, receiverZipCode);
-      
-      return new Response(
-        JSON.stringify({ success: true, trackingNumber }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    // For all other operations (bulk update, specific order)
-    // Require admin authentication
-    const authResult = await requireAdminAuth(req);
-    if (!authResult.success) {
-      return createAuthErrorResponse(authResult.error!, authResult.status!);
-    }
-    
-    // ... rest of existing admin-only logic
-  } catch (err) {
-    // ... error handling
-  }
-});
-```
+- **Public email types are limited** - Only 4 specific types can bypass auth
+- **Email recipients are determined by order data** - Not user-supplied, so no spam risk
+- **Order IDs are validated** - Must exist in database
+- **Rate limiting via Resend** - Protects against abuse
+- **All other email operations** still require authentication
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/_shared/auth.ts` | Add `requireAuth()` function for basic authentication |
-| `supabase/functions/generate-tracking-numbers/index.ts` | Use `requireAuth` for single generation, keep `requireAdminAuth` for bulk operations |
+| `supabase/functions/send-email/index.ts` | Add conditional auth bypass for public email types |
 
-## Security Considerations
+## Testing After Fix
 
-- Single tracking number generation (`generateSingle: true`) only returns a random string - no database access
-- Bulk operations and database updates still require admin authentication
-- This is a minimal change that allows order creation while maintaining security for sensitive operations
+1. Create a new order
+2. Open the sender availability link (public page)
+3. Confirm sender dates
+4. Verify:
+   - Sender receives "Thanks for confirming" email
+   - Receiver receives availability request email
+   - Order status updates to `receiver_availability_pending`
 
-## Testing
-
-After deployment:
-1. Log in as a B2B user (non-admin)
-2. Create a new order
-3. Verify the order is created successfully with a tracking number
