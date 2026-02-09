@@ -70,6 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const { date }: GenerateTimeslipsRequest = await req.json();
+    const authHeader = req.headers.get('Authorization');
     
     console.log('=== GENERATE TIMESLIPS STARTED ===');
     console.log('Timestamp:', new Date().toISOString());
@@ -77,10 +78,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Data source: Database (collection_confirmation_sent_at, delivery_confirmation_sent_at)');
 
     // Query database for completed jobs on this date
+    // Pass the original auth header to the nested function call
     const { data: databaseData, error: dbError } = await supabaseClient.functions.invoke(
       'query-database-completed-jobs',
       {
-        body: { date }
+        body: { date },
+        headers: authHeader ? { Authorization: authHeader } : {}
       }
     );
 
