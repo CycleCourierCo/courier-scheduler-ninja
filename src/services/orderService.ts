@@ -104,6 +104,7 @@ export interface OrderFilters {
   pageSize?: number;
   search?: string;
   status?: string[];
+  bikeType?: string[];
   dateFrom?: Date;
   dateTo?: Date;
   sortBy?: string;
@@ -124,6 +125,7 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       pageSize = 10,
       search = "",
       status = [],
+      bikeType = [],
       dateFrom,
       dateTo,
       sortBy = "created_desc",
@@ -160,6 +162,11 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
     // Apply status filter
     if (status.length > 0) {
       query = query.in("status", status as any);
+    }
+
+    // Apply bike type filter
+    if (bikeType.length > 0) {
+      query = query.in("bike_type", bikeType);
     }
 
     // Apply date range filter
