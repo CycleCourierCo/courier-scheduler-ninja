@@ -512,7 +512,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Failed to generate timeslips',
-        details: error.stack,
         executionTime: executionTime
       }),
       { 
