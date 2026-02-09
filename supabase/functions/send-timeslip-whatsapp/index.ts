@@ -78,8 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error in send-timeslip-whatsapp function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to send timeslip',
-        details: error 
+        error: error.message || 'Failed to send timeslip'
       }),
       {
         status: 500,

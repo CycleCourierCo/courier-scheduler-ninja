@@ -248,8 +248,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error in query-shipday-completed-orders function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to query Shipday orders',
-        details: error 
+        error: error.message || 'Failed to query Shipday orders'
       }),
       {
         status: 500,

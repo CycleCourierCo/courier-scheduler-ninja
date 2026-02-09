@@ -612,7 +612,6 @@ Cycle Courier Co.`;
       JSON.stringify({
         success: false,
         error: error?.message || "Unexpected error occurred",
-        details: error,
       }),
       {
         status: 500,

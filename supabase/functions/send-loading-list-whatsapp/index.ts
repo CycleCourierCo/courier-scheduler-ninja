@@ -743,8 +743,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error in send-loading-list-whatsapp function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to send loading list',
-        details: error 
+        error: error.message || 'Failed to send loading list'
       }),
       {
         status: 500,

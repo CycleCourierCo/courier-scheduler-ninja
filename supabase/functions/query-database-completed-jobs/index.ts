@@ -207,8 +207,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to query completed jobs',
-        details: error.stack
+        error: error.message || 'Failed to query completed jobs'
       }),
       { 
         status: 500, 
