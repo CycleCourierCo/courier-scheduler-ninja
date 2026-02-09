@@ -309,6 +309,55 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch terms');
     }
 
+    // Query for VAT tax code (UK 20% standard rate)
+    let vatTaxCodeId: string | null = null;
+    
+    const taxCodeUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode WHERE Active=true`;
+    
+    const taxCodeResponse = await fetch(taxCodeUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (taxCodeResponse.ok) {
+      const taxCodeData = await taxCodeResponse.json();
+      console.log('Available tax codes:', JSON.stringify(taxCodeData, null, 2));
+      
+      const taxCodes = taxCodeData.QueryResponse?.TaxCode || [];
+      // Look for standard UK VAT rate (20%) - try various common names
+      const vatCode = taxCodes.find((code: any) => 
+        code.Name === '20.0% S' ||
+        code.Name === '20% S' ||
+        code.Name === 'Standard' ||
+        code.Name?.includes('20%') ||
+        code.Name?.toLowerCase().includes('standard')
+      );
+      
+      if (vatCode) {
+        vatTaxCodeId = vatCode.Id;
+        console.log('Using VAT tax code:', vatCode.Name, 'with ID:', vatTaxCodeId);
+      } else {
+        // Fall back to any taxable code (not zero/exempt)
+        const anyTaxableCode = taxCodes.find((code: any) => 
+          !code.Name?.toLowerCase().includes('zero') &&
+          !code.Name?.toLowerCase().includes('exempt') &&
+          !code.Name?.toLowerCase().includes('non') &&
+          code.Taxable === true
+        );
+        if (anyTaxableCode) {
+          vatTaxCodeId = anyTaxableCode.Id;
+          console.log('Using fallback taxable code:', anyTaxableCode.Name, 'with ID:', vatTaxCodeId);
+        } else {
+          console.warn('No suitable VAT tax code found, invoice may fail');
+        }
+      }
+    } else {
+      console.warn('Failed to fetch tax codes:', await taxCodeResponse.text());
+    }
+
     // Build line items with bike-type-based pricing
     const lineItems: any[] = [];
     const missingProducts: string[] = [];
@@ -388,7 +437,8 @@ const handler = async (req: Request): Promise<Response> => {
             },
             Qty: 1,
             UnitPrice: product.price,
-            ServiceDate: serviceDate
+            ServiceDate: serviceDate,
+            ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
           },
           Description: description
         });
