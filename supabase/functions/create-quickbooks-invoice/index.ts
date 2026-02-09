@@ -43,7 +43,7 @@ interface ProductInfo {
 function normalizeBikeType(bikeType: string): string {
   const legacyMappings: Record<string, string> = {
     'Electric Bikes': 'Electric Bike - Under 25kg',
-    // Add other legacy mappings here if needed
+    'Non-Electric Bikes': 'Non-Electric Bikes',
   };
   
   return legacyMappings[bikeType] || bikeType;
