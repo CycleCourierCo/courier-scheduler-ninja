@@ -1,6 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { requireAuth, requireAdminAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 // Function to generate a custom order ID
 // Format: CCC + 754 + 9-digit sequence + first 3 letters of sender name + first 3 letters of receiver zipcode
@@ -30,19 +30,19 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Received request to generate tracking numbers");
-    
-    // Get Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Parse request body
+    // Parse request body first to determine auth level needed
     const reqBody = await req.json().catch(() => ({}));
     console.log("Request body:", JSON.stringify(reqBody));
     
     // Handle single tracking number generation (no database update)
+    // Allow any authenticated user for this operation
     if (reqBody.generateSingle === true) {
+      const authResult = await requireAuth(req);
+      if (!authResult.success) {
+        return createAuthErrorResponse(authResult.error!, authResult.status!);
+      }
+      console.log('Authenticated user for single tracking generation:', authResult.userId);
+      
       console.log("Generating single tracking number");
       const senderName = reqBody.senderName || "UNKNOWN";
       const receiverZipCode = reqBody.receiverZipCode || "000";
@@ -58,6 +58,21 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
+    
+    // For all other operations (bulk update, specific order update)
+    // Require admin authentication
+    const authResult = await requireAdminAuth(req);
+    if (!authResult.success) {
+      return createAuthErrorResponse(authResult.error!, authResult.status!);
+    }
+    console.log('Authenticated admin:', authResult.userId);
+
+    console.log("Received request to generate tracking numbers");
+    
+    // Get Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Get specific order ID if provided
     const specificOrderId = reqBody.specificOrderId;

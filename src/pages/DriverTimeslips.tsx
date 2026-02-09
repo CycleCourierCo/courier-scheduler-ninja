@@ -15,12 +15,23 @@ import TimeslipEditDialog from '@/components/timeslips/TimeslipEditDialog';
 import GenerateTimeslipsDialog from '@/components/timeslips/GenerateTimeslipsDialog';
 import TimeslipFilters from '@/components/timeslips/TimeslipFilters';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const DriverTimeslips = () => {
   const { userProfile } = useAuth();
   const queryClient = useQueryClient();
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [deletingTimeslipId, setDeletingTimeslipId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('draft');
   const [filters, setFilters] = useState<{
     driverId?: string;
@@ -153,6 +164,19 @@ const DriverTimeslips = () => {
     },
   });
 
+  // Delete timeslip mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => timeslipService.deleteTimeslip(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeslips'] });
+      toast.success('Timeslip deleted');
+      setDeletingTimeslipId(null);
+    },
+    onError: () => {
+      toast.error('Failed to delete timeslip');
+    },
+  });
+
   const handleGenerate = (date: Date) => {
     generateMutation.mutate(date);
   };
@@ -177,6 +201,19 @@ const DriverTimeslips = () => {
   const handleCreateBill = (timeslip: Timeslip) => {
     createBillMutation.mutate(timeslip.id);
   };
+
+  const handleDelete = (id: string) => {
+    setDeletingTimeslipId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deletingTimeslipId) {
+      deleteMutation.mutate(deletingTimeslipId);
+    }
+  };
+
+  const deletingTimeslip = allTimeslips?.find(t => t.id === deletingTimeslipId) || 
+                           timeslips?.find(t => t.id === deletingTimeslipId);
 
   // Count timeslips by status (from all timeslips for accurate counts)
   const draftCount = allTimeslips?.filter((t) => t.status === 'draft').length || 0;
@@ -264,6 +301,7 @@ const DriverTimeslips = () => {
                       onApprove={handleApprove}
                       onReject={handleReject}
                       onCreateBill={handleCreateBill}
+                      onDelete={handleDelete}
                     />
                   ))}
                 </div>
@@ -322,6 +360,29 @@ const DriverTimeslips = () => {
         onClose={() => setShowGenerateDialog(false)}
         onGenerate={handleGenerate}
       />
+
+      <AlertDialog open={!!deletingTimeslipId} onOpenChange={(open) => !open && setDeletingTimeslipId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Timeslip</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this timeslip for{' '}
+              <strong>{deletingTimeslip?.driver?.name || 'Unknown Driver'}</strong> on{' '}
+              <strong>{deletingTimeslip ? format(new Date(deletingTimeslip.date), 'MMMM d, yyyy') : ''}</strong>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

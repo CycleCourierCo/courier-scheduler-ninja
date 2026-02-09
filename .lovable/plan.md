@@ -1,161 +1,105 @@
 
+# Fix: "Collection Info" Button Greyed Out for Part Exchange Orders
 
-# Plan: Fix Stack Trace Exposure in Edge Functions
+## Problem Identified
 
-## Summary
+The "Collection Info" tab button remains disabled even after filling in all Part Exchange details because the `partExchangeBikeType` field is **not included in the watch list** that triggers the `isDetailsValid` recalculation.
 
-Remove the `details` field from error responses in 6 Supabase Edge Functions to prevent exposing internal stack traces and error objects to API consumers. The `console.error` statements will be retained for server-side debugging.
+### Root Cause
 
-## Why This Matters
+In `CreateOrder.tsx`, the `detailsFields` watch array is missing `partExchangeBikeType`:
 
-When error objects or stack traces are included in HTTP responses:
-- Internal file paths and function names are exposed
-- Database query structures may be revealed
-- Third-party API details could leak
-- Attackers can use this information to craft targeted attacks
-
-## Files to Modify
-
-### 1. supabase/functions/send-timeslot-whatsapp/index.ts (Lines 611-616)
-
-**Current:**
 ```typescript
-return new Response(
-  JSON.stringify({
-    success: false,
-    error: error?.message || "Unexpected error occurred",
-    details: error,  // <-- REMOVE
-  }),
+// Current code (line 191-201)
+const detailsFields = form.watch([
+  "bikeQuantity",
+  "bikes",
+  "isEbayOrder",
+  "collectionCode",
+  "needsPaymentOnCollection",
+  "paymentCollectionPhone",
+  "isBikeSwap",
+  "partExchangeBikeBrand",
+  "partExchangeBikeModel"
+  // ❌ Missing: "partExchangeBikeType"
+]);
 ```
 
-**Change to:**
+The validation logic in `isDetailsValid` correctly checks `partExchangeBikeType`:
+
 ```typescript
-return new Response(
-  JSON.stringify({
-    success: false,
-    error: error?.message || "Unexpected error occurred",
-  }),
+const swapValid = !isBikeSwap || (
+  partExchangeBikeBrand && partExchangeBikeBrand.trim() !== '' &&
+  partExchangeBikeModel && partExchangeBikeModel.trim() !== '' &&
+  partExchangeBikeType && partExchangeBikeType.trim() !== ''  // ✅ Checks correctly
+);
 ```
 
-### 2. supabase/functions/send-loading-list-whatsapp/index.ts (Lines 744-748)
+**However**, since `partExchangeBikeType` is not in the watch list, the `useMemo` that depends on `detailsFields` doesn't re-run when you select a bike type.
 
-**Current:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to send loading list',
-    details: error  // <-- REMOVE
-  }),
+### Flow Diagram
+```text
+User enables Part Exchange
+         ↓
+Fills Brand ✅ → detailsFields updates → isDetailsValid recalculates
+         ↓
+Fills Model ✅ → detailsFields updates → isDetailsValid recalculates
+         ↓
+Selects Bike Type ✅ → detailsFields NOT updated → isDetailsValid NOT recalculated
+         ↓
+Button stays disabled ❌
 ```
 
-**Change to:**
+## Solution
+
+Add `partExchangeBikeType` to the `detailsFields` watch array.
+
+### File to Modify
+
+| File | Change |
+|------|--------|
+| `src/pages/CreateOrder.tsx` | Add `"partExchangeBikeType"` to the `detailsFields` watch array |
+
+### Code Change
+
+**Before (lines 191-201):**
 ```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to send loading list'
-  }),
+const detailsFields = form.watch([
+  "bikeQuantity",
+  "bikes",
+  "isEbayOrder",
+  "collectionCode",
+  "needsPaymentOnCollection",
+  "paymentCollectionPhone",
+  "isBikeSwap",
+  "partExchangeBikeBrand",
+  "partExchangeBikeModel"
+]);
 ```
 
-### 3. supabase/functions/send-timeslip-whatsapp/index.ts (Lines 79-83)
-
-**Current:**
+**After:**
 ```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to send timeslip',
-    details: error  // <-- REMOVE
-  }),
+const detailsFields = form.watch([
+  "bikeQuantity",
+  "bikes",
+  "isEbayOrder",
+  "collectionCode",
+  "needsPaymentOnCollection",
+  "paymentCollectionPhone",
+  "isBikeSwap",
+  "partExchangeBikeBrand",
+  "partExchangeBikeModel",
+  "partExchangeBikeType"  // ← Add this
+]);
 ```
 
-**Change to:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to send timeslip'
-  }),
-```
+## Testing
 
-### 4. supabase/functions/generate-timeslips/index.ts (Lines 512-517)
-
-**Current:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to generate timeslips',
-    details: error.stack,  // <-- REMOVE
-    executionTime: executionTime
-  }),
-```
-
-**Change to:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to generate timeslips',
-    executionTime: executionTime
-  }),
-```
-
-### 5. supabase/functions/query-shipday-completed-orders/index.ts (Lines 249-253)
-
-**Current:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to query Shipday orders',
-    details: error  // <-- REMOVE
-  }),
-```
-
-**Change to:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to query Shipday orders'
-  }),
-```
-
-### 6. supabase/functions/query-database-completed-jobs/index.ts (Lines 208-212)
-
-**Current:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to query completed jobs',
-    details: error.stack  // <-- REMOVE
-  }),
-```
-
-**Change to:**
-```typescript
-return new Response(
-  JSON.stringify({ 
-    error: error.message || 'Failed to query completed jobs'
-  }),
-```
-
-## Technical Details
-
-### What We Keep
-- `console.error()` statements remain for server-side logging in Supabase dashboard
-- Human-readable `error.message` in responses for debugging on the client side
-- `executionTime` in generate-timeslips (non-sensitive operational metric)
-
-### What We Remove
-- `details: error` - serializes the entire error object including stack trace
-- `details: error.stack` - directly exposes the stack trace
-
-### Security Best Practice
-Log full errors server-side, return only generic messages to clients:
-```typescript
-// Server-side (keep)
-console.error('Error in function:', error);
-
-// Client response (sanitized)
-JSON.stringify({ error: error.message || 'Generic error message' })
-```
-
-## Deployment
-
-Changes will be deployed automatically when the edge functions are updated. No additional configuration needed.
-
+After fix:
+1. Go to Create Order page
+2. Fill in bike details (brand, model, type)
+3. Enable "Part Exchange" toggle
+4. Fill in Part Exchange Brand
+5. Fill in Part Exchange Model
+6. Select Part Exchange Bike Type from dropdown
+7. Verify the "Collection Info" tab button becomes enabled immediately

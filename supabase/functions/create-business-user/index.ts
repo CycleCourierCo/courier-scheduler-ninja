@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -8,70 +7,308 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+// ============================================================================
+// RATE LIMITING
+// In-memory rate limiting with TTL-based cleanup
+// Resets on function cold start, but effective for burst protection
+// ============================================================================
+const rateLimitMap = new Map<string, { count: number; firstAttemptAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 3600000; // 1 hour
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetIn: number } {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  
+  // Probabilistic cleanup (runs every ~100 requests)
+  if (Math.random() < 0.01) {
+    for (const [key, value] of rateLimitMap.entries()) {
+      if (now - value.firstAttemptAt > RATE_LIMIT_WINDOW_MS) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+  
+  if (!record || now - record.firstAttemptAt > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(ip, { count: 1, firstAttemptAt: now });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_ATTEMPTS - 1, resetIn: RATE_LIMIT_WINDOW_MS };
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX_ATTEMPTS) {
+    const resetIn = RATE_LIMIT_WINDOW_MS - (now - record.firstAttemptAt);
+    return { allowed: false, remaining: 0, resetIn };
+  }
+  
+  record.count++;
+  return { 
+    allowed: true, 
+    remaining: RATE_LIMIT_MAX_ATTEMPTS - record.count,
+    resetIn: RATE_LIMIT_WINDOW_MS - (now - record.firstAttemptAt)
+  };
+}
+
+// ============================================================================
+// DISPOSABLE EMAIL CHECK
+// Last updated: 2025-02-09
+// Update monthly from: https://github.com/disposable-email-domains/disposable-email-domains
+// Run: curl -s https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf | head -100
+// ============================================================================
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'tempmail.com', 'guerrillamail.com', 'mailinator.com', 
+  '10minutemail.com', 'throwaway.email', 'temp-mail.org',
+  'fakeinbox.com', 'trashmail.com', 'dispostable.com',
+  'sharklasers.com', 'yopmail.com', 'getnada.com',
+  'tempail.com', 'emailondeck.com', 'guerrillamailblock.com',
+  'maildrop.cc', 'mintemail.com', 'mohmal.com',
+  'mailcatch.com', 'tempr.email', 'throwawaymail.com',
+  'tmpmail.org', 'tmpmail.net', 'jetable.org',
+  'spamgourmet.com', 'mailnesia.com', 'mytrashmail.com',
+]);
+
+// ============================================================================
+// VALIDATION HELPERS
+// ============================================================================
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateEmail(email: unknown): { valid: boolean; error?: string } {
+  if (!email || typeof email !== 'string') {
+    return { valid: false, error: 'Email is required' };
+  }
+  
+  const trimmed = email.trim().toLowerCase();
+  
+  if (trimmed.length > 255) {
+    return { valid: false, error: 'Email must be less than 255 characters' };
+  }
+  
+  if (!EMAIL_REGEX.test(trimmed)) {
+    return { valid: false, error: 'Invalid email format' };
+  }
+  
+  // Check for unicode/emoji in email (basic ASCII only)
+  if (!/^[\x00-\x7F]+$/.test(trimmed)) {
+    return { valid: false, error: 'Email must contain only ASCII characters' };
+  }
+  
+  const domain = trimmed.split('@')[1];
+  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
+    return { valid: false, error: 'Disposable email addresses are not allowed' };
+  }
+  
+  return { valid: true };
+}
+
+function validatePassword(password: unknown): { valid: boolean; error?: string } {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, error: 'Password is required' };
+  }
+  
+  if (password.length < 8) {
+    return { valid: false, error: 'Password must be at least 8 characters' };
+  }
+  
+  if (password.length > 128) {
+    return { valid: false, error: 'Password must be less than 128 characters' };
+  }
+  
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  
+  if (!hasLetter || !hasNumber) {
+    return { valid: false, error: 'Password must contain at least one letter and one number' };
+  }
+  
+  return { valid: true };
+}
+
+function validateUserData(userData: unknown): { valid: boolean; error?: string } {
+  if (!userData || typeof userData !== 'object' || userData === null) {
+    return { valid: false, error: 'User data is required' };
+  }
+  
+  const data = userData as Record<string, unknown>;
+  
+  // Check name field (used by handle_new_user trigger)
+  if (data.name !== undefined) {
+    if (typeof data.name !== 'string') {
+      return { valid: false, error: 'Name must be a string' };
+    }
+    
+    const trimmedName = data.name.trim();
+    if (trimmedName.length === 0) {
+      return { valid: false, error: 'Name cannot be empty' };
+    }
+    
+    if (trimmedName.length > 255) {
+      return { valid: false, error: 'Name must be less than 255 characters' };
+    }
+    
+    // Basic XSS prevention - reject HTML tags
+    if (/<[^>]*>/.test(trimmedName)) {
+      return { valid: false, error: 'Name cannot contain HTML' };
+    }
+  }
+  
+  // Check company_name field if present
+  if (data.company_name !== undefined && data.company_name !== null) {
+    if (typeof data.company_name !== 'string') {
+      return { valid: false, error: 'Company name must be a string' };
+    }
+    
+    const trimmedCompany = data.company_name.trim();
+    if (trimmedCompany.length > 255) {
+      return { valid: false, error: 'Company name must be less than 255 characters' };
+    }
+    
+    // Basic XSS prevention - reject HTML tags
+    if (/<[^>]*>/.test(trimmedCompany)) {
+      return { valid: false, error: 'Company name cannot contain HTML' };
+    }
+  }
+  
+  // Check phone field if present
+  if (data.phone !== undefined && data.phone !== null) {
+    if (typeof data.phone !== 'string') {
+      return { valid: false, error: 'Phone must be a string' };
+    }
+    
+    if (data.phone.length > 50) {
+      return { valid: false, error: 'Phone must be less than 50 characters' };
+    }
+  }
+  
+  return { valid: true };
+}
+
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
 serve(async (req) => {
-  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-
-    // Initialize Supabase admin client with service role key
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get request data
-    const { email, password, userData } = await req.json();
-
-    // Validate required data
-    if (!email || !password || !userData) {
+    // Get client IP for rate limiting
+    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    // Check rate limit FIRST
+    const rateLimit = checkRateLimit(clientIP);
+    if (!rateLimit.allowed) {
+      console.warn('Registration: Rate limit exceeded', {
+        timestamp: new Date().toISOString(),
+        ip: clientIP,
+        resetInMs: rateLimit.resetIn,
+      });
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Too many registration attempts. Please try again later.' }),
         { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000))
+          } 
         }
       );
     }
 
-    console.log(`Creating business user for email: ${email}`);
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { email, password, userData } = body;
 
-    // Create the user with admin privileges
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      console.warn('Registration: Email validation failed', {
+        timestamp: new Date().toISOString(),
+        error: emailValidation.error,
+      });
+      return new Response(
+        JSON.stringify({ error: emailValidation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: passwordValidation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate userData
+    const userDataValidation = validateUserData(userData);
+    if (!userDataValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: userDataValidation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Log registration attempt (never log password)
+    console.log('Creating business user', {
+      timestamp: new Date().toISOString(),
+      emailDomain: email.split('@')[1],
+      ip: clientIP,
+      rateLimitRemaining: rateLimit.remaining,
+    });
+
+    // Create user
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const { data, error } = await supabase.auth.admin.createUser({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       email_confirm: true,
       user_metadata: userData
     });
 
     if (error) {
-      console.error("Error creating business user:", error);
+      console.error("Error creating business user:", {
+        timestamp: new Date().toISOString(),
+        errorMessage: error.message,
+      });
       throw error;
     }
 
-    console.log("Business user created successfully:", data.user?.id);
+    console.log("Business user created successfully:", {
+      timestamp: new Date().toISOString(),
+      userId: data.user?.id,
+    });
 
     return new Response(
       JSON.stringify({ data, success: true }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+    
   } catch (error) {
-    console.error("Error in create-business-user function:", error);
+    console.error("Error in create-business-user function:", {
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Failed to create business user',
         success: false 
       }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

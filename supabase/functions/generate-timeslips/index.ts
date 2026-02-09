@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { Resend } from 'npm:resend@4.0.0';
+import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,6 +51,16 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require admin or cron authentication
+  const authResult = await requireAdminOrCronAuth(req);
+  if (!authResult.success) {
+    return createAuthErrorResponse(authResult.error!, authResult.status!);
+  }
+  console.log(`Authorized via: ${authResult.authType}`, {
+    timestamp: new Date().toISOString(),
+    userId: authResult.userId || 'cron',
+  });
+
   const startTime = Date.now();
   
   try {
@@ -59,6 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const { date }: GenerateTimeslipsRequest = await req.json();
+    const authHeader = req.headers.get('Authorization');
     
     console.log('=== GENERATE TIMESLIPS STARTED ===');
     console.log('Timestamp:', new Date().toISOString());
@@ -66,10 +78,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Data source: Database (collection_confirmation_sent_at, delivery_confirmation_sent_at)');
 
     // Query database for completed jobs on this date
+    // Pass the original auth header to the nested function call
     const { data: databaseData, error: dbError } = await supabaseClient.functions.invoke(
       'query-database-completed-jobs',
       {
-        body: { date }
+        body: { date },
+        headers: authHeader ? { Authorization: authHeader } : {}
       }
     );
 

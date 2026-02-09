@@ -138,6 +138,7 @@ export type CreateOrderFormData = {
   isBikeSwap: boolean;
   partExchangeBikeBrand?: string;
   partExchangeBikeModel?: string;
+  partExchangeBikeType?: string;
   isEbayOrder: boolean;
   collectionCode?: string;
   deliveryInstructions?: string;

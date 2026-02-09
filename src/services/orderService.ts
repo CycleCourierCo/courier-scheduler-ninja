@@ -242,7 +242,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, isEbayOrder, collectionCode, deliveryInstructions, needsInspection } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, isEbayOrder, collectionCode, deliveryInstructions, needsInspection } = data;
 
     const {
       street: senderStreet,
@@ -400,7 +400,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     }
     
     // Create reverse order for part exchange
-    if (isBikeSwap && partExchangeBikeBrand && partExchangeBikeModel) {
+    if (isBikeSwap && partExchangeBikeBrand && partExchangeBikeModel && partExchangeBikeType) {
       try {
         const reverseTrackingNumber = await generateTrackingNumber(receiver.name, sender.address.zipCode);
         
@@ -438,6 +438,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             },
             bike_brand: partExchangeBikeBrand,
             bike_model: partExchangeBikeModel,
+            bike_type: partExchangeBikeType,
             bike_quantity: 1,
             customer_order_number: customerOrderNumber ? `${customerOrderNumber}-RETURN` : undefined,
             needs_payment_on_collection: false,
@@ -451,7 +452,20 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           })
           .select()
           .single();
+
+        // Create Shipday jobs for the reverse order
+        if (reverseOrder && !reverseError) {
+          try {
+            const { createShipdayOrder } = await import('@/services/shipdayService');
+            await createShipdayOrder(reverseOrder.id);
+            console.log('Created Shipday jobs for reverse order:', reverseOrder.id);
+          } catch (shipdayError) {
+            console.error('Failed to create Shipday jobs for reverse order:', shipdayError);
+            // Don't fail the order creation if Shipday fails
+          }
+        }
       } catch (reverseOrderError) {
+        console.error('Failed to create reverse order:', reverseOrderError);
         // Don't throw here - we don't want to fail the main order creation
       }
     }

@@ -30,6 +30,7 @@ interface InvoiceRequest {
     customer_order_number: string;
     sender: any;
     receiver: any;
+    needs_inspection?: boolean | null;
   }>;
 }
 
@@ -107,6 +108,58 @@ async function findProductByBikeType(
   } else {
     const errorText = await response.text();
     console.error(`Error querying product for ${bikeType}:`, errorText);
+  }
+  
+  return null;
+}
+
+async function findProductByExactName(
+  accessToken: string,
+  companyId: string,
+  productName: string
+): Promise<ProductInfo | null> {
+  // Check cache first
+  if (productCache.has(productName)) {
+    console.log(`Using cached product for: ${productName}`);
+    return productCache.get(productName) || null;
+  }
+
+  console.log(`Looking up QuickBooks product by exact name: ${productName}`);
+  
+  const escapedProductName = escapeQuickBooksString(productName);
+  const query = `SELECT * FROM Item WHERE Name = '${escapedProductName}' AND Active=true`;
+  
+  const response = await fetch(
+    `https://quickbooks.api.intuit.com/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    }
+  );
+
+  if (response.ok) {
+    const data = await response.json();
+    const item = data.QueryResponse?.Item?.[0];
+    
+    if (item) {
+      const product: ProductInfo = { 
+        id: item.Id, 
+        name: item.Name, 
+        price: item.UnitPrice || 0
+      };
+      console.log(`Found product "${productName}": ID=${product.id}, Price=${product.price}`);
+      productCache.set(productName, product);
+      return product;
+    } else {
+      console.warn(`No product found with name: ${productName}`);
+      productCache.set(productName, null);
+    }
+  } else {
+    const errorText = await response.text();
+    console.error(`Error querying product "${productName}":`, errorText);
   }
   
   return null;
@@ -364,7 +417,40 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn('Failed to fetch tax codes:', await taxCodeResponse.text());
     }
 
-    // Build line items with bike-type-based pricing
+    // Check for special rate code on customer profile
+    let specialRateProduct: ProductInfo | null = null;
+    let specialRateCode: string | null = null;
+    
+    const { data: customerProfile, error: customerProfileError } = await supabase
+      .from('profiles')
+      .select('special_rate_code')
+      .eq('id', invoiceData.customerId)
+      .single();
+    
+    if (customerProfileError) {
+      console.warn('Could not fetch customer profile for special rate check:', customerProfileError.message);
+    } else if (customerProfile?.special_rate_code) {
+      specialRateCode = customerProfile.special_rate_code.trim();
+      if (specialRateCode) {
+        console.log(`Customer has special rate code: ${specialRateCode}`);
+        specialRateProduct = await findProductByBikeType(
+          tokenData.access_token, 
+          tokenData.company_id, 
+          `Special Rate - ${specialRateCode}`
+        );
+        
+        if (!specialRateProduct) {
+          throw new Error(
+            `Special rate product not found in QuickBooks: ` +
+            `"Collection and Delivery within England and Wales - Special Rate - ${specialRateCode}". ` +
+            `Please create this product in QuickBooks first.`
+          );
+        }
+        console.log(`Using special rate product: ${specialRateProduct.name} @ £${specialRateProduct.price}`);
+      }
+    }
+
+    // Build line items with bike-type-based pricing (or special rate if set)
     const lineItems: any[] = [];
     const missingProducts: string[] = [];
     
@@ -403,24 +489,32 @@ const handler = async (req: Request): Promise<Response> => {
       for (let i = 0; i < bikesToProcess.length; i++) {
         const bike = bikesToProcess[i];
         
-        // Normalize legacy bike type names and look up product
-        const normalizedType = normalizeBikeType(bike.type);
-        const product = normalizedType && normalizedType !== 'Unknown' 
-          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
-          : null;
+        // Use special rate product if customer has one, otherwise look up by bike type
+        let product: ProductInfo | null = null;
         
-        if (!product && normalizedType && normalizedType !== 'Unknown') {
-          if (!missingProducts.includes(normalizedType)) {
-            missingProducts.push(normalizedType);
+        if (specialRateProduct) {
+          // Use special rate for ALL bikes when customer has special rate code
+          product = specialRateProduct;
+        } else {
+          // Normalize legacy bike type names and look up product
+          const normalizedType = normalizeBikeType(bike.type);
+          product = normalizedType && normalizedType !== 'Unknown' 
+            ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
+            : null;
+          
+          if (!product && normalizedType && normalizedType !== 'Unknown') {
+            if (!missingProducts.includes(normalizedType)) {
+              missingProducts.push(normalizedType);
+            }
+            console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
+            continue;
           }
-          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
-          continue;
-        }
-        
-        // If no product found at all, skip this bike
-        if (!product) {
-          console.warn(`Skipping bike ${i + 1} in order ${order.tracking_number} - no product available`);
-          continue;
+          
+          // If no product found at all, skip this bike
+          if (!product) {
+            console.warn(`Skipping bike ${i + 1} in order ${order.tracking_number} - no product available`);
+            continue;
+          }
         }
         
         // Build description
@@ -445,11 +539,46 @@ const handler = async (req: Request): Promise<Response> => {
             UnitPrice: product.price,
             ServiceDate: serviceDate,
             ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
-          },
-          Description: description
+        },
+        Description: description
         });
         
         console.log(`Added line item: ${description} @ £${product.price}`);
+        
+        // Check if order needs inspection and add service line item
+        if (order.needs_inspection) {
+          const inspectionProduct = await findProductByExactName(
+            tokenData.access_token,
+            tokenData.company_id,
+            'Bike Inspection & Service'
+          );
+          
+          if (inspectionProduct) {
+            // Use the same description as the delivery line item
+            lineItems.push({
+              Amount: inspectionProduct.price,
+              DetailType: "SalesItemLineDetail",
+              SalesItemLineDetail: {
+                ItemRef: {
+                  value: inspectionProduct.id,
+                  name: inspectionProduct.name
+                },
+                Qty: 1,
+                UnitPrice: inspectionProduct.price,
+                ServiceDate: serviceDate,
+                ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+              },
+              Description: description
+            });
+            
+            console.log(`Added inspection line item: ${description} @ £${inspectionProduct.price}`);
+          } else {
+            console.warn(`Inspection product "Bike Inspection & Service" not found in QuickBooks`);
+            if (!missingProducts.includes('Bike Inspection & Service')) {
+              missingProducts.push('Bike Inspection & Service');
+            }
+          }
+        }
       }
     }
     
