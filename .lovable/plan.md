@@ -1,52 +1,74 @@
 
-
-## Upgrade jsPDF to Version 4.0.0
-
-Upgrade the jsPDF library from 3.0.1 to 4.0.0 to address the path traversal security vulnerability and future-proof the application.
-
----
+# Plan: Fix Sensitive Data Logging in Edge Functions
 
 ## Summary
 
-This is a straightforward dependency upgrade. The jsPDF 4.0.0 release explicitly states that it **does not introduce other breaking changes** beyond the security fix (which only affects Node.js builds, not browser usage).
+Remove or sanitize all console.log statements that expose sensitive information (API keys, secrets, tokens) in Supabase Edge Functions. These logs persist in the Supabase dashboard and could be accessed by attackers who gain access to the logs.
 
----
+## Files to Modify
 
-## Change Required
+### 1. supabase/functions/orders/index.ts
 
-### Update package.json
+**Current Issues:**
+- Line 59: Logs first 20 characters of API key
+- Line 61: Logs userId and full error object (may contain sensitive details)
+- Line 64: Logs userId in error case
 
-**File:** `package.json` (line 53)
+**Changes:**
+```typescript
+// Line 59 - Replace:
+console.log('Received API key:', apiKey?.substring(0, 20) + '...')
+// With:
+console.log('API key received, verifying...')
 
-| Before | After |
-|--------|-------|
-| `"jspdf": "^3.0.1"` | `"jspdf": "^4.0.0"` |
+// Line 61 - Replace:
+console.log('verify_api_key result - userId:', userId, 'error:', keyError)
+// With:
+console.log('API key verification:', userId ? 'success' : 'failed')
 
----
+// Line 64 - Replace:
+console.error('API key verification failed:', userId)
+// With:
+console.error('API key verification failed')
+```
 
-## Why This Is Safe
+### 2. supabase/functions/create-webhook-config/index.ts
 
-1. **No API changes**: The 4.0.0 release notes confirm no other breaking changes beyond the security fix
-2. **Browser-only usage**: Your app uses jsPDF in the browser where the vulnerability doesn't apply
-3. **Standard methods**: All methods used (`new jsPDF()`, `addPage()`, `text()`, `addImage()`, `save()`) remain unchanged
-4. **Hardcoded paths**: The only image path used is `/cycle-courier-logo.png` (not user-controlled)
+**Current Issue:**
+- Line 119: Logs secretId and vaultKey which could be used to access the webhook secret
 
----
+**Changes:**
+```typescript
+// Line 119 - Replace:
+console.log('Webhook secret stored in vault:', { secretId, vaultKey })
+// With:
+console.log('Webhook secret stored in vault successfully')
+```
 
-## Files Using jsPDF
+## Files Reviewed but No Changes Needed
 
-| File | Usage |
-|------|-------|
-| `src/utils/labelUtils.ts` | Generates single order shipping labels |
-| `src/pages/LoadingUnloadingPage.tsx` | Generates batch collection labels |
+The following files were reviewed and their logging is acceptable:
 
-Both files use the same jsPDF methods and patterns, which are fully compatible with v4.0.0.
+- **refresh-quickbooks-tokens/index.ts**: Logs user IDs (not secrets) and token refresh status - acceptable
+- **create-quickbooks-invoice/index.ts**: Logs token refresh status - acceptable  
+- **create-quickbooks-bill/index.ts**: Logs token expiry status - acceptable
+- **send-loading-list-whatsapp/index.ts**: Logs that API key is not configured - acceptable
+- **create-shipday-order/index.ts**: Logs API response status/body - acceptable (responses, not keys)
+- **shopify-webhook/index.ts**: Logs order data - acceptable (business data, not credentials)
 
----
+## Technical Details
 
-## Testing Recommendation
+### Why This Matters
+- Edge functions run in Deno on Supabase infrastructure
+- The `vite-plugin-remove-console` only affects frontend builds via Vite
+- Edge function logs persist in the Supabase dashboard and are accessible to anyone with project access
+- Partial key exposure (20 characters) significantly reduces brute-force keyspace
 
-After the upgrade, test these PDF generation features:
-- Generate a single order label from the order detail page
-- Generate batch collection labels from the Loading/Unloading page
+### Logging Best Practices Applied
+1. Log the **action** being performed, not the **credential**
+2. Log **success/failure status**, not the **data** used
+3. Use generic identifiers when needed (e.g., "user authenticated" vs logging user tokens)
 
+## Deployment
+
+Changes will be deployed automatically when the edge functions are updated. No additional configuration needed.
