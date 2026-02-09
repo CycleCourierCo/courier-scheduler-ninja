@@ -39,6 +39,16 @@ interface ProductInfo {
   price: number;
 }
 
+// Map legacy bike types to current QuickBooks product names
+function normalizeBikeType(bikeType: string): string {
+  const legacyMappings: Record<string, string> = {
+    'Electric Bikes': 'Electric Bike - Under 25kg',
+    // Add other legacy mappings here if needed
+  };
+  
+  return legacyMappings[bikeType] || bikeType;
+}
+
 // Cache for product lookups to avoid repeated API calls
 const productCache = new Map<string, ProductInfo | null>();
 
@@ -371,15 +381,19 @@ const handler = async (req: Request): Promise<Response> => {
       for (let i = 0; i < bikesToProcess.length; i++) {
         const bike = bikesToProcess[i];
         
-        // Look up product by bike type
-        const product = bike.type && bike.type !== 'Unknown' 
-          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, bike.type)
+        // Normalize legacy bike type names and look up product
+        const normalizedType = normalizeBikeType(bike.type);
+        const product = normalizedType && normalizedType !== 'Unknown' 
+          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
           : null;
         
-        if (!product && bike.type && bike.type !== 'Unknown') {
-          if (!missingProducts.includes(bike.type)) {
-            missingProducts.push(bike.type);
+        if (!product && normalizedType && normalizedType !== 'Unknown') {
+          if (!missingProducts.includes(normalizedType)) {
+            missingProducts.push(normalizedType);
           }
+          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
+          continue;
+        }
           console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type}`);
           continue;
         }
