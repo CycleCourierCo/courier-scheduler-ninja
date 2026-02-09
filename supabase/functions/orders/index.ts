@@ -56,12 +56,12 @@ Deno.serve(async (req) => {
       }
 
       // Verify API key and get user ID
-      console.log('Received API key:', apiKey?.substring(0, 20) + '...')
+      console.log('API key received, verifying...')
       const { data: userId, error: keyError } = await supabase.rpc('verify_api_key', { api_key: apiKey })
-      console.log('verify_api_key result - userId:', userId, 'error:', keyError)
+      console.log('API key verification:', userId ? 'success' : 'failed')
       
       if (keyError || !userId) {
-        console.error('API key verification failed:', userId)
+        console.error('API key verification failed')
         return new Response(
           JSON.stringify({ error: 'Invalid API key', code: 'INVALID_API_KEY' }),
           { 
