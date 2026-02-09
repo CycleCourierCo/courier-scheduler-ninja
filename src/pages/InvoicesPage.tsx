@@ -38,6 +38,7 @@ type InvoiceItem = {
   customer_order_number: string;
   sender: any;
   receiver: any;
+  needs_inspection: boolean | null;
 };
 
 type InvoiceHistory = {
@@ -165,7 +166,8 @@ export default function InvoicesPage() {
           bikes,
           customer_order_number,
           sender,
-          receiver
+          receiver,
+          needs_inspection
         `)
         .eq("user_id", selectedCustomer)
         .gte("created_at", startDate.toISOString())

@@ -30,6 +30,7 @@ interface InvoiceRequest {
     customer_order_number: string;
     sender: any;
     receiver: any;
+    needs_inspection?: boolean | null;
   }>;
 }
 
@@ -107,6 +108,58 @@ async function findProductByBikeType(
   } else {
     const errorText = await response.text();
     console.error(`Error querying product for ${bikeType}:`, errorText);
+  }
+  
+  return null;
+}
+
+async function findProductByExactName(
+  accessToken: string,
+  companyId: string,
+  productName: string
+): Promise<ProductInfo | null> {
+  // Check cache first
+  if (productCache.has(productName)) {
+    console.log(`Using cached product for: ${productName}`);
+    return productCache.get(productName) || null;
+  }
+
+  console.log(`Looking up QuickBooks product by exact name: ${productName}`);
+  
+  const escapedProductName = escapeQuickBooksString(productName);
+  const query = `SELECT * FROM Item WHERE Name = '${escapedProductName}' AND Active=true`;
+  
+  const response = await fetch(
+    `https://quickbooks.api.intuit.com/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    }
+  );
+
+  if (response.ok) {
+    const data = await response.json();
+    const item = data.QueryResponse?.Item?.[0];
+    
+    if (item) {
+      const product: ProductInfo = { 
+        id: item.Id, 
+        name: item.Name, 
+        price: item.UnitPrice || 0
+      };
+      console.log(`Found product "${productName}": ID=${product.id}, Price=${product.price}`);
+      productCache.set(productName, product);
+      return product;
+    } else {
+      console.warn(`No product found with name: ${productName}`);
+      productCache.set(productName, null);
+    }
+  } else {
+    const errorText = await response.text();
+    console.error(`Error querying product "${productName}":`, errorText);
   }
   
   return null;
@@ -486,11 +539,46 @@ const handler = async (req: Request): Promise<Response> => {
             UnitPrice: product.price,
             ServiceDate: serviceDate,
             ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
-          },
-          Description: description
+        },
+        Description: description
         });
         
         console.log(`Added line item: ${description} @ £${product.price}`);
+        
+        // Check if order needs inspection and add service line item
+        if (order.needs_inspection) {
+          const inspectionProduct = await findProductByExactName(
+            tokenData.access_token,
+            tokenData.company_id,
+            'Bike Inspection & Service'
+          );
+          
+          if (inspectionProduct) {
+            // Use the same description as the delivery line item
+            lineItems.push({
+              Amount: inspectionProduct.price,
+              DetailType: "SalesItemLineDetail",
+              SalesItemLineDetail: {
+                ItemRef: {
+                  value: inspectionProduct.id,
+                  name: inspectionProduct.name
+                },
+                Qty: 1,
+                UnitPrice: inspectionProduct.price,
+                ServiceDate: serviceDate,
+                ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+              },
+              Description: description
+            });
+            
+            console.log(`Added inspection line item: ${description} @ £${inspectionProduct.price}`);
+          } else {
+            console.warn(`Inspection product "Bike Inspection & Service" not found in QuickBooks`);
+            if (!missingProducts.includes('Bike Inspection & Service')) {
+              missingProducts.push('Bike Inspection & Service');
+            }
+          }
+        }
       }
     }
     
