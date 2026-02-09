@@ -1,74 +1,161 @@
 
-# Plan: Fix Sensitive Data Logging in Edge Functions
+
+# Plan: Fix Stack Trace Exposure in Edge Functions
 
 ## Summary
 
-Remove or sanitize all console.log statements that expose sensitive information (API keys, secrets, tokens) in Supabase Edge Functions. These logs persist in the Supabase dashboard and could be accessed by attackers who gain access to the logs.
+Remove the `details` field from error responses in 6 Supabase Edge Functions to prevent exposing internal stack traces and error objects to API consumers. The `console.error` statements will be retained for server-side debugging.
+
+## Why This Matters
+
+When error objects or stack traces are included in HTTP responses:
+- Internal file paths and function names are exposed
+- Database query structures may be revealed
+- Third-party API details could leak
+- Attackers can use this information to craft targeted attacks
 
 ## Files to Modify
 
-### 1. supabase/functions/orders/index.ts
+### 1. supabase/functions/send-timeslot-whatsapp/index.ts (Lines 611-616)
 
-**Current Issues:**
-- Line 59: Logs first 20 characters of API key
-- Line 61: Logs userId and full error object (may contain sensitive details)
-- Line 64: Logs userId in error case
-
-**Changes:**
+**Current:**
 ```typescript
-// Line 59 - Replace:
-console.log('Received API key:', apiKey?.substring(0, 20) + '...')
-// With:
-console.log('API key received, verifying...')
-
-// Line 61 - Replace:
-console.log('verify_api_key result - userId:', userId, 'error:', keyError)
-// With:
-console.log('API key verification:', userId ? 'success' : 'failed')
-
-// Line 64 - Replace:
-console.error('API key verification failed:', userId)
-// With:
-console.error('API key verification failed')
+return new Response(
+  JSON.stringify({
+    success: false,
+    error: error?.message || "Unexpected error occurred",
+    details: error,  // <-- REMOVE
+  }),
 ```
 
-### 2. supabase/functions/create-webhook-config/index.ts
-
-**Current Issue:**
-- Line 119: Logs secretId and vaultKey which could be used to access the webhook secret
-
-**Changes:**
+**Change to:**
 ```typescript
-// Line 119 - Replace:
-console.log('Webhook secret stored in vault:', { secretId, vaultKey })
-// With:
-console.log('Webhook secret stored in vault successfully')
+return new Response(
+  JSON.stringify({
+    success: false,
+    error: error?.message || "Unexpected error occurred",
+  }),
 ```
 
-## Files Reviewed but No Changes Needed
+### 2. supabase/functions/send-loading-list-whatsapp/index.ts (Lines 744-748)
 
-The following files were reviewed and their logging is acceptable:
+**Current:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to send loading list',
+    details: error  // <-- REMOVE
+  }),
+```
 
-- **refresh-quickbooks-tokens/index.ts**: Logs user IDs (not secrets) and token refresh status - acceptable
-- **create-quickbooks-invoice/index.ts**: Logs token refresh status - acceptable  
-- **create-quickbooks-bill/index.ts**: Logs token expiry status - acceptable
-- **send-loading-list-whatsapp/index.ts**: Logs that API key is not configured - acceptable
-- **create-shipday-order/index.ts**: Logs API response status/body - acceptable (responses, not keys)
-- **shopify-webhook/index.ts**: Logs order data - acceptable (business data, not credentials)
+**Change to:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to send loading list'
+  }),
+```
+
+### 3. supabase/functions/send-timeslip-whatsapp/index.ts (Lines 79-83)
+
+**Current:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to send timeslip',
+    details: error  // <-- REMOVE
+  }),
+```
+
+**Change to:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to send timeslip'
+  }),
+```
+
+### 4. supabase/functions/generate-timeslips/index.ts (Lines 512-517)
+
+**Current:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to generate timeslips',
+    details: error.stack,  // <-- REMOVE
+    executionTime: executionTime
+  }),
+```
+
+**Change to:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to generate timeslips',
+    executionTime: executionTime
+  }),
+```
+
+### 5. supabase/functions/query-shipday-completed-orders/index.ts (Lines 249-253)
+
+**Current:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to query Shipday orders',
+    details: error  // <-- REMOVE
+  }),
+```
+
+**Change to:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to query Shipday orders'
+  }),
+```
+
+### 6. supabase/functions/query-database-completed-jobs/index.ts (Lines 208-212)
+
+**Current:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to query completed jobs',
+    details: error.stack  // <-- REMOVE
+  }),
+```
+
+**Change to:**
+```typescript
+return new Response(
+  JSON.stringify({ 
+    error: error.message || 'Failed to query completed jobs'
+  }),
+```
 
 ## Technical Details
 
-### Why This Matters
-- Edge functions run in Deno on Supabase infrastructure
-- The `vite-plugin-remove-console` only affects frontend builds via Vite
-- Edge function logs persist in the Supabase dashboard and are accessible to anyone with project access
-- Partial key exposure (20 characters) significantly reduces brute-force keyspace
+### What We Keep
+- `console.error()` statements remain for server-side logging in Supabase dashboard
+- Human-readable `error.message` in responses for debugging on the client side
+- `executionTime` in generate-timeslips (non-sensitive operational metric)
 
-### Logging Best Practices Applied
-1. Log the **action** being performed, not the **credential**
-2. Log **success/failure status**, not the **data** used
-3. Use generic identifiers when needed (e.g., "user authenticated" vs logging user tokens)
+### What We Remove
+- `details: error` - serializes the entire error object including stack trace
+- `details: error.stack` - directly exposes the stack trace
+
+### Security Best Practice
+Log full errors server-side, return only generic messages to clients:
+```typescript
+// Server-side (keep)
+console.error('Error in function:', error);
+
+// Client response (sanitized)
+JSON.stringify({ error: error.message || 'Generic error message' })
+```
 
 ## Deployment
 
 Changes will be deployed automatically when the edge functions are updated. No additional configuration needed.
+
