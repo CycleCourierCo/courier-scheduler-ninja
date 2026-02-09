@@ -349,6 +349,7 @@ export default function InvoicesPage() {
     const failedInvoices: any[] = [];
     const allOrdersData: any[] = [];
     const skippedCustomers: any[] = [];
+    const allMissingProducts: { product: string; customerName: string }[] = [];
 
     for (let i = 0; i < eligibleCustomers.length; i++) {
       const customer = eligibleCustomers[i];
@@ -395,11 +396,21 @@ export default function InvoicesPage() {
 
         if (error) throw error;
 
+        // Track missing products for this invoice
+        if (data?.missingProducts && Array.isArray(data.missingProducts)) {
+          for (const product of data.missingProducts) {
+            allMissingProducts.push({ product, customerName: customer.name });
+          }
+        }
+
         successfulInvoices.push({
           customerName: customer.name,
           customerEmail: customer.accounts_email,
           orderCount: customerOrders.length,
-          invoiceNumber: data?.invoice_number,
+          bikeCount: data?.stats?.bikeCount || customerOrders.length,
+          skippedBikes: data?.stats?.skippedBikes || 0,
+          invoiceNumber: data?.stats?.invoiceNumber || data?.invoice_number,
+          missingProducts: data?.missingProducts || [],
         });
 
         toast({
@@ -485,6 +496,19 @@ export default function InvoicesPage() {
           deliveryTimes.filter(t => t.collectionToDelivery !== null).length
       : 0;
 
+    // Calculate missing products summary
+    const uniqueMissingProducts = [...new Set(allMissingProducts.map(mp => mp.product))];
+    const getCustomersWithMissingProduct = (product: string) => {
+      const customers = allMissingProducts
+        .filter(mp => mp.product === product)
+        .map(mp => mp.customerName);
+      return [...new Set(customers)].join(', ');
+    };
+    
+    // Calculate total bikes and skipped bikes
+    const totalBikesInvoiced = successfulInvoices.reduce((sum, inv) => sum + (inv.bikeCount || 0), 0);
+    const totalBikesSkipped = successfulInvoices.reduce((sum, inv) => sum + (inv.skippedBikes || 0), 0);
+
     // Send email report
     try {
       await supabase.functions.invoke("send-email", {
@@ -503,15 +527,36 @@ export default function InvoicesPage() {
               <li>Total Customers Processed: ${eligibleCustomers.length}</li>
             </ul>
 
-            <h3>Order Statistics</h3>
+            <h3>Order & Bike Statistics</h3>
             <ul>
               <li>Total Orders Included in Invoices: ${allOrdersData.length}</li>
+              <li>Total Bikes Invoiced: ${totalBikesInvoiced}</li>
+              ${totalBikesSkipped > 0 ? `<li style="color: #dc2626;">Bikes Skipped (Missing Products): ${totalBikesSkipped}</li>` : ''}
               <li>Total Orders from Skipped Customers: ${skippedCustomers.reduce((sum, c) => sum + c.orderCount, 0)}</li>
               <li>Delivered Orders: ${deliveredOrders.length}</li>
               <li>Collected Orders: ${collectedOrders.length}</li>
               <li>Average Creation to Delivery: ${avgCreationToDelivery.toFixed(1)} hours</li>
               <li>Average Collection to Delivery: ${avgCollectionToDelivery.toFixed(1)} hours</li>
             </ul>
+
+            ${uniqueMissingProducts.length > 0 ? `
+              <h3 style="color: #dc2626;">⚠️ Missing QuickBooks Products (Bike Types)</h3>
+              <p>The following bike types could not be matched to QuickBooks products and were excluded from invoices:</p>
+              <table border="1" cellpadding="8" cellspacing="0" style="background-color: #fee2e2;">
+                <tr>
+                  <th>Bike Type</th>
+                  <th>Affected Customers</th>
+                </tr>
+                ${uniqueMissingProducts.map(product => `
+                  <tr>
+                    <td>${product}</td>
+                    <td>${getCustomersWithMissingProduct(product)}</td>
+                  </tr>
+                `).join('')}
+              </table>
+              <p><strong>Action Required:</strong> Create these products in QuickBooks with the naming format:<br>
+              "Collection and Delivery within England and Wales - [Bike Type]"</p>
+            ` : '<p style="color: #16a34a;">✓ All bike types matched to QuickBooks products</p>'}
 
             <h3>Successful Invoices</h3>
             ${successfulInvoices.length > 0 ? `
@@ -520,6 +565,7 @@ export default function InvoicesPage() {
                   <th>Customer</th>
                   <th>Email</th>
                   <th>Orders</th>
+                  <th>Bikes</th>
                   <th>Invoice #</th>
                 </tr>
                 ${successfulInvoices.map(inv => `
@@ -527,6 +573,7 @@ export default function InvoicesPage() {
                     <td>${inv.customerName}</td>
                     <td>${inv.customerEmail}</td>
                     <td>${inv.orderCount}</td>
+                    <td>${inv.bikeCount}${inv.skippedBikes > 0 ? ` <span style="color: #dc2626;">(${inv.skippedBikes} skipped)</span>` : ''}</td>
                     <td>${inv.invoiceNumber || 'N/A'}</td>
                   </tr>
                 `).join('')}

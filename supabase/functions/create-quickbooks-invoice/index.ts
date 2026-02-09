@@ -39,6 +39,16 @@ interface ProductInfo {
   price: number;
 }
 
+// Map legacy bike types to current QuickBooks product names
+function normalizeBikeType(bikeType: string): string {
+  const legacyMappings: Record<string, string> = {
+    'Electric Bikes': 'Electric Bike - Under 25kg',
+    'Non-Electric Bikes': 'Non-Electric Bikes',
+  };
+  
+  return legacyMappings[bikeType] || bikeType;
+}
+
 // Cache for product lookups to avoid repeated API calls
 const productCache = new Map<string, ProductInfo | null>();
 
@@ -267,39 +277,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
     }
 
-    // Fetch tax codes
-    const taxCodesUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode`;
-    
-    const taxCodesResponse = await fetch(taxCodesUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    let nonTaxableCode = "NON";
-    
-    if (taxCodesResponse.ok) {
-      const taxCodesData = await taxCodesResponse.json();
-      console.log('Available tax codes:', taxCodesData);
-      
-      const taxCodes = taxCodesData.QueryResponse?.TaxCode || [];
-      const nonTaxable = taxCodes.find((code: any) => 
-        code.Name?.toLowerCase().includes('non') || 
-        code.Name?.toLowerCase().includes('zero') ||
-        code.Name?.toLowerCase().includes('exempt') ||
-        code.TaxRateRef?.value === "0"
-      );
-      
-      if (nonTaxable) {
-        nonTaxableCode = nonTaxable.Id;
-        console.log('Using tax code:', nonTaxableCode, 'for', nonTaxable.Name);
-      }
-    } else {
-      console.warn('Failed to fetch tax codes, using default NON');
-    }
-
     // Query for sales terms
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
     
@@ -330,6 +307,55 @@ const handler = async (req: Request): Promise<Response> => {
       }
     } else {
       console.warn('Failed to fetch terms');
+    }
+
+    // Query for VAT tax code (UK 20% standard rate)
+    let vatTaxCodeId: string | null = null;
+    
+    const taxCodeUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode WHERE Active=true`;
+    
+    const taxCodeResponse = await fetch(taxCodeUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (taxCodeResponse.ok) {
+      const taxCodeData = await taxCodeResponse.json();
+      console.log('Available tax codes:', JSON.stringify(taxCodeData, null, 2));
+      
+      const taxCodes = taxCodeData.QueryResponse?.TaxCode || [];
+      // Look for standard UK VAT rate (20%) - try various common names
+      const vatCode = taxCodes.find((code: any) => 
+        code.Name === '20.0% S' ||
+        code.Name === '20% S' ||
+        code.Name === 'Standard' ||
+        code.Name?.includes('20%') ||
+        code.Name?.toLowerCase().includes('standard')
+      );
+      
+      if (vatCode) {
+        vatTaxCodeId = vatCode.Id;
+        console.log('Using VAT tax code:', vatCode.Name, 'with ID:', vatTaxCodeId);
+      } else {
+        // Fall back to any taxable code (not zero/exempt)
+        const anyTaxableCode = taxCodes.find((code: any) => 
+          !code.Name?.toLowerCase().includes('zero') &&
+          !code.Name?.toLowerCase().includes('exempt') &&
+          !code.Name?.toLowerCase().includes('non') &&
+          code.Taxable === true
+        );
+        if (anyTaxableCode) {
+          vatTaxCodeId = anyTaxableCode.Id;
+          console.log('Using fallback taxable code:', anyTaxableCode.Name, 'with ID:', vatTaxCodeId);
+        } else {
+          console.warn('No suitable VAT tax code found, invoice may fail');
+        }
+      }
+    } else {
+      console.warn('Failed to fetch tax codes:', await taxCodeResponse.text());
     }
 
     // Build line items with bike-type-based pricing
@@ -371,16 +397,17 @@ const handler = async (req: Request): Promise<Response> => {
       for (let i = 0; i < bikesToProcess.length; i++) {
         const bike = bikesToProcess[i];
         
-        // Look up product by bike type
-        const product = bike.type && bike.type !== 'Unknown' 
-          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, bike.type)
+        // Normalize legacy bike type names and look up product
+        const normalizedType = normalizeBikeType(bike.type);
+        const product = normalizedType && normalizedType !== 'Unknown' 
+          ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
           : null;
         
-        if (!product && bike.type && bike.type !== 'Unknown') {
-          if (!missingProducts.includes(bike.type)) {
-            missingProducts.push(bike.type);
+        if (!product && normalizedType && normalizedType !== 'Unknown') {
+          if (!missingProducts.includes(normalizedType)) {
+            missingProducts.push(normalizedType);
           }
-          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type}`);
+          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
           continue;
         }
         
@@ -410,10 +437,8 @@ const handler = async (req: Request): Promise<Response> => {
             },
             Qty: 1,
             UnitPrice: product.price,
-            TaxCodeRef: {
-              value: nonTaxableCode
-            },
-            ServiceDate: serviceDate
+            ServiceDate: serviceDate,
+            ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
           },
           Description: description
         });
@@ -541,13 +566,76 @@ const handler = async (req: Request): Promise<Response> => {
     if (historyError) {
       console.error('Error saving invoice history:', historyError);
     }
+
+    // Calculate stats for reporting
+    const totalBikesInOrders = invoiceData.orders.reduce((count, order) => {
+      const bikesInOrder = order.bikes?.length || order.bike_quantity || 1;
+      return count + bikesInOrder;
+    }, 0);
+    const skippedBikes = totalBikesInOrders - lineItems.length;
+
+    // Send email report after successful invoice creation
+    try {
+      const reportHtml = `
+        <h2>QuickBooks Invoice Created</h2>
+        <p><strong>Customer:</strong> ${invoiceData.customerName}</p>
+        <p><strong>Email:</strong> ${invoiceData.customerEmail}</p>
+        <p><strong>Invoice Number:</strong> ${invoiceNumber || 'N/A'}</p>
+        <p><strong>Date Range:</strong> ${invoiceData.startDate.split('T')[0]} to ${invoiceData.endDate.split('T')[0]}</p>
+        
+        <h3>Summary</h3>
+        <ul>
+          <li>Orders: ${invoiceData.orders.length}</li>
+          <li>Line Items (Bikes): ${lineItems.length}</li>
+          ${skippedBikes > 0 ? `<li style="color: #dc2626;">Skipped Bikes: ${skippedBikes}</li>` : ''}
+          <li>Total Amount: £${invoice.totalAmount.toFixed(2)}</li>
+        </ul>
+        
+        ${missingProducts.length > 0 ? `
+          <h3 style="color: #dc2626;">⚠️ Missing QuickBooks Products</h3>
+          <p>The following bike types could not be matched to QuickBooks products:</p>
+          <ul>
+            ${missingProducts.map(p => `<li>${p}</li>`).join('')}
+          </ul>
+          <p><strong>Action Required:</strong> Create these products in QuickBooks with the naming format:<br>
+          "Collection and Delivery within England and Wales - [Bike Type]"</p>
+        ` : '<p style="color: #16a34a;">✓ All bike types matched to QuickBooks products</p>'}
+        
+        <p><a href="${invoiceUrl}">View Invoice in QuickBooks</a></p>
+      `;
+
+      await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        },
+        body: JSON.stringify({
+          to: 'info@cyclecourierco.com',
+          subject: `Invoice Created: ${invoiceData.customerName} - ${invoiceNumber || 'Draft'}`,
+          html: reportHtml
+        })
+      });
+      console.log('Invoice report email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send invoice report email:', emailError);
+      // Don't fail the request if email fails
+    }
     
     return new Response(JSON.stringify({
       success: true,
       invoice: invoice,
       quickbooksInvoice: quickbooksResponse,
       message: `Invoice created in QuickBooks for ${invoiceData.customerName} with ${lineItems.length} line items`,
-      missingProducts: missingProducts.length > 0 ? missingProducts : undefined
+      missingProducts: missingProducts.length > 0 ? missingProducts : undefined,
+      stats: {
+        orderCount: invoiceData.orders.length,
+        bikeCount: lineItems.length,
+        skippedBikes: skippedBikes,
+        totalAmount: invoice.totalAmount,
+        invoiceNumber: invoiceNumber,
+        invoiceUrl: invoiceUrl
+      }
     }), {
       status: 200,
       headers: {
