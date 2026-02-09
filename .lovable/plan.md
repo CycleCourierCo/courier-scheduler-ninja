@@ -1,59 +1,58 @@
 
 
-## Add Legacy Bike Type Mapping for "Electric Bikes"
+## Fix VAT Rate on QuickBooks Invoices
 
-This is a small update to handle legacy orders that have "Electric Bikes" as the bike type.
-
----
-
-## Summary
-
-Legacy orders may have "Electric Bikes" stored as the bike type, but QuickBooks expects the product name format: `Collection and Delivery within England and Wales - Electric Bike - Under 25kg`
-
-We'll add a mapping function that normalizes legacy bike type names before looking up the product.
+Remove the explicit non-taxable tax code to let QuickBooks use each product's default VAT settings.
 
 ---
 
-## Change Required
+## Changes Required
 
 **File:** `supabase/functions/create-quickbooks-invoice/index.ts`
 
-Add a bike type normalization function that maps legacy names to current QuickBooks product names:
+### 1. Remove Tax Code Lookup (lines 280-311)
 
+Delete the entire tax code fetching and lookup section since we won't be overriding the product's tax settings.
+
+### 2. Remove TaxCodeRef from Line Items (lines 424-426)
+
+Remove the `TaxCodeRef` property from the `SalesItemLineDetail` object so QuickBooks uses the product's default tax code.
+
+**Before:**
 ```typescript
-// Map legacy bike types to current QuickBooks product names
-function normalizeBikeType(bikeType: string): string {
-  const legacyMappings: Record<string, string> = {
-    'Electric Bikes': 'Electric Bike - Under 25kg',
-    // Add other legacy mappings here if needed
-  };
-  
-  return legacyMappings[bikeType] || bikeType;
+SalesItemLineDetail: {
+  ItemRef: {
+    value: product.id,
+    name: product.name
+  },
+  Qty: 1,
+  UnitPrice: product.price,
+  TaxCodeRef: {
+    value: nonTaxableCode
+  },
+  ServiceDate: serviceDate
 }
 ```
 
-Then update the `findProductByBikeType` call to use the normalized type:
-
+**After:**
 ```typescript
-// In the line item creation loop
-const normalizedType = normalizeBikeType(bike.type);
-const product = normalizedType && normalizedType !== 'Unknown' 
-  ? await findProductByBikeType(tokenData.access_token, tokenData.company_id, normalizedType)
-  : null;
+SalesItemLineDetail: {
+  ItemRef: {
+    value: product.id,
+    name: product.name
+  },
+  Qty: 1,
+  UnitPrice: product.price,
+  ServiceDate: serviceDate
+}
 ```
 
 ---
 
-## Mapping Table
+## Result
 
-| Legacy Bike Type | Maps To |
-|-----------------|---------|
-| Electric Bikes | Electric Bike - Under 25kg |
-
----
-
-## What This Fixes
-
-- Legacy orders with `bike_type = "Electric Bikes"` will now correctly map to the QuickBooks product `Collection and Delivery within England and Wales - Electric Bike - Under 25kg`
-- The mapping is extensible - you can easily add more legacy type mappings in the future if needed
+| Before | After |
+|--------|-------|
+| Forces `NON` (0%) tax code on all line items | Uses each product's configured VAT rate |
+| All invoices show 0% VAT | VAT rates come from QuickBooks product settings |
 
