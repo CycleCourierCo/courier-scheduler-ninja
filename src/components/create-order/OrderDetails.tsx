@@ -14,7 +14,7 @@ const BIKE_TYPES = [
   "Electric Bike - Over 50kg",
   "Cargo Bike",
   "Longtail Cargo Bike",
-  "Stationary Bikes",
+  "Stationary Bike",
   "Kids Bikes",
   "BMX Bikes",
   "Boxed Kids Bikes",
