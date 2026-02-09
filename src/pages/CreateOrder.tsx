@@ -197,7 +197,8 @@ const CreateOrder = () => {
     "paymentCollectionPhone",
     "isBikeSwap",
     "partExchangeBikeBrand",
-    "partExchangeBikeModel"
+    "partExchangeBikeModel",
+    "partExchangeBikeType"
   ]);
   const senderFields = form.watch([
     "sender.name", 
