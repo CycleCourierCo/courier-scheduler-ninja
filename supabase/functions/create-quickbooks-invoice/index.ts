@@ -394,9 +394,6 @@ const handler = async (req: Request): Promise<Response> => {
           console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type} (normalized: ${normalizedType})`);
           continue;
         }
-          console.warn(`Skipping line item for ${order.tracking_number} - no product found for bike type: ${bike.type}`);
-          continue;
-        }
         
         // If no product found at all, skip this bike
         if (!product) {
