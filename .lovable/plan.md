@@ -1,100 +1,131 @@
 
+# Fix: Part Exchange Orders - Shipday Integration and Bike Type
 
-# Fix: Receiver Availability Email Not Sent After Sender Confirmation
+## Problems Identified
 
-## Problem Identified
+When a part exchange order is created, the system creates two orders:
+1. **Main order**: Collect bike from sender → Deliver to receiver
+2. **Reverse order**: Collect part exchange bike from receiver → Deliver back to sender
 
-When a sender confirms their availability via the public link (`/sender-availability/:id`), the receiver availability email fails to send with "Auth failed: Invalid or expired token".
+### Current Issues
 
-### Root Cause
+| Issue | Description |
+|-------|-------------|
+| Missing Bike Type | Part exchange only asks for Brand and Model, but Bike Type is mandatory for logistics |
+| No Shipday for Reverse Order | Reverse order is created without Shipday pickup/delivery jobs |
+| No Emails for Reverse Order | Reverse order doesn't trigger availability or notification emails |
 
-The recent change to `send-email` edge function (switching from `requireAdminAuth` to `requireAuth`) still requires authentication. However:
-
-1. The sender availability page is **public** - no login required
-2. When sender confirms dates, `updateSenderAvailability()` calls `resendReceiverAvailabilityEmail()`
-3. This invokes `send-email` edge function with **no auth token** (unauthenticated user)
-4. The function rejects the request because `requireAuth` requires a valid JWT
-
-### Flow Diagram
-
+### Current Flow
 ```text
-Sender clicks availability link (/sender-availability/:id)
+User creates Part Exchange order
          ↓
-  [Public Page - No Login]
+Main Order created ✅
          ↓
-Confirms dates → updateSenderAvailability()
+Shipday jobs created for Main Order ✅
          ↓
-Calls resendReceiverAvailabilityEmail()
+Emails sent for Main Order ✅
          ↓
-Invokes send-email edge function
+Reverse Order created ✅
          ↓
-❌ requireAuth() fails - no auth token
+No Shipday jobs for Reverse Order ❌
          ↓
-Receiver email never sent
+No Bike Type on Reverse Order ❌
 ```
 
 ## Solution
 
-The `send-email` edge function needs to allow **specific email types** to be sent without authentication. These are system-triggered emails from public customer actions:
+### 1. Add Part Exchange Bike Type Field
 
-| Email Type | Triggered From | Auth Required? |
-|------------|----------------|----------------|
-| `sender` | Sender availability confirmation | No (public page) |
-| `receiver` | Sender availability confirmation | No (public page) |
-| `sender_dates_confirmed` | Sender availability confirmation | No (public page) |
-| `receiver_dates_confirmed` | Receiver availability confirmation | No (public page) |
-| Admin/bulk operations | Dashboard | Yes |
+**Files to modify:**
+- `src/types/order.ts` - Add `partExchangeBikeType` to `CreateOrderFormData`
+- `src/components/create-order/OrderOptions.tsx` - Add bike type dropdown for part exchange
+- `src/pages/CreateOrder.tsx` - Add validation and default value for part exchange bike type
 
-### Changes Required
-
-**File: `supabase/functions/send-email/index.ts`**
-
-1. Check the `emailType` before requiring authentication
-2. Allow unauthenticated requests for specific customer-facing email types
-3. Require authentication for all other email operations (admin emails, custom emails)
-
+**Form additions:**
 ```typescript
-// After CORS handling, before auth check:
-const reqData = await req.json().catch(() => ({}));
-
-// Email types that can be sent from public pages (no auth required)
-const publicEmailTypes = ['sender', 'receiver', 'sender_dates_confirmed', 'receiver_dates_confirmed'];
-
-// Only require auth for non-public email types
-if (!publicEmailTypes.includes(reqData.emailType)) {
-  const authResult = await requireAuth(req);
-  if (!authResult.success) {
-    return createAuthErrorResponse(authResult.error!, authResult.status!);
-  }
-  console.log('Authenticated user:', authResult.userId);
-} else {
-  console.log('Public email type:', reqData.emailType, '- no auth required');
-}
-
-// Continue with existing email sending logic...
+// Add to OrderOptions.tsx when isBikeSwap is true
+<FormField
+  control={control}
+  name="partExchangeBikeType"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Part Exchange Bike Type *</FormLabel>
+      <Select onValueChange={field.onChange} value={field.value || ""}>
+        {/* Same BIKE_TYPES dropdown as OrderDetails */}
+      </Select>
+    </FormItem>
+  )}
+/>
 ```
 
-## Security Considerations
+### 2. Update Reverse Order Creation with Bike Type + Shipday
 
-- **Public email types are limited** - Only 4 specific types can bypass auth
-- **Email recipients are determined by order data** - Not user-supplied, so no spam risk
-- **Order IDs are validated** - Must exist in database
-- **Rate limiting via Resend** - Protects against abuse
-- **All other email operations** still require authentication
+**File to modify:** `src/services/orderService.ts`
+
+Changes to the reverse order creation:
+1. Accept `partExchangeBikeType` from the form data
+2. Include `bike_type` in the reverse order insert
+3. Create Shipday jobs for the reverse order after successful creation
+
+```typescript
+// In createOrder function, update reverse order creation:
+if (isBikeSwap && partExchangeBikeBrand && partExchangeBikeModel && partExchangeBikeType) {
+  try {
+    const reverseTrackingNumber = await generateTrackingNumber(receiver.name, sender.address.zipCode);
+    
+    const { data: reverseOrder, error: reverseError } = await supabase
+      .from("orders")
+      .insert({
+        // ... existing fields ...
+        bike_brand: partExchangeBikeBrand,
+        bike_model: partExchangeBikeModel,
+        bike_type: partExchangeBikeType,  // NEW: Add bike type
+        // ...
+      })
+      .select()
+      .single();
+    
+    // NEW: Create Shipday jobs for reverse order
+    if (reverseOrder && !reverseError) {
+      try {
+        const { createShipdayOrder } = await import('@/services/shipdayService');
+        await createShipdayOrder(reverseOrder.id);
+        console.log('Created Shipday jobs for reverse order:', reverseOrder.id);
+      } catch (shipdayError) {
+        console.error('Failed to create Shipday jobs for reverse order:', shipdayError);
+      }
+    }
+  } catch (reverseOrderError) {
+    console.error('Failed to create reverse order:', reverseOrderError);
+  }
+}
+```
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/send-email/index.ts` | Add conditional auth bypass for public email types |
+| `src/types/order.ts` | Add `partExchangeBikeType?: string` to `CreateOrderFormData` |
+| `src/components/create-order/OrderOptions.tsx` | Add Bike Type dropdown for part exchange |
+| `src/pages/CreateOrder.tsx` | Add `partExchangeBikeType` to schema, validation, and default values |
+| `src/services/orderService.ts` | Extract `partExchangeBikeType`, include in reverse order insert, and create Shipday jobs |
 
-## Testing After Fix
+## Summary of Changes
 
-1. Create a new order
-2. Open the sender availability link (public page)
-3. Confirm sender dates
-4. Verify:
-   - Sender receives "Thanks for confirming" email
-   - Receiver receives availability request email
-   - Order status updates to `receiver_availability_pending`
+### UI Form Changes
+- Add new "Part Exchange Bike Type" dropdown (same options as main bike types)
+- Required when Part Exchange toggle is enabled
+- Clear field when toggle is disabled
 
+### Backend Logic Changes
+- Include `bike_type` when creating the reverse order
+- After successful reverse order creation, call `createShipdayOrder(reverseOrder.id)` to add Shipday pickup and delivery jobs
+
+## Testing
+
+After implementation:
+1. Create a new order with Part Exchange enabled
+2. Verify the new Bike Type dropdown appears and is required
+3. Verify both orders are created in the database (main + reverse)
+4. Verify both orders have Shipday IDs populated
+5. Check Shipday dashboard to confirm 4 jobs total (2 for main, 2 for reverse)
