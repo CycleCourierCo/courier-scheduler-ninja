@@ -9,8 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen } from "lucide-react";
-import { OrderData } from "@/pages/JobScheduling";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw } from "lucide-react";
+import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
@@ -63,6 +63,9 @@ interface RouteBuilderProps {
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
+  shipdayVerification?: ShipdayVerificationResults;
+  isVerifyingShipday?: boolean;
+  onReVerifyShipday?: () => void;
 }
 
 // Safe mapping to normalize job type for edge function
@@ -529,7 +532,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   showCollectedOnly: externalShowCollectedOnly,
   onFilterDateChange,
   onShowCollectedOnlyChange,
-  initialJobs
+  initialJobs,
+  shipdayVerification = {},
+  isVerifyingShipday = false,
+  onReVerifyShipday
 }) => {
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
@@ -2239,6 +2245,26 @@ Route Link: ${routeLink}`;
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
   const hasActiveFilters = filterDate || showCollectedOnly;
 
+  // Helper to get Shipday status for a job
+  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
+    const shipdayId = jobType === 'pickup' ? order.shipday_pickup_id : order.shipday_delivery_id;
+    if (!shipdayId) return 'none';
+    if (shipdayVerification[shipdayId] === true) return 'verified';
+    if (shipdayVerification[shipdayId] === false) return 'missing';
+    return 'none'; // not yet checked
+  };
+
+  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none') => {
+    if (isVerifyingShipday) return <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />;
+    if (status === 'verified') return <CheckCircle className="h-3 w-3 text-green-600" />;
+    if (status === 'missing') return <XCircle className="h-3 w-3 text-red-600" />;
+    return <Minus className="h-3 w-3 text-muted-foreground" />;
+  };
+
+  // Calculate Shipday counts for route jobs
+  const shipdayOnCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') === 'verified').length;
+  const shipdayOffCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') !== 'verified').length;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -2248,7 +2274,7 @@ Route Link: ${routeLink}`;
               <Route className="h-5 w-5" />
               Route Builder
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {(() => {
                 const { total, collections, deliveries } = countJobsForOrders(orders);
                 return (
@@ -2256,6 +2282,23 @@ Route Link: ${routeLink}`;
                     <Badge variant="outline">{collections} collections</Badge>
                     <Badge variant="outline">{deliveries} deliveries</Badge>
                     <Badge variant="secondary">{total} total jobs</Badge>
+                    {selectedJobs.length > 0 && (
+                      <>
+                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          {shipdayOnCount} on Shipday
+                        </Badge>
+                        <Badge className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          {shipdayOffCount} not on Shipday
+                        </Badge>
+                      </>
+                    )}
+                    {onReVerifyShipday && (
+                      <Button variant="ghost" size="sm" onClick={onReVerifyShipday} disabled={isVerifyingShipday} className="h-6 px-2">
+                        <RefreshCw className={`h-3 w-3 ${isVerifyingShipday ? 'animate-spin' : ''}`} />
+                      </Button>
+                    )}
                   </>
                 );
               })()}
@@ -2358,6 +2401,7 @@ Route Link: ${routeLink}`;
               const isSelected = selectedJobs.some(j => j.orderId === job.orderId && j.type === job.type);
               const selectedOrder = selectedJobs.find(j => j.orderId === job.orderId && j.type === job.type)?.order;
               const hasCoordinates = job.lat && job.lon;
+              const shipdayStatus = getShipdayStatus(job.order, job.type);
               
               return (
                 <Card 
@@ -2399,6 +2443,10 @@ Route Link: ${routeLink}`;
                             </Badge>
                           );
                         })()}
+                        {/* Shipday Status */}
+                        <span title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'missing' ? 'Missing from Shipday' : 'Not synced to Shipday'}>
+                          {renderShipdayIcon(shipdayStatus)}
+                        </span>
                       </div>
                       {isSelected && (
                         <Badge variant="outline" className="bg-primary text-primary-foreground">
