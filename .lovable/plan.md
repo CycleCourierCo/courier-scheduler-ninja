@@ -1,61 +1,32 @@
 
+# Make Shipday Cross Icon a Clickable "Add to Shipday" Button
 
-# Fix: Notification Emails Failing Due to Service Role Key Auth
+## Overview
 
-## Problem
+Turn the red X icon (shown when a job is missing from Shipday or not synced) into a clickable button that calls `createShipdayOrder` to add that specific job to Shipday -- the same logic used on the Order Detail page.
 
-The `orders` edge function sends 3 emails via `send-email` after creating an order. Two of them fail because they don't have a whitelisted `emailType`:
+## Changes
 
-| Email | emailType | Auth Result |
-|-------|-----------|-------------|
-| User confirmation (STEP 1) | none | FAILS - hits requireAuth |
-| Sender availability (STEP 2) | `sender` | OK - whitelisted |
-| Receiver notification (STEP 3) | none | FAILS - hits requireAuth |
+### File: `src/components/scheduling/RouteBuilder.tsx`
 
-The `send-email` function only bypasses auth for specific email types (`sender`, `receiver`, `sender_dates_confirmed`, `receiver_dates_confirmed`). All other emails go through `requireAuth`, which calls `auth.getUser()` and fails with the service role key.
+1. **Import `createShipdayOrder`** from `@/services/shipdayService`
 
-## Solution
+2. **Add a handler function** `handleAddToShipday(orderId, jobType)` that:
+   - Calls `createShipdayOrder(orderId, jobType)`
+   - Shows a success/error toast
+   - Triggers `onReVerifyShipday` to refresh verification status after adding
 
-Add service role key detection to the `send-email` function's auth check, exactly like the fix already applied to `generate-tracking-numbers`.
+3. **Update `renderShipdayIcon`** (or the rendering site at line ~2447):
+   - For `'verified'` status: keep the green checkmark as-is (non-clickable)
+   - For `'missing'` or `'none'` status: wrap the icon in a small clickable button that calls `handleAddToShipday` with the correct `orderId` and job type (`'pickup'` or `'delivery'`)
+   - Add a loading state per-job to show a spinner while the Shipday call is in progress
+   - Use `e.stopPropagation()` to prevent the click from toggling the job card selection
 
-### File: `supabase/functions/send-email/index.ts`
+4. **Pass order context to renderShipdayIcon**: The render function will need the `orderId` and `jobType` so it can trigger the correct Shipday call. This means changing the call site from `renderShipdayIcon(shipdayStatus)` to include `orderId` and `jobType` parameters.
 
-Update lines 48-53 to check for the service role key before falling back to `requireAuth`:
+## Technical Details
 
-**Before:**
-```typescript
-if (!publicEmailTypes.includes(reqData.emailType)) {
-  const authResult = await requireAuth(req);
-  if (!authResult.success) {
-    return createAuthErrorResponse(authResult.error!, authResult.status!);
-  }
-  console.log('Authenticated user:', authResult.userId);
-}
-```
-
-**After:**
-```typescript
-if (!publicEmailTypes.includes(reqData.emailType)) {
-  // Allow service role key (used when called from other edge functions like orders)
-  const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '') || '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-
-  if (token === serviceRoleKey) {
-    console.log('Authenticated via service role key for email sending');
-  } else {
-    const authResult = await requireAuth(req);
-    if (!authResult.success) {
-      return createAuthErrorResponse(authResult.error!, authResult.status!);
-    }
-    console.log('Authenticated user:', authResult.userId);
-  }
-}
-```
-
-This is the same pattern already applied to `generate-tracking-numbers` and keeps security intact: public email types remain unauthenticated, non-public types require either a valid user JWT or the service role key.
-
-## Testing
-
-After deployment, trigger another Shopify test webhook to verify all 3 notification emails are sent successfully.
-
+- Reuses the existing `createShipdayOrder` function from `shipdayService.ts` -- identical to the Order Detail page
+- After a successful add, triggers re-verification so the icon updates to a green checkmark
+- `e.stopPropagation()` prevents the button click from selecting/deselecting the job card
+- A local `Set` state tracks which jobs are currently being synced (to show individual loading spinners)
