@@ -33,7 +33,29 @@ Deno.serve(async (req) => {
           },
         });
 
-        results[id] = response.ok;
+        if (!response.ok) {
+          console.log(`Shipday order ${id}: HTTP ${response.status}`);
+          results[id] = false;
+          continue;
+        }
+
+        const body = await response.text();
+        console.log(`Shipday order ${id} response: ${body.substring(0, 500)}`);
+
+        try {
+          const data = JSON.parse(body);
+          if (!data || (Array.isArray(data) && data.length === 0)) {
+            results[id] = false;
+          } else if (Array.isArray(data)) {
+            results[id] = data.length > 0 && !!data[0]?.orderId;
+          } else if (typeof data === 'object') {
+            results[id] = !!data.orderId;
+          } else {
+            results[id] = false;
+          }
+        } catch {
+          results[id] = false;
+        }
       } catch {
         results[id] = false;
       }
