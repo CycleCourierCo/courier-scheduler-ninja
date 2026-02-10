@@ -47,7 +47,7 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <div className="flex-1 -mx-6 px-6 overflow-y-auto">
           <div className="space-y-4 pb-4">
             {routeAnalyses.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
@@ -142,7 +142,7 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
