@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Cluster } from "@/services/clusteringService";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export interface OrderData {
   id: string;
@@ -31,12 +32,18 @@ export interface OrderData {
   order_delivered: boolean | null;
   needs_inspection: boolean | null;
   inspection_status: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
+  shipday_pickup_id: string | null;
+  shipday_delivery_id: string | null;
 }
+
+export type ShipdayVerificationResults = Record<string, boolean>;
 
 const JobScheduling = () => {
   const [searchParams] = useSearchParams();
   const [showClusters, setShowClusters] = useState(true);
   const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
+  const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
   
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
@@ -87,7 +94,41 @@ const JobScheduling = () => {
     }
   });
 
-  // Filter orders for the map based on the current filter state
+  // Shipday verification
+  const verifyShipdayOrders = useCallback(async (ordersToVerify: OrderData[]) => {
+    const shipdayIds: string[] = [];
+    ordersToVerify.forEach(order => {
+      if (order.shipday_pickup_id) shipdayIds.push(order.shipday_pickup_id);
+      if (order.shipday_delivery_id) shipdayIds.push(order.shipday_delivery_id);
+    });
+
+    if (shipdayIds.length === 0) {
+      setShipdayVerification({});
+      return;
+    }
+
+    setIsVerifyingShipday(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-shipday-orders', {
+        body: { shipdayIds }
+      });
+
+      if (error) throw error;
+      setShipdayVerification(data.results || {});
+    } catch (err) {
+      console.error('Error verifying Shipday orders:', err);
+      toast.error('Failed to verify Shipday orders');
+    } finally {
+      setIsVerifyingShipday(false);
+    }
+  }, []);
+
+  // Auto-verify when orders load
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      verifyShipdayOrders(orders);
+    }
+  }, [orders, verifyShipdayOrders]);
   // This ensures both ClusterMap and RouteBuilder show the same filtered data
   const filteredOrdersForMap = useMemo(() => {
     if (!orders) return [];
@@ -169,6 +210,9 @@ const JobScheduling = () => {
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
                 initialJobs={initialJobs}
+                shipdayVerification={shipdayVerification}
+                isVerifyingShipday={isVerifyingShipday}
+                onReVerifyShipday={() => orders && verifyShipdayOrders(orders)}
               />
             </div>
           </>

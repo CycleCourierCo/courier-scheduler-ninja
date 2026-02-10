@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.send-route-report]
 verify_jwt = false
+
+[functions.verify-shipday-orders]
+verify_jwt = false
