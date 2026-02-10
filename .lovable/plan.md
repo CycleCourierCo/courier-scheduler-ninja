@@ -1,105 +1,61 @@
 
-# Fix: "Collection Info" Button Greyed Out for Part Exchange Orders
 
-## Problem Identified
+# Fix: Notification Emails Failing Due to Service Role Key Auth
 
-The "Collection Info" tab button remains disabled even after filling in all Part Exchange details because the `partExchangeBikeType` field is **not included in the watch list** that triggers the `isDetailsValid` recalculation.
+## Problem
 
-### Root Cause
+The `orders` edge function sends 3 emails via `send-email` after creating an order. Two of them fail because they don't have a whitelisted `emailType`:
 
-In `CreateOrder.tsx`, the `detailsFields` watch array is missing `partExchangeBikeType`:
+| Email | emailType | Auth Result |
+|-------|-----------|-------------|
+| User confirmation (STEP 1) | none | FAILS - hits requireAuth |
+| Sender availability (STEP 2) | `sender` | OK - whitelisted |
+| Receiver notification (STEP 3) | none | FAILS - hits requireAuth |
 
-```typescript
-// Current code (line 191-201)
-const detailsFields = form.watch([
-  "bikeQuantity",
-  "bikes",
-  "isEbayOrder",
-  "collectionCode",
-  "needsPaymentOnCollection",
-  "paymentCollectionPhone",
-  "isBikeSwap",
-  "partExchangeBikeBrand",
-  "partExchangeBikeModel"
-  // ❌ Missing: "partExchangeBikeType"
-]);
-```
-
-The validation logic in `isDetailsValid` correctly checks `partExchangeBikeType`:
-
-```typescript
-const swapValid = !isBikeSwap || (
-  partExchangeBikeBrand && partExchangeBikeBrand.trim() !== '' &&
-  partExchangeBikeModel && partExchangeBikeModel.trim() !== '' &&
-  partExchangeBikeType && partExchangeBikeType.trim() !== ''  // ✅ Checks correctly
-);
-```
-
-**However**, since `partExchangeBikeType` is not in the watch list, the `useMemo` that depends on `detailsFields` doesn't re-run when you select a bike type.
-
-### Flow Diagram
-```text
-User enables Part Exchange
-         ↓
-Fills Brand ✅ → detailsFields updates → isDetailsValid recalculates
-         ↓
-Fills Model ✅ → detailsFields updates → isDetailsValid recalculates
-         ↓
-Selects Bike Type ✅ → detailsFields NOT updated → isDetailsValid NOT recalculated
-         ↓
-Button stays disabled ❌
-```
+The `send-email` function only bypasses auth for specific email types (`sender`, `receiver`, `sender_dates_confirmed`, `receiver_dates_confirmed`). All other emails go through `requireAuth`, which calls `auth.getUser()` and fails with the service role key.
 
 ## Solution
 
-Add `partExchangeBikeType` to the `detailsFields` watch array.
+Add service role key detection to the `send-email` function's auth check, exactly like the fix already applied to `generate-tracking-numbers`.
 
-### File to Modify
+### File: `supabase/functions/send-email/index.ts`
 
-| File | Change |
-|------|--------|
-| `src/pages/CreateOrder.tsx` | Add `"partExchangeBikeType"` to the `detailsFields` watch array |
+Update lines 48-53 to check for the service role key before falling back to `requireAuth`:
 
-### Code Change
-
-**Before (lines 191-201):**
+**Before:**
 ```typescript
-const detailsFields = form.watch([
-  "bikeQuantity",
-  "bikes",
-  "isEbayOrder",
-  "collectionCode",
-  "needsPaymentOnCollection",
-  "paymentCollectionPhone",
-  "isBikeSwap",
-  "partExchangeBikeBrand",
-  "partExchangeBikeModel"
-]);
+if (!publicEmailTypes.includes(reqData.emailType)) {
+  const authResult = await requireAuth(req);
+  if (!authResult.success) {
+    return createAuthErrorResponse(authResult.error!, authResult.status!);
+  }
+  console.log('Authenticated user:', authResult.userId);
+}
 ```
 
 **After:**
 ```typescript
-const detailsFields = form.watch([
-  "bikeQuantity",
-  "bikes",
-  "isEbayOrder",
-  "collectionCode",
-  "needsPaymentOnCollection",
-  "paymentCollectionPhone",
-  "isBikeSwap",
-  "partExchangeBikeBrand",
-  "partExchangeBikeModel",
-  "partExchangeBikeType"  // ← Add this
-]);
+if (!publicEmailTypes.includes(reqData.emailType)) {
+  // Allow service role key (used when called from other edge functions like orders)
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.replace('Bearer ', '') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+  if (token === serviceRoleKey) {
+    console.log('Authenticated via service role key for email sending');
+  } else {
+    const authResult = await requireAuth(req);
+    if (!authResult.success) {
+      return createAuthErrorResponse(authResult.error!, authResult.status!);
+    }
+    console.log('Authenticated user:', authResult.userId);
+  }
+}
 ```
+
+This is the same pattern already applied to `generate-tracking-numbers` and keeps security intact: public email types remain unauthenticated, non-public types require either a valid user JWT or the service role key.
 
 ## Testing
 
-After fix:
-1. Go to Create Order page
-2. Fill in bike details (brand, model, type)
-3. Enable "Part Exchange" toggle
-4. Fill in Part Exchange Brand
-5. Fill in Part Exchange Model
-6. Select Part Exchange Bike Type from dropdown
-7. Verify the "Collection Info" tab button becomes enabled immediately
+After deployment, trigger another Shopify test webhook to verify all 3 notification emails are sent successfully.
+

@@ -51,6 +51,11 @@ interface IssueEntry {
   estimatedCost: string;
 }
 
+interface ChecklistIssue {
+  description: string;
+  estimatedCost: string;
+}
+
 // Standard inspection checklist items
 const INSPECTION_ITEMS = [
   { id: 'brakes_gears', label: 'Brake and gear tuning' },
@@ -77,6 +82,7 @@ const BicycleInspections = () => {
   const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
   const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
+  const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
 
   // Fetch inspections based on role
   const { data: inspections = [], isLoading } = useQuery({
@@ -270,6 +276,7 @@ const BicycleInspections = () => {
     setSelectedOrderForInspection(orderId);
     setInspectionChecklist({});
     setInspectionComments({});
+    setChecklistIssues({});
     setInspectionChecklistOpen(true);
   };
 
@@ -287,23 +294,69 @@ const BicycleInspections = () => {
     }));
   };
 
+  const handleAddChecklistIssue = (itemId: string) => {
+    setChecklistIssues(prev => ({
+      ...prev,
+      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "" }]
+    }));
+  };
+
+  const handleRemoveChecklistIssue = (itemId: string, index: number) => {
+    setChecklistIssues(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost', value: string) => {
+    setChecklistIssues(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).map((issue, i) => 
+        i === index ? { ...issue, [field]: value } : issue
+      )
+    }));
+  };
+
   const allItemsChecked = INSPECTION_ITEMS.every(
     item => inspectionChecklist[item.id]
   );
 
-  const handleConfirmInspection = () => {
+  // Collect all issues across all checklist items
+  const allChecklistIssues = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
+    const itemLabel = INSPECTION_ITEMS.find(i => i.id === itemId)?.label || itemId;
+    return issues
+      .filter(issue => issue.description.trim())
+      .map(issue => ({
+        description: `[${itemLabel}] ${issue.description}`,
+        estimatedCost: issue.estimatedCost,
+      }));
+  });
+
+  const hasIssues = allChecklistIssues.length > 0;
+
+  const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
     
-    // Format notes with checklist and comments
-    const notes = INSPECTION_ITEMS.map(item => {
-      const comment = inspectionComments[item.id];
-      return comment 
-        ? `✓ ${item.label}: ${comment}`
-        : `✓ ${item.label}`;
-    }).join('\n');
-    
-    markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
-    setInspectionChecklistOpen(false);
+    if (hasIssues) {
+      // Submit issues via the existing mutation
+      const validIssues = allChecklistIssues.map(i => ({
+        description: i.description,
+        estimatedCost: i.estimatedCost,
+      }));
+      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: validIssues });
+      setInspectionChecklistOpen(false);
+    } else {
+      // No issues - mark as inspected
+      const notes = INSPECTION_ITEMS.map(item => {
+        const comment = inspectionComments[item.id];
+        return comment 
+          ? `✓ ${item.label}: ${comment}`
+          : `✓ ${item.label}`;
+      }).join('\n');
+      
+      markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
+      setInspectionChecklistOpen(false);
+    }
   };
 
   const handleIssueCountChange = (count: string) => {
@@ -580,23 +633,14 @@ const BicycleInspections = () => {
           )}
 
           {/* Admin Actions for awaiting inspection */}
-          {isAdmin && (!inspection || inspection.status === "pending") && (
+          {canManageInspections && (!inspection || inspection.status === "pending") && (
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
                 onClick={() => handleOpenInspectionChecklist(order.id)}
-                disabled={markInspectedMutation.isPending}
               >
-                {markInspectedMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                )}
-                Mark Inspected (No Issues)
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleOpenIssueDialog(order.id)}>
-                <AlertTriangle className="h-4 w-4 mr-1" />
-                Report Issue
+                <Wrench className="h-4 w-4 mr-1" />
+                Start Inspection
               </Button>
             </div>
           )}
@@ -757,111 +801,98 @@ const BicycleInspections = () => {
           </Tabs>
         )}
 
-        {/* Issue Dialog */}
-        <Dialog open={issueDialogOpen} onOpenChange={(open) => {
-          setIssueDialogOpen(open);
-          if (!open) resetIssueForm();
-        }}>
+        {/* Inspection Checklist Dialog */}
+        <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
           <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                Report Issues
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Number of Issues</Label>
-                <Select value={issueCount.toString()} onValueChange={handleIssueCountChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select number of issues" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num} {num === 1 ? "issue" : "issues"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {issues.map((issue, index) => (
-                <div key={index} className="space-y-3">
-                  {index > 0 && <Separator />}
-                  <p className="font-medium text-sm">Issue #{index + 1}</p>
-                  <div className="space-y-2">
-                    <Label>What's wrong with the bike?</Label>
-                    <Textarea
-                      placeholder="Describe the issue..."
-                      value={issue.description}
-                      onChange={(e) => updateIssue(index, 'description', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Estimated Repair Cost (£)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="e.g. 45.00"
-                      value={issue.estimatedCost}
-                      onChange={(e) => updateIssue(index, 'estimatedCost', e.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmitIssues} disabled={addMultipleIssuesMutation.isPending}>
-                {addMultipleIssuesMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 mr-1" />
-                )}
-                Report {issues.filter(i => i.description.trim()).length || 1} Issue{issues.filter(i => i.description.trim()).length !== 1 ? "s" : ""}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Inspection Checklist Dialog */}
-        <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                Inspection Checklist
+                <Wrench className="h-5 w-5" />
+                Bike Inspection
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground">
-                Please confirm all inspection tasks have been completed:
+                Complete each inspection item. Report any issues found under each section.
               </p>
-              {INSPECTION_ITEMS.map((item) => (
-                <div key={item.id} className="space-y-2 p-3 border rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id={item.id}
-                      checked={inspectionChecklist[item.id] || false}
-                      onCheckedChange={() => handleChecklistItemToggle(item.id)}
-                    />
-                    <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer leading-tight">
-                      {item.label}
-                    </Label>
+              {INSPECTION_ITEMS.map((item) => {
+                const itemIssues = checklistIssues[item.id] || [];
+                return (
+                  <div key={item.id} className="space-y-3 p-3 border rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id={item.id}
+                        checked={inspectionChecklist[item.id] || false}
+                        onCheckedChange={() => handleChecklistItemToggle(item.id)}
+                      />
+                      <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer leading-tight">
+                        {item.label}
+                      </Label>
+                    </div>
+                    {inspectionChecklist[item.id] && (
+                      <div className="ml-7 space-y-3">
+                        <Input
+                          placeholder="Optional: Add notes..."
+                          value={inspectionComments[item.id] || ""}
+                          onChange={(e) => handleChecklistCommentChange(item.id, e.target.value)}
+                          className="text-sm"
+                        />
+                        
+                        {/* Issues for this checklist item */}
+                        {itemIssues.map((issue, idx) => (
+                          <div key={idx} className="space-y-2 p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-medium text-destructive flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Issue #{idx + 1}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleRemoveChecklistIssue(item.id, idx)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <Textarea
+                              placeholder="Describe the issue..."
+                              value={issue.description}
+                              onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
+                              className="text-sm min-h-[60px]"
+                            />
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Estimated cost (£)"
+                              value={issue.estimatedCost}
+                              onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'estimatedCost', e.target.value)}
+                              className="text-sm"
+                            />
+                          </div>
+                        ))}
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => handleAddChecklistIssue(item.id)}
+                        >
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Report Issue
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {inspectionChecklist[item.id] && (
-                    <Input
-                      placeholder="Optional: Add notes..."
-                      value={inspectionComments[item.id] || ""}
-                      onChange={(e) => handleChecklistCommentChange(item.id, e.target.value)}
-                      className="mt-2 text-sm"
-                    />
-                  )}
+                );
+              })}
+
+              {hasIssues && (
+                <div className="p-3 bg-muted rounded-md">
+                  <p className="text-sm font-medium text-destructive">
+                    {allChecklistIssues.length} issue{allChecklistIssues.length !== 1 ? 's' : ''} will be reported to the customer
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setInspectionChecklistOpen(false)}>
@@ -869,14 +900,17 @@ const BicycleInspections = () => {
               </Button>
               <Button 
                 onClick={handleConfirmInspection}
-                disabled={!allItemsChecked || markInspectedMutation.isPending}
+                disabled={!allItemsChecked || markInspectedMutation.isPending || addMultipleIssuesMutation.isPending}
+                variant={hasIssues ? "destructive" : "default"}
               >
-                {markInspectedMutation.isPending ? (
+                {(markInspectedMutation.isPending || addMultipleIssuesMutation.isPending) ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : hasIssues ? (
+                  <AlertTriangle className="h-4 w-4 mr-1" />
                 ) : (
                   <CheckCircle className="h-4 w-4 mr-1" />
                 )}
-                Confirm Inspection Complete
+                {hasIssues ? `Submit ${allChecklistIssues.length} Issue${allChecklistIssues.length !== 1 ? 's' : ''}` : 'Complete - No Issues'}
               </Button>
             </DialogFooter>
           </DialogContent>
