@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2 } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
+import { createShipdayOrder } from "@/services/shipdayService";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
@@ -2254,10 +2255,43 @@ Route Link: ${routeLink}`;
     return 'none'; // not yet checked
   };
 
-  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none') => {
+  const [syncingShipdayIds, setSyncingShipdayIds] = useState<Set<string>>(new Set());
+
+  const handleAddToShipday = async (e: React.MouseEvent, orderId: string, jobType: 'pickup' | 'delivery') => {
+    e.stopPropagation();
+    const key = `${orderId}-${jobType}`;
+    setSyncingShipdayIds(prev => new Set(prev).add(key));
+    try {
+      await createShipdayOrder(orderId, jobType);
+      toast.success(`${jobType === 'pickup' ? 'Collection' : 'Delivery'} added to Shipday`);
+      onReVerifyShipday?.();
+    } catch (err: any) {
+      toast.error(`Failed to add to Shipday: ${err.message}`);
+    } finally {
+      setSyncingShipdayIds(prev => { const next = new Set(prev); next.delete(key); return next; });
+    }
+  };
+
+  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none', orderId?: string, jobType?: 'pickup' | 'delivery') => {
+    const syncKey = orderId && jobType ? `${orderId}-${jobType}` : '';
+    if (syncKey && syncingShipdayIds.has(syncKey)) {
+      return <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />;
+    }
     if (isVerifyingShipday) return <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />;
     if (status === 'verified') return <CheckCircle className="h-3 w-3 text-green-600" />;
-    if (status === 'missing') return <XCircle className="h-3 w-3 text-red-600" />;
+    if (status === 'missing' || status === 'none') {
+      return orderId && jobType ? (
+        <button
+          onClick={(e) => handleAddToShipday(e, orderId, jobType)}
+          className="hover:scale-125 transition-transform"
+          title="Click to add to Shipday"
+        >
+          {status === 'missing' ? <XCircle className="h-3 w-3 text-red-600" /> : <Minus className="h-3 w-3 text-muted-foreground" />}
+        </button>
+      ) : (
+        status === 'missing' ? <XCircle className="h-3 w-3 text-red-600" /> : <Minus className="h-3 w-3 text-muted-foreground" />
+      );
+    }
     return <Minus className="h-3 w-3 text-muted-foreground" />;
   };
 
@@ -2444,8 +2478,8 @@ Route Link: ${routeLink}`;
                           );
                         })()}
                         {/* Shipday Status */}
-                        <span title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'missing' ? 'Missing from Shipday' : 'Not synced to Shipday'}>
-                          {renderShipdayIcon(shipdayStatus)}
+                        <span title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'missing' ? 'Missing from Shipday - click to add' : 'Not synced - click to add'}>
+                          {renderShipdayIcon(shipdayStatus, job.orderId, job.type)}
                         </span>
                       </div>
                       {isSelected && (
