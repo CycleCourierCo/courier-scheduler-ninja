@@ -20,45 +20,32 @@ Deno.serve(async (req) => {
       throw new Error("SHIPDAY_API_KEY not configured");
     }
 
+    // Fetch all active orders in one call
+    const response = await fetch("https://api.shipday.com/orders", {
+      method: "GET",
+      headers: {
+        "Authorization": `Basic ${apiKey}`,
+        "Accept": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Shipday API returned HTTP ${response.status}`);
+    }
+
+    const activeOrders = await response.json();
+    console.log(`Shipday returned ${Array.isArray(activeOrders) ? activeOrders.length : 0} active orders`);
+
+    // Build a Set of active orderId strings
+    const activeIdSet = new Set<string>(
+      Array.isArray(activeOrders)
+        ? activeOrders.map((o: any) => String(o.orderId))
+        : []
+    );
+
     const results: Record<string, boolean> = {};
-
-    // Check each Shipday order ID
     for (const id of shipdayIds) {
-      try {
-        const response = await fetch(`https://api.shipday.com/orders/${id}`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Basic ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          console.log(`Shipday order ${id}: HTTP ${response.status}`);
-          results[id] = false;
-          continue;
-        }
-
-        const body = await response.text();
-        console.log(`Shipday order ${id} response: ${body.substring(0, 500)}`);
-
-        try {
-          const data = JSON.parse(body);
-          if (!data || (Array.isArray(data) && data.length === 0)) {
-            results[id] = false;
-          } else if (Array.isArray(data)) {
-            results[id] = data.length > 0 && !!data[0]?.orderId;
-          } else if (typeof data === 'object') {
-            results[id] = !!data.orderId;
-          } else {
-            results[id] = false;
-          }
-        } catch {
-          results[id] = false;
-        }
-      } catch {
-        results[id] = false;
-      }
+      results[id] = activeIdSet.has(String(id));
     }
 
     return new Response(
