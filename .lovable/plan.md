@@ -1,32 +1,19 @@
 
-# Make Shipday Cross Icon a Clickable "Add to Shipday" Button
 
-## Overview
+# Fix Scrolling in Route Comparison Dialog
 
-Turn the red X icon (shown when a job is missing from Shipday or not synced) into a clickable button that calls `createShipdayOrder` to add that specific job to Shipday -- the same logic used on the Order Detail page.
+## Problem
 
-## Changes
+The Route Comparison dialog prevents scrolling when there are many routes to compare. The `DialogContent` uses `overflow-hidden` which blocks native scrolling, and the `ScrollArea` component inside may not be expanding correctly within the flex layout.
 
-### File: `src/components/scheduling/RouteBuilder.tsx`
+## Fix
 
-1. **Import `createShipdayOrder`** from `@/services/shipdayService`
+### File: `src/components/scheduling/RouteComparisonDialog.tsx`
 
-2. **Add a handler function** `handleAddToShipday(orderId, jobType)` that:
-   - Calls `createShipdayOrder(orderId, jobType)`
-   - Shows a success/error toast
-   - Triggers `onReVerifyShipday` to refresh verification status after adding
+Remove `overflow-hidden` from the `DialogContent` className and ensure the `ScrollArea` properly fills available space by giving it an explicit max-height. Replace the current flex-based approach with a simpler `ScrollArea` that has a calculated max height to ensure the content scrolls within the dialog.
 
-3. **Update `renderShipdayIcon`** (or the rendering site at line ~2447):
-   - For `'verified'` status: keep the green checkmark as-is (non-clickable)
-   - For `'missing'` or `'none'` status: wrap the icon in a small clickable button that calls `handleAddToShipday` with the correct `orderId` and job type (`'pickup'` or `'delivery'`)
-   - Add a loading state per-job to show a spinner while the Shipday call is in progress
-   - Use `e.stopPropagation()` to prevent the click from toggling the job card selection
+- Change `DialogContent` className from `max-w-2xl max-h-[85vh] overflow-hidden flex flex-col` to `max-w-2xl max-h-[85vh] flex flex-col`
+- Add an explicit `max-h` style to the `ScrollArea` (e.g., `className="flex-1 -mx-6 px-6 overflow-auto"`) so it properly scrolls within the dialog bounds
 
-4. **Pass order context to renderShipdayIcon**: The render function will need the `orderId` and `jobType` so it can trigger the correct Shipday call. This means changing the call site from `renderShipdayIcon(shipdayStatus)` to include `orderId` and `jobType` parameters.
+This is a one-line className tweak -- removing `overflow-hidden` so the `ScrollArea` can scroll as intended.
 
-## Technical Details
-
-- Reuses the existing `createShipdayOrder` function from `shipdayService.ts` -- identical to the Order Detail page
-- After a successful add, triggers re-verification so the icon updates to a green checkmark
-- `e.stopPropagation()` prevents the button click from selecting/deselecting the job card
-- A local `Set` state tracks which jobs are currently being synced (to show individual loading spinners)
