@@ -1,82 +1,44 @@
 
 
-# Fix: Shipday Verification Returning False Positives
+# Fix: Use Shipday "Retrieve Active Orders" Endpoint
 
 ## Problem
 
-The Shipday API returns HTTP 200 even for non-existent order IDs. The current edge function only checks `response.ok` (i.e., status code), so every ID appears to "exist" -- including completely fake ones.
-
-## Root Cause
-
-Confirmed by testing: both a real ID (`CCC754546907586ROSDE6`) and a completely fake ID (`DEFINITELY_FAKE_ID_12345`) both return `true` because the API responds with 200 for both. The actual difference is in the **response body**, not the status code.
+The current approach calls `GET /orders/{id}` per order, but that endpoint expects an `orderNumber` string, not the numeric `orderId` we store. This causes all lookups to fail.
 
 ## Solution
 
-Update the `verify-shipday-orders` edge function to:
+Replace the per-order lookup with a single call to `GET https://api.shipday.com/orders` (the "Retrieve Active Orders" endpoint). This returns all active orders in one array. We then build a Set of `orderId` values from the response and check our local Shipday IDs against it.
 
-1. **Read and parse the response body** from the Shipday API instead of just checking `response.ok`
-2. **Log the response body** for debugging so we can see exactly what Shipday returns for existing vs non-existing orders
-3. **Determine existence from the body content** -- likely an empty array/object means "not found" while a populated response means "exists"
+This is simpler, faster (1 API call instead of N), and uses the numeric `orderId` field which matches what we store in the database.
+
+## Changes
 
 ### File: `supabase/functions/verify-shipday-orders/index.ts`
 
-Replace the simple `response.ok` check with body inspection:
+Replace the entire per-order loop with:
 
-```typescript
-for (const id of shipdayIds) {
-  try {
-    const response = await fetch(`https://api.shipday.com/orders/${id}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Basic ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-    });
+1. Single `GET https://api.shipday.com/orders` call with `Authorization: Basic {apiKey}`
+2. Parse the response array and build a Set of all `orderId` values (converted to strings for comparison)
+3. For each local Shipday ID, check if it exists in the Set
+4. Return results as before: `{ results: { "43073703": true, "99999": false } }`
 
-    if (!response.ok) {
-      console.log(`Shipday order ${id}: HTTP ${response.status}`);
-      results[id] = false;
-      continue;
-    }
+```text
+Current flow (N API calls, broken):
+  For each shipdayId -> GET /orders/{shipdayId} -> parse body
 
-    const body = await response.text();
-    console.log(`Shipday order ${id} response: ${body.substring(0, 500)}`);
-
-    // Parse and check if the response contains actual order data
-    try {
-      const data = JSON.parse(body);
-
-      // Shipday may return an empty array, null, or an object without an orderId
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        results[id] = false;
-      } else if (Array.isArray(data)) {
-        // If array, check first item has a valid orderId
-        results[id] = data.length > 0 && !!data[0]?.orderId;
-      } else if (typeof data === 'object') {
-        // If object, check it has an orderId field
-        results[id] = !!data.orderId;
-      } else {
-        results[id] = false;
-      }
-    } catch {
-      // If body isn't valid JSON or is empty, treat as not found
-      results[id] = false;
-    }
-  } catch {
-    results[id] = false;
-  }
-}
+New flow (1 API call):
+  GET /orders -> get all active orders array
+  Build Set of orderId strings from response
+  For each shipdayId -> check if Set.has(shipdayId)
 ```
 
-### Why this works
+No frontend changes needed -- the input/output contract stays the same (`shipdayIds` in, `results` map out).
 
-The Shipday GET endpoint returns 200 for all requests but the response body differs:
-- **Existing order**: Returns the order object (with `orderId`, `orderNumber`, etc.)
-- **Non-existing order**: Returns an empty array `[]`, empty object `{}`, or `null`
+## Technical Details
 
-By inspecting the body rather than the status code, we correctly distinguish between the two cases. The added logging will also let us see the exact response format in edge function logs for future debugging.
-
-## Testing
-
-After deployment, the edge function logs will show the actual Shipday response bodies, confirming the fix works. The scheduling page should then show red X icons for orders that don't exist on Shipday and green checkmarks only for verified orders.
+- The active orders endpoint returns an array of order objects, each with an `orderId` field (numeric)
+- Our database stores `shipday_pickup_id` and `shipday_delivery_id` as strings of the numeric orderId
+- We convert the response `orderId` values to strings for Set lookup
+- If the API call fails, all IDs are marked as `false` with an error log
 
