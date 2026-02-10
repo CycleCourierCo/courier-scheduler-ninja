@@ -1,44 +1,32 @@
 
+# Make Shipday Cross Icon a Clickable "Add to Shipday" Button
 
-# Fix: Use Shipday "Retrieve Active Orders" Endpoint
+## Overview
 
-## Problem
-
-The current approach calls `GET /orders/{id}` per order, but that endpoint expects an `orderNumber` string, not the numeric `orderId` we store. This causes all lookups to fail.
-
-## Solution
-
-Replace the per-order lookup with a single call to `GET https://api.shipday.com/orders` (the "Retrieve Active Orders" endpoint). This returns all active orders in one array. We then build a Set of `orderId` values from the response and check our local Shipday IDs against it.
-
-This is simpler, faster (1 API call instead of N), and uses the numeric `orderId` field which matches what we store in the database.
+Turn the red X icon (shown when a job is missing from Shipday or not synced) into a clickable button that calls `createShipdayOrder` to add that specific job to Shipday -- the same logic used on the Order Detail page.
 
 ## Changes
 
-### File: `supabase/functions/verify-shipday-orders/index.ts`
+### File: `src/components/scheduling/RouteBuilder.tsx`
 
-Replace the entire per-order loop with:
+1. **Import `createShipdayOrder`** from `@/services/shipdayService`
 
-1. Single `GET https://api.shipday.com/orders` call with `Authorization: Basic {apiKey}`
-2. Parse the response array and build a Set of all `orderId` values (converted to strings for comparison)
-3. For each local Shipday ID, check if it exists in the Set
-4. Return results as before: `{ results: { "43073703": true, "99999": false } }`
+2. **Add a handler function** `handleAddToShipday(orderId, jobType)` that:
+   - Calls `createShipdayOrder(orderId, jobType)`
+   - Shows a success/error toast
+   - Triggers `onReVerifyShipday` to refresh verification status after adding
 
-```text
-Current flow (N API calls, broken):
-  For each shipdayId -> GET /orders/{shipdayId} -> parse body
+3. **Update `renderShipdayIcon`** (or the rendering site at line ~2447):
+   - For `'verified'` status: keep the green checkmark as-is (non-clickable)
+   - For `'missing'` or `'none'` status: wrap the icon in a small clickable button that calls `handleAddToShipday` with the correct `orderId` and job type (`'pickup'` or `'delivery'`)
+   - Add a loading state per-job to show a spinner while the Shipday call is in progress
+   - Use `e.stopPropagation()` to prevent the click from toggling the job card selection
 
-New flow (1 API call):
-  GET /orders -> get all active orders array
-  Build Set of orderId strings from response
-  For each shipdayId -> check if Set.has(shipdayId)
-```
-
-No frontend changes needed -- the input/output contract stays the same (`shipdayIds` in, `results` map out).
+4. **Pass order context to renderShipdayIcon**: The render function will need the `orderId` and `jobType` so it can trigger the correct Shipday call. This means changing the call site from `renderShipdayIcon(shipdayStatus)` to include `orderId` and `jobType` parameters.
 
 ## Technical Details
 
-- The active orders endpoint returns an array of order objects, each with an `orderId` field (numeric)
-- Our database stores `shipday_pickup_id` and `shipday_delivery_id` as strings of the numeric orderId
-- We convert the response `orderId` values to strings for Set lookup
-- If the API call fails, all IDs are marked as `false` with an error log
-
+- Reuses the existing `createShipdayOrder` function from `shipdayService.ts` -- identical to the Order Detail page
+- After a successful add, triggers re-verification so the icon updates to a green checkmark
+- `e.stopPropagation()` prevents the button click from selecting/deselecting the job card
+- A local `Set` state tracks which jobs are currently being synced (to show individual loading spinners)
