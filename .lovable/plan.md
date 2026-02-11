@@ -1,19 +1,60 @@
 
 
-# Fix Scrolling in Route Comparison Dialog
+# Admin Holiday Management for Availability Calendar
 
-## Problem
+## Overview
+Create a new admin-only page where admins can add/remove holiday dates. These holidays will be fetched by the sender and receiver availability forms and blocked from selection.
 
-The Route Comparison dialog prevents scrolling when there are many routes to compare. The `DialogContent` uses `overflow-hidden` which blocks native scrolling, and the `ScrollArea` component inside may not be expanding correctly within the flex layout.
+## Database Changes
 
-## Fix
+### New table: `holidays`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid (PK) | Auto-generated |
+| date | date | The holiday date |
+| name | text | Holiday name/reason |
+| created_by | uuid (FK -> profiles) | Admin who created it |
+| created_at | timestamptz | Auto-set |
 
-### File: `src/components/scheduling/RouteComparisonDialog.tsx`
+RLS policies:
+- SELECT: allow all (public pages need to read holidays)
+- INSERT/DELETE: admin only via `is_admin()` check
 
-Remove `overflow-hidden` from the `DialogContent` className and ensure the `ScrollArea` properly fills available space by giving it an explicit max-height. Replace the current flex-based approach with a simpler `ScrollArea` that has a calculated max height to ensure the content scrolls within the dialog.
+## New Files
 
-- Change `DialogContent` className from `max-w-2xl max-h-[85vh] overflow-hidden flex flex-col` to `max-w-2xl max-h-[85vh] flex flex-col`
-- Add an explicit `max-h` style to the `ScrollArea` (e.g., `className="flex-1 -mx-6 px-6 overflow-auto"`) so it properly scrolls within the dialog bounds
+### 1. `src/pages/HolidaysPage.tsx`
+- Admin page with a calendar view and a list of existing holidays
+- Calendar in "multiple" select mode to pick dates
+- Text input for holiday name
+- "Add Holiday" button to save
+- Table listing all holidays with a delete button per row
+- Protected with `adminOnly={true}` route
 
-This is a one-line className tweak -- removing `overflow-hidden` so the `ScrollArea` can scroll as intended.
+### 2. `src/services/holidayService.ts`
+- `fetchHolidays()` - get all holidays
+- `addHoliday(date, name)` - insert a holiday
+- `deleteHoliday(id)` - remove a holiday
+- `fetchHolidayDates()` - returns just the date strings for use in availability forms
+
+## Modified Files
+
+### 3. `src/App.tsx`
+- Add route: `/holidays` -> `HolidaysPage` wrapped in `ProtectedRoute adminOnly={true}`
+
+### 4. `src/hooks/useAvailability.tsx`
+- On mount, fetch holiday dates via `fetchHolidayDates()`
+- Add holiday dates to `isDateDisabled` logic so they cannot be selected
+
+### 5. `src/components/availability/AvailabilityForm.tsx`
+- Pass holiday dates into the `defaultIsDateDisabled` function so both sender and receiver forms block holidays
+
+### 6. `src/components/Layout.tsx` (if navigation exists)
+- Add "Holidays" link in admin navigation
+
+## How It Works
+
+1. Admin navigates to `/holidays`, selects dates on the calendar, names the holiday, and saves
+2. Holiday dates are stored in the `holidays` table
+3. When a sender or receiver opens their availability form, holiday dates are fetched and disabled on the calendar
+4. Disabled holiday dates appear greyed out and cannot be clicked
 
