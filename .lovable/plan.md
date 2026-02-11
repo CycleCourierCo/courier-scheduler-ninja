@@ -1,60 +1,57 @@
 
 
-# Admin Holiday Management for Availability Calendar
+# Fix Timeslip Cron Job and Backfill Missing Days
 
-## Overview
-Create a new admin-only page where admins can add/remove holiday dates. These holidays will be fetched by the sender and receiver availability forms and blocked from selection.
+## Problem
+The daily timeslip generation cron job is failing silently because:
+1. **Missing authentication**: The cron job sends only the `anon` key as a Bearer token, but `generate-timeslips` requires either an admin JWT or an `X-Cron-Secret` header. The anon token fails admin auth, so the function returns 401.
+2. **Duplicate cron jobs**: Two identical jobs (jobid 2 and 3) are scheduled at the same time.
 
-## Database Changes
+## Fix (3 steps, all via SQL in Supabase)
 
-### New table: `holidays`
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | Auto-generated |
-| date | date | The holiday date |
-| name | text | Holiday name/reason |
-| created_by | uuid (FK -> profiles) | Admin who created it |
-| created_at | timestamptz | Auto-set |
+### Step 1: Delete both existing cron jobs
+Remove the two broken/duplicate jobs.
 
-RLS policies:
-- SELECT: allow all (public pages need to read holidays)
-- INSERT/DELETE: admin only via `is_admin()` check
+### Step 2: Create a new cron job with the X-Cron-Secret header
+The new job will include an `X-Cron-Secret` header retrieved from Supabase Vault (using `get_cron_secret()`), which the `requireAdminOrCronAuth` function already supports.
 
-## New Files
+The SQL will:
+- Call `get_cron_secret()` at schedule time to fetch the secret from vault
+- Pass it as the `X-Cron-Secret` header alongside the existing `Authorization` and `Content-Type` headers
 
-### 1. `src/pages/HolidaysPage.tsx`
-- Admin page with a calendar view and a list of existing holidays
-- Calendar in "multiple" select mode to pick dates
-- Text input for holiday name
-- "Add Holiday" button to save
-- Table listing all holidays with a delete button per row
-- Protected with `adminOnly={true}` route
+### Step 3: Manually trigger timeslip generation for missed dates
+Run the edge function manually for Feb 9, 10, and 11 to backfill the missing timeslips.
 
-### 2. `src/services/holidayService.ts`
-- `fetchHolidays()` - get all holidays
-- `addHoliday(date, name)` - insert a holiday
-- `deleteHoliday(id)` - remove a holiday
-- `fetchHolidayDates()` - returns just the date strings for use in availability forms
+## Technical Details
 
-## Modified Files
+### New cron job SQL
+```sql
+-- Remove duplicates
+SELECT cron.unschedule(2);
+SELECT cron.unschedule(3);
 
-### 3. `src/App.tsx`
-- Add route: `/holidays` -> `HolidaysPage` wrapped in `ProtectedRoute adminOnly={true}`
+-- Create corrected job with X-Cron-Secret header
+SELECT cron.schedule(
+  'generate-daily-timeslips',
+  '5 0 * * *',
+  $$
+  SELECT
+    net.http_post(
+        url:='https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/generate-timeslips',
+        headers:=jsonb_build_object(
+          'Content-Type', 'application/json',
+          'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4aWd0cm1heGhldHlmempqZHZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3NDA4MDMsImV4cCI6MjA1NzMxNjgwM30.POm5myoyMwKjkMfYMw2gRFs-cgD7GDznv338qiadugg',
+          'X-Cron-Secret', (SELECT get_cron_secret())
+        ),
+        body:=json_build_object('date', (CURRENT_DATE - INTERVAL '1 day')::DATE::TEXT)::jsonb
+    ) as request_id;
+  $$
+);
+```
 
-### 4. `src/hooks/useAvailability.tsx`
-- On mount, fetch holiday dates via `fetchHolidayDates()`
-- Add holiday dates to `isDateDisabled` logic so they cannot be selected
+### Backfill missed dates
+I will call the `generate-timeslips` edge function manually for each missed date (2026-02-09, 2026-02-10, 2026-02-11) using the edge function curl tool.
 
-### 5. `src/components/availability/AvailabilityForm.tsx`
-- Pass holiday dates into the `defaultIsDateDisabled` function so both sender and receiver forms block holidays
-
-### 6. `src/components/Layout.tsx` (if navigation exists)
-- Add "Holidays" link in admin navigation
-
-## How It Works
-
-1. Admin navigates to `/holidays`, selects dates on the calendar, names the holiday, and saves
-2. Holiday dates are stored in the `holidays` table
-3. When a sender or receiver opens their availability form, holiday dates are fetched and disabled on the calendar
-4. Disabled holiday dates appear greyed out and cannot be clicked
+## No code file changes needed
+This is entirely a database/infrastructure fix -- no application code changes required.
 
