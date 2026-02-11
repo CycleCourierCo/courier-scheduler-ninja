@@ -55,7 +55,8 @@ export default function SenderAvailability() {
     error,
     minDate,
     navigate: hookNavigate,
-    handleSubmit
+    handleSubmit,
+    isDateDisabled
   } = useAvailability({
     type: 'sender',
     updateFunction: updateSenderAvailability,
@@ -111,6 +112,7 @@ export default function SenderAvailability() {
         minDate={minDate}
         isSubmitting={isSubmitting}
         onSubmit={handleSubmit}
+        isDateDisabled={isDateDisabled}
       />
     </Layout>
   );

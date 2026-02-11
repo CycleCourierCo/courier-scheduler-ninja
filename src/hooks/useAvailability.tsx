@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { getPublicOrder } from "@/services/fetchOrderService";
 import { Order } from "@/types/order";
 import { format } from "date-fns";
+import { fetchHolidayDates } from "@/services/holidayService";
 
 type AvailabilityType = 'sender' | 'receiver';
 
@@ -31,6 +32,12 @@ export const useAvailability = ({
   const [error, setError] = useState<string | null>(null);
   const [minDate, setMinDate] = useState<Date>(getMinDate());
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [holidayDates, setHolidayDates] = useState<string[]>([]);
+
+  // Fetch holiday dates on mount
+  useEffect(() => {
+    fetchHolidayDates().then(setHolidayDates).catch(() => {});
+  }, []);
 
   // This function will be used to check if a date should be disabled
   const isDateDisabled = (date: Date): boolean => {
@@ -44,6 +51,12 @@ export const useAvailability = ({
     
     // Disable Fridays (day 5)
     if (date.getDay() === 5) {
+      return true;
+    }
+
+    // Disable holiday dates
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (holidayDates.includes(dateStr)) {
       return true;
     }
     
