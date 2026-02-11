@@ -35,6 +35,7 @@ import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
 import DriverTimeslips from "./pages/DriverTimeslips";
 import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
 import BicycleInspections from "./pages/BicycleInspections";
+import HolidaysPage from "./pages/HolidaysPage";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,11 @@ function App() {
               <Route path="/bicycle-inspections" element={
                 <ProtectedRoute>
                   <BicycleInspections />
+                </ProtectedRoute>
+              } />
+              <Route path="/holidays" element={
+                <ProtectedRoute adminOnly={true}>
+                  <HolidaysPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />
