@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { DayPicker } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, isBefore, startOfDay } from 'date-fns';
+import { format, isBefore, startOfDay, addMonths } from 'date-fns';
 import { Calendar, X, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -114,6 +114,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   onSelect={handleDateSelect}
                   disabled={disableDate}
                   fromDate={minDate || today}
+                  toDate={addMonths(today, 1)}
                   className="p-3 pointer-events-auto"
                 />
               </div>
