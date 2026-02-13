@@ -1,19 +1,31 @@
 
-# Limit Availability Calendar to 1 Month from Today
 
-## What Changes
-In the availability calendar (used by both sender and receiver availability pages), add a maximum selectable date of **1 month from today**. Currently, users can scroll indefinitely into the future -- this change restricts selection to the next 30 days only.
+# Fix: Forward Cron Secret to Nested Edge Function Call
 
-## Technical Details
+## Problem
+`generate-timeslips` authenticates successfully via `X-Cron-Secret`, but when it invokes `query-database-completed-jobs`, it only forwards the `Authorization` header (the anon key). The nested function also requires `requireAdminOrCronAuth` and rejects the anon key as an invalid JWT. The `X-Cron-Secret` is never passed along.
 
-**File: `src/components/availability/AvailabilityForm.tsx`**
-- Import `addMonths` from `date-fns`
-- Add a `toDate` prop to the `CalendarComponent`, set to `addMonths(today, 1)`
-- This prevents users from navigating past or selecting dates beyond 1 month from today
+## Solution
+Update `generate-timeslips` to forward the `X-Cron-Secret` header to the nested function call when authenticated via cron. This way the nested function can also validate via the cron secret path.
 
-The change is a single line addition to the calendar component:
-```tsx
-toDate={addMonths(today, 1)}
+## Technical Change
+
+**File: `supabase/functions/generate-timeslips/index.ts`**
+
+Update the nested function invocation (around line 87) to also forward the `X-Cron-Secret` header:
+
+```typescript
+// Current (broken):
+headers: authHeader ? { Authorization: authHeader } : {}
+
+// Fixed:
+const cronSecret = req.headers.get('X-Cron-Secret');
+// ...
+headers: {
+  ...(authHeader ? { Authorization: authHeader } : {}),
+  ...(cronSecret ? { 'X-Cron-Secret': cronSecret } : {})
+}
 ```
 
-No changes needed to the hook, service layer, or any other components -- the calendar component handles the restriction natively via the `toDate` prop from `react-day-picker`.
+This is a single-line change in one file. No other files need modification.
+
