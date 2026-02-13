@@ -71,6 +71,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { date }: GenerateTimeslipsRequest = await req.json();
     const authHeader = req.headers.get('Authorization');
+    const cronSecret = req.headers.get('X-Cron-Secret');
     
     console.log('=== GENERATE TIMESLIPS STARTED ===');
     console.log('Timestamp:', new Date().toISOString());
@@ -83,7 +84,10 @@ const handler = async (req: Request): Promise<Response> => {
       'query-database-completed-jobs',
       {
         body: { date },
-        headers: authHeader ? { Authorization: authHeader } : {}
+        headers: {
+          ...(authHeader ? { Authorization: authHeader } : {}),
+          ...(cronSecret ? { 'X-Cron-Secret': cronSecret } : {})
+        }
       }
     );
 
