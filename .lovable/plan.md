@@ -1,60 +1,31 @@
 
 
-# Admin Holiday Management for Availability Calendar
+# Fix: Forward Cron Secret to Nested Edge Function Call
 
-## Overview
-Create a new admin-only page where admins can add/remove holiday dates. These holidays will be fetched by the sender and receiver availability forms and blocked from selection.
+## Problem
+`generate-timeslips` authenticates successfully via `X-Cron-Secret`, but when it invokes `query-database-completed-jobs`, it only forwards the `Authorization` header (the anon key). The nested function also requires `requireAdminOrCronAuth` and rejects the anon key as an invalid JWT. The `X-Cron-Secret` is never passed along.
 
-## Database Changes
+## Solution
+Update `generate-timeslips` to forward the `X-Cron-Secret` header to the nested function call when authenticated via cron. This way the nested function can also validate via the cron secret path.
 
-### New table: `holidays`
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | Auto-generated |
-| date | date | The holiday date |
-| name | text | Holiday name/reason |
-| created_by | uuid (FK -> profiles) | Admin who created it |
-| created_at | timestamptz | Auto-set |
+## Technical Change
 
-RLS policies:
-- SELECT: allow all (public pages need to read holidays)
-- INSERT/DELETE: admin only via `is_admin()` check
+**File: `supabase/functions/generate-timeslips/index.ts`**
 
-## New Files
+Update the nested function invocation (around line 87) to also forward the `X-Cron-Secret` header:
 
-### 1. `src/pages/HolidaysPage.tsx`
-- Admin page with a calendar view and a list of existing holidays
-- Calendar in "multiple" select mode to pick dates
-- Text input for holiday name
-- "Add Holiday" button to save
-- Table listing all holidays with a delete button per row
-- Protected with `adminOnly={true}` route
+```typescript
+// Current (broken):
+headers: authHeader ? { Authorization: authHeader } : {}
 
-### 2. `src/services/holidayService.ts`
-- `fetchHolidays()` - get all holidays
-- `addHoliday(date, name)` - insert a holiday
-- `deleteHoliday(id)` - remove a holiday
-- `fetchHolidayDates()` - returns just the date strings for use in availability forms
+// Fixed:
+const cronSecret = req.headers.get('X-Cron-Secret');
+// ...
+headers: {
+  ...(authHeader ? { Authorization: authHeader } : {}),
+  ...(cronSecret ? { 'X-Cron-Secret': cronSecret } : {})
+}
+```
 
-## Modified Files
-
-### 3. `src/App.tsx`
-- Add route: `/holidays` -> `HolidaysPage` wrapped in `ProtectedRoute adminOnly={true}`
-
-### 4. `src/hooks/useAvailability.tsx`
-- On mount, fetch holiday dates via `fetchHolidayDates()`
-- Add holiday dates to `isDateDisabled` logic so they cannot be selected
-
-### 5. `src/components/availability/AvailabilityForm.tsx`
-- Pass holiday dates into the `defaultIsDateDisabled` function so both sender and receiver forms block holidays
-
-### 6. `src/components/Layout.tsx` (if navigation exists)
-- Add "Holidays" link in admin navigation
-
-## How It Works
-
-1. Admin navigates to `/holidays`, selects dates on the calendar, names the holiday, and saves
-2. Holiday dates are stored in the `holidays` table
-3. When a sender or receiver opens their availability form, holiday dates are fetched and disabled on the calendar
-4. Disabled holiday dates appear greyed out and cannot be clicked
+This is a single-line change in one file. No other files need modification.
 
