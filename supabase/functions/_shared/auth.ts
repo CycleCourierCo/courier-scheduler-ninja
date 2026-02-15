@@ -132,6 +132,59 @@ export async function requireAdminOrCronAuth(req: Request): Promise<AuthResult> 
 }
 
 /**
+ * Require admin OR route_planner authentication via JWT
+ * Validates token and checks for admin or route_planner role
+ */
+export async function requireAdminOrRoutePlannerAuth(req: Request): Promise<AuthResult> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    console.error('Auth failed: No bearer token provided', {
+      timestamp: new Date().toISOString(),
+    });
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+  if (authError || !user) {
+    console.error('Auth failed: Invalid or expired token', {
+      timestamp: new Date().toISOString(),
+      errorType: authError?.name,
+    });
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  const { data: isAdmin } = await supabaseAdmin.rpc('has_role', {
+    _user_id: user.id,
+    _role: 'admin'
+  });
+
+  if (isAdmin) {
+    return { success: true, userId: user.id, authType: 'admin' };
+  }
+
+  const { data: isRoutePlanner } = await supabaseAdmin.rpc('has_role', {
+    _user_id: user.id,
+    _role: 'route_planner'
+  });
+
+  if (isRoutePlanner) {
+    return { success: true, userId: user.id, authType: 'user' };
+  }
+
+  console.error('Auth failed: User is not admin or route_planner', {
+    timestamp: new Date().toISOString(),
+    userId: user.id,
+  });
+  return { success: false, error: 'Forbidden: Admin or route planner access required', status: 403 };
+}
+
+/**
  * Create standardized error response with CORS headers
  */
 export function createAuthErrorResponse(
