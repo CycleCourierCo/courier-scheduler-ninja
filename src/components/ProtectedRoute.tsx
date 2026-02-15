@@ -78,11 +78,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // 6. Route planner role restrictions - only allow scheduling and dashboard
+  // 6. Route planner role restrictions - only allow scheduling, dashboard, and order details
   const isSchedulingPage = location.pathname === '/scheduling';
   const isDashboardPage = location.pathname === '/dashboard';
+  const isOrderDetailPage = location.pathname.startsWith('/orders/');
   if (userProfile?.role === 'route_planner') {
-    if (!isSchedulingPage && !isDashboardPage) {
+    if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage) {
       return <Navigate to="/dashboard" replace />;
     }
     return <>{children}</>;
