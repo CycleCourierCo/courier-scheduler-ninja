@@ -75,7 +75,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
   
   // Filter out actions column for non-admin users
   useEffect(() => {
-    if (userRole !== "admin" && visibleColumns.includes("actions")) {
+    if (userRole !== "admin" && userRole !== "route_planner" && visibleColumns.includes("actions")) {
       setVisibleColumns(prevColumns => prevColumns.filter(col => col !== "actions"));
     }
   }, [userRole, visibleColumns]);
@@ -162,7 +162,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
 
   const handleColumnChange = (columns: string[]) => {
     // Filter out actions column for non-admin users
-    const filteredColumns = userRole !== "admin" 
+    const filteredColumns = userRole !== "admin" && userRole !== "route_planner"
       ? columns.filter(col => col !== "actions") 
       : columns;
       
@@ -185,7 +185,11 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
   };
 
   const handleRowClick = (orderId: string) => {
-    if (userRole === "admin" || userRole === "route_planner") return;
+    if (userRole === "admin") return;
+    if (userRole === "route_planner") {
+      navigate(`/orders/${orderId}`);
+      return;
+    }
     navigate(`/customer-orders/${orderId}`);
   };
 
@@ -313,7 +317,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
     <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-background">
       <div className="flex justify-end p-2 border-b">
         <TableColumnSettings 
-          columns={userRole === "admin" ? ALL_COLUMNS : ALL_COLUMNS.filter(col => col.id !== "actions")} 
+          columns={(userRole === "admin" || userRole === "route_planner") ? ALL_COLUMNS : ALL_COLUMNS.filter(col => col.id !== "actions")} 
           visibleColumns={visibleColumns} 
           onChange={handleColumnChange} 
         />
