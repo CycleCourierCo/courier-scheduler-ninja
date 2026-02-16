@@ -1,73 +1,29 @@
 
 
-# Allow Route Planners Full "Send All Timeslots" Functionality
+# Fix: Allow Route Planners to Open Orders from Dashboard
 
-## Problem
-When a route planner clicks "Send All Timeslots", the flow fails at two points:
-1. **Database UPDATE blocked** -- the orders UPDATE RLS policies don't grant `route_planner` permission, so saving timeslots, scheduled dates, and status changes silently fails.
-2. **Route report blocked** -- the `send-route-report` Edge Function uses `requireAdminAuth`, which rejects non-admin users with a 403 error.
+## Root Cause
 
-The `send-timeslot-whatsapp` function has no auth check, so WhatsApp/Shipday/email notifications already work.
+In `src/components/OrderTable.tsx`, when a non-admin user clicks an order row, they are navigated to `/customer-orders/{id}`. However, the `ProtectedRoute` component only permits `route_planner` access to `/scheduling`, `/dashboard`, and paths starting with `/orders/`. The `/customer-orders/` path is not in the allowlist, so the route planner is immediately redirected back to `/dashboard`.
 
-## Changes Required
+## Solution
 
-### 1. Add a new shared auth helper: `requireAdminOrRoutePlannerAuth`
+Update `src/components/ProtectedRoute.tsx` to also allow `route_planner` access to the `/customer-orders/` path.
 
-**File:** `supabase/functions/_shared/auth.ts`
+### File: `src/components/ProtectedRoute.tsx`
 
-Add a new function that accepts either `admin` or `route_planner` roles. This follows the existing pattern and keeps `requireAdminAuth` unchanged for other functions.
+Add a check for the customer order detail page alongside the existing order detail page check:
 
 ```typescript
-export async function requireAdminOrRoutePlannerAuth(req: Request): Promise<AuthResult> {
-  // Validate JWT token
-  // Check has_role for 'admin' OR 'route_planner'
-  // Return success with appropriate authType
+const isOrderDetailPage = location.pathname.startsWith('/orders/');
+const isCustomerOrderDetailPage = location.pathname.startsWith('/customer-orders/');
+if (userProfile?.role === 'route_planner') {
+  if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage && !isCustomerOrderDetailPage) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
 }
 ```
 
-### 2. Update `send-route-report` Edge Function
-
-**File:** `supabase/functions/send-route-report/index.ts`
-
-Replace the import and usage of `requireAdminAuth` with `requireAdminOrRoutePlannerAuth`, so route planners can trigger the summary report email.
-
-### 3. Add orders UPDATE RLS policy for route planners
-
-**Database migration**
-
-Add a new UPDATE policy on the `orders` table granting `route_planner` users permission to update scheduling-related fields. This is a separate policy (following the existing pattern of `orders_loader_update_policy`):
-
-```sql
-CREATE POLICY "orders_route_planner_update_policy"
-ON public.orders
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM (SELECT auth.uid() AS uid) s
-    WHERE public.has_role(s.uid, 'route_planner')
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM (SELECT auth.uid() AS uid) s
-    WHERE public.has_role(s.uid, 'route_planner')
-  )
-);
-```
-
-This grants full UPDATE access to route planners on the orders table (matching the same broad access that the loader role has), enabling them to set timeslots, scheduled dates, and status.
-
-## Summary of Changes
-
-| Change | File/Target | Purpose |
-|--------|------------|---------|
-| New auth helper | `_shared/auth.ts` | Reusable admin-or-route-planner check |
-| Update import | `send-route-report/index.ts` | Allow route planners to send reports |
-| New RLS policy | `orders` table (migration) | Allow route planners to update orders |
-
-## What stays unchanged
-- `send-timeslot-whatsapp` -- already works without auth
-- `requireAdminAuth` -- untouched, still used by other admin-only functions
-- Existing UPDATE policies for admins, customers, loaders, and public availability
+This is a single-line change that adds the customer order detail route to the route planner's permitted pages.
 
