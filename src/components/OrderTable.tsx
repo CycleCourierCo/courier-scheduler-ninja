@@ -185,7 +185,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
   };
 
   const handleRowClick = (orderId: string) => {
-    if (userRole === "admin") return; // Don't navigate on row click for admins
+    if (userRole === "admin" || userRole === "route_planner") return;
     navigate(`/customer-orders/${orderId}`);
   };
 
@@ -438,7 +438,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                     {columnId === "created" && format(new Date(order.createdAt), "PP")}
                     {columnId === "actions" && (
                       <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                        {userRole === "admin" && (
+                        {(userRole === "admin" || userRole === "route_planner") && (
                           <Button variant="outline" size="sm" asChild>
                             <Link to={`/orders/${order.id}`}>
                               <Eye className="h-4 w-4 mr-1" />
