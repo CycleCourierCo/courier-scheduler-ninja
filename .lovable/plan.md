@@ -1,43 +1,64 @@
 
+# Fix: Route Planners Can't See Admin Button or Open Orders
 
-# Allow Route Planner to See All Orders
+## Root Cause
 
-## Problem
-The `route_planner` role cannot see any orders on the dashboard because the RLS (Row Level Security) policy on the `orders` table only grants SELECT access to `admin` users or the order owner (`user_id = auth.uid()`). The client-side code already skips the user_id filter for route planners, but the database blocks the query at the RLS level.
+There are **three places** in `OrderTable.tsx` that filter out the "actions" column for non-admin users. The previous fix only updated the button visibility condition (line 441), but the actions column itself is being **removed entirely** before it ever renders:
 
-Additionally, route planners cannot navigate to individual order detail pages (`/orders/:id`).
+1. **Line 78**: A `useEffect` strips the "actions" column from `visibleColumns` for any non-admin role
+2. **Line 165**: The `handleColumnChange` function filters out "actions" for non-admin roles
+3. **Line 260 area / TableColumnSettings**: The column settings dropdown hides "actions" for non-admin roles
+
+Additionally, when a route planner clicks a table row, the click handler just `return`s without navigating anywhere -- so clicking an order row does nothing.
 
 ## Solution
 
-Two changes are needed:
+Update all three filtering locations to treat `route_planner` the same as `admin`:
 
-### 1. Database: Update RLS SELECT policy (orders table)
+### File: `src/components/OrderTable.tsx`
 
-Modify the existing `orders_authenticated_select_policy` to also allow `route_planner` role to read all orders:
-
-**Current policy logic:**
-```
-admin OR user_id = auth.uid()
-```
-
-**Updated policy logic:**
-```
-admin OR route_planner OR user_id = auth.uid()
+**1. useEffect (line 77-81)** -- Include route_planner in the check:
+```typescript
+useEffect(() => {
+  if (userRole !== "admin" && userRole !== "route_planner" && visibleColumns.includes("actions")) {
+    setVisibleColumns(prevColumns => prevColumns.filter(col => col !== "actions"));
+  }
+}, [userRole, visibleColumns]);
 ```
 
-The SQL will use the existing `has_role()` security definer function and the cached CTE pattern already established in the project.
-
-### 2. Frontend: Allow route planner to access order detail pages
-
-**File: `src/components/ProtectedRoute.tsx`** (around line 79)
-
-Add `/orders/` path to the allowed routes for route_planner, so they can click into individual orders from the dashboard or scheduling page.
-
-```
-Allowed paths: /dashboard, /scheduling, /orders/:id
+**2. handleColumnChange (line 163-169)** -- Include route_planner:
+```typescript
+const handleColumnChange = (columns: string[]) => {
+  const filteredColumns = userRole !== "admin" && userRole !== "route_planner"
+    ? columns.filter(col => col !== "actions") 
+    : columns;
+  setVisibleColumns(filteredColumns);
+};
 ```
 
-## What stays the same
-- The client-side filtering in `getOrdersWithFilters` already handles `route_planner` correctly (line 140) -- no changes needed there.
-- No other roles are affected.
+**3. TableColumnSettings prop (around line 301)** -- Show actions column for route_planner:
+```typescript
+<TableColumnSettings 
+  columns={(userRole === "admin" || userRole === "route_planner") 
+    ? ALL_COLUMNS 
+    : ALL_COLUMNS.filter(col => col.id !== "actions")} 
+  visibleColumns={visibleColumns} 
+  onChange={handleColumnChange} 
+/>
+```
 
+**4. Row click handler (line 187-190)** -- Navigate route planners to the admin page on row click:
+```typescript
+const handleRowClick = (orderId: string) => {
+  if (userRole === "admin") return;
+  if (userRole === "route_planner") {
+    navigate(`/orders/${orderId}`);
+    return;
+  }
+  navigate(`/customer-orders/${orderId}`);
+};
+```
+
+## Summary
+
+Four small edits in `OrderTable.tsx` to ensure route planners see the actions column (with the Admin button) and can click rows to navigate to the admin order detail page.
