@@ -1,40 +1,64 @@
 
+# Fix: Route Planners Can't See Admin Button or Open Orders
 
-# Give Route Planners Access to the Admin Order Page
+## Root Cause
 
-## Problem
+There are **three places** in `OrderTable.tsx` that filter out the "actions" column for non-admin users. The previous fix only updated the button visibility condition (line 441), but the actions column itself is being **removed entirely** before it ever renders:
 
-When a route planner clicks an order from the dashboard, they are taken to the **customer order detail** page (`/customer-orders/:id`), which has limited information. They need access to the **admin order detail** page (`/orders/:id`) to see full scheduling and logistics details.
+1. **Line 78**: A `useEffect` strips the "actions" column from `visibleColumns` for any non-admin role
+2. **Line 165**: The `handleColumnChange` function filters out "actions" for non-admin roles
+3. **Line 260 area / TableColumnSettings**: The column settings dropdown hides "actions" for non-admin roles
+
+Additionally, when a route planner clicks a table row, the click handler just `return`s without navigating anywhere -- so clicking an order row does nothing.
 
 ## Solution
 
-Update `src/components/OrderTable.tsx` in two places:
+Update all three filtering locations to treat `route_planner` the same as `admin`:
 
-### 1. Row click navigation (line 187-190)
-Currently, only admins skip the customer-orders redirect. Update the logic so route planners also navigate to the admin order page:
+### File: `src/components/OrderTable.tsx`
 
+**1. useEffect (line 77-81)** -- Include route_planner in the check:
+```typescript
+useEffect(() => {
+  if (userRole !== "admin" && userRole !== "route_planner" && visibleColumns.includes("actions")) {
+    setVisibleColumns(prevColumns => prevColumns.filter(col => col !== "actions"));
+  }
+}, [userRole, visibleColumns]);
+```
+
+**2. handleColumnChange (line 163-169)** -- Include route_planner:
+```typescript
+const handleColumnChange = (columns: string[]) => {
+  const filteredColumns = userRole !== "admin" && userRole !== "route_planner"
+    ? columns.filter(col => col !== "actions") 
+    : columns;
+  setVisibleColumns(filteredColumns);
+};
+```
+
+**3. TableColumnSettings prop (around line 301)** -- Show actions column for route_planner:
+```typescript
+<TableColumnSettings 
+  columns={(userRole === "admin" || userRole === "route_planner") 
+    ? ALL_COLUMNS 
+    : ALL_COLUMNS.filter(col => col.id !== "actions")} 
+  visibleColumns={visibleColumns} 
+  onChange={handleColumnChange} 
+/>
+```
+
+**4. Row click handler (line 187-190)** -- Navigate route planners to the admin page on row click:
 ```typescript
 const handleRowClick = (orderId: string) => {
-  if (userRole === "admin" || userRole === "route_planner") {
-    return; // Don't navigate on row click (they use the Admin button)
+  if (userRole === "admin") return;
+  if (userRole === "route_planner") {
+    navigate(`/orders/${orderId}`);
+    return;
   }
   navigate(`/customer-orders/${orderId}`);
 };
 ```
 
-### 2. Show the "Admin" view button (line 441)
-Currently, only admins see the "Admin" button. Update the condition to include route planners:
+## Summary
 
-```typescript
-{(userRole === "admin" || userRole === "route_planner") && (
-  <Button variant="outline" size="sm" asChild>
-    <Link to={`/orders/${order.id}`}>
-      <Eye className="h-4 w-4 mr-1" />
-      Admin
-    </Link>
-  </Button>
-)}
-```
-
-No database or routing changes are needed -- the `ProtectedRoute` already allows `route_planner` access to `/orders/:id`.
-
+Four small edits in `OrderTable.tsx` to ensure route planners see the actions column (with the Admin button) and can click rows to navigate to the admin order detail page.
