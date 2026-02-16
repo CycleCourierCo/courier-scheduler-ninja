@@ -82,8 +82,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isSchedulingPage = location.pathname === '/scheduling';
   const isDashboardPage = location.pathname === '/dashboard';
   const isOrderDetailPage = location.pathname.startsWith('/orders/');
+  const isCustomerOrderDetailPage = location.pathname.startsWith('/customer-orders/');
   if (userProfile?.role === 'route_planner') {
-    if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage) {
+    if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage && !isCustomerOrderDetailPage) {
       return <Navigate to="/dashboard" replace />;
     }
     return <>{children}</>;
