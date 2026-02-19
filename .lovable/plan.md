@@ -1,31 +1,33 @@
+## Fix: Missing Inspection and Tab Restructuring
 
+### Problem 1: Missing Inspection
 
-## Fix: Business Registration Email Notifications Not Sending
+Inspection `4df3ef71-b44f-4194-bf18-7e8856983ca6` (order `8b7e2c53`) is not showing because the query in `inspectionService.ts` excludes orders with status `delivered` or `cancelled`. This order has been delivered, so it gets filtered out -- but the inspection status is `inspected` (completed with no issues), which should still be visible.
 
-### Problem
-When a new business account registers, neither the user confirmation email nor the admin notification email is sent. The plan for this fix was proposed previously but was **never implemented**.
+**Fix:** Remove the status exclusion filter from `getPendingInspections()` so all orders with `needs_inspection = true` are shown regardless of order status. Delivered/cancelled bikes that have been inspected are important to see in the completed tabs.
 
-**Root cause:** The `create-business-user` edge function creates the user but does not sign them in. The client-side code in `AuthContext.tsx` then tries to call the `send-email` edge function, which requires authentication. Since no user is signed in after business account creation, the request fails with a 401 error (caught silently).
+### Problem 2: Tab Restructuring
 
-### Changes
+Currently there are 5 tabs: Awaiting, No Issues, Issues, In Repair, Repaired.
 
-**1. `supabase/functions/create-business-user/index.ts`**
-- After the user is successfully created, send both emails directly from the edge function using Resend (bypassing the `send-email` function entirely)
-- **User confirmation email**: Plain text email to the new user confirming their account is pending approval
-- **Admin notification email**: HTML email to `info@cyclecourierco.com` with business details and a link to `https://booking.cyclecourierco.com/users` for approval
-- Email failures will be logged but will not block the success response (matching current intended behavior)
-- Sender address: `Ccc@notification.cyclecourierco.com`
+**Change:** Replace "No Issues" and "Repaired" tabs with a single "Inspected and Serviced" tab that shows bikes with inspection status `inspected` (no issues found) OR `repaired` (issues were found and fixed).
 
-**2. `src/contexts/AuthContext.tsx`**
-- Remove the client-side email calls (`sendBusinessAccountCreationEmail` and `sendBusinessRegistrationAdminNotification`) from the `signUp` function
-- Remove the unused import for those two functions from `emailService`
+### Files to Change
 
-### Technical Details
+**1. `src/services/inspectionService.ts**`
 
-The edge function will:
-- Use `npm:resend` (same pattern as the existing `send-email` function) with the `RESEND_API_KEY` secret (already configured)
-- Replicate the exact email content currently defined in `src/services/emailService.ts` (subject lines, body text, HTML template)
-- Use `https://booking.cyclecourierco.com/users` as the approval link (since `window.location.origin` is unavailable server-side)
-- Add Sentry instrumentation using the shared `_shared/sentry.ts` utility for error tracking
-- Wrap email sending in a try/catch so failures don't affect user creation
+- In `getPendingInspections()` (around line 100): Remove the `.not('status', 'in', '("delivered","cancelled")')` filter so all inspected orders appear
 
+**2. `src/pages/BicycleInspections.tsx**`
+
+- Replace the two filter arrays `noIssues` and `repaired` with a single `inspectedAndServiced` array that includes orders where `inspection.status` is `inspected` OR `repaired`
+- Replace the "No Issues" and "Repaired" tab triggers with a single "Inspected and Serviced" tab trigger
+- Replace the two `TabsContent` sections with a single one for the combined tab
+- Update the empty state message to "No bikes inspected and serviced yet"
+
+### Summary of New Tabs
+
+1. **Awaiting** -- bikes pending inspection (no inspection record or status `pending`)
+2. **Issues** -- bikes with issues awaiting customer response (status `issues_found`)
+3. **In Repair** -- bikes being repaired after customer approval (status `in_repair`)
+4. **Inspected and Serviced** -- all completed bikes, both clean inspections and repaired ones (status `inspected` or `repaired`)
