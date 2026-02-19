@@ -430,10 +430,9 @@ const BicycleInspections = () => {
 
   // Filter inspections by status
   const awaitingInspection = inspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const noIssues = inspections.filter((i: any) => i.inspection?.status === "inspected");
   const withIssues = inspections.filter((i: any) => i.inspection?.status === "issues_found");
   const inRepair = inspections.filter((i: any) => i.inspection?.status === "in_repair");
-  const repaired = inspections.filter((i: any) => i.inspection?.status === "repaired");
+  const inspectedAndServiced = inspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
@@ -715,14 +714,6 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="no-issues" className="flex items-center gap-1">
-                No Issues
-                {noIssues.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {noIssues.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
               <TabsTrigger value="issues" className="flex items-center gap-1">
                 Issues
                 {withIssues.length > 0 && (
@@ -739,11 +730,11 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="repaired" className="flex items-center gap-1">
-                Repaired
-                {repaired.length > 0 && (
+              <TabsTrigger value="inspected-serviced" className="flex items-center gap-1">
+                Inspected &amp; Serviced
+                {inspectedAndServiced.length > 0 && (
                   <Badge variant="success" className="ml-1">
-                    {repaired.length}
+                    {inspectedAndServiced.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -756,16 +747,6 @@ const BicycleInspections = () => {
                 </p>
               ) : (
                 awaitingInspection.map(renderInspectionCard)
-              )}
-            </TabsContent>
-
-            <TabsContent value="no-issues" className="space-y-4">
-              {noIssues.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No bikes inspected with no issues
-                </p>
-              ) : (
-                noIssues.map(renderInspectionCard)
               )}
             </TabsContent>
 
@@ -789,13 +770,13 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="repaired" className="space-y-4">
-              {repaired.length === 0 ? (
+            <TabsContent value="inspected-serviced" className="space-y-4">
+              {inspectedAndServiced.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No repaired bikes
+                  No bikes inspected and serviced yet
                 </p>
               ) : (
-                repaired.map(renderInspectionCard)
+                inspectedAndServiced.map(renderInspectionCard)
               )}
             </TabsContent>
           </Tabs>

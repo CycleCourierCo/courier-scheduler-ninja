@@ -118,7 +118,6 @@ export const getPendingInspections = async () => {
         storage_locations
       `)
       .eq('needs_inspection', true)
-      .not('status', 'in', '("delivered","cancelled")')
       .order('created_at', { ascending: true });
 
     if (error) throw error;
