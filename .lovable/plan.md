@@ -1,64 +1,33 @@
+## Fix: Missing Inspection and Tab Restructuring
 
-# Fix: Route Planners Can't See Admin Button or Open Orders
+### Problem 1: Missing Inspection
 
-## Root Cause
+Inspection `4df3ef71-b44f-4194-bf18-7e8856983ca6` (order `8b7e2c53`) is not showing because the query in `inspectionService.ts` excludes orders with status `delivered` or `cancelled`. This order has been delivered, so it gets filtered out -- but the inspection status is `inspected` (completed with no issues), which should still be visible.
 
-There are **three places** in `OrderTable.tsx` that filter out the "actions" column for non-admin users. The previous fix only updated the button visibility condition (line 441), but the actions column itself is being **removed entirely** before it ever renders:
+**Fix:** Remove the status exclusion filter from `getPendingInspections()` so all orders with `needs_inspection = true` are shown regardless of order status. Delivered/cancelled bikes that have been inspected are important to see in the completed tabs.
 
-1. **Line 78**: A `useEffect` strips the "actions" column from `visibleColumns` for any non-admin role
-2. **Line 165**: The `handleColumnChange` function filters out "actions" for non-admin roles
-3. **Line 260 area / TableColumnSettings**: The column settings dropdown hides "actions" for non-admin roles
+### Problem 2: Tab Restructuring
 
-Additionally, when a route planner clicks a table row, the click handler just `return`s without navigating anywhere -- so clicking an order row does nothing.
+Currently there are 5 tabs: Awaiting, No Issues, Issues, In Repair, Repaired.
 
-## Solution
+**Change:** Replace "No Issues" and "Repaired" tabs with a single "Inspected and Serviced" tab that shows bikes with inspection status `inspected` (no issues found) OR `repaired` (issues were found and fixed).
 
-Update all three filtering locations to treat `route_planner` the same as `admin`:
+### Files to Change
 
-### File: `src/components/OrderTable.tsx`
+**1. `src/services/inspectionService.ts**`
 
-**1. useEffect (line 77-81)** -- Include route_planner in the check:
-```typescript
-useEffect(() => {
-  if (userRole !== "admin" && userRole !== "route_planner" && visibleColumns.includes("actions")) {
-    setVisibleColumns(prevColumns => prevColumns.filter(col => col !== "actions"));
-  }
-}, [userRole, visibleColumns]);
-```
+- In `getPendingInspections()` (around line 100): Remove the `.not('status', 'in', '("delivered","cancelled")')` filter so all inspected orders appear
 
-**2. handleColumnChange (line 163-169)** -- Include route_planner:
-```typescript
-const handleColumnChange = (columns: string[]) => {
-  const filteredColumns = userRole !== "admin" && userRole !== "route_planner"
-    ? columns.filter(col => col !== "actions") 
-    : columns;
-  setVisibleColumns(filteredColumns);
-};
-```
+**2. `src/pages/BicycleInspections.tsx**`
 
-**3. TableColumnSettings prop (around line 301)** -- Show actions column for route_planner:
-```typescript
-<TableColumnSettings 
-  columns={(userRole === "admin" || userRole === "route_planner") 
-    ? ALL_COLUMNS 
-    : ALL_COLUMNS.filter(col => col.id !== "actions")} 
-  visibleColumns={visibleColumns} 
-  onChange={handleColumnChange} 
-/>
-```
+- Replace the two filter arrays `noIssues` and `repaired` with a single `inspectedAndServiced` array that includes orders where `inspection.status` is `inspected` OR `repaired`
+- Replace the "No Issues" and "Repaired" tab triggers with a single "Inspected and Serviced" tab trigger
+- Replace the two `TabsContent` sections with a single one for the combined tab
+- Update the empty state message to "No bikes inspected and serviced yet"
 
-**4. Row click handler (line 187-190)** -- Navigate route planners to the admin page on row click:
-```typescript
-const handleRowClick = (orderId: string) => {
-  if (userRole === "admin") return;
-  if (userRole === "route_planner") {
-    navigate(`/orders/${orderId}`);
-    return;
-  }
-  navigate(`/customer-orders/${orderId}`);
-};
-```
+### Summary of New Tabs
 
-## Summary
-
-Four small edits in `OrderTable.tsx` to ensure route planners see the actions column (with the Admin button) and can click rows to navigate to the admin order detail page.
+1. **Awaiting** -- bikes pending inspection (no inspection record or status `pending`)
+2. **Issues** -- bikes with issues awaiting customer response (status `issues_found`)
+3. **In Repair** -- bikes being repaired after customer approval (status `in_repair`)
+4. **Inspected and Serviced** -- all completed bikes, both clean inspections and repaired ones (status `inspected` or `repaired`)

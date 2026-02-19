@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { Resend } from "npm:resend@4.1.2";
+import { initSentry, captureException, startSpan } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -181,12 +183,105 @@ function validateUserData(userData: unknown): { valid: boolean; error?: string }
 }
 
 // ============================================================================
+// EMAIL HELPERS
+// ============================================================================
+const FROM_EMAIL = "Ccc@notification.cyclecourierco.com";
+const ADMIN_EMAIL = "info@cyclecourierco.com";
+const APPROVAL_URL = "https://booking.cyclecourierco.com/users";
+
+async function sendRegistrationEmails(
+  resend: InstanceType<typeof Resend>,
+  email: string,
+  userData: Record<string, unknown>
+): Promise<void> {
+  const name = (userData.name as string) || 'Customer';
+  const companyName = (userData.company_name as string) || '';
+  const phone = (userData.phone as string) || '';
+  const website = (userData.website as string) || '';
+  const addressLine1 = (userData.address_line_1 as string) || '';
+  const addressLine2 = (userData.address_line_2 as string) || '';
+  const city = (userData.city as string) || '';
+  const postalCode = (userData.postal_code as string) || '';
+
+  const fullAddress = [addressLine1, addressLine2, city, postalCode].filter(Boolean).join(", ");
+
+  // Send user confirmation email
+  await startSpan("email.send", "Send user confirmation email", async () => {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: "Your Business Account Application",
+        text: `Hello ${name},
+
+Thank you for creating a business account with The Cycle Courier Co.
+
+Your account is currently pending approval, which typically takes place within 24 hours. Once approved, you'll receive another email confirming you can access your account.
+
+If you have any questions in the meantime, please don't hesitate to contact our support team.
+
+Thank you for choosing The Cycle Courier Co.
+        `,
+      });
+      console.log("User confirmation email sent to:", email);
+    } catch (err) {
+      console.error("Failed to send user confirmation email:", err);
+      captureException(err as Error, { type: "user_confirmation_email", email });
+    }
+  });
+
+  // Send admin notification email
+  await startSpan("email.send", "Send admin notification email", async () => {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: ADMIN_EMAIL,
+        subject: "New Business Registration Requires Approval",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>New Business Registration</h2>
+            <p>A new business account has been created and requires approval.</p>
+            
+            <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Business Details</h3>
+              <p><strong>Business Name:</strong> ${companyName}</p>
+              <p><strong>Contact Person:</strong> ${name}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Phone:</strong> ${phone}</p>
+              <p><strong>Website:</strong> ${website || 'Not provided'}</p>
+              <p><strong>Address:</strong> ${fullAddress}</p>
+              <p><strong>Registered At:</strong> ${new Date().toISOString()}</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${APPROVAL_URL}" style="background-color: #4a65d5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Review & Approve Account
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              Please review this application and approve or reject it from the admin dashboard.
+            </p>
+          </div>
+        `,
+      });
+      console.log("Admin notification email sent to:", ADMIN_EMAIL);
+    } catch (err) {
+      console.error("Failed to send admin notification email:", err);
+      captureException(err as Error, { type: "admin_notification_email", email });
+    }
+  });
+}
+
+// ============================================================================
 // MAIN HANDLER
 // ============================================================================
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  initSentry("create-business-user");
 
   try {
     // Get client IP for rate limiting
@@ -292,6 +387,20 @@ serve(async (req) => {
       userId: data.user?.id,
     });
 
+    // Send notification emails (non-blocking - failures won't affect response)
+    try {
+      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        await sendRegistrationEmails(resend, email.trim().toLowerCase(), userData || {});
+      } else {
+        console.warn("RESEND_API_KEY not set, skipping registration emails");
+      }
+    } catch (emailError) {
+      console.error("Error sending registration emails:", emailError);
+      captureException(emailError as Error, { type: "registration_emails", email });
+    }
+
     return new Response(
       JSON.stringify({ data, success: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -302,6 +411,7 @@ serve(async (req) => {
       timestamp: new Date().toISOString(),
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+    captureException(error as Error);
     
     return new Response(
       JSON.stringify({ 
