@@ -530,6 +530,13 @@ const Layout: React.FC<LayoutProps> = ({
                     Create Order
                   </Link>
                 </li>
+                {isB2B && (
+                  <li>
+                    <Link to="/pricing" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
+                      Pricing
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
             
