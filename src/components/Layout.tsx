@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -169,6 +169,10 @@ const Layout: React.FC<LayoutProps> = ({
                         </>}
                       {isB2B && (
                         <>
+                          <Link to="/pricing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <PoundSterling className="mr-2 h-4 w-4" />
+                            Pricing
+                          </Link>
                           <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             Bulk Availability
@@ -375,6 +379,12 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {isB2B && (
                     <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/pricing" className="cursor-pointer flex w-full items-center">
+                          <PoundSterling className="mr-2 h-4 w-4" />
+                          <span>Pricing</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
                           <Clock className="mr-2 h-4 w-4" />
