@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Timeslip } from "@/types/timeslip";
+import { getRevenuePerStopForBikeType } from "@/constants/bikePricing";
 import { 
   startOfWeek, 
   endOfWeek, 
@@ -237,14 +238,83 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
   return 0;
 };
 
+// Fetch orders for a timeslip and calculate revenue based on bike types (halved per stop)
+export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
+  const driverName = timeslip.driver?.shipday_driver_name;
+  const date = timeslip.date;
+
+  if (!driverName || !date) return 0;
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, bike_type, bike_quantity, bikes');
+
+  if (error || !data) {
+    console.error('Error fetching orders for bike-type revenue:', error);
+    return 0;
+  }
+
+  // Filter by date
+  const dateFiltered = data.filter(order => {
+    // We need pickup/delivery dates but they're not in this select; use a broader approach
+    return true; // We'll refetch with dates
+  });
+
+  // Re-fetch with date fields
+  const { data: ordersWithDates, error: err2 } = await supabase
+    .from('orders')
+    .select('id, bike_type, bike_quantity, bikes, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
+
+  if (err2 || !ordersWithDates) return 0;
+
+  const dateFilteredOrders = ordersWithDates.filter(order => {
+    const pickupDate = order.scheduled_pickup_date?.split('T')[0];
+    const deliveryDate = order.scheduled_delivery_date?.split('T')[0];
+    return pickupDate === date || deliveryDate === date;
+  });
+
+  const driverOrders = dateFilteredOrders.filter(order =>
+    order.collection_driver_name === driverName ||
+    order.delivery_driver_name === driverName
+  );
+
+  // Deduplicate by order ID
+  const uniqueOrders = Array.from(
+    new Map(driverOrders.map(o => [o.id, o])).values()
+  );
+
+  let totalRevenue = 0;
+
+  for (const order of uniqueOrders) {
+    // If order has bikes JSONB array, iterate each bike entry
+    const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
+    
+    if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
+      for (const bike of bikesArray) {
+        const qty = bike.quantity || 1;
+        const revenuePerStop = getRevenuePerStopForBikeType(bike.bike_type || order.bike_type);
+        totalRevenue += revenuePerStop * qty;
+      }
+    } else {
+      // Use top-level bike_type and bike_quantity
+      const qty = order.bike_quantity || 1;
+      const revenuePerStop = getRevenuePerStopForBikeType(order.bike_type);
+      totalRevenue += revenuePerStop * qty;
+    }
+  }
+
+  return totalRevenue;
+};
+
 export const calculateProfitability = (
   totalJobs: number,
   timeslip: Timeslip,
   revenuePerStop: number,
-  costPerMile: number
+  costPerMile: number,
+  preCalculatedRevenue?: number
 ): ProfitabilityMetrics => {
-  // Calculate revenue based on total jobs (bikes)
-  const revenue = totalJobs * revenuePerStop;
+  // Use pre-calculated revenue (bike-type mode) or flat rate
+  const revenue = preCalculatedRevenue !== undefined ? preCalculatedRevenue : totalJobs * revenuePerStop;
 
   // Calculate custom addon costs
   const customAddonCosts = (timeslip.custom_addons || []).reduce((sum, addon) => {
@@ -271,7 +341,8 @@ export const calculateProfitability = (
 export const aggregateProfitability = async (
   timeslips: Timeslip[],
   revenuePerStop: number,
-  costPerMile: number
+  costPerMile: number,
+  useBikeTypePricing: boolean = false
 ) => {
   let totalRevenue = 0;
   let totalCosts = 0;
@@ -279,7 +350,8 @@ export const aggregateProfitability = async (
 
   for (const timeslip of timeslips) {
     const totalJobs = await getTotalJobs(timeslip);
-    const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
+    const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
+    const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
     totalRevenue += metrics.revenue;
     totalCosts += metrics.totalCosts;
     totalProfit += metrics.profit;
@@ -298,7 +370,8 @@ export const calculateDailyProfitability = async (
   startDate: Date,
   endDate: Date,
   revenuePerStop: number,
-  costPerMile: number
+  costPerMile: number,
+  useBikeTypePricing: boolean = false
 ): Promise<DailyProfitability[]> => {
   // Generate all days in the range (Monday to Sunday)
   const daysInWeek = eachDayOfInterval({ start: startDate, end: endDate });
@@ -325,7 +398,8 @@ export const calculateDailyProfitability = async (
     // Calculate for each timeslip on this day
     for (const timeslip of dayTimeslips) {
       const totalJobs = await getTotalJobs(timeslip);
-      const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
+      const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
+      const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
       dayRevenue += metrics.revenue;
       dayCosts += metrics.totalCosts;
     }
@@ -400,7 +474,8 @@ export const calculateWeeklyProfitabilityForMonth = async (
   year: number,
   month: number,
   revenuePerStop: number,
-  costPerMile: number
+  costPerMile: number,
+  useBikeTypePricing: boolean = false
 ): Promise<WeeklyProfitabilityData[]> => {
   const monthStart = startOfMonth(new Date(year, month));
   const monthEnd = endOfMonth(monthStart);
@@ -443,7 +518,8 @@ export const calculateWeeklyProfitabilityForMonth = async (
       
       for (const timeslip of dayTimeslips) {
         const totalJobs = await getTotalJobs(timeslip);
-        const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
+        const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
+        const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
         weekRevenue += metrics.revenue;
         weekCosts += metrics.totalCosts;
       }
@@ -468,7 +544,8 @@ export const calculateMonthlyProfitabilityForYear = async (
   timeslips: Timeslip[],
   year: number,
   revenuePerStop: number,
-  costPerMile: number
+  costPerMile: number,
+  useBikeTypePricing: boolean = false
 ): Promise<MonthlyProfitabilityData[]> => {
   const yearStart = startOfYear(new Date(year, 0));
   const yearEnd = endOfYear(yearStart);
@@ -496,7 +573,8 @@ export const calculateMonthlyProfitabilityForYear = async (
 
     for (const timeslip of monthTimeslips) {
       const totalJobs = await getTotalJobs(timeslip);
-      const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
+      const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
+      const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
       monthRevenue += metrics.revenue;
       monthCosts += metrics.totalCosts;
     }
