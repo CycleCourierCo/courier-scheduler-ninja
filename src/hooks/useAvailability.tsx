@@ -1,10 +1,10 @@
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, useMemo, FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPublicOrder } from "@/services/fetchOrderService";
 import { Order } from "@/types/order";
-import { format } from "date-fns";
+import { format, addDays, startOfDay } from "date-fns";
 import { fetchHolidayDates } from "@/services/holidayService";
 
 type AvailabilityType = 'sender' | 'receiver';
@@ -242,6 +242,20 @@ export const useAvailability = ({
     }
   };
 
+  // Dynamically calculate calendar end date to guarantee 30 selectable days
+  const calendarEndDate = useMemo(() => {
+    const today = startOfDay(new Date());
+    let validDays = 0;
+    let checkDate = new Date(today);
+    while (validDays < 30) {
+      checkDate = addDays(checkDate, 1);
+      if (!isDateDisabled(checkDate)) {
+        validDays++;
+      }
+    }
+    return checkDate;
+  }, [holidayDates, minDate]);
+
   return {
     dates,
     setDates,
@@ -254,6 +268,7 @@ export const useAvailability = ({
     minDate,
     navigate,
     handleSubmit,
-    isDateDisabled  // Now exporting the isDateDisabled function
+    isDateDisabled,
+    calendarEndDate
   };
 };
