@@ -5,27 +5,7 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Bike, MapPin, Wrench, CalendarCheck, Info } from "lucide-react";
-
-const pricingData = [
-  { type: "Boxed Kids Bikes", price: 35 },
-  { type: "Wheelset/Frameset", price: 35 },
-  { type: "Kids Bikes", price: 40 },
-  { type: "BMX Bikes", price: 40 },
-  { type: "Bike Rack", price: 40 },
-  { type: "Turbo Trainer", price: 40 },
-  { type: "Folding Bikes", price: 40 },
-  { type: "Non-Electric Bikes", price: 60 },
-  { type: "Travel Bike Boxes", price: 60 },
-  { type: "Electric Bikes under 25kg", price: 70 },
-  { type: "Electric Bikes over 25kg", price: 130 },
-  { type: "Longtail Cargo Bikes", price: 130 },
-  { type: "Stationary Bikes", price: 70 },
-  { type: "Tandem Bikes", price: 110 },
-  { type: "Recumbent", price: 130 },
-  { type: "Small Trike", price: 150 },
-  { type: "Large Trike", price: 180 },
-  { type: "Double Seat/Platform/Cargo Trikes", price: 225 },
-];
+import { pricingData } from "@/constants/bikePricing";
 
 const PricingPage: React.FC = () => {
   const { userProfile } = useAuth();

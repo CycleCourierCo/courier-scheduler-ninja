@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth } from "date-fns";
-import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, TrendingUp, ChevronLeft, ChevronRight, Bike } from "lucide-react";
 import Layout from "@/components/Layout";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,6 +20,7 @@ import {
   calculateProfitability,
   aggregateProfitability,
   getTotalJobs,
+  getRevenueForTimeslip,
   getCurrentWeekRange,
   getTimeslipsForWeek,
   calculateDailyProfitability,
@@ -36,6 +38,7 @@ const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [revenuePerStop, setRevenuePerStop] = useState<number>(32);
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
+  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
   // State for selected week (defaults to current week)
@@ -91,14 +94,14 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: weekAggregated } = useQuery({
-    queryKey: ['profitability-week-summary', weekTimeslips, revenuePerStop, costPerMile],
-    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile),
+    queryKey: ['profitability-week-summary', weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing],
+    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing),
     enabled: weekTimeslips.length > 0,
   });
 
   const { data: dailyChartData = [] } = useQuery({
-    queryKey: ['profitability-daily-chart', weekTimeslips, revenuePerStop, costPerMile, monday, sunday],
-    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile),
+    queryKey: ['profitability-daily-chart', weekTimeslips, revenuePerStop, costPerMile, monday, sunday, useBikeTypePricing],
+    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing),
     enabled: weekTimeslips.length > 0,
   });
 
@@ -117,8 +120,8 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: weeklyChartData = [] } = useQuery({
-    queryKey: ['profitability-weekly-chart', monthTimeslips, revenuePerStop, costPerMile, selectedMonthYear, selectedMonthNum],
-    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile),
+    queryKey: ['profitability-weekly-chart', monthTimeslips, revenuePerStop, costPerMile, selectedMonthYear, selectedMonthNum, useBikeTypePricing],
+    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing),
     enabled: monthTimeslips.length > 0,
   });
 
@@ -138,8 +141,8 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: monthlyChartData = [] } = useQuery({
-    queryKey: ['profitability-monthly-chart', yearTimeslips, revenuePerStop, costPerMile, selectedYear],
-    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile),
+    queryKey: ['profitability-monthly-chart', yearTimeslips, revenuePerStop, costPerMile, selectedYear, useBikeTypePricing],
+    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing),
     enabled: yearTimeslips.length > 0,
   });
 
@@ -173,8 +176,8 @@ const RouteProfitabilityPage = () => {
   };
 
   const { data: aggregated } = useQuery({
-    queryKey: ['profitability-summary', timeslips, revenuePerStop, costPerMile],
-    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile),
+    queryKey: ['profitability-summary', timeslips, revenuePerStop, costPerMile, useBikeTypePricing],
+    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing),
     enabled: timeslips.length > 0,
   });
 
@@ -299,56 +302,77 @@ const RouteProfitabilityPage = () => {
             <CardTitle>Settings</CardTitle>
             <CardDescription>Configure profitability calculation parameters</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    initialFocus
-                    className="pointer-events-auto"
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="bike-type-pricing" className="flex items-center gap-2 text-base">
+                  <Bike className="h-4 w-4" />
+                  Use bike-type pricing
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Calculate revenue based on each order's bike type (halved per stop)
+                </p>
+              </div>
+              <Switch
+                id="bike-type-pricing"
+                checked={useBikeTypePricing}
+                onCheckedChange={setUseBikeTypePricing}
+              />
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {!useBikeTypePricing && (
+                <div className="space-y-2">
+                  <Label htmlFor="revenue">Revenue per Job (£)</Label>
+                  <Input
+                    id="revenue"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={revenuePerStop}
+                    onChange={(e) => setRevenuePerStop(parseFloat(e.target.value) || 0)}
                   />
-                </PopoverContent>
-              </Popover>
-            </div>
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="revenue">Revenue per Job (£)</Label>
-              <Input
-                id="revenue"
-                type="number"
-                step="0.01"
-                min="0"
-                value={revenuePerStop}
-                onChange={(e) => setRevenuePerStop(parseFloat(e.target.value) || 0)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cost">Cost per Mile (£)</Label>
-              <Input
-                id="cost"
-                type="number"
-                step="0.01"
-                min="0"
-                value={costPerMile}
-                onChange={(e) => setCostPerMile(parseFloat(e.target.value) || 0)}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="cost">Cost per Mile (£)</Label>
+                <Input
+                  id="cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={costPerMile}
+                  onChange={(e) => setCostPerMile(parseFloat(e.target.value) || 0)}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -440,6 +464,7 @@ const RouteProfitabilityPage = () => {
                         revenuePerStop={revenuePerStop}
                         costPerMile={costPerMile}
                         onMileageChange={handleMileageChange}
+                        useBikeTypePricing={useBikeTypePricing}
                       />
                     ))}
                   </TableBody>
@@ -457,24 +482,35 @@ const TimeslipRow = ({
   timeslip, 
   revenuePerStop, 
   costPerMile, 
-  onMileageChange 
+  onMileageChange,
+  useBikeTypePricing
 }: { 
   timeslip: Timeslip; 
   revenuePerStop: number;
   costPerMile: number;
   onMileageChange: (id: string, value: string) => void;
+  useBikeTypePricing: boolean;
 }) => {
   const [totalJobs, setTotalJobs] = useState<number>(0);
+  const [bikeTypeRevenue, setBikeTypeRevenue] = useState<number | undefined>(undefined);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
 
   useEffect(() => {
-    getTotalJobs(timeslip).then((jobs) => {
+    const load = async () => {
+      const jobs = await getTotalJobs(timeslip);
       setTotalJobs(jobs);
+      if (useBikeTypePricing) {
+        const revenue = await getRevenueForTimeslip(timeslip);
+        setBikeTypeRevenue(revenue);
+      } else {
+        setBikeTypeRevenue(undefined);
+      }
       setIsLoadingJobs(false);
-    });
-  }, [timeslip]);
+    };
+    load();
+  }, [timeslip, useBikeTypePricing]);
 
-  const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile);
+  const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeTypeRevenue);
 
   return (
     <TableRow>
