@@ -222,40 +222,25 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Sending SendZen request:", JSON.stringify({ template: type, to: phone }));
 
-    // Call SendZen API
-    const sendzenResponse = await fetch("https://api.sendzen.io/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${sendzenApiKey}`,
-      },
-      body: JSON.stringify(sendzenBody),
-    });
-
-    const responseText = await sendzenResponse.text();
-    let responseData: any;
-    try {
-      responseData = JSON.parse(responseText);
-    } catch {
-      responseData = { raw: responseText };
-    }
-
-    if (!sendzenResponse.ok) {
-      console.error("SendZen API error:", sendzenResponse.status, responseData);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `SendZen API returned ${sendzenResponse.status}`,
-          details: responseData,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("SendZen message sent successfully");
+    // Send in background and return immediately to avoid client timeout
+    EdgeRuntime.waitUntil(
+      fetch("https://api.sendzen.io/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sendzenApiKey}`,
+        },
+        body: JSON.stringify(sendzenBody),
+      }).then(async (res) => {
+        const text = await res.text();
+        console.log("SendZen background send complete:", res.status, text);
+      }).catch((err) => {
+        console.error("SendZen background send failed:", err);
+      })
+    );
 
     return new Response(
-      JSON.stringify({ success: true, data: responseData }),
+      JSON.stringify({ success: true, data: { status: "queued" } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
