@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +9,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+type JobType = "pickup" | "delivery";
+
+interface RelatedJob {
+  orderId: string;
+  jobType: JobType;
+}
+
 interface SendZenRequest {
   orderId: string;
   type: "collection_timeslots" | "delivery_timeslot" | "grouped_timeslot" | "review";
@@ -15,6 +23,7 @@ interface SendZenRequest {
   deliveryTime?: string; // "HH:MM"
   collectionJobList?: string;
   deliveryJobList?: string;
+  relatedJobs?: RelatedJob[];
 }
 
 function formatDateForTemplate(dateStr: string): string {
@@ -42,6 +51,243 @@ function normalizePhone(phone: string): string {
   return `+${digits}`;
 }
 
+function safeString(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+function normalizeAddress(contact: any): string {
+  const street = safeString(contact?.address?.street);
+  const city = safeString(contact?.address?.city);
+  const state = safeString(contact?.address?.state);
+  const zip = safeString(contact?.address?.zipCode);
+  return [street, city, `${state} ${zip}`.trim()].filter(Boolean).join(", ");
+}
+
+function addMinutesToHHMM(timeHHMM: string, minutesToAdd: number) {
+  const [h, m] = timeHHMM.split(":").map(Number);
+  const total = h * 60 + m + minutesToAdd;
+  const dayOffset = Math.floor(total / (24 * 60));
+  const minsInDay = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hh = String(Math.floor(minsInDay / 60)).padStart(2, "0");
+  const mm = String(minsInDay % 60).padStart(2, "0");
+  return { hhmmss: `${hh}:${mm}:00`, dayOffset };
+}
+
+function toUTCYYYYMMDD(dateStr: string): string {
+  const dt = new Date(dateStr);
+  return dt.toISOString().slice(0, 10);
+}
+
+function addDaysToUTCYYYYMMDD(yyyyMmDd: string, days: number) {
+  const [y, mo, d] = yyyyMmDd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType {
+  return recipientType === "sender" ? "pickup" : "delivery";
+}
+
+// ---- Background: Update Shipday ----
+async function updateShipday(
+  order: any,
+  recipientType: "sender" | "receiver",
+  deliveryTime: string,
+  relatedJobs: RelatedJob[] | undefined,
+  supabase: any,
+) {
+  const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
+  if (!shipdayApiKey) { console.error("Shipday API key not configured"); return; }
+
+  const primaryJobType = determinePrimaryJobType(recipientType);
+  const jobsToUpdate: Array<{ orderRecord: any; jobType: JobType }> = [
+    { orderRecord: order, jobType: primaryJobType },
+  ];
+
+  if (relatedJobs?.length) {
+    for (const r of relatedJobs) {
+      const { data: relatedOrder } = await supabase
+        .from("orders").select("*").eq("id", r.orderId).single();
+      if (relatedOrder) {
+        jobsToUpdate.push({ orderRecord: relatedOrder, jobType: r.jobType });
+      }
+    }
+  }
+
+  const start = addMinutesToHHMM(deliveryTime, 0);
+  const end = addMinutesToHHMM(deliveryTime, 180);
+
+  for (const item of jobsToUpdate) {
+    const o = item.orderRecord;
+    const isPickup = item.jobType === "pickup";
+    const shipdayId = isPickup ? o.shipday_pickup_id : o.shipday_delivery_id;
+    if (!shipdayId) continue;
+
+    const scheduledRaw = isPickup ? o.scheduled_pickup_date : o.scheduled_delivery_date;
+    if (!scheduledRaw) continue;
+
+    const scheduledUTCDate = toUTCYYYYMMDD(scheduledRaw);
+    const expectedDeliveryDate = end.dayOffset === 0
+      ? scheduledUTCDate
+      : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
+
+    const jobContact = isPickup ? o.sender : o.receiver;
+    const jobNotes = isPickup ? o.sender_notes : o.receiver_notes;
+
+    const bikeInfo = o.bike_brand && o.bike_model
+      ? `Bike: ${o.bike_brand} ${o.bike_model}`
+      : o.bike_brand ? `Bike: ${o.bike_brand}` : o.bike_model ? `Bike: ${o.bike_model}` : "";
+
+    const orderDetails: string[] = [];
+    if (bikeInfo) orderDetails.push(bikeInfo);
+    if (o.customer_order_number) orderDetails.push(`Order #: ${o.customer_order_number}`);
+    if (o.collection_code) orderDetails.push(`eBay Code: ${o.collection_code}`);
+    if (o.needs_payment_on_collection) orderDetails.push("Payment required on collection");
+    if (o.is_ebay_order) orderDetails.push("eBay Order");
+    if (o.is_bike_swap) orderDetails.push("Bike Swap");
+
+    const allInstructions = [...orderDetails, o.delivery_instructions || "", jobNotes]
+      .filter(Boolean).join(" | ");
+
+    try {
+      const res = await fetch(`https://api.shipday.com/order/edit/${shipdayId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Basic ${shipdayApiKey}` },
+        body: JSON.stringify({
+          orderNumber: o.tracking_number || `${o.id.substring(0, 8)}-UPDATE`,
+          customerName: jobContact?.name,
+          customerAddress: normalizeAddress(jobContact),
+          customerEmail: jobContact?.email,
+          customerPhoneNumber: jobContact?.phone,
+          restaurantName: "Cycle Courier Co.",
+          restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+          expectedPickupTime: start.hhmmss,
+          expectedDeliveryTime: end.hhmmss,
+          expectedDeliveryDate,
+          deliveryInstruction: allInstructions,
+        }),
+      });
+      console.log(`Shipday update ${shipdayId}: ${res.status}`);
+    } catch (e: any) {
+      console.error(`Shipday update error for ${shipdayId}:`, e?.message);
+    }
+  }
+}
+
+// ---- Background: Send Email via Resend ----
+async function sendEmail(
+  order: any,
+  contact: any,
+  recipientType: "sender" | "receiver",
+  type: string,
+  deliveryTime: string | undefined,
+  scheduledDate: string | undefined,
+  collectionJobList: string | undefined,
+  deliveryJobList: string | undefined,
+) {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  if (!resendApiKey) { console.error("Resend API key not configured"); return; }
+  if (!contact?.email) { console.log("No email for recipient, skipping"); return; }
+
+  const resend = new Resend(resendApiKey);
+
+  if (type === "review") {
+    // No email for review messages
+    return;
+  }
+
+  if (!deliveryTime || !scheduledDate) { console.log("Missing time/date for email"); return; }
+
+  const formattedDate = formatDateForTemplate(scheduledDate);
+  const startTime = deliveryTime;
+  const endTime = calculateEndTime(deliveryTime);
+
+  let emailSubject: string;
+  let emailHtml: string;
+
+  if (type === "grouped_timeslot") {
+    emailSubject = "Your Bike Deliveries and Collections have been Scheduled";
+
+    const hasCollections = !!(collectionJobList && collectionJobList.trim());
+    const hasDeliveries = !!(deliveryJobList && deliveryJobList.trim());
+
+    let itemsHtml = "";
+    if (hasCollections) {
+      itemsHtml += `<p><strong>Collections: ${collectionJobList}</strong></p>\n`;
+    }
+    if (hasDeliveries) {
+      itemsHtml += `<p><strong>Deliveries: ${deliveryJobList}</strong></p>\n`;
+    }
+
+    const collectionInstructions = hasCollections ? `
+      <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+        <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+        <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+          <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bikes we are collecting and placed in a secure bag</li>
+          <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+          <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
+        </ul>
+      </div>
+    ` : "";
+
+    emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+        <h2>Dear ${contact.name || "Customer"},</h2>
+        <p>We are due to be with you on <strong>${formattedDate}</strong> between <strong>${startTime}</strong> and <strong>${endTime}</strong>.</p>
+        ${itemsHtml}
+        <p>You will receive a text with a live tracking link once the driver is on his way.</p>
+        ${collectionInstructions}
+        <p style="margin-top: 30px; font-weight: bold;">Thank you!</p>
+        <p><strong>Cycle Courier Co.</strong></p>
+      </div>
+    `;
+  } else {
+    // Individual timeslot (collection_timeslots or delivery_timeslot)
+    const isCollection = type === "collection_timeslots";
+    const bikeBrand = order.bike_brand || "bike";
+    const bikeModel = order.bike_model || "";
+
+    emailSubject = `Your ${bikeBrand} ${isCollection ? "collection" : "delivery"} has been scheduled - ${order.tracking_number || ""}`;
+
+    emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+        <h2>Dear ${contact.name || "Customer"},</h2>
+        <p>Your <strong>${bikeBrand} ${bikeModel}</strong> ${isCollection ? "Collection" : "Delivery"} has been scheduled for:</p>
+        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 18px;"><strong>${formattedDate}</strong></p>
+          <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
+        </div>
+        <p>You will receive a text with a live tracking link once the driver is on their way.</p>
+        ${isCollection ? `
+          <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
+            <ul style="margin: 0; padding-left: 20px; color: #2c3e50;">
+              <li style="margin-bottom: 8px;">Please ensure the pedals have been removed from the bike and placed in a secure bag</li>
+              <li style="margin-bottom: 8px;">Any other accessories should also be placed in the bag</li>
+              <li style="margin-bottom: 0;">Make sure the bag is securely attached to the bike to avoid any loss</li>
+            </ul>
+          </div>
+        ` : ""}
+        <p style="margin-top: 30px;">Thank you!</p>
+        <p><strong>Cycle Courier Co.</strong></p>
+      </div>
+    `;
+  }
+
+  try {
+    const emailData = await resend.emails.send({
+      from: "Ccc@notification.cyclecourierco.com",
+      to: [contact.email],
+      subject: emailSubject,
+      html: emailHtml,
+    });
+    console.log("Email sent successfully:", JSON.stringify(emailData));
+  } catch (e: any) {
+    console.error("Email send error:", e?.message);
+  }
+}
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -55,6 +301,7 @@ serve(async (req: Request): Promise<Response> => {
       deliveryTime,
       collectionJobList,
       deliveryJobList,
+      relatedJobs,
     }: SendZenRequest = await req.json();
 
     console.log(`SendZen request: type=${type}, orderId=${orderId}, recipientType=${recipientType}`);
@@ -100,15 +347,15 @@ serve(async (req: Request): Promise<Response> => {
     const phone = normalizePhone(contact.phone);
     const fromNumber = "441217980767";
 
+    // Scheduled date for email/Shipday
+    const scheduledDate = recipientType === "sender"
+      ? order.scheduled_pickup_date
+      : order.scheduled_delivery_date;
+
     // Build the SendZen API request based on template type
     let sendzenBody: any;
 
     if (type === "collection_timeslots" || type === "delivery_timeslot") {
-      // Individual timeslot templates
-      const scheduledDate = recipientType === "sender"
-        ? order.scheduled_pickup_date
-        : order.scheduled_delivery_date;
-
       if (!scheduledDate || !deliveryTime) {
         return new Response(
           JSON.stringify({ error: "Missing scheduled date or delivery time" }),
@@ -156,11 +403,6 @@ serve(async (req: Request): Promise<Response> => {
         },
       };
     } else if (type === "grouped_timeslot") {
-      // Grouped location template
-      const scheduledDate = recipientType === "sender"
-        ? order.scheduled_pickup_date
-        : order.scheduled_delivery_date;
-
       if (!scheduledDate || !deliveryTime) {
         return new Response(
           JSON.stringify({ error: "Missing scheduled date or delivery time" }),
@@ -187,15 +429,14 @@ serve(async (req: Request): Promise<Response> => {
                 { type: "text", text: formattedDate, parameter_name: "date" },
                 { type: "text", text: startTime, parameter_name: "start_time" },
                 { type: "text", text: endTime, parameter_name: "end_time" },
-                { type: "text", text: collectionJobList || "No collections", parameter_name: "collection_job_list" },
-                { type: "text", text: deliveryJobList || "No deliveries", parameter_name: "delivery_job_list" },
+                { type: "text", text: collectionJobList || "", parameter_name: "collection_job_list" },
+                { type: "text", text: deliveryJobList || "", parameter_name: "delivery_job_list" },
               ],
             },
           ],
         },
       };
     } else if (type === "review") {
-      // Review template
       sendzenBody = {
         to: phone,
         from: fromNumber,
@@ -222,20 +463,35 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Sending SendZen request:", JSON.stringify({ template: type, to: phone }));
 
-    // Send in background and return immediately to avoid client timeout
+    // Run all three operations in the background and return immediately
     EdgeRuntime.waitUntil(
-      fetch("https://api.sendzen.io/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${sendzenApiKey}`,
-        },
-        body: JSON.stringify(sendzenBody),
-      }).then(async (res) => {
-        const text = await res.text();
-        console.log("SendZen background send complete:", res.status, text);
-      }).catch((err) => {
-        console.error("SendZen background send failed:", err);
+      Promise.allSettled([
+        // 1. SendZen WhatsApp
+        fetch("https://api.sendzen.io/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sendzenApiKey}`,
+          },
+          body: JSON.stringify(sendzenBody),
+        }).then(async (res) => {
+          const text = await res.text();
+          console.log("SendZen send complete:", res.status, text);
+        }).catch((err) => {
+          console.error("SendZen send failed:", err);
+        }),
+
+        // 2. Shipday update (skip for review)
+        type !== "review" && deliveryTime
+          ? updateShipday(order, recipientType, deliveryTime, relatedJobs, supabase)
+          : Promise.resolve(),
+
+        // 3. Email via Resend (skip for review)
+        type !== "review"
+          ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList)
+          : Promise.resolve(),
+      ]).then((results) => {
+        console.log("All background operations complete:", results.map(r => r.status));
       })
     );
 
