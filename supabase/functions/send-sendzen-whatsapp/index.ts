@@ -130,7 +130,7 @@ serve(async (req: Request): Promise<Response> => {
         type: "template",
         template: {
           name: type,
-          language: { code: "en_GB" },
+          lang_code: "en_GB",
           components: [
             {
               type: "body",
@@ -177,7 +177,7 @@ serve(async (req: Request): Promise<Response> => {
         type: "template",
         template: {
           name: "grouped_timeslot",
-          language: { code: "en_GB" },
+          lang_code: "en_GB",
           components: [
             {
               type: "body",
@@ -201,7 +201,7 @@ serve(async (req: Request): Promise<Response> => {
         type: "template",
         template: {
           name: "review",
-          language: { code: "en_GB" },
+          lang_code: "en_GB",
           components: [
             {
               type: "body",
