@@ -1340,6 +1340,7 @@ const OrderDetail = () => {
                     type="sender"
                     contact={order.sender}
                     notes={order.senderNotes}
+                    orderId={order.id}
                   />
                 )}
                 <TimeslotSelection 
@@ -1363,6 +1364,7 @@ const OrderDetail = () => {
                     type="receiver"
                     contact={order.receiver}
                     notes={order.receiverNotes}
+                    orderId={order.id}
                   />
                 )}
                 <TimeslotSelection 

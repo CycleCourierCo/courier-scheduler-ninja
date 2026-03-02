@@ -1,22 +1,70 @@
 
-import React from "react";
-import { User, Mail, Phone, MapPin, FileText } from "lucide-react";
+import React, { useState } from "react";
+import { User, Mail, Phone, MapPin, FileText, MessageSquare } from "lucide-react";
 import { ContactInfo, Address } from "@/types/order";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ContactDetailsProps {
   type: "sender" | "receiver";
   contact: ContactInfo & { address: Address };
   notes?: string;
+  orderId?: string;
 }
 
-const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes }) => {
+const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, orderId }) => {
+  const [isSendingReview, setIsSendingReview] = useState(false);
+
+  const handleSendReview = async () => {
+    if (!orderId) return;
+    try {
+      setIsSendingReview(true);
+      const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
+        body: {
+          orderId,
+          type: "review",
+          recipientType: type,
+        }
+      });
+
+      if (error) {
+        toast.error(`Failed to send review: ${error.message}`);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success(`Review request sent to ${contact.name} via SendZen`);
+      } else {
+        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      toast.error(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSendingReview(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <User className="text-courier-600" />
-        <h3 className="font-semibold text-lg">
-          {type === "sender" ? "Sender" : "Receiver"} Information
-        </h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <User className="text-courier-600" />
+          <h3 className="font-semibold text-lg">
+            {type === "sender" ? "Sender" : "Receiver"} Information
+          </h3>
+        </div>
+        {orderId && contact.phone && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSendReview}
+            disabled={isSendingReview}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            {isSendingReview ? "Sending..." : "Send Review"}
+          </Button>
+        )}
       </div>
       <div className="bg-gray-50 p-4 rounded-md space-y-3">
         <p className="font-medium text-gray-800">{contact.name}</p>
