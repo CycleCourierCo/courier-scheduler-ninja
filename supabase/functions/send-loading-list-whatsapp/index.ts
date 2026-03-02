@@ -713,9 +713,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // === Send to individual drivers ===
+    // === Send to individual drivers (and also forward to loader) ===
     let driverWhatsAppsSent = 0;
     let driverEmailsSent = 0;
+    let loaderDriverListsSent = 0;
     
     for (const driverName of allDrivers) {
       const categories = categorizeBikesForDriver(driverName, bikesNeedingLoading, date);
@@ -761,6 +762,42 @@ const handler = async (req: Request): Promise<Response> => {
         } catch (emailError: any) {
           console.error(`Error sending email to driver ${driverName}:`, emailError);
           results.push({ recipient: driverName, channel: 'email', to: driverEmail, error: emailError.message });
+        }
+      }
+
+      // === Forward individual driver list to loader (exclude "Unassigned Driver") ===
+      if (driverName.toLowerCase() !== 'unassigned driver') {
+        // WhatsApp to loader
+        if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
+          try {
+            const loaderDriverWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, driverMessage);
+            console.log(`Loader received ${driverName}'s list via WhatsApp:`, loaderDriverWhatsApp.data);
+            results.push({ recipient: `loader-for-${driverName}`, channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderDriverWhatsApp.data });
+            if (loaderDriverWhatsApp.ok) loaderDriverListsSent++;
+          } catch (err: any) {
+            console.error(`Error forwarding ${driverName}'s list to loader WhatsApp:`, err);
+            results.push({ recipient: `loader-for-${driverName}`, channel: 'whatsapp', phone: loaderPhoneNumber, error: err.message });
+          }
+        }
+
+        // Email to loader
+        if (resend && loaderEmail && loaderEmail.trim()) {
+          try {
+            const driverEmailHtml = buildDriverEmailHtml(driverName, categories, date);
+            if (driverEmailHtml) {
+              const emailResult = await resend.emails.send({
+                from: "Ccc@notification.cyclecourierco.com",
+                to: loaderEmail,
+                subject: `Loading List for ${driverName} - ${date}`,
+                html: driverEmailHtml
+              });
+              console.log(`Loader received ${driverName}'s list via email:`, emailResult);
+              results.push({ recipient: `loader-for-${driverName}`, channel: 'email', to: loaderEmail, result: emailResult });
+            }
+          } catch (emailError: any) {
+            console.error(`Error forwarding ${driverName}'s list to loader email:`, emailError);
+            results.push({ recipient: `loader-for-${driverName}`, channel: 'email', to: loaderEmail, error: emailError.message });
+          }
         }
       }
     }
