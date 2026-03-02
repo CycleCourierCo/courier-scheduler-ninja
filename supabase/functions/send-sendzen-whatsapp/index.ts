@@ -135,12 +135,12 @@ serve(async (req: Request): Promise<Response> => {
             {
               type: "body",
               parameters: [
-                { type: "text", text: contact.name || "Customer" },
-                { type: "text", text: bikeBrand },
-                { type: "text", text: bikeModel },
-                { type: "text", text: formattedDate },
-                { type: "text", text: startTime },
-                { type: "text", text: endTime },
+                { type: "text", text: contact.name || "Customer", parameter_name: "contact_name" },
+                { type: "text", text: bikeBrand, parameter_name: "bike_brand" },
+                { type: "text", text: bikeModel, parameter_name: "bike_model" },
+                { type: "text", text: formattedDate, parameter_name: "date" },
+                { type: "text", text: startTime, parameter_name: "start_time" },
+                { type: "text", text: endTime, parameter_name: "end_time" },
               ],
             },
             {
@@ -148,7 +148,7 @@ serve(async (req: Request): Promise<Response> => {
               sub_type: "url",
               index: 0,
               parameters: [
-                { type: "text", text: trackingUrl },
+                { type: "text", text: trackingUrl, parameter_name: "tracking_url" },
               ],
             },
           ],
@@ -182,12 +182,12 @@ serve(async (req: Request): Promise<Response> => {
             {
               type: "body",
               parameters: [
-                { type: "text", text: contact.name || "Customer" },
-                { type: "text", text: formattedDate },
-                { type: "text", text: startTime },
-                { type: "text", text: endTime },
-                { type: "text", text: collectionJobList || "No collections" },
-                { type: "text", text: deliveryJobList || "No deliveries" },
+                { type: "text", text: contact.name || "Customer", parameter_name: "contact_name" },
+                { type: "text", text: formattedDate, parameter_name: "date" },
+                { type: "text", text: startTime, parameter_name: "start_time" },
+                { type: "text", text: endTime, parameter_name: "end_time" },
+                { type: "text", text: collectionJobList || "No collections", parameter_name: "collection_job_list" },
+                { type: "text", text: deliveryJobList || "No deliveries", parameter_name: "delivery_job_list" },
               ],
             },
           ],
@@ -206,7 +206,7 @@ serve(async (req: Request): Promise<Response> => {
             {
               type: "body",
               parameters: [
-                { type: "text", text: contact.name || "Customer" },
+                { type: "text", text: contact.name || "Customer", parameter_name: "customer_name" },
               ],
             },
           ],
