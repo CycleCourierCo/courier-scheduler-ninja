@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Clock, MessageSquare } from "lucide-react";
+import { Clock, MessageSquare, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
   const existingTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
   const [selectedTime, setSelectedTime] = useState<string>(existingTimeslot || "18:00");
   const [isSending, setIsSending] = useState(false);
+  const [isSendingSendZen, setIsSendingSendZen] = useState(false);
 
   const handleSendTimeslot = async () => {
     if (!selectedTime) {
@@ -127,7 +128,75 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
     }
   };
 
+  const handleSendViaSendZen = async () => {
+    if (!selectedTime) {
+      toast.error("Please select a delivery time");
+      return;
+    }
 
+    try {
+      setIsSendingSendZen(true);
+      
+      // Save the timeslot to the database
+      const updateField = type === "sender" ? "pickup_timeslot" : "delivery_timeslot";
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ [updateField]: selectedTime })
+        .eq('id', orderId);
+
+      if (updateError) {
+        toast.error(`Failed to save timeslot: ${updateError.message}`);
+        return;
+      }
+
+      // Determine and update status (same logic as existing)
+      let newStatus = order.status;
+      if (type === "sender") {
+        newStatus = "collection_scheduled";
+      } else if (type === "receiver") {
+        const pickupDate = order?.scheduledPickupDate;
+        const deliveryDate = order?.scheduledDeliveryDate;
+        if (pickupDate && deliveryDate) {
+          const pickupDateOnly = new Date(pickupDate).toDateString();
+          const deliveryDateOnly = new Date(deliveryDate).toDateString();
+          newStatus = pickupDateOnly === deliveryDateOnly ? "scheduled" : "delivery_scheduled";
+        } else {
+          newStatus = "delivery_scheduled";
+        }
+      }
+
+      await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      // Send via SendZen
+      const sendzenType = type === "sender" ? "collection_timeslots" : "delivery_timeslot";
+      const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
+        body: {
+          orderId,
+          type: sendzenType,
+          recipientType: type,
+          deliveryTime: selectedTime
+        }
+      });
+
+      if (error) {
+        toast.error(`SendZen failed: ${error.message}`);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success(`Timeslot sent via SendZen to ${type}!`);
+      } else {
+        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      toast.error(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSendingSendZen(false);
+    }
+  };
   const contact = type === "sender" ? order?.sender : order?.receiver;
   const scheduledDate = type === "sender" ? order?.scheduledPickupDate : order?.scheduledDeliveryDate;
   const currentTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
@@ -173,6 +242,26 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
             <>
               <MessageSquare className="w-4 h-4 mr-2" />
               Send Timeslot
+            </>
+          )}
+        </Button>
+        
+        <Button 
+          onClick={handleSendViaSendZen}
+          disabled={isSendingSendZen || !contact?.phone}
+          variant="outline"
+          className="w-full"
+          size="sm"
+        >
+          {isSendingSendZen ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+              Sending via SendZen...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4 mr-2" />
+              Send via SendZen
             </>
           )}
         </Button>

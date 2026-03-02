@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.verify-shipday-orders]
 verify_jwt = false
+
+[functions.send-sendzen-whatsapp]
+verify_jwt = false

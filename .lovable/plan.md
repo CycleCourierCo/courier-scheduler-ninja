@@ -1,12 +1,22 @@
 
 
-## Dynamic Revenue by Bike Type (Halved per Stop) — IMPLEMENTED
+## Fix: Grouped WhatsApp Still Failing
 
-**Status**: ✅ Complete
+The single space `" "` fallback is still being rejected by SendZen. Changing to descriptive text fallbacks.
 
-### What was done
+### Change
 
-1. **Created `src/constants/bikePricing.ts`** — Shared pricing data array and `getRevenuePerStopForBikeType()` function that maps order bike types to halved delivery prices
-2. **Updated `src/pages/PricingPage.tsx`** — Now imports pricing data from shared constant
-3. **Updated `src/services/profitabilityService.ts`** — Added `getRevenueForTimeslip()` and updated all calculation functions with `useBikeTypePricing` flag
-4. **Updated `src/pages/RouteProfitabilityPage.tsx`** — Added "Use bike-type pricing" toggle in Settings card; hides flat rate input when enabled
+**`supabase/functions/send-sendzen-whatsapp/index.ts`** — lines 549-550:
+
+```
+// Before
+{ type: "text", text: collectionJobList || " ", parameter_name: "collection_job_list" },
+{ type: "text", text: deliveryJobList || " ", parameter_name: "delivery_job_list" },
+
+// After
+{ type: "text", text: collectionJobList || "No collections", parameter_name: "collection_job_list" },
+{ type: "text", text: deliveryJobList || "No deliveries", parameter_name: "delivery_job_list" },
+```
+
+Then redeploy the edge function.
+

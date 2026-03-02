@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, Mail, Phone, MapPin, FileText, Edit2, Save, X } from "lucide-react";
+import { User, Mail, Phone, MapPin, FileText, Edit2, Save, X, MessageSquare } from "lucide-react";
 import { ContactInfo, Address } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingReview, setIsSendingReview] = useState(false);
   const [editedContact, setEditedContact] = useState({
     name: contact.name,
     email: contact.email,
@@ -116,6 +117,34 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     setIsEditing(false);
   };
 
+  const handleSendReview = async () => {
+    try {
+      setIsSendingReview(true);
+      const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
+        body: {
+          orderId,
+          type: "review",
+          recipientType: type,
+        }
+      });
+
+      if (error) {
+        toast.error(`Failed to send review: ${error.message}`);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success(`Review request sent to ${contact.name} via SendZen`);
+      } else {
+        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      toast.error(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSendingReview(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -126,14 +155,27 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
           </h3>
         </div>
         {!isEditing ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            Edit Contact
-          </Button>
+          <div className="flex gap-2">
+            {contact.phone && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendReview}
+                disabled={isSendingReview}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                {isSendingReview ? "Sending..." : "Send Review"}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+            >
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit Contact
+            </Button>
+          </div>
         ) : (
           <div className="flex gap-2">
             <Button

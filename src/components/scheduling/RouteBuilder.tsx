@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2 } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +83,7 @@ interface JobItemProps {
   onRemove: (job: SelectedJob) => void;
   onSendTimeslot: (job: SelectedJob) => void;
   onSendGroupedTimeslots?: (locationGroupId: string) => void;
+  onSendGroupedTimeslotsSendZen?: (locationGroupId: string) => void;
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
   isSendingTimeslots: boolean;
   allJobs: SelectedJob[]; // To check for grouped locations
@@ -209,6 +210,7 @@ const JobItem: React.FC<JobItemProps> = ({
   onRemove, 
   onSendTimeslot, 
   onSendGroupedTimeslots,
+  onSendGroupedTimeslotsSendZen,
   onUpdateCoordinates,
   isSendingTimeslots,
   allJobs,
@@ -476,16 +478,30 @@ const JobItem: React.FC<JobItemProps> = ({
                 
                 {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
                  allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
-                    disabled={isSendingTimeslots || !job.estimatedTime}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
-                  >
-                    <Send className="h-3 w-3" />
-                    All
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
+                      disabled={isSendingTimeslots || !job.estimatedTime}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
+                    >
+                      <Send className="h-3 w-3" />
+                      All
+                    </Button>
+                    {onSendGroupedTimeslotsSendZen && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
+                        disabled={isSendingTimeslots || !job.estimatedTime}
+                        className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
+                      >
+                        <Zap className="h-3 w-3" />
+                        SZ
+                      </Button>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -2124,6 +2140,326 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // SendZen: Send grouped timeslots for a single location
+  const sendGroupedTimeslotsSendZen = async (locationGroupId: string) => {
+    const jobsAtLocation = selectedJobs.filter(job => 
+      job.locationGroupId === locationGroupId && job.type !== 'break'
+    );
+    
+    if (jobsAtLocation.length === 0) return;
+
+    setIsSendingTimeslots(true);
+    try {
+      const primaryJob = jobsAtLocation[0];
+      if (!primaryJob.estimatedTime) return;
+      
+      const deliveryTime = `${primaryJob.estimatedTime}:00`;
+      
+      const [jobHours, jobMinutes] = primaryJob.estimatedTime.split(':').map(Number);
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const scheduledDateTime = new Date(year, month - 1, day, jobHours, jobMinutes, 0, 0);
+      
+      // Build collection/delivery job lists
+      const collections: string[] = [];
+      const deliveries: string[] = [];
+      
+      jobsAtLocation.forEach(job => {
+        const brand = job.orderData?.bike_brand || 'Unknown Brand';
+        const model = job.orderData?.bike_model || 'Unknown Model';
+        const bikeInfo = `${brand} ${model}`;
+        if (job.type === 'pickup') collections.push(bikeInfo);
+        else if (job.type === 'delivery') deliveries.push(bikeInfo);
+      });
+      
+      // Update ALL jobs at this location in DB
+      for (const job of jobsAtLocation) {
+        const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+        const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+        
+        await supabase.from('orders').update({ 
+          [updateField]: deliveryTime,
+          [dateField]: scheduledDateTime.toISOString()
+        }).eq('id', job.orderId);
+          
+        let newStatus: any = 'scheduled';
+        if (job.type === 'pickup') {
+          newStatus = "collection_scheduled";
+        } else if (job.type === 'delivery') {
+          const order = job.orderData;
+          const pickupDate = order?.scheduled_pickup_date;
+          if (pickupDate) {
+            newStatus = new Date(pickupDate).toDateString() === scheduledDateTime.toDateString() ? "scheduled" : "delivery_scheduled";
+          } else {
+            newStatus = "delivery_scheduled";
+          }
+        }
+        await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
+      }
+      
+      // Send via SendZen grouped_timeslot template
+      const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
+        body: {
+          orderId: primaryJob.orderId,
+          type: "grouped_timeslot",
+          recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+          deliveryTime: primaryJob.estimatedTime,
+          collectionJobList: collections.length > 0 ? "Collections: " + collections.join(', ') : "",
+          deliveryJobList: deliveries.length > 0 ? "Deliveries: " + deliveries.join(', ') : "",
+          relatedJobs: jobsAtLocation.slice(1).map(j => ({
+            orderId: j.orderId,
+            jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
+          })),
+        }
+      });
+
+      if (error) {
+        toast.error(`SendZen failed: ${error.message}`);
+      } else if (data?.success) {
+        toast.success(`SendZen grouped timeslot sent for ${jobsAtLocation.length} jobs`);
+      } else {
+        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error sending SendZen grouped timeslots:', error);
+      toast.error('Failed to send SendZen grouped timeslots');
+    } finally {
+      setIsSendingTimeslots(false);
+    }
+  };
+
+  // SendZen: Send all timeslots (no 4-minute delay)
+  const sendAllTimeslotsSendZen = async () => {
+    const jobsToSend = selectedJobs.filter(job => 
+      job.type !== 'break' && job.estimatedTime && job.lat && job.lon
+    );
+    
+    if (jobsToSend.length === 0) {
+      toast.error('No jobs with valid timeslots and coordinates to send');
+      return;
+    }
+
+    setIsSendingTimeslots(true);
+    let successCount = 0;
+    let failureCount = 0;
+
+    try {
+      // Group jobs by coordinates (same logic as sendAllTimeslots)
+      const processedGroupIds = new Set<string>();
+      const groupedLocationMap = new Map<string, SelectedJob[]>();
+      const standaloneJobs: SelectedJob[] = [];
+      const coordinateGroups: { [key: string]: SelectedJob[] } = {};
+      
+      for (const job of jobsToSend) {
+        if (!job.lat || !job.lon) { standaloneJobs.push(job); continue; }
+        
+        let foundGroupKey: string | null = null;
+        for (const [groupKey, groupJobs] of Object.entries(coordinateGroups)) {
+          const first = groupJobs[0];
+          if (first.lat && first.lon && isSameLocation({ lat: job.lat, lon: job.lon }, { lat: first.lat, lon: first.lon })) {
+            foundGroupKey = groupKey;
+            break;
+          }
+        }
+        
+        if (foundGroupKey) coordinateGroups[foundGroupKey].push(job);
+        else coordinateGroups[`coord-${job.lat}-${job.lon}`] = [job];
+      }
+      
+      for (const [groupKey, jobs] of Object.entries(coordinateGroups)) {
+        if (jobs.length >= 2) groupedLocationMap.set(groupKey, jobs);
+        else standaloneJobs.push(jobs[0]);
+      }
+
+      // Process grouped locations
+      for (const [locationGroupId, jobsAtLocation] of groupedLocationMap.entries()) {
+        if (processedGroupIds.has(locationGroupId)) continue;
+        processedGroupIds.add(locationGroupId);
+
+        try {
+          const primaryJob = jobsAtLocation[0];
+          const deliveryTime = `${primaryJob.estimatedTime}:00`;
+          const [jobHours, jobMinutes] = primaryJob.estimatedTime!.split(':').map(Number);
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const scheduledDateTime = new Date(year, month - 1, day, jobHours, jobMinutes, 0, 0);
+          
+          const collections: string[] = [];
+          const deliveries: string[] = [];
+          jobsAtLocation.forEach(job => {
+            const bikeInfo = `${job.orderData?.bike_brand || 'Unknown Brand'} ${job.orderData?.bike_model || 'Unknown Model'}`;
+            if (job.type === 'pickup') collections.push(bikeInfo);
+            else if (job.type === 'delivery') deliveries.push(bikeInfo);
+          });
+          
+          // Update all jobs in DB
+          for (const job of jobsAtLocation) {
+            const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+            const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+            await supabase.from('orders').update({ [updateField]: deliveryTime, [dateField]: scheduledDateTime.toISOString() }).eq('id', job.orderId);
+            
+            let newStatus: any = 'scheduled';
+            if (job.type === 'pickup') newStatus = "collection_scheduled";
+            else if (job.type === 'delivery') {
+              const pickupDate = job.orderData?.scheduled_pickup_date;
+              if (pickupDate) newStatus = new Date(pickupDate).toDateString() === scheduledDateTime.toDateString() ? "scheduled" : "delivery_scheduled";
+              else newStatus = "delivery_scheduled";
+            }
+            await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
+          }
+          
+          // Send grouped SendZen message
+          const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
+            body: {
+              orderId: primaryJob.orderId,
+              type: "grouped_timeslot",
+              recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
+              deliveryTime: primaryJob.estimatedTime,
+              collectionJobList: collections.length > 0 ? "Collections: " + collections.join(', ') : "",
+              deliveryJobList: deliveries.length > 0 ? "Deliveries: " + deliveries.join(', ') : "",
+              relatedJobs: jobsAtLocation.slice(1).map(j => ({
+                orderId: j.orderId,
+                jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
+              })),
+            }
+          });
+
+          if (error || !data?.success) failureCount++;
+          else successCount++;
+          
+          // NO delay for SendZen
+        } catch {
+          failureCount++;
+        }
+      }
+
+      // Process standalone jobs
+      for (const job of standaloneJobs) {
+        try {
+          const deliveryTime = `${job.estimatedTime}:00`;
+          const [hours, minutes] = job.estimatedTime!.split(':').map(Number);
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const scheduledDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+          
+          const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
+          const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
+          await supabase.from('orders').update({ [updateField]: deliveryTime, [dateField]: scheduledDateTime.toISOString() }).eq('id', job.orderId);
+          
+          let newStatus: any = 'scheduled';
+          if (job.type === 'pickup') newStatus = "collection_scheduled";
+          else if (job.type === 'delivery') {
+            const pickupDate = job.orderData?.scheduled_pickup_date;
+            if (pickupDate) newStatus = new Date(pickupDate).toDateString() === scheduledDateTime.toDateString() ? "scheduled" : "delivery_scheduled";
+            else newStatus = "delivery_scheduled";
+          }
+          await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
+          
+          const sendzenType = job.type === 'pickup' ? 'collection_timeslots' : 'delivery_timeslot';
+          const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
+            body: {
+              orderId: job.orderId,
+              type: sendzenType,
+              recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
+              deliveryTime: job.estimatedTime,
+            }
+          });
+
+          if (error || !data?.success) failureCount++;
+          else successCount++;
+          
+          // NO delay for SendZen
+        } catch {
+          failureCount++;
+        }
+      }
+
+      // Send route report
+      const jobResults = jobsToSend.map(job => {
+        const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+        return {
+          job,
+          bikeCount: jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0,
+          results: { whatsapp: { success: true }, shipday: { success: true }, email: { success: true } }
+        };
+      });
+
+      // Include breaks
+      const breakJobs = selectedJobs.filter(job => job.type === 'break');
+      for (const breakJob of breakJobs) {
+        const jobIndex = selectedJobs.findIndex(j => j.orderId === breakJob.orderId && j.type === breakJob.type);
+        jobResults.push({
+          job: breakJob,
+          bikeCount: jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : startingBikes,
+          results: { whatsapp: { success: false }, shipday: { success: false }, email: { success: false } }
+        });
+      }
+
+      jobResults.sort((a, b) => {
+        const indexA = selectedJobs.findIndex(j => j.orderId === a.job.orderId && j.type === a.job.type);
+        const indexB = selectedJobs.findIndex(j => j.orderId === b.job.orderId && j.type === b.job.type);
+        return indexA - indexB;
+      });
+
+      if (jobResults.length > 0) {
+        const summary = {
+          totalStops: jobResults.length,
+          totalPickups: jobResults.filter(r => r.job.type === 'pickup').length,
+          totalDeliveries: jobResults.filter(r => r.job.type === 'delivery').length,
+          totalBreaks: jobResults.filter(r => r.job.type === 'break').length,
+          whatsappSuccess: successCount,
+          whatsappFailed: failureCount,
+          shipdaySuccess: 0,
+          shipdayFailed: 0,
+          emailSuccess: 0,
+          emailFailed: 0,
+        };
+
+        const reportPayload = {
+          date: format(selectedDate, 'EEEE, d MMMM yyyy'),
+          startTime,
+          startingBikes,
+          stops: jobResults.map((result, index) => ({
+            sequence: index + 1,
+            type: result.job.type,
+            contactName: result.job.contactName,
+            address: result.job.address,
+            estimatedTime: result.job.estimatedTime || '',
+            bikesOnboard: result.bikeCount,
+            bikeQuantity: result.job.orderData?.bike_quantity || 1,
+            trackingNumber: result.job.orderData?.tracking_number,
+            bikeBrand: result.job.orderData?.bike_brand,
+            bikeModel: result.job.orderData?.bike_model,
+            breakDuration: result.job.breakDuration,
+            breakType: result.job.breakType,
+            results: result.results,
+          })),
+          summary,
+        };
+
+        try {
+          await supabase.functions.invoke('send-route-report', { body: reportPayload });
+          toast.success('Route report emailed');
+        } catch {
+          toast.warning('Route report failed');
+        }
+      }
+
+      if (successCount > 0 && failureCount === 0) {
+        toast.success(`All ${successCount} SendZen messages sent!`);
+      } else if (successCount > 0) {
+        toast.success(`${successCount} sent, ${failureCount} failed via SendZen`);
+      } else {
+        toast.error(`All ${failureCount} SendZen messages failed`);
+      }
+    } catch (error) {
+      console.error('Error in SendZen bulk send:', error);
+      toast.error('Failed to send SendZen timeslots');
+    } finally {
+      setIsSendingTimeslots(false);
+    }
+  };
+
   const createTimeslip = async () => {
     if (selectedJobs.length === 0) return;
 
@@ -2614,6 +2950,7 @@ Route Link: ${routeLink}`;
                       onRemove={removeJob}
                       onSendTimeslot={openTimeslotEditDialog}
                       onSendGroupedTimeslots={sendGroupedTimeslots}
+                      onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
                       onUpdateCoordinates={updateCoordinates}
                       isSendingTimeslots={isSendingTimeslots}
                       allJobs={selectedJobs}
@@ -2653,6 +2990,17 @@ Route Link: ${routeLink}`;
                   >
                     <Send className="h-3 w-3" />
                     {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
+                  </Button>
+                  
+                  <Button
+                    onClick={sendAllTimeslotsSendZen}
+                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
+                  >
+                    <Zap className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending...' : 'Send All (SendZen)'}
                   </Button>
                 </div>
               </div>
@@ -2730,6 +3078,7 @@ Route Link: ${routeLink}`;
                     onRemove={removeJob}
                     onSendTimeslot={openTimeslotEditDialog}
                     onSendGroupedTimeslots={sendGroupedTimeslots}
+                    onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
                     onUpdateCoordinates={updateCoordinates}
                     isSendingTimeslots={isSendingTimeslots}
                     allJobs={selectedJobs}
@@ -2767,6 +3116,16 @@ Route Link: ${routeLink}`;
                   >
                     <Send className="h-3 w-3" />
                     {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
+                  </Button>
+                  <Button
+                    onClick={sendAllTimeslotsSendZen}
+                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <Zap className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending...' : 'Send All (SendZen)'}
                   </Button>
                 </div>
               </div>
