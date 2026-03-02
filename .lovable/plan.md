@@ -1,22 +1,15 @@
 
 
-## Fix: Grouped WhatsApp Still Failing
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
-The single space `" "` fallback is still being rejected by SendZen. Changing to descriptive text fallbacks.
+### Changes
 
-### Change
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**`supabase/functions/send-sendzen-whatsapp/index.ts`** — lines 549-550:
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-```
-// Before
-{ type: "text", text: collectionJobList || " ", parameter_name: "collection_job_list" },
-{ type: "text", text: deliveryJobList || " ", parameter_name: "delivery_job_list" },
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-// After
-{ type: "text", text: collectionJobList || "No collections", parameter_name: "collection_job_list" },
-{ type: "text", text: deliveryJobList || "No deliveries", parameter_name: "delivery_job_list" },
-```
-
-Then redeploy the edge function.
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 

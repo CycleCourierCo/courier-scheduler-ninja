@@ -4,7 +4,7 @@ import { requireAdminAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface LoadingListRequest {
@@ -30,6 +30,8 @@ interface LoadingListRequest {
   }[];
   driverPhoneNumbers?: Record<string, string>;
   driverEmails?: Record<string, string>;
+  loaderPhoneNumber?: string;
+  loaderEmail?: string;
 }
 
 function normalizeDateToYYYYMMDD(dateString: string): string {
@@ -466,6 +468,37 @@ function buildDriverEmailHtml(
   `;
 }
 
+// Helper to send a SendZen session text message
+async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messageBody: string): Promise<{ ok: boolean; data: any }> {
+  const cleanPhone = toNumber.replace(/[^\d]/g, '');
+  const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
+  
+  try {
+    const response = await fetch('https://api.sendzen.io/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sendzenApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: "441217980767",
+        to: formattedPhone,
+        type: "text",
+        text: {
+          body: messageBody,
+          preview_url: false
+        }
+      }),
+    });
+
+    const data = await response.json();
+    return { ok: response.ok, data };
+  } catch (error: any) {
+    console.error(`SendZen send error to ${toNumber}:`, error);
+    return { ok: false, data: { error: error.message } };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -479,20 +512,21 @@ const handler = async (req: Request): Promise<Response> => {
   console.log('Authenticated admin:', authResult.userId);
 
   try {
-    const { date, bikesNeedingLoading, driverPhoneNumbers = {}, driverEmails = {} }: LoadingListRequest = await req.json();
+    const { date, bikesNeedingLoading, driverPhoneNumbers = {}, driverEmails = {}, loaderPhoneNumber, loaderEmail }: LoadingListRequest = await req.json();
 
     console.log('Sending loading list for date:', date);
     console.log('Bikes needing loading:', bikesNeedingLoading);
     console.log('Driver phone numbers:', driverPhoneNumbers);
     console.log('Driver emails:', driverEmails);
+    console.log('Loader phone:', loaderPhoneNumber);
+    console.log('Loader email:', loaderEmail);
 
     // Get API credentials
-    const apiKey = Deno.env.get('TWOCHAT_API_KEY');
-    const fromNumber = Deno.env.get('TWOCHAT_FROM_NUMBER');
+    const sendzenApiKey = Deno.env.get('SENDZEN_API_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
-    if (!apiKey || !fromNumber) {
-      console.error('Missing WhatsApp API credentials');
+    if (!sendzenApiKey) {
+      console.error('Missing SendZen API key');
       return new Response(
         JSON.stringify({ error: 'WhatsApp API not configured' }),
         {
@@ -614,27 +648,13 @@ const handler = async (req: Request): Promise<Response> => {
     const managementEmail = 'Info@cyclecourierco.com';
     const results: any[] = [];
 
-    // === WHATSAPP: Send to management ===
-    const managementCleanPhone = managementPhone.replace(/[^\d]/g, '');
-    const managementWhatsAppResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-API-Key': apiKey,
-      },
-      body: JSON.stringify({
-        to_number: `+${managementCleanPhone}`,
-        from_number: fromNumber,
-        text: managementMessage
-      }),
-    });
+    // === WHATSAPP: Send to management via SendZen ===
+    const mgmtWhatsApp = await sendSendZenMessage(sendzenApiKey, managementPhone, managementMessage);
+    console.log('Management WhatsApp response:', mgmtWhatsApp.data);
+    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: mgmtWhatsApp.data });
 
-    const managementWhatsAppResult = await managementWhatsAppResponse.json();
-    console.log('Management WhatsApp response:', managementWhatsAppResult);
-    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: managementWhatsAppResult });
-
-    if (!managementWhatsAppResponse.ok) {
-      console.error(`Management WhatsApp API error: ${JSON.stringify(managementWhatsAppResult)}`);
+    if (!mgmtWhatsApp.ok) {
+      console.error(`Management WhatsApp API error: ${JSON.stringify(mgmtWhatsApp.data)}`);
     }
 
     // === EMAIL: Send to management ===
@@ -659,9 +679,44 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Resend API key not configured, skipping management email');
     }
 
-    // === Send to individual drivers ===
+    // === WHATSAPP + EMAIL: Send to loader (management overview) ===
+    let loaderWhatsAppSent = false;
+    let loaderEmailSent = false;
+
+    if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
+      console.log('Sending loading list to loader WhatsApp:', loaderPhoneNumber);
+      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, managementMessage);
+      console.log('Loader WhatsApp response:', loaderWhatsApp.data);
+      results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderWhatsApp.data });
+      loaderWhatsAppSent = loaderWhatsApp.ok;
+
+      if (!loaderWhatsApp.ok) {
+        console.error(`Loader WhatsApp API error: ${JSON.stringify(loaderWhatsApp.data)}`);
+      }
+    }
+
+    if (resend && loaderEmail && loaderEmail.trim()) {
+      try {
+        const managementEmailHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        const emailResult = await resend.emails.send({
+          from: "Ccc@notification.cyclecourierco.com",
+          to: loaderEmail,
+          subject: `Loading List - ${date}`,
+          html: managementEmailHtml
+        });
+        console.log('Loader email sent:', emailResult);
+        results.push({ recipient: 'loader', channel: 'email', to: loaderEmail, result: emailResult });
+        loaderEmailSent = true;
+      } catch (emailError: any) {
+        console.error('Error sending loader email:', emailError);
+        results.push({ recipient: 'loader', channel: 'email', to: loaderEmail, error: emailError.message });
+      }
+    }
+
+    // === Send to individual drivers (and also forward to loader) ===
     let driverWhatsAppsSent = 0;
     let driverEmailsSent = 0;
+    let loaderDriverListsSent = 0;
     
     for (const driverName of allDrivers) {
       const categories = categorizeBikesForDriver(driverName, bikesNeedingLoading, date);
@@ -672,32 +727,18 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // WhatsApp to driver
+      // WhatsApp to driver via SendZen
       const driverPhone = driverPhoneNumbers[driverName];
       if (driverPhone && driverPhone.trim()) {
         console.log(`Sending WhatsApp to ${driverName}:`, driverMessage);
-        const driverCleanPhone = driverPhone.replace(/[^\d]/g, '');
-        const driverWhatsAppResponse = await fetch('https://api.p.2chat.io/open/whatsapp/send-message', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-User-API-Key': apiKey,
-          },
-          body: JSON.stringify({
-            to_number: `+${driverCleanPhone}`,
-            from_number: fromNumber,
-            text: driverMessage
-          }),
-        });
-
-        const driverWhatsAppResult = await driverWhatsAppResponse.json();
-        console.log(`Driver ${driverName} WhatsApp response:`, driverWhatsAppResult);
-        results.push({ recipient: driverName, channel: 'whatsapp', phone: driverPhone, result: driverWhatsAppResult });
+        const driverWhatsApp = await sendSendZenMessage(sendzenApiKey, driverPhone, driverMessage);
+        console.log(`Driver ${driverName} WhatsApp response:`, driverWhatsApp.data);
+        results.push({ recipient: driverName, channel: 'whatsapp', phone: driverPhone, result: driverWhatsApp.data });
         
-        if (driverWhatsAppResponse.ok) {
+        if (driverWhatsApp.ok) {
           driverWhatsAppsSent++;
         } else {
-          console.error(`Failed to send WhatsApp to driver ${driverName}:`, driverWhatsAppResult);
+          console.error(`Failed to send WhatsApp to driver ${driverName}:`, driverWhatsApp.data);
         }
       }
 
@@ -723,6 +764,42 @@ const handler = async (req: Request): Promise<Response> => {
           results.push({ recipient: driverName, channel: 'email', to: driverEmail, error: emailError.message });
         }
       }
+
+      // === Forward individual driver list to loader (exclude "Unassigned Driver") ===
+      if (driverName.toLowerCase() !== 'unassigned driver') {
+        // WhatsApp to loader
+        if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
+          try {
+            const loaderDriverWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, driverMessage);
+            console.log(`Loader received ${driverName}'s list via WhatsApp:`, loaderDriverWhatsApp.data);
+            results.push({ recipient: `loader-for-${driverName}`, channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderDriverWhatsApp.data });
+            if (loaderDriverWhatsApp.ok) loaderDriverListsSent++;
+          } catch (err: any) {
+            console.error(`Error forwarding ${driverName}'s list to loader WhatsApp:`, err);
+            results.push({ recipient: `loader-for-${driverName}`, channel: 'whatsapp', phone: loaderPhoneNumber, error: err.message });
+          }
+        }
+
+        // Email to loader
+        if (resend && loaderEmail && loaderEmail.trim()) {
+          try {
+            const driverEmailHtml = buildDriverEmailHtml(driverName, categories, date);
+            if (driverEmailHtml) {
+              const emailResult = await resend.emails.send({
+                from: "Ccc@notification.cyclecourierco.com",
+                to: loaderEmail,
+                subject: `Loading List for ${driverName} - ${date}`,
+                html: driverEmailHtml
+              });
+              console.log(`Loader received ${driverName}'s list via email:`, emailResult);
+              results.push({ recipient: `loader-for-${driverName}`, channel: 'email', to: loaderEmail, result: emailResult });
+            }
+          } catch (emailError: any) {
+            console.error(`Error forwarding ${driverName}'s list to loader email:`, emailError);
+            results.push({ recipient: `loader-for-${driverName}`, channel: 'email', to: loaderEmail, error: emailError.message });
+          }
+        }
+      }
     }
 
     return new Response(
@@ -733,11 +810,13 @@ const handler = async (req: Request): Promise<Response> => {
         driversCount: allDrivers.size,
         totalBikes: bikesNeedingLoading.length,
         whatsapp: {
-          management: { sent: managementWhatsAppResponse.ok },
+          management: { sent: mgmtWhatsApp.ok },
+          loader: { sent: loaderWhatsAppSent, phone: loaderPhoneNumber || null },
           drivers: { count: allDrivers.size, sent: driverWhatsAppsSent }
         },
         email: {
           management: { sent: managementEmailSent, to: managementEmail },
+          loader: { sent: loaderEmailSent, to: loaderEmail || null },
           drivers: { count: Object.keys(driverEmails).filter(k => driverEmails[k]?.trim()).length, sent: driverEmailsSent }
         }
       }),

@@ -25,6 +25,7 @@ import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } from "@/constants/depot";
 import { calculateDistanceInMeters } from "@/utils/locationUtils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Storage allocation type
 export type StorageAllocation = {
@@ -59,6 +60,18 @@ const LoadingUnloadingPage = () => {
   const [driverPhoneNumbers, setDriverPhoneNumbers] = useState<Record<string, string>>({});
   const [driverEmails, setDriverEmails] = useState<Record<string, string>>({});
   const [showRemoveBikesDialog, setShowRemoveBikesDialog] = useState(false);
+  
+  // Loader state
+  const [loaderPhoneNumber, setLoaderPhoneNumber] = useState('');
+  const [loaderEmail, setLoaderEmail] = useState('');
+  
+  // Driver profiles for selector
+  const [driverProfiles, setDriverProfiles] = useState<Array<{ id: string; name: string; phone: string | null; email: string | null }>>([]);
+  const [driverProfileSelections, setDriverProfileSelections] = useState<Record<string, string>>({});
+  
+  // Loader profiles for selector
+  const [loaderProfiles, setLoaderProfiles] = useState<Array<{ id: string; name: string; phone: string | null; email: string | null }>>([]);
+  const [loaderProfileSelection, setLoaderProfileSelection] = useState<string>('');
 
   const { user } = useAuth();
   const isAdmin = user?.user_metadata?.role === 'admin';
@@ -129,6 +142,24 @@ const LoadingUnloadingPage = () => {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // Fetch driver and loader profiles for the selectors
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const [driverResult, loaderResult] = await Promise.all([
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').eq('is_active', true).order('name'),
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').eq('is_active', true).order('name'),
+      ]);
+      
+      if (!driverResult.error && driverResult.data) {
+        setDriverProfiles(driverResult.data);
+      }
+      if (!loaderResult.error && loaderResult.data) {
+        setLoaderProfiles(loaderResult.data);
+      }
+    };
+    fetchProfiles();
   }, []);
 
   // Helper function to check if order has been collected based on tracking events
@@ -824,6 +855,30 @@ const LoadingUnloadingPage = () => {
     setDriversForLoading(uniqueDrivers);
     setDriverPhoneNumbers({});
     setDriverEmails({});
+    setLoaderPhoneNumber('');
+    setLoaderEmail('');
+    setLoaderProfileSelection('');
+    setDriverProfileSelections({});
+    
+    // Auto-match drivers to profiles by name
+    const autoPhones: Record<string, string> = {};
+    const autoEmails: Record<string, string> = {};
+    const autoSelections: Record<string, string> = {};
+    
+    uniqueDrivers.forEach(driverName => {
+      const matchedProfile = driverProfiles.find(p => 
+        p.name?.toLowerCase().trim() === driverName.toLowerCase().trim()
+      );
+      if (matchedProfile) {
+        autoSelections[driverName] = matchedProfile.id;
+        if (matchedProfile.phone) autoPhones[driverName] = matchedProfile.phone;
+        if (matchedProfile.email) autoEmails[driverName] = matchedProfile.email;
+      }
+    });
+    
+    setDriverProfileSelections(autoSelections);
+    setDriverPhoneNumbers(autoPhones);
+    setDriverEmails(autoEmails);
     setShowDriverPhoneDialog(true);
   };
 
@@ -889,7 +944,9 @@ const LoadingUnloadingPage = () => {
           bikesNeedingLoading: bikesNeedingLoadingData,
           bikesAlreadyLoaded: bikesAlreadyLoadedData,
           driverPhoneNumbers: driverPhoneNumbers,
-          driverEmails: driverEmails
+          driverEmails: driverEmails,
+          loaderPhoneNumber: loaderPhoneNumber || undefined,
+          loaderEmail: loaderEmail || undefined
         }
       });
 
@@ -1373,17 +1430,92 @@ const LoadingUnloadingPage = () => {
             <DialogHeader>
               <DialogTitle>Send Loading List</DialogTitle>
               <DialogDescription>
-                Enter contact details for drivers (optional). The management team will always receive the list via WhatsApp and email.
+                Select drivers and optionally add a loader. Management always receives the list automatically.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6">
+              {/* Loader Section */}
+              <div className="space-y-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <div className="font-medium text-sm flex items-center gap-2">
+                  📦 Loader (optional)
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Select loader profile</Label>
+                  <Select
+                    value={loaderProfileSelection}
+                    onValueChange={(profileId) => {
+                      const profile = loaderProfiles.find(p => p.id === profileId);
+                      if (profile) {
+                        setLoaderProfileSelection(profileId);
+                        setLoaderPhoneNumber(profile.phone || '');
+                        setLoaderEmail(profile.email || '');
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a loader..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loaderProfiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name || 'Unnamed'} {profile.phone ? `(${profile.phone})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
+                  <Input
+                    type="tel"
+                    placeholder="+44..."
+                    value={loaderPhoneNumber}
+                    onChange={(e) => setLoaderPhoneNumber(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="loader@example.com"
+                    value={loaderEmail}
+                    onChange={(e) => setLoaderEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Driver Sections */}
               {driversForLoading.map((driver) => (
                 <div key={driver} className="space-y-3 p-4 bg-muted/50 rounded-lg">
                   <div className="font-medium text-sm">{driver}</div>
                   <div className="space-y-2">
-                    <Label htmlFor={`phone-${driver}`} className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
+                    <Label className="text-xs text-muted-foreground">Select driver profile</Label>
+                    <Select
+                      value={driverProfileSelections[driver] || ''}
+                      onValueChange={(profileId) => {
+                        const profile = driverProfiles.find(p => p.id === profileId);
+                        if (profile) {
+                          setDriverProfileSelections(prev => ({ ...prev, [driver]: profileId }));
+                          setDriverPhoneNumbers(prev => ({ ...prev, [driver]: profile.phone || '' }));
+                          setDriverEmails(prev => ({ ...prev, [driver]: profile.email || '' }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a driver..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {driverProfiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name || 'Unnamed'} {profile.phone ? `(${profile.phone})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
                     <Input
-                      id={`phone-${driver}`}
                       type="tel"
                       placeholder="+44..."
                       value={driverPhoneNumbers[driver] || ''}
@@ -1394,9 +1526,8 @@ const LoadingUnloadingPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`email-${driver}`} className="text-xs text-muted-foreground">Email</Label>
+                    <Label className="text-xs text-muted-foreground">Email</Label>
                     <Input
-                      id={`email-${driver}`}
                       type="email"
                       placeholder="driver@example.com"
                       value={driverEmails[driver] || ''}
