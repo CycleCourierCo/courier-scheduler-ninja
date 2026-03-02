@@ -65,6 +65,17 @@ function normalizeAddress(contact: any): string {
 
 function addMinutesToHHMM(timeHHMM: string, minutesToAdd: number) {
   const [h, m] = timeHHMM.split(":").map(Number);
+  if (
+    Number.isNaN(h) ||
+    Number.isNaN(m) ||
+    h < 0 ||
+    h > 23 ||
+    m < 0 ||
+    m > 59
+  ) {
+    throw new Error(`Invalid time (HH:MM): ${timeHHMM}`);
+  }
+
   const total = h * 60 + m + minutesToAdd;
   const dayOffset = Math.floor(total / (24 * 60));
   const minsInDay = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
@@ -75,6 +86,7 @@ function addMinutesToHHMM(timeHHMM: string, minutesToAdd: number) {
 
 function toUTCYYYYMMDD(dateStr: string): string {
   const dt = new Date(dateStr);
+  if (Number.isNaN(dt.getTime())) throw new Error(`Invalid date: ${dateStr}`);
   return dt.toISOString().slice(0, 10);
 }
 
@@ -89,7 +101,7 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
-// ---- Background: Update Shipday ----
+// ---- Background: Update Shipday (exact copy of send-timeslot-whatsapp logic) ----
 async function updateShipday(
   order: any,
   recipientType: "sender" | "receiver",
@@ -97,82 +109,187 @@ async function updateShipday(
   relatedJobs: RelatedJob[] | undefined,
   supabase: any,
 ) {
+  console.log("--- Starting Shipday operation ---");
+
   const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
   if (!shipdayApiKey) { console.error("Shipday API key not configured"); return; }
 
   const primaryJobType = determinePrimaryJobType(recipientType);
-  const jobsToUpdate: Array<{ orderRecord: any; jobType: JobType }> = [
-    { orderRecord: order, jobType: primaryJobType },
+  const jobsToUpdate: Array<{ orderRecord: any; jobType: JobType; isPrimary: boolean }> = [
+    { orderRecord: order, jobType: primaryJobType, isPrimary: true },
   ];
 
   if (relatedJobs?.length) {
     for (const r of relatedJobs) {
-      const { data: relatedOrder } = await supabase
+      const { data: relatedOrder, error: relatedError } = await supabase
         .from("orders").select("*").eq("id", r.orderId).single();
-      if (relatedOrder) {
-        jobsToUpdate.push({ orderRecord: relatedOrder, jobType: r.jobType });
+
+      if (relatedError || !relatedOrder) {
+        console.error(`Failed to fetch related order ${r.orderId}:`, relatedError);
+        continue;
       }
+
+      jobsToUpdate.push({
+        orderRecord: relatedOrder,
+        jobType: r.jobType,
+        isPrimary: false,
+      });
     }
   }
 
+  console.log(`Updating Shipday for ${jobsToUpdate.length} job(s)...`);
+
+  const shipdayResults: any[] = [];
+
+  // Calculate timeslot start/end safely (handles midnight rollover)
   const start = addMinutesToHHMM(deliveryTime, 0);
   const end = addMinutesToHHMM(deliveryTime, 180);
 
   for (const item of jobsToUpdate) {
-    const o = item.orderRecord;
-    const isPickup = item.jobType === "pickup";
-    const shipdayId = isPickup ? o.shipday_pickup_id : o.shipday_delivery_id;
-    if (!shipdayId) continue;
+    const orderToUpdate = item.orderRecord;
+    const jobType: JobType = item.jobType;
+    const isPickup = jobType === "pickup";
 
-    const scheduledRaw = isPickup ? o.scheduled_pickup_date : o.scheduled_delivery_date;
-    if (!scheduledRaw) continue;
+    const shipdayId = isPickup
+      ? orderToUpdate.shipday_pickup_id
+      : orderToUpdate.shipday_delivery_id;
+
+    if (!shipdayId) {
+      console.log(`Skipping order ${orderToUpdate.id} (${jobType}): no shipday_${jobType === "pickup" ? "pickup" : "delivery"}_id`);
+      shipdayResults.push({
+        orderId: orderToUpdate.id,
+        jobType,
+        status: "no_shipday_id",
+      });
+      continue;
+    }
+
+    const scheduledRaw = isPickup
+      ? orderToUpdate.scheduled_pickup_date
+      : orderToUpdate.scheduled_delivery_date;
+
+    if (!scheduledRaw) {
+      console.log(`Skipping order ${orderToUpdate.id} (${jobType}): no scheduled_${jobType === "pickup" ? "pickup" : "delivery"}_date`);
+      shipdayResults.push({
+        orderId: orderToUpdate.id,
+        jobType,
+        status: "no_scheduled_date",
+      });
+      continue;
+    }
 
     const scheduledUTCDate = toUTCYYYYMMDD(scheduledRaw);
-    const expectedDeliveryDate = end.dayOffset === 0
-      ? scheduledUTCDate
-      : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
+    const expectedPickupTime = start.hhmmss;
+    const expectedDeliveryTime = end.hhmmss;
 
-    const jobContact = isPickup ? o.sender : o.receiver;
-    const jobNotes = isPickup ? o.sender_notes : o.receiver_notes;
+    // If end time rolls into next day, roll expectedDeliveryDate
+    const expectedDeliveryDate =
+      end.dayOffset === 0
+        ? scheduledUTCDate
+        : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
 
-    const bikeInfo = o.bike_brand && o.bike_model
-      ? `Bike: ${o.bike_brand} ${o.bike_model}`
-      : o.bike_brand ? `Bike: ${o.bike_brand}` : o.bike_model ? `Bike: ${o.bike_model}` : "";
+    const jobContact = isPickup ? orderToUpdate.sender : orderToUpdate.receiver;
+    const jobNotes = isPickup ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
+
+    // Build delivery instructions
+    const bikeInfo =
+      orderToUpdate.bike_brand && orderToUpdate.bike_model
+        ? `Bike: ${orderToUpdate.bike_brand} ${orderToUpdate.bike_model}`
+        : orderToUpdate.bike_brand
+          ? `Bike: ${orderToUpdate.bike_brand}`
+          : orderToUpdate.bike_model
+            ? `Bike: ${orderToUpdate.bike_model}`
+            : "";
 
     const orderDetails: string[] = [];
     if (bikeInfo) orderDetails.push(bikeInfo);
-    if (o.customer_order_number) orderDetails.push(`Order #: ${o.customer_order_number}`);
-    if (o.collection_code) orderDetails.push(`eBay Code: ${o.collection_code}`);
-    if (o.needs_payment_on_collection) orderDetails.push("Payment required on collection");
-    if (o.is_ebay_order) orderDetails.push("eBay Order");
-    if (o.is_bike_swap) orderDetails.push("Bike Swap");
+    if (orderToUpdate.customer_order_number)
+      orderDetails.push(`Order #: ${orderToUpdate.customer_order_number}`);
+    if (orderToUpdate.collection_code)
+      orderDetails.push(`eBay Code: ${orderToUpdate.collection_code}`);
+    if (orderToUpdate.needs_payment_on_collection)
+      orderDetails.push("Payment required on collection");
+    if (orderToUpdate.is_ebay_order) orderDetails.push("eBay Order");
+    if (orderToUpdate.is_bike_swap) orderDetails.push("Bike Swap");
 
-    const allInstructions = [...orderDetails, o.delivery_instructions || "", jobNotes]
-      .filter(Boolean).join(" | ");
+    const baseDeliveryInstructions = orderToUpdate.delivery_instructions || "";
+    const allInstructions = [
+      ...orderDetails,
+      baseDeliveryInstructions,
+      jobNotes,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const requestBody = {
+      orderNumber:
+        orderToUpdate.tracking_number ||
+        `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
+      customerName: jobContact?.name,
+      customerAddress: normalizeAddress(jobContact),
+      customerEmail: jobContact?.email,
+      customerPhoneNumber: jobContact?.phone,
+      restaurantName: "Cycle Courier Co.",
+      restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
+      expectedPickupTime,
+      expectedDeliveryTime,
+      expectedDeliveryDate,
+      deliveryInstruction: allInstructions,
+    };
+
+    console.log("Shipday update payload:", {
+      orderId: orderToUpdate.id,
+      jobType,
+      shipdayId,
+      scheduledRaw,
+      scheduledUTCDate,
+      expectedPickupTime,
+      expectedDeliveryTime,
+      expectedDeliveryDate,
+    });
 
     try {
-      const res = await fetch(`https://api.shipday.com/order/edit/${shipdayId}`, {
+      const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
+
+      const shipdayResponse = await fetch(shipdayUrl, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Basic ${shipdayApiKey}` },
-        body: JSON.stringify({
-          orderNumber: o.tracking_number || `${o.id.substring(0, 8)}-UPDATE`,
-          customerName: jobContact?.name,
-          customerAddress: normalizeAddress(jobContact),
-          customerEmail: jobContact?.email,
-          customerPhoneNumber: jobContact?.phone,
-          restaurantName: "Cycle Courier Co.",
-          restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-          expectedPickupTime: start.hhmmss,
-          expectedDeliveryTime: end.hhmmss,
-          expectedDeliveryDate,
-          deliveryInstruction: allInstructions,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${shipdayApiKey}`,
+        },
+        body: JSON.stringify(requestBody),
       });
-      console.log(`Shipday update ${shipdayId}: ${res.status}`);
+
+      if (shipdayResponse.ok) {
+        shipdayResults.push({
+          orderId: orderToUpdate.id,
+          jobType,
+          shipdayId,
+          status: "success",
+        });
+      } else {
+        const responseText = await shipdayResponse.text();
+        shipdayResults.push({
+          orderId: orderToUpdate.id,
+          jobType,
+          shipdayId,
+          status: "failed",
+          error: responseText,
+        });
+      }
     } catch (e: any) {
-      console.error(`Shipday update error for ${shipdayId}:`, e?.message);
+      shipdayResults.push({
+        orderId: orderToUpdate.id,
+        jobType,
+        shipdayId,
+        status: "error",
+        error: e?.message || "Unknown error",
+      });
     }
   }
+
+  console.log("Shipday operation results:", shipdayResults);
+  console.log("Shipday operation result:", shipdayResults.some((r) => r.status === "success") ? "SUCCESS" : "FAILED");
 }
 
 // ---- Background: Send Email via Resend ----
