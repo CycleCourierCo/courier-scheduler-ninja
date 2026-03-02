@@ -127,19 +127,32 @@ serve(async (req: Request): Promise<Response> => {
       sendzenBody = {
         to: phone,
         from: fromNumber,
-        template_name: type,
-        lang_code: "en_GB",
-        parameters: [
-          { type: "text", text: contact.name || "Customer", parameter_name: "contact_name" },
-          { type: "text", text: bikeBrand, parameter_name: "bike_brand" },
-          { type: "text", text: bikeModel, parameter_name: "bike_model" },
-          { type: "text", text: formattedDate, parameter_name: "date" },
-          { type: "text", text: startTime, parameter_name: "start_time" },
-          { type: "text", text: endTime, parameter_name: "end_time" },
-        ],
-        button_parameters: [
-          { type: "url", text: trackingUrl }
-        ]
+        type: "template",
+        template: {
+          name: type,
+          language: { code: "en_GB" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: contact.name || "Customer" },
+                { type: "text", text: bikeBrand },
+                { type: "text", text: bikeModel },
+                { type: "text", text: formattedDate },
+                { type: "text", text: startTime },
+                { type: "text", text: endTime },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: 0,
+              parameters: [
+                { type: "text", text: trackingUrl },
+              ],
+            },
+          ],
+        },
       };
     } else if (type === "grouped_timeslot") {
       // Grouped location template
@@ -161,27 +174,43 @@ serve(async (req: Request): Promise<Response> => {
       sendzenBody = {
         to: phone,
         from: fromNumber,
-        template_name: "grouped_timeslot",
-        lang_code: "en_GB",
-        parameters: [
-          { type: "text", text: contact.name || "Customer", parameter_name: "contact_name" },
-          { type: "text", text: formattedDate, parameter_name: "date" },
-          { type: "text", text: startTime, parameter_name: "start_time" },
-          { type: "text", text: endTime, parameter_name: "end_time" },
-          { type: "text", text: collectionJobList || "No collections", parameter_name: "collection_job_list" },
-          { type: "text", text: deliveryJobList || "No deliveries", parameter_name: "delivery_job_list" },
-        ],
+        type: "template",
+        template: {
+          name: "grouped_timeslot",
+          language: { code: "en_GB" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: contact.name || "Customer" },
+                { type: "text", text: formattedDate },
+                { type: "text", text: startTime },
+                { type: "text", text: endTime },
+                { type: "text", text: collectionJobList || "No collections" },
+                { type: "text", text: deliveryJobList || "No deliveries" },
+              ],
+            },
+          ],
+        },
       };
     } else if (type === "review") {
       // Review template
       sendzenBody = {
         to: phone,
         from: fromNumber,
-        template_name: "review",
-        lang_code: "en_GB",
-        parameters: [
-          { type: "text", text: contact.name || "Customer", parameter_name: "customer_name" },
-        ],
+        type: "template",
+        template: {
+          name: "review",
+          language: { code: "en_GB" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: contact.name || "Customer" },
+              ],
+            },
+          ],
+        },
       };
     } else {
       return new Response(
