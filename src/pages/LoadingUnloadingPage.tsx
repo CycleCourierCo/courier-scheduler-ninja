@@ -68,6 +68,10 @@ const LoadingUnloadingPage = () => {
   // Driver profiles for selector
   const [driverProfiles, setDriverProfiles] = useState<Array<{ id: string; name: string; phone: string | null; email: string | null }>>([]);
   const [driverProfileSelections, setDriverProfileSelections] = useState<Record<string, string>>({});
+  
+  // Loader profiles for selector
+  const [loaderProfiles, setLoaderProfiles] = useState<Array<{ id: string; name: string; phone: string | null; email: string | null }>>([]);
+  const [loaderProfileSelection, setLoaderProfileSelection] = useState<string>('');
 
   const { user } = useAuth();
   const isAdmin = user?.user_metadata?.role === 'admin';
@@ -140,21 +144,22 @@ const LoadingUnloadingPage = () => {
     fetchData();
   }, []);
 
-  // Fetch driver profiles for the selector
+  // Fetch driver and loader profiles for the selectors
   useEffect(() => {
-    const fetchDriverProfiles = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, phone, email')
-        .eq('role', 'driver')
-        .eq('is_active', true)
-        .order('name');
+    const fetchProfiles = async () => {
+      const [driverResult, loaderResult] = await Promise.all([
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').eq('is_active', true).order('name'),
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').eq('is_active', true).order('name'),
+      ]);
       
-      if (!error && data) {
-        setDriverProfiles(data);
+      if (!driverResult.error && driverResult.data) {
+        setDriverProfiles(driverResult.data);
+      }
+      if (!loaderResult.error && loaderResult.data) {
+        setLoaderProfiles(loaderResult.data);
       }
     };
-    fetchDriverProfiles();
+    fetchProfiles();
   }, []);
 
   // Helper function to check if order has been collected based on tracking events
@@ -852,6 +857,7 @@ const LoadingUnloadingPage = () => {
     setDriverEmails({});
     setLoaderPhoneNumber('');
     setLoaderEmail('');
+    setLoaderProfileSelection('');
     setDriverProfileSelections({});
     
     // Auto-match drivers to profiles by name
@@ -1432,6 +1438,31 @@ const LoadingUnloadingPage = () => {
               <div className="space-y-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
                 <div className="font-medium text-sm flex items-center gap-2">
                   📦 Loader (optional)
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Select loader profile</Label>
+                  <Select
+                    value={loaderProfileSelection}
+                    onValueChange={(profileId) => {
+                      const profile = loaderProfiles.find(p => p.id === profileId);
+                      if (profile) {
+                        setLoaderProfileSelection(profileId);
+                        setLoaderPhoneNumber(profile.phone || '');
+                        setLoaderEmail(profile.email || '');
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a loader..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loaderProfiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name || 'Unnamed'} {profile.phone ? `(${profile.phone})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
