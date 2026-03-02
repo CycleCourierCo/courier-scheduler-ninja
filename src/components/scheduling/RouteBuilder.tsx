@@ -2204,8 +2204,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           type: "grouped_timeslot",
           recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
           deliveryTime: primaryJob.estimatedTime,
-          collectionJobList: collections.length > 0 ? collections.join(', ') : "No collections",
-          deliveryJobList: deliveries.length > 0 ? deliveries.join(', ') : "No deliveries",
+          collectionJobList: collections.length > 0 ? "Collections: " + collections.join(', ') : "",
+          deliveryJobList: deliveries.length > 0 ? "Deliveries: " + deliveries.join(', ') : "",
+          relatedJobs: jobsAtLocation.slice(1).map(j => ({
+            orderId: j.orderId,
+            jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
+          })),
         }
       });
 
@@ -2311,8 +2315,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               type: "grouped_timeslot",
               recipientType: primaryJob.type === 'pickup' ? 'sender' : 'receiver',
               deliveryTime: primaryJob.estimatedTime,
-              collectionJobList: collections.length > 0 ? collections.join(', ') : "No collections",
-              deliveryJobList: deliveries.length > 0 ? deliveries.join(', ') : "No deliveries",
+              collectionJobList: collections.length > 0 ? "Collections: " + collections.join(', ') : "",
+              deliveryJobList: deliveries.length > 0 ? "Deliveries: " + deliveries.join(', ') : "",
+              relatedJobs: jobsAtLocation.slice(1).map(j => ({
+                orderId: j.orderId,
+                jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
+              })),
             }
           });
 
@@ -2372,7 +2380,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         return {
           job,
           bikeCount: jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0,
-          results: { whatsapp: { success: true }, shipday: { success: false }, email: { success: false } }
+          results: { whatsapp: { success: true }, shipday: { success: true }, email: { success: true } }
         };
       });
 
