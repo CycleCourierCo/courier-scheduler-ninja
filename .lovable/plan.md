@@ -1,43 +1,29 @@
 
 
-## Fix: Add `parameter_name` to SendZen parameters
+## Problem
 
-The SendZen API example confirms that each parameter needs a `parameter_name` field. Our current code omits this.
+The browser sends a CORS preflight `OPTIONS` request before the actual `POST`. The `send-sendzen-whatsapp` Edge Function handles `OPTIONS` correctly and returns `Access-Control-Allow-Origin` and `Access-Control-Allow-Headers`, but it's **missing `Access-Control-Allow-Methods`**. Some browsers (especially newer versions) require this header to include `POST` in the preflight response, otherwise they block the actual request.
 
-### Change: `supabase/functions/send-sendzen-whatsapp/index.ts`
+The direct POST works fine (just confirmed -- another review was sent to Abdullah successfully), but the browser never gets past the preflight check.
 
-Add `parameter_name` to every parameter object across all 4 template types:
+## Fix
 
-**review** template:
+Add `Access-Control-Allow-Methods` to the CORS headers in `supabase/functions/send-sendzen-whatsapp/index.ts`:
+
 ```typescript
-{ type: "text", text: contactName, parameter_name: "customer_name" }
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 ```
 
-**collection_timeslots / delivery_timeslot** templates (6 body params):
-```typescript
-{ type: "text", text: contactName, parameter_name: "contact_name" },
-{ type: "text", text: bikeBrand, parameter_name: "bike_brand" },
-{ type: "text", text: bikeModel, parameter_name: "bike_model" },
-{ type: "text", text: formattedDate, parameter_name: "date" },
-{ type: "text", text: startTime, parameter_name: "start_time" },
-{ type: "text", text: endTime, parameter_name: "end_time" },
-```
-Button parameter:
-```typescript
-{ type: "text", text: trackingUrl, parameter_name: "tracking_url" }
-```
+Then redeploy the function.
 
-**grouped_timeslot** template (6 body params):
-```typescript
-{ type: "text", text: contactName, parameter_name: "contact_name" },
-{ type: "text", text: formattedDate, parameter_name: "date" },
-{ type: "text", text: startTime, parameter_name: "start_time" },
-{ type: "text", text: endTime, parameter_name: "end_time" },
-{ type: "text", text: collectionJobList, parameter_name: "collection_job_list" },
-{ type: "text", text: deliveryJobList, parameter_name: "delivery_job_list" },
-```
+## Technical Detail
 
-**Note**: The `parameter_name` values must match exactly what's defined in your WhatsApp templates. The review template uses `customer_name`. For the other templates, I'm using likely names -- if they fail, you'll need to share the exact parameter names from your SendZen dashboard for those templates too.
-
-Then redeploy `send-sendzen-whatsapp`.
+- The existing `_shared/cors.ts` already includes `Access-Control-Allow-Methods: 'GET, POST, PUT, DELETE, OPTIONS'`, but `send-sendzen-whatsapp` defines its own inline CORS headers and doesn't import from the shared file.
+- The POST call works when made server-to-server (no preflight), which is why the curl tests always succeed.
+- The session replay confirms the user clicked "Send Review", the button changed to "Sending...", then the toast error "Failed to send a request to the Edge Function" appeared.
 
