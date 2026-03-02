@@ -159,9 +159,12 @@ const handler = async (req: Request): Promise<Response> => {
     const { access_token, company_id } = tokenData;
     const baseUrl = `https://quickbooks.api.intuit.com/v3/company/${company_id}`;
 
-    // Find vendor by email
-    console.log("Searching for vendor with email:", requestData.driverEmail);
-    const vendorQueryUrl = `${baseUrl}/query?query=SELECT * FROM Vendor WHERE PrimaryEmailAddr = '${requestData.driverEmail}'&minorversion=65`;
+    // Find vendor by email - escape to prevent QbSQL injection
+    console.log("Searching for vendor by email");
+    const escapedDriverEmail = requestData.driverEmail
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'");
+    const vendorQueryUrl = `${baseUrl}/query?query=SELECT * FROM Vendor WHERE PrimaryEmailAddr = '${escapedDriverEmail}'&minorversion=65`;
     
     const vendorResponse = await fetch(vendorQueryUrl, {
       headers: {

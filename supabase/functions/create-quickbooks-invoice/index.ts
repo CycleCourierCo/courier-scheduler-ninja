@@ -610,9 +610,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Invoice created with', lineItems.length, 'line items, total:', invoice.totalAmount);
 
-    // Find customer in QuickBooks
-    const customerEmail = invoiceData.customerEmail;
-    const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${customerEmail}'`;
+    // Find customer in QuickBooks - escape to prevent QbSQL injection
+    const escapedCustomerEmail = escapeQuickBooksString(invoiceData.customerEmail);
+    const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedCustomerEmail}'`;
     
     const customerResponse = await fetch(customerQueryUrl, {
       method: 'GET',
@@ -630,10 +630,10 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (customers.length > 0) {
         customerId = customers[0].Id;
-        console.log('Found existing customer:', customerId, 'for email:', customerEmail);
+        console.log('Found existing customer:', customerId);
       } else {
-        console.log('No customer found for email:', customerEmail);
-        throw new Error(`Customer not found in QuickBooks for email: ${customerEmail}. Please create the customer first.`);
+        console.log('No customer found for email:', invoiceData.customerEmail);
+        throw new Error(`Customer not found in QuickBooks for email: ${invoiceData.customerEmail}. Please create the customer first.`);
       }
     } else {
       console.error('Failed to query customers:', await customerResponse.text());
