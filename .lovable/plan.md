@@ -2,28 +2,41 @@
 
 ## Problem
 
-The browser sends a CORS preflight `OPTIONS` request before the actual `POST`. The `send-sendzen-whatsapp` Edge Function handles `OPTIONS` correctly and returns `Access-Control-Allow-Origin` and `Access-Control-Allow-Headers`, but it's **missing `Access-Control-Allow-Methods`**. Some browsers (especially newer versions) require this header to include `POST` in the preflight response, otherwise they block the actual request.
-
-The direct POST works fine (just confirmed -- another review was sent to Abdullah successfully), but the browser never gets past the preflight check.
+The `send-sendzen-whatsapp` Edge Function **is actually working** - the logs confirm reviews are being sent successfully. However, the SendZen API call takes several seconds, and the Supabase JS client's `functions.invoke()` has a default timeout. When the total time (OPTIONS cold boot + POST cold boot + Supabase DB query + SendZen API call) exceeds this timeout, the client throws a "Failed to send a request to the Edge Function" error, even though the function completes successfully in the background.
 
 ## Fix
 
-Add `Access-Control-Allow-Methods` to the CORS headers in `supabase/functions/send-sendzen-whatsapp/index.ts`:
+Restructure the Edge Function to **return immediately** after validating the request and fetching the order, then process the SendZen API call in the background using `EdgeRuntime.waitUntil()`.
+
+### Changes to `supabase/functions/send-sendzen-whatsapp/index.ts`
+
+1. After fetching the order and building the SendZen request body, return a success response immediately
+2. Move the actual `fetch("https://api.sendzen.io/...")` call into `EdgeRuntime.waitUntil()` so it runs in the background
+3. This ensures the client gets a response within ~1-2 seconds instead of waiting for the full SendZen round-trip
 
 ```typescript
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// Build sendzenBody as before...
+
+// Return immediately
+EdgeRuntime.waitUntil(
+  fetch("https://api.sendzen.io/v1/messages", {
+    method: "POST",
+    headers: { ... },
+    body: JSON.stringify(sendzenBody),
+  }).then(res => {
+    console.log("SendZen background send complete:", res.status);
+  }).catch(err => {
+    console.error("SendZen background send failed:", err);
+  })
+);
+
+return new Response(
+  JSON.stringify({ success: true, data: { status: "queued" } }),
+  { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+);
 ```
 
-Then redeploy the function.
+### Also apply the same pattern to `TimeslotSelection.tsx`'s SendZen handler
 
-## Technical Detail
-
-- The existing `_shared/cors.ts` already includes `Access-Control-Allow-Methods: 'GET, POST, PUT, DELETE, OPTIONS'`, but `send-sendzen-whatsapp` defines its own inline CORS headers and doesn't import from the shared file.
-- The POST call works when made server-to-server (no preflight), which is why the curl tests always succeed.
-- The session replay confirms the user clicked "Send Review", the button changed to "Sending...", then the toast error "Failed to send a request to the Edge Function" appeared.
+No client-side changes needed - the existing code already handles `data?.success` which will still be `true`.
 
