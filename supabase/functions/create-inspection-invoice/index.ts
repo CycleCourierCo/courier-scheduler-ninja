@@ -249,7 +249,9 @@ const handler = async (req: Request): Promise<Response> => {
       Line: lineItems,
       CustomerRef: { value: qbCustomerId },
       BillEmail: { Address: billingEmail },
-      TxnDate: new Date().toISOString().split('T')[0],
+      TxnDate: inspection.inspected_at
+        ? new Date(inspection.inspected_at).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
 
