@@ -65,6 +65,9 @@ export type Database = {
           inspected_at: string | null
           inspected_by_id: string | null
           inspected_by_name: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_url: string | null
           notes: string | null
           order_id: string
           status: string
@@ -76,6 +79,9 @@ export type Database = {
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
           notes?: string | null
           order_id: string
           status?: string
@@ -87,6 +93,9 @@ export type Database = {
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
           notes?: string | null
           order_id?: string
           status?: string
