@@ -463,6 +463,8 @@ const BicycleInspections = () => {
     const isOwner = order.user_id === user?.id;
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
+    const hasInvoice = !!inspection?.invoice_number;
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice;
 
     return (
       <Card key={order.id} className="mb-4">
