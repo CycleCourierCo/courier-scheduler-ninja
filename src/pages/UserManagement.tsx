@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Pencil, Search } from "lucide-react";
+import { UserPlus, Trash2, Pencil, Search, Truck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { UserProfile, UserRole } from "@/types/user";
 import { EditUserDialog } from "@/components/user-management/EditUserDialog";
+import ShipdayCarriersDialog from "@/components/user-management/ShipdayCarriersDialog";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -21,6 +22,7 @@ const UserManagement: React.FC = () => {
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [carriersDialogOpen, setCarriersDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState<{
     email: string;
     password: string;
@@ -168,9 +170,15 @@ const UserManagement: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage users and their roles</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">User Management</h1>
+            <p className="text-muted-foreground">Manage users and their roles</p>
+          </div>
+          <Button variant="outline" onClick={() => setCarriersDialogOpen(true)}>
+            <Truck className="mr-2 h-4 w-4" />
+            Check Shipday Carriers
+          </Button>
         </div>
 
         {/* Create User Form */}
@@ -390,6 +398,32 @@ const UserManagement: React.FC = () => {
           isOpen={!!editingUser}
           onClose={() => setEditingUser(null)}
           onSave={handleEditUser}
+        />
+
+        <ShipdayCarriersDialog
+          open={carriersDialogOpen}
+          onOpenChange={setCarriersDialogOpen}
+          onLinkCarrier={async (carrierId, carrierName) => {
+            const driverName = prompt(`Enter the driver name to link carrier "${carrierName}" (ID: ${carrierId}) to:`);
+            if (!driverName) return;
+            const driver = users.find(u => u.name?.toLowerCase().includes(driverName.toLowerCase()) && u.role === 'driver');
+            if (!driver) {
+              toast.error(`No driver found matching "${driverName}"`);
+              return;
+            }
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({ shipday_driver_id: String(carrierId), shipday_driver_name: carrierName })
+                .eq('id', driver.id);
+              if (error) throw error;
+              toast.success(`Linked carrier ${carrierName} (${carrierId}) to ${driver.name}`);
+              fetchUsers();
+            } catch (error) {
+              console.error("Error linking carrier:", error);
+              toast.error("Failed to link carrier to driver");
+            }
+          }}
         />
       </div>
     </Layout>
