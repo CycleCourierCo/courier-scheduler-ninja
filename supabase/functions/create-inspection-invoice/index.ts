@@ -211,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!qbCustomerId) {
-      throw new Error(`Customer not found in QuickBooks for email: ${customerProfile.email}`);
+      throw new Error(`Customer not found in QuickBooks for email: ${billingEmail}`);
     }
 
     // Build line items from approved issues
