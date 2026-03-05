@@ -170,9 +170,15 @@ const UserManagement: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage users and their roles</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">User Management</h1>
+            <p className="text-muted-foreground">Manage users and their roles</p>
+          </div>
+          <Button variant="outline" onClick={() => setCarriersDialogOpen(true)}>
+            <Truck className="mr-2 h-4 w-4" />
+            Check Shipday Carriers
+          </Button>
         </div>
 
         {/* Create User Form */}
