@@ -145,11 +145,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Get customer profile
     const { data: customerProfile, error: custError } = await supabase
       .from('profiles')
-      .select('email, name, company_name')
+      .select('email, accounts_email, name, company_name')
       .eq('id', order.user_id)
       .single();
 
-    if (custError || !customerProfile?.email) throw new Error('Customer profile or email not found');
+    if (custError || !customerProfile) throw new Error('Customer profile not found');
+    const billingEmail = customerProfile.accounts_email || customerProfile.email;
+    if (!billingEmail) throw new Error('Customer profile has no email or accounts_email');
 
     // Get QuickBooks token
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
@@ -193,7 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Find customer in QuickBooks
-    const escapedEmail = escapeQuickBooksString(customerProfile.email);
+    const escapedEmail = escapeQuickBooksString(billingEmail);
     const customerQuery = `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`;
     const customerResponse = await fetch(
       `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=${encodeURIComponent(customerQuery)}`,
@@ -209,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!qbCustomerId) {
-      throw new Error(`Customer not found in QuickBooks for email: ${customerProfile.email}`);
+      throw new Error(`Customer not found in QuickBooks for email: ${billingEmail}`);
     }
 
     // Build line items from approved issues
@@ -242,7 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: { value: qbCustomerId },
-      BillEmail: { Address: customerProfile.email },
+      BillEmail: { Address: billingEmail },
       TxnDate: new Date().toISOString().split('T')[0],
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
