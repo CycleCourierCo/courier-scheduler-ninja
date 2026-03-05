@@ -145,11 +145,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Get customer profile
     const { data: customerProfile, error: custError } = await supabase
       .from('profiles')
-      .select('email, name, company_name')
+      .select('email, accounts_email, name, company_name')
       .eq('id', order.user_id)
       .single();
 
-    if (custError || !customerProfile?.email) throw new Error('Customer profile or email not found');
+    if (custError || !customerProfile) throw new Error('Customer profile not found');
+    const billingEmail = customerProfile.accounts_email || customerProfile.email;
+    if (!billingEmail) throw new Error('Customer profile has no email or accounts_email');
 
     // Get QuickBooks token
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
