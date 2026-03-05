@@ -22,6 +22,7 @@ const UserManagement: React.FC = () => {
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [carriersDialogOpen, setCarriersDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState<{
     email: string;
     password: string;
