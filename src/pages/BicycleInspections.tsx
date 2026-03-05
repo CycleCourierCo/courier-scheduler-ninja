@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
+import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -266,6 +267,26 @@ const BicycleInspections = () => {
     },
   });
 
+  // Create inspection invoice mutation
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
+        body: { inspectionId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(`Invoice ${data.invoiceNumber} created successfully`);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to create invoice");
+      console.error(error);
+    },
+  });
+
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
     setIssueDialogOpen(true);
@@ -442,6 +463,8 @@ const BicycleInspections = () => {
     const isOwner = order.user_id === user?.id;
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
+    const hasInvoice = !!inspection?.invoice_number;
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice;
 
     return (
       <Card key={order.id} className="mb-4">
@@ -666,6 +689,45 @@ const BicycleInspections = () => {
                   Reset to Awaiting
                 </Button>
               )}
+            </div>
+          )}
+
+          {/* Invoice Section */}
+          {hasInvoice && (
+            <div className="flex items-center gap-2 pt-2">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                Invoice: {inspection.invoice_number}
+              </Badge>
+              {inspection.invoice_url && (
+                <a
+                  href={inspection.invoice_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View
+                </a>
+              )}
+            </div>
+          )}
+
+          {canCreateInvoice && (
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => createInvoiceMutation.mutate(inspection.id)}
+                disabled={createInvoiceMutation.isPending}
+              >
+                {createInvoiceMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-1" />
+                )}
+                Create Invoice
+              </Button>
             </div>
           )}
         </CardContent>
