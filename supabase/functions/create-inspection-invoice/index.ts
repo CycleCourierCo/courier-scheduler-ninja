@@ -195,7 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Find customer in QuickBooks
-    const escapedEmail = escapeQuickBooksString(customerProfile.email);
+    const escapedEmail = escapeQuickBooksString(billingEmail);
     const customerQuery = `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`;
     const customerResponse = await fetch(
       `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=${encodeURIComponent(customerQuery)}`,
