@@ -244,7 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: { value: qbCustomerId },
-      BillEmail: { Address: customerProfile.email },
+      BillEmail: { Address: billingEmail },
       TxnDate: new Date().toISOString().split('T')[0],
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
