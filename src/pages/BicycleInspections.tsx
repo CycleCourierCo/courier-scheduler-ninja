@@ -691,6 +691,45 @@ const BicycleInspections = () => {
               )}
             </div>
           )}
+
+          {/* Invoice Section */}
+          {hasInvoice && (
+            <div className="flex items-center gap-2 pt-2">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                Invoice: {inspection.invoice_number}
+              </Badge>
+              {inspection.invoice_url && (
+                <a
+                  href={inspection.invoice_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View
+                </a>
+              )}
+            </div>
+          )}
+
+          {canCreateInvoice && (
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => createInvoiceMutation.mutate(inspection.id)}
+                disabled={createInvoiceMutation.isPending}
+              >
+                {createInvoiceMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-1" />
+                )}
+                Create Invoice
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
