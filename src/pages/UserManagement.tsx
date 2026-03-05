@@ -399,6 +399,32 @@ const UserManagement: React.FC = () => {
           onClose={() => setEditingUser(null)}
           onSave={handleEditUser}
         />
+
+        <ShipdayCarriersDialog
+          open={carriersDialogOpen}
+          onOpenChange={setCarriersDialogOpen}
+          onLinkCarrier={async (carrierId, carrierName) => {
+            const driverName = prompt(`Enter the driver name to link carrier "${carrierName}" (ID: ${carrierId}) to:`);
+            if (!driverName) return;
+            const driver = users.find(u => u.name?.toLowerCase().includes(driverName.toLowerCase()) && u.role === 'driver');
+            if (!driver) {
+              toast.error(`No driver found matching "${driverName}"`);
+              return;
+            }
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({ shipday_driver_id: String(carrierId), shipday_driver_name: carrierName })
+                .eq('id', driver.id);
+              if (error) throw error;
+              toast.success(`Linked carrier ${carrierName} (${carrierId}) to ${driver.name}`);
+              fetchUsers();
+            } catch (error) {
+              console.error("Error linking carrier:", error);
+              toast.error("Failed to link carrier to driver");
+            }
+          }}
+        />
       </div>
     </Layout>
   );
