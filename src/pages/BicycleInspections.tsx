@@ -267,6 +267,26 @@ const BicycleInspections = () => {
     },
   });
 
+  // Create inspection invoice mutation
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
+        body: { inspectionId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(`Invoice ${data.invoiceNumber} created successfully`);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to create invoice");
+      console.error(error);
+    },
+  });
+
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
     setIssueDialogOpen(true);
