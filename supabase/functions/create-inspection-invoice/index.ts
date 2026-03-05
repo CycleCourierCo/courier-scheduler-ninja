@@ -216,17 +216,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Build line items from approved issues
     const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
-    const lineItems = billableIssues.map((issue: any) => ({
-      Amount: Number(issue.estimated_cost),
-      DetailType: "SalesItemLineDetail",
-      SalesItemLineDetail: {
-        ItemRef: { value: repairProductId },
-        Qty: 1,
-        UnitPrice: Number(issue.estimated_cost),
-        ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
-      },
-      Description: `${bikeDesc} - ${issue.issue_description}`
-    }));
+    const lineItems = billableIssues.map((issue: any) => {
+      // estimated_cost is VAT-inclusive, so divide by 1.2 to get net price
+      const netPrice = Number((Number(issue.estimated_cost) / 1.2).toFixed(2));
+      return {
+        Amount: netPrice,
+        DetailType: "SalesItemLineDetail",
+        SalesItemLineDetail: {
+          ItemRef: { value: repairProductId },
+          Qty: 1,
+          UnitPrice: netPrice,
+          ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+        },
+        Description: `${bikeDesc} - ${issue.issue_description}`
+      };
+    });
 
     // Get sales terms (Net 7)
     let salesTermId: string | null = null;
@@ -245,7 +249,9 @@ const handler = async (req: Request): Promise<Response> => {
       Line: lineItems,
       CustomerRef: { value: qbCustomerId },
       BillEmail: { Address: billingEmail },
-      TxnDate: new Date().toISOString().split('T')[0],
+      TxnDate: inspection.inspected_at
+        ? new Date(inspection.inspected_at).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
 
