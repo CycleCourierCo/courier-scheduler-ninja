@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.create-inspection-invoice]
 verify_jwt = false
+
+[functions.get-shipday-carriers]
+verify_jwt = false
