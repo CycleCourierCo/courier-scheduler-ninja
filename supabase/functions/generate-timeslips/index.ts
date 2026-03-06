@@ -260,7 +260,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Generate route links (handle 10+ stops by splitting into chained routes)
       const routeLinks: string[] = [];
       const stopCoords = uniqueStops.map(s => `${s.lat},${s.lng}`);
-      const maxWaypoints = 10; // Google Maps limit for waypoints
+      const maxWaypoints = 9; // Google Maps practical limit (10th waypoint often not rendered)
 
       if (stopCoords.length === 0) {
         // No stops, no route
