@@ -58,6 +58,7 @@ const Layout: React.FC<LayoutProps> = ({
     </> : null;
 
   return <div className="min-h-screen flex flex-col">
+      <NoticeBanner />
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2 pl-4">

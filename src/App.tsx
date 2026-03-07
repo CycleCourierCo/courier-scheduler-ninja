@@ -154,6 +154,11 @@ function App() {
                   <PricingPage />
                 </ProtectedRoute>
               } />
+              <Route path="/notices" element={
+                <ProtectedRoute adminOnly={true}>
+                  <NoticeBarManagement />
+                </ProtectedRoute>
+              } />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />
