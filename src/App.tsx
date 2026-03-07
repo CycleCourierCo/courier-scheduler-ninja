@@ -37,6 +37,7 @@ import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
 import BicycleInspections from "./pages/BicycleInspections";
 import HolidaysPage from "./pages/HolidaysPage";
 import PricingPage from "./pages/PricingPage";
+import NoticeBarManagement from "./pages/NoticeBarManagement";
 
 const queryClient = new QueryClient();
 
@@ -151,6 +152,11 @@ function App() {
               <Route path="/pricing" element={
                 <ProtectedRoute>
                   <PricingPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/notices" element={
+                <ProtectedRoute adminOnly={true}>
+                  <NoticeBarManagement />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />
