@@ -359,6 +359,12 @@ const Layout: React.FC<LayoutProps> = ({
                           <span>Holidays</span>
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/notices" className="cursor-pointer flex w-full items-center">
+                          <Megaphone className="mr-2 h-4 w-4" />
+                          <span>Notice Bars</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
                           const error = new Error('Sentry Test Error - Triggered by admin');
