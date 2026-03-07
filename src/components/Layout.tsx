@@ -146,6 +146,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <CalendarOff className="mr-2 h-4 w-4" />
                             Holidays
                           </Link>
+                          <Link to="/notices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Megaphone className="mr-2 h-4 w-4" />
+                            Notice Bars
+                          </Link>
                           <button 
                             onClick={() => {
                               const error = new Error('Sentry Test Error - Triggered by admin');
