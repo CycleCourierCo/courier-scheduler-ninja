@@ -37,6 +37,7 @@ import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
 import BicycleInspections from "./pages/BicycleInspections";
 import HolidaysPage from "./pages/HolidaysPage";
 import PricingPage from "./pages/PricingPage";
+import NoticeBarManagement from "./pages/NoticeBarManagement";
 
 const queryClient = new QueryClient();
 
