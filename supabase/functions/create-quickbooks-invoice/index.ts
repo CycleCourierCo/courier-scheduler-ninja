@@ -649,7 +649,7 @@ const handler = async (req: Request): Promise<Response> => {
         value: customerId
       },
       BillEmail: {
-        Address: customerEmail
+        Address: invoiceData.customerEmail
       },
       TxnDate: invoiceData.endDate,
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })

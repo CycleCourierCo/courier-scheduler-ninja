@@ -1,41 +1,15 @@
 
 
-## Root Cause Analysis
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
-I've identified the issue causing all invoice creation failures:
+### Changes
 
-**Bug Location**: `supabase/functions/create-quickbooks-invoice/index.ts` line 652
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**Error**: `ReferenceError: customerEmail is not defined`
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-The function is trying to use an undefined variable `customerEmail` when it should be using `invoiceData.customerEmail`.
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-### Current Code (Line 652):
-```typescript
-BillEmail: {
-  Address: customerEmail  // ❌ Undefined variable
-},
-```
-
-### Should Be:
-```typescript
-BillEmail: {
-  Address: invoiceData.customerEmail  // ✓ Correct reference
-},
-```
-
-## Why You See "2xx Error"
-
-Edge Functions can sometimes return 200 status codes even when internal errors occur, especially in batch operations. The ReferenceError happens during execution and is caught by the error handler (returning 500), but the batch processing logic may interpret incomplete responses as "2xx errors" when tracking multiple simultaneous requests.
-
-## Impact
-
-- **All invoice creation attempts are failing** with this ReferenceError
-- Batch invoice creation reports show 0 successful invoices
-- The error occurs before any QuickBooks API calls are made
-- Individual and batch invoice creation are both affected
-
-## Fix Required
-
-Update line 652 in `supabase/functions/create-quickbooks-invoice/index.ts` to use the correct variable reference.
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 
