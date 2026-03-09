@@ -469,37 +469,15 @@ const LoadingUnloadingPage = () => {
     setIsGeneratingPDF(true);
     
     try {
-      const orders = await getOrders();
-      // Filter for collection/pickup dates for the labels
-      const scheduledOrders = orders.filter(order => {
-        const scheduledPickup = order.scheduledPickupDate;
-        
-        if (!scheduledPickup) return false;
-        
-        const targetDate = format(selectedDate, 'yyyy-MM-dd');
-        const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
-        
-        return pickupDate === targetDate;
-      });
+      const targetDate = format(selectedDate, 'yyyy-MM-dd');
+      const { pickupOrders, deliveryOrders } = await getOrdersByScheduledDate(targetDate);
 
-      // Get delivery orders for the loading list
-      const deliveryOrders = orders.filter(order => {
-        const scheduledDelivery = order.scheduledDeliveryDate;
-        
-        if (!scheduledDelivery) return false;
-        
-        const targetDate = format(selectedDate, 'yyyy-MM-dd');
-        const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
-        
-        return deliveryDate === targetDate;
-      });
-
-      if (scheduledOrders.length === 0) {
+      if (pickupOrders.length === 0) {
         toast.info("No collection orders scheduled for the selected date");
         return;
       }
 
-      await generateLabels(scheduledOrders, deliveryOrders);
+      await generateLabels(pickupOrders, deliveryOrders);
       toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
       setIsLabelsDialogOpen(false);
     } catch (error) {
