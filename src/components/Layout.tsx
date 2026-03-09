@@ -2,7 +2,8 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone } from "lucide-react";
+import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -57,6 +58,7 @@ const Layout: React.FC<LayoutProps> = ({
     </> : null;
 
   return <div className="min-h-screen flex flex-col">
+      <NoticeBanner />
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2 pl-4">
@@ -143,6 +145,10 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to="/holidays" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <CalendarOff className="mr-2 h-4 w-4" />
                             Holidays
+                          </Link>
+                          <Link to="/notices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Megaphone className="mr-2 h-4 w-4" />
+                            Notice Bars
                           </Link>
                           <button 
                             onClick={() => {
@@ -351,6 +357,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/holidays" className="cursor-pointer flex w-full items-center">
                           <CalendarOff className="mr-2 h-4 w-4" />
                           <span>Holidays</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/notices" className="cursor-pointer flex w-full items-center">
+                          <Megaphone className="mr-2 h-4 w-4" />
+                          <span>Notice Bars</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
