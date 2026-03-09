@@ -1,0 +1,1 @@
+ALTER TABLE public.notice_bars ADD COLUMN restricted_to_roles text[] DEFAULT NULL;

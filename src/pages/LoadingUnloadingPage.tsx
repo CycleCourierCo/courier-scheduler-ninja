@@ -10,7 +10,7 @@ import { StorageUnitLayout } from "@/components/loading/StorageUnitLayout";
 import { PendingStorageAllocation } from "@/components/loading/PendingStorageAllocation";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
-import { getOrders, getOrdersForLoading } from "@/services/orderService";
+import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -469,38 +469,16 @@ const LoadingUnloadingPage = () => {
     setIsGeneratingPDF(true);
     
     try {
-      const orders = await getOrders();
-      // Filter for collection/pickup dates for the labels
-      const scheduledOrders = orders.filter(order => {
-        const scheduledPickup = order.scheduledPickupDate;
-        
-        if (!scheduledPickup) return false;
-        
-        const targetDate = format(selectedDate, 'yyyy-MM-dd');
-        const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
-        
-        return pickupDate === targetDate;
-      });
+      const targetDate = format(selectedDate, 'yyyy-MM-dd');
+      const { pickupOrders, deliveryOrders } = await getOrdersByScheduledDate(targetDate);
 
-      // Get delivery orders for the loading list
-      const deliveryOrders = orders.filter(order => {
-        const scheduledDelivery = order.scheduledDeliveryDate;
-        
-        if (!scheduledDelivery) return false;
-        
-        const targetDate = format(selectedDate, 'yyyy-MM-dd');
-        const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
-        
-        return deliveryDate === targetDate;
-      });
-
-      if (scheduledOrders.length === 0) {
+      if (pickupOrders.length === 0) {
         toast.info("No collection orders scheduled for the selected date");
         return;
       }
 
-      await generateLabels(scheduledOrders, deliveryOrders);
-      toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
+      await generateLabels(pickupOrders, deliveryOrders);
+      toast.success(`Generated collection labels for ${pickupOrders.length} orders`);
       setIsLabelsDialogOpen(false);
     } catch (error) {
       toast.error("Failed to generate labels");

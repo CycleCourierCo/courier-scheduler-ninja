@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { X, Info, AlertTriangle, CheckCircle, AlertCircle } from "lucide-react";
 
 interface NoticeBar {
   id: string;
   message: string;
   type: string;
+  restricted_to_roles: string[] | null;
 }
 
 const typeConfig: Record<string, { bg: string; icon: typeof Info }> = {
@@ -18,20 +20,31 @@ const typeConfig: Record<string, { bg: string; icon: typeof Info }> = {
 const NoticeBanner = () => {
   const [notices, setNotices] = useState<NoticeBar[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const { userProfile } = useAuth();
 
   useEffect(() => {
     const fetchNotices = async () => {
       const { data } = await supabase
-        .from("notice_bars" as any)
-        .select("id, message, type")
+        .from("notice_bars")
+        .select("id, message, type, restricted_to_roles")
         .eq("is_active", true)
         .or("expires_at.is.null,expires_at.gt." + new Date().toISOString());
-      if (data) setNotices(data as any);
+      if (data) setNotices(data);
     };
     fetchNotices();
   }, []);
 
-  const visibleNotices = notices.filter((n) => !dismissed.has(n.id));
+  const userRole = userProfile?.role as string | undefined;
+
+  const visibleNotices = notices.filter((n) => {
+    if (dismissed.has(n.id)) return false;
+    // If no role restriction, visible to all
+    if (!n.restricted_to_roles || n.restricted_to_roles.length === 0) return true;
+    // If restricted, only show to users with matching role
+    if (!userRole) return false;
+    return n.restricted_to_roles.includes(userRole);
+  });
+
   if (visibleNotices.length === 0) return null;
 
   return (
