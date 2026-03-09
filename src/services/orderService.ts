@@ -574,6 +574,34 @@ export const updateOrderScheduledDates = async (
   return updateOrderSchedule(id, pickupDate, deliveryDate);
 };
 
+export const getOrdersByScheduledDate = async (date: string): Promise<{ pickupOrders: Order[], deliveryOrders: Order[] }> => {
+  try {
+    const startOfDay = `${date}T00:00:00.000Z`;
+    const endOfDay = `${date}T23:59:59.999Z`;
+
+    const [pickupResult, deliveryResult] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("*")
+        .gte("scheduled_pickup_date", startOfDay)
+        .lte("scheduled_pickup_date", endOfDay),
+      supabase
+        .from("orders")
+        .select("*")
+        .gte("scheduled_delivery_date", startOfDay)
+        .lte("scheduled_delivery_date", endOfDay),
+    ]);
+
+    const pickupOrders = (pickupResult.data || []).map(mapDbOrderToOrderType);
+    const deliveryOrders = (deliveryResult.data || []).map(mapDbOrderToOrderType);
+
+    return { pickupOrders, deliveryOrders };
+  } catch (error) {
+    console.error("Error in getOrdersByScheduledDate:", error);
+    return { pickupOrders: [], deliveryOrders: [] };
+  }
+};
+
 export { resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail };
 
 export const pollOrderUpdates = (
