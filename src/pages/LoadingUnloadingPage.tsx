@@ -478,7 +478,7 @@ const LoadingUnloadingPage = () => {
       }
 
       await generateLabels(pickupOrders, deliveryOrders);
-      toast.success(`Generated collection labels for ${scheduledOrders.length} orders`);
+      toast.success(`Generated collection labels for ${pickupOrders.length} orders`);
       setIsLabelsDialogOpen(false);
     } catch (error) {
       toast.error("Failed to generate labels");
