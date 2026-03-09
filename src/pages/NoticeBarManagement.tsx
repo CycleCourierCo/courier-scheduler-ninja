@@ -12,6 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const ALL_ROLES = [
+  { value: "admin", label: "Admin" },
+  { value: "b2b_customer", label: "B2B Customer" },
+  { value: "b2c_customer", label: "B2C Customer" },
+  { value: "driver", label: "Driver" },
+  { value: "loader", label: "Loader" },
+  { value: "mechanic", label: "Mechanic" },
+  { value: "route_planner", label: "Route Planner" },
+  { value: "sales", label: "Sales" },
+];
 
 interface NoticeBar {
   id: string;
@@ -20,6 +32,7 @@ interface NoticeBar {
   is_active: boolean;
   expires_at: string | null;
   created_at: string;
+  restricted_to_roles: string[] | null;
 }
 
 const NoticeBarManagement = () => {
@@ -29,10 +42,11 @@ const NoticeBarManagement = () => {
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
   const [expiresAt, setExpiresAt] = useState("");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
   const fetchNotices = async () => {
     const { data, error } = await supabase
-      .from("notice_bars" as any)
+      .from("notice_bars")
       .select("*")
       .order("created_at", { ascending: false });
     if (error) {
@@ -52,26 +66,28 @@ const NoticeBarManagement = () => {
       toast.error("Message is required");
       return;
     }
-    const { error } = await supabase.from("notice_bars" as any).insert({
+    const { error } = await supabase.from("notice_bars").insert({
       message: message.trim(),
       type,
       created_by: user?.id,
       expires_at: expiresAt || null,
-    } as any);
+      restricted_to_roles: selectedRoles.length > 0 ? selectedRoles : null,
+    });
     if (error) {
       toast.error("Failed to create notice");
     } else {
       toast.success("Notice created");
       setMessage("");
       setExpiresAt("");
+      setSelectedRoles([]);
       fetchNotices();
     }
   };
 
   const toggleActive = async (id: string, currentActive: boolean) => {
     const { error } = await supabase
-      .from("notice_bars" as any)
-      .update({ is_active: !currentActive } as any)
+      .from("notice_bars")
+      .update({ is_active: !currentActive })
       .eq("id", id);
     if (error) {
       toast.error("Failed to update notice");
@@ -81,7 +97,7 @@ const NoticeBarManagement = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("notice_bars" as any).delete().eq("id", id);
+    const { error } = await supabase.from("notice_bars").delete().eq("id", id);
     if (error) {
       toast.error("Failed to delete notice");
     } else {
@@ -90,12 +106,18 @@ const NoticeBarManagement = () => {
     }
   };
 
+  const toggleRole = (role: string) => {
+    setSelectedRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    );
+  };
+
   const typeBadgeVariant = (t: string) => {
     switch (t) {
-      case "warning": return "secondary";
-      case "error": return "destructive";
-      case "success": return "default";
-      default: return "outline";
+      case "warning": return "secondary" as const;
+      case "error": return "destructive" as const;
+      case "success": return "default" as const;
+      default: return "outline" as const;
     }
   };
 
@@ -143,6 +165,26 @@ const NoticeBarManagement = () => {
                 />
               </div>
             </div>
+            <div>
+              <Label className="mb-2 block">Restrict to Roles (optional)</Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Leave all unchecked to show to everyone.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {ALL_ROLES.map((role) => (
+                  <label
+                    key={role.value}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selectedRoles.includes(role.value)}
+                      onCheckedChange={() => toggleRole(role.value)}
+                    />
+                    <span className="text-sm">{role.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
             <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" /> Create Notice
             </Button>
@@ -164,6 +206,7 @@ const NoticeBarManagement = () => {
                   <TableRow>
                     <TableHead>Message</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Roles</TableHead>
                     <TableHead>Active</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead>Actions</TableHead>
@@ -175,6 +218,19 @@ const NoticeBarManagement = () => {
                       <TableCell className="max-w-xs truncate">{notice.message}</TableCell>
                       <TableCell>
                         <Badge variant={typeBadgeVariant(notice.type)}>{notice.type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {notice.restricted_to_roles && notice.restricted_to_roles.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {notice.restricted_to_roles.map((role) => (
+                              <Badge key={role} variant="outline" className="text-xs">
+                                {role}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">All users</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Switch

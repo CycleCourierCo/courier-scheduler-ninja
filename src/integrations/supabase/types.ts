@@ -349,6 +349,7 @@ export type Database = {
           id: string
           is_active: boolean
           message: string
+          restricted_to_roles: string[] | null
           type: string
           updated_at: string
         }
@@ -359,6 +360,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           message: string
+          restricted_to_roles?: string[] | null
           type?: string
           updated_at?: string
         }
@@ -369,6 +371,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           message?: string
+          restricted_to_roles?: string[] | null
           type?: string
           updated_at?: string
         }
