@@ -1038,6 +1038,7 @@ const OrderDetail = () => {
   
   const showAdminControls = true;
   const isAdmin = userProfile?.role === 'admin';
+  const isAdminOrRoutePlanner = userProfile?.role === 'admin' || userProfile?.role === 'route_planner';
   
   const handleRefreshOrder = async () => {
     if (!id) return;
