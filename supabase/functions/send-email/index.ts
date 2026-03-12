@@ -693,6 +693,66 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
         console.error("Exception sending receiver collection email:", e);
       }
     }
+
+    // Check if receiver has no availability dates set - if so, send receiver availability email
+    // This handles the case where senders skip setting dates but the bike is still collected
+    const deliveryDate = order.delivery_date;
+    const hasReceiverDates = deliveryDate && Array.isArray(deliveryDate) && deliveryDate.length > 0;
+    
+    if (!hasReceiverDates && order.receiver && order.receiver.email) {
+      console.log("Receiver has no availability dates set, sending receiver availability email");
+      
+      const availabilityUrl = `https://booking.cyclecourierco.com/receiver-availability/${orderId}`;
+      const itemName2 = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle";
+      
+      const availabilityHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Hello ${order.receiver.name || "Customer"},</h2>
+          <p>Thank you for using The Cycle Courier Co.</p>
+          <p>We need to confirm your availability for the delivery of your item:</p>
+          <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>${itemName2}</strong> (Quantity: ${order.bike_quantity || 1})</p>
+            ${order.tracking_number ? `
+              <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
+              <div style="text-align: center; margin-top: 15px;">
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                  Track Order
+                </a>
+              </div>
+            ` : ''}
+          </div>
+          <p>Please click the button below to confirm your availability:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${availabilityUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Confirm Availability
+            </a>
+          </div>
+          <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #4a65d5;">${availabilityUrl}</p>
+          <p>Thank you,<br>The Cycle Courier Co. Team</p>
+        </div>
+      `;
+      
+      try {
+        const { data: availData, error: availError } = await resend.emails.send({
+          from: "Ccc@notification.cyclecourierco.com",
+          to: order.receiver.email,
+          subject: `Please confirm your delivery availability - ${order.tracking_number || orderId}`,
+          html: availabilityHtml,
+          reply_to: "Info@cyclecourierco.com"
+        });
+        
+        if (availError) {
+          console.error("Error sending receiver availability email:", availError);
+        } else {
+          console.log("Successfully sent receiver availability email to:", order.receiver.email);
+        }
+      } catch (e) {
+        console.error("Exception sending receiver availability email:", e);
+      }
+    } else if (hasReceiverDates) {
+      console.log("Receiver already has availability dates set, skipping availability email");
+    }
     
     // Mark collection confirmation emails as sent if at least one was successful
     if (senderSent || receiverSent) {
