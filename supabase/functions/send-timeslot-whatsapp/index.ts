@@ -578,6 +578,7 @@ Cycle Courier Co.`;
         to: [contact.email],
         subject: emailSubject,
         html: emailHtml,
+        reply_to: "Info@cyclecourierco.com",
       });
 
       emailResult = { success: true, data: emailData };

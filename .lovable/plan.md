@@ -1,34 +1,15 @@
 
 
-## Add Reply-To Header to All Resend Emails
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
-### Problem
-All emails sent via Resend use `from: "Ccc@notification.cyclecourierco.com"` but have no `reply_to` header. When recipients reply, responses go to the notification subdomain inbox which is not monitored, causing bounces.
+### Changes
 
-### Fix
-Add `reply_to: "Info@cyclecourierco.com"` to every `resend.emails.send()` call across all 7 edge functions. Resend supports a `reply_to` field that sets the Reply-To header.
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-### Files to Update (7 edge functions, ~13 send calls total)
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-1. **`supabase/functions/send-email/index.ts`** — 5 send calls
-2. **`supabase/functions/send-sendzen-whatsapp/index.ts`** — 1 send call
-3. **`supabase/functions/send-timeslot-whatsapp/index.ts`** — 1 send call
-4. **`supabase/functions/send-route-report/index.ts`** — 1 send call
-5. **`supabase/functions/send-loading-list-whatsapp/index.ts`** — 4 send calls
-6. **`supabase/functions/create-business-user/index.ts`** — 2 send calls
-7. **`supabase/functions/generate-timeslips/index.ts`** — 1 send call
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-### Change Pattern
-Each `resend.emails.send({...})` call gets a `reply_to` field added:
-```typescript
-await resend.emails.send({
-  from: "Ccc@notification.cyclecourierco.com",
-  to: [...],
-  subject: "...",
-  html: "...",
-  reply_to: "Info@cyclecourierco.com",  // ← added
-});
-```
-
-All 7 edge functions will be redeployed automatically after the changes.
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 
