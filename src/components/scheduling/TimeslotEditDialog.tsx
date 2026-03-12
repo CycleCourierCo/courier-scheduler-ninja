@@ -60,6 +60,12 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
     }
   };
 
+  const notes = job
+    ? (job.type === 'pickup'
+      ? (job.orderData?.sender_notes || job.order?.senderNotes)
+      : (job.orderData?.receiver_notes || job.order?.receiverNotes))
+    : null;
+
   if (!job) return null;
 
   return (
@@ -118,6 +124,13 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
             />
           </div>
           
+          {notes && (
+            <div className="space-y-1">
+              <Label>{job.type === 'pickup' ? 'Collection' : 'Delivery'} Notes</Label>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{notes}</div>
+            </div>
+          )}
+
           <div className="text-sm text-muted-foreground">
             Original calculated time: {job.estimatedTime}
           </div>
