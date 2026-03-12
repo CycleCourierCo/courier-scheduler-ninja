@@ -1,15 +1,31 @@
 
 
-## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
+## Add Resend Availability Email Buttons to Order Detail
+
+### What
+Add "Resend Sender Availability Email" and "Resend Receiver Availability Email" buttons underneath the existing reset availability buttons on the order detail page. Visible to both admin and route_planner roles.
 
 ### Changes
 
-**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
+**`src/pages/OrderDetail.tsx`**
 
-- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
-- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
+1. Add a variable for admin-or-route-planner check:
+   ```typescript
+   const isAdminOrRoutePlanner = userProfile?.role === 'admin' || userProfile?.role === 'route_planner';
+   ```
 
-**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
+2. After the "Reset Sender Availability" button (line ~1186), add a "Resend Sender Email" button:
+   - Calls `resendSenderAvailabilityEmail(id)` (already imported)
+   - Uses `isResendingEmail.sender` state (already exists)
+   - Gated by `isAdminOrRoutePlanner`
+   - Styled as outline with mail/refresh icon
 
-- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
+3. After the "Reset Receiver Availability" button (line ~1224), add a "Resend Receiver Email" button:
+   - Calls `resendReceiverAvailabilityEmail(id)` (already imported)
+   - Uses `isResendingEmail.receiver` state (already exists)
+   - Gated by `isAdminOrRoutePlanner`
+
+4. Add click handlers for both buttons using the existing `resendSenderAvailabilityEmail` and `resendReceiverAvailabilityEmail` functions from `orderService`, with loading state via `setIsResendingEmail`.
+
+Both functions and the state management are already in the file — this is primarily a UI addition to wire existing functionality to new button placements.
 
