@@ -453,10 +453,11 @@ const handler = async (req: Request): Promise<Response> => {
       `;
 
       await resend.emails.send({
-        from: 'Cycle Courier <onboarding@resend.dev>',
+        from: 'Cycle Courier <Ccc@notification.cyclecourierco.com>',
         to: ['info@cyclecourierco.com'],
         subject: subject,
         html: emailHtml,
+        reply_to: "Info@cyclecourierco.com",
       });
 
       console.log('  ✅ Email notification sent to info@cyclecourierco.com');

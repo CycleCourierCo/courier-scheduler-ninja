@@ -666,7 +666,8 @@ const handler = async (req: Request): Promise<Response> => {
           from: "Ccc@notification.cyclecourierco.com",
           to: managementEmail,
           subject: `Loading List - ${date}`,
-          html: managementEmailHtml
+          html: managementEmailHtml,
+          reply_to: "Info@cyclecourierco.com"
         });
         console.log('Management email sent:', emailResult);
         results.push({ recipient: 'management', channel: 'email', to: managementEmail, result: emailResult });
@@ -702,7 +703,8 @@ const handler = async (req: Request): Promise<Response> => {
           from: "Ccc@notification.cyclecourierco.com",
           to: loaderEmail,
           subject: `Loading List - ${date}`,
-          html: managementEmailHtml
+          html: managementEmailHtml,
+          reply_to: "Info@cyclecourierco.com"
         });
         console.log('Loader email sent:', emailResult);
         results.push({ recipient: 'loader', channel: 'email', to: loaderEmail, result: emailResult });
@@ -753,7 +755,8 @@ const handler = async (req: Request): Promise<Response> => {
               from: "Ccc@notification.cyclecourierco.com",
               to: driverEmail,
               subject: `Your Loading List - ${date}`,
-              html: driverEmailHtml
+              html: driverEmailHtml,
+              reply_to: "Info@cyclecourierco.com"
             });
             console.log(`Driver ${driverName} email sent:`, emailResult);
             results.push({ recipient: driverName, channel: 'email', to: driverEmail, result: emailResult });
@@ -789,7 +792,8 @@ const handler = async (req: Request): Promise<Response> => {
                 from: "Ccc@notification.cyclecourierco.com",
                 to: loaderEmail,
                 subject: `Loading List for ${driverName} - ${date}`,
-                html: driverEmailHtml
+                html: driverEmailHtml,
+                reply_to: "Info@cyclecourierco.com"
               });
               console.log(`Loader received ${driverName}'s list via email:`, emailResult);
               results.push({ recipient: `loader-for-${driverName}`, channel: 'email', to: loaderEmail, result: emailResult });
