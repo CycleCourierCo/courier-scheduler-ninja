@@ -1,15 +1,34 @@
 
 
-## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
+## Show Notes in Timeslot Edit Dialog
 
-### Changes
+### What
+Display the relevant notes (sender_notes for collection jobs, receiver_notes for delivery jobs) in the TimeslotEditDialog popup so the route planner can see important context when setting timeslots.
 
-**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
+### Change
 
-- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
-- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
+**`src/components/scheduling/TimeslotEditDialog.tsx`**
 
-**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
+Add a notes display section between the time input and the "Original calculated time" text:
 
-- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
+- Extract notes from `job.orderData` or `job.order`: if `job.type === 'pickup'`, show `sender_notes`; if `delivery`, show `receiver_notes`
+- Display in a styled block (muted background, small text) with a "Notes" label
+- Only render the block if notes exist and are non-empty
+
+```tsx
+// After the time input, before "Original calculated time"
+const notes = job.type === 'pickup' 
+  ? (job.orderData?.sender_notes || job.order?.senderNotes)
+  : (job.orderData?.receiver_notes || job.order?.receiverNotes);
+
+// In JSX:
+{notes && (
+  <div className="space-y-1">
+    <Label>{job.type === 'pickup' ? 'Collection' : 'Delivery'} Notes</Label>
+    <div className="text-sm bg-muted p-2 rounded">{notes}</div>
+  </div>
+)}
+```
+
+Single file change, no new dependencies.
 
