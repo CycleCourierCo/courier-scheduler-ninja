@@ -321,7 +321,7 @@ The Cycle Courier Co. Team
 
     // Attempt to send the email
     try {
-      const { data, error } = await resend.emails.send(emailOptions);
+      const { data, error } = await resend.emails.send({ ...emailOptions, reply_to: "Info@cyclecourierco.com" });
 
       if (error) {
         console.error('Resend error:', error);
