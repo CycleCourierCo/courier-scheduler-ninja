@@ -501,7 +501,8 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           from: "Ccc@notification.cyclecourierco.com",
           to: order.receiver.email,
           subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
-          html: receiverHtml
+          html: receiverHtml,
+          reply_to: "Info@cyclecourierco.com"
         });
         
         if (receiverError) {
