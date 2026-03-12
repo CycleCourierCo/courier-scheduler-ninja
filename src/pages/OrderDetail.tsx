@@ -1038,6 +1038,7 @@ const OrderDetail = () => {
   
   const showAdminControls = true;
   const isAdmin = userProfile?.role === 'admin';
+  const isAdminOrRoutePlanner = userProfile?.role === 'admin' || userProfile?.role === 'route_planner';
   
   const handleRefreshOrder = async () => {
     if (!id) return;
@@ -1184,6 +1185,17 @@ const OrderDetail = () => {
                       Reset Sender Availability
                     </Button>
                   )}
+                  {isAdminOrRoutePlanner && (
+                    <Button 
+                      onClick={handleResendSenderEmail}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={isResendingEmail.sender}
+                    >
+                      {isResendingEmail.sender ? "Sending..." : "Resend Sender Availability Email"}
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -1220,6 +1232,17 @@ const OrderDetail = () => {
                       disabled={isSubmitting || !order.deliveryDate || !Array.isArray(order.deliveryDate) || order.deliveryDate.length === 0}
                     >
                       Reset Receiver Availability
+                    </Button>
+                  )}
+                  {isAdminOrRoutePlanner && (
+                    <Button 
+                      onClick={handleResendReceiverEmail}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={isResendingEmail.receiver}
+                    >
+                      {isResendingEmail.receiver ? "Sending..." : "Resend Receiver Availability Email"}
                     </Button>
                   )}
                 </div>
