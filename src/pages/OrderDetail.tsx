@@ -1234,6 +1234,17 @@ const OrderDetail = () => {
                       Reset Receiver Availability
                     </Button>
                   )}
+                  {isAdminOrRoutePlanner && (
+                    <Button 
+                      onClick={handleResendReceiverEmail}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={isResendingEmail.receiver}
+                    >
+                      {isResendingEmail.receiver ? "Sending..." : "Resend Receiver Availability Email"}
+                    </Button>
+                  )}
                 </div>
               </div>
 
