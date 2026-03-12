@@ -1185,6 +1185,17 @@ const OrderDetail = () => {
                       Reset Sender Availability
                     </Button>
                   )}
+                  {isAdminOrRoutePlanner && (
+                    <Button 
+                      onClick={handleResendSenderEmail}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={isResendingEmail.sender}
+                    >
+                      {isResendingEmail.sender ? "Sending..." : "Resend Sender Availability Email"}
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
