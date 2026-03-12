@@ -212,6 +212,7 @@ async function sendRegistrationEmails(
         from: FROM_EMAIL,
         to: email,
         subject: "Your Business Account Application",
+        reply_to: "Info@cyclecourierco.com",
         text: `Hello ${name},
 
 Thank you for creating a business account with The Cycle Courier Co.
