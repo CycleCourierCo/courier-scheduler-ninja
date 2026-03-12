@@ -755,7 +755,8 @@ const handler = async (req: Request): Promise<Response> => {
               from: "Ccc@notification.cyclecourierco.com",
               to: driverEmail,
               subject: `Your Loading List - ${date}`,
-              html: driverEmailHtml
+              html: driverEmailHtml,
+              reply_to: "Info@cyclecourierco.com"
             });
             console.log(`Driver ${driverName} email sent:`, emailResult);
             results.push({ recipient: driverName, channel: 'email', to: driverEmail, result: emailResult });
