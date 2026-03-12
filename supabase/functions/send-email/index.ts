@@ -627,7 +627,8 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           from: "Ccc@notification.cyclecourierco.com",
           to: order.sender.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
-          html: senderHtml
+          html: senderHtml,
+          reply_to: "Info@cyclecourierco.com"
         });
         
         if (senderError) {
