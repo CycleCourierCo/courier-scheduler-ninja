@@ -238,6 +238,7 @@ Thank you for choosing The Cycle Courier Co.
         from: FROM_EMAIL,
         to: ADMIN_EMAIL,
         subject: "New Business Registration Requires Approval",
+        reply_to: "Info@cyclecourierco.com",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>New Business Registration</h2>

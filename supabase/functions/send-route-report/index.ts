@@ -262,6 +262,7 @@ const handler = async (req: Request): Promise<Response> => {
       to: ["info@cyclecourierco.com"],
       subject: `🚴 Route Report - ${data.date} | ${data.summary.totalStops} stops`,
       html: emailHtml,
+      reply_to: "Info@cyclecourierco.com",
     });
 
     console.log("Route report email sent successfully:", emailResponse);

@@ -792,7 +792,8 @@ const handler = async (req: Request): Promise<Response> => {
                 from: "Ccc@notification.cyclecourierco.com",
                 to: loaderEmail,
                 subject: `Loading List for ${driverName} - ${date}`,
-                html: driverEmailHtml
+                html: driverEmailHtml,
+                reply_to: "Info@cyclecourierco.com"
               });
               console.log(`Loader received ${driverName}'s list via email:`, emailResult);
               results.push({ recipient: `loader-for-${driverName}`, channel: 'email', to: loaderEmail, result: emailResult });
