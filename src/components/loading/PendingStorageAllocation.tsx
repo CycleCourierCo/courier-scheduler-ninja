@@ -176,11 +176,12 @@ export const PendingStorageAllocation = ({
         const collectedForDriver = collectedByDriver[driverName] || [];
         const loadedForDriver = loadedByDriver[driverName] || [];
         const totalBikes = collectedForDriver.length + loadedForDriver.length;
+        const driverValue = [...collectedForDriver, ...loadedForDriver].reduce((sum, bike) => sum + (bike.bikeValue || 0), 0);
 
         return (
           <div key={driverName} className="space-y-3">
             {/* Driver Section Header */}
-            <div className="flex items-center gap-2 pt-2 pb-2 border-b border-border">
+            <div className="flex items-center gap-2 flex-wrap pt-2 pb-2 border-b border-border">
               <Truck className="h-5 w-5 text-muted-foreground" />
               <h3 className="font-semibold text-lg">{driverName}</h3>
               <Badge variant="secondary">
@@ -189,6 +190,11 @@ export const PendingStorageAllocation = ({
               {loadedForDriver.length > 0 && (
                 <Badge variant="success" className="text-xs">
                   {loadedForDriver.length} on van
+                </Badge>
+              )}
+              {driverValue > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  £{driverValue.toLocaleString()}
                 </Badge>
               )}
             </div>
