@@ -79,6 +79,7 @@ const orderSchema = z.object({
   partExchangeBikeBrand: z.string().optional(),
   partExchangeBikeModel: z.string().optional(),
   partExchangeBikeType: z.string().optional(),
+  partExchangeBikeValue: z.string().optional(),
   isEbayOrder: z.boolean().default(false),
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
