@@ -333,7 +333,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         bike_model: bikeModel || bikes?.[0]?.model,
         bike_type: bikeType || bikes?.[0]?.type,
         bike_quantity: bikeQuantity || 1,
-        bikes: bikes || null, // Store structured bikes array for invoicing
+        bikes: bikes || null,
+        bike_value: bikes?.[0]?.value ? parseFloat(bikes[0].value) : null,
         customer_order_number: customerOrderNumber,
         needs_payment_on_collection: needsPaymentOnCollection,
         payment_collection_phone: paymentCollectionPhone,
