@@ -70,6 +70,7 @@ const orderSchema = z.object({
     brand: z.string().min(1, "Bike brand is required"),
     model: z.string().min(1, "Bike model is required"),
     type: z.string().min(1, "Bike type is required"),
+    value: z.string().optional(),
   })),
   customerOrderNumber: z.string().optional(),
   needsPaymentOnCollection: z.boolean().default(false),
