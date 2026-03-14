@@ -172,7 +172,7 @@ const CreateOrder = () => {
         },
       },
       bikeQuantity: 1,
-      bikes: [{ brand: "", model: "", type: "" }],
+      bikes: [{ brand: "", model: "", type: "", value: "" }],
       customerOrderNumber: "",
       needsPaymentOnCollection: false,
       paymentCollectionPhone: "",
