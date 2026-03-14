@@ -75,9 +75,11 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
       setValue("partExchangeBikeBrand", "");
       setValue("partExchangeBikeModel", "");
       setValue("partExchangeBikeType", "");
+      setValue("partExchangeBikeValue", "");
       clearErrors("partExchangeBikeBrand");
       clearErrors("partExchangeBikeModel");
       clearErrors("partExchangeBikeType");
+      clearErrors("partExchangeBikeValue");
     }
   }, [isBikeSwap, setValue, clearErrors]);
 
