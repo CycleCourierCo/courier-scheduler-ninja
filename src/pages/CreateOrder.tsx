@@ -180,6 +180,7 @@ const CreateOrder = () => {
       partExchangeBikeBrand: "",
       partExchangeBikeModel: "",
       partExchangeBikeType: "",
+      partExchangeBikeValue: "",
       isEbayOrder: false,
       collectionCode: "",
       deliveryInstructions: "",

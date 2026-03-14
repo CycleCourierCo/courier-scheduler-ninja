@@ -456,6 +456,7 @@ export type Database = {
           bike_model: string | null
           bike_quantity: number | null
           bike_type: string | null
+          bike_value: number | null
           bikes: Json | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
@@ -506,6 +507,7 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           bike_type?: string | null
+          bike_value?: number | null
           bikes?: Json | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
@@ -556,6 +558,7 @@ export type Database = {
           bike_model?: string | null
           bike_quantity?: number | null
           bike_type?: string | null
+          bike_value?: number | null
           bikes?: Json | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
