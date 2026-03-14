@@ -67,7 +67,9 @@ export type Order = {
   bikeBrand?: string;
   bikeModel?: string;
   bikeType?: string;
+  bikeValue?: number;
   bikeQuantity?: number;
+  bikes?: Array<{brand: string; model: string; type: string; value?: string}>;
   customerOrderNumber?: string;
   needsPaymentOnCollection?: boolean;
   paymentCollectionPhone?: string;
