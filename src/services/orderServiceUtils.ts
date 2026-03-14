@@ -49,7 +49,9 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     collection_driver_name: dbOrder.collection_driver_name,
     delivery_driver_name: dbOrder.delivery_driver_name,
     needsInspection: dbOrder.needs_inspection || false,
-    createdViaApi: dbOrder.created_via_api || false
+    createdViaApi: dbOrder.created_via_api || false,
+    bikeValue: dbOrder.bike_value || undefined,
+    bikes: dbOrder.bikes || undefined,
   };
 
   // Add optional date fields only if they exist in the DB record

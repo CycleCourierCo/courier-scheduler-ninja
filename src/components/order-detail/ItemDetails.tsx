@@ -49,6 +49,23 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
       <div className="bg-muted p-3 rounded-md">
         <p><span className="font-medium">Item:</span> {itemName}</p>
         <p><span className="font-medium">Quantity:</span> {quantity}</p>
+        {order.bikeType && (
+          <p><span className="font-medium">Type:</span> {order.bikeType}</p>
+        )}
+        {order.bikeValue && (
+          <p><span className="font-medium">Value:</span> £{order.bikeValue}</p>
+        )}
+        {isMultipleBikes && order.bikes && order.bikes.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {order.bikes.map((bike, idx) => (
+              <div key={idx} className="text-sm">
+                <span className="font-medium">Bike {idx + 1}:</span> {bike.brand} {bike.model}
+                {bike.type && <> — {bike.type}</>}
+                {bike.value && <> — £{bike.value}</>}
+              </div>
+            ))}
+          </div>
+        )}
         {order.customerOrderNumber && (
           <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
         )}
