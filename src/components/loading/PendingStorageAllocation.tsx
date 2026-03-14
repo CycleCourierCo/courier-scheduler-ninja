@@ -208,6 +208,7 @@ export const PendingStorageAllocation = ({
                       <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
                         {bike.bikeBrand} {bike.bikeModel}
+                        {bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
                       </p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
