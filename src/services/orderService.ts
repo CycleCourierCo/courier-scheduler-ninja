@@ -441,6 +441,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             bike_model: partExchangeBikeModel,
             bike_type: partExchangeBikeType,
             bike_quantity: 1,
+            bike_value: partExchangeBikeValue ? parseFloat(partExchangeBikeValue) : null,
             customer_order_number: customerOrderNumber ? `${customerOrderNumber}-RETURN` : undefined,
             needs_payment_on_collection: false,
             is_bike_swap: false, // The reverse order is not itself a swap

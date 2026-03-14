@@ -255,6 +255,22 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
                 </FormItem>
               )}
             />
+            <FormField
+              control={control}
+              name="partExchangeBikeValue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Value (£)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g. 1500" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    The estimated value of the part exchange bike.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         )}
 
