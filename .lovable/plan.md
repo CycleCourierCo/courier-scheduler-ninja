@@ -1,15 +1,16 @@
 
 
-## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
+## Update Terms and Conditions Page
+
+Replace the placeholder content in `src/pages/TermsPage.tsx` with the full terms and conditions text provided. The page will use the existing `Layout`, `Card`, and typography structure, with numbered sections rendered as styled headings and paragraphs. Lists will use `<ol>` and `<ul>` elements with proper nesting.
 
 ### Changes
 
-**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
-
-- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
-- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
-
-**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
-
-- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
+**`src/pages/TermsPage.tsx`** — Complete rewrite of page content:
+- Header block with company details (registered office, email contacts, telephone)
+- Introduction paragraph
+- 18 numbered sections with sub-clauses using ordered lists (`a, b, c...` style)
+- Definition lists in section 1
+- Version footer: "Version: 1.0 — Effective from: 16.03.2026"
+- Update "Last updated" to March 16, 2026
 
