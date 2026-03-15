@@ -12,7 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { User, Building2, MapPin } from "lucide-react";
+import { User, Building2, MapPin, Clock } from "lucide-react";
+import { DEFAULT_OPENING_HOURS, OpeningHours } from "@/types/user";
+import OpeningHoursEditor from "@/components/user-management/OpeningHoursEditor";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is required"),
