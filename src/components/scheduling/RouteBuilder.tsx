@@ -3237,6 +3237,7 @@ Route Link: ${routeLink}`;
                     startingBikes={startingBikes}
                     selectedDate={selectedDate}
                     adminComments={Object.values(adminComments).flat()}
+                    openingHoursMap={profileOpeningHours}
                   />
                 ))}
 
