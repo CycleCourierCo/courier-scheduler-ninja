@@ -695,6 +695,33 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setStartingBikes(optimalStarting);
   }, [selectedJobs]);
 
+  // Fetch admin comments for orders in the route
+  React.useEffect(() => {
+    const orderIds = [...new Set(selectedJobs.filter(j => j.type !== 'break').map(j => j.orderId))];
+    if (orderIds.length === 0) {
+      setAdminComments({});
+      return;
+    }
+    const fetchComments = async () => {
+      const { data, error } = await supabase
+        .from('order_comments')
+        .select('*')
+        .in('order_id', orderIds)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching admin comments:', error);
+        return;
+      }
+      const grouped: Record<string, OrderComment[]> = {};
+      (data || []).forEach((c: any) => {
+        if (!grouped[c.order_id]) grouped[c.order_id] = [];
+        grouped[c.order_id].push(c);
+      });
+      setAdminComments(grouped);
+    };
+    fetchComments();
+  }, [selectedJobs]);
+
   // Helper function to calculate bike count AFTER a given job is completed
   const calculateBikeCountAtJob = (jobIndex: number): number => {
     let bikeCount = startingBikes;
