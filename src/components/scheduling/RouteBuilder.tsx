@@ -75,6 +75,14 @@ const toEdgeFunctionJobType = (t: string): 'pickup' | 'delivery' =>
   (t === 'pickup' || t === 'collection') ? 'pickup' : 'delivery';
 
   // JobItem component interface and component for drag and drop functionality
+interface OrderComment {
+  id: string;
+  order_id: string;
+  admin_name: string;
+  comment: string;
+  created_at: string;
+}
+
 interface JobItemProps {
   job: SelectedJob;
   index: number;
@@ -90,6 +98,7 @@ interface JobItemProps {
   bikeCount: number; // Current bike count at this stop
   startingBikes: number; // Starting bike count
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
+  adminComments?: OrderComment[];
 }
 
 // Helper function to get availability badge
