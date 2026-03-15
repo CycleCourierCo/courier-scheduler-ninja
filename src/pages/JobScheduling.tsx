@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 export interface OrderData {
   id: string;
+  user_id: string;
   status: OrderStatus;
   tracking_number: string;
   bike_brand: string | null;
