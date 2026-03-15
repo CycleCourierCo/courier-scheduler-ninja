@@ -650,6 +650,7 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           name: string | null
+          opening_hours: Json | null
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -683,6 +684,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name?: string | null
+          opening_hours?: Json | null
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -716,6 +718,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name?: string | null
+          opening_hours?: Json | null
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -1196,6 +1199,7 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           name: string | null
+          opening_hours: Json | null
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
