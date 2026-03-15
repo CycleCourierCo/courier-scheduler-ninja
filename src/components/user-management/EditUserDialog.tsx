@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { UserProfile } from "@/types/user";
+import { UserProfile, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import OpeningHoursEditor from "./OpeningHoursEditor";
 
 interface EditUserDialogProps {
   user: UserProfile | null;
