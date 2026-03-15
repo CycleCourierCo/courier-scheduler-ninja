@@ -478,6 +478,7 @@ const Layout: React.FC<LayoutProps> = ({
               <div className="mt-6 space-y-2">
                 <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>
                 <p className="text-sm opacity-90">Company No: 16220087</p>
+                <p className="text-sm opacity-90">VAT Number: GB507727188</p>
                 <div className="text-sm opacity-90">
                   <p className="font-medium">Company address:</p>
                   <address className="not-italic opacity-80">
