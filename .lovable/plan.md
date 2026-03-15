@@ -1,15 +1,27 @@
 
 
-## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
+## Show Opening Hours Status on Route Timeslot Job Cards
+
+### Problem
+The Route Timeslots view doesn't indicate whether a job's estimated time falls within the business's opening hours/days. Route planners need this visibility directly on each job card, not only when clicking "Send" to open the edit dialog.
 
 ### Changes
 
-**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
+**`src/components/scheduling/RouteBuilder.tsx`**
 
-- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
-- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
+1. **Pass `profileOpeningHours` to `JobItem`** — Add `openingHours` prop to the `JobItemProps` interface and pass `profileOpeningHours[job.orderData?.user_id]` from both drawer and dialog render locations.
 
-**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
+2. **Add opening hours badge logic** — Create a helper function `getOpeningHoursBadge(estimatedTime, selectedDate, openingHours)` that:
+   - Returns `null` if no opening hours data exists
+   - Returns a red "Closed" badge if the business is closed on that day
+   - Returns an amber "Outside Hours" badge if the estimated time is before `start` or after `end`
+   - Returns `null` (no badge) if within hours or 24h
 
-- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
+3. **Render the badge on each job card** — Add the opening hours badge in the badges row for both single and grouped job views, next to the existing availability/collection/inspection badges.
+
+### Visual Result
+Each job card will show a small badge like:
+- `⚠️ Closed` (red) — business is closed on selected day
+- `⚠️ Outside Hours (09:00-17:00)` (amber) — estimated time is outside opening hours
+- No badge when within hours or no opening hours data
 
