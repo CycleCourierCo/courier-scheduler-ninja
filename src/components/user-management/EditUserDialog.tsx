@@ -174,6 +174,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
                   </p>
                 </div>
+                <div className="col-span-2">
+                  <OpeningHoursEditor
+                    value={formData.opening_hours || DEFAULT_OPENING_HOURS}
+                    onChange={(hours) => setFormData({ ...formData, opening_hours: hours })}
+                  />
+                </div>
               </div>
             </TabsContent>
           )}
