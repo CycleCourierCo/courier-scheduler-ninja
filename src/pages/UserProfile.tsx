@@ -83,10 +83,7 @@ const UserProfile = () => {
 
     setIsLoading(true);
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
+      const updateData: any = {
           name: data.name,
           phone: data.phone,
           company_name: data.company_name,
@@ -98,7 +95,15 @@ const UserProfile = () => {
           postal_code: data.postal_code,
           country: data.country,
           accounts_email: data.accounts_email,
-        })
+        };
+      
+      if (userProfile?.is_business) {
+        updateData.opening_hours = openingHours;
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(updateData)
         .eq('id', user.id);
 
       if (profileError) throw profileError;
