@@ -482,6 +482,16 @@ const JobItem: React.FC<JobItemProps> = ({
                           </Badge>
                         ) : null;
                       })()}
+                      
+                      {/* Opening Hours Badge */}
+                      {(() => {
+                        const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id]);
+                        return hoursBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
+                            {hoursBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
                     </>
                   )}
                 </div>
