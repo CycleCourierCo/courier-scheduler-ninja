@@ -75,6 +75,14 @@ const toEdgeFunctionJobType = (t: string): 'pickup' | 'delivery' =>
   (t === 'pickup' || t === 'collection') ? 'pickup' : 'delivery';
 
   // JobItem component interface and component for drag and drop functionality
+interface OrderComment {
+  id: string;
+  order_id: string;
+  admin_name: string;
+  comment: string;
+  created_at: string;
+}
+
 interface JobItemProps {
   job: SelectedJob;
   index: number;
@@ -90,6 +98,7 @@ interface JobItemProps {
   bikeCount: number; // Current bike count at this stop
   startingBikes: number; // Starting bike count
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
+  adminComments?: OrderComment[];
 }
 
 // Helper function to get availability badge
@@ -216,7 +225,8 @@ const JobItem: React.FC<JobItemProps> = ({
   allJobs,
   bikeCount,
   startingBikes,
-  selectedDate
+  selectedDate,
+  adminComments = []
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
@@ -357,6 +367,9 @@ const JobItem: React.FC<JobItemProps> = ({
                           {groupedJob.type === 'delivery' && groupedJob.orderData?.receiver_notes && (
                             <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.receiver_notes}</p>
                           )}
+                          {adminComments.filter(c => c.order_id === groupedJob.orderId).map(c => (
+                            <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                          ))}
                         </div>
                       );
                     });
@@ -435,6 +448,9 @@ const JobItem: React.FC<JobItemProps> = ({
                     {job.type === 'delivery' && job.orderData?.receiver_notes && (
                       <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.receiver_notes}</p>
                     )}
+                    {adminComments.filter(c => c.order_id === job.orderId).map(c => (
+                      <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                    ))}
                   </>
                 )}
               </div>
@@ -590,6 +606,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
+  const [adminComments, setAdminComments] = useState<Record<string, OrderComment[]>>({});
   
   // CSV upload states
   const [csvMatchResults, setCsvMatchResults] = useState<MatchResult[]>([]);
@@ -676,6 +693,33 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     const optimalStarting = calculateOptimalStartingBikes();
     setStartingBikes(optimalStarting);
+  }, [selectedJobs]);
+
+  // Fetch admin comments for orders in the route
+  React.useEffect(() => {
+    const orderIds = [...new Set(selectedJobs.filter(j => j.type !== 'break').map(j => j.orderId))];
+    if (orderIds.length === 0) {
+      setAdminComments({});
+      return;
+    }
+    const fetchComments = async () => {
+      const { data, error } = await supabase
+        .from('order_comments')
+        .select('*')
+        .in('order_id', orderIds)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching admin comments:', error);
+        return;
+      }
+      const grouped: Record<string, OrderComment[]> = {};
+      (data || []).forEach((c: any) => {
+        if (!grouped[c.order_id]) grouped[c.order_id] = [];
+        grouped[c.order_id].push(c);
+      });
+      setAdminComments(grouped);
+    };
+    fetchComments();
   }, [selectedJobs]);
 
   // Helper function to calculate bike count AFTER a given job is completed
@@ -2979,6 +3023,7 @@ Route Link: ${routeLink}`;
                       bikeCount={calculateBikeCountAtJob(index)}
                       startingBikes={startingBikes}
                       selectedDate={selectedDate}
+                      adminComments={Object.values(adminComments).flat()}
                     />
                   ))}
 
@@ -3107,6 +3152,7 @@ Route Link: ${routeLink}`;
                     bikeCount={calculateBikeCountAtJob(index)}
                     startingBikes={startingBikes}
                     selectedDate={selectedDate}
+                    adminComments={Object.values(adminComments).flat()}
                   />
                 ))}
 
@@ -3230,6 +3276,7 @@ Route Link: ${routeLink}`;
           sendTimeslot(job, editedTime, date);
         }}
         isLoading={isSendingTimeslots}
+        adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
       />
 
       <CSVMatchReviewDialog

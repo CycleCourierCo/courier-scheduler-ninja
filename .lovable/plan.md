@@ -1,33 +1,15 @@
 
 
-## Add Admin Comments to Route Job Cards and Timeslot Edit Dialog
-
-### Problem
-Admin comments are stored in the separate `order_comments` table and are not fetched or displayed in the route builder job cards or timeslot edit dialog.
-
-### Approach
-Fetch all admin comments for orders in the route in a single batch query, store them in state, and pass them down to the job cards and timeslot dialog.
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
 ### Changes
 
-**1. `src/components/scheduling/RouteBuilder.tsx`**
-- Add state: `adminComments: Record<string, OrderComment[]>` mapping `order_id` to comments
-- Add a `useEffect` that watches `selectedJobs` — whenever jobs change, fetch comments for all unique order IDs in one query:
-  ```sql
-  from('order_comments').select('*').in('order_id', orderIds).order('created_at', { ascending: false })
-  ```
-- In `JobItem`, display admin comments below the existing notes sections (both single and grouped jobs):
-  ```
-  💬 Admin Name: comment text (truncated)
-  ```
-- Pass `adminComments` to `TimeslotEditDialog` via a new prop and display them there too
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**2. `src/components/scheduling/TimeslotEditDialog.tsx`**
-- Add optional `adminComments` prop: `{ admin_name: string; comment: string; created_at: string }[]`
-- Render them in a "Admin Notes" section below the existing notes, each with name and timestamp
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-### Summary
-- 2 files changed
-- No database changes (comments table and RLS already exist)
-- Comments fetched in batch, not per-job
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
+
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 

@@ -29,12 +29,19 @@ interface SelectedJob {
   locationGroupId?: string;
 }
 
+interface AdminComment {
+  admin_name: string;
+  comment: string;
+  created_at: string;
+}
+
 interface TimeslotEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: SelectedJob | null;
   onConfirm: (job: SelectedJob, editedTime: string, selectedDate: Date) => void;
   isLoading?: boolean;
+  adminComments?: AdminComment[];
 }
 
 const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
@@ -42,7 +49,8 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
   onOpenChange,
   job,
   onConfirm,
-  isLoading = false
+  isLoading = false,
+  adminComments = []
 }) => {
   const [editedTime, setEditedTime] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -140,6 +148,19 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
             <div className="space-y-1">
               <Label>Receiver Notes</Label>
               <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{receiverNotes}</div>
+            </div>
+          )}
+
+          {adminComments.length > 0 && (
+            <div className="space-y-1">
+              <Label>Admin Notes</Label>
+              <div className="space-y-1">
+                {adminComments.map((c, i) => (
+                  <div key={i} className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">
+                    <span className="font-medium">{c.admin_name}:</span> {c.comment}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
