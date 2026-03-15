@@ -69,11 +69,12 @@ const UserProfile = () => {
         address_line_1: userProfile.address_line_1 || "",
         address_line_2: userProfile.address_line_2 || "",
         city: userProfile.city || "",
-        county: userProfile.county || "",
+        county: (userProfile as any).county || "",
         postal_code: userProfile.postal_code || "",
-        country: userProfile.country || "United Kingdom",
+        country: (userProfile as any).country || "United Kingdom",
         accounts_email: userProfile.accounts_email || "",
       });
+      setOpeningHours(userProfile.opening_hours || DEFAULT_OPENING_HOURS);
     }
   }, [userProfile, form]);
 
