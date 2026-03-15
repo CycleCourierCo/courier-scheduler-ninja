@@ -3302,6 +3302,7 @@ Route Link: ${routeLink}`;
         }}
         isLoading={isSendingTimeslots}
         adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
+        openingHours={jobToEdit?.orderData?.user_id ? profileOpeningHours[jobToEdit.orderData.user_id] : undefined}
       />
 
       <CSVMatchReviewDialog
