@@ -49,7 +49,8 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
   onOpenChange,
   job,
   onConfirm,
-  isLoading = false
+  isLoading = false,
+  adminComments = []
 }) => {
   const [editedTime, setEditedTime] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
