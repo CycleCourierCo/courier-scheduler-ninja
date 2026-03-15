@@ -1,25 +1,15 @@
 
 
-## Fix: B2B Profile Opening Hours Save Error
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
-### Problem
-The custom `handleSubmit` function (line 121-135) checks `form.formState.isValid` **before** calling `form.handleSubmit(onSubmit)`. With react-hook-form's `mode: "onSubmit"`, `isValid` remains `false` until after validation runs via `handleSubmit`. This means the premature check at line 128 always evaluates `!isValid` as `true`, showing a spurious error toast and blocking submission.
+### Changes
 
-### Fix
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**`src/pages/UserProfile.tsx`** — Replace the custom `handleSubmit` with a standard react-hook-form pattern:
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-- Remove the manual `handleSubmit` wrapper (lines 121-135)
-- Use `form.handleSubmit(onSubmit)` directly in the form's `onSubmit`
-- Add an `onError` callback to show the validation error toast
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-```tsx
-// In the form element:
-<form onSubmit={form.handleSubmit(onSubmit, (errors) => {
-  const errorCount = Object.keys(errors).length;
-  toast.error(`Please fill in all required fields correctly (${errorCount} error${errorCount > 1 ? 's' : ''})`);
-})} className="space-y-6">
-```
-
-This is a single-file change, ~5 lines modified.
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 
