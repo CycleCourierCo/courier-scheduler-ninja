@@ -164,6 +164,7 @@ export const getMyInspections = async (userId: string) => {
       `)
       .eq('user_id', userId)
       .eq('needs_inspection', true)
+      .neq('status', 'cancelled')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
