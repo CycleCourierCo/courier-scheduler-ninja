@@ -122,10 +122,24 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
             />
           </div>
           
-          {notes && (
+          {deliveryInstructions && (
             <div className="space-y-1">
-              <Label>{job.type === 'pickup' ? 'Collection' : 'Delivery'} Notes</Label>
-              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{notes}</div>
+              <Label>Delivery Instructions</Label>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{deliveryInstructions}</div>
+            </div>
+          )}
+
+          {job.type === 'pickup' && senderNotes && (
+            <div className="space-y-1">
+              <Label>Sender Notes</Label>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{senderNotes}</div>
+            </div>
+          )}
+
+          {job.type === 'delivery' && receiverNotes && (
+            <div className="space-y-1">
+              <Label>Receiver Notes</Label>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{receiverNotes}</div>
             </div>
           )}
 
