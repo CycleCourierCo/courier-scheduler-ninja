@@ -60,11 +60,9 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
     }
   };
 
-  const notes = job
-    ? (job.type === 'pickup'
-      ? (job.orderData?.sender_notes || job.order?.senderNotes)
-      : (job.orderData?.receiver_notes || job.order?.receiverNotes))
-    : null;
+  const deliveryInstructions = job?.orderData?.delivery_instructions || job?.order?.deliveryInstructions || null;
+  const senderNotes = job?.orderData?.sender_notes || job?.order?.senderNotes || null;
+  const receiverNotes = job?.orderData?.receiver_notes || job?.order?.receiverNotes || null;
 
   if (!job) return null;
 
