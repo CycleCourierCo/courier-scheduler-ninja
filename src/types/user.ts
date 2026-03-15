@@ -60,5 +60,5 @@ export interface UserProfile {
   // Invoice pricing
   special_rate_code: string | null;
   // Opening hours
-  opening_hours: OpeningHours | null;
+  opening_hours: any | null;
 }
