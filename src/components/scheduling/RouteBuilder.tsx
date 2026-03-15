@@ -448,6 +448,9 @@ const JobItem: React.FC<JobItemProps> = ({
                     {job.type === 'delivery' && job.orderData?.receiver_notes && (
                       <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.receiver_notes}</p>
                     )}
+                    {adminComments.filter(c => c.order_id === job.orderId).map(c => (
+                      <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                    ))}
                   </>
                 )}
               </div>
