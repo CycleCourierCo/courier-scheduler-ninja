@@ -607,7 +607,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
   const [adminComments, setAdminComments] = useState<Record<string, OrderComment[]>>({});
-  
+  const [profileOpeningHours, setProfileOpeningHours] = useState<Record<string, any>>({});
   // CSV upload states
   const [csvMatchResults, setCsvMatchResults] = useState<MatchResult[]>([]);
   const [showCsvReviewDialog, setShowCsvReviewDialog] = useState(false);
@@ -720,6 +720,31 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       setAdminComments(grouped);
     };
     fetchComments();
+  }, [selectedJobs]);
+
+  // Fetch opening hours for business profiles linked to orders in the route
+  React.useEffect(() => {
+    const userIds = [...new Set(selectedJobs.filter(j => j.type !== 'break' && j.orderData?.user_id).map(j => j.orderData!.user_id))];
+    if (userIds.length === 0) {
+      setProfileOpeningHours({});
+      return;
+    }
+    const fetchHours = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, opening_hours')
+        .in('id', userIds);
+      if (error) {
+        console.error('Error fetching opening hours:', error);
+        return;
+      }
+      const mapped: Record<string, any> = {};
+      (data || []).forEach((p: any) => {
+        if (p.opening_hours) mapped[p.id] = p.opening_hours;
+      });
+      setProfileOpeningHours(mapped);
+    };
+    fetchHours();
   }, [selectedJobs]);
 
   // Helper function to calculate bike count AFTER a given job is completed
@@ -3277,6 +3302,7 @@ Route Link: ${routeLink}`;
         }}
         isLoading={isSendingTimeslots}
         adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
+        openingHours={jobToEdit?.orderData?.user_id ? profileOpeningHours[jobToEdit.orderData.user_id] : undefined}
       />
 
       <CSVMatchReviewDialog

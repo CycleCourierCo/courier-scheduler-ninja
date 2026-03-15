@@ -1,6 +1,35 @@
 
 export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales';
 
+export interface DayHours {
+  open: boolean;
+  start: string;
+  end: string;
+  is24h: boolean;
+}
+
+export interface OpeningHours {
+  monday: DayHours;
+  tuesday: DayHours;
+  wednesday: DayHours;
+  thursday: DayHours;
+  friday: DayHours;
+  saturday: DayHours;
+  sunday: DayHours;
+}
+
+export const DEFAULT_OPENING_HOURS: OpeningHours = {
+  monday:    { open: true, start: "09:00", end: "17:00", is24h: false },
+  tuesday:   { open: true, start: "09:00", end: "17:00", is24h: false },
+  wednesday: { open: true, start: "09:00", end: "17:00", is24h: false },
+  thursday:  { open: true, start: "09:00", end: "17:00", is24h: false },
+  friday:    { open: true, start: "09:00", end: "17:00", is24h: false },
+  saturday:  { open: false, start: "", end: "", is24h: false },
+  sunday:    { open: false, start: "", end: "", is24h: false },
+};
+
+export const DAY_NAMES: (keyof OpeningHours)[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
 export interface UserProfile {
   id: string;
   name: string | null;
@@ -30,4 +59,6 @@ export interface UserProfile {
   shipday_driver_name: string | null;
   // Invoice pricing
   special_rate_code: string | null;
+  // Opening hours
+  opening_hours: any | null;
 }
