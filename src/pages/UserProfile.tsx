@@ -36,6 +36,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const UserProfile = () => {
   const { user, userProfile, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [openingHours, setOpeningHours] = useState<OpeningHours>(DEFAULT_OPENING_HOURS);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
