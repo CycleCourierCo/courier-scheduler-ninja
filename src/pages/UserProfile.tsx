@@ -253,6 +253,26 @@ const UserProfile = () => {
               </Card>
             )}
 
+            {userProfile?.is_business && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock size={18} />
+                    Opening Hours
+                  </CardTitle>
+                  <CardDescription>
+                    Set your business opening hours so our drivers know when to collect/deliver
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <OpeningHoursEditor
+                    value={openingHours}
+                    onChange={setOpeningHours}
+                  />
+                </CardContent>
+              </Card>
+            )
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
