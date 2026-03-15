@@ -424,6 +424,19 @@ const JobItem: React.FC<JobItemProps> = ({
                     </>
                   )}
                 </div>
+                {job.type !== 'break' && (
+                  <>
+                    {job.orderData?.delivery_instructions && (
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {job.orderData.delivery_instructions}</p>
+                    )}
+                    {job.type === 'pickup' && job.orderData?.sender_notes && (
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.sender_notes}</p>
+                    )}
+                    {job.type === 'delivery' && job.orderData?.receiver_notes && (
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.receiver_notes}</p>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
