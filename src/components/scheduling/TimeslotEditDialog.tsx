@@ -151,6 +151,19 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
             </div>
           )}
 
+          {adminComments.length > 0 && (
+            <div className="space-y-1">
+              <Label>Admin Notes</Label>
+              <div className="space-y-1">
+                {adminComments.map((c, i) => (
+                  <div key={i} className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">
+                    <span className="font-medium">{c.admin_name}:</span> {c.comment}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="text-sm text-muted-foreground">
             Original calculated time: {job.estimatedTime}
           </div>
