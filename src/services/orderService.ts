@@ -152,6 +152,12 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       query = query.or(
         `sender->>name.ilike.%${searchTerm}%,` +
         `receiver->>name.ilike.%${searchTerm}%,` +
+        `sender->>email.ilike.%${searchTerm}%,` +
+        `receiver->>email.ilike.%${searchTerm}%,` +
+        `sender->>phone.ilike.%${searchTerm}%,` +
+        `receiver->>phone.ilike.%${searchTerm}%,` +
+        `sender->address->>zipCode.ilike.%${searchTerm}%,` +
+        `receiver->address->>zipCode.ilike.%${searchTerm}%,` +
         `tracking_number.ilike.%${searchTerm}%,` +
         `bike_brand.ilike.%${searchTerm}%,` +
         `bike_model.ilike.%${searchTerm}%,` +

@@ -1,27 +1,15 @@
 
 
-## Extend Dashboard Search to Include Phone, Email, and Postcode
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
-### Problem
-The current search only matches against sender/receiver name, tracking number, bike brand/model, and customer order number. Users need to find orders by phone number, email, or postcode from the sender/receiver JSONB fields.
+### Changes
 
-### Change
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**`src/services/orderService.ts`** (lines 152-159) — Add additional JSONB search paths to the `.or()` filter:
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-```
-sender->>email.ilike.%term%
-receiver->>email.ilike.%term%
-sender->>phone.ilike.%term%
-receiver->>phone.ilike.%term%
-sender->address->>zipCode.ilike.%term%
-receiver->address->>zipCode.ilike.%term%
-```
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-**`src/utils/dashboardUtils.ts`** (lines 39-46) — Update the client-side `applyFiltersToOrders` search to also match against `sender.email`, `sender.phone`, `receiver.email`, `receiver.phone`, `sender.address.zipCode`, and `receiver.address.zipCode`.
-
-**`src/components/OrderFilters.tsx`** — Update the search input placeholder text to indicate phone/email/postcode are searchable.
-
-### Technical Note
-The sender/receiver fields are stored as JSONB in the database. Supabase supports nested JSONB path queries with `->>` (text) and `->` (object) operators, so `sender->address->>zipCode` will work for the nested postcode field.
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 

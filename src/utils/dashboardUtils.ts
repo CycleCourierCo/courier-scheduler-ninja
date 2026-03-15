@@ -46,7 +46,13 @@ export const applyFiltersToOrders = (
       order.id.toLowerCase().includes(searchLower) ||
       (order.trackingNumber && order.trackingNumber.toLowerCase().includes(searchLower)) ||
       (order.bikeBrand && order.bikeBrand.toLowerCase().includes(searchLower)) ||
-      (order.bikeModel && order.bikeModel.toLowerCase().includes(searchLower))
+      (order.bikeModel && order.bikeModel.toLowerCase().includes(searchLower)) ||
+      (order.sender.email && order.sender.email.toLowerCase().includes(searchLower)) ||
+      (order.receiver.email && order.receiver.email.toLowerCase().includes(searchLower)) ||
+      (order.sender.phone && order.sender.phone.toLowerCase().includes(searchLower)) ||
+      (order.receiver.phone && order.receiver.phone.toLowerCase().includes(searchLower)) ||
+      (order.sender.address?.zipCode && order.sender.address.zipCode.toLowerCase().includes(searchLower)) ||
+      (order.receiver.address?.zipCode && order.receiver.address.zipCode.toLowerCase().includes(searchLower))
     );
   }
   
