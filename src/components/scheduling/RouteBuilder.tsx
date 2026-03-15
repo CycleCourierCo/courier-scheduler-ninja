@@ -607,7 +607,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
   const [adminComments, setAdminComments] = useState<Record<string, OrderComment[]>>({});
-  
+  const [profileOpeningHours, setProfileOpeningHours] = useState<Record<string, any>>({});
   // CSV upload states
   const [csvMatchResults, setCsvMatchResults] = useState<MatchResult[]>([]);
   const [showCsvReviewDialog, setShowCsvReviewDialog] = useState(false);
