@@ -34,6 +34,9 @@ export interface OrderData {
   inspection_status: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
   shipday_pickup_id: string | null;
   shipday_delivery_id: string | null;
+  delivery_instructions: string | null;
+  sender_notes: string | null;
+  receiver_notes: string | null;
 }
 
 export type ShipdayVerificationResults = Record<string, boolean>;
