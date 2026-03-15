@@ -29,12 +29,19 @@ interface SelectedJob {
   locationGroupId?: string;
 }
 
+interface AdminComment {
+  admin_name: string;
+  comment: string;
+  created_at: string;
+}
+
 interface TimeslotEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: SelectedJob | null;
   onConfirm: (job: SelectedJob, editedTime: string, selectedDate: Date) => void;
   isLoading?: boolean;
+  adminComments?: AdminComment[];
 }
 
 const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({

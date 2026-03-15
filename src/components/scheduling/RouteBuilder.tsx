@@ -3276,6 +3276,7 @@ Route Link: ${routeLink}`;
           sendTimeslot(job, editedTime, date);
         }}
         isLoading={isSendingTimeslots}
+        adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
       />
 
       <CSVMatchReviewDialog
