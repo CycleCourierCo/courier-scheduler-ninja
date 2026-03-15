@@ -348,6 +348,15 @@ const JobItem: React.FC<JobItemProps> = ({
                               ) : null;
                             })()}
                           </div>
+                          {groupedJob.orderData?.delivery_instructions && (
+                            <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
+                          )}
+                          {groupedJob.type === 'pickup' && groupedJob.orderData?.sender_notes && (
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.sender_notes}</p>
+                          )}
+                          {groupedJob.type === 'delivery' && groupedJob.orderData?.receiver_notes && (
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.receiver_notes}</p>
+                          )}
                         </div>
                       );
                     });
