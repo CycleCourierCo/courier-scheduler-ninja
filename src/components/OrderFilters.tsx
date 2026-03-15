@@ -237,7 +237,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
             <Input
               ref={searchInputRef}
-              placeholder="Search by customer name, order ID, bike details, or tracking number..."
+              placeholder="Search by name, phone, email, postcode, tracking number, or bike details..."
               value={search}
               onChange={handleSearchChange}
               className="pl-10"
