@@ -3152,6 +3152,7 @@ Route Link: ${routeLink}`;
                     bikeCount={calculateBikeCountAtJob(index)}
                     startingBikes={startingBikes}
                     selectedDate={selectedDate}
+                    adminComments={Object.values(adminComments).flat()}
                   />
                 ))}
 
