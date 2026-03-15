@@ -187,6 +187,43 @@ const getCollectionStatusBadge = (
   };
 };
 
+// Helper function to get opening hours badge
+const getOpeningHoursBadge = (
+  jobType: 'pickup' | 'delivery' | 'break',
+  estimatedTime: string | undefined,
+  selectedDate: Date | undefined,
+  openingHours: any | undefined
+): { text: string; color: string } | null => {
+  if (!openingHours || !selectedDate || jobType === 'break') return null;
+
+  const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayKey = days[selectedDate.getDay()];
+  const dayData = openingHours[dayKey];
+  if (!dayData) return null;
+
+  if (!dayData.open) {
+    return {
+      text: `⚠️ Closed (${dayKey.slice(0, 3)})`,
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+    };
+  }
+
+  if (dayData.is24h || !estimatedTime) return null;
+
+  const timeMinutes = parseInt(estimatedTime.split(':')[0]) * 60 + parseInt(estimatedTime.split(':')[1]);
+  const startMinutes = parseInt(dayData.start.split(':')[0]) * 60 + parseInt(dayData.start.split(':')[1]);
+  const endMinutes = parseInt(dayData.end.split(':')[0]) * 60 + parseInt(dayData.end.split(':')[1]);
+
+  if (timeMinutes < startMinutes || timeMinutes > endMinutes) {
+    return {
+      text: `⚠️ Outside Hours (${dayData.start}-${dayData.end})`,
+      color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+    };
+  }
+
+  return null;
+};
+
 // Helper function to get inspection status badge
 const getInspectionStatusBadge = (
   needsInspection: boolean | null | undefined,
