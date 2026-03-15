@@ -271,7 +271,7 @@ const UserProfile = () => {
                   />
                 </CardContent>
               </Card>
-            )
+            )}
 
             <Card>
               <CardHeader>
