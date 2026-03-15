@@ -99,6 +99,7 @@ interface JobItemProps {
   startingBikes: number; // Starting bike count
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
   adminComments?: OrderComment[];
+  openingHoursMap?: Record<string, any>; // Map of user_id -> opening hours
 }
 
 // Helper function to get availability badge
