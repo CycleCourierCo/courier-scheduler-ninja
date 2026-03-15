@@ -71,7 +71,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
 
         <div className="space-y-4">
           {Array.from({ length: bikeQuantity || 1 }, (_, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
+            <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
               <FormField
                 control={control}
                 name={`bikes.${index}.brand` as any}
@@ -118,6 +118,19 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name={`bikes.${index}.value` as any}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bike {index + 1} Value (£)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g. 2000" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

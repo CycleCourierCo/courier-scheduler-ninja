@@ -75,6 +75,14 @@ const toEdgeFunctionJobType = (t: string): 'pickup' | 'delivery' =>
   (t === 'pickup' || t === 'collection') ? 'pickup' : 'delivery';
 
   // JobItem component interface and component for drag and drop functionality
+interface OrderComment {
+  id: string;
+  order_id: string;
+  admin_name: string;
+  comment: string;
+  created_at: string;
+}
+
 interface JobItemProps {
   job: SelectedJob;
   index: number;
@@ -90,6 +98,7 @@ interface JobItemProps {
   bikeCount: number; // Current bike count at this stop
   startingBikes: number; // Starting bike count
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
+  adminComments?: OrderComment[];
 }
 
 // Helper function to get availability badge
@@ -216,7 +225,8 @@ const JobItem: React.FC<JobItemProps> = ({
   allJobs,
   bikeCount,
   startingBikes,
-  selectedDate
+  selectedDate,
+  adminComments = []
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
@@ -348,6 +358,18 @@ const JobItem: React.FC<JobItemProps> = ({
                               ) : null;
                             })()}
                           </div>
+                          {groupedJob.orderData?.delivery_instructions && (
+                            <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
+                          )}
+                          {groupedJob.type === 'pickup' && groupedJob.orderData?.sender_notes && (
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.sender_notes}</p>
+                          )}
+                          {groupedJob.type === 'delivery' && groupedJob.orderData?.receiver_notes && (
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.receiver_notes}</p>
+                          )}
+                          {adminComments.filter(c => c.order_id === groupedJob.orderId).map(c => (
+                            <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                          ))}
                         </div>
                       );
                     });
@@ -415,6 +437,22 @@ const JobItem: React.FC<JobItemProps> = ({
                     </>
                   )}
                 </div>
+                {job.type !== 'break' && (
+                  <>
+                    {job.orderData?.delivery_instructions && (
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {job.orderData.delivery_instructions}</p>
+                    )}
+                    {job.type === 'pickup' && job.orderData?.sender_notes && (
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.sender_notes}</p>
+                    )}
+                    {job.type === 'delivery' && job.orderData?.receiver_notes && (
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.receiver_notes}</p>
+                    )}
+                    {adminComments.filter(c => c.order_id === job.orderId).map(c => (
+                      <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -568,7 +606,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
-  
+  const [adminComments, setAdminComments] = useState<Record<string, OrderComment[]>>({});
+  const [profileOpeningHours, setProfileOpeningHours] = useState<Record<string, any>>({});
   // CSV upload states
   const [csvMatchResults, setCsvMatchResults] = useState<MatchResult[]>([]);
   const [showCsvReviewDialog, setShowCsvReviewDialog] = useState(false);
@@ -654,6 +693,58 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     const optimalStarting = calculateOptimalStartingBikes();
     setStartingBikes(optimalStarting);
+  }, [selectedJobs]);
+
+  // Fetch admin comments for orders in the route
+  React.useEffect(() => {
+    const orderIds = [...new Set(selectedJobs.filter(j => j.type !== 'break').map(j => j.orderId))];
+    if (orderIds.length === 0) {
+      setAdminComments({});
+      return;
+    }
+    const fetchComments = async () => {
+      const { data, error } = await supabase
+        .from('order_comments')
+        .select('*')
+        .in('order_id', orderIds)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching admin comments:', error);
+        return;
+      }
+      const grouped: Record<string, OrderComment[]> = {};
+      (data || []).forEach((c: any) => {
+        if (!grouped[c.order_id]) grouped[c.order_id] = [];
+        grouped[c.order_id].push(c);
+      });
+      setAdminComments(grouped);
+    };
+    fetchComments();
+  }, [selectedJobs]);
+
+  // Fetch opening hours for business profiles linked to orders in the route
+  React.useEffect(() => {
+    const userIds = [...new Set(selectedJobs.filter(j => j.type !== 'break' && j.orderData?.user_id).map(j => j.orderData!.user_id))];
+    if (userIds.length === 0) {
+      setProfileOpeningHours({});
+      return;
+    }
+    const fetchHours = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, opening_hours')
+        .in('id', userIds);
+      if (error) {
+        console.error('Error fetching opening hours:', error);
+        return;
+      }
+      const mapped: Record<string, any> = {};
+      (data || []).forEach((p: any) => {
+        if (p.opening_hours) mapped[p.id] = p.opening_hours;
+      });
+      setProfileOpeningHours(mapped);
+    };
+    fetchHours();
   }, [selectedJobs]);
 
   // Helper function to calculate bike count AFTER a given job is completed
@@ -2957,6 +3048,7 @@ Route Link: ${routeLink}`;
                       bikeCount={calculateBikeCountAtJob(index)}
                       startingBikes={startingBikes}
                       selectedDate={selectedDate}
+                      adminComments={Object.values(adminComments).flat()}
                     />
                   ))}
 
@@ -3085,6 +3177,7 @@ Route Link: ${routeLink}`;
                     bikeCount={calculateBikeCountAtJob(index)}
                     startingBikes={startingBikes}
                     selectedDate={selectedDate}
+                    adminComments={Object.values(adminComments).flat()}
                   />
                 ))}
 
@@ -3208,6 +3301,8 @@ Route Link: ${routeLink}`;
           sendTimeslot(job, editedTime, date);
         }}
         isLoading={isSendingTimeslots}
+        adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
+        openingHours={jobToEdit?.orderData?.user_id ? profileOpeningHours[jobToEdit.orderData.user_id] : undefined}
       />
 
       <CSVMatchReviewDialog

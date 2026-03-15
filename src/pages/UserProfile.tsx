@@ -12,7 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { User, Building2, MapPin } from "lucide-react";
+import { User, Building2, MapPin, Clock } from "lucide-react";
+import { DEFAULT_OPENING_HOURS, OpeningHours } from "@/types/user";
+import OpeningHoursEditor from "@/components/user-management/OpeningHoursEditor";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -34,6 +36,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const UserProfile = () => {
   const { user, userProfile, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [openingHours, setOpeningHours] = useState<OpeningHours>(DEFAULT_OPENING_HOURS);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -66,11 +69,12 @@ const UserProfile = () => {
         address_line_1: userProfile.address_line_1 || "",
         address_line_2: userProfile.address_line_2 || "",
         city: userProfile.city || "",
-        county: userProfile.county || "",
+        county: (userProfile as any).county || "",
         postal_code: userProfile.postal_code || "",
-        country: userProfile.country || "United Kingdom",
+        country: (userProfile as any).country || "United Kingdom",
         accounts_email: userProfile.accounts_email || "",
       });
+      setOpeningHours(userProfile.opening_hours || DEFAULT_OPENING_HOURS);
     }
   }, [userProfile, form]);
 
@@ -79,10 +83,7 @@ const UserProfile = () => {
 
     setIsLoading(true);
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
+      const updateData: any = {
           name: data.name,
           phone: data.phone,
           company_name: data.company_name,
@@ -94,7 +95,15 @@ const UserProfile = () => {
           postal_code: data.postal_code,
           country: data.country,
           accounts_email: data.accounts_email,
-        })
+        };
+      
+      if (userProfile?.is_business) {
+        updateData.opening_hours = openingHours;
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(updateData)
         .eq('id', user.id);
 
       if (profileError) throw profileError;
@@ -239,6 +248,26 @@ const UserProfile = () => {
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {userProfile?.is_business && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock size={18} />
+                    Opening Hours
+                  </CardTitle>
+                  <CardDescription>
+                    Set your business opening hours so our drivers know when to collect/deliver
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <OpeningHoursEditor
+                    value={openingHours}
+                    onChange={setOpeningHours}
                   />
                 </CardContent>
               </Card>

@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { UserProfile } from "@/types/user";
+import { UserProfile, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import OpeningHoursEditor from "./OpeningHoursEditor";
 
 interface EditUserDialogProps {
   user: UserProfile | null;
@@ -39,6 +40,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         postal_code: user.postal_code,
         account_status: user.account_status,
         special_rate_code: user.special_rate_code,
+        opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         hourly_rate: user.hourly_rate,
         uses_own_van: user.uses_own_van,
         van_allowance: user.van_allowance,
@@ -171,6 +173,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   <p className="text-xs text-muted-foreground">
                     If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
                   </p>
+                </div>
+                <div className="col-span-2">
+                  <OpeningHoursEditor
+                    value={formData.opening_hours || DEFAULT_OPENING_HOURS}
+                    onChange={(hours) => setFormData({ ...formData, opening_hours: hours })}
+                  />
                 </div>
               </div>
             </TabsContent>

@@ -152,6 +152,12 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       query = query.or(
         `sender->>name.ilike.%${searchTerm}%,` +
         `receiver->>name.ilike.%${searchTerm}%,` +
+        `sender->>email.ilike.%${searchTerm}%,` +
+        `receiver->>email.ilike.%${searchTerm}%,` +
+        `sender->>phone.ilike.%${searchTerm}%,` +
+        `receiver->>phone.ilike.%${searchTerm}%,` +
+        `sender->address->>zipCode.ilike.%${searchTerm}%,` +
+        `receiver->address->>zipCode.ilike.%${searchTerm}%,` +
         `tracking_number.ilike.%${searchTerm}%,` +
         `bike_brand.ilike.%${searchTerm}%,` +
         `bike_model.ilike.%${searchTerm}%,` +
@@ -242,7 +248,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, isEbayOrder, collectionCode, deliveryInstructions, needsInspection } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection } = data;
 
     const {
       street: senderStreet,
@@ -333,7 +339,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         bike_model: bikeModel || bikes?.[0]?.model,
         bike_type: bikeType || bikes?.[0]?.type,
         bike_quantity: bikeQuantity || 1,
-        bikes: bikes || null, // Store structured bikes array for invoicing
+        bikes: bikes || null,
+        bike_value: bikes?.[0]?.value ? parseFloat(bikes[0].value) : null,
         customer_order_number: customerOrderNumber,
         needs_payment_on_collection: needsPaymentOnCollection,
         payment_collection_phone: paymentCollectionPhone,
@@ -440,6 +447,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             bike_model: partExchangeBikeModel,
             bike_type: partExchangeBikeType,
             bike_quantity: 1,
+            bike_value: partExchangeBikeValue ? parseFloat(partExchangeBikeValue) : null,
             customer_order_number: customerOrderNumber ? `${customerOrderNumber}-RETURN` : undefined,
             needs_payment_on_collection: false,
             is_bike_swap: false, // The reverse order is not itself a swap

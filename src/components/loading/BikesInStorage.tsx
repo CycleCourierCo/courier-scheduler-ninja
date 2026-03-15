@@ -264,6 +264,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium">
                   {allocations[0].bikeBrand} {allocations[0].bikeModel}
+                  {order?.bikeValue ? ` • £${order.bikeValue.toLocaleString()}` : ''}
                 </p>
                 {order && (
                   <>

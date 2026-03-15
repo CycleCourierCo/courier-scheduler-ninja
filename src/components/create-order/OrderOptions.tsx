@@ -75,9 +75,11 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
       setValue("partExchangeBikeBrand", "");
       setValue("partExchangeBikeModel", "");
       setValue("partExchangeBikeType", "");
+      setValue("partExchangeBikeValue", "");
       clearErrors("partExchangeBikeBrand");
       clearErrors("partExchangeBikeModel");
       clearErrors("partExchangeBikeType");
+      clearErrors("partExchangeBikeValue");
     }
   }, [isBikeSwap, setValue, clearErrors]);
 
@@ -248,6 +250,22 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
                   </Select>
                   <FormDescription>
                     The bike type that will be collected from the receiver and delivered back to the sender.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="partExchangeBikeValue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Exchange Bike Value (£)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g. 1500" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    The estimated value of the part exchange bike.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

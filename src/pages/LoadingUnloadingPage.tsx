@@ -1360,6 +1360,10 @@ const LoadingUnloadingPage = () => {
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {collectedBikes.length} bike(s) collected and awaiting storage allocation
                 {bikesLoadedOntoVan.length > 0 && ` • ${bikesLoadedOntoVan.length} bike(s) loaded onto van`}
+                {(() => {
+                  const totalValue = [...collectedBikes, ...bikesLoadedOntoVan].reduce((sum, bike) => sum + (bike.bikeValue || 0), 0);
+                  return totalValue > 0 ? ` • Total value: £${totalValue.toLocaleString()}` : '';
+                })()}
               </p>
             </CardHeader>
             <CardContent>
@@ -1380,6 +1384,10 @@ const LoadingUnloadingPage = () => {
               <CardTitle className="text-lg sm:text-xl">Bikes in Storage</CardTitle>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {bikesInStorage.length} bike(s) currently in storage
+                {(() => {
+                  const totalValue = bikesInStorage.reduce((sum, { order }) => sum + (order?.bikeValue || 0), 0);
+                  return totalValue > 0 ? ` • Total value: £${totalValue.toLocaleString()}` : '';
+                })()}
               </p>
             </CardHeader>
             <CardContent>

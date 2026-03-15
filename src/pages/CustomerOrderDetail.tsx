@@ -269,7 +269,13 @@ const CustomerOrderDetail = () => {
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p><span className="font-medium">Item:</span> {order.bikeBrand} {order.bikeModel}</p>
-                    <p><span className="font-medium">Quantity:</span> 1</p>
+                    <p><span className="font-medium">Quantity:</span> {order.bikeQuantity || 1}</p>
+                    {order.bikeType && (
+                      <p><span className="font-medium">Type:</span> {order.bikeType}</p>
+                    )}
+                    {order.bikeValue && (
+                      <p><span className="font-medium">Value:</span> £{order.bikeValue}</p>
+                    )}
                     {order.customerOrderNumber && (
                       <p><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
                     )}
