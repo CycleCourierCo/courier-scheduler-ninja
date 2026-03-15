@@ -225,7 +225,8 @@ const JobItem: React.FC<JobItemProps> = ({
   allJobs,
   bikeCount,
   startingBikes,
-  selectedDate
+  selectedDate,
+  adminComments = []
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
