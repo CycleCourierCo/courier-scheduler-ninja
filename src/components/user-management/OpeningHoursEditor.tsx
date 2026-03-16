@@ -23,7 +23,7 @@ const OpeningHoursEditor: React.FC<OpeningHoursEditorProps> = ({ value, onChange
     <div className="space-y-3">
       <Label className="text-sm font-medium">Opening Hours</Label>
       <div className="space-y-2">
-        {DAY_NAMES.map((day) => {
+        {DAY_NAMES.filter(day => day !== 'friday').map((day) => {
           const dayData = hours[day];
           return (
             <div key={day} className="flex items-center gap-3 flex-wrap">
