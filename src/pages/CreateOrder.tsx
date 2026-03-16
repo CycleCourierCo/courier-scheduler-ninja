@@ -504,7 +504,17 @@ const CreateOrder = () => {
                   toast.error(errorMessage);
                 }
               })} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col lg:flex-row gap-6">
+                <Tabs value={activeTab} onValueChange={(value) => {
+                  if (value === "sender" && !isDetailsValid) {
+                    toast.error("Please complete Bike Details first.");
+                    return;
+                  }
+                  if (value === "receiver" && (!isDetailsValid || !isSenderValid)) {
+                    toast.error("Please complete previous steps first.");
+                    return;
+                  }
+                  setActiveTab(value);
+                }} className="flex flex-col lg:flex-row gap-6">
                   <div className="w-full lg:w-64 space-y-4 shrink-0">
                     <h3 className="text-base font-medium mb-2">Order Steps</h3>
                     <TabsList orientation="vertical" className="w-full bg-muted/60">
@@ -517,17 +527,15 @@ const CreateOrder = () => {
                       </TabsTrigger>
                       <TabsTrigger 
                         value="sender" 
-                        className="justify-start text-left"
+                        className={cn("justify-start text-left", !isDetailsValid && "opacity-50")}
                         icon={<PackageCheck className="h-4 w-4" />}
-                        disabled={!isDetailsValid}
                       >
                         Collection Information
                       </TabsTrigger>
                       <TabsTrigger 
                         value="receiver" 
-                        className="justify-start text-left"
+                        className={cn("justify-start text-left", (!isSenderValid || !isDetailsValid) && "opacity-50")}
                         icon={<Truck className="h-4 w-4" />}
-                        disabled={!isSenderValid || !isDetailsValid}
                       >
                         Delivery Information
                       </TabsTrigger>
