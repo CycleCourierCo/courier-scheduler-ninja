@@ -635,7 +635,7 @@ const CreateOrder = () => {
                         <Button 
                           type="submit" 
                           className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                          disabled={isSubmitting || !isReceiverValid}
+                          disabled={isSubmitting}
                         >
                           {isSubmitting ? "Creating Order..." : "Create Order"}
                         </Button>
