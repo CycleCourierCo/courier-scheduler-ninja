@@ -99,6 +99,7 @@ interface JobItemProps {
   startingBikes: number; // Starting bike count
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
   adminComments?: OrderComment[];
+  openingHoursMap?: Record<string, any>; // Map of user_id -> opening hours
 }
 
 // Helper function to get availability badge
@@ -186,6 +187,53 @@ const getCollectionStatusBadge = (
   };
 };
 
+// Helper function to get opening hours badge
+const getOpeningHoursBadge = (
+  jobType: 'pickup' | 'delivery' | 'break',
+  estimatedTime: string | undefined,
+  selectedDate: Date | undefined,
+  openingHours: any | undefined
+): { text: string; color: string } | null => {
+  if (!openingHours || !selectedDate || jobType === 'break') return null;
+
+  const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayKey = days[selectedDate.getDay()];
+  const dayData = openingHours[dayKey];
+  if (!dayData) return null;
+
+  if (!dayData.open) {
+    return {
+      text: `⚠️ Closed (${dayKey.slice(0, 3)})`,
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+    };
+  }
+
+  if (dayData.is24h) {
+    return {
+      text: '✓ Open 24h',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+    };
+  }
+
+  if (!estimatedTime) return null;
+
+  const timeMinutes = parseInt(estimatedTime.split(':')[0]) * 60 + parseInt(estimatedTime.split(':')[1]);
+  const startMinutes = parseInt(dayData.start.split(':')[0]) * 60 + parseInt(dayData.start.split(':')[1]);
+  const endMinutes = parseInt(dayData.end.split(':')[0]) * 60 + parseInt(dayData.end.split(':')[1]);
+
+  if (timeMinutes < startMinutes || timeMinutes > endMinutes) {
+    return {
+      text: `⚠️ Outside Hours (${dayData.start}-${dayData.end})`,
+      color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+    };
+  }
+
+  return {
+    text: `✓ Within Hours (${dayData.start}-${dayData.end})`,
+    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+  };
+};
+
 // Helper function to get inspection status badge
 const getInspectionStatusBadge = (
   needsInspection: boolean | null | undefined,
@@ -226,7 +274,8 @@ const JobItem: React.FC<JobItemProps> = ({
   bikeCount,
   startingBikes,
   selectedDate,
-  adminComments = []
+  adminComments = [],
+  openingHoursMap = {}
 }) => {
   const { dragRef, isDragging } = useDraggable({
     type: 'job',
@@ -357,6 +406,15 @@ const JobItem: React.FC<JobItemProps> = ({
                                 </Badge>
                               ) : null;
                             })()}
+                            {/* Opening Hours Badge */}
+                            {(() => {
+                              const hoursBadge = getOpeningHoursBadge(groupedJob.type, groupedJob.estimatedTime, selectedDate, openingHoursMap[groupedJob.orderData?.user_id]);
+                              return hoursBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
+                                  {hoursBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
                           {groupedJob.orderData?.delivery_instructions && (
                             <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
@@ -431,6 +489,16 @@ const JobItem: React.FC<JobItemProps> = ({
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
                             {inspectionBadge.icon}
                             {inspectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+                      
+                      {/* Opening Hours Badge */}
+                      {(() => {
+                        const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id]);
+                        return hoursBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
+                            {hoursBadge.text}
                           </Badge>
                         ) : null;
                       })()}
@@ -3049,6 +3117,7 @@ Route Link: ${routeLink}`;
                       startingBikes={startingBikes}
                       selectedDate={selectedDate}
                       adminComments={Object.values(adminComments).flat()}
+                      openingHoursMap={profileOpeningHours}
                     />
                   ))}
 
@@ -3178,6 +3247,7 @@ Route Link: ${routeLink}`;
                     startingBikes={startingBikes}
                     selectedDate={selectedDate}
                     adminComments={Object.values(adminComments).flat()}
+                    openingHoursMap={profileOpeningHours}
                   />
                 ))}
 
