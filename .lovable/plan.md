@@ -1,15 +1,46 @@
 
 
-## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
+## Smart Phone Validation Error Messages
 
-### Changes
+### What Changes
 
-**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
+**`src/pages/CreateOrder.tsx`** — Replace the single generic `refine` message with multiple specific checks:
 
-- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
-- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
+```tsx
+const phoneValidation = z
+  .string()
+  .min(1, "Phone number is required")
+  .refine((val) => val.startsWith('+44'), {
+    message: "Phone number must start with +44",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true; // skip if prefix already failed
+    const digits = val.substring(3);
+    if (digits.startsWith('0')) return false;
+    return true;
+  }, {
+    message: "Remove the leading 0 after +44 (e.g. +447123456789, not +440712...)",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3).replace(/\D/g, '');
+    if (digits.length > 10) return false;
+    return true;
+  }, {
+    message: "Phone number is too long — must be +44 followed by exactly 10 digits",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3).replace(/\D/g, '');
+    if (digits.length < 10) return false;
+    return true;
+  }, {
+    message: "Phone number is too short — must be +44 followed by exactly 10 digits",
+  });
+```
 
-**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
+This gives users specific, actionable feedback instead of the generic "Must be +44 followed by 10 digits".
 
-- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
+### Files Modified
+- `src/pages/CreateOrder.tsx` — replace `phoneValidation` with chained contextual refines
 
