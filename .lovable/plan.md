@@ -1,21 +1,15 @@
 
 
-## Remove Friday from Opening Hours Editor & Add "Within Hours" Badge
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
 ### Changes
 
-**1. `src/components/user-management/OpeningHoursEditor.tsx`**
-- Filter out `'friday'` from the `DAY_NAMES` loop so it never renders in the editor
-- Friday will always stay as closed (already set in the DB update)
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**2. `src/components/scheduling/RouteBuilder.tsx`**
-- Update `getOpeningHoursBadge` to return a **green** badge when the estimated time IS within opening hours: `✓ Within Hours (09:00-21:00)`
-- For 24h days, show `✓ Open 24h`
-- Keep existing red "Closed" and amber "Outside Hours" badges
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-**3. `src/components/scheduling/TimeslotEditDialog.tsx`**
-- Filter out `'friday'` from the compact opening hours summary so it doesn't show Friday as an option
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-### No other changes needed
-Fridays are already disabled on the date pickers. This just removes Friday from the opening hours editor UI and adds the positive "within hours" badge on route job cards.
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 

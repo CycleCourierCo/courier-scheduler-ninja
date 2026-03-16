@@ -151,7 +151,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
             <div className="space-y-1">
               <Label>Opening Hours</Label>
               <div className="text-xs bg-muted p-2 rounded-md space-y-0.5">
-                {DAY_NAMES.map(day => {
+                {DAY_NAMES.filter(day => day !== 'friday').map(day => {
                   const d = openingHours[day];
                   return (
                     <div key={day} className="flex justify-between">

@@ -208,7 +208,14 @@ const getOpeningHoursBadge = (
     };
   }
 
-  if (dayData.is24h || !estimatedTime) return null;
+  if (dayData.is24h) {
+    return {
+      text: '✓ Open 24h',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+    };
+  }
+
+  if (!estimatedTime) return null;
 
   const timeMinutes = parseInt(estimatedTime.split(':')[0]) * 60 + parseInt(estimatedTime.split(':')[1]);
   const startMinutes = parseInt(dayData.start.split(':')[0]) * 60 + parseInt(dayData.start.split(':')[1]);
@@ -221,7 +228,10 @@ const getOpeningHoursBadge = (
     };
   }
 
-  return null;
+  return {
+    text: `✓ Within Hours (${dayData.start}-${dayData.end})`,
+    color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+  };
 };
 
 // Helper function to get inspection status badge
