@@ -326,58 +326,19 @@ const CreateOrder = () => {
     }
   };
 
-  const handleNextToSender = async () => {
-    const result = await form.trigger([
-      "bikeQuantity",
-      "bikes",
-      "collectionCode",
-      "paymentCollectionPhone",
-      "partExchangeBikeBrand",
-      "partExchangeBikeModel",
-      "partExchangeBikeType"
-    ]);
-    
-    if (result && isDetailsValid) {
+  const handleNextToSender = () => {
+    if (isDetailsValid) {
       setActiveTab("sender");
     } else {
       toast.error("Please complete all required fields in Bike Details.");
     }
   };
 
-  const handleNextToReceiver = async () => {
-    const senderFieldNames = [
-      "sender.name", 
-      "sender.email", 
-      "sender.phone", 
-      "sender.address.street",
-      "sender.address.city",
-      "sender.address.state",
-      "sender.address.zipCode",
-      "sender.address.country"
-    ] as const;
-    
-    const result = await form.trigger(senderFieldNames as any);
-    
-    if (result && isSenderValid) {
+  const handleNextToReceiver = () => {
+    if (isSenderValid) {
       setActiveTab("receiver");
     } else {
-      // Build specific error messages
-      const errors = form.formState.errors;
-      const senderErrors = errors.sender;
-      if (senderErrors) {
-        const messages: string[] = [];
-        if ((senderErrors as any).phone) messages.push("Phone: " + ((senderErrors as any).phone.message || "Invalid phone number"));
-        if ((senderErrors as any).email) messages.push("Email: " + ((senderErrors as any).email.message || "Invalid email"));
-        if ((senderErrors as any).name) messages.push("Name is required");
-        
-        if (messages.length > 0) {
-          toast.error(messages.join(". "));
-        } else {
-          toast.error("Please fill in all required fields in Collection Information.");
-        }
-      } else {
-        toast.error("Please fill in all required fields in Collection Information.");
-      }
+      toast.error("Please fill in all required fields in Collection Information.");
     }
   };
 
