@@ -325,9 +325,8 @@ const CreateOrder = () => {
     }
   };
 
-  const handleNextToSender = () => {
-    // Trigger validation for all fields on details tab including conditional ones
-    form.trigger([
+  const handleNextToSender = async () => {
+    const result = await form.trigger([
       "bikeQuantity",
       "bikes",
       "collectionCode",
@@ -337,13 +336,15 @@ const CreateOrder = () => {
       "partExchangeBikeType"
     ]);
     
-    if (isDetailsValid) {
+    if (result && isDetailsValid) {
       setActiveTab("sender");
+    } else {
+      toast.error("Please complete all required fields in Bike Details.");
     }
   };
 
-  const handleNextToReceiver = () => {
-    form.trigger([
+  const handleNextToReceiver = async () => {
+    const senderFieldNames = [
       "sender.name", 
       "sender.email", 
       "sender.phone", 
@@ -352,12 +353,30 @@ const CreateOrder = () => {
       "sender.address.state",
       "sender.address.zipCode",
       "sender.address.country"
-    ]);
+    ] as const;
     
-    if (isSenderValid) {
+    const result = await form.trigger(senderFieldNames as any);
+    
+    if (result && isSenderValid) {
       setActiveTab("receiver");
     } else {
-      toast.error("Please fill in all required fields in Collection Information.");
+      // Build specific error messages
+      const errors = form.formState.errors;
+      const senderErrors = errors.sender;
+      if (senderErrors) {
+        const messages: string[] = [];
+        if ((senderErrors as any).phone) messages.push("Phone: " + ((senderErrors as any).phone.message || "Invalid phone number"));
+        if ((senderErrors as any).email) messages.push("Email: " + ((senderErrors as any).email.message || "Invalid email"));
+        if ((senderErrors as any).name) messages.push("Name is required");
+        
+        if (messages.length > 0) {
+          toast.error(messages.join(". "));
+        } else {
+          toast.error("Please fill in all required fields in Collection Information.");
+        }
+      } else {
+        toast.error("Please fill in all required fields in Collection Information.");
+      }
     }
   };
 
@@ -526,11 +545,10 @@ const CreateOrder = () => {
                       <DeliveryInstructions control={form.control} />
 
                       <div className="flex justify-end">
-                        <Button 
+                         <Button 
                           type="button" 
                           onClick={handleNextToSender}
                           className="bg-courier-600 hover:bg-courier-700"
-                          disabled={!isDetailsValid}
                         >
                           Next: Collection Information
                         </Button>
@@ -584,7 +602,6 @@ const CreateOrder = () => {
                           type="button" 
                           onClick={handleNextToReceiver}
                           className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                          disabled={!isSenderValid}
                         >
                           Next: Delivery Information
                         </Button>
@@ -637,7 +654,7 @@ const CreateOrder = () => {
                         <Button 
                           type="submit" 
                           className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                          disabled={isSubmitting || !isReceiverValid}
+                          disabled={isSubmitting}
                         >
                           {isSubmitting ? "Creating Order..." : "Create Order"}
                         </Button>
