@@ -526,11 +526,10 @@ const CreateOrder = () => {
                       <DeliveryInstructions control={form.control} />
 
                       <div className="flex justify-end">
-                        <Button 
+                         <Button 
                           type="button" 
                           onClick={handleNextToSender}
                           className="bg-courier-600 hover:bg-courier-700"
-                          disabled={!isDetailsValid}
                         >
                           Next: Collection Information
                         </Button>
