@@ -1,15 +1,29 @@
 
 
-## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
+## Bulk Update Opening Hours for Approved B2B Profiles
 
-### Changes
+### What
+Set opening hours for all 93 approved B2B profiles to:
+- **Sunday to Thursday**: Open 09:00 - 21:00
+- **Friday and Saturday**: Closed
 
-**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
+### How
+Run a single SQL UPDATE using the insert tool:
 
-- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
-- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
+```sql
+UPDATE profiles
+SET opening_hours = '{
+  "sunday":    {"open": true,  "start": "09:00", "end": "21:00", "is24h": false},
+  "monday":    {"open": true,  "start": "09:00", "end": "21:00", "is24h": false},
+  "tuesday":   {"open": true,  "start": "09:00", "end": "21:00", "is24h": false},
+  "wednesday": {"open": true,  "start": "09:00", "end": "21:00", "is24h": false},
+  "thursday":  {"open": true,  "start": "09:00", "end": "21:00", "is24h": false},
+  "friday":    {"open": false, "start": "",      "end": "",      "is24h": false},
+  "saturday":  {"open": false, "start": "",      "end": "",      "is24h": false}
+}'::jsonb
+WHERE (is_business = true OR role = 'b2b_customer')
+  AND account_status = 'approved';
+```
 
-**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
-
-- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
+No code changes needed -- the app already reads `opening_hours` from profiles.
 
