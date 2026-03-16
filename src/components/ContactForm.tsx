@@ -111,6 +111,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ control, prefix }) => {
                     className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                 </FormControl>
+                <FormDescription>Format: +44 followed by 10 digits (e.g. +447123456789)</FormDescription>
                 <FormMessage className="text-destructive font-medium" />
               </FormItem>
             );
