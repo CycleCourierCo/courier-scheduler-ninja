@@ -160,6 +160,11 @@ function App() {
                   <NoticeBarManagement />
                 </ProtectedRoute>
               } />
+              <Route path="/emails" element={
+                <ProtectedRoute adminOnly={true}>
+                  <AnnouncementEmailsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />
