@@ -26,15 +26,33 @@ import { Contact } from "@/services/contactService";
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-// Custom phone validation - spaces are already stripped by the input component
+// Custom phone validation with specific error messages
 const phoneValidation = z
   .string()
   .min(1, "Phone number is required")
+  .refine((val) => val.startsWith('+44'), {
+    message: "Phone number must start with +44",
+  })
   .refine((val) => {
-    // At this point, spaces should already be stripped
-    return /^\+44\d{10}$/.test(val);
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3);
+    return !digits.startsWith('0');
   }, {
-    message: "Must be +44 followed by 10 digits",
+    message: "Remove the leading 0 after +44 (e.g. +447123456789, not +440712...)",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3).replace(/\D/g, '');
+    return digits.length <= 10;
+  }, {
+    message: "Phone number is too long — must be +44 followed by exactly 10 digits",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3).replace(/\D/g, '');
+    return digits.length >= 10;
+  }, {
+    message: "Phone number is too short — must be +44 followed by exactly 10 digits",
   });
 
 const orderSchema = z.object({
