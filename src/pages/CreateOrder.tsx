@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Bike, PackageCheck, Truck, User } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,15 +26,33 @@ import { Contact } from "@/services/contactService";
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-// Custom phone validation - spaces are already stripped by the input component
+// Custom phone validation with specific error messages
 const phoneValidation = z
   .string()
   .min(1, "Phone number is required")
+  .refine((val) => val.startsWith('+44'), {
+    message: "Phone number must start with +44",
+  })
   .refine((val) => {
-    // At this point, spaces should already be stripped
-    return /^\+44\d{10}$/.test(val);
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3);
+    return !digits.startsWith('0');
   }, {
-    message: "Must be +44 followed by 10 digits",
+    message: "Remove the leading 0 after +44 (e.g. +447123456789, not +440712...)",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3).replace(/\D/g, '');
+    return digits.length <= 10;
+  }, {
+    message: "Phone number is too long — must be +44 followed by exactly 10 digits",
+  })
+  .refine((val) => {
+    if (!val.startsWith('+44')) return true;
+    const digits = val.substring(3).replace(/\D/g, '');
+    return digits.length >= 10;
+  }, {
+    message: "Phone number is too short — must be +44 followed by exactly 10 digits",
   });
 
 const orderSchema = z.object({
@@ -326,36 +345,40 @@ const CreateOrder = () => {
   };
 
   const handleNextToSender = () => {
-    // Trigger validation for all fields on details tab including conditional ones
-    form.trigger([
-      "bikeQuantity",
-      "bikes",
-      "collectionCode",
-      "paymentCollectionPhone",
-      "partExchangeBikeBrand",
-      "partExchangeBikeModel",
-      "partExchangeBikeType"
-    ]);
-    
     if (isDetailsValid) {
       setActiveTab("sender");
+    } else {
+      toast.error("Please complete all required fields in Bike Details.");
     }
   };
 
   const handleNextToReceiver = () => {
-    form.trigger([
-      "sender.name", 
-      "sender.email", 
-      "sender.phone", 
-      "sender.address.street",
-      "sender.address.city",
-      "sender.address.state",
-      "sender.address.zipCode",
-      "sender.address.country"
-    ]);
-    
     if (isSenderValid) {
       setActiveTab("receiver");
+      return;
+    }
+    
+    const senderPhone = form.getValues("sender.phone");
+    const senderEmail = form.getValues("sender.email");
+    const senderName = form.getValues("sender.name");
+    const address = form.getValues("sender.address");
+    
+    if (!senderName || senderName.trim().length < 2) {
+      toast.error("Please enter the sender's full name.");
+    } else if (!senderEmail || !EMAIL_REGEX.test(senderEmail)) {
+      toast.error("Please enter a valid email address for the sender.");
+    } else if (!senderPhone || senderPhone.trim() === '') {
+      toast.error("Please enter the sender's phone number.");
+    } else if (senderPhone.startsWith('+44') && senderPhone.substring(3).startsWith('0')) {
+      toast.error("Remove the leading 0 after +44 (e.g. +447123456789, not +440712...)");
+    } else if (senderPhone.startsWith('+44') && senderPhone.substring(3).replace(/\D/g, '').length > 10) {
+      toast.error("Phone number is too long — must be +44 followed by exactly 10 digits.");
+    } else if (senderPhone.startsWith('+44') && senderPhone.substring(3).replace(/\D/g, '').length < 10) {
+      toast.error("Phone number is too short — must be +44 followed by exactly 10 digits.");
+    } else if (!senderPhone.startsWith('+44')) {
+      toast.error("Phone number must start with +44.");
+    } else if (!address?.street || !address?.city || !address?.zipCode) {
+      toast.error("Please complete the sender's address (street, city, and postcode are required).");
     } else {
       toast.error("Please fill in all required fields in Collection Information.");
     }
@@ -485,7 +508,17 @@ const CreateOrder = () => {
                   toast.error(errorMessage);
                 }
               })} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col lg:flex-row gap-6">
+                <Tabs value={activeTab} onValueChange={(value) => {
+                  if (value === "sender" && !isDetailsValid) {
+                    toast.error("Please complete Bike Details first.");
+                    return;
+                  }
+                  if (value === "receiver" && (!isDetailsValid || !isSenderValid)) {
+                    toast.error("Please complete previous steps first.");
+                    return;
+                  }
+                  setActiveTab(value);
+                }} className="flex flex-col lg:flex-row gap-6">
                   <div className="w-full lg:w-64 space-y-4 shrink-0">
                     <h3 className="text-base font-medium mb-2">Order Steps</h3>
                     <TabsList orientation="vertical" className="w-full bg-muted/60">
@@ -498,17 +531,15 @@ const CreateOrder = () => {
                       </TabsTrigger>
                       <TabsTrigger 
                         value="sender" 
-                        className="justify-start text-left"
+                        className={cn("justify-start text-left", !isDetailsValid && "opacity-50")}
                         icon={<PackageCheck className="h-4 w-4" />}
-                        disabled={!isDetailsValid}
                       >
                         Collection Information
                       </TabsTrigger>
                       <TabsTrigger 
                         value="receiver" 
-                        className="justify-start text-left"
+                        className={cn("justify-start text-left", (!isSenderValid || !isDetailsValid) && "opacity-50")}
                         icon={<Truck className="h-4 w-4" />}
-                        disabled={!isSenderValid || !isDetailsValid}
                       >
                         Delivery Information
                       </TabsTrigger>
@@ -526,11 +557,10 @@ const CreateOrder = () => {
                       <DeliveryInstructions control={form.control} />
 
                       <div className="flex justify-end">
-                        <Button 
+                         <Button 
                           type="button" 
                           onClick={handleNextToSender}
                           className="bg-courier-600 hover:bg-courier-700"
-                          disabled={!isDetailsValid}
                         >
                           Next: Collection Information
                         </Button>
@@ -584,7 +614,6 @@ const CreateOrder = () => {
                           type="button" 
                           onClick={handleNextToReceiver}
                           className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                          disabled={!isSenderValid}
                         >
                           Next: Delivery Information
                         </Button>
@@ -637,7 +666,7 @@ const CreateOrder = () => {
                         <Button 
                           type="submit" 
                           className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                          disabled={isSubmitting || !isReceiverValid}
+                          disabled={isSubmitting}
                         >
                           {isSubmitting ? "Creating Order..." : "Create Order"}
                         </Button>
