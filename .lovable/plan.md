@@ -1,53 +1,15 @@
 
 
-## Specific Error Messages on "Next" Button Click
-
-Currently `handleNextToReceiver` shows a generic "Please fill in all required fields in Collection Information" toast. Instead, it should check **what specifically is wrong** and show targeted messages — especially for phone number issues.
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
 ### Changes
 
-**`src/pages/CreateOrder.tsx`** — Replace `handleNextToReceiver` with specific error checking:
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-```tsx
-const handleNextToReceiver = () => {
-  if (isSenderValid) {
-    setActiveTab("receiver");
-    return;
-  }
-  
-  const senderPhone = form.getValues("sender.phone");
-  const senderEmail = form.getValues("sender.email");
-  const senderName = form.getValues("sender.name");
-  
-  // Check specific issues and show targeted messages
-  if (!senderName || senderName.trim().length < 2) {
-    toast.error("Please enter the sender's full name.");
-  } else if (!senderEmail || !EMAIL_REGEX.test(senderEmail)) {
-    toast.error("Please enter a valid email address for the sender.");
-  } else if (!senderPhone || senderPhone.trim() === '') {
-    toast.error("Please enter the sender's phone number.");
-  } else if (senderPhone.startsWith('+44') && senderPhone.substring(3).startsWith('0')) {
-    toast.error("Remove the leading 0 after +44 (e.g. +447123456789, not +440712...)");
-  } else if (senderPhone.startsWith('+44') && senderPhone.substring(3).replace(/\D/g, '').length > 10) {
-    toast.error("Phone number is too long — must be +44 followed by exactly 10 digits.");
-  } else if (senderPhone.startsWith('+44') && senderPhone.substring(3).replace(/\D/g, '').length < 10) {
-    toast.error("Phone number is too short — must be +44 followed by exactly 10 digits.");
-  } else if (!senderPhone.startsWith('+44')) {
-    toast.error("Phone number must start with +44.");
-  } else {
-    // Check address fields
-    const address = form.getValues("sender.address");
-    if (!address?.street || !address?.city || !address?.zipCode) {
-      toast.error("Please complete the sender's address (street, city, and postcode are required).");
-    } else {
-      toast.error("Please fill in all required fields in Collection Information.");
-    }
-  }
-};
-```
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-Apply the same pattern to `handleNextToSender` for bike details specifics, and ensure consistency.
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
 
-### Files Modified
-- `src/pages/CreateOrder.tsx` — replace generic toast in `handleNextToReceiver` (and optionally `handleNextToSender`) with specific field-level error messages
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 
