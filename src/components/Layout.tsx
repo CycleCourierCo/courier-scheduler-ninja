@@ -150,6 +150,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Megaphone className="mr-2 h-4 w-4" />
                             Notice Bars
                           </Link>
+                          <Link to="/emails" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Mail className="mr-2 h-4 w-4" />
+                            Announcement Emails
+                          </Link>
                           <button 
                             onClick={() => {
                               const error = new Error('Sentry Test Error - Triggered by admin');
@@ -363,6 +367,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/notices" className="cursor-pointer flex w-full items-center">
                           <Megaphone className="mr-2 h-4 w-4" />
                           <span>Notice Bars</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/emails" className="cursor-pointer flex w-full items-center">
+                          <Mail className="mr-2 h-4 w-4" />
+                          <span>Announcement Emails</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
