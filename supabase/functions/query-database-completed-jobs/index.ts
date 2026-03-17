@@ -67,25 +67,33 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('=== QUERY DATABASE COMPLETED JOBS ===');
     console.log('Target date:', date);
 
-    // Query collections: orders where collection was confirmed on target date
-    // Using AT TIME ZONE to handle UK timezone properly
+    // Calculate date range for server-side filtering (2-day window for timezone safety)
+    const dateStart = `${date}T00:00:00.000Z`;
+    const dateEnd = new Date(new Date(date + 'T00:00:00Z').getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    console.log(`📅 Server-side date filter: ${dateStart} to ${dateEnd}`);
+
+    // Query collections: orders where collection was confirmed within date window
     const { data: collectionsData, error: collectionsError } = await supabaseClient
       .from('orders')
       .select('id, tracking_number, sender, collection_driver_name, collection_confirmation_sent_at, bike_quantity')
       .not('collection_confirmation_sent_at', 'is', null)
-      .not('collection_driver_name', 'is', null);
+      .not('collection_driver_name', 'is', null)
+      .gte('collection_confirmation_sent_at', dateStart)
+      .lt('collection_confirmation_sent_at', dateEnd);
 
     if (collectionsError) {
       console.error('❌ Error querying collections:', collectionsError);
       throw collectionsError;
     }
 
-    // Query deliveries: orders where delivery was confirmed on target date
+    // Query deliveries: orders where delivery was confirmed within date window
     const { data: deliveriesData, error: deliveriesError } = await supabaseClient
       .from('orders')
       .select('id, tracking_number, receiver, delivery_driver_name, delivery_confirmation_sent_at, bike_quantity')
       .not('delivery_confirmation_sent_at', 'is', null)
-      .not('delivery_driver_name', 'is', null);
+      .not('delivery_driver_name', 'is', null)
+      .gte('delivery_confirmation_sent_at', dateStart)
+      .lt('delivery_confirmation_sent_at', dateEnd);
 
     if (deliveriesError) {
       console.error('❌ Error querying deliveries:', deliveriesError);
