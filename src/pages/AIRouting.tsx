@@ -86,6 +86,7 @@ const AIRouting: React.FC = () => {
   const [dateEnd, setDateEnd] = useState(getNextFriday());
   const [driverCount, setDriverCount] = useState(3);
   const [includeNoDates, setIncludeNoDates] = useState(true);
+  const [planningMode, setPlanningMode] = useState<'v1' | 'v2'>('v2');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [patternsLastUpdated, setPatternsLastUpdated] = useState<string>();
@@ -94,6 +95,7 @@ const AIRouting: React.FC = () => {
   const [optimizingRoutes, setOptimizingRoutes] = useState<Set<string>>(new Set());
   const [routeMileage, setRouteMileage] = useState<Map<string, number>>(new Map());
   const [selectedDay, setSelectedDay] = useState<string>('');
+  const [unassignedStops, setUnassignedStops] = useState<UnassignedStop[]>([]);
 
   const handleRefreshPatterns = useCallback(async () => {
     setIsRefreshing(true);
