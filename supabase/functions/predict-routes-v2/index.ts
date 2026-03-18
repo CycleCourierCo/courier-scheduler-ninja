@@ -802,58 +802,16 @@ function archetypeAwareFallback(
     const similarityScore = group.topArchetypes[0]?.similarity || 0;
     const compactnessScore = 1 - Math.min(group.spreadKm / 200, 1);
 
+    // PASS 1: Assign only collections from this group
     for (const stop of group.stops) {
+      if (stop.type !== 'collection') continue;
       if (assignedStopIds.has(stop.id)) continue;
       assignedStopIds.add(stop.id);
 
-      // Enforce collection-before-delivery: if this is a delivery, check collection
-      let assignDay = bestDay;
-      let assignSlot = bestSlot;
+      const assignDay = bestDay;
+      const assignSlot = bestSlot;
 
-      if (stop.type === 'delivery') {
-        const coll = collectionMap.get(stop.dependency_group);
-        if (coll) {
-          if (assignDay < coll.day) assignDay = coll.day;
-          
-          // CROSS-REGION FIX: If delivery region is incompatible with collection region,
-          // force delivery to a different day
-          const collStop = stops.find(s => s.id === `${stop.dependency_group}_collection`);
-          const collRegion = collStop?.region;
-          if (collRegion && !canShareSlot(collRegion, stop.region) && assignDay === coll.day) {
-            const collDayIndex = weekdays.indexOf(coll.day);
-            if (collDayIndex >= 0 && collDayIndex + 1 < weekdays.length) {
-              assignDay = weekdays[collDayIndex + 1];
-              console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${stop.region}, bumped to ${assignDay}`);
-            }
-            // Find a compatible slot for the delivery on the new day
-            let slotFound = false;
-            for (let sl = 1; sl <= driverCount; sl++) {
-              const regs = getRegs(assignDay, sl);
-              if (getCount(assignDay, sl) < TARGET && canAddToSlotRegions(stop.region, regs)) {
-                assignSlot = sl;
-                slotFound = true;
-                break;
-              }
-            }
-            if (!slotFound) {
-              // Use any empty slot
-              for (let sl = 1; sl <= driverCount; sl++) {
-                if (getCount(assignDay, sl) === 0) {
-                  assignSlot = sl;
-                  break;
-                }
-              }
-            }
-          } else if (assignDay === coll.day) {
-            assignSlot = coll.slot;
-          }
-        }
-      }
-
-      if (stop.type === 'collection') {
-        collectionMap.set(stop.dependency_group, { day: assignDay, slot: assignSlot });
-      }
-
+      collectionMap.set(stop.dependency_group, { day: assignDay, slot: assignSlot });
       addCount(assignDay, assignSlot, stop.region);
 
       const dateMatch = stop.date_flexible ? 'no_dates' :
