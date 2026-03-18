@@ -302,6 +302,8 @@ export const optimizeRouteWithGeoapify = async (
   const optimizedJobs: OptimizedJob[] = [];
   const route = data.features[0];
   const steps = route.properties.steps;
+  const distanceMeters = route.properties.distance || 0;
+  const distanceMiles = distanceMeters / 1609.34;
 
   let sequenceCounter = 1; // Start from 1
 
@@ -338,5 +340,5 @@ export const optimizeRouteWithGeoapify = async (
     }
   });
 
-  return optimizedJobs;
+  return { jobs: optimizedJobs, distanceMiles };
 };
