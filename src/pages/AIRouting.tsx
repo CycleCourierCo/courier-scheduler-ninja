@@ -76,6 +76,7 @@ const AIRouting: React.FC = () => {
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [comparisons, setComparisons] = useState<Map<number, PredictionResult>>(new Map());
   const [optimizingRoutes, setOptimizingRoutes] = useState<Set<string>>(new Set());
+  const [routeMileage, setRouteMileage] = useState<Map<string, number>>(new Map());
   const [selectedDay, setSelectedDay] = useState<string>('');
 
   const handleRefreshPatterns = useCallback(async () => {
