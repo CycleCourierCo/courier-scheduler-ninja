@@ -726,6 +726,63 @@ export type Database = {
           },
         ]
       }
+      planner_route_overrides: {
+        Row: {
+          action: string
+          created_at: string | null
+          created_by: string
+          from_day: string | null
+          from_slot: number | null
+          id: string
+          order_id: string
+          prediction_id: string
+          reason: string | null
+          to_day: string | null
+          to_slot: number | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          created_by: string
+          from_day?: string | null
+          from_slot?: number | null
+          id?: string
+          order_id: string
+          prediction_id: string
+          reason?: string | null
+          to_day?: string | null
+          to_slot?: number | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          created_by?: string
+          from_day?: string | null
+          from_slot?: number | null
+          id?: string
+          order_id?: string
+          prediction_id?: string
+          reason?: string | null
+          to_day?: string | null
+          to_slot?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_route_overrides_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planner_route_overrides_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "route_predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       postcode_patterns: {
         Row: {
           avg_stop_density_nearby: number | null
@@ -1011,6 +1068,60 @@ export type Database = {
         }
         Relationships: []
       }
+      route_group_scores: {
+        Row: {
+          archetype_id: string | null
+          compactness_score: number | null
+          corridor_fit: number | null
+          created_at: string | null
+          fill_efficiency: number | null
+          group_label: string
+          id: string
+          prediction_id: string
+          selected: boolean | null
+          similarity_score: number | null
+        }
+        Insert: {
+          archetype_id?: string | null
+          compactness_score?: number | null
+          corridor_fit?: number | null
+          created_at?: string | null
+          fill_efficiency?: number | null
+          group_label: string
+          id?: string
+          prediction_id: string
+          selected?: boolean | null
+          similarity_score?: number | null
+        }
+        Update: {
+          archetype_id?: string | null
+          compactness_score?: number | null
+          corridor_fit?: number | null
+          created_at?: string | null
+          fill_efficiency?: number | null
+          group_label?: string
+          id?: string
+          prediction_id?: string
+          selected?: boolean | null
+          similarity_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_group_scores_archetype_id_fkey"
+            columns: ["archetype_id"]
+            isOneToOne: false
+            referencedRelation: "route_archetypes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_group_scores_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "route_predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       route_prediction_runs: {
         Row: {
           acceptance_outcome: string | null
@@ -1087,6 +1198,7 @@ export type Database = {
       }
       route_predictions: {
         Row: {
+          ai_proposed_routes: Json | null
           created_at: string
           created_by: string | null
           date_range_end: string
@@ -1095,11 +1207,15 @@ export type Database = {
           id: string
           optimized_routes: Json | null
           pending_job_count: number
+          planning_mode: string | null
           predicted_routes: Json | null
           status: string
+          unassigned_stops: Json | null
           updated_at: string
+          validated_routes: Json | null
         }
         Insert: {
+          ai_proposed_routes?: Json | null
           created_at?: string
           created_by?: string | null
           date_range_end: string
@@ -1108,11 +1224,15 @@ export type Database = {
           id?: string
           optimized_routes?: Json | null
           pending_job_count?: number
+          planning_mode?: string | null
           predicted_routes?: Json | null
           status?: string
+          unassigned_stops?: Json | null
           updated_at?: string
+          validated_routes?: Json | null
         }
         Update: {
+          ai_proposed_routes?: Json | null
           created_at?: string
           created_by?: string | null
           date_range_end?: string
@@ -1121,9 +1241,12 @@ export type Database = {
           id?: string
           optimized_routes?: Json | null
           pending_job_count?: number
+          planning_mode?: string | null
           predicted_routes?: Json | null
           status?: string
+          unassigned_stops?: Json | null
           updated_at?: string
+          validated_routes?: Json | null
         }
         Relationships: [
           {
