@@ -114,6 +114,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Calendar className="mr-2 h-4 w-4" />
                             Job Scheduling
                           </Link>
+                          <Link to="/ai-routing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            AI Routing
+                          </Link>
                           <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             Driver Timeslips
