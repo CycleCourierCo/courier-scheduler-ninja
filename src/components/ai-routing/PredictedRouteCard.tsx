@@ -12,6 +12,7 @@ interface RouteStop {
   contact_name: string;
   address: string;
   postcode_prefix: string;
+  region?: string;
   lat: number;
   lon: number;
   date_match: 'exact' | 'flexible' | 'no_dates';
