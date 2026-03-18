@@ -95,21 +95,25 @@ serve(async (req) => {
     const stops: Stop[] = [];
     const dateStart = new Date(date_range_start);
     const dateEnd = new Date(date_range_end);
+    let skippedCount = 0;
 
     for (const order of orders) {
       const sender = order.sender as any;
       const receiver = order.receiver as any;
 
-      const senderLat = sender?.lat || sender?.latitude;
-      const senderLon = sender?.lon || sender?.longitude;
-      const receiverLat = receiver?.lat || receiver?.latitude;
-      const receiverLon = receiver?.lon || receiver?.longitude;
+      const senderLat = sender?.address?.lat || sender?.lat || sender?.latitude;
+      const senderLon = sender?.address?.lon || sender?.lon || sender?.longitude;
+      const receiverLat = receiver?.address?.lat || receiver?.lat || receiver?.latitude;
+      const receiverLon = receiver?.address?.lon || receiver?.lon || receiver?.longitude;
 
       // Skip orders without geocoded addresses
-      if (!senderLat || !senderLon || !receiverLat || !receiverLon) continue;
+      if (!senderLat || !senderLon || !receiverLat || !receiverLon) {
+        skippedCount++;
+        continue;
+      }
 
-      const senderPostcode = extractPostcodePrefix(sender?.postcode || sender?.postal_code) || 'UNKNOWN';
-      const receiverPostcode = extractPostcodePrefix(receiver?.postcode || receiver?.postal_code) || 'UNKNOWN';
+      const senderPostcode = extractPostcodePrefix(sender?.address?.zipCode || sender?.address?.postal_code || sender?.postcode || sender?.postal_code) || 'UNKNOWN';
+      const receiverPostcode = extractPostcodePrefix(receiver?.address?.zipCode || receiver?.address?.postal_code || receiver?.postcode || receiver?.postal_code) || 'UNKNOWN';
 
       // Compute allowed dates from pickup_date / delivery_date fields
       const collectionDates = computeAllowedDates(order.pickup_date, dateStart, dateEnd);
@@ -164,6 +168,8 @@ serve(async (req) => {
         });
       }
     }
+
+    console.log(`Stop expansion: ${stops.length} stops created, ${skippedCount} orders skipped (missing coordinates)`);
 
     if (stops.length === 0) {
       return new Response(
@@ -448,7 +454,8 @@ function extractPostcodePrefix(postcode: string | null | undefined): string | nu
 
 function formatAddress(contact: any): string {
   if (!contact) return '';
-  const parts = [contact.street, contact.city, contact.postcode || contact.postal_code].filter(Boolean);
+  const addr = contact.address || contact;
+  const parts = [addr.street, addr.city, addr.zipCode || addr.postal_code || addr.postcode].filter(Boolean);
   return parts.join(', ');
 }
 

@@ -70,8 +70,8 @@ serve(async (req) => {
     }>();
 
     for (const order of allOrders) {
-      const senderPostcode = extractPostcodePrefix(order.sender?.postcode || order.sender?.postal_code);
-      const receiverPostcode = extractPostcodePrefix(order.receiver?.postcode || order.receiver?.postal_code);
+      const senderPostcode = extractPostcodePrefix(order.sender?.address?.zipCode || order.sender?.address?.postal_code || order.sender?.postcode || order.sender?.postal_code);
+      const receiverPostcode = extractPostcodePrefix(order.receiver?.address?.zipCode || order.receiver?.address?.postal_code || order.receiver?.postcode || order.receiver?.postal_code);
 
       if (!senderPostcode && !receiverPostcode) continue;
 
@@ -112,6 +112,8 @@ serve(async (req) => {
         }
       }
     }
+
+    console.log(`Postcode extraction: ${postcodeMap.size} unique prefixes found from ${allOrders.length} orders`);
 
     // Compute stats and upsert
     const patterns: any[] = [];
