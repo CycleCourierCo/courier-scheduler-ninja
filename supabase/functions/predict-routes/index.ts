@@ -632,8 +632,13 @@ function validateCriticalErrors(
   }
 
   for (const [groupId, g] of groups) {
-    if (g.collection && g.delivery && g.delivery.day < g.collection.day) {
-      errors.push(`Order ${groupId}: delivery before collection`);
+    if (g.collection && g.delivery) {
+      if (g.delivery.day < g.collection.day) {
+        errors.push(`Order ${groupId}: delivery before collection`);
+      }
+      if (g.collection.day === g.delivery.day && g.collection.driver_slot !== g.delivery.driver_slot) {
+        errors.push(`Order ${groupId}: same-day collection and delivery on different driver slots (slot ${g.collection.driver_slot} vs ${g.delivery.driver_slot})`);
+      }
     }
   }
 
