@@ -686,8 +686,10 @@ function fallbackHeuristic(
     });
   }
 
-  // Track collection days per dependency group
-  const collectionDayMap = new Map<string, string>();
+  // Track collection assignments per dependency group (day + slot)
+  const collectionAssignmentMap = new Map<string, { day: string; slot: number }>();
+  // Track location group assignments (first stop at a location determines preferred day/slot)
+  const locationGroupMap = new Map<string, { day: string; slot: number }>();
   // Track slot assignments: day -> slot -> count
   const slotCounts: Record<string, Record<number, number>> = {};
 
