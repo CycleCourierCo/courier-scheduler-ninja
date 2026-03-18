@@ -100,16 +100,19 @@ serve(async (req) => {
       const sender = order.sender as any;
       const receiver = order.receiver as any;
 
-      const senderLat = sender?.lat || sender?.latitude;
-      const senderLon = sender?.lon || sender?.longitude;
-      const receiverLat = receiver?.lat || receiver?.latitude;
-      const receiverLon = receiver?.lon || receiver?.longitude;
+      const senderLat = sender?.address?.lat || sender?.lat || sender?.latitude;
+      const senderLon = sender?.address?.lon || sender?.lon || sender?.longitude;
+      const receiverLat = receiver?.address?.lat || receiver?.lat || receiver?.latitude;
+      const receiverLon = receiver?.address?.lon || receiver?.lon || receiver?.longitude;
 
       // Skip orders without geocoded addresses
-      if (!senderLat || !senderLon || !receiverLat || !receiverLon) continue;
+      if (!senderLat || !senderLon || !receiverLat || !receiverLon) {
+        skippedCount++;
+        continue;
+      }
 
-      const senderPostcode = extractPostcodePrefix(sender?.postcode || sender?.postal_code) || 'UNKNOWN';
-      const receiverPostcode = extractPostcodePrefix(receiver?.postcode || receiver?.postal_code) || 'UNKNOWN';
+      const senderPostcode = extractPostcodePrefix(sender?.address?.zipCode || sender?.address?.postal_code || sender?.postcode || sender?.postal_code) || 'UNKNOWN';
+      const receiverPostcode = extractPostcodePrefix(receiver?.address?.zipCode || receiver?.address?.postal_code || receiver?.postcode || receiver?.postal_code) || 'UNKNOWN';
 
       // Compute allowed dates from pickup_date / delivery_date fields
       const collectionDates = computeAllowedDates(order.pickup_date, dateStart, dateEnd);
