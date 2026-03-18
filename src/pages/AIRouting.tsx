@@ -86,7 +86,7 @@ const AIRouting: React.FC = () => {
   const [dateEnd, setDateEnd] = useState(getNextFriday());
   const [driverCount, setDriverCount] = useState(3);
   const [includeNoDates, setIncludeNoDates] = useState(true);
-  const [planningMode, setPlanningMode] = useState<'v1' | 'v2'>('v2');
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [patternsLastUpdated, setPatternsLastUpdated] = useState<string>();
@@ -117,8 +117,7 @@ const AIRouting: React.FC = () => {
 
   const generatePlan = useCallback(async (drivers: number): Promise<PredictionResult | null> => {
     try {
-      const functionName = planningMode === 'v2' ? 'predict-routes-v2' : 'predict-routes';
-      const { data, error } = await supabase.functions.invoke(functionName, {
+      const { data, error } = await supabase.functions.invoke('predict-routes-v2', {
         body: {
           driver_count: drivers,
           date_range_start: dateStart,
@@ -148,7 +147,7 @@ const AIRouting: React.FC = () => {
       }
       return null;
     }
-  }, [dateStart, dateEnd, includeNoDates, planningMode]);
+  }, [dateStart, dateEnd, includeNoDates]);
 
   const handleGeneratePlan = useCallback(async () => {
     setIsGenerating(true);
@@ -161,8 +160,7 @@ const AIRouting: React.FC = () => {
       
       const tokenInfo = result.ai_tokens_used > 0 ? ` (${result.ai_tokens_used} tokens)` : '';
       const method = result.validation.fallback_used ? 'heuristic fallback' : 'AI';
-      const modeLabel = result.planning_mode === 'v2' ? ' [v2 Archetype]' : '';
-      toast.success(`Plan generated via ${method}${modeLabel}: ${result.total_stops} stops across ${days.length} days${tokenInfo}`);
+      toast.success(`Plan generated via ${method}: ${result.total_stops} stops across ${days.length} days${tokenInfo}`);
     }
     setIsGenerating(false);
   }, [driverCount, generatePlan]);
@@ -316,12 +314,10 @@ const AIRouting: React.FC = () => {
           dateEnd={dateEnd}
           driverCount={driverCount}
           includeNoDates={includeNoDates}
-          planningMode={planningMode}
           onDateStartChange={setDateStart}
           onDateEndChange={setDateEnd}
           onDriverCountChange={setDriverCount}
           onIncludeNoDatesChange={setIncludeNoDates}
-          onPlanningModeChange={setPlanningMode}
           onRefreshPatterns={handleRefreshPatterns}
           onGeneratePlan={handleGeneratePlan}
           onCompare={handleCompare}
@@ -381,7 +377,7 @@ const AIRouting: React.FC = () => {
                     isOptimizing={slots.some(s => optimizingRoutes.has(`${day}_${s}`))}
                   />
 
-                  {unassignedStops.length > 0 && planningMode === 'v2' && (
+                  {unassignedStops.length > 0 && (
                     <UnassignedStopsPanel stops={unassignedStops} />
                   )}
 
