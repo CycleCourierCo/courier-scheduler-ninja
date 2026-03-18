@@ -155,12 +155,14 @@ const AIRouting: React.FC = () => {
     const result = await generatePlan(driverCount);
     if (result) {
       setPrediction(result);
+      setUnassignedStops(result.unassigned_stops || []);
       const days = Object.keys(result.routes_by_day).sort();
       if (days.length > 0) setSelectedDay(days[0]);
       
       const tokenInfo = result.ai_tokens_used > 0 ? ` (${result.ai_tokens_used} tokens)` : '';
       const method = result.validation.fallback_used ? 'heuristic fallback' : 'AI';
-      toast.success(`Plan generated via ${method}: ${result.total_stops} stops across ${days.length} days${tokenInfo}`);
+      const modeLabel = result.planning_mode === 'v2' ? ' [v2 Archetype]' : '';
+      toast.success(`Plan generated via ${method}${modeLabel}: ${result.total_stops} stops across ${days.length} days${tokenInfo}`);
     }
     setIsGenerating(false);
   }, [driverCount, generatePlan]);
