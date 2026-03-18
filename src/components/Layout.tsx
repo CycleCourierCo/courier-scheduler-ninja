@@ -326,6 +326,12 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        <Link to="/ai-routing" className="cursor-pointer flex w-full items-center">
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          <span>AI Routing</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                           <Clock className="mr-2 h-4 w-4" />
                           <span>Driver Timeslips</span>
