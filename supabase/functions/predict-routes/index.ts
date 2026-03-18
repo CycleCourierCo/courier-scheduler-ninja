@@ -46,11 +46,39 @@ for (const p of ['CF', 'SA', 'LD', 'SY', 'NP', 'LL', 'HR', 'ST']) REGION_MAP[p] 
 // Nottingham / East Midlands corridor
 for (const p of ['NG', 'LE', 'LN']) REGION_MAP[p] = 'East Midlands';
 
+// ============================================================
+// ALLOWED REGION COMBINATIONS (strict allowlist)
+// ============================================================
+
+const ALLOWED_COMBOS: Record<string, string[]> = {
+  'North West': ['North East'],
+  'North East': ['North West'],
+  'London': ['East', 'South East', 'South West Coastal'],
+  'East': ['London'],
+  'South East': ['London'],
+  'South West Coastal': ['London'],
+  'South West Deep': [],  // NEVER combine with anything
+  'Wales': ['West Midlands'],
+  'West Midlands': ['Wales', 'East Midlands'],
+  'East Midlands': ['West Midlands'],
+  'Unknown': [],
+};
+
+function canShareSlot(regionA: string, regionB: string): boolean {
+  if (regionA === regionB) return true;
+  return ALLOWED_COMBOS[regionA]?.includes(regionB) ?? false;
+}
+
+function canAddToSlotRegions(newRegion: string, existingRegions: Set<string>): boolean {
+  for (const existing of existingRegions) {
+    if (!canShareSlot(newRegion, existing)) return false;
+  }
+  return true;
+}
+
 function getRegion(postcodePrefix: string): string {
   if (!postcodePrefix || postcodePrefix === 'UNKNOWN') return 'Unknown';
-  // Try full prefix first (e.g. "SE"), then first letter only (e.g. "S" for "S1")
   const upper = postcodePrefix.toUpperCase();
-  // Extract letters-only prefix for matching
   const lettersOnly = upper.replace(/[0-9].*/g, '');
   return REGION_MAP[lettersOnly] || REGION_MAP[upper] || 'Unknown';
 }
@@ -313,17 +341,24 @@ Current stops by region:
 ${regionInfo}
 
 CRITICAL RULES:
-1. Each driver slot MUST cover ONE region or adjacent regions only. NEVER mix distant regions (e.g. never put Manchester and Dorset on the same driver slot).
-2. Adjacent region combos that are OK: West Midlands + East Midlands, London + South East, South West Coastal + South West Deep, Wales + West Midlands.
-3. Target 10-14 stops per driver slot per day. Pack routes DENSELY. Minimise total days used.
-4. Fill Day 1 slots first before moving to Day 2. Only use more days when slots are full.
-5. Collection stops MUST be on the same day or BEFORE their paired delivery (same dependency_group).
-6. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers.
-7. Stops with the same location_group (same physical location, different orders) SHOULD be assigned to the same driver_slot and day when possible — this avoids visiting the same address twice.
-8. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
-9. Higher priority stops should be scheduled earlier.
-10. driver_slot values: 1 to ${driver_count}.
-11. West Midlands (local) stops can be combined with any adjacent region if there aren't enough local stops to fill a route.`;
+1. Each driver slot MUST contain stops from ONE region only, UNLESS they are an explicitly allowed combination. ALL other combinations are STRICTLY FORBIDDEN.
+2. ALLOWED region combinations (ONLY these may share a driver slot):
+   - North West + North East (if low volume)
+   - London + East
+   - London + South East
+   - London + South West Coastal
+   - Wales + West Midlands
+   - West Midlands + East Midlands
+3. FORBIDDEN: South West Deep (Devon/Cornwall: EX, PL, TQ, TR, TA, DT, GL) MUST NEVER be combined with ANY other region. It always gets its own dedicated driver slot.
+4. Target 10-14 stops per driver slot per day. Pack routes DENSELY. Minimise total days used.
+5. Fill Day 1 slots first before moving to Day 2. Only use more days when slots are full.
+6. Collection stops MUST be on the same day or BEFORE their paired delivery (same dependency_group).
+7. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers.
+8. Stops with the same location_group (same physical location, different orders) SHOULD be assigned to the same driver_slot and day when possible — this avoids visiting the same address twice.
+9. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
+10. Higher priority stops should be scheduled earlier.
+11. driver_slot values: 1 to ${driver_count}.
+12. West Midlands (local) stops can be combined with Wales or East Midlands if there aren't enough local stops to fill a route.`;
 
         const userPrompt = `Assign these ${stops.length} stops to days and driver slots.
 
@@ -642,6 +677,25 @@ function validateCriticalErrors(
     }
   }
 
+  // Check region compatibility per day/slot
+  const slotRegions = new Map<string, Set<string>>();
+  for (const a of assignments) {
+    const key = `${a.day}_${a.driver_slot}`;
+    if (!slotRegions.has(key)) slotRegions.set(key, new Set());
+    slotRegions.get(key)!.add(a.region);
+  }
+
+  for (const [key, regions] of slotRegions) {
+    const regionList = [...regions];
+    for (let i = 0; i < regionList.length; i++) {
+      for (let j = i + 1; j < regionList.length; j++) {
+        if (!canShareSlot(regionList[i], regionList[j])) {
+          errors.push(`${key}: incompatible regions ${regionList[i]} + ${regionList[j]} on same driver slot`);
+        }
+      }
+    }
+  }
+
   return errors;
 }
 
@@ -692,11 +746,17 @@ function fallbackHeuristic(
   const locationGroupMap = new Map<string, { day: string; slot: number }>();
   // Track slot assignments: day -> slot -> count
   const slotCounts: Record<string, Record<number, number>> = {};
+  // Track which regions own each day/slot
+  const slotRegionOwner = new Map<string, Set<string>>();
 
   const getSlotCount = (day: string, slot: number) => slotCounts[day]?.[slot] || 0;
-  const addToSlot = (day: string, slot: number) => {
+  const getSlotRegions = (day: string, slot: number): Set<string> => slotRegionOwner.get(`${day}_${slot}`) || new Set();
+  const addToSlot = (day: string, slot: number, region: string) => {
     if (!slotCounts[day]) slotCounts[day] = {};
     slotCounts[day][slot] = (slotCounts[day][slot] || 0) + 1;
+    const key = `${day}_${slot}`;
+    if (!slotRegionOwner.has(key)) slotRegionOwner.set(key, new Set());
+    slotRegionOwner.get(key)!.add(region);
   };
 
   // Assign regions to day/slot combos, filling densely
@@ -731,12 +791,15 @@ function fallbackHeuristic(
       let bestSlot = currentSlot;
       let found = false;
 
-      // Priority 1: Check if this stop's location_group already has an assignment
+      // Priority 1: Check if this stop's location_group already has an assignment (and region is compatible)
       const locAssignment = locationGroupMap.get(stop.location_group);
       if (locAssignment && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
-        bestDay = locAssignment.day;
-        bestSlot = locAssignment.slot;
-        found = true;
+        const slotRegs = getSlotRegions(locAssignment.day, locAssignment.slot);
+        if (canAddToSlotRegions(region, slotRegs)) {
+          bestDay = locAssignment.day;
+          bestSlot = locAssignment.slot;
+          found = true;
+        }
       }
 
       // Priority 2: Check if this region already has a slot on the current day
@@ -751,7 +814,7 @@ function fallbackHeuristic(
         }
       }
 
-      // Priority 3: Find first available day/slot
+      // Priority 3: Find first available day/slot with region compatibility
       if (!found) {
         const existingSlots = regionSlotMap.get(region) || [];
         for (let di = 0; di < allWeekdays.length && !found; di++) {
@@ -761,9 +824,11 @@ function fallbackHeuristic(
           for (let sl = 1; sl <= driverCount; sl++) {
             if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
               const isRegionSlot = existingSlots.some(rs => rs.day === day && rs.slot === sl);
-              const isEmpty = getSlotCount(day, sl) === 0;
+              const slotRegs = getSlotRegions(day, sl);
+              const isEmpty = slotRegs.size === 0;
+              const isCompatible = canAddToSlotRegions(region, slotRegs);
 
-              if (isRegionSlot || isEmpty) {
+              if (isRegionSlot || (isEmpty) || (isCompatible && getSlotCount(day, sl) > 0)) {
                 bestDay = day;
                 bestSlot = sl;
                 found = true;
@@ -774,12 +839,29 @@ function fallbackHeuristic(
         }
       }
 
-      // Last resort: any slot with capacity
+      // Last resort: any COMPATIBLE slot with capacity (never violate region rules)
       if (!found) {
         for (let di = 0; di < allWeekdays.length; di++) {
           const day = allWeekdays[di];
           for (let sl = 1; sl <= driverCount; sl++) {
-            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5) {
+            const slotRegs = getSlotRegions(day, sl);
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5 && canAddToSlotRegions(region, slotRegs)) {
+              bestDay = day;
+              bestSlot = sl;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      // Absolute last resort: overflow onto a new day/slot (should rarely happen)
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          const day = allWeekdays[di];
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(day, sl) === 0) {
               bestDay = day;
               bestSlot = sl;
               found = true;
@@ -800,7 +882,7 @@ function fallbackHeuristic(
       if (!locationGroupMap.has(stop.location_group)) {
         locationGroupMap.set(stop.location_group, { day: bestDay, slot: bestSlot });
       }
-      addToSlot(bestDay, bestSlot);
+      addToSlot(bestDay, bestSlot, region);
 
       const dateMatch = stop.date_flexible ? 'no_dates' :
         stop.allowed_dates.includes(bestDay) ? 'exact' : 'flexible';
@@ -840,18 +922,19 @@ function fallbackHeuristic(
       let bestSlot = 1;
       let found = false;
 
-      // Priority 0: If collection is on same day, MUST use same slot
+      // Priority 0: If collection is on same day, MUST use same slot; also check location_group
       if (collectionAssignment) {
-        // Check if location_group has an assignment on/after minDay
         const locAssignment = locationGroupMap.get(stop.location_group);
         if (locAssignment && locAssignment.day >= minDay && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
-          bestDay = locAssignment.day;
-          bestSlot = locAssignment.slot;
-          // If this puts delivery on same day as collection, must use collection's slot
-          if (bestDay === collectionAssignment.day) {
-            bestSlot = collectionAssignment.slot;
+          const slotRegs = getSlotRegions(locAssignment.day, locAssignment.slot);
+          if (canAddToSlotRegions(region, slotRegs)) {
+            bestDay = locAssignment.day;
+            bestSlot = locAssignment.slot;
+            if (bestDay === collectionAssignment.day) {
+              bestSlot = collectionAssignment.slot;
+            }
+            found = true;
           }
-          found = true;
         }
       }
 
@@ -861,7 +944,6 @@ function fallbackHeuristic(
           if (rs.day >= minDay && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT) {
             bestDay = rs.day;
             bestSlot = rs.slot;
-            // Enforce same-day same-slot constraint
             if (collectionAssignment && bestDay === collectionAssignment.day) {
               bestSlot = collectionAssignment.slot;
             }
@@ -871,7 +953,7 @@ function fallbackHeuristic(
         }
       }
 
-      // Priority 2: Any slot with capacity on/after minDay
+      // Priority 2: Any region-compatible slot with capacity on/after minDay
       if (!found) {
         for (let di = 0; di < allWeekdays.length; di++) {
           const day = allWeekdays[di];
@@ -884,10 +966,11 @@ function fallbackHeuristic(
               found = true;
               break;
             }
-            continue; // Skip this day if collection slot is full
+            continue;
           }
           for (let sl = 1; sl <= driverCount; sl++) {
-            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
+            const slotRegs = getSlotRegions(day, sl);
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT && canAddToSlotRegions(region, slotRegs)) {
               bestDay = day;
               bestSlot = sl;
               found = true;
@@ -898,11 +981,12 @@ function fallbackHeuristic(
         }
       }
 
-      // Last resort: anywhere with any capacity
+      // Last resort: any compatible slot with any capacity
       if (!found) {
         for (let di = 0; di < allWeekdays.length; di++) {
           for (let sl = 1; sl <= driverCount; sl++) {
-            if (getSlotCount(allWeekdays[di], sl) < TARGET_STOPS_PER_SLOT * 2) {
+            const slotRegs = getSlotRegions(allWeekdays[di], sl);
+            if (getSlotCount(allWeekdays[di], sl) < TARGET_STOPS_PER_SLOT * 2 && canAddToSlotRegions(region, slotRegs)) {
               bestDay = allWeekdays[di];
               bestSlot = sl;
               found = true;
@@ -913,7 +997,22 @@ function fallbackHeuristic(
         }
       }
 
-      addToSlot(bestDay, bestSlot);
+      // Absolute last resort: empty slot
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(allWeekdays[di], sl) === 0) {
+              bestDay = allWeekdays[di];
+              bestSlot = sl;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      addToSlot(bestDay, bestSlot, region);
 
       // Track region slot and location group
       if (!regionSlotMap.has(region)) regionSlotMap.set(region, []);
