@@ -9,6 +9,7 @@ import PredictedRouteCard from "@/components/ai-routing/PredictedRouteCard";
 import DayOverview from "@/components/ai-routing/DayOverview";
 import RouteComparisonView from "@/components/ai-routing/RouteComparisonView";
 import ValidationBadge from "@/components/ai-routing/ValidationBadge";
+import UnassignedStopsPanel from "@/components/ai-routing/UnassignedStopsPanel";
 import { optimizeMultiDriverRoute } from "@/services/routeOptimizationService";
 
 interface RouteStop {
@@ -26,6 +27,19 @@ interface RouteStop {
   date_match: 'exact' | 'flexible' | 'no_dates';
   sequenceOrder?: number;
   estimatedArrivalTime?: string;
+  archetype_label?: string;
+  similarity_score?: number;
+  compactness_score?: number;
+}
+
+interface UnassignedStop {
+  stop_id: string;
+  order_id: string;
+  type: string;
+  contact_name: string;
+  address: string;
+  postcode_prefix: string;
+  region: string;
 }
 
 interface PredictionResult {
@@ -39,6 +53,8 @@ interface PredictionResult {
     fallback_used: boolean;
   };
   ai_tokens_used: number;
+  planning_mode?: string;
+  unassigned_stops?: UnassignedStop[];
 }
 
 interface ComparisonScenario {
