@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-
+import RouteWhyPanel from "./RouteWhyPanel";
 interface RouteStop {
   stop_id: string;
   order_id: string;
