@@ -746,11 +746,17 @@ function fallbackHeuristic(
   const locationGroupMap = new Map<string, { day: string; slot: number }>();
   // Track slot assignments: day -> slot -> count
   const slotCounts: Record<string, Record<number, number>> = {};
+  // Track which regions own each day/slot
+  const slotRegionOwner = new Map<string, Set<string>>();
 
   const getSlotCount = (day: string, slot: number) => slotCounts[day]?.[slot] || 0;
-  const addToSlot = (day: string, slot: number) => {
+  const getSlotRegions = (day: string, slot: number): Set<string> => slotRegionOwner.get(`${day}_${slot}`) || new Set();
+  const addToSlot = (day: string, slot: number, region: string) => {
     if (!slotCounts[day]) slotCounts[day] = {};
     slotCounts[day][slot] = (slotCounts[day][slot] || 0) + 1;
+    const key = `${day}_${slot}`;
+    if (!slotRegionOwner.has(key)) slotRegionOwner.set(key, new Set());
+    slotRegionOwner.get(key)!.add(region);
   };
 
   // Assign regions to day/slot combos, filling densely
