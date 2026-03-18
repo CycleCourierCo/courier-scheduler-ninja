@@ -923,8 +923,6 @@ function fallbackHeuristic(
       if (collectionAssignment) {
         const collStop = collectionStops.find(s => s.dependency_group === stop.dependency_group);
         const collRegion = collStop?.region;
-        if (collRegion && !canShareSlot(collRegion, region)) {
-          crossRegionSplit = true;
         const collDayIndex = allWeekdays.indexOf(collectionAssignment.day);
         if (collRegion && !canShareSlot(collRegion, region)) {
           crossRegionSplit = true;
@@ -937,7 +935,6 @@ function fallbackHeuristic(
             continue;
           }
           console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${region}, minDay bumped to ${minDay}`);
-        }
         }
       }
 
