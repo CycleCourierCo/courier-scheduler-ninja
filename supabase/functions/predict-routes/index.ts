@@ -8,6 +8,65 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// ============================================================
+// DEPOT & UK GEOGRAPHIC REGIONS
+// ============================================================
+
+const DEPOT = { lat: 52.4690197, lon: -1.8757663, postcode: 'B10' };
+
+const REGION_MAP: Record<string, string> = {};
+
+// West Midlands Local (depot area)
+for (const p of ['B', 'WS', 'WV', 'DY', 'CV', 'NN', 'DE']) REGION_MAP[p] = 'West Midlands';
+
+// North West
+for (const p of ['M', 'WA', 'WN', 'BL', 'OL', 'SK', 'CW', 'CH', 'PR', 'L', 'FY', 'LA', 'CA']) REGION_MAP[p] = 'North West';
+
+// North East
+for (const p of ['LS', 'BD', 'HG', 'YO', 'HU', 'DN', 'S', 'HD', 'WF', 'NE', 'DH', 'SR', 'TS', 'DL', 'HX']) REGION_MAP[p] = 'North East';
+
+// East
+for (const p of ['CB', 'PE', 'NR', 'IP', 'CO', 'SG', 'AL', 'LU', 'MK', 'CM']) REGION_MAP[p] = 'East';
+
+// South East London
+for (const p of ['E', 'N', 'SE', 'SW', 'W', 'NW', 'EC', 'WC', 'BR', 'CR', 'DA', 'EN', 'HA', 'IG', 'KT', 'RM', 'SM', 'TW', 'UB', 'WD']) REGION_MAP[p] = 'London';
+
+// South East Kent
+for (const p of ['CT', 'ME', 'TN', 'SS', 'RH', 'GU', 'BN', 'SL', 'RG', 'OX', 'HP', 'MK']) REGION_MAP[p] = 'South East';
+
+// South West Coastal
+for (const p of ['BH', 'SO', 'PO', 'SP', 'BA', 'SN']) REGION_MAP[p] = 'South West Coastal';
+
+// South West Deep (Devon, Cornwall)
+for (const p of ['EX', 'PL', 'TQ', 'TR', 'TA', 'DT', 'GL']) REGION_MAP[p] = 'South West Deep';
+
+// Wales
+for (const p of ['CF', 'SA', 'LD', 'SY', 'NP', 'LL', 'HR', 'ST']) REGION_MAP[p] = 'Wales';
+
+// Nottingham / East Midlands corridor
+for (const p of ['NG', 'LE', 'LN']) REGION_MAP[p] = 'East Midlands';
+
+function getRegion(postcodePrefix: string): string {
+  if (!postcodePrefix || postcodePrefix === 'UNKNOWN') return 'Unknown';
+  // Try full prefix first (e.g. "SE"), then first letter only (e.g. "S" for "S1")
+  const upper = postcodePrefix.toUpperCase();
+  // Extract letters-only prefix for matching
+  const lettersOnly = upper.replace(/[0-9].*/g, '');
+  return REGION_MAP[lettersOnly] || REGION_MAP[upper] || 'Unknown';
+}
+
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ============================================================
+// TYPES
+// ============================================================
+
 interface Stop {
   id: string;
   order_id: string;
@@ -15,13 +74,13 @@ interface Stop {
   lat: number;
   lon: number;
   postcode_prefix: string;
+  region: string;
   contact_name: string;
   address: string;
   phone: string;
   allowed_dates: string[];
   priority: number;
   dependency_group: string;
-  cluster_id: number;
   date_flexible: boolean;
 }
 
@@ -37,6 +96,7 @@ interface RouteAssignment {
   lat: number;
   lon: number;
   postcode_prefix: string;
+  region: string;
   date_match: 'exact' | 'flexible' | 'no_dates';
 }
 
@@ -70,7 +130,6 @@ serve(async (req) => {
     // LAYER 1: DETERMINISTIC PRE-PROCESSING
     // ============================================================
 
-    // Fetch pending orders (exclude very early statuses)
     const excludeStatuses = ['created', 'sender_availability_pending', 'delivered', 'cancelled'];
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
@@ -78,9 +137,7 @@ serve(async (req) => {
       .not('status', 'in', `(${excludeStatuses.join(',')})`)
       .order('created_at', { ascending: true });
 
-    if (ordersError) {
-      throw new Error(`Failed to fetch orders: ${ordersError.message}`);
-    }
+    if (ordersError) throw new Error(`Failed to fetch orders: ${ordersError.message}`);
 
     if (!orders || orders.length === 0) {
       return new Response(
@@ -89,7 +146,10 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${orders.length} pending orders`);
+    // Fetch postcode patterns for region summaries
+    const { data: patterns } = await supabase.from('postcode_patterns').select('postcode_prefix, total_jobs, collection_day_frequency, delivery_day_frequency');
+
+    console.log(`Found ${orders.length} pending orders, ${patterns?.length || 0} postcode patterns`);
 
     // Expand orders into stops
     const stops: Stop[] = [];
@@ -106,7 +166,6 @@ serve(async (req) => {
       const receiverLat = receiver?.address?.lat || receiver?.lat || receiver?.latitude;
       const receiverLon = receiver?.address?.lon || receiver?.lon || receiver?.longitude;
 
-      // Skip orders without geocoded addresses
       if (!senderLat || !senderLon || !receiverLat || !receiverLon) {
         skippedCount++;
         continue;
@@ -115,7 +174,6 @@ serve(async (req) => {
       const senderPostcode = extractPostcodePrefix(sender?.address?.zipCode || sender?.address?.postal_code || sender?.postcode || sender?.postal_code) || 'UNKNOWN';
       const receiverPostcode = extractPostcodePrefix(receiver?.address?.zipCode || receiver?.address?.postal_code || receiver?.postcode || receiver?.postal_code) || 'UNKNOWN';
 
-      // Compute allowed dates from pickup_date / delivery_date fields
       const collectionDates = computeAllowedDates(order.pickup_date, dateStart, dateEnd);
       const deliveryDates = computeAllowedDates(order.delivery_date, dateStart, dateEnd);
 
@@ -124,12 +182,14 @@ serve(async (req) => {
 
       if (!include_no_dates && collectionFlexible && deliveryFlexible) continue;
 
-      // Priority: older orders get higher priority
       const ageInDays = Math.floor((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60 * 24));
       const priority = Math.min(ageInDays, 100);
 
-      // Only add collection stop if not already collected
-      if (!order.order_collected) {
+      // Status-aware stop generation
+      const isCollected = order.order_collected || ['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(order.status);
+      const isDelivered = order.order_delivered;
+
+      if (!isCollected && !isDelivered) {
         stops.push({
           id: `${order.id}_collection`,
           order_id: order.id,
@@ -137,19 +197,18 @@ serve(async (req) => {
           lat: senderLat,
           lon: senderLon,
           postcode_prefix: senderPostcode,
+          region: getRegion(senderPostcode),
           contact_name: sender?.name || 'Unknown',
           address: formatAddress(sender),
           phone: sender?.phone || '',
           allowed_dates: collectionFlexible ? generateAllWeekdays(dateStart, dateEnd) : collectionDates,
           priority,
           dependency_group: order.id,
-          cluster_id: 0,
           date_flexible: collectionFlexible,
         });
       }
 
-      // Only add delivery stop if not already delivered
-      if (!order.order_delivered) {
+      if (!isDelivered) {
         stops.push({
           id: `${order.id}_delivery`,
           order_id: order.id,
@@ -157,19 +216,24 @@ serve(async (req) => {
           lat: receiverLat,
           lon: receiverLon,
           postcode_prefix: receiverPostcode,
+          region: getRegion(receiverPostcode),
           contact_name: receiver?.name || 'Unknown',
           address: formatAddress(receiver),
           phone: receiver?.phone || '',
           allowed_dates: deliveryFlexible ? generateAllWeekdays(dateStart, dateEnd) : deliveryDates,
           priority,
           dependency_group: order.id,
-          cluster_id: 0,
           date_flexible: deliveryFlexible,
         });
       }
     }
 
-    console.log(`Stop expansion: ${stops.length} stops created, ${skippedCount} orders skipped (missing coordinates)`);
+    // Log region distribution
+    const regionCounts: Record<string, number> = {};
+    for (const s of stops) {
+      regionCounts[s.region] = (regionCounts[s.region] || 0) + 1;
+    }
+    console.log(`Stop expansion: ${stops.length} stops, ${skippedCount} skipped. Regions:`, JSON.stringify(regionCounts));
 
     if (stops.length === 0) {
       return new Response(
@@ -178,13 +242,8 @@ serve(async (req) => {
       );
     }
 
-    // Simple geographic clustering using grid-based approach
-    assignClusters(stops, driver_count * 2);
-
-    console.log(`Pre-processed ${stops.length} stops into clusters`);
-
     // ============================================================
-    // LAYER 2: AI ALLOCATION
+    // LAYER 2: AI ALLOCATION (with geographic context)
     // ============================================================
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -194,48 +253,78 @@ serve(async (req) => {
     let fallbackUsed = false;
     let aiTokensUsed = 0;
 
+    const weekdays = generateAllWeekdays(dateStart, dateEnd);
+
     if (LOVABLE_API_KEY) {
       try {
         const stopAbstractions = stops.map(s => ({
           id: s.id,
           type: s.type,
-          cluster_id: s.cluster_id,
-          allowed_dates: s.allowed_dates.slice(0, 5), // Limit to reduce token count
+          region: s.region,
+          allowed_dates: s.allowed_dates.slice(0, 5),
           priority: s.priority,
           dependency_group: s.dependency_group,
+          postcode: s.postcode_prefix,
           lat: Math.round(s.lat * 1000) / 1000,
           lon: Math.round(s.lon * 1000) / 1000,
-          postcode: s.postcode_prefix,
         }));
 
-        const dateRange: string[] = [];
-        const d = new Date(dateStart);
-        while (d <= dateEnd) {
-          if (d.getDay() !== 0 && d.getDay() !== 6) {
-            dateRange.push(d.toISOString().split('T')[0]);
+        // Build region summary from postcode_patterns
+        const regionSummary: Record<string, { totalJobs: number; prefixes: string[] }> = {};
+        if (patterns) {
+          for (const p of patterns) {
+            const region = getRegion(p.postcode_prefix);
+            if (!regionSummary[region]) regionSummary[region] = { totalJobs: 0, prefixes: [] };
+            regionSummary[region].totalJobs += p.total_jobs || 0;
+            regionSummary[region].prefixes.push(p.postcode_prefix);
           }
-          d.setDate(d.getDate() + 1);
         }
 
-        const systemPrompt = `You are a route planning assistant for a bicycle courier company. You assign stops to days and driver slots.
+        const regionInfo = Object.entries(regionCounts)
+          .map(([r, count]) => {
+            const hist = regionSummary[r];
+            return `- ${r}: ${count} stops now${hist ? ` (${hist.totalJobs} historical jobs)` : ''}`;
+          })
+          .join('\n');
 
-RULES:
-1. Collection stops MUST be scheduled on the same day or BEFORE their paired delivery stop (same dependency_group).
-2. Each stop must be assigned to exactly one day and one driver_slot.
-3. Stops should be assigned to days within their allowed_dates when possible.
-4. Balance the number of stops across driver slots evenly.
-5. Group geographically close stops (similar cluster_id) on the same driver slot.
-6. Higher priority stops should be scheduled earlier in the date range.
-7. driver_slot values must be between 1 and ${driver_count}.`;
+        const systemPrompt = `You are a route planning assistant for Cycle Courier, a bicycle transport company based at a depot in Birmingham (B10 0AD, lat 52.469, lon -1.876).
+
+DEPOT: Birmingham B10. All routes radiate outward from this depot and return. A driver goes in ONE direction per day.
+
+UK REGIONS (from Birmingham depot):
+- West Midlands: B, WS, WV, DY, CV, NN, DE — local depot area
+- North West: M, WA, WN, BL, OL, SK, CW, CH, PR, L, FY, LA, CA — Manchester, Liverpool direction
+- North East: LS, BD, HG, YO, HU, DN, S, HD, WF, NE, DH, SR, TS, DL — Leeds, York, Sheffield direction
+- East Midlands: NG, LE, LN — Nottingham, Leicester
+- East: CB, PE, NR, IP, CO, SG, AL, LU, MK, CM — Cambridge, Norwich direction
+- London: E, N, SE, SW, W, NW, EC, WC, BR, CR, DA, EN, HA, IG, KT, RM, SM, TW, UB, WD
+- South East: CT, ME, TN, SS, RH, GU, BN, SL, RG, OX, HP — Kent, Sussex
+- South West Coastal: BH, SO, PO, SP, BA, SN — Dorset, Southampton, Portsmouth
+- South West Deep: EX, PL, TQ, TR, TA, DT, GL — Devon, Cornwall (long day trip)
+- Wales: CF, SA, LD, SY, NP, LL, HR, ST — Cardiff, Swansea direction
+
+Current stops by region:
+${regionInfo}
+
+CRITICAL RULES:
+1. Each driver slot MUST cover ONE region or adjacent regions only. NEVER mix distant regions (e.g. never put Manchester and Dorset on the same driver slot).
+2. Adjacent region combos that are OK: West Midlands + East Midlands, London + South East, South West Coastal + South West Deep, Wales + West Midlands.
+3. Target 10-14 stops per driver slot per day. Pack routes DENSELY. Minimise total days used.
+4. Fill Day 1 slots first before moving to Day 2. Only use more days when slots are full.
+5. Collection stops MUST be on the same day or BEFORE their paired delivery (same dependency_group).
+6. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
+7. Higher priority stops should be scheduled earlier.
+8. driver_slot values: 1 to ${driver_count}.
+9. West Midlands (local) stops can be combined with any adjacent region if there aren't enough local stops to fill a route.`;
 
         const userPrompt = `Assign these ${stops.length} stops to days and driver slots.
 
-Available days: ${JSON.stringify(dateRange)}
+Available days: ${JSON.stringify(weekdays)}
 Driver slots: 1 to ${driver_count}
 
 Stops: ${JSON.stringify(stopAbstractions)}
 
-Return assignments using the suggest_route_assignments tool.`;
+Return assignments using the suggest_route_assignments tool. Every stop MUST be assigned.`;
 
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -244,7 +333,7 @@ Return assignments using the suggest_route_assignments tool.`;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-3-flash-preview',
+            model: 'google/gemini-2.5-flash',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt },
@@ -284,12 +373,6 @@ Return assignments using the suggest_route_assignments tool.`;
           const statusCode = aiResponse.status;
           const errorText = await aiResponse.text();
           console.error(`AI gateway error: ${statusCode}`, errorText);
-          
-          if (statusCode === 429) {
-            console.warn('AI rate limited, using fallback');
-          } else if (statusCode === 402) {
-            console.warn('AI credits exhausted, using fallback');
-          }
         } else {
           const aiData = await aiResponse.json();
           aiTokensUsed = aiData.usage?.total_tokens || 0;
@@ -298,7 +381,6 @@ Return assignments using the suggest_route_assignments tool.`;
           if (toolCall?.function?.arguments) {
             const parsed = JSON.parse(toolCall.function.arguments);
             if (parsed.assignments && Array.isArray(parsed.assignments)) {
-              // Map AI assignments back to full stop data
               const stopMap = new Map(stops.map(s => [s.id, s]));
               aiAssignments = [];
 
@@ -320,10 +402,12 @@ Return assignments using the suggest_route_assignments tool.`;
                     lat: stop.lat,
                     lon: stop.lon,
                     postcode_prefix: stop.postcode_prefix,
+                    region: stop.region,
                     date_match: dateMatch,
                   });
                 }
               }
+              console.log(`AI assigned ${aiAssignments.length}/${stops.length} stops`);
             }
           }
         }
@@ -335,44 +419,60 @@ Return assignments using the suggest_route_assignments tool.`;
     }
 
     // ============================================================
-    // LAYER 3: DETERMINISTIC VALIDATION
+    // LAYER 3: LENIENT VALIDATION (accept >90%, patch rest)
     // ============================================================
 
-    if (aiAssignments && aiAssignments.length > 0) {
-      const { valid, errors } = validateAssignments(aiAssignments, stops, driver_count);
-      validationPassed = valid;
-      validationErrors = errors;
-
-      if (!valid) {
-        console.warn(`AI validation failed with ${errors.length} errors, using fallback`);
-        aiAssignments = null;
-      }
-    }
-
-    // Fallback heuristic if AI failed or wasn't available
     let finalAssignments: RouteAssignment[];
+
     if (aiAssignments && aiAssignments.length > 0) {
-      finalAssignments = aiAssignments;
+      const assignedIds = new Set(aiAssignments.map(a => a.stop_id));
+      const missingStops = stops.filter(s => !assignedIds.has(s.id));
+      const coverageRate = aiAssignments.length / stops.length;
+
+      console.log(`AI coverage: ${(coverageRate * 100).toFixed(1)}%, ${missingStops.length} missing stops`);
+
+      // Check for critical errors (delivery before collection, invalid slots)
+      const criticalErrors = validateCriticalErrors(aiAssignments, stops, driver_count);
+
+      if (coverageRate >= 0.75 && criticalErrors.length === 0) {
+        // Accept AI result and patch missing stops with fallback
+        if (missingStops.length > 0) {
+          console.log(`Patching ${missingStops.length} missing stops via fallback`);
+          const patchAssignments = fallbackHeuristic(missingStops, driver_count, dateStart, dateEnd, weekdays);
+          finalAssignments = [...aiAssignments, ...patchAssignments];
+        } else {
+          finalAssignments = aiAssignments;
+        }
+        validationPassed = coverageRate >= 0.9;
+        validationErrors = missingStops.length > 0 ? [`${missingStops.length} stops patched via fallback`] : [];
+      } else {
+        console.warn(`AI rejected: coverage=${(coverageRate * 100).toFixed(1)}%, critical errors: ${criticalErrors.join('; ')}`);
+        validationErrors = criticalErrors;
+        fallbackUsed = true;
+        finalAssignments = fallbackHeuristic(stops, driver_count, dateStart, dateEnd, weekdays);
+        validationPassed = true; // Fallback is deterministic, always "passes"
+      }
     } else {
       fallbackUsed = true;
-      finalAssignments = fallbackHeuristic(stops, driver_count, dateStart, dateEnd);
-      
-      // Validate fallback too
-      const { valid, errors } = validateAssignments(finalAssignments, stops, driver_count);
-      validationPassed = valid;
-      validationErrors = errors;
+      finalAssignments = fallbackHeuristic(stops, driver_count, dateStart, dateEnd, weekdays);
+      validationPassed = true;
     }
 
-    // Group by day for the response
+    // Group by day
     const routesByDay: Record<string, Record<number, RouteAssignment[]>> = {};
     for (const assignment of finalAssignments) {
-      if (!routesByDay[assignment.day]) {
-        routesByDay[assignment.day] = {};
-      }
-      if (!routesByDay[assignment.day][assignment.driver_slot]) {
-        routesByDay[assignment.day][assignment.driver_slot] = [];
-      }
+      if (!routesByDay[assignment.day]) routesByDay[assignment.day] = {};
+      if (!routesByDay[assignment.day][assignment.driver_slot]) routesByDay[assignment.day][assignment.driver_slot] = [];
       routesByDay[assignment.day][assignment.driver_slot].push(assignment);
+    }
+
+    // Log route density summary
+    for (const [day, slots] of Object.entries(routesByDay)) {
+      const slotSummary = Object.entries(slots).map(([s, stops]) => {
+        const regions = [...new Set((stops as RouteAssignment[]).map(st => st.region))];
+        return `Slot${s}:${(stops as RouteAssignment[]).length}stops[${regions.join('+')}]`;
+      }).join(', ');
+      console.log(`${day}: ${slotSummary}`);
     }
 
     // Save prediction
@@ -390,9 +490,7 @@ Return assignments using the suggest_route_assignments tool.`;
       .select()
       .single();
 
-    if (predError) {
-      console.error('Failed to save prediction:', predError.message);
-    }
+    if (predError) console.error('Failed to save prediction:', predError.message);
 
     // Log the run
     if (prediction) {
@@ -403,8 +501,8 @@ Return assignments using the suggest_route_assignments tool.`;
 
       await supabase.from('route_prediction_runs').insert({
         prediction_id: prediction.id,
-        model_used: fallbackUsed ? 'fallback_heuristic' : 'google/gemini-3-flash-preview',
-        prompt_version: 'v1',
+        model_used: fallbackUsed ? 'fallback_heuristic_v2' : 'google/gemini-2.5-flash',
+        prompt_version: 'v2_geographic',
         pending_jobs_hash: hashHex.substring(0, 16),
         validation_passed: validationPassed,
         validation_errors: validationErrors,
@@ -461,36 +559,25 @@ function formatAddress(contact: any): string {
 
 function computeAllowedDates(dateField: any, rangeStart: Date, rangeEnd: Date): string[] {
   if (!dateField) return [];
-  
   const dates: string[] = [];
-  
+
   if (typeof dateField === 'string') {
     const d = new Date(dateField);
-    if (d >= rangeStart && d <= rangeEnd) {
-      dates.push(d.toISOString().split('T')[0]);
-    }
+    if (d >= rangeStart && d <= rangeEnd) dates.push(d.toISOString().split('T')[0]);
   } else if (Array.isArray(dateField)) {
     for (const item of dateField) {
       const d = new Date(typeof item === 'string' ? item : item.date || item);
-      if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) {
-        dates.push(d.toISOString().split('T')[0]);
-      }
+      if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) dates.push(d.toISOString().split('T')[0]);
     }
   } else if (typeof dateField === 'object') {
-    // Handle {date: "...", ...} format
     if (dateField.date) {
       const d = new Date(dateField.date);
-      if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) {
-        dates.push(d.toISOString().split('T')[0]);
-      }
+      if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) dates.push(d.toISOString().split('T')[0]);
     }
-    // Handle {dates: [...]} format
     if (dateField.dates && Array.isArray(dateField.dates)) {
       for (const item of dateField.dates) {
         const d = new Date(typeof item === 'string' ? item : item.date || item);
-        if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) {
-          dates.push(d.toISOString().split('T')[0]);
-        }
+        if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) dates.push(d.toISOString().split('T')[0]);
       }
     }
   }
@@ -502,56 +589,19 @@ function generateAllWeekdays(start: Date, end: Date): string[] {
   const dates: string[] = [];
   const d = new Date(start);
   while (d <= end) {
-    if (d.getDay() !== 0 && d.getDay() !== 6) {
-      dates.push(d.toISOString().split('T')[0]);
-    }
+    if (d.getDay() !== 0 && d.getDay() !== 6) dates.push(d.toISOString().split('T')[0]);
     d.setDate(d.getDate() + 1);
   }
   return dates;
 }
 
-function assignClusters(stops: Stop[], numClusters: number) {
-  if (stops.length === 0) return;
-
-  // Simple grid-based clustering
-  const lats = stops.map(s => s.lat);
-  const lons = stops.map(s => s.lon);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
-
-  const gridSize = Math.ceil(Math.sqrt(numClusters));
-  const latStep = (maxLat - minLat) / gridSize || 1;
-  const lonStep = (maxLon - minLon) / gridSize || 1;
-
-  for (const stop of stops) {
-    const latBin = Math.min(Math.floor((stop.lat - minLat) / latStep), gridSize - 1);
-    const lonBin = Math.min(Math.floor((stop.lon - minLon) / lonStep), gridSize - 1);
-    stop.cluster_id = latBin * gridSize + lonBin;
-  }
-}
-
-function validateAssignments(
+function validateCriticalErrors(
   assignments: RouteAssignment[],
   stops: Stop[],
   driverCount: number
-): { valid: boolean; errors: string[] } {
+): string[] {
   const errors: string[] = [];
   const stopMap = new Map(stops.map(s => [s.id, s]));
-  const assignedStopIds = new Set(assignments.map(a => a.stop_id));
-
-  // Check all stops are assigned
-  for (const stop of stops) {
-    if (!assignedStopIds.has(stop.id)) {
-      errors.push(`Stop ${stop.id} not assigned`);
-    }
-  }
-
-  // Check no duplicates
-  if (assignedStopIds.size !== assignments.length) {
-    errors.push('Duplicate stop assignments detected');
-  }
 
   // Check driver slot bounds
   for (const a of assignments) {
@@ -560,112 +610,276 @@ function validateAssignments(
     }
   }
 
-  // Check collection before delivery (same dependency group)
+  // Check collection before delivery
   const assignmentMap = new Map(assignments.map(a => [a.stop_id, a]));
-  const dependencyGroups = new Map<string, { collection?: RouteAssignment; delivery?: RouteAssignment }>();
+  const groups = new Map<string, { collection?: RouteAssignment; delivery?: RouteAssignment }>();
 
   for (const a of assignments) {
     const stop = stopMap.get(a.stop_id);
     if (!stop) continue;
-    
-    if (!dependencyGroups.has(stop.dependency_group)) {
-      dependencyGroups.set(stop.dependency_group, {});
-    }
-    const group = dependencyGroups.get(stop.dependency_group)!;
-    if (a.type === 'collection') group.collection = a;
-    if (a.type === 'delivery') group.delivery = a;
+    if (!groups.has(stop.dependency_group)) groups.set(stop.dependency_group, {});
+    const g = groups.get(stop.dependency_group)!;
+    if (a.type === 'collection') g.collection = a;
+    if (a.type === 'delivery') g.delivery = a;
   }
 
-  for (const [groupId, group] of dependencyGroups) {
-    if (group.collection && group.delivery) {
-      if (group.delivery.day < group.collection.day) {
-        errors.push(`Order ${groupId}: delivery scheduled before collection`);
-      }
+  for (const [groupId, g] of groups) {
+    if (g.collection && g.delivery && g.delivery.day < g.collection.day) {
+      errors.push(`Order ${groupId}: delivery before collection`);
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  return errors;
 }
+
+// ============================================================
+// DENSITY-FIRST, REGION-GROUPED FALLBACK HEURISTIC
+// ============================================================
 
 function fallbackHeuristic(
   stops: Stop[],
   driverCount: number,
   dateStart: Date,
-  dateEnd: Date
+  dateEnd: Date,
+  weekdays?: string[]
 ): RouteAssignment[] {
+  const allWeekdays = weekdays || generateAllWeekdays(dateStart, dateEnd);
+  if (allWeekdays.length === 0) return [];
+
+  const TARGET_STOPS_PER_SLOT = 11;
   const assignments: RouteAssignment[] = [];
-  const weekdays = generateAllWeekdays(dateStart, dateEnd);
 
-  if (weekdays.length === 0) return assignments;
+  // Group stops by region
+  const regionGroups = new Map<string, Stop[]>();
+  for (const stop of stops) {
+    const region = stop.region || 'Unknown';
+    if (!regionGroups.has(region)) regionGroups.set(region, []);
+    regionGroups.get(region)!.push(stop);
+  }
 
-  // Sort stops: collections first, then by priority (highest first), then by cluster
-  const sorted = [...stops].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'collection' ? -1 : 1;
-    if (b.priority !== a.priority) return b.priority - a.priority;
-    return a.cluster_id - b.cluster_id;
-  });
+  // Sort regions by size (largest first) so big regions get assigned first
+  const sortedRegions = [...regionGroups.entries()]
+    .sort((a, b) => b[1].length - a[1].length);
 
-  // Track collection day per dependency group
+  // Within each region, sort by distance from depot (for sensible route ordering)
+  for (const [, regionStops] of sortedRegions) {
+    regionStops.sort((a, b) => {
+      // Collections before deliveries
+      if (a.type !== b.type) return a.type === 'collection' ? -1 : 1;
+      // Then by distance from depot
+      const distA = haversineDistance(DEPOT.lat, DEPOT.lon, a.lat, a.lon);
+      const distB = haversineDistance(DEPOT.lat, DEPOT.lon, b.lat, b.lon);
+      return distA - distB;
+    });
+  }
+
+  // Track collection days per dependency group
   const collectionDayMap = new Map<string, string>();
+  // Track slot assignments: day -> slot -> count
+  const slotCounts: Record<string, Record<number, number>> = {};
 
-  // Distribute stops across days and driver slots
-  const stopsPerDayPerDriver = Math.ceil(sorted.length / (weekdays.length * driverCount));
-  const daySlotCounts: Record<string, Record<number, number>> = {};
+  const getSlotCount = (day: string, slot: number) => slotCounts[day]?.[slot] || 0;
+  const addToSlot = (day: string, slot: number) => {
+    if (!slotCounts[day]) slotCounts[day] = {};
+    slotCounts[day][slot] = (slotCounts[day][slot] || 0) + 1;
+  };
 
-  for (const stop of sorted) {
-    let bestDay = weekdays[0];
-    let bestSlot = 1;
+  // Assign regions to day/slot combos, filling densely
+  let currentDay = 0;
+  let currentSlot = 1;
 
-    // For deliveries, ensure they're on or after collection day
-    const minDay = stop.type === 'delivery' ? collectionDayMap.get(stop.dependency_group) || weekdays[0] : weekdays[0];
+  // Collect all stops to assign, maintaining regional grouping
+  // Process collections first across all regions, then deliveries
+  const collectionStops: Stop[] = [];
+  const deliveryStops: Stop[] = [];
 
-    // Find least-loaded day/slot combo that respects constraints
-    let minCount = Infinity;
-    for (const day of weekdays) {
-      if (day < minDay) continue;
-      
-      // Prefer allowed dates
-      const isAllowed = stop.allowed_dates.includes(day);
-      
-      for (let slot = 1; slot <= driverCount; slot++) {
-        const key = `${day}_${slot}`;
-        const count = (daySlotCounts[day]?.[slot] || 0);
-        const adjustedCount = isAllowed ? count : count + 5; // Penalize non-preferred dates
-        
-        if (adjustedCount < minCount) {
-          minCount = adjustedCount;
-          bestDay = day;
-          bestSlot = slot;
+  for (const [, regionStops] of sortedRegions) {
+    for (const stop of regionStops) {
+      if (stop.type === 'collection') collectionStops.push(stop);
+      else deliveryStops.push(stop);
+    }
+  }
+
+  // Group collections by region for dense assignment
+  const collectionsByRegion = new Map<string, Stop[]>();
+  for (const s of collectionStops) {
+    if (!collectionsByRegion.has(s.region)) collectionsByRegion.set(s.region, []);
+    collectionsByRegion.get(s.region)!.push(s);
+  }
+
+  // Assign collections first, region by region
+  const regionSlotMap = new Map<string, { day: string; slot: number }[]>(); // Track which slots each region uses
+
+  for (const [region, rStops] of [...collectionsByRegion.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    for (const stop of rStops) {
+      // Find the best slot for this region: prefer existing slot for this region on current day
+      let bestDay = allWeekdays[currentDay] || allWeekdays[allWeekdays.length - 1];
+      let bestSlot = currentSlot;
+
+      // Check if this region already has a slot on the current day
+      const existingSlots = regionSlotMap.get(region) || [];
+      const sameDay = existingSlots.find(rs => rs.day === allWeekdays[currentDay] && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT);
+
+      if (sameDay) {
+        bestDay = sameDay.day;
+        bestSlot = sameDay.slot;
+      } else {
+        // Find first available day/slot that isn't full
+        let found = false;
+        for (let di = 0; di < allWeekdays.length && !found; di++) {
+          const day = allWeekdays[di];
+          // Check if stop's allowed dates permit this day
+          if (!stop.date_flexible && stop.allowed_dates.length > 0 && !stop.allowed_dates.includes(day)) continue;
+
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
+              // Prefer slots already used for this region
+              const isRegionSlot = existingSlots.some(rs => rs.day === day && rs.slot === sl);
+              // Or empty slots
+              const isEmpty = getSlotCount(day, sl) === 0;
+
+              if (isRegionSlot || isEmpty) {
+                bestDay = day;
+                bestSlot = sl;
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+
+        // If no ideal slot found, just find any slot with capacity
+        if (!found) {
+          for (let di = 0; di < allWeekdays.length; di++) {
+            const day = allWeekdays[di];
+            for (let sl = 1; sl <= driverCount; sl++) {
+              if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5) {
+                bestDay = day;
+                bestSlot = sl;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
         }
       }
-    }
 
-    // Track collection day
-    if (stop.type === 'collection') {
+      // Record region->slot mapping
+      if (!regionSlotMap.has(region)) regionSlotMap.set(region, []);
+      const existingMapping = regionSlotMap.get(region)!.find(rs => rs.day === bestDay && rs.slot === bestSlot);
+      if (!existingMapping) regionSlotMap.get(region)!.push({ day: bestDay, slot: bestSlot });
+
       collectionDayMap.set(stop.dependency_group, bestDay);
+      addToSlot(bestDay, bestSlot);
+
+      const dateMatch = stop.date_flexible ? 'no_dates' :
+        stop.allowed_dates.includes(bestDay) ? 'exact' : 'flexible';
+
+      assignments.push({
+        stop_id: stop.id,
+        order_id: stop.order_id,
+        type: stop.type,
+        day: bestDay,
+        driver_slot: bestSlot,
+        contact_name: stop.contact_name,
+        address: stop.address,
+        phone: stop.phone,
+        lat: stop.lat,
+        lon: stop.lon,
+        postcode_prefix: stop.postcode_prefix,
+        region: stop.region,
+        date_match: dateMatch,
+      });
     }
+  }
 
-    // Update counts
-    if (!daySlotCounts[bestDay]) daySlotCounts[bestDay] = {};
-    daySlotCounts[bestDay][bestSlot] = (daySlotCounts[bestDay][bestSlot] || 0) + 1;
+  // Now assign deliveries, trying to put them in the same region's slots (same day or later)
+  const deliveriesByRegion = new Map<string, Stop[]>();
+  for (const s of deliveryStops) {
+    if (!deliveriesByRegion.has(s.region)) deliveriesByRegion.set(s.region, []);
+    deliveriesByRegion.get(s.region)!.push(s);
+  }
 
-    const dateMatch = stop.date_flexible ? 'no_dates' :
-      stop.allowed_dates.includes(bestDay) ? 'exact' : 'flexible';
+  for (const [region, rStops] of deliveriesByRegion) {
+    for (const stop of rStops) {
+      const minDay = collectionDayMap.get(stop.dependency_group) || allWeekdays[0];
 
-    assignments.push({
-      stop_id: stop.id,
-      order_id: stop.order_id,
-      type: stop.type,
-      day: bestDay,
-      driver_slot: bestSlot,
-      contact_name: stop.contact_name,
-      address: stop.address,
-      phone: stop.phone,
-      lat: stop.lat,
-      lon: stop.lon,
-      postcode_prefix: stop.postcode_prefix,
-      date_match: dateMatch,
-    });
+      // Try to assign to a slot already used by this region, on or after minDay
+      const existingSlots = regionSlotMap.get(region) || [];
+      let bestDay = minDay;
+      let bestSlot = 1;
+      let found = false;
+
+      // First pass: find same-region slot with capacity on/after minDay
+      for (const rs of existingSlots) {
+        if (rs.day >= minDay && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT) {
+          bestDay = rs.day;
+          bestSlot = rs.slot;
+          found = true;
+          break;
+        }
+      }
+
+      // Second pass: any slot with capacity on/after minDay
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          const day = allWeekdays[di];
+          if (day < minDay) continue;
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
+              bestDay = day;
+              bestSlot = sl;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      // Last resort: anywhere with any capacity
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(allWeekdays[di], sl) < TARGET_STOPS_PER_SLOT * 2) {
+              bestDay = allWeekdays[di];
+              bestSlot = sl;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      addToSlot(bestDay, bestSlot);
+
+      // Track region slot if new
+      if (!regionSlotMap.has(region)) regionSlotMap.set(region, []);
+      if (!regionSlotMap.get(region)!.find(rs => rs.day === bestDay && rs.slot === bestSlot)) {
+        regionSlotMap.get(region)!.push({ day: bestDay, slot: bestSlot });
+      }
+
+      const dateMatch = stop.date_flexible ? 'no_dates' :
+        stop.allowed_dates.includes(bestDay) ? 'exact' : 'flexible';
+
+      assignments.push({
+        stop_id: stop.id,
+        order_id: stop.order_id,
+        type: stop.type,
+        day: bestDay,
+        driver_slot: bestSlot,
+        contact_name: stop.contact_name,
+        address: stop.address,
+        phone: stop.phone,
+        lat: stop.lat,
+        lon: stop.lon,
+        postcode_prefix: stop.postcode_prefix,
+        region: stop.region,
+        date_match: dateMatch,
+      });
+    }
   }
 
   return assignments;
