@@ -117,7 +117,8 @@ const AIRouting: React.FC = () => {
 
   const generatePlan = useCallback(async (drivers: number): Promise<PredictionResult | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke('predict-routes', {
+      const functionName = planningMode === 'v2' ? 'predict-routes-v2' : 'predict-routes';
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           driver_count: drivers,
           date_range_start: dateStart,
@@ -147,7 +148,7 @@ const AIRouting: React.FC = () => {
       }
       return null;
     }
-  }, [dateStart, dateEnd, includeNoDates]);
+  }, [dateStart, dateEnd, includeNoDates, planningMode]);
 
   const handleGeneratePlan = useCallback(async () => {
     setIsGenerating(true);
