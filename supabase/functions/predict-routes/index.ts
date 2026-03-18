@@ -269,6 +269,7 @@ serve(async (req) => {
           allowed_dates: s.allowed_dates.slice(0, 5),
           priority: s.priority,
           dependency_group: s.dependency_group,
+          location_group: s.location_group,
           postcode: s.postcode_prefix,
           lat: Math.round(s.lat * 1000) / 1000,
           lon: Math.round(s.lon * 1000) / 1000,
