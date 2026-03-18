@@ -62,3 +62,9 @@ verify_jwt = false
 
 [functions.get-shipday-carriers]
 verify_jwt = false
+
+[functions.build-postcode-patterns]
+verify_jwt = false
+
+[functions.predict-routes]
+verify_jwt = false

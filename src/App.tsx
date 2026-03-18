@@ -166,6 +166,11 @@ function App() {
                   <AnnouncementEmailsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/ai-routing" element={
+                <ProtectedRoute>
+                  <AIRouting />
+                </ProtectedRoute>
+              } />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />

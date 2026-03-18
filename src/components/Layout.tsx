@@ -438,12 +438,20 @@ const Layout: React.FC<LayoutProps> = ({
                     </>
                   )}
                   
-                  {isRoutePlanner && <DropdownMenuItem asChild>
+                  {isRoutePlanner && <>
+                    <DropdownMenuItem asChild>
                       <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>Job Scheduling</span>
                       </Link>
-                    </DropdownMenuItem>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/ai-routing" className="cursor-pointer flex w-full items-center">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        <span>AI Routing</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>}
                   
                   {isDriver && <DropdownMenuItem asChild>
                       <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
