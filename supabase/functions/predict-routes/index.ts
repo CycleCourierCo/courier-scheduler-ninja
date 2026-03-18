@@ -95,6 +95,7 @@ serve(async (req) => {
     const stops: Stop[] = [];
     const dateStart = new Date(date_range_start);
     const dateEnd = new Date(date_range_end);
+    let skippedCount = 0;
 
     for (const order of orders) {
       const sender = order.sender as any;
