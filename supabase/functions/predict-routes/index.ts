@@ -964,7 +964,7 @@ function fallbackHeuristic(
           if (rs.day >= minDay && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT) {
             bestDay = rs.day;
             bestSlot = rs.slot;
-            if (collectionAssignment && bestDay === collectionAssignment.day) {
+            if (collectionAssignment && bestDay === collectionAssignment.day && !crossRegionSplit) {
               bestSlot = collectionAssignment.slot;
             }
             found = true;
