@@ -191,6 +191,7 @@ serve(async (req) => {
       const isDelivered = order.order_delivered;
 
       if (!isCollected && !isDelivered) {
+        const senderName = (sender?.name || 'Unknown').trim().toLowerCase();
         stops.push({
           id: `${order.id}_collection`,
           order_id: order.id,
@@ -206,10 +207,12 @@ serve(async (req) => {
           priority,
           dependency_group: order.id,
           date_flexible: collectionFlexible,
+          location_group: `${senderName}__${senderPostcode}`,
         });
       }
 
       if (!isDelivered) {
+        const receiverName = (receiver?.name || 'Unknown').trim().toLowerCase();
         stops.push({
           id: `${order.id}_delivery`,
           order_id: order.id,
@@ -225,6 +228,7 @@ serve(async (req) => {
           priority,
           dependency_group: order.id,
           date_flexible: deliveryFlexible,
+          location_group: `${receiverName}__${receiverPostcode}`,
         });
       }
     }
