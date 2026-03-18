@@ -978,8 +978,8 @@ function fallbackHeuristic(
         for (let di = 0; di < allWeekdays.length; di++) {
           const day = allWeekdays[di];
           if (day < minDay) continue;
-          // If this is the same day as collection, must use collection's slot
-          if (collectionAssignment && day === collectionAssignment.day) {
+          // If this is the same day as collection AND regions are compatible, must use collection's slot
+          if (collectionAssignment && day === collectionAssignment.day && !crossRegionSplit) {
             if (getSlotCount(day, collectionAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
               bestDay = day;
               bestSlot = collectionAssignment.slot;

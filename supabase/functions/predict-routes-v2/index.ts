@@ -814,7 +814,39 @@ function archetypeAwareFallback(
         const coll = collectionMap.get(stop.dependency_group);
         if (coll) {
           if (assignDay < coll.day) assignDay = coll.day;
-          if (assignDay === coll.day) assignSlot = coll.slot;
+          
+          // CROSS-REGION FIX: If delivery region is incompatible with collection region,
+          // force delivery to a different day
+          const collStop = stops.find(s => s.id === `${stop.dependency_group}_collection`);
+          const collRegion = collStop?.region;
+          if (collRegion && !canShareSlot(collRegion, stop.region) && assignDay === coll.day) {
+            const collDayIndex = weekdays.indexOf(coll.day);
+            if (collDayIndex >= 0 && collDayIndex + 1 < weekdays.length) {
+              assignDay = weekdays[collDayIndex + 1];
+              console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${stop.region}, bumped to ${assignDay}`);
+            }
+            // Find a compatible slot for the delivery on the new day
+            let slotFound = false;
+            for (let sl = 1; sl <= driverCount; sl++) {
+              const regs = getRegs(assignDay, sl);
+              if (getCount(assignDay, sl) < TARGET && canAddToSlotRegions(stop.region, regs)) {
+                assignSlot = sl;
+                slotFound = true;
+                break;
+              }
+            }
+            if (!slotFound) {
+              // Use any empty slot
+              for (let sl = 1; sl <= driverCount; sl++) {
+                if (getCount(assignDay, sl) === 0) {
+                  assignSlot = sl;
+                  break;
+                }
+              }
+            }
+          } else if (assignDay === coll.day) {
+            assignSlot = coll.slot;
+          }
         }
       }
 
