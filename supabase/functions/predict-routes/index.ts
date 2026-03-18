@@ -922,18 +922,19 @@ function fallbackHeuristic(
       let bestSlot = 1;
       let found = false;
 
-      // Priority 0: If collection is on same day, MUST use same slot
+      // Priority 0: If collection is on same day, MUST use same slot; also check location_group
       if (collectionAssignment) {
-        // Check if location_group has an assignment on/after minDay
         const locAssignment = locationGroupMap.get(stop.location_group);
         if (locAssignment && locAssignment.day >= minDay && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
-          bestDay = locAssignment.day;
-          bestSlot = locAssignment.slot;
-          // If this puts delivery on same day as collection, must use collection's slot
-          if (bestDay === collectionAssignment.day) {
-            bestSlot = collectionAssignment.slot;
+          const slotRegs = getSlotRegions(locAssignment.day, locAssignment.slot);
+          if (canAddToSlotRegions(region, slotRegs)) {
+            bestDay = locAssignment.day;
+            bestSlot = locAssignment.slot;
+            if (bestDay === collectionAssignment.day) {
+              bestSlot = collectionAssignment.slot;
+            }
+            found = true;
           }
-          found = true;
         }
       }
 
@@ -943,7 +944,6 @@ function fallbackHeuristic(
           if (rs.day >= minDay && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT) {
             bestDay = rs.day;
             bestSlot = rs.slot;
-            // Enforce same-day same-slot constraint
             if (collectionAssignment && bestDay === collectionAssignment.day) {
               bestSlot = collectionAssignment.slot;
             }
@@ -953,7 +953,7 @@ function fallbackHeuristic(
         }
       }
 
-      // Priority 2: Any slot with capacity on/after minDay
+      // Priority 2: Any region-compatible slot with capacity on/after minDay
       if (!found) {
         for (let di = 0; di < allWeekdays.length; di++) {
           const day = allWeekdays[di];
@@ -966,10 +966,11 @@ function fallbackHeuristic(
               found = true;
               break;
             }
-            continue; // Skip this day if collection slot is full
+            continue;
           }
           for (let sl = 1; sl <= driverCount; sl++) {
-            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
+            const slotRegs = getSlotRegions(day, sl);
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT && canAddToSlotRegions(region, slotRegs)) {
               bestDay = day;
               bestSlot = sl;
               found = true;
@@ -980,11 +981,12 @@ function fallbackHeuristic(
         }
       }
 
-      // Last resort: anywhere with any capacity
+      // Last resort: any compatible slot with any capacity
       if (!found) {
         for (let di = 0; di < allWeekdays.length; di++) {
           for (let sl = 1; sl <= driverCount; sl++) {
-            if (getSlotCount(allWeekdays[di], sl) < TARGET_STOPS_PER_SLOT * 2) {
+            const slotRegs = getSlotRegions(allWeekdays[di], sl);
+            if (getSlotCount(allWeekdays[di], sl) < TARGET_STOPS_PER_SLOT * 2 && canAddToSlotRegions(region, slotRegs)) {
               bestDay = allWeekdays[di];
               bestSlot = sl;
               found = true;
@@ -995,7 +997,22 @@ function fallbackHeuristic(
         }
       }
 
-      addToSlot(bestDay, bestSlot);
+      // Absolute last resort: empty slot
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(allWeekdays[di], sl) === 0) {
+              bestDay = allWeekdays[di];
+              bestSlot = sl;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      addToSlot(bestDay, bestSlot, region);
 
       // Track region slot and location group
       if (!regionSlotMap.has(region)) regionSlotMap.set(region, []);
