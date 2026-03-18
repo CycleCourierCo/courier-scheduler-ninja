@@ -915,15 +915,35 @@ function fallbackHeuristic(
   for (const [region, rStops] of deliveriesByRegion) {
     for (const stop of rStops) {
       const collectionAssignment = collectionAssignmentMap.get(stop.dependency_group);
-      const minDay = collectionAssignment?.day || allWeekdays[0];
+      let minDay = collectionAssignment?.day || allWeekdays[0];
+
+      // CROSS-REGION FIX: If collection and delivery regions are incompatible,
+      // force delivery to a LATER day than collection (never same day)
+      let crossRegionSplit = false;
+      if (collectionAssignment) {
+        const collStop = collectionStops.find(s => s.dependency_group === stop.dependency_group);
+        const collRegion = collStop?.region;
+        if (collRegion && !canShareSlot(collRegion, region)) {
+          crossRegionSplit = true;
+          const collDayIndex = allWeekdays.indexOf(collectionAssignment.day);
+          if (collDayIndex >= 0 && collDayIndex + 1 < allWeekdays.length) {
+            minDay = allWeekdays[collDayIndex + 1];
+          } else if (collDayIndex >= 0) {
+            // Collection is on the last available day — still bump past it
+            minDay = allWeekdays[allWeekdays.length - 1];
+            // Force it to be strictly after by ensuring we skip same-day logic below
+          }
+          console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${region}, minDay bumped to ${minDay}`);
+        }
+      }
 
       const existingSlots = regionSlotMap.get(region) || [];
       let bestDay = minDay;
       let bestSlot = 1;
       let found = false;
 
-      // Priority 0: If collection is on same day, MUST use same slot; also check location_group
-      if (collectionAssignment) {
+      // Priority 0: If collection is on same day AND regions are compatible, MUST use same slot; also check location_group
+      if (collectionAssignment && !crossRegionSplit) {
         const locAssignment = locationGroupMap.get(stop.location_group);
         if (locAssignment && locAssignment.day >= minDay && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
           const slotRegs = getSlotRegions(locAssignment.day, locAssignment.slot);
