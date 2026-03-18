@@ -172,6 +172,104 @@ export type Database = {
         }
         Relationships: []
       }
+      historical_route_stops: {
+        Row: {
+          created_at: string
+          historical_route_id: string
+          id: string
+          lat: number | null
+          lon: number | null
+          order_id: string
+          postcode_prefix: string | null
+          region: string | null
+          sequence_order: number | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          historical_route_id: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id: string
+          postcode_prefix?: string | null
+          region?: string | null
+          sequence_order?: number | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          historical_route_id?: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id?: string
+          postcode_prefix?: string | null
+          region?: string | null
+          sequence_order?: number | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_route_stops_historical_route_id_fkey"
+            columns: ["historical_route_id"]
+            isOneToOne: false
+            referencedRelation: "historical_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historical_routes: {
+        Row: {
+          centroid_lat: number | null
+          centroid_lon: number | null
+          corridor_bearing: number | null
+          created_at: string
+          driver_name: string
+          id: string
+          postcode_prefixes: string[] | null
+          regions: string[]
+          route_date: string
+          route_type: string
+          spread_km: number | null
+          stop_count: number
+          stops: Json
+          total_distance_km: number | null
+        }
+        Insert: {
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          driver_name: string
+          id?: string
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          route_date: string
+          route_type?: string
+          spread_km?: number | null
+          stop_count?: number
+          stops?: Json
+          total_distance_km?: number | null
+        }
+        Update: {
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          driver_name?: string
+          id?: string
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          route_date?: string
+          route_type?: string
+          spread_km?: number | null
+          stop_count?: number
+          stops?: Json
+          total_distance_km?: number | null
+        }
+        Relationships: []
+      }
       holidays: {
         Row: {
           created_at: string
@@ -826,6 +924,90 @@ export type Database = {
           token_type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      route_archetype_members: {
+        Row: {
+          archetype_id: string
+          created_at: string
+          historical_route_id: string
+          id: string
+          similarity_score: number | null
+        }
+        Insert: {
+          archetype_id: string
+          created_at?: string
+          historical_route_id: string
+          id?: string
+          similarity_score?: number | null
+        }
+        Update: {
+          archetype_id?: string
+          created_at?: string
+          historical_route_id?: string
+          id?: string
+          similarity_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_archetype_members_archetype_id_fkey"
+            columns: ["archetype_id"]
+            isOneToOne: false
+            referencedRelation: "route_archetypes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_archetype_members_historical_route_id_fkey"
+            columns: ["historical_route_id"]
+            isOneToOne: false
+            referencedRelation: "historical_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      route_archetypes: {
+        Row: {
+          avg_spread_km: number | null
+          avg_stop_count: number | null
+          centroid_lat: number | null
+          centroid_lon: number | null
+          corridor_bearing: number | null
+          created_at: string
+          id: string
+          label: string
+          member_count: number
+          postcode_prefixes: string[] | null
+          regions: string[]
+          updated_at: string
+        }
+        Insert: {
+          avg_spread_km?: number | null
+          avg_stop_count?: number | null
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          id?: string
+          label: string
+          member_count?: number
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          updated_at?: string
+        }
+        Update: {
+          avg_spread_km?: number | null
+          avg_stop_count?: number | null
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          id?: string
+          label?: string
+          member_count?: number
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          updated_at?: string
         }
         Relationships: []
       }
