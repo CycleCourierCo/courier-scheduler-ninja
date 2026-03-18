@@ -451,7 +451,8 @@ function extractPostcodePrefix(postcode: string | null | undefined): string | nu
 
 function formatAddress(contact: any): string {
   if (!contact) return '';
-  const parts = [contact.street, contact.city, contact.postcode || contact.postal_code].filter(Boolean);
+  const addr = contact.address || contact;
+  const parts = [addr.street, addr.city, addr.zipCode || addr.postal_code || addr.postcode].filter(Boolean);
   return parts.join(', ');
 }
 
