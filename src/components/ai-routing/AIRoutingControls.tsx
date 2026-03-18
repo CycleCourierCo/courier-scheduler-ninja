@@ -4,16 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface AIRoutingControlsProps {
   dateStart: string;
   dateEnd: string;
   driverCount: number;
   includeNoDates: boolean;
+  planningMode: 'v1' | 'v2';
   onDateStartChange: (val: string) => void;
   onDateEndChange: (val: string) => void;
   onDriverCountChange: (val: number) => void;
   onIncludeNoDatesChange: (val: boolean) => void;
+  onPlanningModeChange: (val: 'v1' | 'v2') => void;
   onRefreshPatterns: () => void;
   onGeneratePlan: () => void;
   onCompare: (driverCount: number) => void;
