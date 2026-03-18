@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.predict-routes]
 verify_jwt = false
+
+[functions.build-historical-routes]
+verify_jwt = false
+
+[functions.build-route-archetypes]
+verify_jwt = false
