@@ -176,8 +176,10 @@ const AIRouting: React.FC = () => {
         lon: s.lon,
       }));
 
-      const optimized = await optimizeMultiDriverRoute(jobs, new Date(day), 1);
-      const optimizedJobs = optimized.get(0) || [];
+      const result = await optimizeMultiDriverRoute(jobs, new Date(day), 1);
+      const routeData = result.get(0);
+      const optimizedJobs = routeData?.jobs || [];
+      const distanceMiles = routeData?.distanceMiles || 0;
 
       if (optimizedJobs.length > 0) {
         const updatedPrediction = { ...prediction };
@@ -202,6 +204,7 @@ const AIRouting: React.FC = () => {
           },
         };
         setPrediction(updatedPrediction);
+        setRouteMileage(prev => new Map(prev).set(key, distanceMiles));
         toast.success(`Route optimized for Driver Slot ${driverSlot}`);
       }
     } catch (error) {
