@@ -46,11 +46,39 @@ for (const p of ['CF', 'SA', 'LD', 'SY', 'NP', 'LL', 'HR', 'ST']) REGION_MAP[p] 
 // Nottingham / East Midlands corridor
 for (const p of ['NG', 'LE', 'LN']) REGION_MAP[p] = 'East Midlands';
 
+// ============================================================
+// ALLOWED REGION COMBINATIONS (strict allowlist)
+// ============================================================
+
+const ALLOWED_COMBOS: Record<string, string[]> = {
+  'North West': ['North East'],
+  'North East': ['North West'],
+  'London': ['East', 'South East', 'South West Coastal'],
+  'East': ['London'],
+  'South East': ['London'],
+  'South West Coastal': ['London'],
+  'South West Deep': [],  // NEVER combine with anything
+  'Wales': ['West Midlands'],
+  'West Midlands': ['Wales', 'East Midlands'],
+  'East Midlands': ['West Midlands'],
+  'Unknown': [],
+};
+
+function canShareSlot(regionA: string, regionB: string): boolean {
+  if (regionA === regionB) return true;
+  return ALLOWED_COMBOS[regionA]?.includes(regionB) ?? false;
+}
+
+function canAddToSlotRegions(newRegion: string, existingRegions: Set<string>): boolean {
+  for (const existing of existingRegions) {
+    if (!canShareSlot(newRegion, existing)) return false;
+  }
+  return true;
+}
+
 function getRegion(postcodePrefix: string): string {
   if (!postcodePrefix || postcodePrefix === 'UNKNOWN') return 'Unknown';
-  // Try full prefix first (e.g. "SE"), then first letter only (e.g. "S" for "S1")
   const upper = postcodePrefix.toUpperCase();
-  // Extract letters-only prefix for matching
   const lettersOnly = upper.replace(/[0-9].*/g, '');
   return REGION_MAP[lettersOnly] || REGION_MAP[upper] || 'Unknown';
 }
