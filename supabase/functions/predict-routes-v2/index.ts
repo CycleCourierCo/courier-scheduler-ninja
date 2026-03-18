@@ -332,7 +332,7 @@ RULES:
 3. ALLOWED region combinations for same slot: North West+North East, London+East, London+South East, London+South West Coastal, Wales+West Midlands, West Midlands+East Midlands. ALL other combos are FORBIDDEN.
 4. South West Deep MUST have its own dedicated slot.
 5. Fill Day 1 slots before using Day 2. Minimise total days.
-6. Collection stops must be on same day or before their paired delivery (same order). Same-day collection+delivery MUST share a driver_slot.
+6. Collection stops must be on same day or before their paired delivery (same order). Same-day collection+delivery MUST share a driver_slot. HOWEVER, if the collection region and delivery region are INCOMPATIBLE (cannot share a slot per the allowed combinations above), they MUST be on DIFFERENT days — never the same day.
 7. driver_slot values: 1 to ${driver_count}.
 8. Groups with low composite scores (<0.3) can be marked as unassigned if they don't fit well.`;
 
