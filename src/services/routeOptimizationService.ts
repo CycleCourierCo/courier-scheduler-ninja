@@ -24,7 +24,7 @@ export const optimizeMultiDriverRoute = async (
   startDate: Date,
   numberOfDrivers: number,
   startTime: string = "09:00"
-): Promise<Map<number, OptimizedJob[]>> => {
+): Promise<Map<number, { jobs: OptimizedJob[], distanceMiles: number }>> => {
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
   
   if (!apiKey) {
