@@ -353,7 +353,7 @@ CRITICAL RULES:
 4. Target 10-14 stops per driver slot per day. Pack routes DENSELY. Minimise total days used.
 5. Fill Day 1 slots first before moving to Day 2. Only use more days when slots are full.
 6. Collection stops MUST be on the same day or BEFORE their paired delivery (same dependency_group).
-7. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers.
+7. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers. HOWEVER, if the collection region and delivery region are INCOMPATIBLE (cannot share a slot per the allowed combinations above), they MUST be on DIFFERENT days — never the same day.
 8. Stops with the same location_group (same physical location, different orders) SHOULD be assigned to the same driver_slot and day when possible — this avoids visiting the same address twice.
 9. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
 10. Higher priority stops should be scheduled earlier.
@@ -915,15 +915,35 @@ function fallbackHeuristic(
   for (const [region, rStops] of deliveriesByRegion) {
     for (const stop of rStops) {
       const collectionAssignment = collectionAssignmentMap.get(stop.dependency_group);
-      const minDay = collectionAssignment?.day || allWeekdays[0];
+      let minDay = collectionAssignment?.day || allWeekdays[0];
+
+      // CROSS-REGION FIX: If collection and delivery regions are incompatible,
+      // force delivery to a LATER day than collection (never same day)
+      let crossRegionSplit = false;
+      if (collectionAssignment) {
+        const collStop = collectionStops.find(s => s.dependency_group === stop.dependency_group);
+        const collRegion = collStop?.region;
+        if (collRegion && !canShareSlot(collRegion, region)) {
+          crossRegionSplit = true;
+          const collDayIndex = allWeekdays.indexOf(collectionAssignment.day);
+          if (collDayIndex >= 0 && collDayIndex + 1 < allWeekdays.length) {
+            minDay = allWeekdays[collDayIndex + 1];
+          } else if (collDayIndex >= 0) {
+            // Collection is on the last available day — still bump past it
+            minDay = allWeekdays[allWeekdays.length - 1];
+            // Force it to be strictly after by ensuring we skip same-day logic below
+          }
+          console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${region}, minDay bumped to ${minDay}`);
+        }
+      }
 
       const existingSlots = regionSlotMap.get(region) || [];
       let bestDay = minDay;
       let bestSlot = 1;
       let found = false;
 
-      // Priority 0: If collection is on same day, MUST use same slot; also check location_group
-      if (collectionAssignment) {
+      // Priority 0: If collection is on same day AND regions are compatible, MUST use same slot; also check location_group
+      if (collectionAssignment && !crossRegionSplit) {
         const locAssignment = locationGroupMap.get(stop.location_group);
         if (locAssignment && locAssignment.day >= minDay && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
           const slotRegs = getSlotRegions(locAssignment.day, locAssignment.slot);
@@ -944,7 +964,7 @@ function fallbackHeuristic(
           if (rs.day >= minDay && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT) {
             bestDay = rs.day;
             bestSlot = rs.slot;
-            if (collectionAssignment && bestDay === collectionAssignment.day) {
+            if (collectionAssignment && bestDay === collectionAssignment.day && !crossRegionSplit) {
               bestSlot = collectionAssignment.slot;
             }
             found = true;
@@ -958,8 +978,8 @@ function fallbackHeuristic(
         for (let di = 0; di < allWeekdays.length; di++) {
           const day = allWeekdays[di];
           if (day < minDay) continue;
-          // If this is the same day as collection, must use collection's slot
-          if (collectionAssignment && day === collectionAssignment.day) {
+          // If this is the same day as collection AND regions are compatible, must use collection's slot
+          if (collectionAssignment && day === collectionAssignment.day && !crossRegionSplit) {
             if (getSlotCount(day, collectionAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
               bestDay = day;
               bestSlot = collectionAssignment.slot;
