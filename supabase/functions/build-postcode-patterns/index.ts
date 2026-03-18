@@ -113,6 +113,8 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Postcode extraction: ${postcodeMap.size} unique prefixes found from ${allOrders.length} orders`);
+
     // Compute stats and upsert
     const patterns: any[] = [];
     for (const [prefix, data] of postcodeMap) {

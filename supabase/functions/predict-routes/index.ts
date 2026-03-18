@@ -169,6 +169,8 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Stop expansion: ${stops.length} stops created, ${skippedCount} orders skipped (missing coordinates)`);
+
     if (stops.length === 0) {
       return new Response(
         JSON.stringify({ error: 'No valid stops with geocoded addresses found' }),
