@@ -1,21 +1,15 @@
 
 
-## Show Total Mileage Per Driver Slot
-
-The `PredictedRouteCard` already has an `estimatedMiles` prop and renders it — it's just never passed data. The fix is to extract distance from the Geoapify response and thread it through.
+## Plan: Add Loader Profile Selector + Send Individual Driver Lists to Loader
 
 ### Changes
 
-**1. `src/services/routeOptimizationService.ts`**
-- Change `optimizeMultiDriverRoute` return type from `Map<number, OptimizedJob[]>` to `Map<number, { jobs: OptimizedJob[], distanceMiles: number }>`
-- Extract `route.properties.distance` (meters) from each Geoapify feature, convert to miles (`/ 1609.34`), and include in the return value
-- Same change for `optimizeRouteWithGeoapify` (single driver) — return `{ jobs: OptimizedJob[], distanceMiles: number }`
+**1. Frontend: `src/pages/LoadingUnloadingPage.tsx`**
 
-**2. `src/pages/AIRouting.tsx`**
-- In `handleOptimizeRoute`, destructure the new return shape `{ jobs, distanceMiles }`
-- Store mileage per route key in a new state: `routeMileage: Map<string, number>`
-- Pass `estimatedMiles={routeMileage.get(key)}` to each `PredictedRouteCard`
-- In `DayOverview`, sum mileage for all optimized routes on that day
+- Fetch loader profiles (`role = 'loader'`) alongside driver profiles (add new state `loaderProfiles` and `loaderProfileSelection`)
+- Replace the manual loader phone/email inputs (lines 1432-1454) with a **Select dropdown** filtered to loader profiles, same pattern as the driver selector. When a loader profile is selected, auto-populate `loaderPhoneNumber` and `loaderEmail` from that profile. Keep the manual input fields below for override.
 
-**3. No changes needed to `PredictedRouteCard.tsx`** — it already renders `estimatedMiles` when provided.
+**2. Edge Function: `supabase/functions/send-loading-list-whatsapp/index.ts`**
+
+- After sending the management overview to the loader (lines 682-714), also send each individual driver's loading list to the loader (WhatsApp + email), **excluding** the "Unassigned Driver". This reuses the same loop that sends to individual drivers (lines 720-765) — simply add a send to the loader phone/email for each driver message within that loop.
 

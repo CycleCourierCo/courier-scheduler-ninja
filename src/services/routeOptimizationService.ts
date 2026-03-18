@@ -24,7 +24,7 @@ export const optimizeMultiDriverRoute = async (
   startDate: Date,
   numberOfDrivers: number,
   startTime: string = "09:00"
-): Promise<Map<number, OptimizedJob[]>> => {
+): Promise<Map<number, { jobs: OptimizedJob[], distanceMiles: number }>> => {
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
   
   if (!apiKey) {
@@ -137,10 +137,12 @@ export const optimizeMultiDriverRoute = async (
   console.log('Multi-driver route optimization response:', data);
 
   // Parse results and group by driver
-  const driverRoutes = new Map<number, OptimizedJob[]>();
+  const driverRoutes = new Map<number, { jobs: OptimizedJob[], distanceMiles: number }>();
 
   data.features.forEach((route: any, routeIndex: number) => {
     const steps = route.properties.steps;
+    const distanceMeters = route.properties.distance || 0;
+    const distanceMiles = distanceMeters / 1609.34;
     const optimizedJobs: OptimizedJob[] = [];
     let sequenceCounter = 1;
 
@@ -177,7 +179,7 @@ export const optimizeMultiDriverRoute = async (
       }
     });
 
-    driverRoutes.set(routeIndex, optimizedJobs);
+    driverRoutes.set(routeIndex, { jobs: optimizedJobs, distanceMiles });
   });
 
   return driverRoutes;
@@ -188,7 +190,7 @@ export const optimizeRouteWithGeoapify = async (
   jobs: Job[],
   startDate: Date,
   startTime: string = "09:00"
-): Promise<OptimizedJob[]> => {
+): Promise<{ jobs: OptimizedJob[], distanceMiles: number }> => {
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
   
   if (!apiKey) {
@@ -300,6 +302,8 @@ export const optimizeRouteWithGeoapify = async (
   const optimizedJobs: OptimizedJob[] = [];
   const route = data.features[0];
   const steps = route.properties.steps;
+  const distanceMeters = route.properties.distance || 0;
+  const distanceMiles = distanceMeters / 1609.34;
 
   let sequenceCounter = 1; // Start from 1
 
@@ -336,5 +340,5 @@ export const optimizeRouteWithGeoapify = async (
     }
   });
 
-  return optimizedJobs;
+  return { jobs: optimizedJobs, distanceMiles };
 };

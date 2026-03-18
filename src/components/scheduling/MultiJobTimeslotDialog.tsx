@@ -164,16 +164,16 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
         "09:00"
       );
 
-      setOptimizedJobs(optimized);
+      setOptimizedJobs(optimized.jobs);
       
       // Auto-populate times from optimized route
       const newJobTimes: Record<string, string> = {};
-      optimized.forEach(job => {
+      optimized.jobs.forEach(job => {
         newJobTimes[job.orderId] = job.estimatedArrivalTime;
       });
       setJobTimes(newJobTimes);
 
-      toast.success(`Route optimized! ${optimized.length} stops in optimal sequence`);
+      toast.success(`Route optimized! ${optimized.jobs.length} stops in optimal sequence`);
     } catch (error: any) {
       console.error('Route optimization error:', error);
       toast.error(`Failed to optimize route: ${error.message}`);

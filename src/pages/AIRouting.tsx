@@ -76,6 +76,7 @@ const AIRouting: React.FC = () => {
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [comparisons, setComparisons] = useState<Map<number, PredictionResult>>(new Map());
   const [optimizingRoutes, setOptimizingRoutes] = useState<Set<string>>(new Set());
+  const [routeMileage, setRouteMileage] = useState<Map<string, number>>(new Map());
   const [selectedDay, setSelectedDay] = useState<string>('');
 
   const handleRefreshPatterns = useCallback(async () => {
@@ -175,8 +176,10 @@ const AIRouting: React.FC = () => {
         lon: s.lon,
       }));
 
-      const optimized = await optimizeMultiDriverRoute(jobs, new Date(day), 1);
-      const optimizedJobs = optimized.get(0) || [];
+      const result = await optimizeMultiDriverRoute(jobs, new Date(day), 1);
+      const routeData = result.get(0);
+      const optimizedJobs = routeData?.jobs || [];
+      const distanceMiles = routeData?.distanceMiles || 0;
 
       if (optimizedJobs.length > 0) {
         const updatedPrediction = { ...prediction };
@@ -201,6 +204,7 @@ const AIRouting: React.FC = () => {
           },
         };
         setPrediction(updatedPrediction);
+        setRouteMileage(prev => new Map(prev).set(key, distanceMiles));
         toast.success(`Route optimized for Driver Slot ${driverSlot}`);
       }
     } catch (error) {
@@ -349,6 +353,7 @@ const AIRouting: React.FC = () => {
                     day={day}
                     totalStops={totalStops}
                     routeCount={slots.length}
+                    estimatedMiles={slots.reduce((sum, s) => sum + (routeMileage.get(`${day}_${s}`) || 0), 0) || undefined}
                     onOptimizeAll={() => handleOptimizeAll(day)}
                     isOptimizing={slots.some(s => optimizingRoutes.has(`${day}_${s}`))}
                   />
@@ -363,6 +368,7 @@ const AIRouting: React.FC = () => {
                           driverSlot={parseInt(slot)}
                           day={day}
                           stops={stops}
+                          estimatedMiles={routeMileage.get(key)}
                           isOptimized={stops.some(s => s.sequenceOrder !== undefined)}
                           onOptimize={() => handleOptimizeRoute(day, parseInt(slot))}
                           isOptimizing={optimizingRoutes.has(key)}
