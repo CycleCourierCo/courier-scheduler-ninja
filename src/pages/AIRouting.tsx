@@ -353,6 +353,7 @@ const AIRouting: React.FC = () => {
                     day={day}
                     totalStops={totalStops}
                     routeCount={slots.length}
+                    estimatedMiles={slots.reduce((sum, s) => sum + (routeMileage.get(`${day}_${s}`) || 0), 0) || undefined}
                     onOptimizeAll={() => handleOptimizeAll(day)}
                     isOptimizing={slots.some(s => optimizingRoutes.has(`${day}_${s}`))}
                   />
