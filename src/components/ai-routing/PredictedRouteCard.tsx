@@ -41,6 +41,9 @@ const PredictedRouteCard: React.FC<PredictedRouteCardProps> = ({
   isOptimized,
   onOptimize,
   isOptimizing,
+  archetypeLabel,
+  similarityScore,
+  compactnessScore,
 }) => {
   const navigate = useNavigate();
 

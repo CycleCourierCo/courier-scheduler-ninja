@@ -381,10 +381,15 @@ const AIRouting: React.FC = () => {
                     isOptimizing={slots.some(s => optimizingRoutes.has(`${day}_${s}`))}
                   />
 
+                  {unassignedStops.length > 0 && planningMode === 'v2' && (
+                    <UnassignedStopsPanel stops={unassignedStops} />
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {slots.map(slot => {
                       const stops = dayRoutes[slot] as RouteStop[];
                       const key = `${day}_${slot}`;
+                      const firstStop = stops[0];
                       return (
                         <PredictedRouteCard
                           key={key}
@@ -395,6 +400,9 @@ const AIRouting: React.FC = () => {
                           isOptimized={stops.some(s => s.sequenceOrder !== undefined)}
                           onOptimize={() => handleOptimizeRoute(day, parseInt(slot))}
                           isOptimizing={optimizingRoutes.has(key)}
+                          archetypeLabel={firstStop?.archetype_label}
+                          similarityScore={firstStop?.similarity_score}
+                          compactnessScore={firstStop?.compactness_score}
                         />
                       );
                     })}
