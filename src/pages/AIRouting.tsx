@@ -368,6 +368,7 @@ const AIRouting: React.FC = () => {
                           driverSlot={parseInt(slot)}
                           day={day}
                           stops={stops}
+                          estimatedMiles={routeMileage.get(key)}
                           isOptimized={stops.some(s => s.sequenceOrder !== undefined)}
                           onOptimize={() => handleOptimizeRoute(day, parseInt(slot))}
                           isOptimizing={optimizingRoutes.has(key)}
