@@ -197,10 +197,16 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                         </>
                       )}
-                      {isRoutePlanner && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isRoutePlanner && <>
+                        <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
-                        </Link>}
+                        </Link>
+                        <Link to="/ai-routing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          AI Routing
+                        </Link>
+                      </>}
                       {isSales && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
