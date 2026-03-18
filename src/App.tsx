@@ -39,6 +39,7 @@ import HolidaysPage from "./pages/HolidaysPage";
 import PricingPage from "./pages/PricingPage";
 import NoticeBarManagement from "./pages/NoticeBarManagement";
 import AnnouncementEmailsPage from "./pages/AnnouncementEmailsPage";
+import AIRouting from "./pages/AIRouting";
 
 const queryClient = new QueryClient();
 
