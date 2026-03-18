@@ -4,16 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface AIRoutingControlsProps {
   dateStart: string;
   dateEnd: string;
   driverCount: number;
   includeNoDates: boolean;
+  planningMode: 'v1' | 'v2';
   onDateStartChange: (val: string) => void;
   onDateEndChange: (val: string) => void;
   onDriverCountChange: (val: number) => void;
   onIncludeNoDatesChange: (val: boolean) => void;
+  onPlanningModeChange: (val: 'v1' | 'v2') => void;
   onRefreshPatterns: () => void;
   onGeneratePlan: () => void;
   onCompare: (driverCount: number) => void;
@@ -27,10 +30,12 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
   dateEnd,
   driverCount,
   includeNoDates,
+  planningMode,
   onDateStartChange,
   onDateEndChange,
   onDriverCountChange,
   onIncludeNoDatesChange,
+  onPlanningModeChange,
   onRefreshPatterns,
   onGeneratePlan,
   onCompare,
@@ -82,6 +87,18 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
           <Label htmlFor="include-no-dates" className="text-xs cursor-pointer">
             Include jobs without dates
           </Label>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Planning Mode</Label>
+          <ToggleGroup
+            type="single"
+            value={planningMode}
+            onValueChange={(val) => { if (val) onPlanningModeChange(val as 'v1' | 'v2'); }}
+            className="border border-border rounded-md"
+          >
+            <ToggleGroupItem value="v1" className="text-xs px-3 py-1">v1</ToggleGroupItem>
+            <ToggleGroupItem value="v2" className="text-xs px-3 py-1">v2 Archetype</ToggleGroupItem>
+          </ToggleGroup>
         </div>
       </div>
 
