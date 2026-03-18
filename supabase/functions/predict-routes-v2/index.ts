@@ -935,6 +935,82 @@ function archetypeAwareFallback(
   return { assigned, unassigned };
 }
 
+// Helper: assign a delivery stop with cross-region split logic
+function assignDeliveryStop(
+  stop: Stop,
+  coll: { day: string; slot: number },
+  preferredDay: string,
+  preferredSlot: number,
+  weekdays: string[],
+  driverCount: number,
+  allStops: Stop[],
+  getCount: (day: string, slot: number) => number,
+  getRegs: (day: string, slot: number) => Set<string>,
+  addCount: (day: string, slot: number, region: string) => void,
+  assigned: RouteAssignment[],
+  unassigned: Stop[],
+  assignedStopIds: Set<string>,
+  archetypeLabel: string | undefined,
+  similarityScore: number,
+  compactnessScore: number,
+  TARGET: number,
+) {
+  assignedStopIds.add(stop.id);
+
+  let assignDay = preferredDay;
+  let assignSlot = preferredSlot;
+
+  // Ensure delivery is not before collection
+  if (assignDay < coll.day) assignDay = coll.day;
+
+  // Cross-region check
+  const collStop = allStops.find(s => s.id === `${stop.dependency_group}_collection`);
+  const collRegion = collStop?.region;
+
+  if (collRegion && !canShareSlot(collRegion, stop.region) && assignDay === coll.day) {
+    const collDayIndex = weekdays.indexOf(coll.day);
+    if (collDayIndex >= 0 && collDayIndex + 1 < weekdays.length) {
+      assignDay = weekdays[collDayIndex + 1];
+    } else {
+      console.log(`Cross-region split: order ${stop.dependency_group} collection on last day, delivery unassignable`);
+      unassigned.push(stop);
+      return;
+    }
+    console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${stop.region}, bumped to ${assignDay}`);
+    let slotFound = false;
+    for (let sl = 1; sl <= driverCount; sl++) {
+      const regs = getRegs(assignDay, sl);
+      if (getCount(assignDay, sl) < TARGET && canAddToSlotRegions(stop.region, regs)) {
+        assignSlot = sl;
+        slotFound = true;
+        break;
+      }
+    }
+    if (!slotFound) {
+      for (let sl = 1; sl <= driverCount; sl++) {
+        if (getCount(assignDay, sl) === 0) { assignSlot = sl; break; }
+      }
+    }
+  } else if (assignDay === coll.day) {
+    assignSlot = coll.slot;
+  }
+
+  addCount(assignDay, assignSlot, stop.region);
+
+  const dateMatch = stop.date_flexible ? 'no_dates' :
+    stop.allowed_dates.includes(assignDay) ? 'exact' : 'flexible';
+
+  assigned.push({
+    stop_id: stop.id, order_id: stop.order_id, type: stop.type,
+    day: assignDay, driver_slot: assignSlot,
+    contact_name: stop.contact_name, address: stop.address, phone: stop.phone,
+    lat: stop.lat, lon: stop.lon,
+    postcode_prefix: stop.postcode_prefix, region: stop.region,
+    date_match: dateMatch,
+    archetype_label: archetypeLabel, similarity_score: similarityScore, compactness_score: compactnessScore,
+  });
+}
+
 // ============================================================
 // VALIDATION HELPERS
 // ============================================================
