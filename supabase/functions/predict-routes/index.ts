@@ -677,6 +677,25 @@ function validateCriticalErrors(
     }
   }
 
+  // Check region compatibility per day/slot
+  const slotRegions = new Map<string, Set<string>>();
+  for (const a of assignments) {
+    const key = `${a.day}_${a.driver_slot}`;
+    if (!slotRegions.has(key)) slotRegions.set(key, new Set());
+    slotRegions.get(key)!.add(a.region);
+  }
+
+  for (const [key, regions] of slotRegions) {
+    const regionList = [...regions];
+    for (let i = 0; i < regionList.length; i++) {
+      for (let j = i + 1; j < regionList.length; j++) {
+        if (!canShareSlot(regionList[i], regionList[j])) {
+          errors.push(`${key}: incompatible regions ${regionList[i]} + ${regionList[j]} on same driver slot`);
+        }
+      }
+    }
+  }
+
   return errors;
 }
 
