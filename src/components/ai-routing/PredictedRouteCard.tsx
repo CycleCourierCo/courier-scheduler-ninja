@@ -76,6 +76,17 @@ const PredictedRouteCard: React.FC<PredictedRouteCardProps> = ({
             <span>{deliveries.length} deliveries</span>
           </div>
         </div>
+        {/* Show regions covered by this route */}
+        {(() => {
+          const regions = [...new Set(stops.map(s => s.region).filter(Boolean))];
+          return regions.length > 0 ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {regions.map(r => (
+                <Badge key={r} variant="outline" className="text-[10px] px-1.5 py-0">{r}</Badge>
+              ))}
+            </div>
+          ) : null;
+        })()}
         {estimatedMiles !== undefined && (
           <p className="text-xs text-muted-foreground">Est. {estimatedMiles.toFixed(1)} miles</p>
         )}
