@@ -314,12 +314,10 @@ const AIRouting: React.FC = () => {
           dateEnd={dateEnd}
           driverCount={driverCount}
           includeNoDates={includeNoDates}
-          planningMode={planningMode}
           onDateStartChange={setDateStart}
           onDateEndChange={setDateEnd}
           onDriverCountChange={setDriverCount}
           onIncludeNoDatesChange={setIncludeNoDates}
-          onPlanningModeChange={setPlanningMode}
           onRefreshPatterns={handleRefreshPatterns}
           onGeneratePlan={handleGeneratePlan}
           onCompare={handleCompare}
