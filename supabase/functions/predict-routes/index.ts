@@ -82,6 +82,7 @@ interface Stop {
   priority: number;
   dependency_group: string;
   date_flexible: boolean;
+  location_group: string;
 }
 
 interface RouteAssignment {
