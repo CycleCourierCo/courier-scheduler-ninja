@@ -190,7 +190,7 @@ export const optimizeRouteWithGeoapify = async (
   jobs: Job[],
   startDate: Date,
   startTime: string = "09:00"
-): Promise<OptimizedJob[]> => {
+): Promise<{ jobs: OptimizedJob[], distanceMiles: number }> => {
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
   
   if (!apiKey) {
