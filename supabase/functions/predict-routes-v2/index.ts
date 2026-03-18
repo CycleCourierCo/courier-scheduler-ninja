@@ -802,56 +802,115 @@ function archetypeAwareFallback(
     const similarityScore = group.topArchetypes[0]?.similarity || 0;
     const compactnessScore = 1 - Math.min(group.spreadKm / 200, 1);
 
+    // PASS 1: Assign only collections from this group
     for (const stop of group.stops) {
+      if (stop.type !== 'collection') continue;
       if (assignedStopIds.has(stop.id)) continue;
       assignedStopIds.add(stop.id);
 
-      // Enforce collection-before-delivery: if this is a delivery, check collection
-      let assignDay = bestDay;
-      let assignSlot = bestSlot;
+      const assignDay = bestDay;
+      const assignSlot = bestSlot;
 
-      if (stop.type === 'delivery') {
-        const coll = collectionMap.get(stop.dependency_group);
-        if (coll) {
-          if (assignDay < coll.day) assignDay = coll.day;
-          
-          // CROSS-REGION FIX: If delivery region is incompatible with collection region,
-          // force delivery to a different day
-          const collStop = stops.find(s => s.id === `${stop.dependency_group}_collection`);
-          const collRegion = collStop?.region;
-          if (collRegion && !canShareSlot(collRegion, stop.region) && assignDay === coll.day) {
-            const collDayIndex = weekdays.indexOf(coll.day);
-            if (collDayIndex >= 0 && collDayIndex + 1 < weekdays.length) {
-              assignDay = weekdays[collDayIndex + 1];
-              console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${stop.region}, bumped to ${assignDay}`);
+      collectionMap.set(stop.dependency_group, { day: assignDay, slot: assignSlot });
+      addCount(assignDay, assignSlot, stop.region);
+
+      const dateMatch = stop.date_flexible ? 'no_dates' :
+        stop.allowed_dates.includes(assignDay) ? 'exact' : 'flexible';
+
+      assigned.push({
+        stop_id: stop.id,
+        order_id: stop.order_id,
+        type: stop.type,
+        day: assignDay,
+        driver_slot: assignSlot,
+        contact_name: stop.contact_name,
+        address: stop.address,
+        phone: stop.phone,
+        lat: stop.lat, lon: stop.lon,
+        postcode_prefix: stop.postcode_prefix,
+        region: stop.region,
+        date_match: dateMatch,
+        archetype_label: archetypeLabel,
+        similarity_score: similarityScore,
+        compactness_score: compactnessScore,
+      });
+    }
+  }
+
+  // PASS 2: Now assign all deliveries across all groups (collectionMap is fully populated)
+  for (const group of sortedGroups) {
+    const archetypeLabel = group.topArchetypes[0]?.label;
+    const similarityScore = group.topArchetypes[0]?.similarity || 0;
+    const compactnessScore = 1 - Math.min(group.spreadKm / 200, 1);
+
+    for (const stop of group.stops) {
+      if (stop.type !== 'delivery') continue;
+      if (assignedStopIds.has(stop.id)) continue;
+      assignedStopIds.add(stop.id);
+
+      // Find a good day/slot for this group's deliveries
+      let assignDay = weekdays[0];
+      let assignSlot = 1;
+
+      // Start with group's preferred slot
+      let groupBestDay = weekdays[0];
+      let groupBestSlot = 1;
+      let groupFound = false;
+      for (const day of weekdays) {
+        for (let sl = 1; sl <= driverCount; sl++) {
+          const regs = getRegs(day, sl);
+          if (getCount(day, sl) < TARGET && canAddToSlotRegions(stop.region, regs)) {
+            groupBestDay = day;
+            groupBestSlot = sl;
+            groupFound = true;
+            break;
+          }
+        }
+        if (groupFound) break;
+      }
+      assignDay = groupBestDay;
+      assignSlot = groupBestSlot;
+
+      const coll = collectionMap.get(stop.dependency_group);
+      if (coll) {
+        if (assignDay < coll.day) assignDay = coll.day;
+
+        // CROSS-REGION FIX: If delivery region is incompatible with collection region,
+        // force delivery to a different day
+        const collStop = stops.find(s => s.id === `${stop.dependency_group}_collection`);
+        const collRegion = collStop?.region;
+        if (collRegion && !canShareSlot(collRegion, stop.region) && assignDay === coll.day) {
+          const collDayIndex = weekdays.indexOf(coll.day);
+          if (collDayIndex >= 0 && collDayIndex + 1 < weekdays.length) {
+            assignDay = weekdays[collDayIndex + 1];
+          } else {
+            // Collection on last day — delivery cannot fit in range, mark as unassigned
+            console.log(`Cross-region split: order ${stop.dependency_group} collection on last day, delivery unassignable in range`);
+            unassigned.push(stop);
+            continue;
+          }
+          console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${stop.region}, bumped to ${assignDay}`);
+          // Find a compatible slot on the new day
+          let slotFound = false;
+          for (let sl = 1; sl <= driverCount; sl++) {
+            const regs = getRegs(assignDay, sl);
+            if (getCount(assignDay, sl) < TARGET && canAddToSlotRegions(stop.region, regs)) {
+              assignSlot = sl;
+              slotFound = true;
+              break;
             }
-            // Find a compatible slot for the delivery on the new day
-            let slotFound = false;
+          }
+          if (!slotFound) {
             for (let sl = 1; sl <= driverCount; sl++) {
-              const regs = getRegs(assignDay, sl);
-              if (getCount(assignDay, sl) < TARGET && canAddToSlotRegions(stop.region, regs)) {
+              if (getCount(assignDay, sl) === 0) {
                 assignSlot = sl;
-                slotFound = true;
                 break;
               }
             }
-            if (!slotFound) {
-              // Use any empty slot
-              for (let sl = 1; sl <= driverCount; sl++) {
-                if (getCount(assignDay, sl) === 0) {
-                  assignSlot = sl;
-                  break;
-                }
-              }
-            }
-          } else if (assignDay === coll.day) {
-            assignSlot = coll.slot;
           }
+        } else if (assignDay === coll.day) {
+          assignSlot = coll.slot;
         }
-      }
-
-      if (stop.type === 'collection') {
-        collectionMap.set(stop.dependency_group, { day: assignDay, slot: assignSlot });
       }
 
       addCount(assignDay, assignSlot, stop.region);
