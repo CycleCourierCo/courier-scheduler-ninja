@@ -160,8 +160,7 @@ const AIRouting: React.FC = () => {
       
       const tokenInfo = result.ai_tokens_used > 0 ? ` (${result.ai_tokens_used} tokens)` : '';
       const method = result.validation.fallback_used ? 'heuristic fallback' : 'AI';
-      const modeLabel = result.planning_mode === 'v2' ? ' [v2 Archetype]' : '';
-      toast.success(`Plan generated via ${method}${modeLabel}: ${result.total_stops} stops across ${days.length} days${tokenInfo}`);
+      toast.success(`Plan generated via ${method}: ${result.total_stops} stops across ${days.length} days${tokenInfo}`);
     }
     setIsGenerating(false);
   }, [driverCount, generatePlan]);
