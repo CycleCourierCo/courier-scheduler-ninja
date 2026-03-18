@@ -353,7 +353,7 @@ CRITICAL RULES:
 4. Target 10-14 stops per driver slot per day. Pack routes DENSELY. Minimise total days used.
 5. Fill Day 1 slots first before moving to Day 2. Only use more days when slots are full.
 6. Collection stops MUST be on the same day or BEFORE their paired delivery (same dependency_group).
-7. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers.
+7. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers. HOWEVER, if the collection region and delivery region are INCOMPATIBLE (cannot share a slot per the allowed combinations above), they MUST be on DIFFERENT days — never the same day.
 8. Stops with the same location_group (same physical location, different orders) SHOULD be assigned to the same driver_slot and day when possible — this avoids visiting the same address twice.
 9. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
 10. Higher priority stops should be scheduled earlier.
