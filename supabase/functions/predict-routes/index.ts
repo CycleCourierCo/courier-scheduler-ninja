@@ -727,30 +727,40 @@ function fallbackHeuristic(
 
   for (const [region, rStops] of [...collectionsByRegion.entries()].sort((a, b) => b[1].length - a[1].length)) {
     for (const stop of rStops) {
-      // Find the best slot for this region: prefer existing slot for this region on current day
       let bestDay = allWeekdays[currentDay] || allWeekdays[allWeekdays.length - 1];
       let bestSlot = currentSlot;
+      let found = false;
 
-      // Check if this region already has a slot on the current day
-      const existingSlots = regionSlotMap.get(region) || [];
-      const sameDay = existingSlots.find(rs => rs.day === allWeekdays[currentDay] && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT);
+      // Priority 1: Check if this stop's location_group already has an assignment
+      const locAssignment = locationGroupMap.get(stop.location_group);
+      if (locAssignment && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
+        bestDay = locAssignment.day;
+        bestSlot = locAssignment.slot;
+        found = true;
+      }
 
-      if (sameDay) {
-        bestDay = sameDay.day;
-        bestSlot = sameDay.slot;
-      } else {
-        // Find first available day/slot that isn't full
-        let found = false;
+      // Priority 2: Check if this region already has a slot on the current day
+      if (!found) {
+        const existingSlots = regionSlotMap.get(region) || [];
+        const sameDay = existingSlots.find(rs => rs.day === allWeekdays[currentDay] && getSlotCount(rs.day, rs.slot) < TARGET_STOPS_PER_SLOT);
+
+        if (sameDay) {
+          bestDay = sameDay.day;
+          bestSlot = sameDay.slot;
+          found = true;
+        }
+      }
+
+      // Priority 3: Find first available day/slot
+      if (!found) {
+        const existingSlots = regionSlotMap.get(region) || [];
         for (let di = 0; di < allWeekdays.length && !found; di++) {
           const day = allWeekdays[di];
-          // Check if stop's allowed dates permit this day
           if (!stop.date_flexible && stop.allowed_dates.length > 0 && !stop.allowed_dates.includes(day)) continue;
 
           for (let sl = 1; sl <= driverCount; sl++) {
             if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
-              // Prefer slots already used for this region
               const isRegionSlot = existingSlots.some(rs => rs.day === day && rs.slot === sl);
-              // Or empty slots
               const isEmpty = getSlotCount(day, sl) === 0;
 
               if (isRegionSlot || isEmpty) {
@@ -762,21 +772,21 @@ function fallbackHeuristic(
             }
           }
         }
+      }
 
-        // If no ideal slot found, just find any slot with capacity
-        if (!found) {
-          for (let di = 0; di < allWeekdays.length; di++) {
-            const day = allWeekdays[di];
-            for (let sl = 1; sl <= driverCount; sl++) {
-              if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5) {
-                bestDay = day;
-                bestSlot = sl;
-                found = true;
-                break;
-              }
+      // Last resort: any slot with capacity
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          const day = allWeekdays[di];
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5) {
+              bestDay = day;
+              bestSlot = sl;
+              found = true;
+              break;
             }
-            if (found) break;
           }
+          if (found) break;
         }
       }
 
@@ -785,7 +795,11 @@ function fallbackHeuristic(
       const existingMapping = regionSlotMap.get(region)!.find(rs => rs.day === bestDay && rs.slot === bestSlot);
       if (!existingMapping) regionSlotMap.get(region)!.push({ day: bestDay, slot: bestSlot });
 
-      collectionDayMap.set(stop.dependency_group, bestDay);
+      // Record collection assignment (day + slot) and location group
+      collectionAssignmentMap.set(stop.dependency_group, { day: bestDay, slot: bestSlot });
+      if (!locationGroupMap.has(stop.location_group)) {
+        locationGroupMap.set(stop.location_group, { day: bestDay, slot: bestSlot });
+      }
       addToSlot(bestDay, bestSlot);
 
       const dateMatch = stop.date_flexible ? 'no_dates' :
