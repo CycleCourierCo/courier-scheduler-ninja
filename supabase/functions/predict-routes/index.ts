@@ -925,15 +925,19 @@ function fallbackHeuristic(
         const collRegion = collStop?.region;
         if (collRegion && !canShareSlot(collRegion, region)) {
           crossRegionSplit = true;
-          const collDayIndex = allWeekdays.indexOf(collectionAssignment.day);
+        const collDayIndex = allWeekdays.indexOf(collectionAssignment.day);
+        if (collRegion && !canShareSlot(collRegion, region)) {
+          crossRegionSplit = true;
           if (collDayIndex >= 0 && collDayIndex + 1 < allWeekdays.length) {
             minDay = allWeekdays[collDayIndex + 1];
-          } else if (collDayIndex >= 0) {
-            // Collection is on the last available day — still bump past it
-            minDay = allWeekdays[allWeekdays.length - 1];
-            // Force it to be strictly after by ensuring we skip same-day logic below
+          } else {
+            // Collection on last day — delivery cannot fit, push to unassigned
+            console.log(`Cross-region split: order ${stop.dependency_group} collection on last day ${collectionAssignment.day}, delivery unassignable`);
+            unassignedStops.push(stop);
+            continue;
           }
           console.log(`Cross-region split: order ${stop.dependency_group} collection ${collRegion} -> delivery ${region}, minDay bumped to ${minDay}`);
+        }
         }
       }
 
