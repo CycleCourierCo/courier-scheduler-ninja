@@ -86,7 +86,7 @@ const AIRouting: React.FC = () => {
   const [dateEnd, setDateEnd] = useState(getNextFriday());
   const [driverCount, setDriverCount] = useState(3);
   const [includeNoDates, setIncludeNoDates] = useState(true);
-  const [planningMode, setPlanningMode] = useState<'v1' | 'v2'>('v2');
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [patternsLastUpdated, setPatternsLastUpdated] = useState<string>();
