@@ -377,7 +377,7 @@ const AIRouting: React.FC = () => {
                     isOptimizing={slots.some(s => optimizingRoutes.has(`${day}_${s}`))}
                   />
 
-                  {unassignedStops.length > 0 && planningMode === 'v2' && (
+                  {unassignedStops.length > 0 && (
                     <UnassignedStopsPanel stops={unassignedStops} />
                   )}
 
