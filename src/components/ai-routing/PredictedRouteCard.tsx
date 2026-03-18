@@ -93,9 +93,22 @@ const PredictedRouteCard: React.FC<PredictedRouteCardProps> = ({
             </div>
           ) : null;
         })()}
+        {archetypeLabel && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{archetypeLabel}</Badge>
+            {similarityScore !== undefined && (
+              <span className="text-[10px] text-muted-foreground">{Math.round(similarityScore * 100)}% match</span>
+            )}
+          </div>
+        )}
         {estimatedMiles !== undefined && (
           <p className="text-xs text-muted-foreground">Est. {estimatedMiles.toFixed(1)} miles</p>
         )}
+        <RouteWhyPanel
+          archetypeLabel={archetypeLabel}
+          similarityScore={similarityScore}
+          compactnessScore={compactnessScore}
+        />
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1.5 max-h-64 overflow-y-auto">
