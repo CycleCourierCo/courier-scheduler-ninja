@@ -25,7 +25,7 @@ const RouteComparisonView: React.FC<RouteComparisonViewProps> = ({ scenarios, on
   if (scenarios.length < 2) return null;
 
   const getComparisonIcon = (a: number, b: number) => {
-    if (a < b) return <TrendingDown className="h-3.5 w-3.5 text-green-500" />;
+    if (a < b) return <TrendingDown className="h-3.5 w-3.5 text-primary" />;
     if (a > b) return <TrendingUp className="h-3.5 w-3.5 text-destructive" />;
     return <Equal className="h-3.5 w-3.5 text-muted-foreground" />;
   };
