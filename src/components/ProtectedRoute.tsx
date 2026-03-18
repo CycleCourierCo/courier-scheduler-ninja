@@ -83,8 +83,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isDashboardPage = location.pathname === '/dashboard';
   const isOrderDetailPage = location.pathname.startsWith('/orders/');
   const isCustomerOrderDetailPage = location.pathname.startsWith('/customer-orders/');
+  const isAIRoutingPage = location.pathname === '/ai-routing';
   if (userProfile?.role === 'route_planner') {
-    if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage && !isCustomerOrderDetailPage) {
+    if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage && !isCustomerOrderDetailPage && !isAIRoutingPage) {
       return <Navigate to="/dashboard" replace />;
     }
     return <>{children}</>;

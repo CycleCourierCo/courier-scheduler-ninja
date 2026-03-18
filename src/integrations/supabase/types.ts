@@ -628,6 +628,63 @@ export type Database = {
           },
         ]
       }
+      postcode_patterns: {
+        Row: {
+          avg_stop_density_nearby: number | null
+          cancel_reschedule_rate: number | null
+          collection_day_frequency: Json | null
+          common_sender_receiver_pairings: Json | null
+          created_at: string
+          delivery_day_frequency: Json | null
+          id: string
+          median_days_to_collection: number | null
+          median_days_to_delivery: number | null
+          p90_days_to_collection: number | null
+          p90_days_to_delivery: number | null
+          postcode_prefix: string
+          sample_size: number
+          total_jobs: number
+          updated_at: string
+          weekday_route_inclusion_rate: Json | null
+        }
+        Insert: {
+          avg_stop_density_nearby?: number | null
+          cancel_reschedule_rate?: number | null
+          collection_day_frequency?: Json | null
+          common_sender_receiver_pairings?: Json | null
+          created_at?: string
+          delivery_day_frequency?: Json | null
+          id?: string
+          median_days_to_collection?: number | null
+          median_days_to_delivery?: number | null
+          p90_days_to_collection?: number | null
+          p90_days_to_delivery?: number | null
+          postcode_prefix: string
+          sample_size?: number
+          total_jobs?: number
+          updated_at?: string
+          weekday_route_inclusion_rate?: Json | null
+        }
+        Update: {
+          avg_stop_density_nearby?: number | null
+          cancel_reschedule_rate?: number | null
+          collection_day_frequency?: Json | null
+          common_sender_receiver_pairings?: Json | null
+          created_at?: string
+          delivery_day_frequency?: Json | null
+          id?: string
+          median_days_to_collection?: number | null
+          median_days_to_delivery?: number | null
+          p90_days_to_collection?: number | null
+          p90_days_to_delivery?: number | null
+          postcode_prefix?: string
+          sample_size?: number
+          total_jobs?: number
+          updated_at?: string
+          weekday_route_inclusion_rate?: Json | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_status:
@@ -771,6 +828,130 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      route_prediction_runs: {
+        Row: {
+          acceptance_outcome: string | null
+          actual_duration_minutes: number | null
+          actual_miles: number | null
+          ai_tokens_used: number | null
+          compare_scenario_metadata: Json | null
+          created_at: string
+          failed_collections: number | null
+          failed_deliveries: number | null
+          fallback_used: boolean
+          id: string
+          jobs_completed: number | null
+          jobs_deferred: number | null
+          model_used: string
+          pending_jobs_hash: string | null
+          planner_overrides_count: number | null
+          prediction_id: string
+          prompt_version: string
+          validation_errors: Json | null
+          validation_passed: boolean
+        }
+        Insert: {
+          acceptance_outcome?: string | null
+          actual_duration_minutes?: number | null
+          actual_miles?: number | null
+          ai_tokens_used?: number | null
+          compare_scenario_metadata?: Json | null
+          created_at?: string
+          failed_collections?: number | null
+          failed_deliveries?: number | null
+          fallback_used?: boolean
+          id?: string
+          jobs_completed?: number | null
+          jobs_deferred?: number | null
+          model_used?: string
+          pending_jobs_hash?: string | null
+          planner_overrides_count?: number | null
+          prediction_id: string
+          prompt_version?: string
+          validation_errors?: Json | null
+          validation_passed?: boolean
+        }
+        Update: {
+          acceptance_outcome?: string | null
+          actual_duration_minutes?: number | null
+          actual_miles?: number | null
+          ai_tokens_used?: number | null
+          compare_scenario_metadata?: Json | null
+          created_at?: string
+          failed_collections?: number | null
+          failed_deliveries?: number | null
+          fallback_used?: boolean
+          id?: string
+          jobs_completed?: number | null
+          jobs_deferred?: number | null
+          model_used?: string
+          pending_jobs_hash?: string | null
+          planner_overrides_count?: number | null
+          prediction_id?: string
+          prompt_version?: string
+          validation_errors?: Json | null
+          validation_passed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_prediction_runs_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "route_predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      route_predictions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_range_end: string
+          date_range_start: string
+          driver_count: number
+          id: string
+          optimized_routes: Json | null
+          pending_job_count: number
+          predicted_routes: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_range_end: string
+          date_range_start: string
+          driver_count: number
+          id?: string
+          optimized_routes?: Json | null
+          pending_job_count?: number
+          predicted_routes?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_range_end?: string
+          date_range_start?: string
+          driver_count?: number
+          id?: string
+          optimized_routes?: Json | null
+          pending_job_count?: number
+          predicted_routes?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_predictions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       routes: {
         Row: {
