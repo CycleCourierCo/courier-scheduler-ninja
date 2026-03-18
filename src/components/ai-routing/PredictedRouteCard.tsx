@@ -28,6 +28,9 @@ interface PredictedRouteCardProps {
   isOptimized?: boolean;
   onOptimize: () => void;
   isOptimizing?: boolean;
+  archetypeLabel?: string;
+  similarityScore?: number;
+  compactnessScore?: number;
 }
 
 const PredictedRouteCard: React.FC<PredictedRouteCardProps> = ({
