@@ -318,10 +318,12 @@ CRITICAL RULES:
 3. Target 10-14 stops per driver slot per day. Pack routes DENSELY. Minimise total days used.
 4. Fill Day 1 slots first before moving to Day 2. Only use more days when slots are full.
 5. Collection stops MUST be on the same day or BEFORE their paired delivery (same dependency_group).
-6. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
-7. Higher priority stops should be scheduled earlier.
-8. driver_slot values: 1 to ${driver_count}.
-9. West Midlands (local) stops can be combined with any adjacent region if there aren't enough local stops to fill a route.`;
+6. CRITICAL: If a collection and delivery for the same order (same dependency_group) are on the SAME day, they MUST be on the SAME driver_slot. They CAN be on different days with different drivers.
+7. Stops with the same location_group (same physical location, different orders) SHOULD be assigned to the same driver_slot and day when possible — this avoids visiting the same address twice.
+8. Prefer stops' allowed_dates when possible, but density and regional grouping take priority.
+9. Higher priority stops should be scheduled earlier.
+10. driver_slot values: 1 to ${driver_count}.
+11. West Midlands (local) stops can be combined with any adjacent region if there aren't enough local stops to fill a route.`;
 
         const userPrompt = `Assign these ${stops.length} stops to days and driver slots.
 
