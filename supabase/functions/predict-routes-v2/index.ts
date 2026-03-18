@@ -322,6 +322,41 @@ serve(async (req) => {
           deliveries: g.stops.filter(s => s.type === 'delivery').length,
         }));
 
+        // Build cross-group dependency list
+        const stopGroupIndex = new Map<string, number>();
+        candidateGroups.forEach((g, i) => {
+          for (const s of g.stops) stopGroupIndex.set(s.id, i);
+        });
+
+        const crossGroupDeps: { order_id: string; collection_group: number; delivery_group: number; collection_region: string; delivery_region: string }[] = [];
+        const orderStopMap = new Map<string, { collGroup?: number; delGroup?: number; collRegion?: string; delRegion?: string }>();
+        for (const s of stops) {
+          if (!orderStopMap.has(s.order_id)) orderStopMap.set(s.order_id, {});
+          const entry = orderStopMap.get(s.order_id)!;
+          const gi = stopGroupIndex.get(s.id);
+          if (s.type === 'collection') { entry.collGroup = gi; entry.collRegion = s.region; }
+          if (s.type === 'delivery') { entry.delGroup = gi; entry.delRegion = s.region; }
+        }
+        for (const [orderId, entry] of orderStopMap) {
+          if (entry.collGroup !== undefined && entry.delGroup !== undefined && entry.collGroup !== entry.delGroup) {
+            crossGroupDeps.push({
+              order_id: orderId,
+              collection_group: entry.collGroup,
+              delivery_group: entry.delGroup,
+              collection_region: entry.collRegion || 'Unknown',
+              delivery_region: entry.delRegion || 'Unknown',
+            });
+          }
+        }
+
+        console.log(`Cross-group dependencies: ${crossGroupDeps.length} orders span different groups`);
+
+        const depsSection = crossGroupDeps.length > 0
+          ? `\n\nCROSS-GROUP DEPENDENCIES (${crossGroupDeps.length} orders):
+${JSON.stringify(crossGroupDeps)}
+For each: delivery group day MUST be >= collection group day. If regions are INCOMPATIBLE, they MUST be on DIFFERENT days. If same day, MUST share driver_slot.`
+          : '';
+
         const systemPrompt = `You are a route planning assistant for Cycle Courier, a bicycle transport company based in Birmingham (B10 0AD).
 
 You are given PRE-SCORED candidate groups of stops. Each group is already clustered by geographic region and scored against historical route archetypes.
@@ -332,7 +367,7 @@ RULES:
 3. ALLOWED region combinations for same slot: North West+North East, London+East, London+South East, London+South West Coastal, Wales+West Midlands, West Midlands+East Midlands. ALL other combos are FORBIDDEN.
 4. South West Deep MUST have its own dedicated slot.
 5. Fill Day 1 slots before using Day 2. Minimise total days.
-6. Collection stops must be on same day or before their paired delivery (same order). Same-day collection+delivery MUST share a driver_slot. HOWEVER, if the collection region and delivery region are INCOMPATIBLE (cannot share a slot per the allowed combinations above), they MUST be on DIFFERENT days — never the same day.
+6. For orders with BOTH collection and delivery stops: collection must be on same day or BEFORE delivery. If same day, they MUST share the same driver_slot. If the collection and delivery regions are INCOMPATIBLE (cannot share a slot per Rule 3), they MUST be on DIFFERENT days.
 7. driver_slot values: 1 to ${driver_count}.
 8. Groups with low composite scores (<0.3) can be marked as unassigned if they don't fit well.`;
 
@@ -341,7 +376,7 @@ RULES:
 Available days: ${JSON.stringify(weekdays)}
 Driver slots: 1 to ${driver_count}
 
-Candidate groups: ${JSON.stringify(groupSummaries)}
+Candidate groups: ${JSON.stringify(groupSummaries)}${depsSection}
 
 Use the assign_groups tool. Every group should ideally be assigned, but you may mark low-scoring groups as unassigned.`;
 
