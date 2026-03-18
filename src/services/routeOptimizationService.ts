@@ -137,10 +137,12 @@ export const optimizeMultiDriverRoute = async (
   console.log('Multi-driver route optimization response:', data);
 
   // Parse results and group by driver
-  const driverRoutes = new Map<number, OptimizedJob[]>();
+  const driverRoutes = new Map<number, { jobs: OptimizedJob[], distanceMiles: number }>();
 
   data.features.forEach((route: any, routeIndex: number) => {
     const steps = route.properties.steps;
+    const distanceMeters = route.properties.distance || 0;
+    const distanceMiles = distanceMeters / 1609.34;
     const optimizedJobs: OptimizedJob[] = [];
     let sequenceCounter = 1;
 
@@ -177,7 +179,7 @@ export const optimizeMultiDriverRoute = async (
       }
     });
 
-    driverRoutes.set(routeIndex, optimizedJobs);
+    driverRoutes.set(routeIndex, { jobs: optimizedJobs, distanceMiles });
   });
 
   return driverRoutes;
