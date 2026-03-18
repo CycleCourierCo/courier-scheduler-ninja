@@ -147,7 +147,7 @@ const AIRouting: React.FC = () => {
       }
       return null;
     }
-  }, [dateStart, dateEnd, includeNoDates, planningMode]);
+  }, [dateStart, dateEnd, includeNoDates]);
 
   const handleGeneratePlan = useCallback(async () => {
     setIsGenerating(true);
