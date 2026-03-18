@@ -187,7 +187,7 @@ serve(async (req) => {
       const priority = Math.min(ageInDays, 100);
 
       // Status-aware stop generation
-      const isCollected = order.order_collected || ['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(order.status);
+      const isCollected = order.collection_confirmation_sent_at || order.order_collected || ['collected', 'driver_to_delivery'].includes(order.status);
       const isDelivered = order.order_delivered;
 
       if (!isCollected && !isDelivered) {
