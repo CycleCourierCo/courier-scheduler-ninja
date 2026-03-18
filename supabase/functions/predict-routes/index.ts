@@ -791,12 +791,15 @@ function fallbackHeuristic(
       let bestSlot = currentSlot;
       let found = false;
 
-      // Priority 1: Check if this stop's location_group already has an assignment
+      // Priority 1: Check if this stop's location_group already has an assignment (and region is compatible)
       const locAssignment = locationGroupMap.get(stop.location_group);
       if (locAssignment && getSlotCount(locAssignment.day, locAssignment.slot) < TARGET_STOPS_PER_SLOT * 1.5) {
-        bestDay = locAssignment.day;
-        bestSlot = locAssignment.slot;
-        found = true;
+        const slotRegs = getSlotRegions(locAssignment.day, locAssignment.slot);
+        if (canAddToSlotRegions(region, slotRegs)) {
+          bestDay = locAssignment.day;
+          bestSlot = locAssignment.slot;
+          found = true;
+        }
       }
 
       // Priority 2: Check if this region already has a slot on the current day
@@ -811,7 +814,7 @@ function fallbackHeuristic(
         }
       }
 
-      // Priority 3: Find first available day/slot
+      // Priority 3: Find first available day/slot with region compatibility
       if (!found) {
         const existingSlots = regionSlotMap.get(region) || [];
         for (let di = 0; di < allWeekdays.length && !found; di++) {
@@ -821,9 +824,11 @@ function fallbackHeuristic(
           for (let sl = 1; sl <= driverCount; sl++) {
             if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT) {
               const isRegionSlot = existingSlots.some(rs => rs.day === day && rs.slot === sl);
-              const isEmpty = getSlotCount(day, sl) === 0;
+              const slotRegs = getSlotRegions(day, sl);
+              const isEmpty = slotRegs.size === 0;
+              const isCompatible = canAddToSlotRegions(region, slotRegs);
 
-              if (isRegionSlot || isEmpty) {
+              if (isRegionSlot || (isEmpty) || (isCompatible && getSlotCount(day, sl) > 0)) {
                 bestDay = day;
                 bestSlot = sl;
                 found = true;
@@ -834,12 +839,29 @@ function fallbackHeuristic(
         }
       }
 
-      // Last resort: any slot with capacity
+      // Last resort: any COMPATIBLE slot with capacity (never violate region rules)
       if (!found) {
         for (let di = 0; di < allWeekdays.length; di++) {
           const day = allWeekdays[di];
           for (let sl = 1; sl <= driverCount; sl++) {
-            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5) {
+            const slotRegs = getSlotRegions(day, sl);
+            if (getSlotCount(day, sl) < TARGET_STOPS_PER_SLOT * 1.5 && canAddToSlotRegions(region, slotRegs)) {
+              bestDay = day;
+              bestSlot = sl;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      // Absolute last resort: overflow onto a new day/slot (should rarely happen)
+      if (!found) {
+        for (let di = 0; di < allWeekdays.length; di++) {
+          const day = allWeekdays[di];
+          for (let sl = 1; sl <= driverCount; sl++) {
+            if (getSlotCount(day, sl) === 0) {
               bestDay = day;
               bestSlot = sl;
               found = true;
@@ -860,7 +882,7 @@ function fallbackHeuristic(
       if (!locationGroupMap.has(stop.location_group)) {
         locationGroupMap.set(stop.location_group, { day: bestDay, slot: bestSlot });
       }
-      addToSlot(bestDay, bestSlot);
+      addToSlot(bestDay, bestSlot, region);
 
       const dateMatch = stop.date_flexible ? 'no_dates' :
         stop.allowed_dates.includes(bestDay) ? 'exact' : 'flexible';
