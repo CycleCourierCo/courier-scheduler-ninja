@@ -88,6 +88,18 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
             Include jobs without dates
           </Label>
         </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Planning Mode</Label>
+          <ToggleGroup
+            type="single"
+            value={planningMode}
+            onValueChange={(val) => { if (val) onPlanningModeChange(val as 'v1' | 'v2'); }}
+            className="border border-border rounded-md"
+          >
+            <ToggleGroupItem value="v1" className="text-xs px-3 py-1">v1</ToggleGroupItem>
+            <ToggleGroupItem value="v2" className="text-xs px-3 py-1">v2 Archetype</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
