@@ -34,6 +34,7 @@ import { Timeslip } from "@/types/timeslip";
 import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
 import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabilityChart";
 import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
+import UnitEconomicsCard from "@/components/analytics/UnitEconomicsCard";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
