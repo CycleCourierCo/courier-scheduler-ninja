@@ -1,38 +1,23 @@
 
 
-## Unit Economics Section for Route Profitability Page
+## Add Manual Price Override for Special Rate Accounts
 
-### What it does
-Adds a new "Unit Economics" card/section to the Route Profitability page that shows per-unit metrics (per stop, per mile, per driver, per hour) with the ability to view these across different time periods — the currently selected day, week, month, and year.
+### Problem
+Accounts with a `special_rate_code` have custom pricing that differs from standard bike-type rates. Currently, the profitability calculations use standard pricing for everyone, making revenue figures inaccurate for B2B accounts with special deals.
 
-### Metrics to display
-- **Revenue per Stop** — total revenue / total stops
-- **Cost per Stop** — total costs / total stops
-- **Profit per Stop** — profit / total stops
-- **Revenue per Mile** — total revenue / total miles
-- **Cost per Mile** — total costs / total miles (actual vs configured)
-- **Profit per Mile** — profit / total miles
-- **Revenue per Driver-Day** — total revenue / number of timeslips
-- **Cost per Driver-Day** — total costs / number of timeslips
-- **Profit per Driver-Day** — profit / number of timeslips
-- **Revenue per Hour** — total revenue / total hours worked
-
-### Time period tabs
-A tab group letting the user switch between: **Day** (uses selected date), **Week** (uses selected week), **Month** (uses selected month), **Year** (uses selected year). Each tab computes unit economics from the already-fetched timeslip data for that period — no new queries needed.
+### Solution
+Add a `special_rate_price` numeric field to the `profiles` table. When calculating revenue in the profitability service, if an order's customer has a `special_rate_price` set, use that per-stop price instead of the standard bike-type lookup. The admin can manually input the agreed price per stop in the user management dialog.
 
 ### Changes
 
 | File | Change |
 |---|---|
-| `src/services/profitabilityService.ts` | Add `calculateUnitEconomics()` function that takes timeslips array + settings and returns per-stop, per-mile, per-driver, per-hour metrics |
-| `src/components/analytics/UnitEconomicsCard.tsx` | New component: tabs for Day/Week/Month/Year, grid of metric cards showing the unit economics for the selected period |
-| `src/pages/RouteProfitabilityPage.tsx` | Import and render `UnitEconomicsCard` between the weekly chart and monthly chart sections, passing all timeslip datasets and settings |
+| **Database migration** | Add `special_rate_price numeric` column to `profiles` (nullable, default null) |
+| `src/types/user.ts` | Add `special_rate_price: number \| null` |
+| `src/components/user-management/EditUserDialog.tsx` | Add an input field for "Special Rate Price (£ per delivery)" next to the existing special_rate_code field |
+| `src/services/profitabilityService.ts` | In `getRevenueForTimeslip`, after finding driver orders, look up the order's `user_id` → profile → `special_rate_price`. If set, use `special_rate_price / 2` as revenue per stop instead of `getRevenuePerStopForBikeType`. Cache profile lookups to avoid repeated queries. |
 
-### Technical details
+### Technical detail
 
-**`calculateUnitEconomics`** reuses the existing `aggregateProfitability` results plus sums `total_hours` and `mileage` from the timeslips array to derive per-unit figures. Returns an object with all the metrics above, handling division-by-zero gracefully (returns 0).
-
-**`UnitEconomicsCard`** uses existing `Tabs` + `Card` UI components. Each metric shown as a small stat cell in a responsive grid (3-4 columns on desktop, 2 on mobile). Color-coded: green for positive profit metrics, red for negative.
-
-The day/week/month/year data is already fetched by the parent page (`timeslips`, `weekTimeslips`, `monthTimeslips`, `yearTimeslips`), so this component just receives them as props and computes the unit economics client-side.
+The revenue override applies per order based on the **order's customer** (not the driver). In `getRevenueForTimeslip`, after fetching matching orders, batch-fetch the distinct `user_id`s from those orders, check their profiles for `special_rate_price`, and apply it per-order. Orders from customers without a special rate continue using standard bike-type pricing.
 
