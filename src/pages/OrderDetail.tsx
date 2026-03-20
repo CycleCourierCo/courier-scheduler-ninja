@@ -1020,6 +1020,49 @@ const OrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
+  const handleCreateReturn = async () => {
+    if (!order || creatingReturn) return;
+    setCreatingReturn(true);
+    try {
+      const returnData: CreateOrderFormData = {
+        sender: {
+          name: order.receiver.name,
+          email: order.receiver.email,
+          phone: order.receiver.phone,
+          address: { ...order.receiver.address },
+        },
+        receiver: {
+          name: order.sender.name,
+          email: order.sender.email,
+          phone: order.sender.phone,
+          address: { ...order.sender.address },
+        },
+        bikes: order.bikes || [{ brand: order.bikeBrand || '', model: order.bikeModel || '', type: order.bikeType || '' }],
+        bikeQuantity: order.bikeQuantity || 1,
+        bikeBrand: order.bikeBrand,
+        bikeModel: order.bikeModel,
+        bikeType: order.bikeType,
+        customerOrderNumber: order.customerOrderNumber ? `${order.customerOrderNumber}-RETURN` : undefined,
+        needsPaymentOnCollection: false,
+        isBikeSwap: false,
+        isEbayOrder: false,
+        needsInspection: false,
+      };
+      const newOrder = await createOrder(returnData);
+      toast.success("Return order created", {
+        action: {
+          label: "View Order",
+          onClick: () => navigate(`/order/${newOrder.id}`),
+        },
+      });
+    } catch (err) {
+      console.error("Error creating return order:", err);
+      toast.error("Failed to create return order");
+    } finally {
+      setCreatingReturn(false);
+    }
+  };
+
   // Allow delivery scheduling when status is "collected"
   const canSchedule = (
     order.status === 'scheduled_dates_pending' ||
