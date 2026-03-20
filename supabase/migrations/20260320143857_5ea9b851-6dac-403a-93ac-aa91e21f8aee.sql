@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN special_rate_price numeric NULL DEFAULT NULL;

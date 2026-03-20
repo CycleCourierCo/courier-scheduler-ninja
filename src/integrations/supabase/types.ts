@@ -869,6 +869,7 @@ export type Database = {
           shipday_driver_id: string | null
           shipday_driver_name: string | null
           special_rate_code: string | null
+          special_rate_price: number | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
@@ -903,6 +904,7 @@ export type Database = {
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
           special_rate_code?: string | null
+          special_rate_price?: number | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -937,6 +939,7 @@ export type Database = {
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
           special_rate_code?: string | null
+          special_rate_price?: number | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -1692,6 +1695,7 @@ export type Database = {
           shipday_driver_id: string | null
           shipday_driver_name: string | null
           special_rate_code: string | null
+          special_rate_price: number | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
