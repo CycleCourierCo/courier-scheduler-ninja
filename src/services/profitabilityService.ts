@@ -238,34 +238,47 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
   return 0;
 };
 
+// Cache for special rate price lookups to avoid repeated queries
+const specialRatePriceCache = new Map<string, number | null>();
+
+// Fetch the special_rate_price for a customer, with caching
+const getSpecialRatePrice = async (userId: string): Promise<number | null> => {
+  if (specialRatePriceCache.has(userId)) {
+    return specialRatePriceCache.get(userId)!;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('special_rate_price')
+    .eq('id', userId)
+    .single();
+
+  const price = (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null;
+  specialRatePriceCache.set(userId, price);
+  return price;
+};
+
+// Clear the cache (call at start of a new profitability calculation batch)
+export const clearSpecialRatePriceCache = () => {
+  specialRatePriceCache.clear();
+};
+
 // Fetch orders for a timeslip and calculate revenue based on bike types (halved per stop)
+// If a customer has a special_rate_price, use that instead of standard bike-type pricing
 export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
   const driverName = timeslip.driver?.shipday_driver_name;
   const date = timeslip.date;
 
   if (!driverName || !date) return 0;
 
-  const { data, error } = await supabase
+  const { data: ordersWithDates, error } = await supabase
     .from('orders')
-    .select('id, bike_type, bike_quantity, bikes');
+    .select('id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
 
-  if (error || !data) {
+  if (error || !ordersWithDates) {
     console.error('Error fetching orders for bike-type revenue:', error);
     return 0;
   }
-
-  // Filter by date
-  const dateFiltered = data.filter(order => {
-    // We need pickup/delivery dates but they're not in this select; use a broader approach
-    return true; // We'll refetch with dates
-  });
-
-  // Re-fetch with date fields
-  const { data: ordersWithDates, error: err2 } = await supabase
-    .from('orders')
-    .select('id, bike_type, bike_quantity, bikes, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
-
-  if (err2 || !ordersWithDates) return 0;
 
   const dateFilteredOrders = ordersWithDates.filter(order => {
     const pickupDate = order.scheduled_pickup_date?.split('T')[0];
@@ -286,7 +299,17 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
   let totalRevenue = 0;
 
   for (const order of uniqueOrders) {
-    // If order has bikes JSONB array, iterate each bike entry
+    // Check if the customer has a special rate price
+    const specialRate = await getSpecialRatePrice(order.user_id);
+
+    if (specialRate !== null) {
+      // Special rate is per delivery (full price), halved for per-stop
+      const qty = order.bike_quantity || 1;
+      totalRevenue += (specialRate / 2) * qty;
+      continue;
+    }
+
+    // Standard bike-type pricing
     const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
     
     if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
@@ -296,7 +319,6 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
         totalRevenue += revenuePerStop * qty;
       }
     } else {
-      // Use top-level bike_type and bike_quantity
       const qty = order.bike_quantity || 1;
       const revenuePerStop = getRevenuePerStopForBikeType(order.bike_type);
       totalRevenue += revenuePerStop * qty;

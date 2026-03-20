@@ -174,6 +174,20 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
                   </p>
                 </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-special-rate-price">Special Rate Price (£ per delivery)</Label>
+                  <Input
+                    id="edit-special-rate-price"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 45.00"
+                    value={formData.special_rate_price ?? ''}
+                    onChange={(e) => setFormData({ ...formData, special_rate_price: e.target.value ? parseFloat(e.target.value) : null })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If set, this price per delivery will be used in profitability calculations instead of the standard bike-type pricing.
+                  </p>
+                </div>
                 <div className="col-span-2">
                   <OpeningHoursEditor
                     value={formData.opening_hours || DEFAULT_OPENING_HOURS}
