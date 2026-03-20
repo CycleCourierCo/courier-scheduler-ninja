@@ -1,23 +1,52 @@
 
 
-## Add Manual Price Override for Special Rate Accounts
+## Backfill Missing Contacts from Historical Orders
 
 ### Problem
-Accounts with a `special_rate_code` have custom pricing that differs from standard bike-type rates. Currently, the profitability calculations use standard pricing for everyone, making revenue figures inaccurate for B2B accounts with special deals.
+179 orders lack contact records because they were created before the contacts feature existed. Those sender/receiver details live only in the order JSONB and never appear in the address book dropdown.
 
 ### Solution
-Add a `special_rate_price` numeric field to the `profiles` table. When calculating revenue in the profitability service, if an order's customer has a `special_rate_price` set, use that per-stop price instead of the standard bike-type lookup. The admin can manually input the agreed price per stop in the user management dialog.
+Run a one-time database migration that extracts sender and receiver details from orders missing contact links, inserts them into the `contacts` table (respecting the existing `user_id + email` unique constraint), and backfills the `sender_contact_id` / `receiver_contact_id` on those orders.
 
 ### Changes
 
 | File | Change |
 |---|---|
-| **Database migration** | Add `special_rate_price numeric` column to `profiles` (nullable, default null) |
-| `src/types/user.ts` | Add `special_rate_price: number \| null` |
-| `src/components/user-management/EditUserDialog.tsx` | Add an input field for "Special Rate Price (£ per delivery)" next to the existing special_rate_code field |
-| `src/services/profitabilityService.ts` | In `getRevenueForTimeslip`, after finding driver orders, look up the order's `user_id` → profile → `special_rate_price`. If set, use `special_rate_price / 2` as revenue per stop instead of `getRevenuePerStopForBikeType`. Cache profile lookups to avoid repeated queries. |
+| **Database migration** | SQL script that: (1) Inserts missing sender contacts from orders where `sender_contact_id IS NULL` and sender email exists, using `ON CONFLICT (user_id, email) DO NOTHING`. (2) Same for receivers. (3) Updates `sender_contact_id` and `receiver_contact_id` on orders by matching `user_id + email` against the contacts table. |
 
-### Technical detail
+### Migration detail
 
-The revenue override applies per order based on the **order's customer** (not the driver). In `getRevenueForTimeslip`, after fetching matching orders, batch-fetch the distinct `user_id`s from those orders, check their profiles for `special_rate_price`, and apply it per-order. Orders from customers without a special rate continue using standard bike-type pricing.
+```sql
+-- Step 1: Insert missing sender contacts
+INSERT INTO contacts (user_id, name, email, phone, street, city, state, postal_code, country)
+SELECT DISTINCT ON (o.user_id, lower(o.sender->>'email'))
+  o.user_id,
+  o.sender->>'name',
+  lower(o.sender->>'email'),
+  o.sender->>'phone',
+  o.sender->'address'->>'street',
+  o.sender->'address'->>'city',
+  o.sender->'address'->>'state',
+  o.sender->'address'->>'zipCode',
+  o.sender->'address'->>'country'
+FROM orders o
+WHERE o.sender_contact_id IS NULL
+  AND o.sender->>'email' IS NOT NULL
+  AND trim(o.sender->>'email') != ''
+ON CONFLICT (user_id, email) DO NOTHING;
+
+-- Step 2: Insert missing receiver contacts (same pattern)
+
+-- Step 3: Backfill sender_contact_id on orders
+UPDATE orders o
+SET sender_contact_id = c.id
+FROM contacts c
+WHERE o.sender_contact_id IS NULL
+  AND c.user_id = o.user_id
+  AND lower(c.email::text) = lower(o.sender->>'email');
+
+-- Step 4: Backfill receiver_contact_id on orders (same pattern)
+```
+
+No code changes needed — this is a data-only migration. After running, all historical contacts will appear in the address book dropdown.
 
