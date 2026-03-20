@@ -1118,6 +1118,15 @@ const OrderDetail = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
+                  onClick={handleCreateReturn}
+                  disabled={creatingReturn}
+                >
+                  <RotateCcw className={`mr-2 h-4 w-4 ${creatingReturn ? 'animate-spin' : ''}`} />
+                  {creatingReturn ? "Creating..." : "Return"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
                   onClick={() => generateSingleOrderLabel(order)}
                 >
                   <Printer className="mr-2 h-4 w-4" />
