@@ -6,7 +6,7 @@ import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
 import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
 import { sendOrderCancellationEmails } from "@/services/emailService";
-import { Order, OrderStatus } from "@/types/order";
+import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
