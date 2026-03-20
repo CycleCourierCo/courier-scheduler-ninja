@@ -366,6 +366,7 @@ export const aggregateProfitability = async (
   costPerMile: number,
   useBikeTypePricing: boolean = false
 ) => {
+  clearSpecialRatePriceCache();
   let totalRevenue = 0;
   let totalCosts = 0;
   let totalProfit = 0;
