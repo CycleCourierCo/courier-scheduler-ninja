@@ -40,6 +40,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         postal_code: user.postal_code,
         account_status: user.account_status,
         special_rate_code: user.special_rate_code,
+        special_rate_price: user.special_rate_price,
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         hourly_rate: user.hourly_rate,
         uses_own_van: user.uses_own_van,
@@ -172,6 +173,20 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   />
                   <p className="text-xs text-muted-foreground">
                     If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
+                  </p>
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-special-rate-price">Special Rate Price (£ per delivery)</Label>
+                  <Input
+                    id="edit-special-rate-price"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 45.00"
+                    value={formData.special_rate_price ?? ''}
+                    onChange={(e) => setFormData({ ...formData, special_rate_price: e.target.value ? parseFloat(e.target.value) : null })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If set, this price per delivery will be used in profitability calculations instead of the standard bike-type pricing.
                   </p>
                 </div>
                 <div className="col-span-2">

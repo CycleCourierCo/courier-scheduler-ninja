@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Calendar className="mr-2 h-4 w-4" />
                             Job Scheduling
                           </Link>
+                          <Link to="/ai-routing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            AI Routing
+                          </Link>
                           <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             Driver Timeslips
@@ -193,10 +197,16 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                         </>
                       )}
-                      {isRoutePlanner && <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isRoutePlanner && <>
+                        <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
-                        </Link>}
+                        </Link>
+                        <Link to="/ai-routing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          AI Routing
+                        </Link>
+                      </>}
                       {isSales && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
@@ -316,6 +326,12 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        <Link to="/ai-routing" className="cursor-pointer flex w-full items-center">
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          <span>AI Routing</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                           <Clock className="mr-2 h-4 w-4" />
                           <span>Driver Timeslips</span>
@@ -422,12 +438,20 @@ const Layout: React.FC<LayoutProps> = ({
                     </>
                   )}
                   
-                  {isRoutePlanner && <DropdownMenuItem asChild>
+                  {isRoutePlanner && <>
+                    <DropdownMenuItem asChild>
                       <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>Job Scheduling</span>
                       </Link>
-                    </DropdownMenuItem>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/ai-routing" className="cursor-pointer flex w-full items-center">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        <span>AI Routing</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>}
                   
                   {isDriver && <DropdownMenuItem asChild>
                       <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">

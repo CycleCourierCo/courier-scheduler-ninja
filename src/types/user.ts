@@ -59,6 +59,7 @@ export interface UserProfile {
   shipday_driver_name: string | null;
   // Invoice pricing
   special_rate_code: string | null;
+  special_rate_price: number | null;
   // Opening hours
   opening_hours: any | null;
 }

@@ -172,6 +172,104 @@ export type Database = {
         }
         Relationships: []
       }
+      historical_route_stops: {
+        Row: {
+          created_at: string
+          historical_route_id: string
+          id: string
+          lat: number | null
+          lon: number | null
+          order_id: string
+          postcode_prefix: string | null
+          region: string | null
+          sequence_order: number | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          historical_route_id: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id: string
+          postcode_prefix?: string | null
+          region?: string | null
+          sequence_order?: number | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          historical_route_id?: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id?: string
+          postcode_prefix?: string | null
+          region?: string | null
+          sequence_order?: number | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_route_stops_historical_route_id_fkey"
+            columns: ["historical_route_id"]
+            isOneToOne: false
+            referencedRelation: "historical_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historical_routes: {
+        Row: {
+          centroid_lat: number | null
+          centroid_lon: number | null
+          corridor_bearing: number | null
+          created_at: string
+          driver_name: string
+          id: string
+          postcode_prefixes: string[] | null
+          regions: string[]
+          route_date: string
+          route_type: string
+          spread_km: number | null
+          stop_count: number
+          stops: Json
+          total_distance_km: number | null
+        }
+        Insert: {
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          driver_name: string
+          id?: string
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          route_date: string
+          route_type?: string
+          spread_km?: number | null
+          stop_count?: number
+          stops?: Json
+          total_distance_km?: number | null
+        }
+        Update: {
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          driver_name?: string
+          id?: string
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          route_date?: string
+          route_type?: string
+          spread_km?: number | null
+          stop_count?: number
+          stops?: Json
+          total_distance_km?: number | null
+        }
+        Relationships: []
+      }
       holidays: {
         Row: {
           created_at: string
@@ -628,6 +726,120 @@ export type Database = {
           },
         ]
       }
+      planner_route_overrides: {
+        Row: {
+          action: string
+          created_at: string | null
+          created_by: string
+          from_day: string | null
+          from_slot: number | null
+          id: string
+          order_id: string
+          prediction_id: string
+          reason: string | null
+          to_day: string | null
+          to_slot: number | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          created_by: string
+          from_day?: string | null
+          from_slot?: number | null
+          id?: string
+          order_id: string
+          prediction_id: string
+          reason?: string | null
+          to_day?: string | null
+          to_slot?: number | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          created_by?: string
+          from_day?: string | null
+          from_slot?: number | null
+          id?: string
+          order_id?: string
+          prediction_id?: string
+          reason?: string | null
+          to_day?: string | null
+          to_slot?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_route_overrides_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planner_route_overrides_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "route_predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postcode_patterns: {
+        Row: {
+          avg_stop_density_nearby: number | null
+          cancel_reschedule_rate: number | null
+          collection_day_frequency: Json | null
+          common_sender_receiver_pairings: Json | null
+          created_at: string
+          delivery_day_frequency: Json | null
+          id: string
+          median_days_to_collection: number | null
+          median_days_to_delivery: number | null
+          p90_days_to_collection: number | null
+          p90_days_to_delivery: number | null
+          postcode_prefix: string
+          sample_size: number
+          total_jobs: number
+          updated_at: string
+          weekday_route_inclusion_rate: Json | null
+        }
+        Insert: {
+          avg_stop_density_nearby?: number | null
+          cancel_reschedule_rate?: number | null
+          collection_day_frequency?: Json | null
+          common_sender_receiver_pairings?: Json | null
+          created_at?: string
+          delivery_day_frequency?: Json | null
+          id?: string
+          median_days_to_collection?: number | null
+          median_days_to_delivery?: number | null
+          p90_days_to_collection?: number | null
+          p90_days_to_delivery?: number | null
+          postcode_prefix: string
+          sample_size?: number
+          total_jobs?: number
+          updated_at?: string
+          weekday_route_inclusion_rate?: Json | null
+        }
+        Update: {
+          avg_stop_density_nearby?: number | null
+          cancel_reschedule_rate?: number | null
+          collection_day_frequency?: Json | null
+          common_sender_receiver_pairings?: Json | null
+          created_at?: string
+          delivery_day_frequency?: Json | null
+          id?: string
+          median_days_to_collection?: number | null
+          median_days_to_delivery?: number | null
+          p90_days_to_collection?: number | null
+          p90_days_to_delivery?: number | null
+          postcode_prefix?: string
+          sample_size?: number
+          total_jobs?: number
+          updated_at?: string
+          weekday_route_inclusion_rate?: Json | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_status:
@@ -657,6 +869,7 @@ export type Database = {
           shipday_driver_id: string | null
           shipday_driver_name: string | null
           special_rate_code: string | null
+          special_rate_price: number | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
@@ -691,6 +904,7 @@ export type Database = {
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
           special_rate_code?: string | null
+          special_rate_price?: number | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -725,6 +939,7 @@ export type Database = {
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
           special_rate_code?: string | null
+          special_rate_price?: number | null
           table_preferences?: Json | null
           updated_at?: string
           uses_own_van?: boolean | null
@@ -771,6 +986,280 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      route_archetype_members: {
+        Row: {
+          archetype_id: string
+          created_at: string
+          historical_route_id: string
+          id: string
+          similarity_score: number | null
+        }
+        Insert: {
+          archetype_id: string
+          created_at?: string
+          historical_route_id: string
+          id?: string
+          similarity_score?: number | null
+        }
+        Update: {
+          archetype_id?: string
+          created_at?: string
+          historical_route_id?: string
+          id?: string
+          similarity_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_archetype_members_archetype_id_fkey"
+            columns: ["archetype_id"]
+            isOneToOne: false
+            referencedRelation: "route_archetypes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_archetype_members_historical_route_id_fkey"
+            columns: ["historical_route_id"]
+            isOneToOne: false
+            referencedRelation: "historical_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      route_archetypes: {
+        Row: {
+          avg_spread_km: number | null
+          avg_stop_count: number | null
+          centroid_lat: number | null
+          centroid_lon: number | null
+          corridor_bearing: number | null
+          created_at: string
+          id: string
+          label: string
+          member_count: number
+          postcode_prefixes: string[] | null
+          regions: string[]
+          updated_at: string
+        }
+        Insert: {
+          avg_spread_km?: number | null
+          avg_stop_count?: number | null
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          id?: string
+          label: string
+          member_count?: number
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          updated_at?: string
+        }
+        Update: {
+          avg_spread_km?: number | null
+          avg_stop_count?: number | null
+          centroid_lat?: number | null
+          centroid_lon?: number | null
+          corridor_bearing?: number | null
+          created_at?: string
+          id?: string
+          label?: string
+          member_count?: number
+          postcode_prefixes?: string[] | null
+          regions?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      route_group_scores: {
+        Row: {
+          archetype_id: string | null
+          compactness_score: number | null
+          corridor_fit: number | null
+          created_at: string | null
+          fill_efficiency: number | null
+          group_label: string
+          id: string
+          prediction_id: string
+          selected: boolean | null
+          similarity_score: number | null
+        }
+        Insert: {
+          archetype_id?: string | null
+          compactness_score?: number | null
+          corridor_fit?: number | null
+          created_at?: string | null
+          fill_efficiency?: number | null
+          group_label: string
+          id?: string
+          prediction_id: string
+          selected?: boolean | null
+          similarity_score?: number | null
+        }
+        Update: {
+          archetype_id?: string | null
+          compactness_score?: number | null
+          corridor_fit?: number | null
+          created_at?: string | null
+          fill_efficiency?: number | null
+          group_label?: string
+          id?: string
+          prediction_id?: string
+          selected?: boolean | null
+          similarity_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_group_scores_archetype_id_fkey"
+            columns: ["archetype_id"]
+            isOneToOne: false
+            referencedRelation: "route_archetypes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_group_scores_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "route_predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      route_prediction_runs: {
+        Row: {
+          acceptance_outcome: string | null
+          actual_duration_minutes: number | null
+          actual_miles: number | null
+          ai_tokens_used: number | null
+          compare_scenario_metadata: Json | null
+          created_at: string
+          failed_collections: number | null
+          failed_deliveries: number | null
+          fallback_used: boolean
+          id: string
+          jobs_completed: number | null
+          jobs_deferred: number | null
+          model_used: string
+          pending_jobs_hash: string | null
+          planner_overrides_count: number | null
+          prediction_id: string
+          prompt_version: string
+          validation_errors: Json | null
+          validation_passed: boolean
+        }
+        Insert: {
+          acceptance_outcome?: string | null
+          actual_duration_minutes?: number | null
+          actual_miles?: number | null
+          ai_tokens_used?: number | null
+          compare_scenario_metadata?: Json | null
+          created_at?: string
+          failed_collections?: number | null
+          failed_deliveries?: number | null
+          fallback_used?: boolean
+          id?: string
+          jobs_completed?: number | null
+          jobs_deferred?: number | null
+          model_used?: string
+          pending_jobs_hash?: string | null
+          planner_overrides_count?: number | null
+          prediction_id: string
+          prompt_version?: string
+          validation_errors?: Json | null
+          validation_passed?: boolean
+        }
+        Update: {
+          acceptance_outcome?: string | null
+          actual_duration_minutes?: number | null
+          actual_miles?: number | null
+          ai_tokens_used?: number | null
+          compare_scenario_metadata?: Json | null
+          created_at?: string
+          failed_collections?: number | null
+          failed_deliveries?: number | null
+          fallback_used?: boolean
+          id?: string
+          jobs_completed?: number | null
+          jobs_deferred?: number | null
+          model_used?: string
+          pending_jobs_hash?: string | null
+          planner_overrides_count?: number | null
+          prediction_id?: string
+          prompt_version?: string
+          validation_errors?: Json | null
+          validation_passed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_prediction_runs_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "route_predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      route_predictions: {
+        Row: {
+          ai_proposed_routes: Json | null
+          created_at: string
+          created_by: string | null
+          date_range_end: string
+          date_range_start: string
+          driver_count: number
+          id: string
+          optimized_routes: Json | null
+          pending_job_count: number
+          planning_mode: string | null
+          predicted_routes: Json | null
+          status: string
+          unassigned_stops: Json | null
+          updated_at: string
+          validated_routes: Json | null
+        }
+        Insert: {
+          ai_proposed_routes?: Json | null
+          created_at?: string
+          created_by?: string | null
+          date_range_end: string
+          date_range_start: string
+          driver_count: number
+          id?: string
+          optimized_routes?: Json | null
+          pending_job_count?: number
+          planning_mode?: string | null
+          predicted_routes?: Json | null
+          status?: string
+          unassigned_stops?: Json | null
+          updated_at?: string
+          validated_routes?: Json | null
+        }
+        Update: {
+          ai_proposed_routes?: Json | null
+          created_at?: string
+          created_by?: string | null
+          date_range_end?: string
+          date_range_start?: string
+          driver_count?: number
+          id?: string
+          optimized_routes?: Json | null
+          pending_job_count?: number
+          planning_mode?: string | null
+          predicted_routes?: Json | null
+          status?: string
+          unassigned_stops?: Json | null
+          updated_at?: string
+          validated_routes?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_predictions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       routes: {
         Row: {
@@ -1206,6 +1695,7 @@ export type Database = {
           shipday_driver_id: string | null
           shipday_driver_name: string | null
           special_rate_code: string | null
+          special_rate_price: number | null
           table_preferences: Json | null
           updated_at: string
           uses_own_van: boolean | null
