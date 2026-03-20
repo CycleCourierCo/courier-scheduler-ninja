@@ -251,7 +251,8 @@ The Cycle Courier Co. Team
           weekday: 'long', 
           day: 'numeric', 
           month: 'long', 
-          year: 'numeric' 
+          year: 'numeric',
+          timeZone: 'Europe/London'
         });
       });
       
