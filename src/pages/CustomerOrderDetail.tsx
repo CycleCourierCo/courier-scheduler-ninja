@@ -225,7 +225,7 @@ const CustomerOrderDetail = () => {
           </div>
            <div className="flex items-center gap-2 flex-wrap">
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleCreateReturn}
               disabled={creatingReturn}
@@ -235,7 +235,7 @@ const CustomerOrderDetail = () => {
               {creatingReturn ? "Creating..." : "Return"}
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => generateSingleOrderLabel(order)}
               className="flex-1 sm:flex-none"
