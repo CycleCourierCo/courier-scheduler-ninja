@@ -2,6 +2,34 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 
+// Bike type numeric ID mapping
+const BIKE_TYPE_BY_ID: Record<number, string> = {
+  1: 'Non-Electric - Mountain Bike',
+  2: 'Non-Electric - Road Bike',
+  3: 'Non-Electric - Hybrid',
+  4: 'Electric Bike - Under 25kg',
+  5: 'Electric Bike - Over 25kg',
+  6: 'Cargo Bike',
+  7: 'Longtail Cargo Bike',
+  8: 'Stationary Bike',
+  9: 'Kids Bikes',
+  10: 'BMX Bikes',
+  11: 'Boxed Kids Bikes',
+  12: 'Folding Bikes',
+  13: 'Tandem',
+  14: 'Travel Bike Box',
+  15: 'Wheelset/Frameset',
+  16: 'Bike Rack',
+  17: 'Turbo Trainer',
+}
+
+function resolveBikeTypeId(typeId: number | undefined | null): string | null {
+  if (typeId === undefined || typeId === null) return null
+  const resolved = BIKE_TYPE_BY_ID[typeId]
+  if (!resolved) throw new Error(`Invalid bike_type_id: ${typeId}. Must be 1-17.`)
+  return resolved
+}
+
 // Get ONLY lat/lon coordinates from an address string - does NOT modify any other fields
 async function getCoordinates(addressString: string): Promise<{ lat: number; lon: number } | null> {
   const geoapifyKey = Deno.env.get('GEOAPIFY_API_KEY');
