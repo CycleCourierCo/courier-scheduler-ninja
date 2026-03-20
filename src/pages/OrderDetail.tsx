@@ -1116,7 +1116,7 @@ const OrderDetail = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
-                  variant="outline" 
+                  variant="default" 
                   size="sm" 
                   onClick={handleCreateReturn}
                   disabled={creatingReturn}
