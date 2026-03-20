@@ -40,6 +40,30 @@ To prevent duplicate order creation, include an `Idempotency-Key` header with a 
 Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```
 
+## Bike Type Reference
+
+You can specify bike types using either a string name or a numeric `type_id`. Using numeric IDs is recommended for reliability.
+
+| ID | Bike Type | Price |
+|----|-----------|-------|
+| 1 | Non-Electric - Mountain Bike | £60 |
+| 2 | Non-Electric - Road Bike | £60 |
+| 3 | Non-Electric - Hybrid | £60 |
+| 4 | Electric Bike - Under 25kg | £70 |
+| 5 | Electric Bike - Over 25kg | £130 |
+| 6 | Cargo Bike | £225 |
+| 7 | Longtail Cargo Bike | £130 |
+| 8 | Stationary Bike | £70 |
+| 9 | Kids Bikes | £40 |
+| 10 | BMX Bikes | £40 |
+| 11 | Boxed Kids Bikes | £35 |
+| 12 | Folding Bikes | £40 |
+| 13 | Tandem | £110 |
+| 14 | Travel Bike Box | £60 |
+| 15 | Wheelset/Frameset | £35 |
+| 16 | Bike Rack | £40 |
+| 17 | Turbo Trainer | £40 |
+
 ## Orders API
 
 ### Create Order
@@ -81,78 +105,76 @@ Idempotency-Key: unique_identifier_here
       "postal_code": "E1 6AN"
     }
   },
-  "bike_details": {
-    "brand": "Trek",
-    "model": "Domane AL 2",
-    "color": "Red",
-    "size": "Medium",
-    "description": "Road bike in excellent condition"
-  },
+  "bikes": [
+    {
+      "brand": "Trek",
+      "model": "Domane AL 2",
+      "type_id": 2,
+      "value": 1200
+    }
+  ],
+  "bike_type_id": 2,
+  "bike_value": 1200,
   "order_options": {
     "is_ebay_order": false,
     "needs_payment_on_collection": false,
     "payment_amount": 0,
     "special_instructions": "Handle with care - new bike"
   },
-  "delivery_instructions": {
-    "collection_notes": "Bike is in the garage around the back",
-    "delivery_notes": "Leave with concierge if not home",
-    "estimated_value": 1200.00
-  }
+  "delivery_instructions": "Leave with concierge if not home",
+  "needs_inspection": false
 }
 ```
 
 **Response** (201 Created):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c",
-    "tracking_number": "CCC754773995458CHRCH6",
-    "status": "pending",
-    "created_at": "2025-01-15T10:30:00Z",
-    "sender": {
-      "name": "John Smith",
-      "email": "john@example.com",
-      "phone": "+44 7700 900123",
-      "company": "Smith Cycles Ltd",
-      "address": {
-        "line1": "123 High Street",
-        "line2": "Unit 5",
-        "city": "London",
-        "postal_code": "SW1A 1AA"
-      }
-    },
-    "receiver": {
-      "name": "Jane Doe",
-      "email": "jane@example.com",
-      "phone": "+44 7700 900456",
-      "address": {
-        "line1": "456 Oak Avenue",
-        "line2": "",
-        "city": "London",
-        "postal_code": "E1 6AN"
-      }
-    },
-    "bike_details": {
+  "id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c",
+  "tracking_number": "CCC754773995458CHRCH6",
+  "status": "created",
+  "created_at": "2025-01-15T10:30:00Z",
+  "sender": {
+    "name": "John Smith",
+    "email": "john@example.com",
+    "phone": "+44 7700 900123",
+    "company": "Smith Cycles Ltd",
+    "address": {
+      "line1": "123 High Street",
+      "line2": "Unit 5",
+      "city": "London",
+      "postal_code": "SW1A 1AA"
+    }
+  },
+  "receiver": {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "phone": "+44 7700 900456",
+    "address": {
+      "line1": "456 Oak Avenue",
+      "line2": "",
+      "city": "London",
+      "postal_code": "E1 6AN"
+    }
+  },
+  "bike_brand": "Trek",
+  "bike_model": "Domane AL 2",
+  "bike_type": "Non-Electric - Road Bike",
+  "bike_value": 1200,
+  "bikes": [
+    {
       "brand": "Trek",
       "model": "Domane AL 2",
-      "color": "Red",
-      "size": "Medium",
-      "description": "Road bike in excellent condition"
-    },
-    "order_options": {
-      "is_ebay_order": false,
-      "needs_payment_on_collection": false,
-      "payment_amount": 0,
-      "special_instructions": "Handle with care - new bike"
-    },
-    "delivery_instructions": {
-      "collection_notes": "Bike is in the garage around the back",
-      "delivery_notes": "Leave with concierge if not home",
-      "estimated_value": 1200.00
+      "type": "Non-Electric - Road Bike",
+      "value": 1200
     }
-  }
+  ],
+  "bike_quantity": 1,
+  "is_bike_swap": false,
+  "is_ebay_order": false,
+  "collection_code": null,
+  "needs_payment_on_collection": false,
+  "needs_inspection": false,
+  "delivery_instructions": "Leave with concierge if not home"
 }
 ```
 
@@ -165,27 +187,24 @@ Retrieves details for a specific order.
 **Response** (200 OK):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c",
-    "tracking_number": "CCC754773995458CHRCH6",
-    "status": "in_transit",
-    "created_at": "2025-01-15T10:30:00Z",
-    "pickup_date": "2025-01-16T09:00:00Z",
-    "delivery_date": "2025-01-16T15:00:00Z",
-    "tracking_events": [
-      {
-        "event": "ORDER_CREATED",
-        "timestamp": "2025-01-15T10:30:00Z",
-        "description": "Order created with tracking number CCC754773995458CHRCH6"
-      },
-      {
-        "event": "ORDER_ONTHEWAY",
-        "timestamp": "2025-01-16T08:45:00Z",
-        "description": "Driver is on the way to collect the bike"
-      }
-    ]
-  }
+  "id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c",
+  "tracking_number": "CCC754773995458CHRCH6",
+  "status": "in_transit",
+  "created_at": "2025-01-15T10:30:00Z",
+  "pickup_date": "2025-01-16T09:00:00Z",
+  "delivery_date": "2025-01-16T15:00:00Z",
+  "tracking_events": [
+    {
+      "event": "ORDER_CREATED",
+      "timestamp": "2025-01-15T10:30:00Z",
+      "description": "Order created with tracking number CCC754773995458CHRCH6"
+    },
+    {
+      "event": "ORDER_ONTHEWAY",
+      "timestamp": "2025-01-16T08:45:00Z",
+      "description": "Driver is on the way to collect the bike"
+    }
+  ]
 }
 ```
 
@@ -209,24 +228,28 @@ Retrieves details for a specific order.
 - `address.city` (string, max 100 chars)
 - `address.postal_code` (valid UK postcode)
 
-**Bike Details**:
-- `brand` (string, max 50 chars)
-- `model` (string, max 100 chars)
-- `color` (string, max 30 chars)
-- `size` (string, max 20 chars)
+**Bike Details** (provide `bikes` array OR `bike_brand`):
+- `bikes[].brand` (string, max 50 chars)
+- `bikes[].model` (string, max 100 chars)
 
 ### Optional Fields
 
 - `sender.company` (string, max 100 chars)
 - `sender.address.line2` (string, max 200 chars)
 - `receiver.address.line2` (string, max 200 chars)
-- `bike_details.description` (string, max 500 chars)
+- `bike_type` (string — see Bike Type Reference above)
+- `bike_type_id` (integer 1-17 — see Bike Type Reference above; takes precedence over `bike_type`)
+- `bike_value` (number — estimated value in £)
+- `bikes[].type` (string — bike type per bike)
+- `bikes[].type_id` (integer 1-17 — numeric bike type per bike; takes precedence over `type`)
+- `bikes[].value` (number — value per bike in £)
+- `needs_inspection` (boolean, default false)
 - `order_options.*` (all optional, defaults provided)
-- `delivery_instructions.*` (all optional)
+- `delivery_instructions` (string)
 
 ## Order Status Values
 
-- `pending` - Order created, awaiting scheduling
+- `created` - Order created, awaiting scheduling
 - `scheduled` - Pickup and delivery times confirmed
 - `collecting` - Driver en route to collection address
 - `collected` - Bike collected from sender
@@ -241,90 +264,42 @@ Retrieves details for a specific order.
 ### 400 Bad Request
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid request data",
-    "details": [
-      {
-        "field": "sender.email",
-        "message": "Invalid email format"
-      },
-      {
-        "field": "receiver.postal_code",
-        "message": "Invalid UK postcode"
-      }
-    ]
-  }
+  "error": "Invalid bike_type_id: 99. Must be 1-17.",
+  "code": "VALIDATION_ERROR"
 }
 ```
 
 ### 401 Unauthorized
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Invalid or missing API key"
-  }
-}
-```
-
-### 403 Forbidden
-```json
-{
-  "success": false,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "API key does not have permission to create orders"
-  }
+  "error": "Invalid or missing API key",
+  "code": "INVALID_API_KEY"
 }
 ```
 
 ### 409 Conflict
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "DUPLICATE_REQUEST",
-    "message": "Order with this idempotency key already exists",
-    "existing_order_id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c"
-  }
-}
-```
-
-### 422 Unprocessable Entity
-```json
-{
-  "success": false,
-  "error": {
-    "code": "BUSINESS_RULE_VIOLATION",
-    "message": "Cannot deliver to this postcode area"
-  }
+  "error": "Order with this idempotency key already exists",
+  "code": "DUPLICATE_REQUEST",
+  "existing_order_id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c"
 }
 ```
 
 ### 429 Too Many Requests
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "RATE_LIMIT_EXCEEDED",
-    "message": "API rate limit exceeded",
-    "retry_after": 60
-  }
+  "error": "API rate limit exceeded",
+  "code": "RATE_LIMIT_EXCEEDED",
+  "retry_after": 60
 }
 ```
 
 ### 500 Internal Server Error
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "INTERNAL_ERROR",
-    "message": "An unexpected error occurred",
-    "request_id": "req_1234567890"
-  }
+  "error": "An unexpected error occurred",
+  "code": "INTERNAL_ERROR"
 }
 ```
 
@@ -357,12 +332,16 @@ curl -X POST https://your-domain.com/api/v1/orders \
         "postal_code": "E1 6AN"
       }
     },
-    "bike_details": {
-      "brand": "Trek",
-      "model": "Domane AL 2",
-      "color": "Red",
-      "size": "Medium"
-    }
+    "bikes": [
+      {
+        "brand": "Trek",
+        "model": "Domane AL 2",
+        "type_id": 2,
+        "value": 1200
+      }
+    ],
+    "bike_type_id": 2,
+    "bike_value": 1200
   }'
 ```
 
@@ -393,12 +372,16 @@ const createOrder = async () => {
           postal_code: "E1 6AN"
         }
       },
-      bike_details: {
-        brand: "Trek",
-        model: "Domane AL 2",
-        color: "Red",
-        size: "Medium"
-      }
+      bikes: [
+        {
+          brand: "Trek",
+          model: "Domane AL 2",
+          type_id: 2,
+          value: 1200
+        }
+      ],
+      bike_type_id: 2,
+      bike_value: 1200
     }, {
       headers: {
         'Content-Type': 'application/json',
@@ -451,12 +434,16 @@ def create_order():
                 "postal_code": "E1 6AN"
             }
         },
-        "bike_details": {
-            "brand": "Trek",
-            "model": "Domane AL 2",
-            "color": "Red",
-            "size": "Medium"
-        }
+        "bikes": [
+            {
+                "brand": "Trek",
+                "model": "Domane AL 2",
+                "type_id": 2,
+                "value": 1200
+            }
+        ],
+        "bike_type_id": 2,
+        "bike_value": 1200
     }
     
     try:

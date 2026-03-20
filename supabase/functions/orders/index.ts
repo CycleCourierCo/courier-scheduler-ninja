@@ -2,6 +2,34 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 
+// Bike type numeric ID mapping
+const BIKE_TYPE_BY_ID: Record<number, string> = {
+  1: 'Non-Electric - Mountain Bike',
+  2: 'Non-Electric - Road Bike',
+  3: 'Non-Electric - Hybrid',
+  4: 'Electric Bike - Under 25kg',
+  5: 'Electric Bike - Over 25kg',
+  6: 'Cargo Bike',
+  7: 'Longtail Cargo Bike',
+  8: 'Stationary Bike',
+  9: 'Kids Bikes',
+  10: 'BMX Bikes',
+  11: 'Boxed Kids Bikes',
+  12: 'Folding Bikes',
+  13: 'Tandem',
+  14: 'Travel Bike Box',
+  15: 'Wheelset/Frameset',
+  16: 'Bike Rack',
+  17: 'Turbo Trainer',
+}
+
+function resolveBikeTypeId(typeId: number | undefined | null): string | null {
+  if (typeId === undefined || typeId === null) return null
+  const resolved = BIKE_TYPE_BY_ID[typeId]
+  if (!resolved) throw new Error(`Invalid bike_type_id: ${typeId}. Must be 1-17.`)
+  return resolved
+}
+
 // Get ONLY lat/lon coordinates from an address string - does NOT modify any other fields
 async function getCoordinates(addressString: string): Promise<{ lat: number; lon: number } | null> {
   const geoapifyKey = Deno.env.get('GEOAPIFY_API_KEY');
@@ -93,19 +121,60 @@ Deno.serve(async (req) => {
       // Validate bikes array or individual bike fields
       let bikeBrand = ''
       let bikeModel = ''
+      let bikeType: string | null = null
+      let bikeValue: number | null = null
+      let bikesArray: any[] | null = null
       
-      if (body.bikes && Array.isArray(body.bikes) && body.bikes.length > 0) {
-        // Handle bikes array format (from API documentation)
-        bikeBrand = body.bikes[0].brand || ''
-        bikeModel = body.bikes[0].model || ''
-      } else if (body.bike_brand) {
-        // Handle individual bike_brand/bike_model format
-        bikeBrand = body.bike_brand
-        bikeModel = body.bike_model || ''
-      } else {
+      try {
+        if (body.bikes && Array.isArray(body.bikes) && body.bikes.length > 0) {
+          bikesArray = body.bikes
+          bikeBrand = body.bikes[0].brand || ''
+          bikeModel = body.bikes[0].model || ''
+          // Resolve type_id to string type (type_id takes precedence over type)
+          if (body.bikes[0].type_id !== undefined) {
+            bikeType = resolveBikeTypeId(body.bikes[0].type_id)
+          } else {
+            bikeType = body.bikes[0].type || null
+          }
+          bikeValue = body.bikes[0].value !== undefined ? Number(body.bikes[0].value) : null
+          
+          // Resolve type_id in each bike in the array
+          bikesArray = body.bikes.map((bike: any) => {
+            const resolved = { ...bike }
+            if (bike.type_id !== undefined) {
+              resolved.type = resolveBikeTypeId(bike.type_id)
+            }
+            return resolved
+          })
+        } else if (body.bike_brand) {
+          bikeBrand = body.bike_brand
+          bikeModel = body.bike_model || ''
+        } else {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Missing bike information. Provide either bikes array or bike_brand field', 
+              code: 'VALIDATION_ERROR' 
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
+        }
+        
+        // Top-level bike_type_id / bike_type / bike_value override
+        if (body.bike_type_id !== undefined) {
+          bikeType = resolveBikeTypeId(body.bike_type_id)
+        } else if (body.bike_type && !bikeType) {
+          bikeType = body.bike_type
+        }
+        if (body.bike_value !== undefined && bikeValue === null) {
+          bikeValue = Number(body.bike_value)
+        }
+      } catch (typeError) {
         return new Response(
           JSON.stringify({ 
-            error: 'Missing bike information. Provide either bikes array or bike_brand field', 
+            error: typeError instanceof Error ? typeError.message : 'Invalid bike type ID', 
             code: 'VALIDATION_ERROR' 
           }),
           { 
@@ -209,6 +278,9 @@ Deno.serve(async (req) => {
         receiver: body.receiver,
         bike_brand: bikeBrand,
         bike_model: bikeModel,
+        bike_type: bikeType,
+        bike_value: bikeValue,
+        bikes: bikesArray,
         bike_quantity: body.bikeQuantity || body.bike_quantity || 1,
         is_bike_swap: body.isBikeSwap || body.is_bike_swap || false,
         is_ebay_order: body.isEbayOrder || body.is_ebay_order || false,
@@ -511,11 +583,15 @@ Deno.serve(async (req) => {
           receiver: order.receiver,
           bike_brand: order.bike_brand,
           bike_model: order.bike_model,
+          bike_type: order.bike_type,
+          bike_value: order.bike_value,
+          bikes: order.bikes,
           bike_quantity: order.bike_quantity,
           is_bike_swap: order.is_bike_swap,
           is_ebay_order: order.is_ebay_order,
           collection_code: order.collection_code,
           needs_payment_on_collection: order.needs_payment_on_collection,
+          needs_inspection: order.needs_inspection,
           delivery_instructions: order.delivery_instructions
         }),
         { 
