@@ -156,7 +156,8 @@ const CreateOrder = () => {
   const { userProfile, user } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(user?.id);
+  const isAdmin = userProfile?.role === 'admin';
+  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(user?.id, isAdmin);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
