@@ -214,17 +214,30 @@ export const useAvailability = ({
       return;
     }
 
-    if (dates.length < 7) {
-      toast.error("Please select at least 7 dates when you'll be available");
+    // Pre-filter: remove Fridays and holidays before submission
+    const validDates = dates.filter(date => {
+      if (date.getDay() === 5) return false;
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      if (holidayDates.includes(dateStr)) return false;
+      return true;
+    });
+
+    const removedCount = dates.length - validDates.length;
+    if (removedCount > 0) {
+      toast.warning(`${removedCount} invalid date(s) (Fridays/holidays) were removed from your selection.`);
+    }
+
+    if (validDates.length < 7) {
+      toast.error(`Please select at least 7 valid dates. You currently have ${validDates.length} valid date(s).`);
       return;
     }
 
     try {
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
-      console.log("Selected dates:", dates.map(d => d.toISOString()));
+      console.log("Selected dates:", validDates.map(d => d.toISOString()));
       
-      const updatedOrder = await updateFunction(id, dates, notes);
+      const updatedOrder = await updateFunction(id, validDates, notes);
 
       if (updatedOrder) {
         toast.success("Your availability has been updated successfully!");
