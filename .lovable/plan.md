@@ -1,63 +1,38 @@
 
 
-## Add Numeric Bike Type IDs, bike_type, bike_value, and bikes array to Orders API
+## Unit Economics Section for Route Profitability Page
+
+### What it does
+Adds a new "Unit Economics" card/section to the Route Profitability page that shows per-unit metrics (per stop, per mile, per driver, per hour) with the ability to view these across different time periods — the currently selected day, week, month, and year.
+
+### Metrics to display
+- **Revenue per Stop** — total revenue / total stops
+- **Cost per Stop** — total costs / total stops
+- **Profit per Stop** — profit / total stops
+- **Revenue per Mile** — total revenue / total miles
+- **Cost per Mile** — total costs / total miles (actual vs configured)
+- **Profit per Mile** — profit / total miles
+- **Revenue per Driver-Day** — total revenue / number of timeslips
+- **Cost per Driver-Day** — total costs / number of timeslips
+- **Profit per Driver-Day** — profit / number of timeslips
+- **Revenue per Hour** — total revenue / total hours worked
+
+### Time period tabs
+A tab group letting the user switch between: **Day** (uses selected date), **Week** (uses selected week), **Month** (uses selected month), **Year** (uses selected year). Each tab computes unit economics from the already-fetched timeslip data for that period — no new queries needed.
 
 ### Changes
 
-#### 1. `supabase/functions/orders/index.ts`
-
-**Add bike type ID mapping** (top of file): Inline `BIKE_TYPE_BY_ID` map (1-17) matching the existing bike types.
-
-**Update extraction logic** (lines 93-116):
-- Extract `bike_type` from: `bikes[0].type`, `body.bike_type`, or resolved from `bikes[0].type_id` / `body.bike_type_id`
-- Extract `bike_value` from: `bikes[0].value`, `body.bike_value`
-- If `type_id` is provided (number 1-17), resolve to string type; return 400 if invalid
-- `type_id` takes precedence over string `type` when both provided
-
-**Update orderData** (lines 206-231): Add:
-- `bike_type: bikeType || null`
-- `bike_value: bikeValue || null`
-- `bikes: body.bikes || null` (full JSONB array)
-
-**Update POST response** (lines 504-525): Add `bike_type`, `bike_value`, `bikes`, `needs_inspection`.
-
-#### 2. `src/constants/bikePricing.ts`
-
-Add exported `BIKE_TYPE_BY_ID` and reverse `BIKE_TYPE_ID_BY_NAME` mappings:
-
-| ID | Type | Price |
-|----|------|-------|
-| 1 | Non-Electric - Mountain Bike | £60 |
-| 2 | Non-Electric - Road Bike | £60 |
-| 3 | Non-Electric - Hybrid | £60 |
-| 4 | Electric Bike - Under 25kg | £70 |
-| 5 | Electric Bike - Over 25kg | £130 |
-| 6 | Cargo Bike | £225 |
-| 7 | Longtail Cargo Bike | £130 |
-| 8 | Stationary Bike | £70 |
-| 9 | Kids Bikes | £40 |
-| 10 | BMX Bikes | £40 |
-| 11 | Boxed Kids Bikes | £35 |
-| 12 | Folding Bikes | £40 |
-| 13 | Tandem | £110 |
-| 14 | Travel Bike Box | £60 |
-| 15 | Wheelset/Frameset | £35 |
-| 16 | Bike Rack | £40 |
-| 17 | Turbo Trainer | £40 |
-
-#### 3. `docs/API_DOCUMENTATION.md`
-
-- Add "Bike Type Reference" table with all IDs, names, and prices
-- Update request body: document `bike_type`, `bike_type_id`, `bike_value` as top-level optional fields
-- Update `bikes` array to include `type`, `type_id`, and `value` per bike
-- Update response examples to include `bike_type`, `bike_value`, `bikes`, `needs_inspection`
-- Update Field Validation section with new optional fields
-
-### Files
-
 | File | Change |
 |---|---|
-| `supabase/functions/orders/index.ts` | Add type ID resolution, extract+store bike_type/bike_value/bikes, update response |
-| `src/constants/bikePricing.ts` | Add `BIKE_TYPE_BY_ID` and reverse mapping |
-| `docs/API_DOCUMENTATION.md` | Document numeric IDs, new fields, updated examples |
+| `src/services/profitabilityService.ts` | Add `calculateUnitEconomics()` function that takes timeslips array + settings and returns per-stop, per-mile, per-driver, per-hour metrics |
+| `src/components/analytics/UnitEconomicsCard.tsx` | New component: tabs for Day/Week/Month/Year, grid of metric cards showing the unit economics for the selected period |
+| `src/pages/RouteProfitabilityPage.tsx` | Import and render `UnitEconomicsCard` between the weekly chart and monthly chart sections, passing all timeslip datasets and settings |
+
+### Technical details
+
+**`calculateUnitEconomics`** reuses the existing `aggregateProfitability` results plus sums `total_hours` and `mileage` from the timeslips array to derive per-unit figures. Returns an object with all the metrics above, handling division-by-zero gracefully (returns 0).
+
+**`UnitEconomicsCard`** uses existing `Tabs` + `Card` UI components. Each metric shown as a small stat cell in a responsive grid (3-4 columns on desktop, 2 on mobile). Color-coded: green for positive profit metrics, red for negative.
+
+The day/week/month/year data is already fetched by the parent page (`timeslips`, `weekTimeslips`, `monthTimeslips`, `yearTimeslips`), so this component just receives them as props and computes the unit economics client-side.
 
