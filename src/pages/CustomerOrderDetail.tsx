@@ -165,6 +165,49 @@ const CustomerOrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""}`.trim();
 
+  const handleCreateReturn = async () => {
+    if (!order || creatingReturn) return;
+    setCreatingReturn(true);
+    try {
+      const returnData: CreateOrderFormData = {
+        sender: {
+          name: order.receiver.name,
+          email: order.receiver.email,
+          phone: order.receiver.phone,
+          address: { ...order.receiver.address },
+        },
+        receiver: {
+          name: order.sender.name,
+          email: order.sender.email,
+          phone: order.sender.phone,
+          address: { ...order.sender.address },
+        },
+        bikes: order.bikes || [{ brand: order.bikeBrand || '', model: order.bikeModel || '', type: order.bikeType || '' }],
+        bikeQuantity: order.bikeQuantity || 1,
+        bikeBrand: order.bikeBrand,
+        bikeModel: order.bikeModel,
+        bikeType: order.bikeType,
+        customerOrderNumber: order.customerOrderNumber ? `${order.customerOrderNumber}-RETURN` : undefined,
+        needsPaymentOnCollection: false,
+        isBikeSwap: false,
+        isEbayOrder: false,
+        needsInspection: false,
+      };
+      const newOrder = await createOrder(returnData);
+      toast.success("Return order created", {
+        action: {
+          label: "View Order",
+          onClick: () => navigate(`/customer-order/${newOrder.id}`),
+        },
+      });
+    } catch (err) {
+      console.error("Error creating return order:", err);
+      toast.error("Failed to create return order");
+    } finally {
+      setCreatingReturn(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
