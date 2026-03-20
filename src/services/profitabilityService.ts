@@ -591,3 +591,52 @@ export const calculateMonthlyProfitabilityForYear = async (
 
   return monthlyData;
 };
+
+// Unit Economics
+export interface UnitEconomicsMetrics {
+  revenuePerStop: number;
+  costPerStop: number;
+  profitPerStop: number;
+  revenuePerMile: number;
+  costPerMile: number;
+  profitPerMile: number;
+  revenuePerDriverDay: number;
+  costPerDriverDay: number;
+  profitPerDriverDay: number;
+  revenuePerHour: number;
+  totalStops: number;
+  totalMiles: number;
+  totalHours: number;
+  driverDays: number;
+}
+
+export const calculateUnitEconomics = (
+  timeslips: Timeslip[],
+  totalRevenue: number,
+  totalCosts: number,
+  totalProfit: number
+): UnitEconomicsMetrics => {
+  const totalStops = timeslips.reduce((sum, ts) => sum + (ts.total_stops || 0), 0);
+  const totalMiles = timeslips.reduce((sum, ts) => sum + (ts.mileage || 0), 0);
+  const totalHours = timeslips.reduce((sum, ts) => sum + (ts.total_hours || 0), 0);
+  const driverDays = timeslips.length;
+
+  const safe = (num: number, den: number) => den > 0 ? num / den : 0;
+
+  return {
+    revenuePerStop: safe(totalRevenue, totalStops),
+    costPerStop: safe(totalCosts, totalStops),
+    profitPerStop: safe(totalProfit, totalStops),
+    revenuePerMile: safe(totalRevenue, totalMiles),
+    costPerMile: safe(totalCosts, totalMiles),
+    profitPerMile: safe(totalProfit, totalMiles),
+    revenuePerDriverDay: safe(totalRevenue, driverDays),
+    costPerDriverDay: safe(totalCosts, driverDays),
+    profitPerDriverDay: safe(totalProfit, driverDays),
+    revenuePerHour: safe(totalRevenue, totalHours),
+    totalStops,
+    totalMiles,
+    totalHours,
+    driverDays,
+  };
+};

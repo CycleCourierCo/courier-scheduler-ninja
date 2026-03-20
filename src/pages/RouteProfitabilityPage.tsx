@@ -27,12 +27,13 @@ import {
   getTimeslipsForMonth,
   getTimeslipsForYear,
   calculateWeeklyProfitabilityForMonth,
-  calculateMonthlyProfitabilityForYear
+  calculateMonthlyProfitabilityForYear,
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
 import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
 import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabilityChart";
 import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
+import UnitEconomicsCard from "@/components/analytics/UnitEconomicsCard";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -279,6 +280,38 @@ const RouteProfitabilityPage = () => {
         {weekTimeslips.length > 0 && (
           <WeeklyProfitabilityChart data={dailyChartData} />
         )}
+
+        {/* Unit Economics */}
+        <UnitEconomicsCard
+          dayData={{
+            timeslips,
+            revenue: aggregated?.totalRevenue || 0,
+            costs: aggregated?.totalCosts || 0,
+            profit: aggregated?.totalProfit || 0,
+            label: "Day",
+          }}
+          weekData={{
+            timeslips: weekTimeslips,
+            revenue: weekAggregated?.totalRevenue || 0,
+            costs: weekAggregated?.totalCosts || 0,
+            profit: weekAggregated?.totalProfit || 0,
+            label: "Week",
+          }}
+          monthData={{
+            timeslips: monthTimeslips,
+            revenue: monthlyTotals.revenue,
+            costs: monthlyTotals.costs,
+            profit: monthlyTotals.profit,
+            label: "Month",
+          }}
+          yearData={{
+            timeslips: yearTimeslips,
+            revenue: yearlyTotals.revenue,
+            costs: yearlyTotals.costs,
+            profit: yearlyTotals.profit,
+            label: "Year",
+          }}
+        />
 
         {/* Monthly Profitability Chart */}
         <MonthlyProfitabilityChart
