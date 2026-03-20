@@ -223,7 +223,17 @@ const CustomerOrderDetail = () => {
             </Button>
             <h1 className="text-xl sm:text-2xl font-bold">Order Details</h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateReturn}
+              disabled={creatingReturn}
+              className="flex-1 sm:flex-none"
+            >
+              <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
+              {creatingReturn ? "Creating..." : "Return"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
