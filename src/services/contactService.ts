@@ -23,10 +23,34 @@ export const fetchUserContacts = async (userId: string): Promise<Contact[]> => {
     .from('contacts')
     .select('*')
     .eq('user_id', userId)
-    .order('name');
+    .order('name')
+    .limit(5000);
 
   if (error) throw error;
   return data || [];
+};
+
+export const fetchAllContacts = async (): Promise<Contact[]> => {
+  const PAGE_SIZE = 1000;
+  let allData: Contact[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .order('name')
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    allData = allData.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return allData;
 };
 
 export interface UpsertContactData {
