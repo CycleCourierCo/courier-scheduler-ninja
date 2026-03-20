@@ -225,7 +225,7 @@ const CustomerOrderDetail = () => {
           </div>
            <div className="flex items-center gap-2 flex-wrap">
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleCreateReturn}
               disabled={creatingReturn}
