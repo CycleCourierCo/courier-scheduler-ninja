@@ -1,24 +1,28 @@
 
 
-## Allow Admins to See All Contacts + Remove 1K Query Limit
+## Auto-Create Return Order on Button Click
 
-### Problem
-1. `fetchUserContacts` always filters by `.eq('user_id', userId)` — so admins only see their own contacts, not all users' contacts.
-2. Supabase default limit is 1,000 rows. With 3,201 contacts, admins would only see the first 1,000 even if the filter were removed.
+### What it does
+Instead of navigating to the Create Order form, the "Return" button directly creates a new order with sender/receiver swapped and the same bike details. The user sees a confirmation toast and can click through to the new order.
+
+### Why this is straightforward
+The existing `createOrder` service already handles everything end-to-end: auth check, tracking number generation, contact upserts, Shipday job creation, and confirmation emails. The current order already contains all required data — we just swap sender↔receiver and copy bike fields.
 
 ### Changes
 
 | File | Change |
 |---|---|
-| `src/services/contactService.ts` | Add `fetchAllContacts()` function that fetches all contacts without a `user_id` filter, using pagination to bypass the 1K limit (loop with `.range()` in batches of 1,000). |
-| `src/hooks/useContacts.ts` | Accept an `isAdmin` flag. When `isAdmin` is true, call `fetchAllContacts()` instead of `fetchUserContacts(userId)`. |
-| `src/pages/CreateOrder.tsx` | Pass `isAdmin` (from AuthContext `user.role`) to `useContacts`. Admins see all contacts; non-admins see only their own. |
+| `src/pages/CustomerOrderDetail.tsx` | Add "Return" button with `RotateCcw` icon. On click, call `createOrder()` with swapped sender/receiver and same bike details. Show loading state during creation. On success, toast with link to new order. On error, toast error message. |
+| `src/pages/OrderDetail.tsx` | Same "Return" button for admin view. |
 
 ### Technical detail
 
-**Pagination in `fetchAllContacts`**: Loop fetching 1,000 rows at a time using `.range(offset, offset + 999)` until fewer than 1,000 rows are returned. This ensures all 3,201+ contacts are returned.
+The button handler builds a `CreateOrderFormData` object from the current order:
+- `sender` ← current `order.receiver` (name, email, phone, address)
+- `receiver` ← current `order.sender` (name, email, phone, address)
+- `bikes`, `bikeBrand`, `bikeModel`, `bikeType`, `bikeQuantity` ← copied as-is
+- `customerOrderNumber` ← original + `-RETURN` suffix
+- All other flags (`needsInspection`, `isBikeSwap`, `needsPaymentOnCollection`, `isEbayOrder`) default to `false`
 
-**RLS**: The `contacts_select_policy` already grants admins full SELECT access, so no DB changes needed.
-
-**`fetchUserContacts`** also needs the pagination fix for users who might have >1,000 contacts (unlikely but defensive). We'll add `.limit(5000)` or similar as a pragmatic cap for the user-scoped query, since individual users are unlikely to have thousands.
+Uses a loading state on the button to prevent double-clicks. On success, shows a toast with "Return order created" and a link to `/order/{newOrderId}`.
 
