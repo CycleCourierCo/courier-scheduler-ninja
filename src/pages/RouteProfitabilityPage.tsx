@@ -28,7 +28,6 @@ import {
   getTimeslipsForYear,
   calculateWeeklyProfitabilityForMonth,
   calculateMonthlyProfitabilityForYear,
-  calculateUnitEconomics,
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
 import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
