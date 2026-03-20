@@ -583,11 +583,15 @@ Deno.serve(async (req) => {
           receiver: order.receiver,
           bike_brand: order.bike_brand,
           bike_model: order.bike_model,
+          bike_type: order.bike_type,
+          bike_value: order.bike_value,
+          bikes: order.bikes,
           bike_quantity: order.bike_quantity,
           is_bike_swap: order.is_bike_swap,
           is_ebay_order: order.is_ebay_order,
           collection_code: order.collection_code,
           needs_payment_on_collection: order.needs_payment_on_collection,
+          needs_inspection: order.needs_inspection,
           delivery_instructions: order.delivery_instructions
         }),
         { 

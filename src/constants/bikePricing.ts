@@ -19,6 +19,32 @@ export const pricingData = [
   { type: "Double Seat/Platform/Cargo Trikes", price: 225 },
 ];
 
+// Numeric ID to bike type mapping (used by API)
+export const BIKE_TYPE_BY_ID: Record<number, string> = {
+  1: 'Non-Electric - Mountain Bike',
+  2: 'Non-Electric - Road Bike',
+  3: 'Non-Electric - Hybrid',
+  4: 'Electric Bike - Under 25kg',
+  5: 'Electric Bike - Over 25kg',
+  6: 'Cargo Bike',
+  7: 'Longtail Cargo Bike',
+  8: 'Stationary Bike',
+  9: 'Kids Bikes',
+  10: 'BMX Bikes',
+  11: 'Boxed Kids Bikes',
+  12: 'Folding Bikes',
+  13: 'Tandem',
+  14: 'Travel Bike Box',
+  15: 'Wheelset/Frameset',
+  16: 'Bike Rack',
+  17: 'Turbo Trainer',
+};
+
+// Reverse mapping: bike type name to numeric ID
+export const BIKE_TYPE_ID_BY_NAME: Record<string, number> = Object.fromEntries(
+  Object.entries(BIKE_TYPE_BY_ID).map(([id, name]) => [name, Number(id)])
+);
+
 // Maps order bike_type values to their full delivery price
 const bikeTypePriceMap: Record<string, number> = {
   // Exact matches from order bike_type values
