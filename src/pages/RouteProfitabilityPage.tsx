@@ -282,6 +282,38 @@ const RouteProfitabilityPage = () => {
           <WeeklyProfitabilityChart data={dailyChartData} />
         )}
 
+        {/* Unit Economics */}
+        <UnitEconomicsCard
+          dayData={{
+            timeslips,
+            revenue: aggregated?.totalRevenue || 0,
+            costs: aggregated?.totalCosts || 0,
+            profit: aggregated?.totalProfit || 0,
+            label: "Day",
+          }}
+          weekData={{
+            timeslips: weekTimeslips,
+            revenue: weekAggregated?.totalRevenue || 0,
+            costs: weekAggregated?.totalCosts || 0,
+            profit: weekAggregated?.totalProfit || 0,
+            label: "Week",
+          }}
+          monthData={{
+            timeslips: monthTimeslips,
+            revenue: monthlyTotals.revenue,
+            costs: monthlyTotals.costs,
+            profit: monthlyTotals.profit,
+            label: "Month",
+          }}
+          yearData={{
+            timeslips: yearTimeslips,
+            revenue: yearlyTotals.revenue,
+            costs: yearlyTotals.costs,
+            profit: yearlyTotals.profit,
+            label: "Year",
+          }}
+        />
+
         {/* Monthly Profitability Chart */}
         <MonthlyProfitabilityChart
           data={weeklyChartData}
