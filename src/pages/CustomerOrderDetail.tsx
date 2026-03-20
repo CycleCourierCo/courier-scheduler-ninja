@@ -1,10 +1,10 @@
 
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench, RotateCcw } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
-import { getOrderById } from "@/services/orderService";
-import { Order } from "@/types/order";
+import { getOrderById, createOrder } from "@/services/orderService";
+import { Order, CreateOrderFormData } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +14,7 @@ import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
+import { toast } from "sonner";
 
 // Enhanced safe format function to better handle invalid dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
