@@ -1,52 +1,24 @@
 
 
-## Backfill Missing Contacts from Historical Orders
+## Allow Admins to See All Contacts + Remove 1K Query Limit
 
 ### Problem
-179 orders lack contact records because they were created before the contacts feature existed. Those sender/receiver details live only in the order JSONB and never appear in the address book dropdown.
-
-### Solution
-Run a one-time database migration that extracts sender and receiver details from orders missing contact links, inserts them into the `contacts` table (respecting the existing `user_id + email` unique constraint), and backfills the `sender_contact_id` / `receiver_contact_id` on those orders.
+1. `fetchUserContacts` always filters by `.eq('user_id', userId)` — so admins only see their own contacts, not all users' contacts.
+2. Supabase default limit is 1,000 rows. With 3,201 contacts, admins would only see the first 1,000 even if the filter were removed.
 
 ### Changes
 
 | File | Change |
 |---|---|
-| **Database migration** | SQL script that: (1) Inserts missing sender contacts from orders where `sender_contact_id IS NULL` and sender email exists, using `ON CONFLICT (user_id, email) DO NOTHING`. (2) Same for receivers. (3) Updates `sender_contact_id` and `receiver_contact_id` on orders by matching `user_id + email` against the contacts table. |
+| `src/services/contactService.ts` | Add `fetchAllContacts()` function that fetches all contacts without a `user_id` filter, using pagination to bypass the 1K limit (loop with `.range()` in batches of 1,000). |
+| `src/hooks/useContacts.ts` | Accept an `isAdmin` flag. When `isAdmin` is true, call `fetchAllContacts()` instead of `fetchUserContacts(userId)`. |
+| `src/pages/CreateOrder.tsx` | Pass `isAdmin` (from AuthContext `user.role`) to `useContacts`. Admins see all contacts; non-admins see only their own. |
 
-### Migration detail
+### Technical detail
 
-```sql
--- Step 1: Insert missing sender contacts
-INSERT INTO contacts (user_id, name, email, phone, street, city, state, postal_code, country)
-SELECT DISTINCT ON (o.user_id, lower(o.sender->>'email'))
-  o.user_id,
-  o.sender->>'name',
-  lower(o.sender->>'email'),
-  o.sender->>'phone',
-  o.sender->'address'->>'street',
-  o.sender->'address'->>'city',
-  o.sender->'address'->>'state',
-  o.sender->'address'->>'zipCode',
-  o.sender->'address'->>'country'
-FROM orders o
-WHERE o.sender_contact_id IS NULL
-  AND o.sender->>'email' IS NOT NULL
-  AND trim(o.sender->>'email') != ''
-ON CONFLICT (user_id, email) DO NOTHING;
+**Pagination in `fetchAllContacts`**: Loop fetching 1,000 rows at a time using `.range(offset, offset + 999)` until fewer than 1,000 rows are returned. This ensures all 3,201+ contacts are returned.
 
--- Step 2: Insert missing receiver contacts (same pattern)
+**RLS**: The `contacts_select_policy` already grants admins full SELECT access, so no DB changes needed.
 
--- Step 3: Backfill sender_contact_id on orders
-UPDATE orders o
-SET sender_contact_id = c.id
-FROM contacts c
-WHERE o.sender_contact_id IS NULL
-  AND c.user_id = o.user_id
-  AND lower(c.email::text) = lower(o.sender->>'email');
-
--- Step 4: Backfill receiver_contact_id on orders (same pattern)
-```
-
-No code changes needed — this is a data-only migration. After running, all historical contacts will appear in the address book dropdown.
+**`fetchUserContacts`** also needs the pagination fix for users who might have >1,000 contacts (unlikely but defensive). We'll add `.limit(5000)` or similar as a pragmatic cap for the user-scoped query, since individual users are unlikely to have thousands.
 
