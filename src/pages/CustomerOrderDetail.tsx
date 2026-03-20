@@ -71,9 +71,11 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
 
 const CustomerOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingReturn, setCreatingReturn] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
