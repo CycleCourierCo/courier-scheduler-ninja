@@ -3,6 +3,27 @@ import { toast } from "sonner";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail, sendReceiverDatesConfirmedEmail } from "./emailService";
+import { fetchHolidayDates } from "./holidayService";
+
+// Format date as YYYY-MM-DD using local date parts (no timezone shift)
+const toDateString = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Filter out Fridays and holiday dates
+const filterInvalidDates = (dates: Date[], holidayDates: string[]): Date[] => {
+  return dates.filter(date => {
+    // Filter Fridays (day 5)
+    if (date.getDay() === 5) return false;
+    // Filter holidays
+    const dateStr = toDateString(date);
+    if (holidayDates.includes(dateStr)) return false;
+    return true;
+  });
+};
 
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
