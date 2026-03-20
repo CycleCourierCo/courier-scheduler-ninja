@@ -121,19 +121,60 @@ Deno.serve(async (req) => {
       // Validate bikes array or individual bike fields
       let bikeBrand = ''
       let bikeModel = ''
+      let bikeType: string | null = null
+      let bikeValue: number | null = null
+      let bikesArray: any[] | null = null
       
-      if (body.bikes && Array.isArray(body.bikes) && body.bikes.length > 0) {
-        // Handle bikes array format (from API documentation)
-        bikeBrand = body.bikes[0].brand || ''
-        bikeModel = body.bikes[0].model || ''
-      } else if (body.bike_brand) {
-        // Handle individual bike_brand/bike_model format
-        bikeBrand = body.bike_brand
-        bikeModel = body.bike_model || ''
-      } else {
+      try {
+        if (body.bikes && Array.isArray(body.bikes) && body.bikes.length > 0) {
+          bikesArray = body.bikes
+          bikeBrand = body.bikes[0].brand || ''
+          bikeModel = body.bikes[0].model || ''
+          // Resolve type_id to string type (type_id takes precedence over type)
+          if (body.bikes[0].type_id !== undefined) {
+            bikeType = resolveBikeTypeId(body.bikes[0].type_id)
+          } else {
+            bikeType = body.bikes[0].type || null
+          }
+          bikeValue = body.bikes[0].value !== undefined ? Number(body.bikes[0].value) : null
+          
+          // Resolve type_id in each bike in the array
+          bikesArray = body.bikes.map((bike: any) => {
+            const resolved = { ...bike }
+            if (bike.type_id !== undefined) {
+              resolved.type = resolveBikeTypeId(bike.type_id)
+            }
+            return resolved
+          })
+        } else if (body.bike_brand) {
+          bikeBrand = body.bike_brand
+          bikeModel = body.bike_model || ''
+        } else {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Missing bike information. Provide either bikes array or bike_brand field', 
+              code: 'VALIDATION_ERROR' 
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
+        }
+        
+        // Top-level bike_type_id / bike_type / bike_value override
+        if (body.bike_type_id !== undefined) {
+          bikeType = resolveBikeTypeId(body.bike_type_id)
+        } else if (body.bike_type && !bikeType) {
+          bikeType = body.bike_type
+        }
+        if (body.bike_value !== undefined && bikeValue === null) {
+          bikeValue = Number(body.bike_value)
+        }
+      } catch (typeError) {
         return new Response(
           JSON.stringify({ 
-            error: 'Missing bike information. Provide either bikes array or bike_brand field', 
+            error: typeError instanceof Error ? typeError.message : 'Invalid bike type ID', 
             code: 'VALIDATION_ERROR' 
           }),
           { 
