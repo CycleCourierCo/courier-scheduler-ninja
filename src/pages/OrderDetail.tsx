@@ -110,6 +110,8 @@ const OrderDetail = () => {
   const [isResendingEmail, setIsResendingEmail] = useState<{sender: boolean; receiver: boolean}>({ sender: false, receiver: false });
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
+  const [creatingReturn, setCreatingReturn] = useState(false);
+  const navigate = useNavigate();
   
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
