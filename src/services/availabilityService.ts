@@ -239,8 +239,18 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     console.log(`Notes: ${notes}`);
     console.log(`Auth UID: ${JSON.stringify((await supabase.auth.getUser()).data.user?.id)}`);
     
-    // Format dates as ISO strings
-    const dateStrings = dates.map(date => date.toISOString());
+    // Fetch holidays and filter invalid dates
+    const holidayDates = await fetchHolidayDates();
+    const validDates = filterInvalidDates(dates, holidayDates);
+    
+    if (validDates.length < 7) {
+      console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
+      toast.error("Not enough valid dates. Please select at least 7 valid dates.");
+      return null;
+    }
+    
+    // Format dates as YYYY-MM-DD strings (no timezone shift)
+    const dateStrings = validDates.map(toDateString);
     
     // Update the order with all receiver availability data in one transaction
     const { data, error } = await supabase
