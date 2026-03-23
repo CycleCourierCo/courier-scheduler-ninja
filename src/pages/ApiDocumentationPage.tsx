@@ -270,6 +270,62 @@ Idempotency-Key: unique_request_id (optional)`}
 
         <Separator className="my-8" />
 
+        {/* Bike Type Reference */}
+        <div className="mb-8">
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Bike Type Reference</h2>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Numeric Type IDs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Use <code>bike_type_id</code> or <code>type_id</code> (per bike) for reliable type specification. Numeric IDs take precedence over string names.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-3 font-semibold">ID</th>
+                      <th className="text-left py-2 px-3 font-semibold">Bike Type</th>
+                      <th className="text-right py-2 px-3 font-semibold">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { id: 1, name: 'Non-Electric - Mountain Bike', price: 60 },
+                      { id: 2, name: 'Non-Electric - Road Bike', price: 60 },
+                      { id: 3, name: 'Non-Electric - Hybrid', price: 60 },
+                      { id: 4, name: 'Electric Bike - Under 25kg', price: 70 },
+                      { id: 5, name: 'Electric Bike - Over 25kg', price: 130 },
+                      { id: 6, name: 'Cargo Bike', price: 225 },
+                      { id: 7, name: 'Longtail Cargo Bike', price: 130 },
+                      { id: 8, name: 'Stationary Bike', price: 70 },
+                      { id: 9, name: 'Kids Bikes', price: 40 },
+                      { id: 10, name: 'BMX Bikes', price: 40 },
+                      { id: 11, name: 'Boxed Kids Bikes', price: 35 },
+                      { id: 12, name: 'Folding Bikes', price: 40 },
+                      { id: 13, name: 'Tandem', price: 110 },
+                      { id: 14, name: 'Travel Bike Box', price: 60 },
+                      { id: 15, name: 'Wheelset/Frameset', price: 35 },
+                      { id: 16, name: 'Bike Rack', price: 40 },
+                      { id: 17, name: 'Turbo Trainer', price: 40 },
+                    ].map((bike) => (
+                      <tr key={bike.id} className="border-b last:border-0">
+                        <td className="py-2 px-3 font-mono">{bike.id}</td>
+                        <td className="py-2 px-3">{bike.name}</td>
+                        <td className="py-2 px-3 text-right">£{bike.price}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Separator className="my-8" />
+
         {/* Order Statuses */}
         <div className="mb-8">
           <h2 className="text-xl md:text-2xl font-bold mb-6">Order Statuses</h2>
