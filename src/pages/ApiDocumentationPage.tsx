@@ -147,6 +147,12 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div className="space-y-2 text-sm">
                     <div><strong>bikeQuantity:</strong> <em>(required)</em> Number of bikes being transported</div>
                     <div><strong>bikes:</strong> <em>(required)</em> Array of bike details with brand and model</div>
+                    <div><strong>bikes[].type_id:</strong> <em>(optional)</em> Numeric bike type ID (1-17, see reference table below; takes precedence over type)</div>
+                    <div><strong>bikes[].type:</strong> <em>(optional)</em> String bike type name (e.g. "Non-Electric - Road Bike")</div>
+                    <div><strong>bikes[].value:</strong> <em>(optional)</em> Estimated value per bike in £</div>
+                    <div><strong>bike_type_id:</strong> <em>(optional)</em> Top-level numeric bike type ID (1-17); takes precedence over bike_type</div>
+                    <div><strong>bike_type:</strong> <em>(optional)</em> Top-level string bike type name</div>
+                    <div><strong>bike_value:</strong> <em>(optional)</em> Top-level estimated bike value in £</div>
                     <div><strong>customerOrderNumber:</strong> <em>(optional)</em> Your internal order reference (stored but not returned in response)</div>
                     <div><strong>needsPaymentOnCollection:</strong> <em>(optional)</em> Whether payment is required on collection</div>
                     <div><strong>paymentCollectionPhone:</strong> <em>(optional)</em> Phone number for payment collection</div>
