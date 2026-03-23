@@ -1,56 +1,44 @@
 
 
-## Fix: Dates Shifted by 1 Day in Confirmation Emails
+## Add Bike Type Reference to API Documentation Page
 
-### Root Cause
+### What's Missing
 
-The customer selected dates like **April 9** in their browser (BST, UTC+1). The code stores them via `date.toISOString()`, which converts midnight BST to `2026-04-08T23:00:00.000Z` (23:00 UTC on the **previous day**). The edge function then formats this UTC timestamp with `new Date(dateStr).toLocaleDateString('en-GB', ...)` — which renders **April 8** (Wednesday) instead of April 9 (Thursday).
+The API documentation page doesn't show:
+- The `bike_type_id` / `type_id` fields (numeric 1-17) on bikes or at top level
+- The `bike_type` / `type` string fields
+- The `bike_value` / `value` fields
+- The reference table mapping IDs to bike types and prices
 
-This is why the email shows "Wednesday 8 April" instead of "Thursday 9 April", and "Friday 10 April" instead of "Saturday 11 April", etc. Every date is shifted back by one day, and some land on Fridays as a result.
-
-### The Fix — Two Parts
-
-**1. Edge function date formatting (immediate fix for emails)**
-
-In `supabase/functions/send-email/index.ts`, change the date formatting to parse dates as UTC dates (ignoring timezone shift). Replace `new Date(dateStr)` with a UTC-aware approach that extracts the intended calendar date:
-
-```typescript
-const date = new Date(dateStr);
-// Use UTC methods to avoid timezone shift
-const formatted = date.toLocaleDateString('en-GB', {
-  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  timeZone: 'Europe/London'  // Format in UK timezone
-});
-```
-
-Adding `timeZone: 'Europe/London'` ensures the date renders correctly for UK customers regardless of the server's timezone.
-
-Apply this to both `sender_dates_confirmed` and `receiver_dates_confirmed` email sections.
-
-**2. Service-side date storage (prevent future issues)**
-
-In `src/services/availabilityService.ts`, change `updateSenderAvailability` and `updateReceiverAvailability` to store dates as date-only strings (`YYYY-MM-DD`) instead of full ISO timestamps. This avoids timezone ambiguity entirely:
-
-```typescript
-const dateStrings = dates.map(date => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-});
-```
-
-Also add **server-side Friday/holiday filtering** (from the previously approved but not yet implemented plan) to strip invalid dates before saving.
+These are all implemented in the backend and documented in the markdown docs but not visible to API users on the page.
 
 ### Changes
 
-| File | Change |
-|---|---|
-| `supabase/functions/send-email/index.ts` | Add `timeZone: 'Europe/London'` to both date formatting calls (sender and receiver confirmed emails). |
-| `src/services/availabilityService.ts` | Store dates as `YYYY-MM-DD` strings instead of `.toISOString()`. Add Friday + holiday filtering before save. |
-| `src/hooks/useAvailability.tsx` | Add pre-submit filtering of Fridays/holidays with toast feedback. |
+**`src/pages/ApiDocumentationPage.tsx`**
 
-### Deployment
+1. **Add Bike Type Reference section** — Insert a new Card after the "Orders API" section (before Order Statuses) with a table showing all 17 bike type IDs, their names, and prices. Use a simple HTML table styled with Tailwind.
 
-Redeploy `send-email` edge function after changes.
+2. **Update request body example** — Add `bike_type_id`, `bike_value`, and per-bike `type_id` and `value` fields to the JSON example:
+   ```json
+   "bikes": [
+     {
+       "brand": "Trek",
+       "model": "Domane AL 2",
+       "type_id": 2,
+       "value": 1200
+     }
+   ],
+   "bike_type_id": 2,
+   "bike_value": 1200
+   ```
+
+3. **Update field descriptions** — Add entries for:
+   - `bike_type_id` (optional, integer 1-17, numeric bike type; takes precedence over `bike_type`)
+   - `bike_type` (optional, string bike type name)
+   - `bike_value` (optional, number, estimated value in £)
+   - `bikes[].type_id` (optional, integer 1-17 per bike)
+   - `bikes[].type` (optional, string type per bike)
+   - `bikes[].value` (optional, number value per bike)
+
+4. **Update response example** — Add `bike_type`, `bike_value`, and `bikes` array with type/value fields to the 201 response JSON.
 
