@@ -198,6 +198,16 @@ Idempotency-Key: unique_request_id (optional)`}
   },
   "bike_brand": "Trek",
   "bike_model": "Domane AL 2",
+  "bike_type": "Non-Electric - Road Bike",
+  "bike_value": 1200,
+  "bikes": [
+    {
+      "brand": "Trek",
+      "model": "Domane AL 2",
+      "type": "Non-Electric - Road Bike",
+      "value": 1200
+    }
+  ],
   "bike_quantity": 1,
   "is_bike_swap": false,
   "is_ebay_order": true,
