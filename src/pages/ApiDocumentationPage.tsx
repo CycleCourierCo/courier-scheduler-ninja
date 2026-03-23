@@ -123,9 +123,13 @@ Idempotency-Key: unique_request_id (optional)`}
   "bikes": [
     {
       "brand": "Trek",
-      "model": "Domane AL 2"
+      "model": "Domane AL 2",
+      "type_id": 2,
+      "value": 1200
     }
   ],
+  "bike_type_id": 2,
+  "bike_value": 1200,
   "customerOrderNumber": "ORD-12345",
   "needsPaymentOnCollection": false,
   "paymentCollectionPhone": "+44 7700 900789",
