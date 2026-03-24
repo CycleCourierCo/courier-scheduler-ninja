@@ -288,33 +288,31 @@ Idempotency-Key: unique_request_id (optional)`}
                     <tr className="border-b">
                       <th className="text-left py-2 px-3 font-semibold">ID</th>
                       <th className="text-left py-2 px-3 font-semibold">Bike Type</th>
-                      <th className="text-right py-2 px-3 font-semibold">Price</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      { id: 1, name: 'Non-Electric - Mountain Bike', price: 60 },
-                      { id: 2, name: 'Non-Electric - Road Bike', price: 60 },
-                      { id: 3, name: 'Non-Electric - Hybrid', price: 60 },
-                      { id: 4, name: 'Electric Bike - Under 25kg', price: 70 },
-                      { id: 5, name: 'Electric Bike - Over 25kg', price: 130 },
-                      { id: 6, name: 'Cargo Bike', price: 225 },
-                      { id: 7, name: 'Longtail Cargo Bike', price: 130 },
-                      { id: 8, name: 'Stationary Bike', price: 70 },
-                      { id: 9, name: 'Kids Bikes', price: 40 },
-                      { id: 10, name: 'BMX Bikes', price: 40 },
-                      { id: 11, name: 'Boxed Kids Bikes', price: 35 },
-                      { id: 12, name: 'Folding Bikes', price: 40 },
-                      { id: 13, name: 'Tandem', price: 110 },
-                      { id: 14, name: 'Travel Bike Box', price: 60 },
-                      { id: 15, name: 'Wheelset/Frameset', price: 35 },
-                      { id: 16, name: 'Bike Rack', price: 40 },
-                      { id: 17, name: 'Turbo Trainer', price: 40 },
+                      { id: 1, name: 'Non-Electric - Mountain Bike' },
+                      { id: 2, name: 'Non-Electric - Road Bike' },
+                      { id: 3, name: 'Non-Electric - Hybrid' },
+                      { id: 4, name: 'Electric Bike - Under 25kg' },
+                      { id: 5, name: 'Electric Bike - Over 25kg' },
+                      { id: 6, name: 'Cargo Bike' },
+                      { id: 7, name: 'Longtail Cargo Bike' },
+                      { id: 8, name: 'Stationary Bike' },
+                      { id: 9, name: 'Kids Bikes' },
+                      { id: 10, name: 'BMX Bikes' },
+                      { id: 11, name: 'Boxed Kids Bikes' },
+                      { id: 12, name: 'Folding Bikes' },
+                      { id: 13, name: 'Tandem' },
+                      { id: 14, name: 'Travel Bike Box' },
+                      { id: 15, name: 'Wheelset/Frameset' },
+                      { id: 16, name: 'Bike Rack' },
+                      { id: 17, name: 'Turbo Trainer' },
                     ].map((bike) => (
                       <tr key={bike.id} className="border-b last:border-0">
                         <td className="py-2 px-3 font-mono">{bike.id}</td>
                         <td className="py-2 px-3">{bike.name}</td>
-                        <td className="py-2 px-3 text-right">£{bike.price}</td>
                       </tr>
                     ))}
                   </tbody>
