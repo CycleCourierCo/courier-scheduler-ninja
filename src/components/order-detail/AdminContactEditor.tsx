@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
+import { ContactSelector } from "@/components/create-order/ContactSelector";
+import { useContacts } from "@/hooks/useContacts";
+import { Contact } from "@/services/contactService";
 
 interface AdminContactEditorProps {
   type: "sender" | "receiver";
@@ -36,6 +39,20 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     zipCode: contact.address.zipCode,
     country: contact.address.country
   });
+  const { data: allContacts = [], isLoading: contactsLoading } = useContacts(undefined, true);
+
+  const handleSelectContact = (selected: Contact) => {
+    setEditedContact({
+      name: selected.name,
+      email: selected.email || "",
+      phone: selected.phone || "",
+      street: selected.street || "",
+      city: selected.city || "",
+      state: selected.state || "",
+      zipCode: selected.postal_code || "",
+      country: selected.country || "United Kingdom",
+    });
+  };
 
   const handleSave = async () => {
     try {
@@ -202,6 +219,18 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       <div className="bg-gray-50 p-4 rounded-md space-y-3">
         {isEditing ? (
           <div className="space-y-4">
+            {/* Contact Selector */}
+            <div>
+              <Label className="text-sm">Select from address book</Label>
+              <div className="mt-1">
+                <ContactSelector
+                  contacts={allContacts}
+                  onSelect={handleSelectContact}
+                  isLoading={contactsLoading}
+                  placeholder="Choose a saved contact..."
+                />
+              </div>
+            </div>
             {/* Name */}
             <div>
               <Label htmlFor={`${type}-name`} className="text-sm">Name</Label>
