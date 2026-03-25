@@ -1,37 +1,20 @@
 
 
-## Add "Test Account" Toggle for B2B Profiles
+## Add Contact Selector to Admin Contact Editor
 
-### What it does
-Adds an `is_test_account` boolean flag to the `profiles` table. When enabled on a B2B profile, Shipday job creation and email sending will be skipped for orders belonging to that user. This lets admins create test accounts without triggering real external integrations.
+### What changes
 
-### Database change
-Add column `is_test_account` (boolean, default false) to `profiles` table via migration.
+When an admin clicks "Edit Contact" on the Order Detail page, add a "Select from address book" dropdown (reusing the existing `ContactSelector` component) above the manual form fields. Selecting a contact auto-fills all fields.
 
-### UI change
-**File: `src/components/user-management/EditUserDialog.tsx`**
-- Add a Switch toggle labeled "Test Account" in the Business tab with helper text: "Disables Shipday sync and email sending for this account"
-- Wire it to `formData.is_test_account`
+### Technical details
 
-**File: `src/types/user.ts`**
-- Add `is_test_account: boolean | null` to `UserProfile`
+**File: `src/components/order-detail/AdminContactEditor.tsx`**
 
-### Integration changes
+1. Import `ContactSelector` from `@/components/create-order/ContactSelector` and `useContacts` from `@/hooks/useContacts`
+2. Inside the editing form (line 203-294), add a `ContactSelector` above the Name field
+3. Call `useContacts(undefined, true)` to fetch all contacts (admin mode)
+4. On contact selection, populate `editedContact` state with the selected contact's fields:
+   - `name`, `email`, `phone`, `street`, `city`, `state` (county), `postal_code` → `zipCode`, `country`
 
-**File: `src/services/shipdayService.ts`** (`createShipdayOrder`)
-- Before invoking the edge function, fetch the order's `user_id`, then check `profiles.is_test_account`
-- If true, log a skip message and return early without calling Shipday
-
-**File: `src/services/emailService.ts`** (email-sending functions)
-- Similarly check the order owner's `is_test_account` flag before invoking the send-email edge function
-- If true, skip silently
-
-**File: `supabase/functions/create-shipday-order/index.ts`**
-- Add a server-side check: query `profiles.is_test_account` for the order's `user_id`. If true, return `{ success: true, skipped: true, reason: 'test_account' }` without calling Shipday API.
-
-**File: `supabase/functions/send-email/index.ts`**
-- Add a similar server-side check before sending emails for order-related email types.
-
-### Approach rationale
-Checking at both client and server level ensures test accounts never accidentally trigger external services regardless of where the call originates (UI, scheduling, webhooks, etc.). The server-side check in edge functions is the primary guard; the client-side check provides better UX with skip messages.
+The `ContactSelector` is already built with search, and `useContacts` with `isAdmin=true` fetches all contacts with pagination. No new components or backend changes needed.
 

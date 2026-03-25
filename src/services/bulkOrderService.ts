@@ -52,7 +52,7 @@ export interface ParsedOrderRow {
 export interface GroupedOrder {
   orderNumber: string;
   receiverData: Record<string, string>;
-  bikes: Array<{ brand: string; model: string; type: string; size?: string }>;
+  bikes: Array<{ brand: string; model: string; type: string; size?: string; value?: string }>;
   errors: RowError[];
   included: boolean;
   sourceRowIndices: number[];
@@ -255,6 +255,7 @@ export function groupRowsByOrderNumber(rows: Record<string, string>[]): GroupedO
         model: model || "",
         type: mapDealerType(rawType),
         size: r.bike_size || undefined,
+        value: r.bike_value || "",
       };
     });
 
@@ -350,16 +351,16 @@ function groupedOrderToFormData(order: GroupedOrder, profile: UserProfileData): 
       brand: b.brand,
       model: b.model,
       type: b.type,
-      value: undefined,
+      value: b.value || undefined,
     })),
     customerOrderNumber: order.orderNumber || undefined,
     needsPaymentOnCollection: false,
     isBikeSwap: false,
     isEbayOrder: false,
     needsInspection: false,
-    bikeBrand: order.bikes[0]?.brand,
-    bikeModel: order.bikes[0]?.model,
-    bikeType: order.bikes[0]?.type,
+    bikeBrand: order.bikes.length > 1 ? 'Multiple bikes' : (order.bikes[0]?.brand || ''),
+    bikeModel: order.bikes.length > 1 ? `${order.bikes.length} bikes` : (order.bikes[0]?.model || ''),
+    bikeType: order.bikes.length > 1 ? 'Multiple types' : (order.bikes[0]?.type || ''),
   };
 }
 
