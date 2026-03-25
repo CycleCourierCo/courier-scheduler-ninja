@@ -1,55 +1,62 @@
 
 
-## Bulk CSV Order Upload
+## Adapt Bulk Upload for Dealer Order Spreadsheets
 
 ### Overview
-Add a new page where authenticated users can upload a CSV file containing multiple orders, preview them in a table, validate them, and submit them all at once. Accessible from the main navigation.
+Modify the bulk upload feature to accept XLSX files in the dealer order format (your spreadsheet), auto-fill sender details from the logged-in user's profile, and group rows by Order Number into multi-bike orders.
 
 ### How It Works
-1. User downloads a CSV template with the required columns
-2. User fills in order data (sender/receiver details, bike info, etc.)
-3. User uploads the CSV on the bulk upload page
-4. System parses and validates each row, showing errors inline
-5. User reviews the parsed orders in a table, fixes any issues
-6. User clicks "Submit All" to create orders one-by-one via the existing `createOrder` service
-7. Progress bar shows creation status; summary of successes/failures at the end
+1. User uploads an XLSX file (or CSV) with dealer columns: Order Number, Dealer Name, Street Address, City, Postcode, Email, Telephone, Brand, Model, Size, Type
+2. System reads the file, maps columns to order fields, and groups rows by Order Number
+3. Sender details are auto-filled from the user's profile (same as "Fill in my details" on the Create Order page)
+4. Each group becomes one order with multiple bikes in the `bikes` array
+5. User reviews and submits as before
 
-### CSV Template Columns
+### Key Column Mapping
+
 ```text
-sender_name, sender_email, sender_phone, sender_street, sender_city, sender_postcode,
-receiver_name, receiver_email, receiver_phone, receiver_street, receiver_city, receiver_postcode,
-bike_brand, bike_model, bike_type, bike_value, customer_order_number, delivery_instructions
+Spreadsheet Column     -> Order Field
+─────────────────────────────────────
+Dealer Name            -> receiver.name
+Street Address         -> receiver.street
+City                   -> receiver.city
+Postcode               -> receiver.postcode
+Email                  -> receiver.email
+Telephone              -> receiver.phone
+Brand                  -> bikes[].brand
+Model                  -> bikes[].model
+Size                   -> (stored in bike model/notes)
+Type                   -> bike_type (mapped: "Frame" -> "Wheelset/Frameset", "Bike" -> "Non-Electric - Mountain Bike" or similar default)
+Order Number           -> customer_order_number (also used for grouping)
+Sender (all fields)    -> From logged-in user's profile
 ```
 
 ### Changes
 
-**1. New page: `src/pages/BulkOrderUpload.tsx`**
-- CSV file input with drag-and-drop
-- "Download Template" button that generates a blank CSV with headers
-- Parse CSV using `FileReader` + simple CSV parser
-- Validation per row: required fields (names, emails, phones in +44 format, postcodes), bike_type against known types
-- Preview table showing all parsed rows with inline error highlighting (red cells for invalid fields)
-- Row-level checkboxes to include/exclude rows
-- "Submit Orders" button that iterates through valid rows, calling `createOrder` for each
-- Progress indicator and results summary (created count, failed count with error details)
+**1. `src/services/bulkOrderService.ts`**
+- Add XLSX parsing support using the `xlsx` npm package (SheetJS) — reads the file and converts to the same internal row format
+- Accept both `.csv` and `.xlsx` files
+- Add a new `groupRowsByOrderNumber()` function that merges rows sharing the same Order Number into a single order with multiple bikes
+- Add a dealer column mapping that translates the spreadsheet headers to the expected internal format
+- Map "Frame" -> "Wheelset/Frameset" and "Bike" -> a sensible default bike type (e.g. "Non-Electric - Mountain Bike")
+- Update `rowToFormData()` to accept grouped rows and build the `bikes[]` array with brand, model, size info
+- Auto-populate sender fields from the user's profile data (passed as a parameter)
+- Relax phone validation to accept UK landline formats (01xxx, 07xxx) not just +44
 
-**2. New service: `src/services/bulkOrderService.ts`**
-- `parseOrderCSV(content: string)`: Parse CSV into typed row objects
-- `validateOrderRow(row)`: Validate each row, return errors array
-- `createBulkOrders(rows, userId)`: Loop through rows, call existing `createOrder`, collect results
-- Template CSV content string for download
+**2. `src/pages/BulkOrderUpload.tsx`**
+- Accept `.xlsx` files in addition to `.csv` in the file input and drag-drop
+- Import `useAuth` to access `userProfile` for sender auto-fill
+- Show a notice that sender details will come from the user's profile
+- Update the preview table to show grouped orders (one row per order number, with bike count)
+- Add the `xlsx` package dependency
 
-**3. Route: `src/App.tsx`**
-- Add `/bulk-upload` route under `ProtectedRoute`
-
-**4. Navigation: `src/components/Layout.tsx`**
-- Add "Bulk Upload" link in sidebar/nav for authenticated users
+**3. Install dependency**
+- Add `xlsx` (SheetJS) package for reading Excel files client-side
 
 ### Technical Details
-- Reuses existing `createOrder` from `orderService.ts` (no new API endpoint needed)
-- Phone validation matches existing `+44` format rules
-- Bike type validated against `BIKE_TYPE_BY_ID` mapping from `bikePricing.ts`
-- Orders created sequentially with a small delay to avoid rate limiting
-- Each row generates its own tracking number via existing `generateTrackingNumber`
-- Emails (sender confirmation, receiver notification) fire per order as they do today
+- SheetJS (`xlsx`) reads the workbook client-side, no server needed
+- Rows with the same Order Number are grouped before validation
+- The "Size" column is appended to the bike model string (e.g. "Rogue Frame - No Shock (Medium)")
+- Phone numbers are normalized: spaces stripped, leading 0 converted to +44 for the system
+- If the user's profile is incomplete, a warning is shown with a link to complete it before uploading
 
