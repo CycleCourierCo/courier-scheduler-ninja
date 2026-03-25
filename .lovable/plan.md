@@ -1,53 +1,37 @@
 
 
-## Make All Bulk Upload Columns Editable
+## Add "Test Account" Toggle for B2B Profiles
 
-### What changes
+### What it does
+Adds an `is_test_account` boolean flag to the `profiles` table. When enabled on a B2B profile, Shipday job creation and email sending will be skipped for orders belonging to that user. This lets admins create test accounts without triggering real external integrations.
 
-The preview table currently only shows Order #, Receiver name, Postcode, Qty, Brand, Model, Type, and Status. It needs to show all order-relevant fields and make them editable.
+### Database change
+Add column `is_test_account` (boolean, default false) to `profiles` table via migration.
 
-### New columns (all editable)
+### UI change
+**File: `src/components/user-management/EditUserDialog.tsx`**
+- Add a Switch toggle labeled "Test Account" in the Business tab with helper text: "Disables Shipday sync and email sending for this account"
+- Wire it to `formData.is_test_account`
 
-The table will show these columns, with shared order fields using `rowSpan` across bike rows:
+**File: `src/types/user.ts`**
+- Add `is_test_account: boolean | null` to `UserProfile`
 
-| Column | Editable via | rowSpan'd |
-|--------|-------------|-----------|
-| ☐ (checkbox) | Checkbox | Yes |
-| Order # | Input | Yes |
-| Receiver Name | Input | Yes |
-| Email | Input | Yes |
-| Phone | Input | Yes |
-| Street | Input | Yes |
-| City | Input | Yes |
-| Postcode | Input | Yes |
-| Qty | Badge (read-only) | Yes |
-| Brand | Input | No (per bike) |
-| Model | Input | No (per bike) |
-| Type | Select dropdown | No (per bike) |
-| Status | Icon/text (read-only) | Yes |
+### Integration changes
 
-### Technical details
+**File: `src/services/shipdayService.ts`** (`createShipdayOrder`)
+- Before invoking the edge function, fetch the order's `user_id`, then check `profiles.is_test_account`
+- If true, log a skip message and return early without calling Shipday
 
-**File: `src/pages/BulkOrderUpload.tsx`**
+**File: `src/services/emailService.ts`** (email-sending functions)
+- Similarly check the order owner's `is_test_account` flag before invoking the send-email edge function
+- If true, skip silently
 
-1. Add an `updateReceiverField` handler that updates a specific field in `order.receiverData` by order key:
-   ```ts
-   const updateReceiverField = (orderKey: string, field: string, value: string) => {
-     setGroupedOrders(prev => prev.map(o => {
-       const key = getOrderKey(o);
-       if (key !== orderKey) return o;
-       return { ...o, receiverData: { ...o.receiverData, [field]: value } };
-     }));
-   };
-   ```
+**File: `supabase/functions/create-shipday-order/index.ts`**
+- Add a server-side check: query `profiles.is_test_account` for the order's `user_id`. If true, return `{ success: true, skipped: true, reason: 'test_account' }` without calling Shipday API.
 
-2. Add an `updateOrderNumber` handler to allow editing the order number field.
+**File: `supabase/functions/send-email/index.ts`**
+- Add a similar server-side check before sending emails for order-related email types.
 
-3. Update table headers to include: Order #, Name, Email, Phone, Street, City, Postcode, Qty, Brand, Model, Type, Status.
-
-4. Convert all rowSpan'd cells (currently read-only text) to `<Input>` components bound to `receiverData` fields via `updateReceiverField`. Order # uses `updateOrderNumber`.
-
-5. Given the 360px viewport, the table already uses `overflow-x-auto` so horizontal scrolling handles the extra columns naturally.
-
-6. No service file changes needed -- `receiverData` already feeds into `groupedOrderToFormData` which reads `receiver_name`, `receiver_email`, `receiver_phone`, `receiver_street`, `receiver_city`, `receiver_postcode` from the data object.
+### Approach rationale
+Checking at both client and server level ensures test accounts never accidentally trigger external services regardless of where the call originates (UI, scheduling, webhooks, etc.). The server-side check in edge functions is the primary guard; the client-side check provides better UX with skip messages.
 
