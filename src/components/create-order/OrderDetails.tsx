@@ -127,7 +127,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
                 name={`bikes.${index}.value` as any}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bike {index + 1} Value (£)</FormLabel>
+                    <FormLabel>Bike {index + 1} Value (£) *</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="e.g. 2000" {...field} />
                     </FormControl>
