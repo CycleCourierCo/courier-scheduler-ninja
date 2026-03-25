@@ -1,18 +1,22 @@
 
 
-## Fix Multi-Bike Order Grouping Display
+## Fix CSV Parsing for Dealer Spreadsheets with Empty Rows/Columns
 
 ### Problem
-When multiple rows share an Order Number but have different bikes (e.g., 2x Medium Mountain Bike + 3x Small Road Bike), the system stores all bikes in the `bikes` array correctly, but:
-1. The **preview table** only shows a count badge and truncated type list — no brand/model details per bike
-2. The **order creation** sets `bike_brand`, `bike_model`, `bike_type` to only the first bike's values and `bike_quantity` to the total count, making it look like 5 of the same bike in the dashboard
+The uploaded CSV has:
+1. **Two empty rows** at the top (just commas)
+2. **An empty first column** — every row starts with a comma, so the header row is `,Order Number,Dealer Name,...` rather than `Order Number,Dealer Name,...`
+
+The current parser takes `lines[0]` as the header row, which is all empty cells, so no headers are detected and parsing fails.
 
 ### Changes
 
-**1. `src/services/bulkOrderService.ts`**
-- Update `groupedOrderToFormData` to set `bike_quantity` to the actual `bikes.length` (this part is already correct)
-- Ensure the `bikes` array preserves all unique entries — no deduplication issues
-- The legacy `bikeBrand`/`bikeModel`/`bikeType` fields are only for backward compat display; leave as first bike but this is fine since the `bikes` array has full detail
+**`src/services/bulkOrderService.ts` — CSV parsing branch**
 
-**2. `src/pages/BulkOrderUpload.tsx`**
-- Expand the preview table's "Bikes" column to show a detailed breakdown: list each unique bike with brand, model, and quantity (e.g., "2× Canyon
+1. After splitting lines and filtering truly blank lines, **find the actual header row** by scanning for the first line that contains known dealer column names (e.g., "order number", "dealer name") or standard template headers
+2. Use that line index as the header row; all subsequent lines are data rows
+3. After parsing each line into columns, **strip empty leading columns** — detect if the first N columns are consistently empty across header + data rows and remove them
+4. Filter out data rows where all mapped values are empty (handles trailing blank rows)
+
+This is a small, targeted fix in the CSV `reader.onload` handler — no changes needed to the XLSX path (SheetJS already handles empty rows/columns), the grouping logic, or the UI.
+
