@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
-import { getOrdersWithFilters } from "@/services/orderService";
+import { getOrdersWithFilters, getOrdersByScheduledDate } from "@/services/orderService";
+import { generateBulkCollectionLabels } from "@/utils/labelUtils";
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
@@ -11,7 +12,11 @@ import OrderListContainer from "@/components/OrderListContainer";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -20,6 +25,9 @@ const Dashboard: React.FC = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isLabelsDialogOpen, setIsLabelsDialogOpen] = useState(false);
+  const [selectedLabelDate, setSelectedLabelDate] = useState<Date | undefined>(undefined);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [filters, setFilters] = useState({
     status: [] as string[],
     search: "",
@@ -135,6 +143,29 @@ const Dashboard: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleGenerateLabels = async () => {
+    if (!selectedLabelDate || !user) return;
+    setIsGeneratingPDF(true);
+    try {
+      const dateStr = format(selectedLabelDate, 'yyyy-MM-dd');
+      const { pickupOrders } = await getOrdersByScheduledDate(dateStr, user.id);
+      if (pickupOrders.length === 0) {
+        toast.info("No orders found for collection on this date");
+        return;
+      }
+      // Sort by pickup timeslot
+      pickupOrders.sort((a, b) => (a.pickupTimeslot || '').localeCompare(b.pickupTimeslot || ''));
+      await generateBulkCollectionLabels(pickupOrders);
+      toast.success(`Generated labels for ${pickupOrders.length} order(s)`);
+      setIsLabelsDialogOpen(false);
+    } catch (error) {
+      console.error("Label generation error:", error);
+      toast.error("Failed to generate labels");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (userRole === null) {
     return (
       <Layout>
@@ -148,9 +179,40 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
-        <DashboardHeader 
-          userRole={userRole}
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+            <p className="text-muted-foreground">Manage your delivery orders</p>
+          </div>
+          <Dialog open={isLabelsDialogOpen} onOpenChange={setIsLabelsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Printer className="h-4 w-4 mr-2" />
+                Print Collection Labels
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Print Collection Labels</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-4">
+                <Calendar
+                  mode="single"
+                  selected={selectedLabelDate}
+                  onSelect={setSelectedLabelDate}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+                <Button
+                  onClick={handleGenerateLabels}
+                  disabled={!selectedLabelDate || isGeneratingPDF}
+                  className="w-full"
+                >
+                  {isGeneratingPDF ? "Generating..." : "Generate Labels"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
         
         <OrderFilters 
           onFilterChange={handleFilterChange} 

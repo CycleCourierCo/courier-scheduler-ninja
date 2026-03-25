@@ -582,22 +582,31 @@ export const updateOrderScheduledDates = async (
   return updateOrderSchedule(id, pickupDate, deliveryDate);
 };
 
-export const getOrdersByScheduledDate = async (date: string): Promise<{ pickupOrders: Order[], deliveryOrders: Order[] }> => {
+export const getOrdersByScheduledDate = async (date: string, userId?: string): Promise<{ pickupOrders: Order[], deliveryOrders: Order[] }> => {
   try {
     const startOfDay = `${date}T00:00:00.000Z`;
     const endOfDay = `${date}T23:59:59.999Z`;
 
+    let pickupQuery = supabase
+      .from("orders")
+      .select("*")
+      .gte("scheduled_pickup_date", startOfDay)
+      .lte("scheduled_pickup_date", endOfDay);
+
+    let deliveryQuery = supabase
+      .from("orders")
+      .select("*")
+      .gte("scheduled_delivery_date", startOfDay)
+      .lte("scheduled_delivery_date", endOfDay);
+
+    if (userId) {
+      pickupQuery = pickupQuery.eq("user_id", userId);
+      deliveryQuery = deliveryQuery.eq("user_id", userId);
+    }
+
     const [pickupResult, deliveryResult] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("*")
-        .gte("scheduled_pickup_date", startOfDay)
-        .lte("scheduled_pickup_date", endOfDay),
-      supabase
-        .from("orders")
-        .select("*")
-        .gte("scheduled_delivery_date", startOfDay)
-        .lte("scheduled_delivery_date", endOfDay),
+      pickupQuery,
+      deliveryQuery,
     ]);
 
     const pickupOrders = (pickupResult.data || []).map(mapDbOrderToOrderType);
