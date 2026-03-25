@@ -153,16 +153,8 @@ const BulkOrderUpload: React.FC = () => {
   const getResultForOrder = (orderNum: string) =>
     results.find((r) => r.orderNumber === orderNum);
 
-  const getBikeBreakdown = (bikes: GroupedOrder["bikes"]): string[] => {
-    const counts = new Map<string, number>();
-    for (const b of bikes) {
-      const label = [b.brand, b.model].filter(Boolean).join(" ") || b.type;
-      counts.set(label, (counts.get(label) || 0) + 1);
-    }
-    return Array.from(counts.entries()).map(([label, qty]) =>
-      qty > 1 ? `${qty}× ${label}` : label
-    );
-  };
+  const getOrderKey = (order: GroupedOrder) =>
+    order.orderNumber || `single_${order.sourceRowIndices[0]}`;
 
   return (
     <Layout>
