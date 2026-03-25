@@ -227,10 +227,9 @@ const CustomerOrderDetail = () => {
            <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="default"
-              size="sm"
               onClick={handleCreateReturn}
               disabled={creatingReturn}
-              className="flex-1 sm:flex-none whitespace-normal text-left py-3"
+              className="flex-1 sm:flex-none whitespace-normal text-left py-3 px-4 min-h-[48px]"
             >
               <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
               {creatingReturn ? "Creating..." : (
