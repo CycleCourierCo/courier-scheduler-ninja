@@ -235,7 +235,7 @@ const CustomerOrderDetail = () => {
               <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
               {creatingReturn ? "Creating..." : (
                 <>
-                  <span className="sm:hidden">Return to Sender</span>
+                  <span className="sm:hidden">Return</span>
                   <span className="hidden sm:inline">Return this bike to sender</span>
                 </>
               )}
