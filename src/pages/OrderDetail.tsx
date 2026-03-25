@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Package, Printer } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Package, Printer, RotateCcw } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
-import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail } from "@/services/orderService";
+import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
 import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
 import { sendOrderCancellationEmails } from "@/services/emailService";
-import { Order, OrderStatus } from "@/types/order";
+import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -110,6 +110,8 @@ const OrderDetail = () => {
   const [isResendingEmail, setIsResendingEmail] = useState<{sender: boolean; receiver: boolean}>({ sender: false, receiver: false });
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
+  const [creatingReturn, setCreatingReturn] = useState(false);
+  const navigate = useNavigate();
   
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
@@ -1018,6 +1020,49 @@ const OrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
+  const handleCreateReturn = async () => {
+    if (!order || creatingReturn) return;
+    setCreatingReturn(true);
+    try {
+      const returnData: CreateOrderFormData = {
+        sender: {
+          name: order.receiver.name,
+          email: order.receiver.email,
+          phone: order.receiver.phone,
+          address: { ...order.receiver.address },
+        },
+        receiver: {
+          name: order.sender.name,
+          email: order.sender.email,
+          phone: order.sender.phone,
+          address: { ...order.sender.address },
+        },
+        bikes: order.bikes || [{ brand: order.bikeBrand || '', model: order.bikeModel || '', type: order.bikeType || '' }],
+        bikeQuantity: order.bikeQuantity || 1,
+        bikeBrand: order.bikeBrand,
+        bikeModel: order.bikeModel,
+        bikeType: order.bikeType,
+        customerOrderNumber: order.customerOrderNumber ? `${order.customerOrderNumber}-RETURN` : undefined,
+        needsPaymentOnCollection: false,
+        isBikeSwap: false,
+        isEbayOrder: false,
+        needsInspection: false,
+      };
+      const newOrder = await createOrder(returnData);
+      toast.success("Return order created", {
+        action: {
+          label: "View Order",
+          onClick: () => navigate(`/order/${newOrder.id}`),
+        },
+      });
+    } catch (err) {
+      console.error("Error creating return order:", err);
+      toast.error("Failed to create return order");
+    } finally {
+      setCreatingReturn(false);
+    }
+  };
+
   // Allow delivery scheduling when status is "collected"
   const canSchedule = (
     order.status === 'scheduled_dates_pending' ||
@@ -1071,7 +1116,16 @@ const OrderDetail = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
-                  variant="outline" 
+                  variant="default" 
+                  size="sm" 
+                  onClick={handleCreateReturn}
+                  disabled={creatingReturn}
+                >
+                  <RotateCcw className={`mr-2 h-4 w-4 ${creatingReturn ? 'animate-spin' : ''}`} />
+                  {creatingReturn ? "Creating..." : "Return"}
+                </Button>
+                <Button 
+                  variant="secondary" 
                   size="sm" 
                   onClick={() => generateSingleOrderLabel(order)}
                 >

@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchUserContacts, Contact } from "@/services/contactService";
+import { fetchUserContacts, fetchAllContacts, Contact } from "@/services/contactService";
 
-export const useContacts = (userId?: string) => {
+export const useContacts = (userId?: string, isAdmin = false) => {
   return useQuery<Contact[]>({
-    queryKey: ['contacts', userId],
-    queryFn: () => fetchUserContacts(userId!),
+    queryKey: isAdmin ? ['contacts', 'all'] : ['contacts', userId],
+    queryFn: () => isAdmin ? fetchAllContacts() : fetchUserContacts(userId!),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!userId,
+    enabled: isAdmin || !!userId,
   });
 };

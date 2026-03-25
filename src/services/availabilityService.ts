@@ -3,6 +3,27 @@ import { toast } from "sonner";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail, sendReceiverDatesConfirmedEmail } from "./emailService";
+import { fetchHolidayDates } from "./holidayService";
+
+// Format date as YYYY-MM-DD using local date parts (no timezone shift)
+const toDateString = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Filter out Fridays and holiday dates
+const filterInvalidDates = (dates: Date[], holidayDates: string[]): Date[] => {
+  return dates.filter(date => {
+    // Filter Fridays (day 5)
+    if (date.getDay() === 5) return false;
+    // Filter holidays
+    const dateStr = toDateString(date);
+    if (holidayDates.includes(dateStr)) return false;
+    return true;
+  });
+};
 
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
@@ -142,8 +163,18 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     console.log(`Updating sender availability for order ${orderId}`);
     console.log(`Selected dates: ${dates.map(d => d.toISOString())}`);
     
-    // Format dates as ISO strings
-    const dateStrings = dates.map(date => date.toISOString());
+    // Fetch holidays and filter invalid dates
+    const holidayDates = await fetchHolidayDates();
+    const validDates = filterInvalidDates(dates, holidayDates);
+    
+    if (validDates.length < 7) {
+      console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
+      toast.error("Not enough valid dates. Please select at least 7 valid dates.");
+      return null;
+    }
+    
+    // Format dates as YYYY-MM-DD strings (no timezone shift)
+    const dateStrings = validDates.map(toDateString);
     
     // Update the order with all sender availability data in one transaction
     const { data, error } = await supabase
@@ -208,8 +239,18 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     console.log(`Notes: ${notes}`);
     console.log(`Auth UID: ${JSON.stringify((await supabase.auth.getUser()).data.user?.id)}`);
     
-    // Format dates as ISO strings
-    const dateStrings = dates.map(date => date.toISOString());
+    // Fetch holidays and filter invalid dates
+    const holidayDates = await fetchHolidayDates();
+    const validDates = filterInvalidDates(dates, holidayDates);
+    
+    if (validDates.length < 7) {
+      console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
+      toast.error("Not enough valid dates. Please select at least 7 valid dates.");
+      return null;
+    }
+    
+    // Format dates as YYYY-MM-DD strings (no timezone shift)
+    const dateStrings = validDates.map(toDateString);
     
     // Update the order with all receiver availability data in one transaction
     const { data, error } = await supabase

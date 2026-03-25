@@ -40,6 +40,7 @@ import PricingPage from "./pages/PricingPage";
 import NoticeBarManagement from "./pages/NoticeBarManagement";
 import AnnouncementEmailsPage from "./pages/AnnouncementEmailsPage";
 import AIRouting from "./pages/AIRouting";
+import BulkOrderUpload from "./pages/BulkOrderUpload";
 
 const queryClient = new QueryClient();
 
@@ -169,6 +170,11 @@ function App() {
               <Route path="/ai-routing" element={
                 <ProtectedRoute>
                   <AIRouting />
+                </ProtectedRoute>
+              } />
+              <Route path="/bulk-upload" element={
+                <ProtectedRoute>
+                  <BulkOrderUpload />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { enableInspectionForOrder } from "@/services/inspectionService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getGroupedBikes } from "@/utils/bikeSummary";
 
 interface ItemDetailsProps {
   order: Order;
@@ -17,10 +18,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const [isEnablingInspection, setIsEnablingInspection] = useState(false);
 
   const quantity = order.bikeQuantity || 1;
-  const isMultipleBikes = quantity > 1;
-  const itemName = isMultipleBikes 
-    ? `${quantity} bikes` 
-    : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
+  const groupedBikes = getGroupedBikes(order);
 
   const handleEnableInspection = async () => {
     if (!order.id) return;
@@ -47,27 +45,19 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
         <h3 className="font-semibold">Item Details</h3>
       </div>
       <div className="bg-muted p-3 rounded-md">
-        <p><span className="font-medium">Item:</span> {itemName}</p>
-        <p><span className="font-medium">Quantity:</span> {quantity}</p>
-        {order.bikeType && (
-          <p><span className="font-medium">Type:</span> {order.bikeType}</p>
-        )}
-        {order.bikeValue && (
-          <p><span className="font-medium">Value:</span> £{order.bikeValue}</p>
-        )}
-        {isMultipleBikes && order.bikes && order.bikes.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {order.bikes.map((bike, idx) => (
-              <div key={idx} className="text-sm">
-                <span className="font-medium">Bike {idx + 1}:</span> {bike.brand} {bike.model}
-                {bike.type && <> — {bike.type}</>}
-                {bike.value && <> — £{bike.value}</>}
-              </div>
-            ))}
-          </div>
-        )}
+        <p><span className="font-medium">Total Quantity:</span> {quantity}</p>
+        
+        <div className="mt-2 space-y-1">
+          {groupedBikes.map((group, idx) => (
+            <div key={idx} className="text-sm">
+              <span className="font-medium">{group.quantity}×</span> {group.label}
+              {group.value && <> — £{group.value}</>}
+            </div>
+          ))}
+        </div>
+
         {order.customerOrderNumber && (
-          <p><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
+          <p className="mt-2"><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
         )}
         {order.isBikeSwap && (
           <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>

@@ -1,23 +1,53 @@
 
 
-## Add Manual Price Override for Special Rate Accounts
+## Make All Bulk Upload Columns Editable
 
-### Problem
-Accounts with a `special_rate_code` have custom pricing that differs from standard bike-type rates. Currently, the profitability calculations use standard pricing for everyone, making revenue figures inaccurate for B2B accounts with special deals.
+### What changes
 
-### Solution
-Add a `special_rate_price` numeric field to the `profiles` table. When calculating revenue in the profitability service, if an order's customer has a `special_rate_price` set, use that per-stop price instead of the standard bike-type lookup. The admin can manually input the agreed price per stop in the user management dialog.
+The preview table currently only shows Order #, Receiver name, Postcode, Qty, Brand, Model, Type, and Status. It needs to show all order-relevant fields and make them editable.
 
-### Changes
+### New columns (all editable)
 
-| File | Change |
-|---|---|
-| **Database migration** | Add `special_rate_price numeric` column to `profiles` (nullable, default null) |
-| `src/types/user.ts` | Add `special_rate_price: number \| null` |
-| `src/components/user-management/EditUserDialog.tsx` | Add an input field for "Special Rate Price (£ per delivery)" next to the existing special_rate_code field |
-| `src/services/profitabilityService.ts` | In `getRevenueForTimeslip`, after finding driver orders, look up the order's `user_id` → profile → `special_rate_price`. If set, use `special_rate_price / 2` as revenue per stop instead of `getRevenuePerStopForBikeType`. Cache profile lookups to avoid repeated queries. |
+The table will show these columns, with shared order fields using `rowSpan` across bike rows:
 
-### Technical detail
+| Column | Editable via | rowSpan'd |
+|--------|-------------|-----------|
+| ☐ (checkbox) | Checkbox | Yes |
+| Order # | Input | Yes |
+| Receiver Name | Input | Yes |
+| Email | Input | Yes |
+| Phone | Input | Yes |
+| Street | Input | Yes |
+| City | Input | Yes |
+| Postcode | Input | Yes |
+| Qty | Badge (read-only) | Yes |
+| Brand | Input | No (per bike) |
+| Model | Input | No (per bike) |
+| Type | Select dropdown | No (per bike) |
+| Status | Icon/text (read-only) | Yes |
 
-The revenue override applies per order based on the **order's customer** (not the driver). In `getRevenueForTimeslip`, after fetching matching orders, batch-fetch the distinct `user_id`s from those orders, check their profiles for `special_rate_price`, and apply it per-order. Orders from customers without a special rate continue using standard bike-type pricing.
+### Technical details
+
+**File: `src/pages/BulkOrderUpload.tsx`**
+
+1. Add an `updateReceiverField` handler that updates a specific field in `order.receiverData` by order key:
+   ```ts
+   const updateReceiverField = (orderKey: string, field: string, value: string) => {
+     setGroupedOrders(prev => prev.map(o => {
+       const key = getOrderKey(o);
+       if (key !== orderKey) return o;
+       return { ...o, receiverData: { ...o.receiverData, [field]: value } };
+     }));
+   };
+   ```
+
+2. Add an `updateOrderNumber` handler to allow editing the order number field.
+
+3. Update table headers to include: Order #, Name, Email, Phone, Street, City, Postcode, Qty, Brand, Model, Type, Status.
+
+4. Convert all rowSpan'd cells (currently read-only text) to `<Input>` components bound to `receiverData` fields via `updateReceiverField`. Order # uses `updateOrderNumber`.
+
+5. Given the 360px viewport, the table already uses `overflow-x-auto` so horizontal scrolling handles the extra columns naturally.
+
+6. No service file changes needed -- `receiverData` already feeds into `groupedOrderToFormData` which reads `receiver_name`, `receiver_email`, `receiver_phone`, `receiver_street`, `receiver_city`, `receiver_postcode` from the data object.
 

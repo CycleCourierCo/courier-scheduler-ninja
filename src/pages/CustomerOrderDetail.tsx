@@ -1,10 +1,11 @@
 
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench, RotateCcw } from "lucide-react";
+import { getGroupedBikes, getBikeTitle } from "@/utils/bikeSummary";
 import { format, isValid, parseISO } from "date-fns";
-import { getOrderById } from "@/services/orderService";
-import { Order } from "@/types/order";
+import { getOrderById, createOrder } from "@/services/orderService";
+import { Order, CreateOrderFormData } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,7 @@ import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
+import { toast } from "sonner";
 
 // Enhanced safe format function to better handle invalid dates
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
@@ -70,9 +72,11 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
 
 const CustomerOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingReturn, setCreatingReturn] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -162,6 +166,49 @@ const CustomerOrderDetail = () => {
 
   const itemName = `${order.bikeBrand || ""}`.trim();
 
+  const handleCreateReturn = async () => {
+    if (!order || creatingReturn) return;
+    setCreatingReturn(true);
+    try {
+      const returnData: CreateOrderFormData = {
+        sender: {
+          name: order.receiver.name,
+          email: order.receiver.email,
+          phone: order.receiver.phone,
+          address: { ...order.receiver.address },
+        },
+        receiver: {
+          name: order.sender.name,
+          email: order.sender.email,
+          phone: order.sender.phone,
+          address: { ...order.sender.address },
+        },
+        bikes: order.bikes || [{ brand: order.bikeBrand || '', model: order.bikeModel || '', type: order.bikeType || '' }],
+        bikeQuantity: order.bikeQuantity || 1,
+        bikeBrand: order.bikeBrand,
+        bikeModel: order.bikeModel,
+        bikeType: order.bikeType,
+        customerOrderNumber: order.customerOrderNumber ? `${order.customerOrderNumber}-RETURN` : undefined,
+        needsPaymentOnCollection: false,
+        isBikeSwap: false,
+        isEbayOrder: false,
+        needsInspection: false,
+      };
+      const newOrder = await createOrder(returnData);
+      toast.success("Return order created", {
+        action: {
+          label: "View Order",
+          onClick: () => navigate(`/customer-order/${newOrder.id}`),
+        },
+      });
+    } catch (err) {
+      console.error("Error creating return order:", err);
+      toast.error("Failed to create return order");
+    } finally {
+      setCreatingReturn(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
@@ -177,9 +224,19 @@ const CustomerOrderDetail = () => {
             </Button>
             <h1 className="text-xl sm:text-2xl font-bold">Order Details</h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+           <div className="flex items-center gap-2 flex-wrap">
             <Button
-              variant="outline"
+              variant="default"
+              size="sm"
+              onClick={handleCreateReturn}
+              disabled={creatingReturn}
+              className="flex-1 sm:flex-none"
+            >
+              <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
+              {creatingReturn ? "Creating..." : "Return"}
+            </Button>
+            <Button
+              variant="secondary"
               size="sm"
               onClick={() => generateSingleOrderLabel(order)}
               className="flex-1 sm:flex-none"
@@ -197,7 +254,7 @@ const CustomerOrderDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Package className="mr-2" />
-              {order.bikeBrand} {order.bikeModel}
+              {getBikeTitle(order)}
             </CardTitle>
             <CardDescription>
               Created on {safeFormat(order.createdAt, "PPP")}
@@ -267,17 +324,20 @@ const CustomerOrderDetail = () => {
                   <div className="flex items-center space-x-2 mb-2">
                     <h3 className="font-semibold">Item Details</h3>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <p><span className="font-medium">Item:</span> {order.bikeBrand} {order.bikeModel}</p>
-                    <p><span className="font-medium">Quantity:</span> {order.bikeQuantity || 1}</p>
-                    {order.bikeType && (
-                      <p><span className="font-medium">Type:</span> {order.bikeType}</p>
-                    )}
-                    {order.bikeValue && (
-                      <p><span className="font-medium">Value:</span> £{order.bikeValue}</p>
-                    )}
+                  <div className="bg-muted p-3 rounded-md">
+                    <p><span className="font-medium">Total Quantity:</span> {order.bikeQuantity || 1}</p>
+                    
+                    <div className="mt-2 space-y-1">
+                      {getGroupedBikes(order).map((group, idx) => (
+                        <div key={idx} className="text-sm">
+                          <span className="font-medium">{group.quantity}×</span> {group.label}
+                          {group.value && <> — £{group.value}</>}
+                        </div>
+                      ))}
+                    </div>
+
                     {order.customerOrderNumber && (
-                      <p><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
+                      <p className="mt-2"><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
                     )}
                     {order.isBikeSwap && (
                       <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
@@ -299,7 +359,7 @@ const CustomerOrderDetail = () => {
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="font-semibold">Delivery Instructions</h3>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-muted p-3 rounded-md">
                       <p>{order.deliveryInstructions}</p>
                     </div>
                   </div>
