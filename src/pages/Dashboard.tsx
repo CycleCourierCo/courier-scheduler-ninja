@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
-import { getOrdersWithFilters } from "@/services/orderService";
+import { getOrdersWithFilters, getOrdersByScheduledDate } from "@/services/orderService";
+import { generateBulkCollectionLabels } from "@/utils/labelUtils";
 import { Order } from "@/types/order";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
@@ -11,7 +12,11 @@ import OrderListContainer from "@/components/OrderListContainer";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -20,6 +25,9 @@ const Dashboard: React.FC = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isLabelsDialogOpen, setIsLabelsDialogOpen] = useState(false);
+  const [selectedLabelDate, setSelectedLabelDate] = useState<Date | undefined>(undefined);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [filters, setFilters] = useState({
     status: [] as string[],
     search: "",
