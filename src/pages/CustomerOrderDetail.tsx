@@ -233,7 +233,12 @@ const CustomerOrderDetail = () => {
               className="flex-1 sm:flex-none"
             >
               <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
-              {creatingReturn ? "Creating return..." : "Return this bike to sender"}
+              {creatingReturn ? "Creating..." : (
+                <>
+                  <span className="sm:hidden">Return to Sender</span>
+                  <span className="hidden sm:inline">Return this bike to sender</span>
+                </>
+              )}
             </Button>
             <Button
               variant="secondary"
