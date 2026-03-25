@@ -358,9 +358,9 @@ function groupedOrderToFormData(order: GroupedOrder, profile: UserProfileData): 
     isBikeSwap: false,
     isEbayOrder: false,
     needsInspection: false,
-    bikeBrand: order.bikes[0]?.brand,
-    bikeModel: order.bikes[0]?.model,
-    bikeType: order.bikes[0]?.type,
+    bikeBrand: order.bikes.length > 1 ? 'Multiple bikes' : (order.bikes[0]?.brand || ''),
+    bikeModel: order.bikes.length > 1 ? `${order.bikes.length} bikes` : (order.bikes[0]?.model || ''),
+    bikeType: order.bikes.length > 1 ? 'Multiple types' : (order.bikes[0]?.type || ''),
   };
 }
 
