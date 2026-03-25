@@ -136,6 +136,17 @@ const BulkOrderUpload: React.FC = () => {
   const getResultForOrder = (orderNum: string) =>
     results.find((r) => r.orderNumber === orderNum);
 
+  const getBikeBreakdown = (bikes: GroupedOrder["bikes"]): string[] => {
+    const counts = new Map<string, number>();
+    for (const b of bikes) {
+      const label = [b.brand, b.model].filter(Boolean).join(" ") || b.type;
+      counts.set(label, (counts.get(label) || 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([label, qty]) =>
+      qty > 1 ? `${qty}× ${label}` : label
+    );
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -308,9 +319,11 @@ const BulkOrderUpload: React.FC = () => {
                             <TableCell>
                               <Badge variant="secondary">{order.bikes.length}</Badge>
                             </TableCell>
-                            <TableCell className="max-w-[200px]">
-                              <div className="text-xs text-muted-foreground truncate">
-                                {order.bikes.map((b) => b.type).join(", ")}
+                            <TableCell className="max-w-[300px]">
+                              <div className="text-xs text-muted-foreground space-y-0.5">
+                                {getBikeBreakdown(order.bikes).map((line, i) => (
+                                  <div key={i} className="truncate">{line}</div>
+                                ))}
                               </div>
                             </TableCell>
                             <TableCell>
