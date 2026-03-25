@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
+import { ContactSelector } from "@/components/create-order/ContactSelector";
+import { useContacts } from "@/hooks/useContacts";
+import { Contact } from "@/services/contactService";
 
 interface AdminContactEditorProps {
   type: "sender" | "receiver";
