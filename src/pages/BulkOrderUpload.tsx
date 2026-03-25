@@ -13,6 +13,9 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BIKE_TYPE_BY_ID } from "@/constants/bikePricing";
 import {
   GroupedOrder,
   BulkCreateResult,
@@ -88,6 +91,20 @@ const BulkOrderUpload: React.FC = () => {
     );
   };
 
+  const bikeTypeOptions = Object.values(BIKE_TYPE_BY_ID);
+
+  const updateBike = (orderKey: string, bikeIndex: number, field: "brand" | "model" | "type", value: string) => {
+    setGroupedOrders((prev) =>
+      prev.map((o) => {
+        const key = o.orderNumber || `single_${o.sourceRowIndices[0]}`;
+        if (key !== orderKey) return o;
+        const updatedBikes = [...o.bikes];
+        updatedBikes[bikeIndex] = { ...updatedBikes[bikeIndex], [field]: value };
+        return { ...o, bikes: updatedBikes };
+      })
+    );
+  };
+
   const includedCount = groupedOrders.filter((o) => o.included && o.errors.length === 0).length;
 
   const handleSubmit = async () => {
@@ -136,16 +153,8 @@ const BulkOrderUpload: React.FC = () => {
   const getResultForOrder = (orderNum: string) =>
     results.find((r) => r.orderNumber === orderNum);
 
-  const getBikeBreakdown = (bikes: GroupedOrder["bikes"]): string[] => {
-    const counts = new Map<string, number>();
-    for (const b of bikes) {
-      const label = [b.brand, b.model].filter(Boolean).join(" ") || b.type;
-      counts.set(label, (counts.get(label) || 0) + 1);
-    }
-    return Array.from(counts.entries()).map(([label, qty]) =>
-      qty > 1 ? `${qty}× ${label}` : label
-    );
-  };
+  const getOrderKey = (order: GroupedOrder) =>
+    order.orderNumber || `single_${order.sourceRowIndices[0]}`;
 
   return (
     <Layout>
@@ -291,75 +300,112 @@ const BulkOrderUpload: React.FC = () => {
                         <TableHead>Order #</TableHead>
                         <TableHead>Receiver</TableHead>
                         <TableHead>Postcode</TableHead>
-                        <TableHead>Bikes</TableHead>
-                        <TableHead>Types</TableHead>
+                        <TableHead className="w-16">Qty</TableHead>
+                        <TableHead>Brand</TableHead>
+                        <TableHead>Model</TableHead>
+                        <TableHead>Type</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {groupedOrders.map((order) => {
-                        const key = order.orderNumber || `single_${order.sourceRowIndices[0]}`;
+                        const key = getOrderKey(order);
                         const result = getResultForOrder(order.orderNumber);
                         const hasErrors = order.errors.length > 0;
+                        const bikeCount = order.bikes.length;
 
-                        return (
-                          <TableRow key={key} className={hasErrors ? "bg-destructive/5" : ""}>
-                            <TableCell>
-                              <Checkbox
-                                checked={order.included}
-                                onCheckedChange={() => toggleOrder(key)}
-                                disabled={hasErrors || isSubmitting}
+                        return order.bikes.map((bike, bikeIdx) => (
+                          <TableRow
+                            key={`${key}-${bikeIdx}`}
+                            className={hasErrors ? "bg-destructive/5" : ""}
+                          >
+                            {bikeIdx === 0 && (
+                              <>
+                                <TableCell rowSpan={bikeCount}>
+                                  <Checkbox
+                                    checked={order.included}
+                                    onCheckedChange={() => toggleOrder(key)}
+                                    disabled={hasErrors || isSubmitting}
+                                  />
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount} className="font-medium">
+                                  {order.orderNumber || <span className="text-muted-foreground">—</span>}
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount}>{order.receiverData.receiver_name || "—"}</TableCell>
+                                <TableCell rowSpan={bikeCount}>{order.receiverData.receiver_postcode || "—"}</TableCell>
+                                <TableCell rowSpan={bikeCount}>
+                                  <Badge variant="secondary">{bikeCount}</Badge>
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="p-1">
+                              <Input
+                                value={bike.brand || ""}
+                                onChange={(e) => updateBike(key, bikeIdx, "brand", e.target.value)}
+                                disabled={isSubmitting}
+                                className="h-8 text-xs"
                               />
                             </TableCell>
-                            <TableCell className="font-medium">
-                              {order.orderNumber || <span className="text-muted-foreground">—</span>}
+                            <TableCell className="p-1">
+                              <Input
+                                value={bike.model || ""}
+                                onChange={(e) => updateBike(key, bikeIdx, "model", e.target.value)}
+                                disabled={isSubmitting}
+                                className="h-8 text-xs"
+                              />
                             </TableCell>
-                            <TableCell>{order.receiverData.receiver_name || "—"}</TableCell>
-                            <TableCell>{order.receiverData.receiver_postcode || "—"}</TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{order.bikes.length}</Badge>
+                            <TableCell className="p-1">
+                              <Select
+                                value={bike.type || ""}
+                                onValueChange={(val) => updateBike(key, bikeIdx, "type", val)}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {bikeTypeOptions.map((t) => (
+                                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </TableCell>
-                            <TableCell className="max-w-[300px]">
-                              <div className="text-xs text-muted-foreground space-y-0.5">
-                                {getBikeBreakdown(order.bikes).map((line, i) => (
-                                  <div key={i} className="truncate">{line}</div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {result ? (
-                                result.success ? (
+                            {bikeIdx === 0 && (
+                              <TableCell rowSpan={bikeCount}>
+                                {result ? (
+                                  result.success ? (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger><CheckCircle2 className="h-4 w-4 text-green-600" /></TooltipTrigger>
+                                        <TooltipContent>{result.trackingNumber}</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger><XCircle className="h-4 w-4 text-destructive" /></TooltipTrigger>
+                                        <TooltipContent>{result.error}</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )
+                                ) : hasErrors ? (
                                   <TooltipProvider>
                                     <Tooltip>
-                                      <TooltipTrigger><CheckCircle2 className="h-4 w-4 text-green-600" /></TooltipTrigger>
-                                      <TooltipContent>{result.trackingNumber}</TooltipContent>
+                                      <TooltipTrigger><AlertCircle className="h-4 w-4 text-destructive" /></TooltipTrigger>
+                                      <TooltipContent>
+                                        <ul className="list-disc pl-4">
+                                          {order.errors.map((e, i) => <li key={i}>{e.message}</li>)}
+                                        </ul>
+                                      </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 ) : (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger><XCircle className="h-4 w-4 text-destructive" /></TooltipTrigger>
-                                      <TooltipContent>{result.error}</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )
-                              ) : hasErrors ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger><AlertCircle className="h-4 w-4 text-destructive" /></TooltipTrigger>
-                                    <TooltipContent>
-                                      <ul className="list-disc pl-4">
-                                        {order.errors.map((e, i) => <li key={i}>{e.message}</li>)}
-                                      </ul>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">Ready</span>
-                              )}
-                            </TableCell>
+                                  <span className="text-muted-foreground text-xs">Ready</span>
+                                )}
+                              </TableCell>
+                            )}
                           </TableRow>
-                        );
+                        ));
                       })}
                     </TableBody>
                   </Table>
