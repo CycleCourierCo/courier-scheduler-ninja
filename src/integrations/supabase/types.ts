@@ -859,6 +859,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_business: boolean | null
+          is_test_account: boolean
           latitude: number | null
           longitude: number | null
           name: string | null
@@ -894,6 +895,7 @@ export type Database = {
           id: string
           is_active?: boolean | null
           is_business?: boolean | null
+          is_test_account?: boolean
           latitude?: number | null
           longitude?: number | null
           name?: string | null
@@ -929,6 +931,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_business?: boolean | null
+          is_test_account?: boolean
           latitude?: number | null
           longitude?: number | null
           name?: string | null
@@ -1685,6 +1688,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_business: boolean | null
+          is_test_account: boolean
           latitude: number | null
           longitude: number | null
           name: string | null

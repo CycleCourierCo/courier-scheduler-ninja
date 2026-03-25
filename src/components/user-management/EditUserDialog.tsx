@@ -42,6 +42,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         special_rate_code: user.special_rate_code,
         special_rate_price: user.special_rate_price,
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
+        is_test_account: user.is_test_account,
         hourly_rate: user.hourly_rate,
         uses_own_van: user.uses_own_van,
         van_allowance: user.van_allowance,
@@ -194,6 +195,19 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     value={formData.opening_hours || DEFAULT_OPENING_HOURS}
                     onChange={(hours) => setFormData({ ...formData, opening_hours: hours })}
                   />
+                </div>
+                <div className="col-span-2 flex items-center space-x-2 pt-2 border-t">
+                  <Switch
+                    id="edit-test-account"
+                    checked={formData.is_test_account || false}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_test_account: checked })}
+                  />
+                  <div>
+                    <Label htmlFor="edit-test-account">Test Account</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Disables Shipday sync and email sending for this account
+                    </p>
+                  </div>
                 </div>
               </div>
             </TabsContent>
