@@ -143,6 +143,29 @@ const Dashboard: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleGenerateLabels = async () => {
+    if (!selectedLabelDate || !user) return;
+    setIsGeneratingPDF(true);
+    try {
+      const dateStr = format(selectedLabelDate, 'yyyy-MM-dd');
+      const { pickupOrders } = await getOrdersByScheduledDate(dateStr, user.id);
+      if (pickupOrders.length === 0) {
+        toast.info("No orders found for collection on this date");
+        return;
+      }
+      // Sort by pickup timeslot
+      pickupOrders.sort((a, b) => (a.pickupTimeslot || '').localeCompare(b.pickupTimeslot || ''));
+      await generateBulkCollectionLabels(pickupOrders);
+      toast.success(`Generated labels for ${pickupOrders.length} order(s)`);
+      setIsLabelsDialogOpen(false);
+    } catch (error) {
+      console.error("Label generation error:", error);
+      toast.error("Failed to generate labels");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (userRole === null) {
     return (
       <Layout>
