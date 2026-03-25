@@ -1,28 +1,45 @@
+import * as Sentry from "@sentry/react";
 import { CreateOrderFormData } from "@/types/order";
 import { createOrder } from "@/services/orderService";
 import { BIKE_TYPE_BY_ID } from "@/constants/bikePricing";
+import * as XLSX from "xlsx";
 
 const VALID_BIKE_TYPES = Object.values(BIKE_TYPE_BY_ID);
 
+// Dealer spreadsheet column mapping
+const DEALER_COLUMN_MAP: Record<string, string> = {
+  "order number": "order_number",
+  "dealer name": "receiver_name",
+  "street address": "receiver_street",
+  "city": "receiver_city",
+  "postcode": "receiver_postcode",
+  "email": "receiver_email",
+  "telephone": "receiver_phone",
+  "brand": "bike_brand",
+  "model": "bike_model",
+  "size": "bike_size",
+  "type": "bike_type",
+};
+
+// Map dealer "Type" values to system bike types
+const DEALER_TYPE_MAP: Record<string, string> = {
+  frame: "Wheelset/Frameset",
+  bike: "Non-Electric - Mountain Bike",
+  ebike: "Electric Bike - Under 25kg",
+  "e-bike": "Electric Bike - Under 25kg",
+  "electric bike": "Electric Bike - Under 25kg",
+  "kids bike": "Kids Bikes",
+  bmx: "BMX Bikes",
+  folding: "Folding Bikes",
+};
+
 export const CSV_TEMPLATE_HEADERS = [
-  "sender_name",
-  "sender_email",
-  "sender_phone",
-  "sender_street",
-  "sender_city",
-  "sender_postcode",
-  "receiver_name",
-  "receiver_email",
-  "receiver_phone",
-  "receiver_street",
-  "receiver_city",
-  "receiver_postcode",
-  "bike_brand",
-  "bike_model",
-  "bike_type",
-  "bike_value",
-  "customer_order_number",
-  "delivery_instructions",
+  "sender_name", "sender_email", "sender_phone",
+  "sender_street", "sender_city", "sender_postcode",
+  "receiver_name", "receiver_email", "receiver_phone",
+  "receiver_street", "receiver_city", "receiver_postcode",
+  "bike_brand", "bike_model", "bike_type", "bike_value",
+  "customer_order_number", "delivery_instructions",
 ];
 
 export interface ParsedOrderRow {
@@ -32,17 +49,41 @@ export interface ParsedOrderRow {
   included: boolean;
 }
 
+export interface GroupedOrder {
+  orderNumber: string;
+  receiverData: Record<string, string>;
+  bikes: Array<{ brand: string; model: string; type: string; size?: string }>;
+  errors: RowError[];
+  included: boolean;
+  sourceRowIndices: number[];
+}
+
 export interface RowError {
   field: string;
   message: string;
 }
 
 export interface BulkCreateResult {
+  orderNumber: string;
   rowIndex: number;
   success: boolean;
   orderId?: string;
   trackingNumber?: string;
   error?: string;
+}
+
+export interface UserProfileData {
+  name: string;
+  email: string;
+  phone: string;
+  address_line_1: string;
+  city: string;
+  county?: string;
+  address_line_2?: string;
+  postal_code: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export function downloadCSVTemplate() {
@@ -55,49 +96,107 @@ export function downloadCSVTemplate() {
   URL.revokeObjectURL(link.href);
 }
 
-export function parseOrderCSV(content: string): ParsedOrderRow[] {
-  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length < 2) return [];
+function normalizePhone(phone: string): string {
+  const stripped = phone.replace(/[\s\-\(\)]/g, "");
+  if (stripped.startsWith("+44")) return stripped;
+  if (stripped.startsWith("0")) return "+44" + stripped.substring(1);
+  return stripped;
+}
 
-  const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase());
+function mapDealerType(rawType: string): string {
+  const lower = rawType.toLowerCase().trim();
+  if (DEALER_TYPE_MAP[lower]) return DEALER_TYPE_MAP[lower];
+  // Try matching against known bike types
+  const match = VALID_BIKE_TYPES.find((t) => t.toLowerCase() === lower);
+  if (match) return match;
+  return "Non-Electric - Mountain Bike"; // default fallback
+}
 
-  const rows: ParsedOrderRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    const data: Record<string, string> = {};
-    headers.forEach((header, idx) => {
-      data[header] = (values[idx] || "").trim();
-    });
+function isDealerFormat(headers: string[]): boolean {
+  const lowerHeaders = headers.map((h) => h.toLowerCase().trim());
+  return lowerHeaders.includes("order number") && lowerHeaders.includes("dealer name");
+}
 
-    const errors = validateOrderRow(data);
-    rows.push({
-      rowIndex: i,
-      data,
-      errors,
-      included: errors.length === 0,
-    });
-  }
+function mapDealerHeaders(headers: string[]): string[] {
+  return headers.map((h) => {
+    const lower = h.toLowerCase().trim();
+    return DEALER_COLUMN_MAP[lower] || lower.replace(/\s+/g, "_");
+  });
+}
 
-  return rows;
+export function parseFile(file: File): Promise<Record<string, string>[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+
+          if (jsonRows.length === 0) { resolve([]); return; }
+
+          const originalHeaders = Object.keys(jsonRows[0]);
+          const isDealerFmt = isDealerFormat(originalHeaders);
+          const mappedHeaders = isDealerFmt ? mapDealerHeaders(originalHeaders) : originalHeaders;
+
+          const rows = jsonRows.map((row) => {
+            const mapped: Record<string, string> = {};
+            originalHeaders.forEach((origKey, idx) => {
+              mapped[mappedHeaders[idx]] = String(row[origKey] ?? "").trim();
+            });
+            return mapped;
+          });
+          resolve(rows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length < 2) { resolve([]); return; }
+
+        const rawHeaders = parseCSVLine(lines[0]);
+        const isDealerFmt = isDealerFormat(rawHeaders);
+        const headers = isDealerFmt
+          ? mapDealerHeaders(rawHeaders)
+          : rawHeaders.map((h) => h.trim().toLowerCase());
+
+        const rows: Record<string, string>[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const values = parseCSVLine(lines[i]);
+          const data: Record<string, string> = {};
+          headers.forEach((header, idx) => {
+            data[header] = (values[idx] || "").trim();
+          });
+          rows.push(data);
+        }
+        resolve(rows);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    }
+  });
 }
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
-
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
     } else if (char === "," && !inQuotes) {
-      result.push(current);
-      current = "";
+      result.push(current); current = "";
     } else {
       current += char;
     }
@@ -106,140 +205,167 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-export function validateOrderRow(data: Record<string, string>): RowError[] {
+export function groupRowsByOrderNumber(rows: Record<string, string>[]): GroupedOrder[] {
+  const groups = new Map<string, { rows: Record<string, string>[]; indices: number[] }>();
+
+  rows.forEach((row, idx) => {
+    const orderNum = row.order_number || row.customer_order_number || `single_${idx + 1}`;
+    if (!groups.has(orderNum)) {
+      groups.set(orderNum, { rows: [], indices: [] });
+    }
+    groups.get(orderNum)!.rows.push(row);
+    groups.get(orderNum)!.indices.push(idx + 1);
+  });
+
+  const grouped: GroupedOrder[] = [];
+  for (const [orderNumber, { rows: groupRows, indices }] of groups) {
+    const first = groupRows[0];
+
+    const bikes = groupRows.map((r) => {
+      const rawType = r.bike_type || "Bike";
+      const model = r.bike_size ? `${r.bike_model} (${r.bike_size})` : r.bike_model;
+      return {
+        brand: r.bike_brand || "",
+        model: model || "",
+        type: mapDealerType(rawType),
+        size: r.bike_size || undefined,
+      };
+    });
+
+    const errors = validateGroupedOrder(first, bikes, orderNumber);
+    grouped.push({
+      orderNumber: orderNumber.startsWith("single_") ? "" : orderNumber,
+      receiverData: first,
+      bikes,
+      errors,
+      included: errors.length === 0,
+      sourceRowIndices: indices,
+    });
+  }
+
+  return grouped;
+}
+
+function validateGroupedOrder(
+  receiver: Record<string, string>,
+  bikes: Array<{ brand: string; model: string; type: string }>,
+  orderNumber: string
+): RowError[] {
   const errors: RowError[] = [];
 
-  const required: [string, string][] = [
-    ["sender_name", "Sender name"],
-    ["sender_email", "Sender email"],
-    ["sender_phone", "Sender phone"],
-    ["sender_street", "Sender street"],
-    ["sender_city", "Sender city"],
-    ["sender_postcode", "Sender postcode"],
-    ["receiver_name", "Receiver name"],
-    ["receiver_email", "Receiver email"],
-    ["receiver_phone", "Receiver phone"],
-    ["receiver_street", "Receiver street"],
-    ["receiver_city", "Receiver city"],
-    ["receiver_postcode", "Receiver postcode"],
-    ["bike_brand", "Bike brand"],
-    ["bike_model", "Bike model"],
-    ["bike_type", "Bike type"],
-  ];
+  if (!receiver.receiver_name) errors.push({ field: "receiver_name", message: "Receiver name is required" });
+  if (!receiver.receiver_street) errors.push({ field: "receiver_street", message: "Receiver street is required" });
+  if (!receiver.receiver_postcode) errors.push({ field: "receiver_postcode", message: "Receiver postcode is required" });
 
-  for (const [field, label] of required) {
-    if (!data[field]) {
-      errors.push({ field, message: `${label} is required` });
-    }
-  }
-
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (data.sender_email && !emailRegex.test(data.sender_email)) {
-    errors.push({ field: "sender_email", message: "Invalid email format" });
-  }
-  if (data.receiver_email && !emailRegex.test(data.receiver_email)) {
+  if (receiver.receiver_email && !emailRegex.test(receiver.receiver_email)) {
     errors.push({ field: "receiver_email", message: "Invalid email format" });
   }
 
-  // Phone validation - must start with +44 or 0
-  const phoneRegex = /^(\+44|0)\d{9,11}$/;
-  if (data.sender_phone && !phoneRegex.test(data.sender_phone.replace(/\s/g, ""))) {
-    errors.push({ field: "sender_phone", message: "Phone must be +44 or 0 format" });
-  }
-  if (data.receiver_phone && !phoneRegex.test(data.receiver_phone.replace(/\s/g, ""))) {
-    errors.push({ field: "receiver_phone", message: "Phone must be +44 or 0 format" });
-  }
-
-  // Bike type validation
-  if (data.bike_type && !VALID_BIKE_TYPES.some((t) => t.toLowerCase() === data.bike_type.toLowerCase())) {
-    errors.push({ field: "bike_type", message: `Unknown bike type. Valid: ${VALID_BIKE_TYPES.join(", ")}` });
-  }
-
-  // Bike value validation (optional but must be numeric)
-  if (data.bike_value && isNaN(parseFloat(data.bike_value))) {
-    errors.push({ field: "bike_value", message: "Bike value must be a number" });
-  }
+  bikes.forEach((bike, i) => {
+    if (!bike.brand) errors.push({ field: `bike_${i}_brand`, message: `Bike ${i + 1}: brand is required` });
+  });
 
   return errors;
 }
 
-function rowToFormData(data: Record<string, string>): CreateOrderFormData {
-  // Find the correct casing for bike type
-  const matchedType = VALID_BIKE_TYPES.find((t) => t.toLowerCase() === data.bike_type.toLowerCase()) || data.bike_type;
+export function validateProfileForSender(profile: any): string[] {
+  const missing: string[] = [];
+  if (!profile?.name) missing.push("name");
+  if (!profile?.email) missing.push("email");
+  if (!profile?.phone) missing.push("phone");
+  if (!profile?.address_line_1) missing.push("address");
+  return missing;
+}
+
+function buildSenderFromProfile(profile: UserProfileData) {
+  let phone = profile.phone || "";
+  if (phone && !phone.startsWith("+44")) {
+    phone = phone.replace(/^0+/, "");
+    phone = `+44${phone}`;
+  }
 
   return {
-    sender: {
-      name: data.sender_name,
-      email: data.sender_email,
-      phone: data.sender_phone,
-      address: {
-        street: data.sender_street,
-        city: data.sender_city,
-        state: "",
-        zipCode: data.sender_postcode,
-        country: "United Kingdom",
-      },
+    name: profile.name,
+    email: profile.email,
+    phone,
+    address: {
+      street: profile.address_line_1,
+      city: profile.city || "",
+      state: profile.county || profile.address_line_2 || "",
+      zipCode: profile.postal_code || "",
+      country: profile.country || "United Kingdom",
+      lat: profile.latitude,
+      lon: profile.longitude,
     },
+  };
+}
+
+function groupedOrderToFormData(order: GroupedOrder, profile: UserProfileData): CreateOrderFormData {
+  const r = order.receiverData;
+  const phone = r.receiver_phone ? normalizePhone(r.receiver_phone) : "";
+
+  return {
+    sender: buildSenderFromProfile(profile),
     receiver: {
-      name: data.receiver_name,
-      email: data.receiver_email,
-      phone: data.receiver_phone,
+      name: r.receiver_name || "",
+      email: r.receiver_email || "",
+      phone,
       address: {
-        street: data.receiver_street,
-        city: data.receiver_city,
+        street: r.receiver_street || "",
+        city: r.receiver_city || "",
         state: "",
-        zipCode: data.receiver_postcode,
+        zipCode: r.receiver_postcode || "",
         country: "United Kingdom",
       },
     },
-    bikeQuantity: 1,
-    bikes: [
-      {
-        brand: data.bike_brand,
-        model: data.bike_model,
-        type: matchedType,
-        value: data.bike_value || undefined,
-      },
-    ],
-    customerOrderNumber: data.customer_order_number || undefined,
+    bikeQuantity: order.bikes.length,
+    bikes: order.bikes.map((b) => ({
+      brand: b.brand,
+      model: b.model,
+      type: b.type,
+      value: undefined,
+    })),
+    customerOrderNumber: order.orderNumber || undefined,
     needsPaymentOnCollection: false,
     isBikeSwap: false,
     isEbayOrder: false,
-    deliveryInstructions: data.delivery_instructions || undefined,
     needsInspection: false,
-    bikeBrand: data.bike_brand,
-    bikeModel: data.bike_model,
-    bikeType: matchedType,
+    bikeBrand: order.bikes[0]?.brand,
+    bikeModel: order.bikes[0]?.model,
+    bikeType: order.bikes[0]?.type,
   };
 }
 
 export async function createBulkOrders(
-  rows: ParsedOrderRow[],
+  orders: GroupedOrder[],
+  profile: UserProfileData,
   onProgress: (result: BulkCreateResult) => void
 ): Promise<BulkCreateResult[]> {
   const results: BulkCreateResult[] = [];
-  const includedRows = rows.filter((r) => r.included && r.errors.length === 0);
+  const included = orders.filter((o) => o.included && o.errors.length === 0);
 
-  for (const row of includedRows) {
+  for (const order of included) {
     try {
-      const formData = rowToFormData(row.data);
-      const order = await createOrder(formData);
+      const formData = groupedOrderToFormData(order, profile);
+      const created = await createOrder(formData);
 
       const result: BulkCreateResult = {
-        rowIndex: row.rowIndex,
+        orderNumber: order.orderNumber,
+        rowIndex: order.sourceRowIndices[0],
         success: true,
-        orderId: order.id,
-        trackingNumber: order.trackingNumber,
+        orderId: created.id,
+        trackingNumber: created.trackingNumber,
       };
       results.push(result);
       onProgress(result);
 
-      // Small delay to avoid overwhelming the server
       await new Promise((resolve) => setTimeout(resolve, 300));
     } catch (error) {
+      Sentry.captureException(error);
       const result: BulkCreateResult = {
-        rowIndex: row.rowIndex,
+        orderNumber: order.orderNumber,
+        rowIndex: order.sourceRowIndices[0],
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
