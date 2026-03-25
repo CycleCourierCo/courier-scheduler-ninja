@@ -163,19 +163,45 @@ export function parseFile(file: File): Promise<Record<string, string>[]> {
         const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
         if (lines.length < 2) { resolve([]); return; }
 
-        const rawHeaders = parseCSVLine(lines[0]);
+        // Find the actual header row by scanning for known column names
+        const knownHeaders = ["order number", "dealer name", "sender_name", "receiver_name", "bike_brand"];
+        let headerLineIdx = 0;
+        for (let i = 0; i < Math.min(lines.length, 10); i++) {
+          const lower = lines[i].toLowerCase();
+          if (knownHeaders.some((kh) => lower.includes(kh))) {
+            headerLineIdx = i;
+            break;
+          }
+        }
+
+        let rawHeaders = parseCSVLine(lines[headerLineIdx]);
+
+        // Strip empty leading columns
+        let emptyLeadingCols = 0;
+        while (emptyLeadingCols < rawHeaders.length && rawHeaders[emptyLeadingCols].trim() === "") {
+          emptyLeadingCols++;
+        }
+        if (emptyLeadingCols > 0) {
+          rawHeaders = rawHeaders.slice(emptyLeadingCols);
+        }
+
         const isDealerFmt = isDealerFormat(rawHeaders);
         const headers = isDealerFmt
           ? mapDealerHeaders(rawHeaders)
           : rawHeaders.map((h) => h.trim().toLowerCase());
 
         const rows: Record<string, string>[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = parseCSVLine(lines[i]);
+        for (let i = headerLineIdx + 1; i < lines.length; i++) {
+          let values = parseCSVLine(lines[i]);
+          if (emptyLeadingCols > 0) {
+            values = values.slice(emptyLeadingCols);
+          }
           const data: Record<string, string> = {};
           headers.forEach((header, idx) => {
             data[header] = (values[idx] || "").trim();
           });
+          // Skip rows where all values are empty
+          if (Object.values(data).every((v) => v === "")) continue;
           rows.push(data);
         }
         resolve(rows);
