@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench, RotateCcw } from "lucide-react";
+import { getGroupedBikes, getBikeTitle } from "@/utils/bikeSummary";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, createOrder } from "@/services/orderService";
 import { Order, CreateOrderFormData } from "@/types/order";
