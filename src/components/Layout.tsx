@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -38,9 +38,14 @@ const Layout: React.FC<LayoutProps> = ({
       <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Track Order
       </Link>
-      {user ? <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-          Create Order
-        </Link> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+      {user ? <>
+          <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+            Create Order
+          </Link>
+          <Link to="/bulk-upload" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+            Bulk Upload
+          </Link>
+        </> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
         </Link>}
     </> : null;
