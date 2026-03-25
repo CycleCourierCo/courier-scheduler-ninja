@@ -1,13 +1,16 @@
 
 
-## Wrap "Return to Sender" Button Text
+## Fix: Add Padding to Return Button
 
-**File: `src/pages/CustomerOrderDetail.tsx`** (lines 233, 238)
+The "Return to Sender" button text is wrapping but looks cramped without enough internal padding.
 
-Change the mobile label back to "Return to Sender" and allow the button text to wrap onto two lines so "Return to" appears on line 1 and "Sender" on line 2:
+**File: `src/pages/CustomerOrderDetail.tsx`** (~line 233)
 
-- Line 233: Change `className="flex-1 sm:flex-none"` to `className="flex-1 sm:flex-none whitespace-normal text-left"`
-- Line 238: Change `<span className="sm:hidden">Return</span>` to `<span className="sm:hidden">Return to Sender</span>`
+Add vertical padding (`py-3`) to the button so the wrapped text has breathing room:
 
-This lets the button text naturally wrap on narrow screens instead of being truncated.
+```tsx
+className="flex-1 sm:flex-none whitespace-normal text-left py-3"
+```
+
+This gives the multi-line button text proper spacing on mobile.
 
