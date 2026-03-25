@@ -1,24 +1,21 @@
 
 
-## Update Bulk Upload to Match Create Order Multi-Bike Format
+## Fix Return Order Toast Navigation
 
-The Create Order form already handles this correctly (line 330-332 in `CreateOrder.tsx`), setting `bikeBrand: 'Multiple bikes'`, `bikeModel: '{N} bikes'`, `bikeType: 'Multiple types'` when there are multiple bikes. The bulk upload service just needs to follow the same pattern.
+### Problem
+When creating a return order from the Customer Order Detail page, the "View Order" toast action navigates to `/customer-order/{id}` (singular), but the actual route is `/customer-orders/{id}` (plural). This results in a 404/NotFound page.
 
-### Change
+### Fix
+**File: `src/pages/CustomerOrderDetail.tsx`** — line 163
 
-**File: `src/services/bulkOrderService.ts`** — in `groupedOrderToFormData`, update the legacy fields:
-
+Change:
 ```typescript
-// Before
-bikeBrand: order.bikes[0]?.brand,
-bikeModel: order.bikes[0]?.model,
-bikeType: order.bikes[0]?.type,
-
-// After
-bikeBrand: order.bikes.length > 1 ? 'Multiple bikes' : (order.bikes[0]?.brand || ''),
-bikeModel: order.bikes.length > 1 ? `${order.bikes.length} bikes` : (order.bikes[0]?.model || ''),
-bikeType: order.bikes.length > 1 ? 'Multiple types' : (order.bikes[0]?.type || ''),
+onClick: () => navigate(`/customer-order/${newOrder.id}`),
+```
+To:
+```typescript
+onClick: () => navigate(`/customer-orders/${newOrder.id}`),
 ```
 
-Single file, 3 lines changed.
+One line, one character change.
 
