@@ -254,7 +254,7 @@ const CustomerOrderDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Package className="mr-2" />
-              {order.bikeBrand} {order.bikeModel}
+              {getBikeTitle(order)}
             </CardTitle>
             <CardDescription>
               Created on {safeFormat(order.createdAt, "PPP")}
@@ -324,17 +324,20 @@ const CustomerOrderDetail = () => {
                   <div className="flex items-center space-x-2 mb-2">
                     <h3 className="font-semibold">Item Details</h3>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-md">
-                    <p><span className="font-medium">Item:</span> {order.bikeBrand} {order.bikeModel}</p>
-                    <p><span className="font-medium">Quantity:</span> {order.bikeQuantity || 1}</p>
-                    {order.bikeType && (
-                      <p><span className="font-medium">Type:</span> {order.bikeType}</p>
-                    )}
-                    {order.bikeValue && (
-                      <p><span className="font-medium">Value:</span> £{order.bikeValue}</p>
-                    )}
+                  <div className="bg-muted p-3 rounded-md">
+                    <p><span className="font-medium">Total Quantity:</span> {order.bikeQuantity || 1}</p>
+                    
+                    <div className="mt-2 space-y-1">
+                      {getGroupedBikes(order).map((group, idx) => (
+                        <div key={idx} className="text-sm">
+                          <span className="font-medium">{group.quantity}×</span> {group.label}
+                          {group.value && <> — £{group.value}</>}
+                        </div>
+                      ))}
+                    </div>
+
                     {order.customerOrderNumber && (
-                      <p><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
+                      <p className="mt-2"><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
                     )}
                     {order.isBikeSwap && (
                       <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
@@ -356,7 +359,7 @@ const CustomerOrderDetail = () => {
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="font-semibold">Delivery Instructions</h3>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-muted p-3 rounded-md">
                       <p>{order.deliveryInstructions}</p>
                     </div>
                   </div>
