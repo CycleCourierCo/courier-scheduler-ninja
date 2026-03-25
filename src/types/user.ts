@@ -62,4 +62,5 @@ export interface UserProfile {
   special_rate_price: number | null;
   // Opening hours
   opening_hours: any | null;
+  is_test_account: boolean | null;
 }

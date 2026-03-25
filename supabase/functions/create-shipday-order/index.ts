@@ -101,6 +101,21 @@ serve(async (req) => {
       );
     }
 
+    // Check if the order owner is a test account
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_test_account")
+      .eq("id", order.user_id)
+      .single();
+
+    if (profile?.is_test_account) {
+      console.log("Skipping Shipday creation for test account, order:", orderId);
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "test_account" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
     
     if (!shipdayApiKey) {
