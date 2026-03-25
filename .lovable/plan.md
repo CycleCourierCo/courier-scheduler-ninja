@@ -1,25 +1,33 @@
 
-Goal: make the “Return to Sender” button show clear top/bottom padding on mobile, with all text fully visible.
 
-1) Update only the return button styling in `src/pages/CustomerOrderDetail.tsx` (action row near the page header).
-- Replace the current classes with a height-unlocked mobile-friendly set:
-  - add `h-auto`
-  - increase vertical padding to `py-4`
-  - raise minimum height to `min-h-[64px]` (or `min-h-[72px]` if needed after preview check)
-  - keep wrapping + readability via `whitespace-normal leading-tight text-left`
-- Keep `flex-1 sm:flex-none` so it stays responsive.
+## Add Bulk Print Labels to Dashboard (User-Scoped)
 
-2) Improve text block behavior inside the button.
-- Wrap the mobile label (`Return to Sender`) in a span with `leading-tight` and `block` so line height and wrapping are stable.
-- Keep desktop label unchanged (`hidden sm:inline`) so larger screens preserve the current phrasing.
+### What it does
+Adds a "Print Collection Labels" button to the Dashboard. The user picks a collection date, and it generates a multi-page 4x6 label PDF for **only their own orders** scheduled for collection on that date.
 
-3) Validate in mobile viewport (360px wide).
-- Confirm text is no longer clipped.
-- Confirm visible top and bottom breathing room.
-- Confirm icon + text alignment still looks intentional and action hierarchy remains unchanged.
+### Changes
 
-Technical details
-- Root cause: the Button component’s default size injects `h-12`, which limits vertical growth; adding `py-*` alone does not guarantee visible extra padding when content wraps.
-- Safe fix strategy: override per-instance with `h-auto` + larger `min-h` instead of changing global `button.tsx` variants, so other buttons across the app are unaffected.
-- Suggested final class target for this button:
-  `flex-1 sm:flex-none h-auto min-h-[64px] px-4 py-4 whitespace-normal leading-tight text-left`
+**1. `src/services/orderService.ts`** -- Scope date query by user
+- Add optional `userId` parameter to `getOrdersByScheduledDate`
+- When provided, filter both pickup and delivery queries with `.eq("user_id", userId)`
+
+**2. `src/utils/labelUtils.ts`** -- Add bulk generation function
+- Add `generateBulkCollectionLabels(orders: Order[]): Promise<void>` that loops through orders, calling the same label layout logic already in `generateSingleOrderLabel` but into a single multi-page PDF
+
+**3. `src/pages/Dashboard.tsx`** -- Add button + dialog
+- Add state: `selectedDate`, `isLabelsDialogOpen`, `isGeneratingPDF`
+- Add a `Printer` icon button near the header that opens a Dialog with a Calendar date picker and "Generate Labels" button
+- Handler calls `getOrdersByScheduledDate(dateStr, user.id)` to fetch only the current user's orders
+- Passes pickup orders to `generateBulkCollectionLabels` to produce the PDF
+- Shows toast with label count or "no orders found" message
+
+### Flow
+```text
+User clicks "Print Collection Labels"
+  → Dialog opens with date picker
+  → User selects date, clicks Generate
+  → Fetches orders WHERE scheduled_pickup_date = date AND user_id = current user
+  → Generates multi-page 4x6 PDF with all matching labels
+  → Downloads PDF automatically
+```
+
