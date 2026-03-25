@@ -93,7 +93,7 @@ const BulkOrderUpload: React.FC = () => {
 
   const bikeTypeOptions = Object.values(BIKE_TYPE_BY_ID);
 
-  const updateBike = (orderKey: string, bikeIndex: number, field: "brand" | "model" | "type", value: string) => {
+  const updateBike = (orderKey: string, bikeIndex: number, field: "brand" | "model" | "type" | "value", value: string) => {
     setGroupedOrders((prev) =>
       prev.map((o) => {
         const key = o.orderNumber || `single_${o.sourceRowIndices[0]}`;
@@ -328,6 +328,7 @@ const BulkOrderUpload: React.FC = () => {
                         <TableHead>Brand</TableHead>
                         <TableHead>Model</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Value (£)</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -451,6 +452,16 @@ const BulkOrderUpload: React.FC = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
+                            </TableCell>
+                            <TableCell className="p-1">
+                              <Input
+                                type="number"
+                                value={bike.value || ""}
+                                onChange={(e) => updateBike(key, bikeIdx, "value", e.target.value)}
+                                disabled={isSubmitting}
+                                className="h-8 text-xs min-w-[70px]"
+                                placeholder="0"
+                              />
                             </TableCell>
                             {bikeIdx === 0 && (
                               <TableCell rowSpan={bikeCount}>
