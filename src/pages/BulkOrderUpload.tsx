@@ -91,6 +91,20 @@ const BulkOrderUpload: React.FC = () => {
     );
   };
 
+  const bikeTypeOptions = Object.values(BIKE_TYPE_BY_ID);
+
+  const updateBike = (orderKey: string, bikeIndex: number, field: "brand" | "model" | "type", value: string) => {
+    setGroupedOrders((prev) =>
+      prev.map((o) => {
+        const key = o.orderNumber || `single_${o.sourceRowIndices[0]}`;
+        if (key !== orderKey) return o;
+        const updatedBikes = [...o.bikes];
+        updatedBikes[bikeIndex] = { ...updatedBikes[bikeIndex], [field]: value };
+        return { ...o, bikes: updatedBikes };
+      })
+    );
+  };
+
   const includedCount = groupedOrders.filter((o) => o.included && o.errors.length === 0).length;
 
   const handleSubmit = async () => {
