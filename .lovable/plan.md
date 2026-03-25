@@ -1,16 +1,13 @@
 
 
-## Fix: Add Padding to Return Button
+## Fix: Make "Return to Sender" Button Fully Visible
 
-The "Return to Sender" button text is wrapping but looks cramped without enough internal padding.
+The button text is clipped because `size="sm"` constrains height. Need to remove the small size constraint and ensure adequate padding.
 
-**File: `src/pages/CustomerOrderDetail.tsx`** (~line 233)
+**File: `src/pages/CustomerOrderDetail.tsx`** (line 230, 233)
 
-Add vertical padding (`py-3`) to the button so the wrapped text has breathing room:
+- Remove `size="sm"` so the button uses default sizing
+- Update className to `"flex-1 sm:flex-none whitespace-normal text-left py-3 px-4 min-h-[48px]"`
 
-```tsx
-className="flex-1 sm:flex-none whitespace-normal text-left py-3"
-```
-
-This gives the multi-line button text proper spacing on mobile.
+This gives the button enough room for wrapped text to be fully visible on mobile.
 
