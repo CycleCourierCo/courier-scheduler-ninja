@@ -225,6 +225,18 @@ const CustomerOrderDetail = () => {
             <h1 className="text-xl sm:text-2xl font-bold">Order Details</h1>
           </div>
            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex-1 sm:flex-none">
+              <StatusBadge status={order.status} />
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => generateSingleOrderLabel(order)}
+              className="flex-1 sm:flex-none"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Label
+            </Button>
             <Button
               variant="default"
               onClick={handleCreateReturn}
@@ -239,18 +251,6 @@ const CustomerOrderDetail = () => {
                 </>
               )}
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => generateSingleOrderLabel(order)}
-              className="flex-1 sm:flex-none"
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Print Label
-            </Button>
-            <div className="flex-1 sm:flex-none">
-              <StatusBadge status={order.status} />
-            </div>
           </div>
         </div>
 
