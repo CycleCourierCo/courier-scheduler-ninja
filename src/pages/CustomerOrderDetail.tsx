@@ -229,12 +229,12 @@ const CustomerOrderDetail = () => {
               variant="default"
               onClick={handleCreateReturn}
               disabled={creatingReturn}
-              className="flex-1 sm:flex-none whitespace-normal text-left py-3 px-4 min-h-[48px]"
+              className="flex-1 sm:flex-none h-auto min-h-[64px] px-4 py-4 whitespace-normal leading-tight text-left"
             >
-              <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
+              <RotateCcw className={`h-4 w-4 mr-2 flex-shrink-0 ${creatingReturn ? 'animate-spin' : ''}`} />
               {creatingReturn ? "Creating..." : (
                 <>
-                  <span className="sm:hidden">Return to Sender</span>
+                  <span className="sm:hidden block leading-tight">Return to Sender</span>
                   <span className="hidden sm:inline">Return this bike to sender</span>
                 </>
               )}
