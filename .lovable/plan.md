@@ -1,22 +1,42 @@
 
+Goal: make order detail views show unique bikes correctly (including size), with per-item quantities, instead of showing only the first bike + total quantity.
 
-## Fix CSV Parsing for Dealer Spreadsheets with Empty Rows/Columns
+1) Confirmed root cause (from current code/data)
+- The uploaded bulk order is stored correctly in `orders.bikes` (e.g., Medium/Large/X-Large variants are present as separate entries).
+- The page the user is viewing (`/customer-orders/:id` in `src/pages/CustomerOrderDetail.tsx`) still renders legacy fields (`bikeBrand`, `bikeModel`, `bikeQuantity`) only.
+- That is why it shows “Rogue Frame … (Medium), Quantity: 5” instead of a breakdown by unique item/size.
 
-### Problem
-The uploaded CSV has:
-1. **Two empty rows** at the top (just commas)
-2. **An empty first column** — every row starts with a comma, so the header row is `,Order Number,Dealer Name,...` rather than `Order Number,Dealer Name,...`
+2) Add a shared bike-summary helper (single source of truth)
+- Create a small utility (e.g. `src/utils/bikeSummary.ts`) to:
+  - Normalize each bike entry.
+  - Build uniqueness key using: `brand + model + size + type` (size-aware uniqueness).
+  - Return grouped output like:
+    - `[{ label: "Velduro Rogue Frame - No Shock (Large)", quantity: 3, ... }, ...]`
+  - Fallback safely for older orders without `bikes` array (legacy single-bike fields).
 
-The current parser takes `lines[0]` as the header row, which is all empty cells, so no headers are detected and parsing fails.
+3) Update detail UIs to use grouped bikes (not legacy first-bike fields)
+- `src/pages/CustomerOrderDetail.tsx`:
+  - Replace current “Item Details” rendering with grouped breakdown from helper.
+  - Show:
+    - Total quantity.
+    - Per-unique-item lines with quantities (e.g., `3× ... (Large)`, `1× ... (Medium)`).
+  - Keep customer order number/type/value display where relevant.
+- `src/components/order-detail/ItemDetails.tsx`:
+  - Use same helper so admin/customer detail behavior is consistent.
+  - Replace raw `order.bikes.map(...)` list with grouped quantity list.
 
-### Changes
+4) Fix misleading title/header text on order pages
+- `src/pages/CustomerOrderDetail.tsx` card title currently shows only `order.bikeBrand order.bikeModel`.
+- `src/pages/OrderDetail.tsx` header currently computes `itemName` from legacy fields.
+- Update both to show a neutral multi-item summary when multiple bikes exist (e.g., “5 bikes (3 unique items)”) and only show single-bike title when truly single.
 
-**`src/services/bulkOrderService.ts` — CSV parsing branch**
+5) Preserve size fidelity in new bulk-created orders
+- `src/services/bulkOrderService.ts` already appends size into model for dealer rows; keep that behavior.
+- Ensure bike objects passed into `createOrder` preserve size-aware identity consistently so grouping remains accurate across all views.
+- If needed, extend types in `src/types/order.ts` with optional `size?: string` on bikes for clearer future-proofing (non-breaking).
 
-1. After splitting lines and filtering truly blank lines, **find the actual header row** by scanning for the first line that contains known dealer column names (e.g., "order number", "dealer name") or standard template headers
-2. Use that line index as the header row; all subsequent lines are data rows
-3. After parsing each line into columns, **strip empty leading columns** — detect if the first N columns are consistently empty across header + data rows and remove them
-4. Filter out data rows where all mapped values are empty (handles trailing blank rows)
-
-This is a small, targeted fix in the CSV `reader.onload` handler — no changes needed to the XLSX path (SheetJS already handles empty rows/columns), the grouping logic, or the UI.
-
+Validation checklist after implementation
+- Re-open `/customer-orders/d9144317-a9ab-4d30-ac6d-79bdcf82d565` and verify it shows separate lines for Medium/Large/X-Large with correct counts.
+- Verify a single-item order still shows the old simple layout correctly.
+- Verify admin `OrderDetail` and customer `CustomerOrderDetail` now match in bike breakdown behavior.
+- Verify mobile layout (360px) wraps long bike names without clipping.
