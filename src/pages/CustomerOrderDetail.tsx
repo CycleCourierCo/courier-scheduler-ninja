@@ -198,7 +198,7 @@ const CustomerOrderDetail = () => {
       toast.success("Return order created", {
         action: {
           label: "View Order",
-          onClick: () => navigate(`/customer-order/${newOrder.id}`),
+          onClick: () => navigate(`/customer-orders/${newOrder.id}`),
         },
       });
     } catch (err) {
