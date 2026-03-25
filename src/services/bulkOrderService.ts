@@ -351,7 +351,7 @@ function groupedOrderToFormData(order: GroupedOrder, profile: UserProfileData): 
       brand: b.brand,
       model: b.model,
       type: b.type,
-      value: b.value ? Number(b.value) : undefined,
+      value: b.value || undefined,
     })),
     customerOrderNumber: order.orderNumber || undefined,
     needsPaymentOnCollection: false,
