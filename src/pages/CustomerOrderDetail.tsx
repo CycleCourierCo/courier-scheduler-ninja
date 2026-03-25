@@ -230,7 +230,7 @@ const CustomerOrderDetail = () => {
               size="sm"
               onClick={handleCreateReturn}
               disabled={creatingReturn}
-              className="flex-1 sm:flex-none whitespace-normal text-left"
+              className="flex-1 sm:flex-none whitespace-normal text-left py-3"
             >
               <RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
               {creatingReturn ? "Creating..." : (
