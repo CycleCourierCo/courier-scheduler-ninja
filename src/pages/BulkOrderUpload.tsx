@@ -105,6 +105,26 @@ const BulkOrderUpload: React.FC = () => {
     );
   };
 
+  const updateReceiverField = (orderKey: string, field: string, value: string) => {
+    setGroupedOrders((prev) =>
+      prev.map((o) => {
+        const key = getOrderKey(o);
+        if (key !== orderKey) return o;
+        return { ...o, receiverData: { ...o.receiverData, [field]: value } };
+      })
+    );
+  };
+
+  const updateOrderNumber = (orderKey: string, value: string) => {
+    setGroupedOrders((prev) =>
+      prev.map((o) => {
+        const key = getOrderKey(o);
+        if (key !== orderKey) return o;
+        return { ...o, orderNumber: value };
+      })
+    );
+  };
+
   const includedCount = groupedOrders.filter((o) => o.included && o.errors.length === 0).length;
 
   const handleSubmit = async () => {
@@ -298,7 +318,11 @@ const BulkOrderUpload: React.FC = () => {
                       <TableRow>
                         <TableHead className="w-10"></TableHead>
                         <TableHead>Order #</TableHead>
-                        <TableHead>Receiver</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Street</TableHead>
+                        <TableHead>City</TableHead>
                         <TableHead>Postcode</TableHead>
                         <TableHead className="w-16">Qty</TableHead>
                         <TableHead>Brand</TableHead>
@@ -328,11 +352,69 @@ const BulkOrderUpload: React.FC = () => {
                                     disabled={hasErrors || isSubmitting}
                                   />
                                 </TableCell>
-                                <TableCell rowSpan={bikeCount} className="font-medium">
-                                  {order.orderNumber || <span className="text-muted-foreground">—</span>}
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.orderNumber || ""}
+                                    onChange={(e) => updateOrderNumber(key, e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[80px]"
+                                    placeholder="Order #"
+                                  />
                                 </TableCell>
-                                <TableCell rowSpan={bikeCount}>{order.receiverData.receiver_name || "—"}</TableCell>
-                                <TableCell rowSpan={bikeCount}>{order.receiverData.receiver_postcode || "—"}</TableCell>
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.receiverData.receiver_name || ""}
+                                    onChange={(e) => updateReceiverField(key, "receiver_name", e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[100px]"
+                                    placeholder="Name"
+                                  />
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.receiverData.receiver_email || ""}
+                                    onChange={(e) => updateReceiverField(key, "receiver_email", e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[120px]"
+                                    placeholder="Email"
+                                  />
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.receiverData.receiver_phone || ""}
+                                    onChange={(e) => updateReceiverField(key, "receiver_phone", e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[100px]"
+                                    placeholder="Phone"
+                                  />
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.receiverData.receiver_street || ""}
+                                    onChange={(e) => updateReceiverField(key, "receiver_street", e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[120px]"
+                                    placeholder="Street"
+                                  />
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.receiverData.receiver_city || ""}
+                                    onChange={(e) => updateReceiverField(key, "receiver_city", e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[80px]"
+                                    placeholder="City"
+                                  />
+                                </TableCell>
+                                <TableCell rowSpan={bikeCount} className="p-1">
+                                  <Input
+                                    value={order.receiverData.receiver_postcode || ""}
+                                    onChange={(e) => updateReceiverField(key, "receiver_postcode", e.target.value)}
+                                    disabled={isSubmitting}
+                                    className="h-8 text-xs min-w-[80px]"
+                                    placeholder="Postcode"
+                                  />
+                                </TableCell>
                                 <TableCell rowSpan={bikeCount}>
                                   <Badge variant="secondary">{bikeCount}</Badge>
                                 </TableCell>
