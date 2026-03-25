@@ -1,20 +1,33 @@
 
 
-## Add Contact Selector to Admin Contact Editor
+## Make Bike Value Mandatory on Frontend Only
 
-### What changes
+### Changes
 
-When an admin clicks "Edit Contact" on the Order Detail page, add a "Select from address book" dropdown (reusing the existing `ContactSelector` component) above the manual form fields. Selecting a contact auto-fills all fields.
+**1. Create Order form validation (`src/pages/CreateOrder.tsx`, line 92)**
 
-### Technical details
+Change the bikes schema value field from optional to required:
+```typescript
+value: z.string().min(1, "Bike value is required"),
+```
 
-**File: `src/components/order-detail/AdminContactEditor.tsx`**
+Also make `partExchangeBikeValue` required when bike swap is active (line 101).
 
-1. Import `ContactSelector` from `@/components/create-order/ContactSelector` and `useContacts` from `@/hooks/useContacts`
-2. Inside the editing form (line 203-294), add a `ContactSelector` above the Name field
-3. Call `useContacts(undefined, true)` to fetch all contacts (admin mode)
-4. On contact selection, populate `editedContact` state with the selected contact's fields:
-   - `name`, `email`, `phone`, `street`, `city`, `state` (county), `postal_code` → `zipCode`, `country`
+**2. Create Order form label (`src/components/create-order/OrderDetails.tsx`, line 130)**
 
-The `ContactSelector` is already built with search, and `useContacts` with `isAdmin=true` fetches all contacts with pagination. No new components or backend changes needed.
+Add asterisk to indicate required field:
+```
+Bike {index + 1} Value (£) *
+```
+
+**3. Bulk upload validation (`src/services/bulkOrderService.ts`, line 292-294)**
+
+Add value validation for each bike in `validateGroupedOrder`:
+```typescript
+if (!bike.value) errors.push({ field: `bike_${i}_value`, message: `Bike ${i + 1}: value is required` });
+```
+
+Update the `bikes` type parameter to include `value` field.
+
+**4. API remains unchanged** — `bike_value` stays optional in the edge function and API docs.
 
