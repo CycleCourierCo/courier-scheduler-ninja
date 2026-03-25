@@ -1,37 +1,26 @@
 
 
-## Add "Test Account" Toggle for B2B Profiles
+## Add Bike Value Column to Bulk Upload Table
 
-### What it does
-Adds an `is_test_account` boolean flag to the `profiles` table. When enabled on a B2B profile, Shipday job creation and email sending will be skipped for orders belonging to that user. This lets admins create test accounts without triggering real external integrations.
+### What changes
 
-### Database change
-Add column `is_test_account` (boolean, default false) to `profiles` table via migration.
+Two things are missing:
+1. The `value` field is not captured when parsing bikes from the uploaded file
+2. The `value` column is not shown in the table, and it's not passed through to order creation
 
-### UI change
-**File: `src/components/user-management/EditUserDialog.tsx`**
-- Add a Switch toggle labeled "Test Account" in the Business tab with helper text: "Disables Shipday sync and email sending for this account"
-- Wire it to `formData.is_test_account`
+### Technical details
 
-**File: `src/types/user.ts`**
-- Add `is_test_account: boolean | null` to `UserProfile`
+**File: `src/services/bulkOrderService.ts`**
 
-### Integration changes
+1. In `groupRowsByOrderNumber` (line 253-258), add `value: r.bike_value || ""` to the bike object
+2. In `groupedOrderToFormData` (line 353), change `value: undefined` to `value: b.value || undefined` so it passes through to order creation
+3. In the `GroupedOrder` interface, the bikes array type already has `size?: string` -- no change needed since `value` will be a loose string property
 
-**File: `src/services/shipdayService.ts`** (`createShipdayOrder`)
-- Before invoking the edge function, fetch the order's `user_id`, then check `profiles.is_test_account`
-- If true, log a skip message and return early without calling Shipday
+**File: `src/pages/BulkOrderUpload.tsx`**
 
-**File: `src/services/emailService.ts`** (email-sending functions)
-- Similarly check the order owner's `is_test_account` flag before invoking the send-email edge function
-- If true, skip silently
+1. Add "Value (£)" table header after "Type"
+2. Expand the `updateBike` field union type from `"brand" | "model" | "type"` to include `"value"`
+3. Add a `<Input type="number">` cell for each bike row, bound to `bike.value` via `updateBike(key, bikeIdx, "value", ...)`
 
-**File: `supabase/functions/create-shipday-order/index.ts`**
-- Add a server-side check: query `profiles.is_test_account` for the order's `user_id`. If true, return `{ success: true, skipped: true, reason: 'test_account' }` without calling Shipday API.
-
-**File: `supabase/functions/send-email/index.ts`**
-- Add a similar server-side check before sending emails for order-related email types.
-
-### Approach rationale
-Checking at both client and server level ensures test accounts never accidentally trigger external services regardless of where the call originates (UI, scheduling, webhooks, etc.). The server-side check in edge functions is the primary guard; the client-side check provides better UX with skip messages.
+Three files touched, minimal changes -- just wiring the value field through parsing, display, and submission.
 
