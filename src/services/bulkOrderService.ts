@@ -255,6 +255,7 @@ export function groupRowsByOrderNumber(rows: Record<string, string>[]): GroupedO
         model: model || "",
         type: mapDealerType(rawType),
         size: r.bike_size || undefined,
+        value: r.bike_value || "",
       };
     });
 
