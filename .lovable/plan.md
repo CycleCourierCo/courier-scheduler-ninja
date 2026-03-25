@@ -1,22 +1,13 @@
 
 
-## Fix: Shorten Return Button Text on Mobile
+## Wrap "Return to Sender" Button Text
 
-The button text "Return this bike to sender" is too long and gets cut off on the 360px mobile viewport (screenshot shows "eturn this bike to").
+**File: `src/pages/CustomerOrderDetail.tsx`** (lines 233, 238)
 
-**File: `src/pages/CustomerOrderDetail.tsx`** (~line 236)
+Change the mobile label back to "Return to Sender" and allow the button text to wrap onto two lines so "Return to" appears on line 1 and "Sender" on line 2:
 
-Use responsive text — short label on mobile, full label on larger screens:
+- Line 233: Change `className="flex-1 sm:flex-none"` to `className="flex-1 sm:flex-none whitespace-normal text-left"`
+- Line 238: Change `<span className="sm:hidden">Return</span>` to `<span className="sm:hidden">Return to Sender</span>`
 
-```tsx
-<RotateCcw className={`h-4 w-4 mr-2 ${creatingReturn ? 'animate-spin' : ''}`} />
-{creatingReturn ? "Creating..." : (
-  <>
-    <span className="sm:hidden">Return to Sender</span>
-    <span className="hidden sm:inline">Return this bike to sender</span>
-  </>
-)}
-```
-
-This keeps the full descriptive text on desktop while fitting nicely on mobile.
+This lets the button text naturally wrap on narrow screens instead of being truncated.
 
