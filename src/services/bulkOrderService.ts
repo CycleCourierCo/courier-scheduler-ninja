@@ -275,7 +275,7 @@ export function groupRowsByOrderNumber(rows: Record<string, string>[]): GroupedO
 
 function validateGroupedOrder(
   receiver: Record<string, string>,
-  bikes: Array<{ brand: string; model: string; type: string }>,
+  bikes: Array<{ brand: string; model: string; type: string; value?: string }>,
   orderNumber: string
 ): RowError[] {
   const errors: RowError[] = [];
@@ -291,6 +291,7 @@ function validateGroupedOrder(
 
   bikes.forEach((bike, i) => {
     if (!bike.brand) errors.push({ field: `bike_${i}_brand`, message: `Bike ${i + 1}: brand is required` });
+    if (!bike.value) errors.push({ field: `bike_${i}_value`, message: `Bike ${i + 1}: value is required` });
   });
 
   return errors;
