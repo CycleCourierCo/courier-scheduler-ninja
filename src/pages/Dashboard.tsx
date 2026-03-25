@@ -179,9 +179,40 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
-        <DashboardHeader 
-          userRole={userRole}
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+            <p className="text-muted-foreground">Manage your delivery orders</p>
+          </div>
+          <Dialog open={isLabelsDialogOpen} onOpenChange={setIsLabelsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Printer className="h-4 w-4 mr-2" />
+                Print Collection Labels
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Print Collection Labels</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-4">
+                <Calendar
+                  mode="single"
+                  selected={selectedLabelDate}
+                  onSelect={setSelectedLabelDate}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+                <Button
+                  onClick={handleGenerateLabels}
+                  disabled={!selectedLabelDate || isGeneratingPDF}
+                  className="w-full"
+                >
+                  {isGeneratingPDF ? "Generating..." : "Generate Labels"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
         
         <OrderFilters 
           onFilterChange={handleFilterChange} 
