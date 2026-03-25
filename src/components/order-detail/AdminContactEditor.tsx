@@ -39,6 +39,20 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     zipCode: contact.address.zipCode,
     country: contact.address.country
   });
+  const { data: allContacts = [], isLoading: contactsLoading } = useContacts(undefined, true);
+
+  const handleSelectContact = (selected: Contact) => {
+    setEditedContact({
+      name: selected.name,
+      email: selected.email || "",
+      phone: selected.phone || "",
+      street: selected.street || "",
+      city: selected.city || "",
+      state: selected.state || "",
+      zipCode: selected.postal_code || "",
+      country: selected.country || "United Kingdom",
+    });
+  };
 
   const handleSave = async () => {
     try {
