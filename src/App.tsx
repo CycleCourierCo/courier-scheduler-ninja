@@ -41,6 +41,7 @@ import NoticeBarManagement from "./pages/NoticeBarManagement";
 import AnnouncementEmailsPage from "./pages/AnnouncementEmailsPage";
 import AIRouting from "./pages/AIRouting";
 import BulkOrderUpload from "./pages/BulkOrderUpload";
+import WarehouseStockPage from "./pages/WarehouseStockPage";
 
 const queryClient = new QueryClient();
 
@@ -175,6 +176,11 @@ function App() {
               <Route path="/bulk-upload" element={
                 <ProtectedRoute>
                   <BulkOrderUpload />
+                </ProtectedRoute>
+              } />
+              <Route path="/warehouse-stock" element={
+                <ProtectedRoute adminOnly={true}>
+                  <WarehouseStockPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />
