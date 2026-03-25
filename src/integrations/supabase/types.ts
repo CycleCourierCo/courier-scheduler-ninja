@@ -1482,6 +1482,63 @@ export type Database = {
         }
         Relationships: []
       }
+      warehouse_stock: {
+        Row: {
+          bay: string
+          bike_brand: string | null
+          bike_model: string | null
+          bike_type: string | null
+          bike_value: number | null
+          created_at: string
+          deposited_at: string
+          deposited_by: string | null
+          dispatched_at: string | null
+          id: string
+          item_notes: string | null
+          linked_order_id: string | null
+          position: number
+          status: Database["public"]["Enums"]["warehouse_stock_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bay: string
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          bike_value?: number | null
+          created_at?: string
+          deposited_at?: string
+          deposited_by?: string | null
+          dispatched_at?: string | null
+          id?: string
+          item_notes?: string | null
+          linked_order_id?: string | null
+          position: number
+          status?: Database["public"]["Enums"]["warehouse_stock_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bay?: string
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          bike_value?: number | null
+          created_at?: string
+          deposited_at?: string
+          deposited_by?: string | null
+          dispatched_at?: string | null
+          id?: string
+          item_notes?: string | null
+          linked_order_id?: string | null
+          position?: number
+          status?: Database["public"]["Enums"]["warehouse_stock_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       webhook_configurations: {
         Row: {
           created_at: string | null
@@ -1764,6 +1821,7 @@ export type Database = {
         | "sales"
         | "driver"
         | "mechanic"
+      warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1920,6 +1978,7 @@ export const Constants = {
         "driver",
         "mechanic",
       ],
+      warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],
     },
   },
 } as const
