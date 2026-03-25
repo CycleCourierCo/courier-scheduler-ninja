@@ -64,6 +64,33 @@ serve(async (req) => {
       console.log('Public email type:', reqData.emailType, '- no auth required');
     }
 
+    // Check if order-related emails should be skipped for test accounts
+    if (reqData.meta?.orderId || reqData.orderId) {
+      const checkOrderId = reqData.meta?.orderId || reqData.orderId;
+      const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data: orderData } = await adminClient
+        .from("orders")
+        .select("user_id")
+        .eq("id", checkOrderId)
+        .single();
+
+      if (orderData?.user_id) {
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("is_test_account")
+          .eq("id", orderData.user_id)
+          .single();
+
+        if (profile?.is_test_account) {
+          console.log("Skipping email for test account, order:", checkOrderId);
+          return new Response(
+            JSON.stringify({ success: true, skipped: true, reason: "test_account" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+      }
+    }
+
     // Handle special actions
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
       console.log("Processing delivery confirmation action for order:", reqData.meta.orderId);
