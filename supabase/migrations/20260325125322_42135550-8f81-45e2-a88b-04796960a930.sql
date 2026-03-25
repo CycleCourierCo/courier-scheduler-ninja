@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN is_test_account boolean NOT NULL DEFAULT false;
