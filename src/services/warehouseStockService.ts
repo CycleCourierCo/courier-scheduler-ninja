@@ -106,3 +106,98 @@ export const getCustomerList = async () => {
   if (error) throw error;
   return data || [];
 };
+
+export const getMyWarehouseStock = async (userId: string): Promise<WarehouseStock[]> => {
+  const { data, error } = await supabase
+    .from("warehouse_stock" as any)
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", ["stored", "reserved"])
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return ((data as any[]) || []).map((item: any) => ({
+    ...item,
+  })) as WarehouseStock[];
+};
+
+export const requestDeliveryFromStock = async (
+  stockItem: WarehouseStock,
+  receiverDetails: {
+    name: string;
+    email: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  },
+  userId: string
+): Promise<string> => {
+  // 1. Get user profile for sender details
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name, email, phone, address_line_1, city, postal_code")
+    .eq("id", userId)
+    .single();
+
+  if (!profile) throw new Error("Could not fetch your profile");
+
+  // 2. Create the order
+  const timestamp = new Date().toISOString();
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      user_id: userId,
+      sender: {
+        name: profile.name || "Warehouse",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        address: {
+          street: profile.address_line_1 || "Depot",
+          city: profile.city || "",
+          state: "",
+          zipCode: profile.postal_code || "",
+          country: "United Kingdom",
+        },
+      },
+      receiver: {
+        name: receiverDetails.name,
+        email: receiverDetails.email,
+        phone: receiverDetails.phone,
+        address: {
+          street: receiverDetails.street,
+          city: receiverDetails.city,
+          state: receiverDetails.state,
+          zipCode: receiverDetails.zipCode,
+          country: receiverDetails.country || "United Kingdom",
+        },
+      },
+      bike_brand: stockItem.bike_brand,
+      bike_model: stockItem.bike_model,
+      bike_type: stockItem.bike_type,
+      bike_value: stockItem.bike_value,
+      bike_quantity: 1,
+      status: "created",
+      created_at: timestamp,
+      updated_at: timestamp,
+    })
+    .select()
+    .single();
+
+  if (orderError) throw orderError;
+
+  // 3. Update stock status to reserved and link order
+  const { error: updateError } = await supabase
+    .from("warehouse_stock" as any)
+    .update({
+      status: "reserved",
+      linked_order_id: order.id,
+    } as any)
+    .eq("id", stockItem.id);
+
+  if (updateError) throw updateError;
+
+  return order.id;
+};

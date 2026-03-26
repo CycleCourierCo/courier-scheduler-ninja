@@ -192,6 +192,10 @@ const Layout: React.FC<LayoutProps> = ({
                         </>}
                       {isB2B && (
                         <>
+                          <Link to="/my-stock" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Warehouse className="mr-2 h-4 w-4" />
+                            My Stock
+                          </Link>
                           <Link to="/pricing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <PoundSterling className="mr-2 h-4 w-4" />
                             Pricing
@@ -432,6 +436,12 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {isB2B && (
                     <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/my-stock" className="cursor-pointer flex w-full items-center">
+                          <Warehouse className="mr-2 h-4 w-4" />
+                          <span>My Stock</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/pricing" className="cursor-pointer flex w-full items-center">
                           <PoundSterling className="mr-2 h-4 w-4" />
