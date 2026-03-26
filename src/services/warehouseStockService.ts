@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
+import { generateTrackingNumber } from "@/services/trackingService";
+import { sendOrderCreationConfirmationToUser, sendOrderNotificationToReceiver, sendReceiverAvailabilityEmail } from "@/services/emailService";
+import { createShipdayOrder } from "@/services/shipdayService";
 
 export const getWarehouseStock = async (): Promise<WarehouseStock[]> => {
   const { data, error } = await supabase
