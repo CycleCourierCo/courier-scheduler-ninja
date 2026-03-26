@@ -86,7 +86,7 @@ const MyStockPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <Truck className="h-8 w-8 text-amber-500" />
+              <Truck className="h-8 w-8 text-muted-foreground" />
               <div>
                 <p className="text-2xl font-bold">{reservedItems.length}</p>
                 <p className="text-sm text-muted-foreground">Reserved for Delivery</p>
