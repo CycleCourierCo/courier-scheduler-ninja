@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
+import { generateTrackingNumber } from "@/services/trackingService";
+import { sendOrderCreationConfirmationToUser, sendOrderNotificationToReceiver, sendReceiverAvailabilityEmail } from "@/services/emailService";
+import { createShipdayOrder } from "@/services/shipdayService";
 
 export const getWarehouseStock = async (): Promise<WarehouseStock[]> => {
   const { data, error } = await supabase
@@ -198,6 +201,37 @@ export const requestDeliveryFromStock = async (
     .eq("id", stockItem.id);
 
   if (updateError) throw updateError;
+
+  // 4. Generate tracking number and update order
+  const senderName = profile.name || "Warehouse";
+  const receiverZipCode = receiverDetails.zipCode || "000";
+  try {
+    const trackingNumber = await generateTrackingNumber(senderName, receiverZipCode);
+    await supabase
+      .from("orders")
+      .update({ tracking_number: trackingNumber })
+      .eq("id", order.id);
+    console.log("Tracking number generated for stock delivery:", trackingNumber);
+  } catch (err) {
+    console.error("Failed to generate tracking number for stock delivery:", err);
+  }
+
+  // 5. Fire-and-forget: Send emails (no sender availability needed - stock is at depot)
+  const userEmail = profile.email || "";
+  sendOrderCreationConfirmationToUser(order.id, userEmail, profile.name || "Customer").catch(err =>
+    console.error("Failed to send order confirmation email:", err)
+  );
+  sendOrderNotificationToReceiver(order.id).catch(err =>
+    console.error("Failed to send receiver notification email:", err)
+  );
+  sendReceiverAvailabilityEmail(order.id).catch(err =>
+    console.error("Failed to send receiver availability email:", err)
+  );
+
+  // 6. Fire-and-forget: Create Shipday delivery job (no pickup needed)
+  createShipdayOrder(order.id, 'delivery').catch(err =>
+    console.error("Failed to create Shipday delivery job:", err)
+  );
 
   return order.id;
 };
