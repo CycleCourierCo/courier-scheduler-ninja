@@ -218,7 +218,7 @@ export const requestDeliveryFromStock = async (
 
   // 5. Fire-and-forget: Send emails (no sender availability needed - stock is at depot)
   const userEmail = profile.email || "";
-  sendOrderCreationConfirmationToUser(order.id, userEmail).catch(err =>
+  sendOrderCreationConfirmationToUser(order.id, userEmail, profile.name || "Customer").catch(err =>
     console.error("Failed to send order confirmation email:", err)
   );
   sendOrderNotificationToReceiver(order.id).catch(err =>
