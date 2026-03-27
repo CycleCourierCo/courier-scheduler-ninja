@@ -2545,10 +2545,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // Send route report
       const jobResults = jobsToSend.map(job => {
         const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+        const sent = jobSendResults.get(`${job.orderId}-${job.type}`) ?? false;
         return {
           job,
           bikeCount: jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0,
-          results: { whatsapp: { success: true }, shipday: { success: true }, email: { success: true } }
+          results: { whatsapp: { success: sent }, shipday: { success: sent }, email: { success: sent } }
         };
       });
 
