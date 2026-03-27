@@ -437,8 +437,8 @@ const AnnouncementEmailsPage: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending": return <Badge variant="outline" className="text-amber-600 border-amber-600">Pending</Badge>;
-      case "sent": return <Badge variant="outline" className="text-green-600 border-green-600">Sent</Badge>;
+      case "pending": return <Badge variant="outline" className="text-warning border-warning">Pending</Badge>;
+      case "sent": return <Badge variant="outline" className="text-primary border-primary">Sent</Badge>;
       case "cancelled": return <Badge variant="outline" className="text-muted-foreground">Cancelled</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
