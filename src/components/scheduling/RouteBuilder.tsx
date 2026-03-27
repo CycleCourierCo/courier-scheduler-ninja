@@ -2486,7 +2486,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           if (error || !data?.success) failureCount++;
           else successCount++;
           
-          // NO delay for SendZen
+          // Throttle to prevent SendZen rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
         }
@@ -2527,7 +2528,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           if (error || !data?.success) failureCount++;
           else successCount++;
           
-          // NO delay for SendZen
+          // Throttle to prevent SendZen rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
         }

@@ -581,41 +581,46 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Sending SendZen request:", JSON.stringify({ template: type, to: phone }));
 
-    // Run all three operations in the background and return immediately
+    // Send WhatsApp synchronously so we get a real success/failure signal
+    let sendzenSuccess = false;
+    let sendzenResponseText = "";
+    try {
+      const sendzenRes = await fetch("https://api.sendzen.io/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sendzenApiKey}`,
+        },
+        body: JSON.stringify(sendzenBody),
+      });
+      sendzenResponseText = await sendzenRes.text();
+      sendzenSuccess = sendzenRes.ok;
+      console.log("SendZen send complete:", sendzenRes.status, sendzenResponseText);
+    } catch (err: any) {
+      console.error("SendZen send failed:", err?.message);
+      sendzenResponseText = err?.message || "fetch error";
+    }
+
+    // Run Shipday + Email in the background (not user-facing)
     EdgeRuntime.waitUntil(
       Promise.allSettled([
-        // 1. SendZen WhatsApp
-        fetch("https://api.sendzen.io/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${sendzenApiKey}`,
-          },
-          body: JSON.stringify(sendzenBody),
-        }).then(async (res) => {
-          const text = await res.text();
-          console.log("SendZen send complete:", res.status, text);
-        }).catch((err) => {
-          console.error("SendZen send failed:", err);
-        }),
-
-        // 2. Shipday update (skip for review)
+        // Shipday update (skip for review)
         type !== "review" && deliveryTime
           ? updateShipday(order, recipientType, deliveryTime, relatedJobs, supabase)
           : Promise.resolve(),
 
-        // 3. Email via Resend (skip for review)
+        // Email via Resend (skip for review)
         type !== "review"
           ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList)
           : Promise.resolve(),
       ]).then((results) => {
-        console.log("All background operations complete:", results.map(r => r.status));
+        console.log("Background operations complete:", results.map(r => r.status));
       })
     );
 
     return new Response(
-      JSON.stringify({ success: true, data: { status: "queued" } }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: sendzenSuccess, data: { status: sendzenSuccess ? "sent" : "failed", sendzenResponse: sendzenResponseText } }),
+      { status: sendzenSuccess ? 200 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("SendZen edge function error:", error);
