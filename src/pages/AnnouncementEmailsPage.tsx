@@ -14,6 +14,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { UserRole } from "@/types/user";
 
 interface ProfileRecord {
@@ -23,6 +30,20 @@ interface ProfileRecord {
   phone: string | null;
   role: UserRole;
   company_name: string | null;
+}
+
+interface TemplateComponent {
+  type: string;
+  text?: string;
+  format?: string;
+  example?: { body_text?: string[][] };
+}
+
+interface SendZenTemplate {
+  name: string;
+  language: string;
+  category: string;
+  components: TemplateComponent[];
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -36,6 +57,27 @@ const ROLE_LABELS: Record<UserRole, string> = {
   sales: "Sales",
 };
 
+function extractTemplateParams(template: SendZenTemplate): string[] {
+  const params: string[] = [];
+  for (const comp of template.components) {
+    if (comp.type === "BODY" && comp.text) {
+      const matches = comp.text.match(/\{\{(\d+)\}\}/g);
+      if (matches) {
+        matches.forEach((m) => {
+          const idx = m.replace(/[{}]/g, "");
+          if (!params.includes(idx)) params.push(idx);
+        });
+      }
+    }
+  }
+  return params.sort((a, b) => Number(a) - Number(b));
+}
+
+function getTemplateBodyText(template: SendZenTemplate): string {
+  const body = template.components.find((c) => c.type === "BODY");
+  return body?.text || "";
+}
+
 const AnnouncementEmailsPage: React.FC = () => {
   const [recipientMode, setRecipientMode] = useState<"individual" | "role">("individual");
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(new Set());
@@ -48,7 +90,10 @@ const AnnouncementEmailsPage: React.FC = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
   // WhatsApp state
+  const [whatsappMode, setWhatsappMode] = useState<"text" | "template">("text");
   const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [selectedTemplateName, setSelectedTemplateName] = useState("");
+  const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [whatsappProgress, setWhatsappProgress] = useState({ sent: 0, total: 0 });
 
@@ -65,6 +110,26 @@ const AnnouncementEmailsPage: React.FC = () => {
       return (data || []) as ProfileRecord[];
     },
   });
+
+  const { data: templates = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ["sendzen-templates"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("list-sendzen-templates");
+      if (error) throw error;
+      return (data?.templates || []) as SendZenTemplate[];
+    },
+    enabled: whatsappMode === "template",
+  });
+
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.name === selectedTemplateName),
+    [templates, selectedTemplateName]
+  );
+
+  const selectedTemplateParams = useMemo(
+    () => (selectedTemplate ? extractTemplateParams(selectedTemplate) : []),
+    [selectedTemplate]
+  );
 
   const filteredProfiles = useMemo(() => {
     if (!searchQuery) return profiles;
@@ -150,7 +215,11 @@ const AnnouncementEmailsPage: React.FC = () => {
   };
 
   const handleSendWhatsApp = async () => {
-    if (!whatsappMessage.trim()) { toast.error("Please enter a WhatsApp message"); return; }
+    if (whatsappMode === "text") {
+      if (!whatsappMessage.trim()) { toast.error("Please enter a WhatsApp message"); return; }
+    } else {
+      if (!selectedTemplateName) { toast.error("Please select a template"); return; }
+    }
     if (recipientsWithPhone.length === 0) { toast.error("No selected recipients have phone numbers"); return; }
 
     setIsSendingWhatsApp(true);
@@ -162,11 +231,25 @@ const AnnouncementEmailsPage: React.FC = () => {
       { op: "whatsapp.send_announcement", name: "Send Announcement WhatsApp" },
       async (span) => {
         span.setAttribute("recipient_count", recipientsWithPhone.length);
+        span.setAttribute("mode", whatsappMode);
         for (let i = 0; i < recipientsWithPhone.length; i++) {
           const recipient = recipientsWithPhone[i];
           try {
+            const bodyPayload: Record<string, unknown> = { phone: recipient.phone };
+
+            if (whatsappMode === "text") {
+              bodyPayload.message = whatsappMessage.trim();
+            } else {
+              bodyPayload.templateName = selectedTemplateName;
+              bodyPayload.langCode = selectedTemplate?.language || "en";
+              bodyPayload.parameters = selectedTemplateParams.map((idx) => ({
+                parameter_name: idx,
+                text: templateParams[idx] || "N/A",
+              }));
+            }
+
             const { error } = await supabase.functions.invoke("send-announcement-whatsapp", {
-              body: { phone: recipient.phone, message: whatsappMessage.trim() },
+              body: bodyPayload,
             });
             if (error) throw error;
             successCount++;
@@ -186,6 +269,11 @@ const AnnouncementEmailsPage: React.FC = () => {
   };
 
   const isSending = isSendingEmail || isSendingWhatsApp;
+
+  const whatsappReady =
+    whatsappMode === "text"
+      ? !!whatsappMessage.trim()
+      : !!selectedTemplateName;
 
   return (
     <Layout>
@@ -324,20 +412,80 @@ const AnnouncementEmailsPage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="whatsapp-message">Message (plain text)</Label>
-              <Textarea
-                id="whatsapp-message"
-                placeholder="Hello! We wanted to let you know..."
-                value={whatsappMessage}
-                onChange={(e) => setWhatsappMessage(e.target.value)}
-                className="min-h-[150px] text-sm"
-                maxLength={4096}
-              />
-              <p className="text-xs text-muted-foreground mt-1 text-right">
-                {whatsappMessage.length} / 4,096 characters
-              </p>
-            </div>
+            <Tabs value={whatsappMode} onValueChange={(v) => setWhatsappMode(v as "text" | "template")}>
+              <TabsList>
+                <TabsTrigger value="text">Plain Text</TabsTrigger>
+                <TabsTrigger value="template">Template</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="text" className="space-y-2 mt-4">
+                <Label htmlFor="whatsapp-message">Message (plain text)</Label>
+                <Textarea
+                  id="whatsapp-message"
+                  placeholder="Hello! We wanted to let you know..."
+                  value={whatsappMessage}
+                  onChange={(e) => setWhatsappMessage(e.target.value)}
+                  className="min-h-[150px] text-sm"
+                  maxLength={4096}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {whatsappMessage.length} / 4,096 characters
+                </p>
+              </TabsContent>
+
+              <TabsContent value="template" className="space-y-4 mt-4">
+                <div>
+                  <Label>Select Template</Label>
+                  <Select
+                    value={selectedTemplateName}
+                    onValueChange={(v) => {
+                      setSelectedTemplateName(v);
+                      setTemplateParams({});
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={templatesLoading ? "Loading templates..." : "Choose a template"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.name} value={t.name}>
+                          {t.name} ({t.language})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedTemplate && (
+                  <>
+                    <div className="bg-muted/50 rounded-md p-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Template preview</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">
+                        {getTemplateBodyText(selectedTemplate)}
+                      </p>
+                    </div>
+
+                    {selectedTemplateParams.length > 0 && (
+                      <div className="space-y-3">
+                        <Label>Parameters</Label>
+                        {selectedTemplateParams.map((idx) => (
+                          <div key={idx}>
+                            <Label className="text-xs text-muted-foreground">{"{{" + idx + "}}"}</Label>
+                            <Input
+                              placeholder={`Value for parameter ${idx}`}
+                              value={templateParams[idx] || ""}
+                              onChange={(e) =>
+                                setTemplateParams((prev) => ({ ...prev, [idx]: e.target.value }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -371,7 +519,7 @@ const AnnouncementEmailsPage: React.FC = () => {
           </Button>
           <Button
             onClick={handleSendWhatsApp}
-            disabled={isSending || recipientsWithPhone.length === 0 || !whatsappMessage.trim()}
+            disabled={isSending || recipientsWithPhone.length === 0 || !whatsappReady}
             size="lg"
             variant="outline"
           >
