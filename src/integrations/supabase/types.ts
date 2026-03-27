@@ -1833,6 +1833,10 @@ export type Database = {
         Returns: boolean
       }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
+      invoke_process_scheduled_announcements: {
+        Args: never
+        Returns: undefined
+      }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
