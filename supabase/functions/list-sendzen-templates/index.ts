@@ -51,23 +51,17 @@ serve(async (req) => {
     let rawTemplates: any[] = [];
     if (Array.isArray(data)) {
       rawTemplates = data;
+    } else if (Array.isArray(data?.data?.data)) {
+      // SendZen returns { message: "Success", data: { data: [...] } }
+      rawTemplates = data.data.data;
     } else if (Array.isArray(data?.data)) {
       rawTemplates = data.data;
     } else if (Array.isArray(data?.message_templates)) {
       rawTemplates = data.message_templates;
     } else {
-      // Try to find any array property in the response
-      for (const key of Object.keys(data || {})) {
-        if (Array.isArray(data[key])) {
-          console.log(`Found array under key "${key}" with ${data[key].length} items`);
-          rawTemplates = data[key];
-          break;
-        }
-      }
-      if (rawTemplates.length === 0) {
-        console.warn("No template array found in SendZen response");
-      }
+      console.warn("No template array found in SendZen response:", JSON.stringify(data).slice(0, 300));
     }
+    console.log(`Found ${rawTemplates.length} raw templates`);
 
     const templates = rawTemplates
       .filter((t: any) => t.status === "APPROVED")
