@@ -1,53 +1,41 @@
 
 
-## Add SendZen Template Selector to WhatsApp Announcements
+## Fix: list-sendzen-templates response parsing
 
-### What it does
-Adds a dropdown to the WhatsApp compose section that fetches available templates from SendZen, letting the admin choose between sending a plain text message or a pre-approved WhatsApp template. When a template is selected, dynamic input fields appear for each template parameter.
+### Problem
+The error `(data.data || data || []).filter is not a function` means `data.data` exists but is not an array — it's likely an object (e.g., the SendZen API may return a paginated response where templates are nested differently, such as under `message_templates` or another key).
 
-### Changes
+### Fix
 
-**1. New Edge Function: `supabase/functions/list-sendzen-templates/index.ts`**
-- `GET` handler that calls SendZen API: `GET /v1/{WABA_ID}/message_templates`
-- Uses `SENDZEN_API_KEY` (existing) and a new `SENDZEN_WABA_ID` secret for the WhatsApp Business Account ID
-- Returns the list of approved templates with their name, language, components/parameters
-- Filters to only `APPROVED` status templates
+**`supabase/functions/list-sendzen-templates/index.ts`** — single file change:
 
-**2. New secret: `SENDZEN_WABA_ID`**
-- The WhatsApp Business Account ID needed for the List Templates endpoint
-- Will request via the secrets tool during implementation
+1. Add `console.log(JSON.stringify(data))` right after `const data = await response.json()` to capture the actual response shape in logs
+2. Replace the brittle `(data.data || data || []).filter(...)` with robust extraction that checks multiple paths:
+   - `data.data` if it's an array
+   - `data.message_templates` 
+   - `data` itself if it's an array
+   - Fallback to empty array with a warning log
+3. Add `Array.isArray()` guard before calling `.filter()`
 
-**3. Update Edge Function: `supabase/functions/send-announcement-whatsapp/index.ts`**
-- Add support for a `template` mode alongside existing `text` mode
-- When `templateName`, `langCode`, and `parameters` are provided, send as a template message instead of plain text
-- Uses the same SendZen template payload structure as the existing `send-sendzen-whatsapp` function
+```typescript
+// After: const data = await response.json();
+console.log("SendZen raw response keys:", Object.keys(data));
 
-**4. Update `src/pages/AnnouncementEmailsPage.tsx`**
-- Add a mode toggle at the top of the WhatsApp compose card: "Plain Text" | "Template"
-- In template mode:
-  - Fetch templates via `list-sendzen-templates` edge function (react-query)
-  - Show a Select dropdown with template names
-  - When a template is selected, parse its components and show input fields for each body parameter (pre-labelled with `parameter_name`)
-  - Hide the plain text textarea
-- Update the Send WhatsApp handler to pass either `{ phone, message }` (plain text) or `{ phone, templateName, langCode, parameters }` (template mode) to the edge function
-- The template parameter inputs will be plain text inputs, one per parameter
+let rawTemplates: any[] = [];
+if (Array.isArray(data)) {
+  rawTemplates = data;
+} else if (Array.isArray(data?.data)) {
+  rawTemplates = data.data;
+} else if (Array.isArray(data?.message_templates)) {
+  rawTemplates = data.message_templates;
+} else {
+  console.warn("Unknown SendZen response shape:", JSON.stringify(data).slice(0, 500));
+}
 
-### Flow
-```text
-Admin opens Announcements → WhatsApp card
-  → Tabs: "Plain Text" | "Template"
-  → If Template:
-      → Dropdown loads templates from SendZen API
-      → Admin selects a template
-      → Input fields appear for each parameter
-      → Admin fills in values
-      → Clicks "Send WhatsApp"
-      → Edge function sends template message to each recipient
+const templates = rawTemplates
+  .filter((t: any) => t.status === "APPROVED")
+  .map((t: any) => ({ ... }));
 ```
 
-### Technical Details
-- SendZen List Templates API: `GET https://api.sendzen.io/v1/{WABA_ID}/message_templates`
-- Template response includes `components` array with parameter definitions
-- Template send payload matches existing pattern in `send-sendzen-whatsapp`: `type: "template"` with `template.name`, `template.lang_code`, and `template.components`
-- Parameters like `contact_name` can be auto-filled from the recipient profile where applicable
+The API spec confirms the endpoint URL (`/v1/{WABA_ID}/message_templates`), auth method (`Bearer` token), and HTTP method (`GET`) are all correct in the current code. Only the response parsing needs fixing.
 
