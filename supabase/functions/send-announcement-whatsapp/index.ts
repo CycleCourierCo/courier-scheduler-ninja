@@ -63,6 +63,8 @@ serve(async (req) => {
 
     const normalizedPhone = normalizePhone(phone);
 
+    const fromNumber = "441217980767";
+
     const sendWhatsApp = async () => {
       try {
         let payload: Record<string, unknown>;
@@ -81,7 +83,8 @@ serve(async (req) => {
           }
 
           payload = {
-            recipient: normalizedPhone,
+            to: normalizedPhone,
+            from: fromNumber,
             type: "template",
             template: {
               name: templateName,
@@ -91,7 +94,8 @@ serve(async (req) => {
           };
         } else {
           payload = {
-            recipient: normalizedPhone,
+            to: normalizedPhone,
+            from: fromNumber,
             type: "text",
             text: { body: message.trim() },
           };
