@@ -248,8 +248,8 @@ const CreateOrder = () => {
     const bikeQuantity = form.getValues("bikeQuantity");
     const bikes = form.getValues("bikes") || [];
     const bikesValid = bikeQuantity >= 1 && bikes.length === bikeQuantity && 
-           bikes.every(bike => bike && bike.brand && bike.model && bike.type &&
-                             bike.brand.trim() !== '' && bike.model.trim() !== '' && bike.type.trim() !== '');
+           bikes.every(bike => bike && bike.brand && bike.model && bike.type && bike.value &&
+                              bike.brand.trim() !== '' && bike.model.trim() !== '' && bike.type.trim() !== '' && bike.value.trim() !== '');
     
     // Check conditional field requirements
     const isEbayOrder = form.getValues("isEbayOrder");

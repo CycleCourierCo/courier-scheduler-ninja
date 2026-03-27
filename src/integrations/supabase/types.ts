@@ -1327,6 +1327,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_announcements: {
+        Row: {
+          created_at: string
+          created_by: string
+          error_message: string | null
+          html_body: string
+          id: string
+          recipient_ids: string[] | null
+          recipient_mode: string
+          recipient_roles: string[] | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          html_body: string
+          id?: string
+          recipient_ids?: string[] | null
+          recipient_mode?: string
+          recipient_roles?: string[] | null
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          html_body?: string
+          id?: string
+          recipient_ids?: string[] | null
+          recipient_mode?: string
+          recipient_roles?: string[] | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       timeslip_generation_logs: {
         Row: {
           drivers_processed: number | null
@@ -1478,6 +1523,63 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      warehouse_stock: {
+        Row: {
+          bay: string
+          bike_brand: string | null
+          bike_model: string | null
+          bike_type: string | null
+          bike_value: number | null
+          created_at: string
+          deposited_at: string
+          deposited_by: string | null
+          dispatched_at: string | null
+          id: string
+          item_notes: string | null
+          linked_order_id: string | null
+          position: number
+          status: Database["public"]["Enums"]["warehouse_stock_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bay: string
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          bike_value?: number | null
+          created_at?: string
+          deposited_at?: string
+          deposited_by?: string | null
+          dispatched_at?: string | null
+          id?: string
+          item_notes?: string | null
+          linked_order_id?: string | null
+          position: number
+          status?: Database["public"]["Enums"]["warehouse_stock_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bay?: string
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          bike_value?: number | null
+          created_at?: string
+          deposited_at?: string
+          deposited_by?: string | null
+          dispatched_at?: string | null
+          id?: string
+          item_notes?: string | null
+          linked_order_id?: string | null
+          position?: number
+          status?: Database["public"]["Enums"]["warehouse_stock_status"]
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1731,6 +1833,10 @@ export type Database = {
         Returns: boolean
       }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
+      invoke_process_scheduled_announcements: {
+        Args: never
+        Returns: undefined
+      }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
@@ -1764,6 +1870,7 @@ export type Database = {
         | "sales"
         | "driver"
         | "mechanic"
+      warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1920,6 +2027,7 @@ export const Constants = {
         "driver",
         "mechanic",
       ],
+      warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],
     },
   },
 } as const

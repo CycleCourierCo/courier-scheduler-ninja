@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -115,6 +115,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Package className="mr-2 h-4 w-4" />
                             Loading & Storage
                           </Link>
+                          <Link to="/warehouse-stock" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Warehouse className="mr-2 h-4 w-4" />
+                            Warehouse Stock
+                          </Link>
                           <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Calendar className="mr-2 h-4 w-4" />
                             Job Scheduling
@@ -188,6 +192,10 @@ const Layout: React.FC<LayoutProps> = ({
                         </>}
                       {isB2B && (
                         <>
+                          <Link to="/my-stock" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Warehouse className="mr-2 h-4 w-4" />
+                            My Stock
+                          </Link>
                           <Link to="/pricing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <PoundSterling className="mr-2 h-4 w-4" />
                             Pricing
@@ -325,6 +333,12 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        <Link to="/warehouse-stock" className="cursor-pointer flex w-full items-center">
+                          <Warehouse className="mr-2 h-4 w-4" />
+                          <span>Warehouse Stock</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                           <Calendar className="mr-2 h-4 w-4" />
                           <span>Job Scheduling</span>
@@ -422,6 +436,12 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {isB2B && (
                     <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/my-stock" className="cursor-pointer flex w-full items-center">
+                          <Warehouse className="mr-2 h-4 w-4" />
+                          <span>My Stock</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/pricing" className="cursor-pointer flex w-full items-center">
                           <PoundSterling className="mr-2 h-4 w-4" />

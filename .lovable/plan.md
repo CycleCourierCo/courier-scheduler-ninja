@@ -1,33 +1,18 @@
 
 
-## Add Bulk Print Labels to Dashboard (User-Scoped)
+## Fix: Bike value not validated on "Next" button in Create Order
 
-### What it does
-Adds a "Print Collection Labels" button to the Dashboard. The user picks a collection date, and it generates a multi-page 4x6 label PDF for **only their own orders** scheduled for collection on that date.
+### Problem
+The `isDetailsValid` memo (line 250-252) checks that each bike has `brand`, `model`, and `type` but omits `value`. Since `value` is required by the Zod schema (`z.string().min(1, "Bike value is required")`), the form won't submit without it, but the "Next" button doesn't catch it — so the user gets no toast error.
 
-### Changes
+### Fix
 
-**1. `src/services/orderService.ts`** -- Scope date query by user
-- Add optional `userId` parameter to `getOrdersByScheduledDate`
-- When provided, filter both pickup and delivery queries with `.eq("user_id", userId)`
+**`src/pages/CreateOrder.tsx`** — line 251-252, add `bike.value` to the validation check:
 
-**2. `src/utils/labelUtils.ts`** -- Add bulk generation function
-- Add `generateBulkCollectionLabels(orders: Order[]): Promise<void>` that loops through orders, calling the same label layout logic already in `generateSingleOrderLabel` but into a single multi-page PDF
-
-**3. `src/pages/Dashboard.tsx`** -- Add button + dialog
-- Add state: `selectedDate`, `isLabelsDialogOpen`, `isGeneratingPDF`
-- Add a `Printer` icon button near the header that opens a Dialog with a Calendar date picker and "Generate Labels" button
-- Handler calls `getOrdersByScheduledDate(dateStr, user.id)` to fetch only the current user's orders
-- Passes pickup orders to `generateBulkCollectionLabels` to produce the PDF
-- Shows toast with label count or "no orders found" message
-
-### Flow
-```text
-User clicks "Print Collection Labels"
-  → Dialog opens with date picker
-  → User selects date, clicks Generate
-  → Fetches orders WHERE scheduled_pickup_date = date AND user_id = current user
-  → Generates multi-page 4x6 PDF with all matching labels
-  → Downloads PDF automatically
+```typescript
+bikes.every(bike => bike && bike.brand && bike.model && bike.type && bike.value &&
+                          bike.brand.trim() !== '' && bike.model.trim() !== '' && bike.type.trim() !== '' && bike.value.trim() !== '');
 ```
+
+One line change. The toast error message ("Please complete all required fields in Bike Details.") already covers this case.
 
