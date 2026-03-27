@@ -2401,6 +2401,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setIsSendingTimeslots(true);
     let successCount = 0;
     let failureCount = 0;
+    const jobSendResults = new Map<string, boolean>(); // orderId+type -> success
 
     try {
       // Group jobs by coordinates (same logic as sendAllTimeslots)
