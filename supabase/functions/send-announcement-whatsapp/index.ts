@@ -18,7 +18,8 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, message } = await req.json();
+    const body = await req.json();
+    const { phone, message, templateName, langCode, parameters } = body;
 
     if (!phone || typeof phone !== "string" || phone.trim().length < 5) {
       return new Response(
@@ -27,18 +28,28 @@ serve(async (req) => {
       );
     }
 
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Message text is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const isTemplateMode = !!templateName;
 
-    if (message.length > 4096) {
-      return new Response(
-        JSON.stringify({ error: "Message exceeds 4096 character limit" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!isTemplateMode) {
+      if (!message || typeof message !== "string" || message.trim().length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Message text is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (message.length > 4096) {
+        return new Response(
+          JSON.stringify({ error: "Message exceeds 4096 character limit" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      if (!langCode) {
+        return new Response(
+          JSON.stringify({ error: "Language code is required for template messages" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const SENDZEN_API_KEY = Deno.env.get("SENDZEN_API_KEY");
@@ -54,13 +65,39 @@ serve(async (req) => {
 
     const sendWhatsApp = async () => {
       try {
-        const payload = {
-          recipient: normalizedPhone,
-          type: "text",
-          text: { body: message.trim() },
-        };
+        let payload: Record<string, unknown>;
 
-        console.log(`Sending WhatsApp announcement to ${normalizedPhone.slice(0, 6)}***`);
+        if (isTemplateMode) {
+          const components: Record<string, unknown>[] = [];
+          if (parameters && Array.isArray(parameters) && parameters.length > 0) {
+            components.push({
+              type: "body",
+              parameters: parameters.map((p: { parameter_name: string; text: string }) => ({
+                type: "text",
+                parameter_name: p.parameter_name,
+                text: p.text || "N/A",
+              })),
+            });
+          }
+
+          payload = {
+            recipient: normalizedPhone,
+            type: "template",
+            template: {
+              name: templateName,
+              lang_code: langCode,
+              components,
+            },
+          };
+        } else {
+          payload = {
+            recipient: normalizedPhone,
+            type: "text",
+            text: { body: message.trim() },
+          };
+        }
+
+        console.log(`Sending WhatsApp ${isTemplateMode ? "template" : "text"} to ${normalizedPhone.slice(0, 6)}***`);
 
         const response = await fetch("https://api.sendzen.io/v1/messages", {
           method: "POST",
@@ -76,7 +113,7 @@ serve(async (req) => {
           console.error(`SendZen API error: status ${response.status}`);
           console.error(`Response: ${errorText}`);
         } else {
-          console.log(`WhatsApp announcement sent successfully to ${normalizedPhone.slice(0, 6)}***`);
+          console.log(`WhatsApp sent successfully to ${normalizedPhone.slice(0, 6)}***`);
         }
       } catch (err) {
         console.error("Failed to send WhatsApp announcement:", err);
