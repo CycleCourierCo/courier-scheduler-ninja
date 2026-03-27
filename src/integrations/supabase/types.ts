@@ -1327,6 +1327,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_announcements: {
+        Row: {
+          created_at: string
+          created_by: string
+          error_message: string | null
+          html_body: string
+          id: string
+          recipient_ids: string[] | null
+          recipient_mode: string
+          recipient_roles: string[] | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          html_body: string
+          id?: string
+          recipient_ids?: string[] | null
+          recipient_mode?: string
+          recipient_roles?: string[] | null
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          html_body?: string
+          id?: string
+          recipient_ids?: string[] | null
+          recipient_mode?: string
+          recipient_roles?: string[] | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       timeslip_generation_logs: {
         Row: {
           drivers_processed: number | null
