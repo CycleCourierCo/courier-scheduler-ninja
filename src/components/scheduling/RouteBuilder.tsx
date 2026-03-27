@@ -2484,13 +2484,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             }
           });
 
-          if (error || !data?.success) failureCount++;
+          const wasSuccess = !error && data?.success;
+          if (!wasSuccess) failureCount++;
           else successCount++;
+          jobsAtLocation.forEach(j => jobSendResults.set(`${j.orderId}-${j.type}`, wasSuccess));
           
           // Throttle to prevent SendZen rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
+          jobsAtLocation.forEach(j => jobSendResults.set(`${j.orderId}-${j.type}`, false));
         }
       }
 
@@ -2526,13 +2529,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             }
           });
 
-          if (error || !data?.success) failureCount++;
+          const wasSuccess = !error && data?.success;
+          if (!wasSuccess) failureCount++;
           else successCount++;
+          jobSendResults.set(`${job.orderId}-${job.type}`, wasSuccess);
           
           // Throttle to prevent SendZen rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
+          jobSendResults.set(`${job.orderId}-${job.type}`, false);
         }
       }
 
