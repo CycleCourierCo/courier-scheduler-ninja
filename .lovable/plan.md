@@ -1,59 +1,31 @@
 
 
-## Fix: "Send All SendZen" missing some WhatsApp messages
+## Fix: Bulk upload orders missing lat/lon coordinates
 
 ### Problem
-The `sendAllTimeslotsSendZen` function fires all edge function calls in rapid succession with **zero delay** between them (line 2530: `// NO delay for SendZen`). Each edge function call returns `{ success: true }` **immediately** before actually sending the WhatsApp message (due to `EdgeRuntime.waitUntil()` background processing). This creates two issues:
+The bulk upload flow calls `createOrder()` in `orderService.ts`, which inserts directly into the `orders` table via the Supabase client. This path does **not** go through the `orders` edge function, which is where geocoding happens. As a result:
 
-1. **Rate limiting**: SendZen's API likely throttles or drops messages when hit with 15-20+ concurrent requests
-2. **False success reporting**: The frontend counts every call as successful because the edge function responds before the actual API call completes. The route report also hardcodes all results as `success: true`
+- **Receiver address**: Never gets lat/lon because `groupedOrderToFormData` builds the address without coordinates and there's no geocoding step
+- **Sender address**: Only gets lat/lon if the user's profile has `latitude`/`longitude` set (most profiles likely don't)
 
-### Fix
+### Solution
+Add geocoding to the `createOrder` function in `orderService.ts` so that **all** order creation paths (single order, bulk upload) automatically geocode addresses when lat/lon are missing.
 
-**1. `src/components/scheduling/RouteBuilder.tsx`** — Add a 500ms delay between SendZen calls
+### Changes
 
-In both the grouped and standalone processing loops, add a short stagger delay:
+**`src/services/orderService.ts`** — Add geocoding before insert
 
-```typescript
-// After each grouped location call (~line 2488)
-await new Promise(resolve => setTimeout(resolve, 500));
+1. Import `geocodeAddress` and `buildAddressString` from `@/utils/geocoding`
+2. After extracting sender/receiver address fields (line ~259-271), check if lat/lon are missing for either address
+3. If missing, call `geocodeAddress()` with the full address string to fetch coordinates
+4. Use the returned coordinates in the insert payload
 
-// After each standalone job call (~line 2529)  
-await new Promise(resolve => setTimeout(resolve, 500));
+```text
+Flow:
+  Extract address fields
+  → If senderLat/senderLon missing → geocodeAddress(senderAddressString)
+  → If receiverLat/receiverLon missing → geocodeAddress(receiverAddressString)
+  → Insert order with coordinates
 ```
 
-**2. `supabase/functions/send-sendzen-whatsapp/index.ts`** — Wait for SendZen response before returning
-
-Change the function to **await** the SendZen API call synchronously (while keeping Shipday and Email in the background). This way the frontend gets a real success/failure signal:
-
-```typescript
-// Send WhatsApp synchronously
-const sendzenRes = await fetch("https://api.sendzen.io/v1/messages", { ... });
-const sendzenText = await sendzenRes.text();
-const sendzenSuccess = sendzenRes.ok;
-
-// Run Shipday + Email in background
-EdgeRuntime.waitUntil(Promise.allSettled([
-  updateShipday(...),
-  sendEmail(...),
-]));
-
-return new Response(
-  JSON.stringify({ 
-    success: sendzenSuccess, 
-    data: { status: sendzenSuccess ? "sent" : "failed", sendzenResponse: sendzenText }
-  }),
-  { status: sendzenSuccess ? 200 : 502, headers: corsHeaders }
-);
-```
-
-**3. `src/components/scheduling/RouteBuilder.tsx`** — Fix route report accuracy
-
-Update the route report job results (line 2542) to track actual success/failure per job instead of hardcoding `success: true` for all.
-
-### Summary of changes
-- Add 500ms delay between SendZen calls to prevent rate limiting
-- Make the edge function await the SendZen API response so failures are reported back
-- Keep Shipday and email in the background (they're not user-facing)
-- Track real results in the route report
-
+This is a small change (~15 lines) that fixes both single-order creation (when address is entered manually without autocomplete) and bulk uploads. The existing `
