@@ -400,8 +400,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           state: senderState,
           postal_code: senderZipCode,
           country: senderCountry,
-          lat: senderLat,
-          lon: senderLon,
+          lat: finalSenderLat,
+          lon: finalSenderLon,
         }),
         upsertContact(user.id, {
           name: receiver.name,
@@ -412,8 +412,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           state: receiverState,
           postal_code: receiverZipCode,
           country: receiverCountry,
-          lat: receiverLat,
-          lon: receiverLon,
+          lat: finalReceiverLat,
+          lon: finalReceiverLon,
         }),
       ]);
 
