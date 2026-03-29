@@ -183,7 +183,8 @@ const handler = async (req: Request): Promise<Response> => {
       // Extract bike brand and model from separate properties
       bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
       bikeModel = getPropertyValue(properties, 'Bike Model') || firstItem.variant_title || '';
-      console.log('Parsed bike:', { bikeBrand, bikeModel });
+      const bikeValue = getPropertyValue(properties, 'Bike Value');
+      console.log('Parsed bike:', { bikeBrand, bikeModel, bikeValue });
       
       // Get bike quantity
       bikeQuantity = firstItem.quantity || 1;
@@ -347,7 +348,8 @@ const handler = async (req: Request): Promise<Response> => {
       bikes: [
         {
           brand: bikeBrand,
-          model: bikeModel
+          model: bikeModel,
+          value: bikeValue || undefined
         }
       ],
       bikeQuantity: bikeQuantity,
