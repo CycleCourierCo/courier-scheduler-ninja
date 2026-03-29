@@ -2401,6 +2401,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setIsSendingTimeslots(true);
     let successCount = 0;
     let failureCount = 0;
+    const jobSendResults = new Map<string, boolean>(); // orderId+type -> success
 
     try {
       // Group jobs by coordinates (same logic as sendAllTimeslots)
@@ -2483,12 +2484,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             }
           });
 
-          if (error || !data?.success) failureCount++;
+          const wasSuccess = !error && data?.success;
+          if (!wasSuccess) failureCount++;
           else successCount++;
+          jobsAtLocation.forEach(j => jobSendResults.set(`${j.orderId}-${j.type}`, wasSuccess));
           
-          // NO delay for SendZen
+          // Throttle to prevent SendZen rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
+          jobsAtLocation.forEach(j => jobSendResults.set(`${j.orderId}-${j.type}`, false));
         }
       }
 
@@ -2524,22 +2529,27 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             }
           });
 
-          if (error || !data?.success) failureCount++;
+          const wasSuccess = !error && data?.success;
+          if (!wasSuccess) failureCount++;
           else successCount++;
+          jobSendResults.set(`${job.orderId}-${job.type}`, wasSuccess);
           
-          // NO delay for SendZen
+          // Throttle to prevent SendZen rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
+          jobSendResults.set(`${job.orderId}-${job.type}`, false);
         }
       }
 
       // Send route report
       const jobResults = jobsToSend.map(job => {
         const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
+        const sent = jobSendResults.get(`${job.orderId}-${job.type}`) ?? false;
         return {
           job,
           bikeCount: jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0,
-          results: { whatsapp: { success: true }, shipday: { success: true }, email: { success: true } }
+          results: { whatsapp: { success: sent }, shipday: { success: sent }, email: { success: sent } }
         };
       });
 

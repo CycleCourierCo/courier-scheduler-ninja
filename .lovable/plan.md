@@ -1,18 +1,31 @@
 
 
-## Fix: Bike value not validated on "Next" button in Create Order
+## Fix: Bulk upload orders missing lat/lon coordinates
 
 ### Problem
-The `isDetailsValid` memo (line 250-252) checks that each bike has `brand`, `model`, and `type` but omits `value`. Since `value` is required by the Zod schema (`z.string().min(1, "Bike value is required")`), the form won't submit without it, but the "Next" button doesn't catch it — so the user gets no toast error.
+The bulk upload flow calls `createOrder()` in `orderService.ts`, which inserts directly into the `orders` table via the Supabase client. This path does **not** go through the `orders` edge function, which is where geocoding happens. As a result:
 
-### Fix
+- **Receiver address**: Never gets lat/lon because `groupedOrderToFormData` builds the address without coordinates and there's no geocoding step
+- **Sender address**: Only gets lat/lon if the user's profile has `latitude`/`longitude` set (most profiles likely don't)
 
-**`src/pages/CreateOrder.tsx`** — line 251-252, add `bike.value` to the validation check:
+### Solution
+Add geocoding to the `createOrder` function in `orderService.ts` so that **all** order creation paths (single order, bulk upload) automatically geocode addresses when lat/lon are missing.
 
-```typescript
-bikes.every(bike => bike && bike.brand && bike.model && bike.type && bike.value &&
-                          bike.brand.trim() !== '' && bike.model.trim() !== '' && bike.type.trim() !== '' && bike.value.trim() !== '');
+### Changes
+
+**`src/services/orderService.ts`** — Add geocoding before insert
+
+1. Import `geocodeAddress` and `buildAddressString` from `@/utils/geocoding`
+2. After extracting sender/receiver address fields (line ~259-271), check if lat/lon are missing for either address
+3. If missing, call `geocodeAddress()` with the full address string to fetch coordinates
+4. Use the returned coordinates in the insert payload
+
+```text
+Flow:
+  Extract address fields
+  → If senderLat/senderLon missing → geocodeAddress(senderAddressString)
+  → If receiverLat/receiverLon missing → geocodeAddress(receiverAddressString)
+  → Insert order with coordinates
 ```
 
-One line change. The toast error message ("Please complete all required fields in Bike Details.") already covers this case.
-
+This is a small change (~15 lines) that fixes both single-order creation (when address is entered manually without autocomplete) and bulk uploads. The existing `

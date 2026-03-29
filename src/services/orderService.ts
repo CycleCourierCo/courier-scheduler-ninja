@@ -12,6 +12,7 @@ import {
 } from "@/services/emailService";
 import { generateTrackingNumber } from "@/services/trackingService";
 import { upsertContact } from "@/services/contactService";
+import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 
 export const getOrder = async (id: string): Promise<Order | null> => {
   try {
@@ -270,6 +271,32 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       lon: receiverLon,
     } = receiver.address;
 
+    // Geocode addresses if lat/lon are missing
+    let finalSenderLat = senderLat;
+    let finalSenderLon = senderLon;
+    let finalReceiverLat = receiverLat;
+    let finalReceiverLon = receiverLon;
+
+    const geocodePromises: Promise<void>[] = [];
+
+    if (!finalSenderLat || !finalSenderLon) {
+      geocodePromises.push(
+        geocodeAddress(buildAddressString({ street: senderStreet, city: senderCity, state: senderState, zipCode: senderZipCode, country: senderCountry }))
+          .then(result => { if (result) { finalSenderLat = result.lat; finalSenderLon = result.lon; } })
+      );
+    }
+
+    if (!finalReceiverLat || !finalReceiverLon) {
+      geocodePromises.push(
+        geocodeAddress(buildAddressString({ street: receiverStreet, city: receiverCity, state: receiverState, zipCode: receiverZipCode, country: receiverCountry }))
+          .then(result => { if (result) { finalReceiverLat = result.lat; finalReceiverLon = result.lon; } })
+      );
+    }
+
+    if (geocodePromises.length > 0) {
+      await Promise.all(geocodePromises);
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       throw new Error("User not authenticated");
@@ -317,8 +344,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             state: senderState,
             zipCode: senderZipCode,
             country: senderCountry,
-            lat: senderLat,
-            lon: senderLon,
+            lat: finalSenderLat,
+            lon: finalSenderLon,
           },
         },
         receiver: {
@@ -331,8 +358,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             state: receiverState,
             zipCode: receiverZipCode,
             country: receiverCountry,
-            lat: receiverLat,
-            lon: receiverLon,
+            lat: finalReceiverLat,
+            lon: finalReceiverLon,
           },
         },
         bike_brand: bikeBrand || bikes?.[0]?.brand,
@@ -373,8 +400,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           state: senderState,
           postal_code: senderZipCode,
           country: senderCountry,
-          lat: senderLat,
-          lon: senderLon,
+          lat: finalSenderLat,
+          lon: finalSenderLon,
         }),
         upsertContact(user.id, {
           name: receiver.name,
@@ -385,8 +412,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           state: receiverState,
           postal_code: receiverZipCode,
           country: receiverCountry,
-          lat: receiverLat,
-          lon: receiverLon,
+          lat: finalReceiverLat,
+          lon: finalReceiverLon,
         }),
       ]);
 
