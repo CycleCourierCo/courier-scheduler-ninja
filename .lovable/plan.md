@@ -1,29 +1,16 @@
 
 
-## Map Shopify "Bike Value" property to order
+## Change Electric Bike over 25kg price to £99
 
-### Problem
-The Shopify webhook extracts `Bike Brand` and `Bike Model` from line item properties but doesn't extract the new `Bike Value` field.
+### Changes
 
-### Fix
+**`src/constants/bikePricing.ts`** — Update price from £130 to £99 in three places:
 
-**`supabase/functions/shopify-webhook/index.ts`** — two small changes:
+1. **Line 12** — `pricingData` array: `{ type: "Electric Bikes over 25kg", price: 99 }`
+2. **Lines 70-72** — `bikeTypePriceMap`: Change all three Electric Bike over 25kg/50kg entries from `130` to `99`:
+   - `"Electric Bike - Over 25kg": 99`
+   - `"Electric Bikes over 25kg": 99`
+   - `"Electric Bike - Over 50kg": 99`
 
-1. **Line ~186**: Extract the bike value from properties:
-```typescript
-const bikeValue = getPropertyValue(properties, 'Bike Value');
-```
-
-2. **Line ~347-351**: Add `value` to the bikes array sent to the Orders API:
-```typescript
-bikes: [
-  {
-    brand: bikeBrand,
-    model: bikeModel,
-    value: bikeValue || undefined
-  }
-],
-```
-
-The Orders API already supports the `value` field in the `bikes` array, so no other changes are needed.
+This updates the B2B pricing page display, the revenue-per-stop calculation for profitability reports, and the QuickBooks invoicing lookup. No other files need changes.
 
