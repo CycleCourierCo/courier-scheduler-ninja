@@ -1,16 +1,21 @@
 
 
-## Change Electric Bike over 25kg price to £99
+## Consolidate Shopify and Portal Bike Types
 
 ### Changes
 
-**`src/constants/bikePricing.ts`** — Update price from £130 to £99 in three places:
+**`src/constants/bikePricing.ts`** — Add aliases and new IDs:
 
-1. **Line 12** — `pricingData` array: `{ type: "Electric Bikes over 25kg", price: 99 }`
-2. **Lines 70-72** — `bikeTypePriceMap`: Change all three Electric Bike over 25kg/50kg entries from `130` to `99`:
-   - `"Electric Bike - Over 25kg": 99`
-   - `"Electric Bikes over 25kg": 99`
-   - `"Electric Bike - Over 50kg": 99`
+1. **`BIKE_TYPE_BY_ID`** — Add three new entries:
+   - `18: 'Recumbent'`
+   - `19: 'Trike'`
+   - `20: 'Non-Electric - Gravel Bike'`
 
-This updates the B2B pricing page display, the revenue-per-stop calculation for profitability reports, and the QuickBooks invoicing lookup. No other files need changes.
+2. **`bikeTypePriceMap`** — Add Shopify name aliases:
+   - `"Wheels/Frame Boxed Or Unboxed": 35`
+   - `"Non-Electric - Hybrid Bike": 60`
+   - `"Non-Electric - Gravel Bike": 60`
+   - `"Trike": 150` (mapped to Small Trike price)
+
+No changes needed to the Shopify webhook — it already passes bike type strings as-is, and these aliases ensure correct price resolution.
 
