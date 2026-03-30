@@ -9,7 +9,7 @@ export const pricingData = [
   { type: "Non-Electric Bikes", price: 60 },
   { type: "Travel Bike Boxes", price: 60 },
   { type: "Electric Bikes under 25kg", price: 70 },
-  { type: "Electric Bikes over 25kg", price: 130 },
+  { type: "Electric Bikes over 25kg", price: 99 },
   { type: "Longtail Cargo Bikes", price: 130 },
   { type: "Stationary Bikes", price: 70 },
   { type: "Tandem Bikes", price: 110 },
@@ -38,6 +38,9 @@ export const BIKE_TYPE_BY_ID: Record<number, string> = {
   15: 'Wheelset/Frameset',
   16: 'Bike Rack',
   17: 'Turbo Trainer',
+  18: 'Recumbent',
+  19: 'Trike',
+  20: 'Non-Electric - Gravel Bike',
 };
 
 // Reverse mapping: bike type name to numeric ID
@@ -67,9 +70,9 @@ const bikeTypePriceMap: Record<string, number> = {
   "Stationary Bikes": 70,
   "Tandem": 110,
   "Tandem Bikes": 110,
-  "Electric Bike - Over 25kg": 130,
-  "Electric Bikes over 25kg": 130,
-  "Electric Bike - Over 50kg": 130,
+  "Electric Bike - Over 25kg": 99,
+  "Electric Bikes over 25kg": 99,
+  "Electric Bike - Over 50kg": 99,
   "Longtail Cargo Bike": 130,
   "Longtail Cargo Bikes": 130,
   "Recumbent": 130,
@@ -77,6 +80,10 @@ const bikeTypePriceMap: Record<string, number> = {
   "Large Trike": 180,
   "Cargo Bike": 225,
   "Double Seat/Platform/Cargo Trikes": 225,
+  "Wheels/Frame Boxed Or Unboxed": 35,
+  "Non-Electric - Hybrid Bike": 60,
+  "Non-Electric - Gravel Bike": 60,
+  "Trike": 150,
 };
 
 /**
