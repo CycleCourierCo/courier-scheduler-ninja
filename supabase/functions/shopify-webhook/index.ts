@@ -182,7 +182,8 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Extract bike brand and model from separate properties
       bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
-      bikeModel = getPropertyValue(properties, 'Bike Model') || firstItem.variant_title || '';
+      bikeModel = getPropertyValue(properties, 'Bike Model') || '';
+      const bikeType = firstItem.variant_title || '';
       const bikeValue = getPropertyValue(properties, 'Bike Value');
       console.log('Parsed bike:', { bikeBrand, bikeModel, bikeValue });
       
@@ -349,6 +350,7 @@ const handler = async (req: Request): Promise<Response> => {
         {
           brand: bikeBrand,
           model: bikeModel,
+          type: bikeType || undefined,
           value: bikeValue || undefined
         }
       ],
