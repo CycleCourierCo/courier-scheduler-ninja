@@ -1,32 +1,32 @@
 
 
-## Map Shopify `variant_title` as `bike_type`
+## Fix: `bikeType` and `bikeValue` scoping error in Shopify webhook
 
-### Current state
-The webhook extracts `variant_title` as a fallback for `bikeModel` (line 185) but never sends a `bike_type` to the Orders API. The `variant_title` in Shopify corresponds to the bike type selection (e.g. "Non-Electric - Road Bike", "Electric Bike - Under 25kg").
+### Problem
+The edge function logs show: `ReferenceError: bikeType is not defined`
+
+`bikeType` (line 186) and `bikeValue` (line 187) are declared with `const` inside the `if (shopifyOrder.line_items)` block, but the `bikes` array referencing them (lines 353-354) is outside that block scope. JavaScript `const` is block-scoped, so these variables don't exist when the payload is constructed.
 
 ### Fix
 
-**`supabase/functions/shopify-webhook/index.ts`** — two changes:
+**`supabase/functions/shopify-webhook/index.ts`** — Move declarations to the outer scope alongside `bikeBrand`, `bikeModel`, `bikeQuantity`:
 
-1. **Line ~185**: Extract `variant_title` as `bikeType` instead of using it as model fallback:
+1. **Line ~170**: Add `bikeType` and `bikeValue` to the existing variable declarations:
 ```typescript
-bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
-bikeModel = getPropertyValue(properties, 'Bike Model') || '';
-const bikeType = firstItem.variant_title || '';
+let bikeBrand = '';
+let bikeModel = '';
+let bikeType = '';
+let bikeValue = '';
+let sender: any;
+let receiver: any;
+let bikeQuantity = 1;
 ```
 
-2. **Lines ~348-354**: Add `type` to the bikes array sent to the Orders API:
+2. **Lines 186-187**: Change from `const` to assignment:
 ```typescript
-bikes: [
-  {
-    brand: bikeBrand,
-    model: bikeModel,
-    type: bikeType || undefined,
-    value: bikeValue || undefined
-  }
-],
+bikeType = firstItem.variant_title || '';
+bikeValue = getPropertyValue(properties, 'Bike Value');
 ```
 
-The Orders API already reads `type` from individual bike objects in the `bikes` array and maps it to the `bike_type` column. No other changes needed.
+This is a two-line fix that resolves the `ReferenceError` by ensuring `bikeType` and `bikeValue` are in scope when the Orders API payload is built. The function will auto-deploy after the change.
 
