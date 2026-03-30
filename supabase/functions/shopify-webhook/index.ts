@@ -170,6 +170,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Extract properties from line items (added by Easify app)
     let bikeBrand = '';
     let bikeModel = '';
+    let bikeType = '';
+    let bikeValue = '';
     let sender: any;
     let receiver: any;
     let bikeQuantity = 1;
