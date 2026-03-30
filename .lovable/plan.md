@@ -1,21 +1,32 @@
 
 
-## Consolidate Shopify and Portal Bike Types
+## Map Shopify `variant_title` as `bike_type`
 
-### Changes
+### Current state
+The webhook extracts `variant_title` as a fallback for `bikeModel` (line 185) but never sends a `bike_type` to the Orders API. The `variant_title` in Shopify corresponds to the bike type selection (e.g. "Non-Electric - Road Bike", "Electric Bike - Under 25kg").
 
-**`src/constants/bikePricing.ts`** — Add aliases and new IDs:
+### Fix
 
-1. **`BIKE_TYPE_BY_ID`** — Add three new entries:
-   - `18: 'Recumbent'`
-   - `19: 'Trike'`
-   - `20: 'Non-Electric - Gravel Bike'`
+**`supabase/functions/shopify-webhook/index.ts`** — two changes:
 
-2. **`bikeTypePriceMap`** — Add Shopify name aliases:
-   - `"Wheels/Frame Boxed Or Unboxed": 35`
-   - `"Non-Electric - Hybrid Bike": 60`
-   - `"Non-Electric - Gravel Bike": 60`
-   - `"Trike": 150` (mapped to Small Trike price)
+1. **Line ~185**: Extract `variant_title` as `bikeType` instead of using it as model fallback:
+```typescript
+bikeBrand = getPropertyValue(properties, 'Bike Brand') || firstItem.title || 'Unknown';
+bikeModel = getPropertyValue(properties, 'Bike Model') || '';
+const bikeType = firstItem.variant_title || '';
+```
 
-No changes needed to the Shopify webhook — it already passes bike type strings as-is, and these aliases ensure correct price resolution.
+2. **Lines ~348-354**: Add `type` to the bikes array sent to the Orders API:
+```typescript
+bikes: [
+  {
+    brand: bikeBrand,
+    model: bikeModel,
+    type: bikeType || undefined,
+    value: bikeValue || undefined
+  }
+],
+```
+
+The Orders API already reads `type` from individual bike objects in the `bikes` array and maps it to the `bike_type` column. No other changes needed.
 
