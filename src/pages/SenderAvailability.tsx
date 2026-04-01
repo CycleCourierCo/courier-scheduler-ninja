@@ -6,6 +6,7 @@ import { updateSenderAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
+import { ConfirmedDatesView } from '@/components/availability/ConfirmedDatesView';
 import { getPublicOrder } from '@/services/fetchOrderService';
 
 export default function SenderAvailability() {
