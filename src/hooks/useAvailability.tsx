@@ -265,6 +265,9 @@ export const useAvailability = ({
     navigate,
     handleSubmit,
     isDateDisabled,
-    calendarEndDate
+    calendarEndDate,
+    isConfirmed,
+    confirmedDates,
+    confirmedNotes
   };
 };
