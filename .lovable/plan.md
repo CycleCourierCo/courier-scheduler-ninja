@@ -1,41 +1,48 @@
 
 
-## Remove Status Restrictions from Orders UPDATE RLS Policy
+## Fix Availability: Let Anyone with Link Set Dates + Show Confirmation
 
-### Problem
-The "Orders UPDATE for users and availability" policy restricts non-admin users to only updating orders in specific statuses (`sender_availability_pending`, `receiver_availability_pending`, etc.). This blocks legitimate availability updates.
+### Root Causes
+1. **Hook blocks form with error**: When dates already exist, `useAvailability` sets an `error` string which renders an `ErrorState` card instead of showing the confirmed dates or the form.
+2. **Anonymous UPDATE policy is restrictive**: The `confirmed_at IS NULL` guard on anonymous updates means if someone partially submitted or the timestamp was set, they can't retry.
 
-### Solution
-Replace the policy with a simplified version that:
-- Admins: can update any order (unchanged)
-- Order owner (`auth.uid() = user_id`): can update their own orders regardless of status
-- Any authenticated user: can update any order (for availability flows where the sender/receiver isn't the order owner)
-- Anonymous users: can update orders where availability hasn't been confirmed yet (no status check)
+### Changes
 
-### Migration SQL
+#### 1. Database Migration — Simplify anon UPDATE policy
+Remove the `sender_confirmed_at`/`receiver_confirmed_at` guard for anonymous users. Anyone with the UUID link can update the order (the UUID itself is the secret).
 
 ```sql
 DROP POLICY IF EXISTS "Orders UPDATE for users and availability" ON public.orders;
-
-CREATE POLICY "Orders UPDATE for users and availability"
-ON public.orders
-FOR UPDATE
+CREATE POLICY "Orders UPDATE for users and availability" ON public.orders FOR UPDATE
 USING (
   (get_user_role(auth.uid()) = 'admin'::user_role)
   OR (auth.uid() = user_id)
   OR (auth.uid() IS NOT NULL)
-  OR (auth.uid() IS NULL AND (sender_confirmed_at IS NULL OR receiver_confirmed_at IS NULL))
+  OR (auth.uid() IS NULL)  -- anyone with the link
 )
 WITH CHECK (
   (get_user_role(auth.uid()) = 'admin'::user_role)
   OR (auth.uid() = user_id)
   OR (auth.uid() IS NOT NULL)
-  OR (auth.uid() IS NULL AND (sender_confirmed_at IS NULL OR receiver_confirmed_at IS NULL))
+  OR (auth.uid() IS NULL)
 );
 ```
 
-Note: `auth.uid() IS NOT NULL` (any authenticated user) effectively makes the owner check redundant, but keeping both for clarity. The anonymous branch retains the `confirmed_at` guard to prevent unauthenticated writes on already-confirmed orders.
+#### 2. New component: `ConfirmedDatesView`
+A read-only card showing the confirmed dates as badges and any notes. No form, no submit button. Displayed when dates have already been set.
 
-### Files changed
-- One new migration file only (no application code changes needed)
+#### 3. Update `useAvailability` hook
+- Instead of setting `error` when dates are already confirmed, set a new `isAlreadyConfirmed` boolean flag and store the `confirmedDates` array.
+- Return both so the page components can conditionally render the confirmation view.
+
+#### 4. Update `SenderAvailability` and `ReceiverAvailability` pages
+- When `isAlreadyConfirmed` is true, render `ConfirmedDatesView` instead of `AvailabilityForm`.
+- Pass the confirmed dates and notes from the order.
+
+### Files
+1. New migration SQL
+2. New: `src/components/availability/ConfirmedDatesView.tsx`
+3. Modified: `src/hooks/useAvailability.tsx`
+4. Modified: `src/pages/SenderAvailability.tsx`
+5. Modified: `src/pages/ReceiverAvailability.tsx`
 
