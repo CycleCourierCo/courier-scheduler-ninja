@@ -6,6 +6,7 @@ import { updateReceiverAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
+import { ConfirmedDatesView } from '@/components/availability/ConfirmedDatesView';
 import { toast } from 'sonner';
 import { getPublicOrder } from '@/services/fetchOrderService';
 
