@@ -104,6 +104,18 @@ export default function ReceiverAvailability() {
     );
   }
 
+  if (isConfirmed) {
+    return (
+      <Layout>
+        <ConfirmedDatesView
+          title="Delivery Availability"
+          dates={confirmedDates}
+          notes={confirmedNotes}
+        />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <AvailabilityForm

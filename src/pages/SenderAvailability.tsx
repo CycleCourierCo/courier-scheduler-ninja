@@ -103,6 +103,18 @@ export default function SenderAvailability() {
     );
   }
 
+  if (isConfirmed) {
+    return (
+      <Layout>
+        <ConfirmedDatesView
+          title="Pickup Availability"
+          dates={confirmedDates}
+          notes={confirmedNotes}
+        />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <AvailabilityForm
