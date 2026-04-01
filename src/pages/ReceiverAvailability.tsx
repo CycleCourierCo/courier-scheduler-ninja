@@ -59,17 +59,16 @@ export default function ReceiverAvailability() {
     navigate: hookNavigate,
     handleSubmit,
     isDateDisabled,
-    calendarEndDate
+    calendarEndDate,
+    isConfirmed,
+    confirmedDates,
+    confirmedNotes
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
-    getMinDate: () => {
-      // This function will be overridden by the hook logic to use the earliest sender date
-      return new Date();
-    },
+    getMinDate: () => new Date(),
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
-      // Only prevent if user has actually confirmed their own delivery dates
       return (order.deliveryDate !== undefined && order.deliveryDate !== null && 
               Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0);
     }
