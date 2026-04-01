@@ -58,14 +58,16 @@ export default function SenderAvailability() {
     navigate: hookNavigate,
     handleSubmit,
     isDateDisabled,
-    calendarEndDate
+    calendarEndDate,
+    isConfirmed,
+    confirmedDates,
+    confirmedNotes
   } = useAvailability({
     type: 'sender',
     updateFunction: updateSenderAvailability,
-    getMinDate: () => new Date(), // Allow from current date
+    getMinDate: () => new Date(),
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
-      // Only prevent if user has actually confirmed their own pickup dates
       return (order.pickupDate !== undefined && order.pickupDate !== null && 
               Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
     }
