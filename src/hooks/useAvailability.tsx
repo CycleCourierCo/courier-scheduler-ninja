@@ -33,6 +33,9 @@ export const useAvailability = ({
   const [minDate, setMinDate] = useState<Date>(getMinDate());
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [confirmedDates, setConfirmedDates] = useState<string[]>([]);
+  const [confirmedNotes, setConfirmedNotes] = useState<string>("");
 
   // Fetch holiday dates on mount
   useEffect(() => {
