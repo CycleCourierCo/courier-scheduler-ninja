@@ -26,15 +26,25 @@ async function getAccessToken(): Promise<string> {
 
   const res = await fetch('https://www.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: 'fuelfinder.read',
+    }).toString(),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Auth failed (${res.status}): ${text}`);
   }
   const data = await res.json();
-  return data.access_token;
+  const tokenData = data.data || data;
+  if (!tokenData.access_token) {
+    console.error('Token response structure:', JSON.stringify(Object.keys(data)));
+    throw new Error('No access_token in auth response');
+  }
+  return tokenData.access_token;
 }
 
 interface Station {
@@ -61,6 +71,8 @@ async function fetchAllBatches(url: string, token: string, key: string): Promise
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!res.ok) {
+      const errorBody = await res.text();
+      console.error(`API error ${res.status} at batch ${batch}: ${errorBody}`);
       if (res.status === 404 && batch > 1) break;
       throw new Error(`API error ${res.status} at batch ${batch}`);
     }
