@@ -327,6 +327,49 @@ const FuelFinderPage: React.FC = () => {
           </Card>
         )}
 
+        {/* Map */}
+        {sortedStations.length > 0 && sortedStations.some(s => s.latitude && s.longitude) && (() => {
+          const mappable = sortedStations.filter(s => s.latitude && s.longitude);
+          const centerLat = mappable.reduce((sum, s) => sum + s.latitude!, 0) / mappable.length;
+          const centerLng = mappable.reduce((sum, s) => sum + s.longitude!, 0) / mappable.length;
+          return (
+            <div className="mb-4 rounded-lg overflow-hidden border border-border h-[300px]">
+              <MapContainer center={[centerLat, centerLng]} zoom={12} style={{ height: "100%", width: "100%" }}>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                />
+                {mappable.map((station) => {
+                  const isCheapest = station.diesel_price === cheapestPrice;
+                  return (
+                    <Marker
+                      key={station.site_id}
+                      position={[station.latitude!, station.longitude!]}
+                      icon={isCheapest ? greenIcon : blueIcon}
+                    >
+                      <Popup>
+                        <div className="text-sm">
+                          <p className="font-semibold">{station.brand}</p>
+                          <p className="text-xs">{station.name}</p>
+                          <p className={`font-bold mt-1 ${isCheapest ? "text-green-600" : ""}`}>
+                            {station.diesel_price}p/litre
+                          </p>
+                          <p className="text-xs mt-0.5">{station.distance_miles} miles away</p>
+                          {station.last_updated && (
+                            <p className="text-xs mt-0.5">
+                              Updated {formatDistanceToNow(new Date(station.last_updated), { addSuffix: true })}
+                            </p>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MapContainer>
+            </div>
+          );
+        })()}
+
         {stations.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
