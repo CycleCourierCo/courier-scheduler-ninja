@@ -27,19 +27,18 @@ async function getAccessToken(): Promise<string> {
 
   const res = await fetch('https://www.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       client_id: clientId,
       client_secret: clientSecret,
-      scope: 'fuelfinder.read',
-    }).toString(),
+    }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Auth failed (${res.status}): ${text.substring(0, 200)}`);
   }
   const data = await res.json();
+  console.log('Token response keys:', JSON.stringify(Object.keys(data)));
   // Handle nested response: { data: { access_token: ... } } or { access_token: ... }
   const token = data?.data?.access_token || data?.access_token;
   if (!token) {
