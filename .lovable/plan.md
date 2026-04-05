@@ -1,43 +1,25 @@
 
 
-## Fix: Fuel Finder only returning 11 of 81 stations within 5 miles
+## Fix: Inconsistent price units causing wrong "Cheapest" badge
 
-### Root Cause
-The database confirms **81 stations** within 5 miles of the depot have valid diesel prices. The frontend query uses `.range(0, 9999)` to override Supabase's default 1000-row limit, but the `as any` type cast on the table name is unnecessary (the `fuel_station_cache` table IS in the generated types) and may interfere with the query builder chain. Additionally, `.range(0, 9999)` can silently fail if the PostgREST server has a hard `max-rows` setting lower than 10,000.
+### Problem
+The GOV.UK Fuel Finder API returns prices in mixed units — some stations report in **pounds** (e.g., `1.899`) and others in **pence** (e.g., `177.9`). The edge function stores the raw value without normalizing. When the frontend computes `Math.min(...)`, it picks `1.899` as the lowest number and labels that station "Cheapest", even though 177.9p is actually cheaper.
 
-The safer fix is twofold:
-1. Remove the `as any` cast (types already exist for this table)
-2. Add pagination to guarantee all rows are fetched regardless of server limits
+### Fix
+Normalize all prices to **pence** at two points:
 
-### Changes — `src/pages/FuelFinderPage.tsx`
+1. **Edge function** (`supabase/functions/fuel-finder/index.ts`): After parsing the price, check if the value is less than 10 (clearly in pounds) and multiply by 100 to convert to pence. This fixes prices at write time for all future caches.
 
-1. **Remove `as any` casts** on all `fuel_station_cache` queries — the table is already in the generated Supabase types, so the cast is unnecessary and may suppress query builder errors.
+2. **Frontend** (`src/pages/FuelFinderPage.tsx`): Apply the same normalization when reading `diesel_price` from the cache (line ~220), so existing cached data with pound values also displays correctly without requiring a cache refresh.
 
-2. **Add a radius selector dropdown** to the search form for depot mode with options: 2, 5, 10, 15, 25 miles. Default to 10 miles.
+### Normalization logic
+```
+if (price < 10) price = price * 100;  // Convert pounds to pence
+```
 
-3. **Paginate the cache query** — instead of a single `.range(0, 9999)`, fetch in batches of 1000 and concatenate, guaranteeing all rows are returned regardless of server config:
-   ```
-   let all = [], from = 0, batchSize = 1000;
-   while (true) {
-     const { data } = await supabase
-       .from("fuel_station_cache")
-       .select("*")
-       .not("diesel_price", "is", null)
-       .range(from, from + batchSize - 1);
-     if (!data || data.length === 0) break;
-     all.push(...data);
-     if (data.length < batchSize) break;
-     from += batchSize;
-   }
-   ```
+Any diesel price below 10 is clearly in pounds (diesel hasn't been under 10p/litre in decades), so this threshold is safe.
 
-4. **Use the radius state** in the filtering logic (line 178) instead of hardcoded `5`:
-   ```
-   const radiusKm = radiusMiles * MILES_TO_KM;
-   ```
-
-5. **Add the radius `<Select>` dropdown** next to the search button (depot mode only) with options: 2 mi, 5 mi, 10 mi, 15 mi, 25 mi.
-
-### File
-- `src/pages/FuelFinderPage.tsx`
+### Files
+- `supabase/functions/fuel-finder/index.ts` — normalize price when building upsert rows (~line 183)
+- `src/pages/FuelFinderPage.tsx` — normalize price when mapping cached data (~line 220)
 
