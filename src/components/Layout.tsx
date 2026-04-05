@@ -248,6 +248,10 @@ const Layout: React.FC<LayoutProps> = ({
                         <Clock className="mr-2 h-4 w-4" />
                         My Timeslips
                       </Link>
+                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Fuel className="mr-2 h-4 w-4" />
+                        Fuel Finder
+                      </Link>
                       <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
