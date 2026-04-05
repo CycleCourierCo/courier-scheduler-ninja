@@ -94,6 +94,10 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {user && !isLoader && !isDriver && !isMechanic && <>
                       <DropdownMenuSeparator className="my-2" />
+                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Fuel className="mr-2 h-4 w-4" />
+                        Fuel Finder
+                      </Link>
                       <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <Home className="mr-2 h-4 w-4" />
                         Dashboard
@@ -301,6 +305,13 @@ const Layout: React.FC<LayoutProps> = ({
                     <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
                       <Home className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>}
+                  
+                  {!isDriver && <DropdownMenuItem asChild>
+                    <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
+                      <Fuel className="mr-2 h-4 w-4" />
+                      <span>Fuel Finder</span>
                     </Link>
                   </DropdownMenuItem>}
                   
