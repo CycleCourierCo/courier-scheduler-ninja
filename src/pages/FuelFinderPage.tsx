@@ -14,6 +14,38 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { toast } from "sonner";
 import { geocodeAddress } from "@/utils/geocoding";
 import { format, formatDistanceToNow } from "date-fns";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix Leaflet default icon
+const fixLeafletIcon = () => {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+    iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  });
+};
+fixLeafletIcon();
+
+const greenIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const blueIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
 interface FuelStation {
   site_id: string;
@@ -21,6 +53,8 @@ interface FuelStation {
   name: string;
   address: string;
   postcode: string;
+  latitude?: number;
+  longitude?: number;
   diesel_price: number;
   last_updated: string;
   distance_miles: number;
@@ -292,6 +326,49 @@ const FuelFinderPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Map */}
+        {sortedStations.length > 0 && sortedStations.some(s => s.latitude && s.longitude) && (() => {
+          const mappable = sortedStations.filter(s => s.latitude && s.longitude);
+          const centerLat = mappable.reduce((sum, s) => sum + s.latitude!, 0) / mappable.length;
+          const centerLng = mappable.reduce((sum, s) => sum + s.longitude!, 0) / mappable.length;
+          return (
+            <div className="mb-4 rounded-lg overflow-hidden border border-border h-[300px]">
+              <MapContainer center={[centerLat, centerLng]} zoom={12} style={{ height: "100%", width: "100%" }}>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                />
+                {mappable.map((station) => {
+                  const isCheapest = station.diesel_price === cheapestPrice;
+                  return (
+                    <Marker
+                      key={station.site_id}
+                      position={[station.latitude!, station.longitude!]}
+                      icon={isCheapest ? greenIcon : blueIcon}
+                    >
+                      <Popup>
+                        <div className="text-sm">
+                          <p className="font-semibold">{station.brand}</p>
+                          <p className="text-xs">{station.name}</p>
+                          <p className={`font-bold mt-1 ${isCheapest ? "text-green-600" : ""}`}>
+                            {station.diesel_price}p/litre
+                          </p>
+                          <p className="text-xs mt-0.5">{station.distance_miles} miles away</p>
+                          {station.last_updated && (
+                            <p className="text-xs mt-0.5">
+                              Updated {formatDistanceToNow(new Date(station.last_updated), { addSuffix: true })}
+                            </p>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MapContainer>
+            </div>
+          );
+        })()}
 
         {stations.length > 0 && (
           <div className="space-y-3">

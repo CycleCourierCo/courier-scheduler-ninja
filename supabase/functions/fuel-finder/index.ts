@@ -213,6 +213,8 @@ Deno.serve(async (req) => {
           name: s.trading_name || s.name || 'Unknown Station',
           address: s.location?.address_line_1 || s.address?.street || '',
           postcode: s.location?.postcode || s.address?.postcode || s.postcode || '',
+          latitude: lat,
+          longitude: lon,
           diesel_price: priceInfo.price,
           last_updated: priceInfo.updated,
           distance_miles: Math.round(distKm / MILES_TO_KM * 10) / 10,
