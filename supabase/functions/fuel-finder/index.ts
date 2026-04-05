@@ -1,5 +1,5 @@
 import { corsHeaders } from '../_shared/cors.ts';
-import { initSentry, captureException, withSentry } from '../_shared/sentry.ts';
+import { captureException, withSentry } from '../_shared/sentry.ts';
 
 const DEPOT_LAT = 52.4690197;
 const DEPOT_LON = -1.8757663;
@@ -28,91 +28,102 @@ async function getAccessToken(): Promise<string> {
   const res = await fetch('https://www.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Auth failed (${res.status}): ${text.substring(0, 200)}`);
+    throw new Error(`Auth failed (${res.status}): ${text.substring(0, 300)}`);
   }
   const data = await res.json();
-  console.log('Token response keys:', JSON.stringify(Object.keys(data)));
-  // Handle nested response: { data: { access_token: ... } } or { access_token: ... }
   const token = data?.data?.access_token || data?.access_token;
   if (!token) {
-    console.error('Token response keys:', JSON.stringify(Object.keys(data)));
+    console.error('Token response:', JSON.stringify(data).substring(0, 500));
     throw new Error('No access_token in auth response');
   }
   return token;
 }
 
 /**
- * Safely extract an array from a potentially nested API response.
- * The GOV.UK Fuel Finder API wraps data like:
- *   { success: true, data: { petrol_filling_stations: [...] } }
- * or sometimes:
- *   { petrol_filling_stations: [...] }
+ * Extract array from potentially nested API response.
+ * GOV.UK wraps like: { success: true, data: { petrol_filling_stations: [...] } }
  */
 function extractArray(response: any, key: string): any[] | null {
   if (!response) return null;
-  // Try data.data[key] (double-nested)
-  if (response.data?.[key] && Array.isArray(response.data[key])) {
-    return response.data[key];
-  }
-  // Try data[key] (single-nested)
-  if (response[key] && Array.isArray(response[key])) {
-    return response[key];
-  }
-  // Try data.data as array
-  if (Array.isArray(response.data)) {
-    return response.data;
-  }
-  // Try response as array directly
-  if (Array.isArray(response)) {
-    return response;
-  }
+  if (response.data?.[key] && Array.isArray(response.data[key])) return response.data[key];
+  if (response[key] && Array.isArray(response[key])) return response[key];
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response)) return response;
   return null;
 }
 
 async function fetchAllBatches(url: string, token: string, key: string): Promise<any[]> {
   const all: any[] = [];
   let batch = 1;
+  let currentToken = token;
+
   while (true) {
     const res = await fetch(`${url}?batch-number=${batch}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${currentToken}` },
     });
 
+    // End of pagination
     if (res.status === 404) {
-      // Normal end-of-pagination signal
-      console.log(`Pagination complete: ${batch - 1} batches fetched for ${key}`);
+      console.log(`Pagination complete: ${batch - 1} batches for ${key}`);
       break;
+    }
+
+    // Token expired mid-pagination — refresh once and retry this batch
+    if (res.status === 403 && all.length > 0) {
+      console.log(`Token expired at batch ${batch}, refreshing...`);
+      try {
+        currentToken = await getAccessToken();
+        const retry = await fetch(`${url}?batch-number=${batch}`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` },
+        });
+        if (retry.status === 404) {
+          console.log(`After refresh, batch ${batch} not found — done`);
+          break;
+        }
+        if (!retry.ok) {
+          console.warn(`After refresh, batch ${batch} still failed (${retry.status}), stopping with ${all.length} items`);
+          break;
+        }
+        const retryData = await retry.json();
+        const retryItems = extractArray(retryData, key);
+        if (retryItems && retryItems.length > 0) {
+          all.push(...retryItems);
+          console.log(`Batch ${batch} (retry): got ${retryItems.length} ${key} items`);
+        }
+        batch++;
+        continue;
+      } catch (refreshErr) {
+        console.warn(`Token refresh failed, stopping with ${all.length} items`);
+        break;
+      }
     }
 
     if (!res.ok) {
       const errorBody = await res.text().catch(() => 'no body');
-      console.error(`API error ${res.status} at batch ${batch} for ${key}: ${errorBody.substring(0, 300)}`);
-      // If we already have data, stop gracefully; otherwise throw
+      console.error(`API error ${res.status} at batch ${batch}: ${errorBody.substring(0, 300)}`);
       if (all.length > 0) {
-        console.warn(`Stopping pagination early at batch ${batch} with ${all.length} items collected`);
+        console.warn(`Stopping at batch ${batch} with ${all.length} items collected`);
         break;
       }
-      throw new Error(`API error ${res.status} at batch ${batch}: ${errorBody.substring(0, 200)}`);
+      throw new Error(`API error ${res.status} at batch ${batch}`);
     }
 
     const data = await res.json();
     const items = extractArray(data, key);
 
     if (!items || items.length === 0) {
-      console.log(`No more items at batch ${batch} for ${key}, stopping`);
+      console.log(`Empty response at batch ${batch} for ${key}, stopping`);
       break;
     }
 
     console.log(`Batch ${batch}: got ${items.length} ${key} items`);
     all.push(...items);
     batch++;
-    if (batch > 50) break; // safety
+    if (batch > 50) break;
   }
   return all;
 }
@@ -129,8 +140,6 @@ Deno.serve(async (req) => {
       const radiusMiles = mode === 'depot' ? 5 : 2;
       const radiusKm = radiusMiles * MILES_TO_KM;
 
-      let centerLat = DEPOT_LAT;
-      let centerLon = DEPOT_LON;
       let originLat: number | undefined, originLon: number | undefined;
       let destLat: number | undefined, destLon: number | undefined;
 
@@ -146,27 +155,26 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Get a fresh token for each endpoint to avoid expiry mid-pagination
-      const stationsToken = await getAccessToken();
+      // Use single token, fetch sequentially (API allows 1 concurrent request)
+      const token = await getAccessToken();
+
       console.log('Fetching stations...');
       const stations = await fetchAllBatches(
         'https://www.fuel-finder.service.gov.uk/api/v1/pfs',
-        stationsToken,
+        token,
         'petrol_filling_stations'
       );
-      console.log(`Total stations fetched: ${stations.length}`);
+      console.log(`Total stations: ${stations.length}`);
 
-      const pricesToken = await getAccessToken();
       console.log('Fetching prices...');
       const prices = await fetchAllBatches(
         'https://www.fuel-finder.service.gov.uk/api/v1/pfs/fuel-prices',
-        pricesToken,
+        token,
         'fuel_prices'
       );
-      console.log(`Total prices fetched: ${prices.length}`);
+      console.log(`Total prices: ${prices.length}`);
 
       if (stations.length === 0) {
-        console.warn('No stations returned from API');
         return new Response(JSON.stringify({ stations: [], count: 0, debug: 'No stations from API' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -178,7 +186,6 @@ Deno.serve(async (req) => {
         const siteId = String(p.site_id || p.siteId || '');
         if (!siteId) continue;
 
-        // Look for diesel (B7) price in nested fuel_prices array
         const fuelPrices = p.fuel_prices || p.prices || [];
         if (Array.isArray(fuelPrices)) {
           for (const fp of fuelPrices) {
@@ -192,12 +199,11 @@ Deno.serve(async (req) => {
             }
           }
         }
-        // Also check top-level B7
         if (p.B7 && !priceMap.has(siteId)) {
           priceMap.set(siteId, { price: Number(p.B7), updated: p.B7_updated || '' });
         }
       }
-      console.log(`Price map size: ${priceMap.size}`);
+      console.log(`Price map: ${priceMap.size} entries`);
 
       // Filter stations by distance
       const results: any[] = [];
@@ -209,7 +215,7 @@ Deno.serve(async (req) => {
 
         let distKm: number;
         if (mode === 'depot') {
-          distKm = haversineKm(centerLat, centerLon, lat, lon);
+          distKm = haversineKm(DEPOT_LAT, DEPOT_LON, lat, lon);
         } else {
           distKm = distanceToSegmentKm(lat, lon, originLat!, originLon!, destLat!, destLon!);
         }
