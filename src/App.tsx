@@ -189,6 +189,11 @@ function App() {
                   <MyStockPage />
                 </ProtectedRoute>
               } />
+              <Route path="/fuel-finder" element={
+                <ProtectedRoute>
+                  <FuelFinderPage />
+                </ProtectedRoute>
+              } />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />
