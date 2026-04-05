@@ -1,30 +1,28 @@
 
 
-## Add Sort Button to Fuel Finder Results
+## Add Map to Fuel Finder Results
 
 ### What
-Add a sort toggle in the results header bar (next to the station count and Refresh button) that lets users sort stations by:
-- **Price** (cheapest first) — default
-- **Distance** (nearest first)
-- **Last Updated** (most recent first)
+Add an interactive Leaflet map above the station list showing each station as a marker. Each marker popup displays the station name, brand, diesel price, and distance.
 
 ### How
 
 **File: `src/pages/FuelFinderPage.tsx`**
 
-1. Add state: `const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price")`
-2. Import `ArrowUpDown` from lucide-react and `DropdownMenu` / `DropdownMenuTrigger` / `DropdownMenuContent` / `DropdownMenuItem` from the existing UI components.
-3. Add a `sortedStations` memo that sorts `stations` based on `sortBy`:
-   - `price`: ascending by `diesel_price`
-   - `distance`: ascending by `distance_miles`
-   - `updated`: descending by `last_updated` date
-4. Replace `stations.map(...)` with `sortedStations.map(...)` in the render.
-5. Add a dropdown button between the station count text and the Refresh button in the results header (line ~287-291):
+1. Import `MapContainer`, `TileLayer`, `Marker`, `Popup` from `react-leaflet`, plus `L` from `leaflet` and the leaflet CSS.
+2. Reuse the existing `fixLeafletIcon()` pattern from `JobMap.tsx` to fix default marker icons.
+3. Create custom colored markers: green for cheapest station, default blue for others.
+4. Add a map section between the "all stations more expensive" warning and the results list, rendered only when `sortedStations.length > 0`.
+5. Map centers on the average lat/lng of all stations, with zoom ~12.
+6. Each marker popup shows: brand, name, price (bold, green if cheapest), distance, and last updated time.
 
-```text
-[12 stations found]  [↕ Price ▾]  [↻ Refresh]
-```
+### Technical Details
+- Stations already have lat/lng from the edge function (`location.latitude`/`location.longitude`) — these are returned but not currently exposed in the `FuelStation` interface. Will add `latitude` and `longitude` fields to the interface.
+- If the edge function doesn't currently return coordinates, will update it to include them in the response.
+- Map height: ~300px on mobile (360px viewport), responsive.
+- Uses OpenStreetMap tiles (same as existing maps in the project).
 
 ### Files
-- `src/pages/FuelFinderPage.tsx` — add sort state, sorted memo, dropdown UI
+- `src/pages/FuelFinderPage.tsx` — add map component, update FuelStation interface
+- `supabase/functions/fuel-finder/index.ts` — ensure lat/lng are included in station response (if not already)
 
