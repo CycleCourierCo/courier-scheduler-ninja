@@ -1,4 +1,5 @@
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { corsHeaders } from '../_shared/cors.ts';
+import { captureException, withSentry } from '../_shared/sentry.ts';
 
 const DEPOT_LAT = 52.4690197;
 const DEPOT_LON = -1.8757663;
@@ -15,7 +16,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 function distanceToSegmentKm(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax, dy = by - ay;
   const lenSq = dx * dx + dy * dy;
-  let t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
   return haversineKm(px, py, ax + t * dx, ay + t * dy);
 }
 
@@ -26,62 +27,76 @@ async function getAccessToken(): Promise<string> {
 
   const res = await fetch('https://www.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
-      scope: 'fuelfinder.read',
-    }).toString(),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
   });
+  const contentType = res.headers.get('content-type') || '';
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Auth failed (${res.status}): ${text}`);
+    throw new Error(`Auth failed (${res.status}): ${text.substring(0, 300)}`);
   }
-  const data = await res.json();
-  const tokenData = data.data || data;
-  if (!tokenData.access_token) {
-    console.error('Token response structure:', JSON.stringify(Object.keys(data)));
-    throw new Error('No access_token in auth response');
-  }
-  return tokenData.access_token;
+  const data = contentType.includes('json') ? JSON.parse(text) : null;
+  if (!data) throw new Error(`Auth returned non-JSON: ${text.substring(0, 200)}`);
+
+  const token = data?.data?.access_token || data?.access_token;
+  if (!token) throw new Error('No access_token in response');
+  return token;
 }
 
-interface Station {
-  site_id: string;
-  brand: string;
-  name: string;
-  address: string;
-  postcode: string;
-  lat: number;
-  lon: number;
-}
-
-interface FuelPrice {
-  site_id: string;
-  B7?: number;
-  B7_updated?: string;
+function extractArray(response: any, key: string): any[] | null {
+  if (!response) return null;
+  if (response.data?.[key] && Array.isArray(response.data[key])) return response.data[key];
+  if (response[key] && Array.isArray(response[key])) return response[key];
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response)) return response;
+  return null;
 }
 
 async function fetchAllBatches(url: string, token: string, key: string): Promise<any[]> {
   const all: any[] = [];
   let batch = 1;
+  let currentToken = token;
+
   while (true) {
     const res = await fetch(`${url}?batch-number=${batch}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${currentToken}` },
     });
-    if (!res.ok) {
-      const errorBody = await res.text();
-      console.error(`API error ${res.status} at batch ${batch}: ${errorBody}`);
-      if (res.status === 404 && batch > 1) break;
-      throw new Error(`API error ${res.status} at batch ${batch}`);
+
+    if (res.status === 404) {
+      console.log(`Pagination done: ${batch - 1} batches for ${key}`);
+      break;
     }
+
+    if (res.status === 403 && all.length > 0) {
+      console.log(`Token expired at batch ${batch}, refreshing...`);
+      try {
+        currentToken = await getAccessToken();
+        const retry = await fetch(`${url}?batch-number=${batch}`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` },
+        });
+        if (retry.status === 404) break;
+        if (!retry.ok) { console.warn(`Retry failed at ${batch}, stopping`); break; }
+        const rd = await retry.json();
+        const ri = extractArray(rd, key);
+        if (ri?.length) { all.push(...ri); console.log(`Batch ${batch} (retry): ${ri.length} items`); }
+        batch++;
+        continue;
+      } catch { console.warn('Refresh failed, stopping'); break; }
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      if (all.length > 0) { console.warn(`Error at batch ${batch}, stopping with ${all.length} items`); break; }
+      throw new Error(`API error ${res.status} at batch ${batch}: ${body.substring(0, 200)}`);
+    }
+
     const data = await res.json();
-    const items = data[key] || data;
-    if (!items || (Array.isArray(items) && items.length === 0)) break;
-    all.push(...(Array.isArray(items) ? items : [items]));
+    const items = extractArray(data, key);
+    if (!items || items.length === 0) break;
+
+    all.push(...items);
     batch++;
-    if (batch > 50) break; // safety
+    if (batch > 50) break;
   }
   return all;
 }
@@ -91,101 +106,131 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    const body = await req.json();
-    const mode = body.mode || 'depot';
-    const radiusMiles = mode === 'depot' ? 5 : 2;
-    const radiusKm = radiusMiles * MILES_TO_KM;
+  return withSentry('fuel-finder', async () => {
+    try {
+      const body = await req.json();
+      const mode = body.mode || 'depot';
+      const radiusMiles = mode === 'depot' ? 5 : 2;
+      const radiusKm = radiusMiles * MILES_TO_KM;
 
-    let centerLat = DEPOT_LAT;
-    let centerLon = DEPOT_LON;
-    let originLat: number | undefined, originLon: number | undefined;
-    let destLat: number | undefined, destLon: number | undefined;
+      let originLat: number | undefined, originLon: number | undefined;
+      let destLat: number | undefined, destLon: number | undefined;
 
-    if (mode === 'route') {
-      originLat = body.origin_lat;
-      originLon = body.origin_lon;
-      destLat = body.destination_lat;
-      destLon = body.destination_lon;
-      if (!originLat || !originLon || !destLat || !destLon) {
-        return new Response(JSON.stringify({ error: 'Origin and destination coordinates required for route mode' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    const token = await getAccessToken();
-
-    const [stations, prices] = await Promise.all([
-      fetchAllBatches('https://www.fuel-finder.service.gov.uk/api/v1/pfs', token, 'petrol_filling_stations'),
-      fetchAllBatches('https://www.fuel-finder.service.gov.uk/api/v1/pfs/fuel-prices', token, 'fuel_prices'),
-    ]);
-
-    // Build price lookup
-    const priceMap = new Map<string, { price: number; updated: string }>();
-    for (const p of prices) {
-      const siteId = p.site_id || p.siteId;
-      // Look for diesel (B7) price
-      const fuelPrices = p.fuel_prices || p.prices || [];
-      if (Array.isArray(fuelPrices)) {
-        for (const fp of fuelPrices) {
-          const grade = fp.fuel_type || fp.grade || fp.fuelType || '';
-          if (grade === 'B7' || grade.toLowerCase().includes('diesel')) {
-            priceMap.set(String(siteId), {
-              price: Number(fp.price),
-              updated: fp.last_updated || fp.updated_at || fp.lastUpdated || '',
-            });
-            break;
-          }
+      if (mode === 'route') {
+        originLat = body.origin_lat;
+        originLon = body.origin_lon;
+        destLat = body.destination_lat;
+        destLon = body.destination_lon;
+        if (!originLat || !originLon || !destLat || !destLon) {
+          return new Response(JSON.stringify({ error: 'Origin and destination coordinates required for route mode' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
       }
-      // Also check top-level B7
-      if (p.B7 && !priceMap.has(String(siteId))) {
-        priceMap.set(String(siteId), { price: Number(p.B7), updated: p.B7_updated || '' });
+
+      const token = await getAccessToken();
+
+      // Fetch sequentially — API allows only 1 concurrent request per client
+      console.log('Fetching stations...');
+      const stations = await fetchAllBatches(
+        'https://www.fuel-finder.service.gov.uk/api/v1/pfs',
+        token,
+        'petrol_filling_stations'
+      );
+      console.log(`Stations: ${stations.length}`);
+
+      console.log('Fetching prices...');
+      const prices = await fetchAllBatches(
+        'https://www.fuel-finder.service.gov.uk/api/v1/pfs/fuel-prices',
+        token,
+        'fuel_prices'
+      );
+      console.log(`Prices: ${prices.length}`);
+
+      // Debug: log first entry of each to verify field names
+      if (stations.length > 0) console.log('Station sample:', JSON.stringify(stations[0]).substring(0, 600));
+      if (prices.length > 0) console.log('Price sample:', JSON.stringify(prices[0]).substring(0, 600));
+
+      if (stations.length === 0) {
+        return new Response(JSON.stringify({ stations: [], count: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-    }
 
-    // Filter stations by distance
-    const results: any[] = [];
-    for (const s of stations) {
-      const siteId = String(s.site_id || s.siteId);
-      const lat = Number(s.location?.latitude || s.lat || s.latitude);
-      const lon = Number(s.location?.longitude || s.lon || s.longitude);
-      if (!lat || !lon) continue;
+      // Build price lookup by node_id
+      // Price structure: { node_id, fuel_prices: [{ fuel_type: "B7", price: "0120.0000", price_last_updated: "..." }] }
+      const priceMap = new Map<string, { price: number; updated: string }>();
+      for (const p of prices) {
+        const nodeId = String(p.node_id || p.site_id || p.siteId || '');
+        if (!nodeId) continue;
 
-      let distKm: number;
-      if (mode === 'depot') {
-        distKm = haversineKm(centerLat, centerLon, lat, lon);
-      } else {
-        distKm = distanceToSegmentKm(lat, lon, originLat!, originLon!, destLat!, destLon!);
+        const fuelPrices = p.fuel_prices || p.prices || [];
+        if (Array.isArray(fuelPrices)) {
+          for (const fp of fuelPrices) {
+            const grade = String(fp.fuel_type || fp.grade || '');
+            if (grade === 'B7' || grade.toLowerCase().includes('diesel')) {
+              const priceVal = parseFloat(String(fp.price));
+              if (!isNaN(priceVal)) {
+                priceMap.set(nodeId, {
+                  price: priceVal,
+                  updated: fp.price_last_updated || fp.last_updated || fp.updated_at || '',
+                });
+              }
+              break;
+            }
+          }
+        }
+        // Fallback: top-level B7
+        if (p.B7 && !priceMap.has(nodeId)) {
+          priceMap.set(nodeId, { price: Number(p.B7), updated: p.B7_updated || '' });
+        }
+      }
+      console.log(`Price map: ${priceMap.size} entries`);
+
+      // Filter stations by distance
+      const results: any[] = [];
+      for (const s of stations) {
+        const nodeId = String(s.node_id || s.site_id || s.siteId || '');
+        const lat = Number(s.location?.latitude || s.lat || 0);
+        const lon = Number(s.location?.longitude || s.lon || 0);
+        if (!lat || !lon) continue;
+
+        let distKm: number;
+        if (mode === 'depot') {
+          distKm = haversineKm(DEPOT_LAT, DEPOT_LON, lat, lon);
+        } else {
+          distKm = distanceToSegmentKm(lat, lon, originLat!, originLon!, destLat!, destLon!);
+        }
+
+        if (distKm > radiusKm) continue;
+
+        const priceInfo = priceMap.get(nodeId);
+        if (!priceInfo) continue;
+
+        results.push({
+          site_id: nodeId,
+          brand: s.brand_name || s.mft_organisation_name || s.brand || 'Unknown',
+          name: s.trading_name || s.name || 'Unknown Station',
+          address: s.location?.address_line_1 || s.address?.street || '',
+          postcode: s.location?.postcode || s.address?.postcode || s.postcode || '',
+          diesel_price: priceInfo.price,
+          last_updated: priceInfo.updated,
+          distance_miles: Math.round(distKm / MILES_TO_KM * 10) / 10,
+        });
       }
 
-      if (distKm > radiusKm) continue;
+      results.sort((a, b) => a.diesel_price - b.diesel_price);
+      console.log(`Results: ${results.length} stations within ${radiusMiles} miles`);
 
-      const priceInfo = priceMap.get(siteId);
-      if (!priceInfo) continue;
-
-      results.push({
-        site_id: siteId,
-        brand: s.brand || s.operator || 'Unknown',
-        name: s.name || s.site_name || s.siteName || 'Unknown Station',
-        address: s.address?.street || s.address?.address_line_1 || s.street || '',
-        postcode: s.address?.postcode || s.postcode || '',
-        diesel_price: priceInfo.price,
-        last_updated: priceInfo.updated,
-        distance_miles: Math.round(distKm / MILES_TO_KM * 10) / 10,
+      return new Response(JSON.stringify({ stations: results, count: results.length }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      console.error('Fuel finder error:', error);
+      captureException(error as Error, { function: 'fuel-finder' });
+      return new Response(JSON.stringify({ error: (error as Error).message || 'Failed to fetch fuel prices' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    results.sort((a, b) => a.diesel_price - b.diesel_price);
-
-    return new Response(JSON.stringify({ stations: results, count: results.length }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Fuel finder error:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch fuel prices' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  });
 });

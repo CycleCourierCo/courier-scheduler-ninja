@@ -81,16 +81,18 @@ const FuelFinderPage: React.FC = () => {
   });
 
   // Fetch fuel stations
-  const { data: stationData, isLoading, refetch } = useQuery({
+  const { data: stationData, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["fuel-stations", searchParams],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("fuel-finder", {
         body: searchParams,
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return data as { stations: FuelStation[]; count: number };
     },
     enabled: !!searchParams,
+    retry: 1,
   });
 
   const handleSearch = async () => {
@@ -258,7 +260,20 @@ const FuelFinderPage: React.FC = () => {
         )}
 
         {/* Results */}
-        {searchTriggered && !isLoading && stations.length === 0 && (
+        {searchTriggered && !isLoading && isError && (
+          <Card className="border-destructive/50">
+            <CardContent className="py-8 text-center text-destructive">
+              <Fuel className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">Failed to fetch fuel prices</p>
+              <p className="text-sm mt-1 text-muted-foreground">{queryError?.message || "Please try again later"}</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+                <RefreshCw className="h-4 w-4 mr-1" />Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {searchTriggered && !isLoading && !isError && stations.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               <Fuel className="h-12 w-12 mx-auto mb-3 opacity-50" />
