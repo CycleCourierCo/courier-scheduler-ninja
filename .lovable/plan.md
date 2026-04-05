@@ -1,62 +1,23 @@
 
 
-## Fix Fuel Finder Timeout Issue
+## Fix: Fuel Finder returning 0 results due to Supabase 1000-row limit
 
 ### Root Cause
-The edge function fetches ~7,600 stations (15+ batches) and ~7,500 prices (15+ batches) sequentially from the GOV.UK API. Each batch requires a separate HTTP request, and the token expires mid-way requiring re-auth. This takes 60-90+ seconds, exceeding Supabase's edge function timeout (~60s on free tier). The logs confirm: "Fetching stations..." then "shutdown" — the function is killed before it can return results.
+The frontend queries `fuel_station_cache` with `.select("*").not("diesel_price", "is", null)` — Supabase returns a maximum of 1,000 rows by default. The cache has ~7,600 stations, so most are silently dropped. The 1,000 returned may not include stations near the depot, causing the distance filter to yield 0 results.
 
-### Solution: Cache results in Supabase DB + serve from cache
+### Fix
+In `src/pages/FuelFinderPage.tsx`, change the query at line ~143-146 to fetch in pages or use a larger limit. Since the table is unlikely to exceed 10,000 rows, the simplest fix is to set an explicit range:
 
-Instead of fetching all 15,000+ records from the GOV.UK API on every user search, cache the data in a Supabase table and refresh it periodically.
-
-**1. New DB table: `fuel_station_cache`**
-- Columns: `node_id`, `brand`, `name`, `address`, `postcode`, `latitude`, `longitude`, `diesel_price`, `last_updated`, `cached_at`
-- No RLS needed (read by edge function with service role)
-
-**2. Split the edge function into two operations:**
-
-**a) `fuel-finder` with `mode: "refresh"` (admin-triggered or cron)**
-- Fetches all stations + prices from GOV.UK API
-- Upserts into `fuel_station_cache`
-- Can run with a longer timeout or be broken into smaller steps
-- Called via a button on the admin UI or a cron job
-
-**b) `fuel-finder` with `mode: "depot"` or `mode: "route"` (user search)**
-- Reads from `fuel_station_cache` table directly using Supabase client
-- Filters by distance using the haversine formula in SQL or in-memory
-- Returns instantly — no external API calls needed
-
-**3. Frontend changes:**
-- Move station search to query `fuel_station_cache` directly via Supabase client (no edge function needed for searches)
-- Add a "Refresh Prices" button for admins that triggers the cache refresh
-- Show `cached_at` timestamp so users know how fresh the data is
-- Add a "Last refreshed: X ago" indicator
-
-### Architecture
-
-```text
-User clicks "Search"
-  → Frontend queries fuel_station_cache via Supabase SDK
-  → Filters by distance client-side (or via PostGIS)
-  → Returns instantly
-
-Admin clicks "Refresh Prices" (or cron)
-  → Calls fuel-finder edge function with mode: "refresh"
-  → Edge function fetches all GOV.UK data
-  → Upserts into fuel_station_cache
-  → May still timeout, so we'll fetch stations+prices in parallel
-     and add early-return resilience
+```typescript
+const { data: cached, error } = await supabase
+  .from("fuel_station_cache" as any)
+  .select("*")
+  .not("diesel_price", "is", null)
+  .range(0, 9999);
 ```
 
-### Files to change
+Alternatively, if the dataset grows beyond 10K, paginate with multiple requests.
 
-1. **New migration** — create `fuel_station_cache` table
-2. **`supabase/functions/fuel-finder/index.ts`** — add `refresh` mode that writes to DB; for `depot`/`route` modes, read from `fuel_station_cache` instead of calling the external API
-3. **`src/pages/FuelFinderPage.tsx`** — query `fuel_station_cache` directly for searches; add admin "Refresh Prices" button; show cache freshness
-
-### Key details
-- The refresh can fetch stations and prices with separate tokens in parallel to cut time in half
-- Even if refresh times out, partial data will be cached (upsert per batch)
-- Search queries become instant since they just read from Supabase
-- Cache freshness shown to users: "Prices last updated: 2 hours ago"
+### Files
+- `src/pages/FuelFinderPage.tsx` — add `.range(0, 9999)` to the cache query
 
