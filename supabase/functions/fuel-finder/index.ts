@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
         if (Array.isArray(fuelPrices)) {
           for (const fp of fuelPrices) {
             const grade = String(fp.fuel_type || fp.grade || '');
-            if (grade === 'B7' || grade.toLowerCase().includes('diesel')) {
+            if (grade === 'B7' || grade === 'B7_STANDARD' || grade.startsWith('B7') || grade.toLowerCase().includes('diesel')) {
               const priceVal = parseFloat(String(fp.price));
               if (!isNaN(priceVal)) {
                 priceMap.set(nodeId, {
