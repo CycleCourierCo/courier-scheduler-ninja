@@ -92,6 +92,8 @@ const FuelFinderPage: React.FC = () => {
   const [searchTriggered, setSearchTriggered] = useState(false);
   const [searchParams, setSearchParams] = useState<any>(null);
   const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price");
+  const [radiusMiles, setRadiusMiles] = useState(10);
+  const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price");
 
   // Fetch fuel card settings
   const { data: fuelCardSettings } = useQuery({
@@ -158,26 +160,32 @@ const FuelFinderPage: React.FC = () => {
 
   // Fetch fuel stations from cache (client-side query + distance filter)
   const { data: stationData, isLoading, isError, error: queryError, refetch } = useQuery({
-    queryKey: ["fuel-stations", searchParams],
+    queryKey: ["fuel-stations", searchParams, radiusMiles],
     queryFn: async () => {
-      // Query cached stations directly from Supabase
-      const { data: cached, error } = await supabase
-        .from("fuel_station_cache" as any)
-        .select("*")
-        .not("diesel_price", "is", null)
-        .range(0, 9999);
-
-      if (error) throw error;
-
-      const allStations = (cached as any[]) || [];
+      // Paginate to fetch ALL cached stations
+      let allStations: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data: batch, error } = await supabase
+          .from("fuel_station_cache")
+          .select("*")
+          .not("diesel_price", "is", null)
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!batch || batch.length === 0) break;
+        allStations.push(...batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+      }
       
       if (allStations.length === 0) {
         return { stations: [] as FuelStation[], count: 0, cached_at: null as string | null, needs_refresh: true };
       }
 
       const searchMode = searchParams?.mode || "depot";
-      const radiusMiles = searchMode === "depot" ? 5 : 2;
-      const radiusKm = radiusMiles * MILES_TO_KM;
+      const searchRadius = searchMode === "depot" ? radiusMiles : 2;
+      const radiusKm = searchRadius * MILES_TO_KM;
 
       const results: FuelStation[] = [];
       let latestCachedAt: string | null = null;
@@ -428,6 +436,24 @@ const FuelFinderPage: React.FC = () => {
                     onChange={(e) => setDestination(e.target.value)}
                   />
                 </div>
+              </div>
+            )}
+
+            {mode === "depot" && (
+              <div className="mb-4">
+                <Label>Search Radius</Label>
+                <Select value={String(radiusMiles)} onValueChange={(v) => setRadiusMiles(Number(v))}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">2 miles</SelectItem>
+                    <SelectItem value="5">5 miles</SelectItem>
+                    <SelectItem value="10">10 miles</SelectItem>
+                    <SelectItem value="15">15 miles</SelectItem>
+                    <SelectItem value="25">25 miles</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
