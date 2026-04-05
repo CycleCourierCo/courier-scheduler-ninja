@@ -106,6 +106,26 @@ const FuelFinderPage: React.FC = () => {
     },
   });
 
+  // Independent cache status query — runs on mount, not gated by search
+  const { data: cacheStatus, isLoading: cacheStatusLoading } = useQuery({
+    queryKey: ["fuel-cache-status"],
+    queryFn: async () => {
+      const { data, error, count } = await supabase
+        .from("fuel_station_cache" as any)
+        .select("cached_at", { count: "exact" })
+        .not("diesel_price", "is", null)
+        .order("cached_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const rows = data as any[] | null;
+      return {
+        stationCount: count || 0,
+        latestCachedAt: rows?.[0]?.cached_at || null,
+      };
+    },
+    enabled: !!userProfile,
+  });
+
   useEffect(() => {
     if (fuelCardSettings?.price_per_litre) {
       setFuelCardPrice(String(fuelCardSettings.price_per_litre));
