@@ -493,12 +493,20 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   </>}
                   
-                  {isDriver && <DropdownMenuItem asChild>
+                  {isDriver && <>
+                    <DropdownMenuItem asChild>
                       <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
                         <span>My Timeslips</span>
                       </Link>
-                    </DropdownMenuItem>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
+                        <Fuel className="mr-2 h-4 w-4" />
+                        <span>Fuel Finder</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>}
                   
                   {isSales && <>
                       <DropdownMenuItem asChild>
