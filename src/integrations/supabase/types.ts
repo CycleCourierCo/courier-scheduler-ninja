@@ -172,6 +172,27 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_card_settings: {
+        Row: {
+          id: string
+          price_per_litre: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          price_per_litre: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          price_per_litre?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       historical_route_stops: {
         Row: {
           created_at: string
