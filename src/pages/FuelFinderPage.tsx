@@ -106,6 +106,26 @@ const FuelFinderPage: React.FC = () => {
     },
   });
 
+  // Independent cache status query — runs on mount, not gated by search
+  const { data: cacheStatus, isLoading: cacheStatusLoading } = useQuery({
+    queryKey: ["fuel-cache-status"],
+    queryFn: async () => {
+      const { data, error, count } = await supabase
+        .from("fuel_station_cache" as any)
+        .select("cached_at", { count: "exact" })
+        .not("diesel_price", "is", null)
+        .order("cached_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const rows = data as any[] | null;
+      return {
+        stationCount: count || 0,
+        latestCachedAt: rows?.[0]?.cached_at || null,
+      };
+    },
+    enabled: !!userProfile,
+  });
+
   useEffect(() => {
     if (fuelCardSettings?.price_per_litre) {
       setFuelCardPrice(String(fuelCardSettings.price_per_litre));
@@ -215,6 +235,7 @@ const FuelFinderPage: React.FC = () => {
     onSuccess: (data) => {
       toast.success(`Cache refreshed: ${data.stations_cached} stations updated`);
       queryClient.invalidateQueries({ queryKey: ["fuel-stations"] });
+      queryClient.invalidateQueries({ queryKey: ["fuel-cache-status"] });
     },
     onError: (err: any) => {
       toast.error(`Refresh failed: ${err.message || "Unknown error"}`);
@@ -251,8 +272,8 @@ const FuelFinderPage: React.FC = () => {
   };
 
   const stations = stationData?.stations || [];
-  const cachedAt = stationData?.cached_at;
-  const needsRefresh = stationData?.needs_refresh;
+  const cachedAt = cacheStatus?.latestCachedAt;
+  const needsRefresh = cacheStatus ? cacheStatus.stationCount === 0 : false;
 
   const sortedStations = useMemo(() => {
     return [...stations].sort((a, b) => {
@@ -333,9 +354,11 @@ const FuelFinderPage: React.FC = () => {
                 <Database className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">Station Price Cache</p>
-                  {cachedAt ? (
+                  {cacheStatusLoading ? (
+                    <p className="text-xs text-muted-foreground">Checking cache…</p>
+                  ) : cachedAt ? (
                     <p className="text-xs text-muted-foreground">
-                      Last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
+                      {cacheStatus?.stationCount?.toLocaleString()} stations cached · Last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
                     </p>
                   ) : (
                     <p className="text-xs text-destructive">Cache is empty — refresh required</p>
