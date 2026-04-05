@@ -30,11 +30,16 @@ async function getAccessToken(): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
   });
+  const contentType = res.headers.get('content-type') || '';
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
+    console.error(`Auth response status: ${res.status}, content-type: ${contentType}, body: ${text.substring(0, 500)}`);
     throw new Error(`Auth failed (${res.status}): ${text.substring(0, 300)}`);
   }
-  const data = await res.json();
+  const data = contentType.includes('json') ? JSON.parse(text) : null;
+  if (!data) {
+    throw new Error(`Auth returned non-JSON response: ${text.substring(0, 200)}`);
+  }
   const token = data?.data?.access_token || data?.access_token;
   if (!token) {
     console.error('Token response:', JSON.stringify(data).substring(0, 500));
