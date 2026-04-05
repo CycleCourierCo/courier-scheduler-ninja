@@ -235,6 +235,7 @@ const FuelFinderPage: React.FC = () => {
     onSuccess: (data) => {
       toast.success(`Cache refreshed: ${data.stations_cached} stations updated`);
       queryClient.invalidateQueries({ queryKey: ["fuel-stations"] });
+      queryClient.invalidateQueries({ queryKey: ["fuel-cache-status"] });
     },
     onError: (err: any) => {
       toast.error(`Refresh failed: ${err.message || "Unknown error"}`);
