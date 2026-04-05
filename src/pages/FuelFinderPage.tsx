@@ -93,7 +93,6 @@ const FuelFinderPage: React.FC = () => {
   const [searchParams, setSearchParams] = useState<any>(null);
   const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price");
   const [radiusMiles, setRadiusMiles] = useState(10);
-  const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price");
 
   // Fetch fuel card settings
   const { data: fuelCardSettings } = useQuery({
