@@ -159,7 +159,8 @@ async function handleRefresh(): Promise<Response> {
       }
     }
     if (p.B7 && !priceMap.has(nodeId)) {
-      priceMap.set(nodeId, { price: Number(p.B7), updated: p.B7_updated || '' });
+      const b7Price = Number(p.B7) < 10 ? Number(p.B7) * 100 : Number(p.B7);
+      priceMap.set(nodeId, { price: b7Price, updated: p.B7_updated || '' });
     }
   }
   console.log(`Price map: ${priceMap.size} entries`);
