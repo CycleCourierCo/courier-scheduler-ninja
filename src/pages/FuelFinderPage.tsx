@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown } from "lucide-react";
+import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown, Database } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { geocodeAddress } from "@/utils/geocoding";
@@ -58,6 +58,25 @@ interface FuelStation {
   diesel_price: number;
   last_updated: string;
   distance_miles: number;
+}
+
+const DEPOT_LAT = 52.4690197;
+const DEPOT_LON = -1.8757663;
+const MILES_TO_KM = 1.60934;
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function distanceToSegmentKm(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  return haversineKm(px, py, ax + t * dx, ay + t * dy);
 }
 
 const FuelFinderPage: React.FC = () => {
@@ -116,19 +135,89 @@ const FuelFinderPage: React.FC = () => {
     onError: () => toast.error("Failed to save fuel card price"),
   });
 
-  // Fetch fuel stations
+  // Fetch fuel stations from cache (client-side query + distance filter)
   const { data: stationData, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["fuel-stations", searchParams],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("fuel-finder", {
-        body: searchParams,
-      });
+      // Query cached stations directly from Supabase
+      const { data: cached, error } = await supabase
+        .from("fuel_station_cache" as any)
+        .select("*")
+        .not("diesel_price", "is", null);
+
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data as { stations: FuelStation[]; count: number };
+
+      const allStations = (cached as any[]) || [];
+      
+      if (allStations.length === 0) {
+        return { stations: [] as FuelStation[], count: 0, cached_at: null as string | null, needs_refresh: true };
+      }
+
+      const searchMode = searchParams?.mode || "depot";
+      const radiusMiles = searchMode === "depot" ? 5 : 2;
+      const radiusKm = radiusMiles * MILES_TO_KM;
+
+      const results: FuelStation[] = [];
+      let latestCachedAt: string | null = null;
+
+      for (const s of allStations) {
+        if (!s.latitude || !s.longitude) continue;
+
+        if (!latestCachedAt || s.cached_at > latestCachedAt) {
+          latestCachedAt = s.cached_at;
+        }
+
+        let distKm: number;
+        if (searchMode === "depot") {
+          distKm = haversineKm(DEPOT_LAT, DEPOT_LON, s.latitude, s.longitude);
+        } else {
+          distKm = distanceToSegmentKm(
+            s.latitude, s.longitude,
+            searchParams.origin_lat, searchParams.origin_lon,
+            searchParams.destination_lat, searchParams.destination_lon
+          );
+        }
+
+        if (distKm > radiusKm) continue;
+
+        results.push({
+          site_id: s.node_id,
+          brand: s.brand,
+          name: s.name,
+          address: s.address || "",
+          postcode: s.postcode || "",
+          latitude: s.latitude,
+          longitude: s.longitude,
+          diesel_price: Number(s.diesel_price),
+          last_updated: s.last_updated || "",
+          distance_miles: Math.round(distKm / MILES_TO_KM * 10) / 10,
+        });
+      }
+
+      results.sort((a, b) => a.diesel_price - b.diesel_price);
+      return { stations: results, count: results.length, cached_at: latestCachedAt, needs_refresh: false };
     },
     enabled: !!searchParams,
     retry: 1,
+  });
+
+  // Refresh cache mutation
+  const refreshCache = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("fuel-finder", {
+        body: { mode: "refresh" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Cache refreshed: ${data.stations_cached} stations updated`);
+      queryClient.invalidateQueries({ queryKey: ["fuel-stations"] });
+    },
+    onError: (err: any) => {
+      toast.error(`Refresh failed: ${err.message || "Unknown error"}`);
+    },
   });
 
   const handleSearch = async () => {
@@ -161,6 +250,8 @@ const FuelFinderPage: React.FC = () => {
   };
 
   const stations = stationData?.stations || [];
+  const cachedAt = stationData?.cached_at;
+  const needsRefresh = stationData?.needs_refresh;
 
   const sortedStations = useMemo(() => {
     return [...stations].sort((a, b) => {
@@ -233,6 +324,39 @@ const FuelFinderPage: React.FC = () => {
           </Card>
         )}
 
+        {/* Admin Refresh Cache Button */}
+        {isAdmin && (
+          <Card className="mb-6 border-primary/20">
+            <CardContent className="py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Station Price Cache</p>
+                  {cachedAt ? (
+                    <p className="text-xs text-muted-foreground">
+                      Last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-destructive">Cache is empty — refresh required</p>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refreshCache.mutate()}
+                disabled={refreshCache.isPending}
+              >
+                {refreshCache.isPending ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-1" />Refreshing...</>
+                ) : (
+                  <><RefreshCw className="h-4 w-4 mr-1" />Refresh Prices</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Fuel card price display for non-admins */}
         {!isAdmin && cardPrice && (
           <Card className="mb-6 bg-muted/50">
@@ -292,6 +416,25 @@ const FuelFinderPage: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Needs refresh warning */}
+        {searchTriggered && !isLoading && needsRefresh && (
+          <Card className="mb-6 border-amber-500/50 bg-amber-500/5">
+            <CardContent className="py-4 flex items-center gap-3">
+              <Database className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  No cached station data available
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isAdmin
+                    ? "Click 'Refresh Prices' above to fetch the latest data from GOV.UK."
+                    : "Please ask an admin to refresh the fuel price cache."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* All stations more expensive than fuel card */}
         {searchTriggered && stations.length > 0 && cardPrice && stations.every((s) => s.diesel_price > cardPrice) && (
           <Card className="mb-6 border-destructive/50 bg-destructive/5">
@@ -318,11 +461,16 @@ const FuelFinderPage: React.FC = () => {
           </Card>
         )}
 
-        {searchTriggered && !isLoading && !isError && stations.length === 0 && (
+        {searchTriggered && !isLoading && !isError && stations.length === 0 && !needsRefresh && (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               <Fuel className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No diesel stations found in this area.</p>
+              {cachedAt && (
+                <p className="text-xs mt-2">
+                  Data last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -373,7 +521,14 @@ const FuelFinderPage: React.FC = () => {
         {stations.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{stations.length} station{stations.length !== 1 ? "s" : ""} found</p>
+              <div>
+                <p className="text-sm text-muted-foreground">{stations.length} station{stations.length !== 1 ? "s" : ""} found</p>
+                {cachedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Prices last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
+                  </p>
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

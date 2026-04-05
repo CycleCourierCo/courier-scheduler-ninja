@@ -193,6 +193,48 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_station_cache: {
+        Row: {
+          address: string | null
+          brand: string
+          cached_at: string
+          diesel_price: number | null
+          id: string
+          last_updated: string | null
+          latitude: number
+          longitude: number
+          name: string
+          node_id: string
+          postcode: string | null
+        }
+        Insert: {
+          address?: string | null
+          brand?: string
+          cached_at?: string
+          diesel_price?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude: number
+          longitude: number
+          name?: string
+          node_id: string
+          postcode?: string | null
+        }
+        Update: {
+          address?: string | null
+          brand?: string
+          cached_at?: string
+          diesel_price?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude?: number
+          longitude?: number
+          name?: string
+          node_id?: string
+          postcode?: string | null
+        }
+        Relationships: []
+      }
       historical_route_stops: {
         Row: {
           created_at: string
