@@ -185,6 +185,10 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Log sample data for debugging
+      if (prices.length > 0) console.log('Sample price entry:', JSON.stringify(prices[0]).substring(0, 500));
+      if (stations.length > 0) console.log('Sample station entry:', JSON.stringify(stations[0]).substring(0, 500));
+
       // Build price lookup
       const priceMap = new Map<string, { price: number; updated: string }>();
       for (const p of prices) {
