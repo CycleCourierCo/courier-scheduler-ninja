@@ -33,25 +33,16 @@ async function getAccessToken(): Promise<string> {
   const contentType = res.headers.get('content-type') || '';
   const text = await res.text();
   if (!res.ok) {
-    console.error(`Auth response status: ${res.status}, content-type: ${contentType}, body: ${text.substring(0, 500)}`);
     throw new Error(`Auth failed (${res.status}): ${text.substring(0, 300)}`);
   }
   const data = contentType.includes('json') ? JSON.parse(text) : null;
-  if (!data) {
-    throw new Error(`Auth returned non-JSON response: ${text.substring(0, 200)}`);
-  }
+  if (!data) throw new Error(`Auth returned non-JSON: ${text.substring(0, 200)}`);
+
   const token = data?.data?.access_token || data?.access_token;
-  if (!token) {
-    console.error('Token response:', JSON.stringify(data).substring(0, 500));
-    throw new Error('No access_token in auth response');
-  }
+  if (!token) throw new Error('No access_token in response');
   return token;
 }
 
-/**
- * Extract array from potentially nested API response.
- * GOV.UK wraps like: { success: true, data: { petrol_filling_stations: [...] } }
- */
 function extractArray(response: any, key: string): any[] | null {
   if (!response) return null;
   if (response.data?.[key] && Array.isArray(response.data[key])) return response.data[key];
@@ -71,13 +62,11 @@ async function fetchAllBatches(url: string, token: string, key: string): Promise
       headers: { 'Authorization': `Bearer ${currentToken}` },
     });
 
-    // End of pagination
     if (res.status === 404) {
-      console.log(`Pagination complete: ${batch - 1} batches for ${key}`);
+      console.log(`Pagination done: ${batch - 1} batches for ${key}`);
       break;
     }
 
-    // Token expired mid-pagination — refresh once and retry this batch
     if (res.status === 403 && all.length > 0) {
       console.log(`Token expired at batch ${batch}, refreshing...`);
       try {
@@ -85,47 +74,26 @@ async function fetchAllBatches(url: string, token: string, key: string): Promise
         const retry = await fetch(`${url}?batch-number=${batch}`, {
           headers: { 'Authorization': `Bearer ${currentToken}` },
         });
-        if (retry.status === 404) {
-          console.log(`After refresh, batch ${batch} not found — done`);
-          break;
-        }
-        if (!retry.ok) {
-          console.warn(`After refresh, batch ${batch} still failed (${retry.status}), stopping with ${all.length} items`);
-          break;
-        }
-        const retryData = await retry.json();
-        const retryItems = extractArray(retryData, key);
-        if (retryItems && retryItems.length > 0) {
-          all.push(...retryItems);
-          console.log(`Batch ${batch} (retry): got ${retryItems.length} ${key} items`);
-        }
+        if (retry.status === 404) break;
+        if (!retry.ok) { console.warn(`Retry failed at ${batch}, stopping`); break; }
+        const rd = await retry.json();
+        const ri = extractArray(rd, key);
+        if (ri?.length) { all.push(...ri); console.log(`Batch ${batch} (retry): ${ri.length} items`); }
         batch++;
         continue;
-      } catch (refreshErr) {
-        console.warn(`Token refresh failed, stopping with ${all.length} items`);
-        break;
-      }
+      } catch { console.warn('Refresh failed, stopping'); break; }
     }
 
     if (!res.ok) {
-      const errorBody = await res.text().catch(() => 'no body');
-      console.error(`API error ${res.status} at batch ${batch}: ${errorBody.substring(0, 300)}`);
-      if (all.length > 0) {
-        console.warn(`Stopping at batch ${batch} with ${all.length} items collected`);
-        break;
-      }
-      throw new Error(`API error ${res.status} at batch ${batch}`);
+      const body = await res.text().catch(() => '');
+      if (all.length > 0) { console.warn(`Error at batch ${batch}, stopping with ${all.length} items`); break; }
+      throw new Error(`API error ${res.status} at batch ${batch}: ${body.substring(0, 200)}`);
     }
 
     const data = await res.json();
     const items = extractArray(data, key);
+    if (!items || items.length === 0) break;
 
-    if (!items || items.length === 0) {
-      console.log(`Empty response at batch ${batch} for ${key}, stopping`);
-      break;
-    }
-
-    console.log(`Batch ${batch}: got ${items.length} ${key} items`);
     all.push(...items);
     batch++;
     if (batch > 50) break;
@@ -160,16 +128,16 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Use single token, fetch sequentially (API allows 1 concurrent request)
       const token = await getAccessToken();
 
+      // Fetch sequentially — API allows only 1 concurrent request per client
       console.log('Fetching stations...');
       const stations = await fetchAllBatches(
         'https://www.fuel-finder.service.gov.uk/api/v1/pfs',
         token,
         'petrol_filling_stations'
       );
-      console.log(`Total stations: ${stations.length}`);
+      console.log(`Stations: ${stations.length}`);
 
       console.log('Fetching prices...');
       const prices = await fetchAllBatches(
@@ -177,39 +145,44 @@ Deno.serve(async (req) => {
         token,
         'fuel_prices'
       );
-      console.log(`Total prices: ${prices.length}`);
+      console.log(`Prices: ${prices.length}`);
+
+      // Debug: log first entry of each to verify field names
+      if (stations.length > 0) console.log('Station sample:', JSON.stringify(stations[0]).substring(0, 600));
+      if (prices.length > 0) console.log('Price sample:', JSON.stringify(prices[0]).substring(0, 600));
 
       if (stations.length === 0) {
-        return new Response(JSON.stringify({ stations: [], count: 0, debug: 'No stations from API' }), {
+        return new Response(JSON.stringify({ stations: [], count: 0 }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Log sample data for debugging
-      if (prices.length > 0) console.log('Sample price entry:', JSON.stringify(prices[0]).substring(0, 500));
-      if (stations.length > 0) console.log('Sample station entry:', JSON.stringify(stations[0]).substring(0, 500));
-
-      // Build price lookup
+      // Build price lookup by node_id
+      // Price structure: { node_id, fuel_prices: [{ fuel_type: "B7", price: "0120.0000", price_last_updated: "..." }] }
       const priceMap = new Map<string, { price: number; updated: string }>();
       for (const p of prices) {
-        const siteId = String(p.site_id || p.siteId || '');
-        if (!siteId) continue;
+        const nodeId = String(p.node_id || p.site_id || p.siteId || '');
+        if (!nodeId) continue;
 
         const fuelPrices = p.fuel_prices || p.prices || [];
         if (Array.isArray(fuelPrices)) {
           for (const fp of fuelPrices) {
-            const grade = String(fp.fuel_type || fp.grade || fp.fuelType || '');
+            const grade = String(fp.fuel_type || fp.grade || '');
             if (grade === 'B7' || grade.toLowerCase().includes('diesel')) {
-              priceMap.set(siteId, {
-                price: Number(fp.price),
-                updated: fp.last_updated || fp.updated_at || fp.lastUpdated || '',
-              });
+              const priceVal = parseFloat(String(fp.price));
+              if (!isNaN(priceVal)) {
+                priceMap.set(nodeId, {
+                  price: priceVal,
+                  updated: fp.price_last_updated || fp.last_updated || fp.updated_at || '',
+                });
+              }
               break;
             }
           }
         }
-        if (p.B7 && !priceMap.has(siteId)) {
-          priceMap.set(siteId, { price: Number(p.B7), updated: p.B7_updated || '' });
+        // Fallback: top-level B7
+        if (p.B7 && !priceMap.has(nodeId)) {
+          priceMap.set(nodeId, { price: Number(p.B7), updated: p.B7_updated || '' });
         }
       }
       console.log(`Price map: ${priceMap.size} entries`);
@@ -217,9 +190,9 @@ Deno.serve(async (req) => {
       // Filter stations by distance
       const results: any[] = [];
       for (const s of stations) {
-        const siteId = String(s.site_id || s.siteId || '');
-        const lat = Number(s.location?.latitude || s.lat || s.latitude || 0);
-        const lon = Number(s.location?.longitude || s.lon || s.longitude || 0);
+        const nodeId = String(s.node_id || s.site_id || s.siteId || '');
+        const lat = Number(s.location?.latitude || s.lat || 0);
+        const lon = Number(s.location?.longitude || s.lon || 0);
         if (!lat || !lon) continue;
 
         let distKm: number;
@@ -231,15 +204,15 @@ Deno.serve(async (req) => {
 
         if (distKm > radiusKm) continue;
 
-        const priceInfo = priceMap.get(siteId);
+        const priceInfo = priceMap.get(nodeId);
         if (!priceInfo) continue;
 
         results.push({
-          site_id: siteId,
-          brand: s.brand || s.operator || 'Unknown',
-          name: s.name || s.site_name || s.siteName || 'Unknown Station',
-          address: s.address?.street || s.address?.address_line_1 || s.street || '',
-          postcode: s.address?.postcode || s.postcode || '',
+          site_id: nodeId,
+          brand: s.brand_name || s.mft_organisation_name || s.brand || 'Unknown',
+          name: s.trading_name || s.name || 'Unknown Station',
+          address: s.location?.address_line_1 || s.address?.street || '',
+          postcode: s.location?.postcode || s.address?.postcode || s.postcode || '',
           diesel_price: priceInfo.price,
           last_updated: priceInfo.updated,
           distance_miles: Math.round(distKm / MILES_TO_KM * 10) / 10,
