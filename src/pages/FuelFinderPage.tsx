@@ -143,7 +143,8 @@ const FuelFinderPage: React.FC = () => {
       const { data: cached, error } = await supabase
         .from("fuel_station_cache" as any)
         .select("*")
-        .not("diesel_price", "is", null);
+        .not("diesel_price", "is", null)
+        .range(0, 9999);
 
       if (error) throw error;
 
