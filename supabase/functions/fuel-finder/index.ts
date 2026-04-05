@@ -1,4 +1,4 @@
-import { corsHeaders } from '@supabase/supabase-js/cors';
+import { corsHeaders } from '../_shared/cors.ts';
 import { initSentry, captureException, withSentry } from '../_shared/sentry.ts';
 
 const DEPOT_LAT = 52.4690197;
