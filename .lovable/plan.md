@@ -1,92 +1,43 @@
 
-## Fix the false “cache is empty” state in Fuel Finder
 
-### What’s actually wrong
-The cache card is reading the wrong source.
+## Fix: Fuel Finder only returning 11 of 81 stations within 5 miles
 
-In `src/pages/FuelFinderPage.tsx`:
-- `cachedAt` comes from `stationData?.cached_at`
-- `stationData` only exists after the search query runs
-- that search query is gated by `enabled: !!searchParams`
+### Root Cause
+The database confirms **81 stations** within 5 miles of the depot have valid diesel prices. The frontend query uses `.range(0, 9999)` to override Supabase's default 1000-row limit, but the `as any` type cast on the table name is unnecessary (the `fuel_station_cache` table IS in the generated types) and may interfere with the query builder chain. Additionally, `.range(0, 9999)` can silently fail if the PostgREST server has a hard `max-rows` setting lower than 10,000.
 
-So before the user presses “Find Diesel Stations”, `stationData` is `undefined`, which makes the admin card render:
+The safer fix is twofold:
+1. Remove the `as any` cast (types already exist for this table)
+2. Add pagination to guarantee all rows are fetched regardless of server limits
 
-- “Cache is empty — refresh required”
+### Changes — `src/pages/FuelFinderPage.tsx`
 
-even when `fuel_station_cache` already contains thousands of rows.
+1. **Remove `as any` casts** on all `fuel_station_cache` queries — the table is already in the generated Supabase types, so the cast is unnecessary and may suppress query builder errors.
 
-This matches the screenshot exactly. The issue is not the table being empty; it’s the UI wiring.
+2. **Add a radius selector dropdown** to the search form for depot mode with options: 2, 5, 10, 15, 25 miles. Default to 10 miles.
 
-### Implementation plan
+3. **Paginate the cache query** — instead of a single `.range(0, 9999)`, fetch in batches of 1000 and concatenate, guaranteeing all rows are returned regardless of server config:
+   ```
+   let all = [], from = 0, batchSize = 1000;
+   while (true) {
+     const { data } = await supabase
+       .from("fuel_station_cache")
+       .select("*")
+       .not("diesel_price", "is", null)
+       .range(from, from + batchSize - 1);
+     if (!data || data.length === 0) break;
+     all.push(...data);
+     if (data.length < batchSize) break;
+     from += batchSize;
+   }
+   ```
 
-1. Add a separate cache-status query in `src/pages/FuelFinderPage.tsx`
-- Run this independently of station search
-- Read from `fuel_station_cache`
-- Return:
-  - latest `cached_at`
-  - total cached station count
-  - optionally count of stations with non-null `diesel_price`
+4. **Use the radius state** in the filtering logic (line 178) instead of hardcoded `5`:
+   ```
+   const radiusKm = radiusMiles * MILES_TO_KM;
+   ```
 
-2. Stop using `stationData` to drive the cache-status card
-- Replace:
-  - `const cachedAt = stationData?.cached_at`
-  - `const needsRefresh = stationData?.needs_refresh`
-- With values derived from the new cache-status query
+5. **Add the radius `<Select>` dropdown** next to the search button (depot mode only) with options: 2 mi, 5 mi, 10 mi, 15 mi, 25 mi.
 
-3. Show proper cache states in the card
-- Loading: “Checking cache…”
-- Success with data: “7,5xx stations cached” + “Last refreshed …”
-- Empty only when the status query truly returns zero usable cached rows
-- Error state if the query fails
-
-4. Keep search results logic separate
-- Leave the actual station search query tied to `searchParams`
-- Continue filtering cached stations client-side after the user searches
-- Only the status display changes
-
-5. Gate the new status query on existing auth readiness
-- Reuse `useAuth()`’s existing `user` / `isLoading` state
-- Do not create a new auth hook unless needed
-- This avoids firing the cache-status query before authentication is ready
-
-### File to update
+### File
 - `src/pages/FuelFinderPage.tsx`
 
-### Technical details
-Recommended shape for the new query:
-
-```text
-cacheStatusQuery:
-  select cached_at
-  filter diesel_price IS NOT NULL
-  order by cached_at desc
-  limit 1
-  include exact count
-```
-
-Then derive:
-
-```text
-hasCache = count > 0
-latestCachedAt = firstRow?.cached_at ?? null
-```
-
-UI logic becomes:
-
-```text
-if cacheStatusLoading -> "Checking cache..."
-else if cacheStatusError -> "Unable to load cache status"
-else if hasCache -> show count + last refreshed
-else -> "Cache is empty — refresh required"
-```
-
-And keep the existing search query for actual results:
-
-```text
-search query enabled only after searchParams exists
-```
-
-### Expected result
-- The “Station Price Cache” card will correctly show that the cache is populated before any search is run.
-- Users will no longer see a misleading “empty” warning when the table already has data.
-- Search behavior stays unchanged, but the status display becomes accurate and trustworthy.
