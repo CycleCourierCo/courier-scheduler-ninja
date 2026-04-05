@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw } from "lucide-react";
+import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { geocodeAddress } from "@/utils/geocoding";
 import { format, formatDistanceToNow } from "date-fns";
@@ -36,6 +37,7 @@ const FuelFinderPage: React.FC = () => {
   const [fuelCardPrice, setFuelCardPrice] = useState("");
   const [searchTriggered, setSearchTriggered] = useState(false);
   const [searchParams, setSearchParams] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price");
 
   // Fetch fuel card settings
   const { data: fuelCardSettings } = useQuery({
@@ -125,7 +127,16 @@ const FuelFinderPage: React.FC = () => {
   };
 
   const stations = stationData?.stations || [];
-  const cheapestPrice = stations.length > 0 ? stations[0]?.diesel_price : null;
+
+  const sortedStations = useMemo(() => {
+    return [...stations].sort((a, b) => {
+      if (sortBy === "price") return (a.diesel_price || 0) - (b.diesel_price || 0);
+      if (sortBy === "distance") return (a.distance_miles || 0) - (b.distance_miles || 0);
+      return new Date(b.last_updated || 0).getTime() - new Date(a.last_updated || 0).getTime();
+    });
+  }, [stations, sortBy]);
+
+  const cheapestPrice = stations.length > 0 ? Math.min(...stations.map(s => s.diesel_price)) : null;
   const mostRecent = stations.length > 0
     ? stations.reduce((a, b) => (new Date(b.last_updated) > new Date(a.last_updated) ? b : a))
     : null;
@@ -286,12 +297,27 @@ const FuelFinderPage: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{stations.length} station{stations.length !== 1 ? "s" : ""} found</p>
-              <Button variant="ghost" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="h-4 w-4 mr-1" />Refresh
-              </Button>
+              <div className="flex items-center gap-1">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <ArrowUpDown className="h-4 w-4 mr-1" />
+                      {sortBy === "price" ? "Price" : sortBy === "distance" ? "Distance" : "Updated"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setSortBy("price")}>Price (cheapest)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("distance")}>Distance (nearest)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("updated")}>Last Updated</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="ghost" size="sm" onClick={() => refetch()}>
+                  <RefreshCw className="h-4 w-4 mr-1" />Refresh
+                </Button>
+              </div>
             </div>
 
-            {stations.map((station, idx) => {
+            {sortedStations.map((station, idx) => {
               const isCheapest = station.diesel_price === cheapestPrice;
               const isMostRecent = station.site_id === mostRecent?.site_id;
               const moreExpensiveThanCard = cardPrice && station.diesel_price > cardPrice;
