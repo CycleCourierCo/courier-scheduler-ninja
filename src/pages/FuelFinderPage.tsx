@@ -271,8 +271,8 @@ const FuelFinderPage: React.FC = () => {
   };
 
   const stations = stationData?.stations || [];
-  const cachedAt = stationData?.cached_at;
-  const needsRefresh = stationData?.needs_refresh;
+  const cachedAt = cacheStatus?.latestCachedAt;
+  const needsRefresh = cacheStatus ? cacheStatus.stationCount === 0 : false;
 
   const sortedStations = useMemo(() => {
     return [...stations].sort((a, b) => {
