@@ -353,9 +353,11 @@ const FuelFinderPage: React.FC = () => {
                 <Database className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">Station Price Cache</p>
-                  {cachedAt ? (
+                  {cacheStatusLoading ? (
+                    <p className="text-xs text-muted-foreground">Checking cache…</p>
+                  ) : cachedAt ? (
                     <p className="text-xs text-muted-foreground">
-                      Last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
+                      {cacheStatus?.stationCount?.toLocaleString()} stations cached · Last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
                     </p>
                   ) : (
                     <p className="text-xs text-destructive">Cache is empty — refresh required</p>
