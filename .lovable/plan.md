@@ -1,29 +1,30 @@
 
 
-## Fix: Fuel type matching in price parser
+## Add Sort Button to Fuel Finder Results
 
-### Root Cause
-From the edge function logs:
-- Stations: 7603 (good)
-- Prices: 7551 (good)  
-- **Price map: 0 entries** (bad)
-- Results: 0 stations (consequence of empty price map)
+### What
+Add a sort toggle in the results header bar (next to the station count and Refresh button) that lets users sort stations by:
+- **Price** (cheapest first) — default
+- **Distance** (nearest first)
+- **Last Updated** (most recent first)
 
-The price sample shows: `"fuel_type":"B7_STANDARD"` but the code checks:
-```typescript
-if (grade === 'B7' || grade.toLowerCase().includes('diesel'))
+### How
+
+**File: `src/pages/FuelFinderPage.tsx`**
+
+1. Add state: `const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price")`
+2. Import `ArrowUpDown` from lucide-react and `DropdownMenu` / `DropdownMenuTrigger` / `DropdownMenuContent` / `DropdownMenuItem` from the existing UI components.
+3. Add a `sortedStations` memo that sorts `stations` based on `sortBy`:
+   - `price`: ascending by `diesel_price`
+   - `distance`: ascending by `distance_miles`
+   - `updated`: descending by `last_updated` date
+4. Replace `stations.map(...)` with `sortedStations.map(...)` in the render.
+5. Add a dropdown button between the station count text and the Refresh button in the results header (line ~287-291):
+
+```text
+[12 stations found]  [↕ Price ▾]  [↻ Refresh]
 ```
-`"B7_STANDARD"` does not equal `"B7"` and does not contain `"diesel"`, so every price entry is skipped.
-
-### Fix
-In `supabase/functions/fuel-finder/index.ts`, update the diesel fuel type matching to include B7 variants:
-
-```typescript
-if (grade === 'B7' || grade === 'B7_STANDARD' || grade.startsWith('B7') || grade.toLowerCase().includes('diesel'))
-```
-
-This is a one-line change in the price map building loop. Redeploy the edge function afterward.
 
 ### Files
-- `supabase/functions/fuel-finder/index.ts` — fix fuel type matching condition
+- `src/pages/FuelFinderPage.tsx` — add sort state, sorted memo, dropdown UI
 
