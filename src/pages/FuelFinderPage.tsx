@@ -81,16 +81,18 @@ const FuelFinderPage: React.FC = () => {
   });
 
   // Fetch fuel stations
-  const { data: stationData, isLoading, refetch } = useQuery({
+  const { data: stationData, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["fuel-stations", searchParams],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("fuel-finder", {
         body: searchParams,
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return data as { stations: FuelStation[]; count: number };
     },
     enabled: !!searchParams,
+    retry: 1,
   });
 
   const handleSearch = async () => {
