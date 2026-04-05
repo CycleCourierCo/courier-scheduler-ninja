@@ -217,7 +217,7 @@ const FuelFinderPage: React.FC = () => {
           postcode: s.postcode || "",
           latitude: s.latitude,
           longitude: s.longitude,
-          diesel_price: Number(s.diesel_price),
+          diesel_price: Number(s.diesel_price) < 10 ? Number(s.diesel_price) * 100 : Number(s.diesel_price),
           last_updated: s.last_updated || "",
           distance_miles: Math.round(distKm / MILES_TO_KM * 10) / 10,
         });

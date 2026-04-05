@@ -145,10 +145,12 @@ async function handleRefresh(): Promise<Response> {
       for (const fp of fuelPrices) {
         const grade = String(fp.fuel_type || fp.grade || '');
         if (grade === 'B7' || grade === 'B7_STANDARD' || grade.startsWith('B7') || grade.toLowerCase().includes('diesel')) {
-          const priceVal = parseFloat(String(fp.price));
-          if (!isNaN(priceVal)) {
-            priceMap.set(nodeId, {
-              price: priceVal,
+          let priceVal = parseFloat(String(fp.price));
+            if (!isNaN(priceVal)) {
+              // Normalize: API returns some prices in pounds (e.g. 1.899) and others in pence (e.g. 177.9)
+              if (priceVal < 10) priceVal = priceVal * 100;
+              priceMap.set(nodeId, {
+                price: priceVal,
               updated: fp.price_last_updated || fp.last_updated || fp.updated_at || '',
             });
           }
@@ -157,7 +159,8 @@ async function handleRefresh(): Promise<Response> {
       }
     }
     if (p.B7 && !priceMap.has(nodeId)) {
-      priceMap.set(nodeId, { price: Number(p.B7), updated: p.B7_updated || '' });
+      const b7Price = Number(p.B7) < 10 ? Number(p.B7) * 100 : Number(p.B7);
+      priceMap.set(nodeId, { price: b7Price, updated: p.B7_updated || '' });
     }
   }
   console.log(`Price map: ${priceMap.size} entries`);
