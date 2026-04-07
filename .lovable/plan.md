@@ -1,25 +1,56 @@
 
 
-## Fix: Inconsistent price units causing wrong "Cheapest" badge
+## Fix: Bike-type pricing shows wrong revenue / missing jobs
 
-### Problem
-The GOV.UK Fuel Finder API returns prices in mixed units — some stations report in **pounds** (e.g., `1.899`) and others in **pence** (e.g., `177.9`). The edge function stores the raw value without normalizing. When the frontend computes `Math.min(...)`, it picks `1.899` as the lowest number and labels that station "Cheapest", even though 177.9p is actually cheaper.
+### Root Cause
+
+Two functions in `src/services/profitabilityService.ts` fetch orders **without any server-side filters**, relying on client-side filtering after the fact:
+
+1. **`getRevenueForTimeslip`** (line 274): `supabase.from('orders').select(...)` with no `.eq()` or `.gte()` filters — returns only the first 1,000 rows (Supabase default limit). If the driver's orders for that date aren't in the first 1,000 rows, they're silently excluded, producing revenue for only 2 orders instead of the actual count.
+
+2. **`calculateTotalJobsFromDriverDate`** (line 127): Same pattern — fetches all orders unfiltered, hits the 1,000-row cap, then filters client-side by date and driver name.
+
+Both functions were written to work around OR-filter limitations (collection_driver OR delivery_driver), but the unfiltered fetch silently truncates results.
 
 ### Fix
-Normalize all prices to **pence** at two points:
 
-1. **Edge function** (`supabase/functions/fuel-finder/index.ts`): After parsing the price, check if the value is less than 10 (clearly in pounds) and multiply by 100 to convert to pence. This fixes prices at write time for all future caches.
+**File: `src/services/profitabilityService.ts`**
 
-2. **Frontend** (`src/pages/FuelFinderPage.tsx`): Apply the same normalization when reading `diesel_price` from the cache (line ~220), so existing cached data with pound values also displays correctly without requiring a cache refresh.
+1. **Add server-side date filtering** to both functions. The `scheduled_pickup_date` and `scheduled_delivery_date` columns are timestamps, so filter with `.gte()` / `.lt()` for the target date (e.g., `2025-04-05T00:00:00` to `2025-04-06T00:00:00`). This dramatically reduces the result set so it won't hit the 1,000-row limit.
 
-### Normalization logic
-```
-if (price < 10) price = price * 100;  // Convert pounds to pence
-```
+2. **Add pagination as a safety net** — if either query might still exceed 1,000 rows (unlikely after date filtering), paginate in batches of 1,000.
 
-Any diesel price below 10 is clearly in pounds (diesel hasn't been under 10p/litre in decades), so this threshold is safe.
+3. **For `getRevenueForTimeslip`** (~line 274):
+   ```
+   // Instead of fetching ALL orders:
+   // Fetch orders where pickup OR delivery date matches
+   // Use two queries (one for pickup date, one for delivery date) and merge
+   const startOfDay = `${date}T00:00:00`;
+   const endOfDay = `${date}T23:59:59`;
+   
+   const [pickupRes, deliveryRes] = await Promise.all([
+     supabase.from('orders')
+       .select('id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date')
+       .gte('scheduled_pickup_date', startOfDay)
+       .lte('scheduled_pickup_date', endOfDay),
+     supabase.from('orders')
+       .select('id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date')
+       .gte('scheduled_delivery_date', startOfDay)
+       .lte('scheduled_delivery_date', endOfDay),
+   ]);
+   
+   // Merge and deduplicate by order ID
+   const allOrders = new Map();
+   [...(pickupRes.data || []), ...(deliveryRes.data || [])].forEach(o => allOrders.set(o.id, o));
+   const dateFilteredOrders = Array.from(allOrders.values());
+   ```
 
-### Files
-- `supabase/functions/fuel-finder/index.ts` — normalize price when building upsert rows (~line 183)
-- `src/pages/FuelFinderPage.tsx` — normalize price when mapping cached data (~line 220)
+4. **For `calculateTotalJobsFromDriverDate`** (~line 127): Apply the same two-query approach with date-scoped server filters.
+
+5. **Count stops correctly**: Currently, each order contributes revenue once (halved per stop). But if a driver does both collection AND delivery for the same order on the same day, that's 2 stops worth of revenue. The current code deduplicates by order ID, counting it once. This may also undercount revenue. After the date fix, also check whether each order contributes 1 or 2 stops for the driver on that date (collection stop + delivery stop = 2x the per-stop revenue).
+
+### Expected Result
+- All orders for the date are found (not capped at 1,000)
+- Revenue correctly reflects all jobs the driver completed that day
+- The "Use bike type" toggle produces accurate totals matching the actual order count
 
