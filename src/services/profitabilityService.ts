@@ -278,20 +278,7 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
 
   if (!driverName || !date) return 0;
 
-  const { data: ordersWithDates, error } = await supabase
-    .from('orders')
-    .select('id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
-
-  if (error || !ordersWithDates) {
-    console.error('Error fetching orders for bike-type revenue:', error);
-    return 0;
-  }
-
-  const dateFilteredOrders = ordersWithDates.filter(order => {
-    const pickupDate = order.scheduled_pickup_date?.split('T')[0];
-    const deliveryDate = order.scheduled_delivery_date?.split('T')[0];
-    return pickupDate === date || deliveryDate === date;
-  });
+  const dateFilteredOrders = await fetchOrdersForDate(date);
 
   const driverOrders = dateFilteredOrders.filter(order =>
     order.collection_driver_name === driverName ||
