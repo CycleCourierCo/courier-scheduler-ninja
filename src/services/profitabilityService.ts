@@ -117,9 +117,11 @@ export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<
 };
 
 // Helper: fetch orders for a specific date using two queries (pickup OR delivery) and merge
-const fetchOrdersForDate = async (date: string, selectFields: string) => {
+const fetchOrdersForDate = async (date: string) => {
   const startOfDay = `${date}T00:00:00`;
   const endOfDay = `${date}T23:59:59.999`;
+
+  const selectFields = 'id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date' as const;
 
   const [pickupRes, deliveryRes] = await Promise.all([
     supabase
@@ -138,7 +140,7 @@ const fetchOrdersForDate = async (date: string, selectFields: string) => {
   if (deliveryRes.error) console.error('Error fetching delivery orders:', deliveryRes.error);
 
   // Merge and deduplicate by order ID
-  const allOrders = new Map<string, any>();
+  const allOrders = new Map<string, NonNullable<typeof pickupRes.data>[number]>();
   [...(pickupRes.data || []), ...(deliveryRes.data || [])].forEach(o => allOrders.set(o.id, o));
   return Array.from(allOrders.values());
 };
