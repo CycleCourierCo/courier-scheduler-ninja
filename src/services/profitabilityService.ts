@@ -152,10 +152,7 @@ export const calculateTotalJobsFromDriverDate = async (
 ): Promise<number> => {
   console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, date });
   
-  const dateFilteredData = await fetchOrdersForDate(
-    date,
-    'id, bike_quantity, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date'
-  );
+  const dateFilteredData = await fetchOrdersForDate(date);
 
   console.log('📅 Orders matching date:', dateFilteredData.length);
 
