@@ -193,6 +193,36 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_cards: {
+        Row: {
+          card_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          price_per_litre: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          card_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          price_per_litre: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          card_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          price_per_litre?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       fuel_station_cache: {
         Row: {
           address: string | null
@@ -1895,6 +1925,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_process_scheduled_announcements: {
         Args: never
