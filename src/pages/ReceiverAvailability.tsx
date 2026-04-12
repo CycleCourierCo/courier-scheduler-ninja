@@ -6,6 +6,7 @@ import { updateReceiverAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
+import { ConfirmedDatesView } from '@/components/availability/ConfirmedDatesView';
 import { toast } from 'sonner';
 import { getPublicOrder } from '@/services/fetchOrderService';
 
@@ -58,17 +59,16 @@ export default function ReceiverAvailability() {
     navigate: hookNavigate,
     handleSubmit,
     isDateDisabled,
-    calendarEndDate
+    calendarEndDate,
+    isConfirmed,
+    confirmedDates,
+    confirmedNotes
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
-    getMinDate: () => {
-      // This function will be overridden by the hook logic to use the earliest sender date
-      return new Date();
-    },
+    getMinDate: () => new Date(),
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
-      // Only prevent if user has actually confirmed their own delivery dates
       return (order.deliveryDate !== undefined && order.deliveryDate !== null && 
               Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0);
     }
@@ -99,6 +99,18 @@ export default function ReceiverAvailability() {
         <ErrorState 
           error={error} 
           onHome={() => navigate("/")} 
+        />
+      </Layout>
+    );
+  }
+
+  if (isConfirmed) {
+    return (
+      <Layout>
+        <ConfirmedDatesView
+          title="Delivery Availability"
+          dates={confirmedDates}
+          notes={confirmedNotes}
         />
       </Layout>
     );

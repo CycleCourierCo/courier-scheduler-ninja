@@ -116,55 +116,77 @@ export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<
   return data.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
 };
 
+// Helper: fetch orders for a specific date using two queries (pickup OR delivery) and merge
+const fetchOrdersForDate = async (date: string) => {
+  const startOfDay = `${date}T00:00:00`;
+  const endOfDay = `${date}T23:59:59.999`;
+
+  const selectFields = 'id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date' as const;
+
+  const [pickupRes, deliveryRes] = await Promise.all([
+    supabase
+      .from('orders')
+      .select(selectFields)
+      .gte('scheduled_pickup_date', startOfDay)
+      .lte('scheduled_pickup_date', endOfDay),
+    supabase
+      .from('orders')
+      .select(selectFields)
+      .gte('scheduled_delivery_date', startOfDay)
+      .lte('scheduled_delivery_date', endOfDay),
+  ]);
+
+  if (pickupRes.error) console.error('Error fetching pickup orders:', pickupRes.error);
+  if (deliveryRes.error) console.error('Error fetching delivery orders:', deliveryRes.error);
+
+  // Merge and deduplicate by order ID
+  const allOrders = new Map<string, NonNullable<typeof pickupRes.data>[number]>();
+  [...(pickupRes.data || []), ...(deliveryRes.data || [])].forEach(o => allOrders.set(o.id, o));
+  return Array.from(allOrders.values());
+};
+
+// Build a set of trimmed name variants for a driver
+const buildDriverNameVariants = (shipdayName?: string | null, fullName?: string | null): Set<string> => {
+  const variants = new Set<string>();
+  if (shipdayName) variants.add(shipdayName.trim());
+  if (fullName) variants.add(fullName.trim());
+  return variants;
+};
+
+// Match an order against a set of driver name variants
+const orderMatchesDriver = (order: { collection_driver_name?: string | null; delivery_driver_name?: string | null }, nameVariants: Set<string>): boolean => {
+  const col = order.collection_driver_name?.trim();
+  const del = order.delivery_driver_name?.trim();
+  return (!!col && nameVariants.has(col)) || (!!del && nameVariants.has(del));
+};
+
 // Calculate total jobs by matching driver name + date in orders table (for historic timeslips)
 export const calculateTotalJobsFromDriverDate = async (
   shipdayDriverName: string,
-  date: string
+  date: string,
+  driverFullName?: string | null
 ): Promise<number> => {
-  console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, date });
+  console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, driverFullName, date });
   
-  // Fetch all orders and filter in JavaScript
-  const { data, error } = await supabase
-    .from('orders')
-    .select('id, bike_quantity, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
-
-  if (error || !data) {
-    console.error('❌ Error fetching orders for driver/date:', error);
-    return 0;
-  }
-
-  console.log('📦 Raw orders from Supabase:', data.length);
-
-  // Filter by date in JavaScript (extract date part from timestamp)
-  const dateFilteredData = data.filter(order => {
-    const pickupDate = order.scheduled_pickup_date?.split('T')[0];
-    const deliveryDate = order.scheduled_delivery_date?.split('T')[0];
-    return pickupDate === date || deliveryDate === date;
-  });
+  const dateFilteredData = await fetchOrdersForDate(date);
 
   console.log('📅 Orders matching date:', dateFilteredData.length);
 
-  // Filter by driver name in JavaScript to ensure AND logic
-  const filteredData = dateFilteredData.filter(order => 
-    order.collection_driver_name === shipdayDriverName || 
-    order.delivery_driver_name === shipdayDriverName
-  );
+  // Filter by driver name variants (shipday name + full name, both trimmed)
+  const nameVariants = buildDriverNameVariants(shipdayDriverName, driverFullName);
+  const filteredData = dateFilteredData.filter(order => orderMatchesDriver(order, nameVariants));
 
   console.log('🔎 Filtered orders matching driver:', {
     filtered_count: filteredData.length,
     driver_searched: shipdayDriverName,
-    sample_driver_names: data.slice(0, 3).map(o => ({ 
-      collection: o.collection_driver_name, 
-      delivery: o.delivery_driver_name 
-    }))
   });
 
   // Get unique order IDs (avoid double-counting if driver does both pickup and delivery)
-  const uniqueOrderIds = new Set(filteredData.map(order => order.id));
+  const uniqueOrderIds = new Set(filteredData.map((order: any) => order.id));
   
   // Sum bike_quantity for unique orders
   const uniqueOrders = Array.from(uniqueOrderIds).map(id => 
-    filteredData.find(order => order.id === id)!
+    filteredData.find((order: any) => order.id === id)!
   );
   
   const totalJobs = uniqueOrders.reduce((sum, order) => sum + (order.bike_quantity || 1), 0);
@@ -172,7 +194,6 @@ export const calculateTotalJobsFromDriverDate = async (
   console.log('✅ Total jobs calculated:', {
     unique_orders: uniqueOrders.length,
     total_jobs: totalJobs,
-    bike_quantities: uniqueOrders.map(o => o.bike_quantity)
   });
   
   return totalJobs;
@@ -203,7 +224,8 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
     
     const jobsFromOrders = await calculateTotalJobsFromDriverDate(
       timeslip.driver.shipday_driver_name,
-      timeslip.date
+      timeslip.date,
+      timeslip.driver.name
     );
     
     console.log('📊 Jobs calculated from driver/date:', jobsFromOrders);
@@ -267,29 +289,15 @@ export const clearSpecialRatePriceCache = () => {
 // If a customer has a special_rate_price, use that instead of standard bike-type pricing
 export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
   const driverName = timeslip.driver?.shipday_driver_name;
+  const driverFullName = timeslip.driver?.name;
   const date = timeslip.date;
 
-  if (!driverName || !date) return 0;
+  if ((!driverName && !driverFullName) || !date) return 0;
 
-  const { data: ordersWithDates, error } = await supabase
-    .from('orders')
-    .select('id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date');
+  const nameVariants = buildDriverNameVariants(driverName, driverFullName);
+  const dateFilteredOrders = await fetchOrdersForDate(date);
 
-  if (error || !ordersWithDates) {
-    console.error('Error fetching orders for bike-type revenue:', error);
-    return 0;
-  }
-
-  const dateFilteredOrders = ordersWithDates.filter(order => {
-    const pickupDate = order.scheduled_pickup_date?.split('T')[0];
-    const deliveryDate = order.scheduled_delivery_date?.split('T')[0];
-    return pickupDate === date || deliveryDate === date;
-  });
-
-  const driverOrders = dateFilteredOrders.filter(order =>
-    order.collection_driver_name === driverName ||
-    order.delivery_driver_name === driverName
-  );
+  const driverOrders = dateFilteredOrders.filter(order => orderMatchesDriver(order, nameVariants));
 
   // Deduplicate by order ID
   const uniqueOrders = Array.from(

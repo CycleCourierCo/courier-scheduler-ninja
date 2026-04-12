@@ -172,6 +172,99 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_card_settings: {
+        Row: {
+          id: string
+          price_per_litre: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          price_per_litre: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          price_per_litre?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      fuel_cards: {
+        Row: {
+          card_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          price_per_litre: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          card_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          price_per_litre: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          card_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          price_per_litre?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      fuel_station_cache: {
+        Row: {
+          address: string | null
+          brand: string
+          cached_at: string
+          diesel_price: number | null
+          id: string
+          last_updated: string | null
+          latitude: number
+          longitude: number
+          name: string
+          node_id: string
+          postcode: string | null
+        }
+        Insert: {
+          address?: string | null
+          brand?: string
+          cached_at?: string
+          diesel_price?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude: number
+          longitude: number
+          name?: string
+          node_id: string
+          postcode?: string | null
+        }
+        Update: {
+          address?: string | null
+          brand?: string
+          cached_at?: string
+          diesel_price?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude?: number
+          longitude?: number
+          name?: string
+          node_id?: string
+          postcode?: string | null
+        }
+        Relationships: []
+      }
       historical_route_stops: {
         Row: {
           created_at: string
@@ -1832,6 +1925,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_process_scheduled_announcements: {
         Args: never

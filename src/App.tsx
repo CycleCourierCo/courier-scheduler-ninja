@@ -43,6 +43,7 @@ import AIRouting from "./pages/AIRouting";
 import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import MyStockPage from "./pages/MyStockPage";
+import FuelFinderPage from "./pages/FuelFinderPage";
 
 const queryClient = new QueryClient();
 
@@ -187,6 +188,11 @@ function App() {
               <Route path="/my-stock" element={
                 <ProtectedRoute>
                   <MyStockPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/fuel-finder" element={
+                <ProtectedRoute>
+                  <FuelFinderPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />

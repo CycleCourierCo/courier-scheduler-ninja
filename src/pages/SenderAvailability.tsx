@@ -6,6 +6,7 @@ import { updateSenderAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
+import { ConfirmedDatesView } from '@/components/availability/ConfirmedDatesView';
 import { getPublicOrder } from '@/services/fetchOrderService';
 
 export default function SenderAvailability() {
@@ -57,14 +58,16 @@ export default function SenderAvailability() {
     navigate: hookNavigate,
     handleSubmit,
     isDateDisabled,
-    calendarEndDate
+    calendarEndDate,
+    isConfirmed,
+    confirmedDates,
+    confirmedNotes
   } = useAvailability({
     type: 'sender',
     updateFunction: updateSenderAvailability,
-    getMinDate: () => new Date(), // Allow from current date
+    getMinDate: () => new Date(),
     isAlreadyConfirmed: (order) => {
       if (!order) return false;
-      // Only prevent if user has actually confirmed their own pickup dates
       return (order.pickupDate !== undefined && order.pickupDate !== null && 
               Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
     }
@@ -95,6 +98,18 @@ export default function SenderAvailability() {
         <ErrorState 
           error={error} 
           onHome={() => navigate("/")} 
+        />
+      </Layout>
+    );
+  }
+
+  if (isConfirmed) {
+    return (
+      <Layout>
+        <ConfirmedDatesView
+          title="Pickup Availability"
+          dates={confirmedDates}
+          notes={confirmedNotes}
         />
       </Layout>
     );

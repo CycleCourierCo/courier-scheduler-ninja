@@ -33,6 +33,9 @@ export const useAvailability = ({
   const [minDate, setMinDate] = useState<Date>(getMinDate());
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [confirmedDates, setConfirmedDates] = useState<string[]>([]);
+  const [confirmedNotes, setConfirmedNotes] = useState<string>("");
 
   // Fetch holiday dates on mount
   useEffect(() => {
@@ -152,32 +155,12 @@ export const useAvailability = ({
             ? fetchedOrder.pickupDate 
             : fetchedOrder.deliveryDate;
           
-          if (alreadyConfirmedDates) {
-            // Show a success message with the dates already confirmed
-            let formattedDates = "Unknown dates";
-            
-            if (Array.isArray(alreadyConfirmedDates)) {
-              const validDates = alreadyConfirmedDates
-                .filter(date => date && typeof date === 'string')
-                .map(date => {
-                  try {
-                    return format(new Date(date as string), "PPP");
-                  } catch (e) {
-                    console.error("Failed to format date:", date);
-                    return null;
-                  }
-                })
-                .filter(Boolean); // Remove any null entries
-              
-              if (validDates.length > 0) {
-                formattedDates = validDates.join(", ");
-              }
-            }
-            
-            setError(`Your ${type === 'sender' ? 'pickup' : 'delivery'} dates (${formattedDates}) have already been confirmed.`);
-          } else {
-            setError(`Your ${type === 'sender' ? 'pickup' : 'delivery'} dates have already been confirmed.`);
+          setIsConfirmed(true);
+          if (Array.isArray(alreadyConfirmedDates)) {
+            setConfirmedDates(alreadyConfirmedDates.filter(d => d && typeof d === 'string') as string[]);
           }
+          const noteValue = type === 'sender' ? fetchedOrder.senderNotes : fetchedOrder.receiverNotes;
+          if (noteValue) setConfirmedNotes(noteValue);
         }
         
         // Initialize notes from the order if available
@@ -282,6 +265,9 @@ export const useAvailability = ({
     navigate,
     handleSubmit,
     isDateDisabled,
-    calendarEndDate
+    calendarEndDate,
+    isConfirmed,
+    confirmedDates,
+    confirmedNotes
   };
 };

@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,10 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {user && !isLoader && !isDriver && !isMechanic && <>
                       <DropdownMenuSeparator className="my-2" />
+                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Fuel className="mr-2 h-4 w-4" />
+                        Fuel Finder
+                      </Link>
                       <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <Home className="mr-2 h-4 w-4" />
                         Dashboard
@@ -244,6 +248,10 @@ const Layout: React.FC<LayoutProps> = ({
                         <Clock className="mr-2 h-4 w-4" />
                         My Timeslips
                       </Link>
+                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Fuel className="mr-2 h-4 w-4" />
+                        Fuel Finder
+                      </Link>
                       <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
@@ -301,6 +309,13 @@ const Layout: React.FC<LayoutProps> = ({
                     <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
                       <Home className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>}
+                  
+                  {!isDriver && <DropdownMenuItem asChild>
+                    <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
+                      <Fuel className="mr-2 h-4 w-4" />
+                      <span>Fuel Finder</span>
                     </Link>
                   </DropdownMenuItem>}
                   
@@ -478,12 +493,20 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   </>}
                   
-                  {isDriver && <DropdownMenuItem asChild>
+                  {isDriver && <>
+                    <DropdownMenuItem asChild>
                       <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
                         <span>My Timeslips</span>
                       </Link>
-                    </DropdownMenuItem>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
+                        <Fuel className="mr-2 h-4 w-4" />
+                        <span>Fuel Finder</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>}
                   
                   {isSales && <>
                       <DropdownMenuItem asChild>
