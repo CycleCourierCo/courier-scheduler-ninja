@@ -1,26 +1,35 @@
 
 
-## Fix: Revenue undercounted due to driver name mismatch
+## Add Invoice vs Route Profitability Comparison Section
 
-### Problem
-`getRevenueForTimeslip` and `calculateTotalJobsFromDriverDate` match orders using only `shipday_driver_name` (e.g., "Abs") with exact string equality. Orders assigned under the driver's full name "Abdullah Hussain " (with trailing space) are completely missed. This causes revenue to show only ~£140 (4 orders) instead of the correct total for all 15 jobs.
+### What it does
+Adds a new collapsible section to the Route Profitability page (between Yearly chart and Settings) that lets you pick a date range and see side-by-side:
+- **Invoice Revenue**: What was actually billed to customers (from `invoice_history`)
+- **Route Revenue**: What route profitability estimates based on bike-type pricing
+- **Route Costs**: Total driver costs from timeslips
+- **True Profit**: Invoice revenue minus route costs
+- Per-customer breakdown table showing invoiced amount, order count, and their share of total
 
-### Fix (single file: `src/services/profitabilityService.ts`)
+### Implementation
 
-**1. `getRevenueForTimeslip` (line 276):**
-- Build a `Set` of name variants from `timeslip.driver.shipday_driver_name` and `timeslip.driver.name`, both trimmed
-- Filter orders where trimmed `collection_driver_name` or `delivery_driver_name` matches any variant
+**New file: `src/components/analytics/InvoiceVsCostComparison.tsx`**
+- Date range picker (start date + end date) defaulting to the current month
+- Queries `invoice_history` for overlapping date ranges
+- Queries timeslips for the same period and calculates route revenue + costs using existing `aggregateProfitability` logic
+- Summary cards: Total Invoiced, Route Revenue, Total Costs, True Profit (invoiced - costs), Margin %
+- Per-customer breakdown table: customer name, invoiced amount, order count
+- Bar chart comparing Invoice Revenue vs Route Revenue vs Costs
 
-**2. `calculateTotalJobsFromDriverDate` (line 149):**
-- Accept an optional `driverFullName` parameter
-- Use the same trimmed multi-name matching logic
+**Edit: `src/pages/RouteProfitabilityPage.tsx`**
+- Import and render `InvoiceVsCostComparison` between the Yearly chart and Settings card
+- Pass `costPerMile`, `revenuePerStop`, `useBikeTypePricing` as props so route revenue calculations are consistent
 
-**3. `getTotalJobs` (line 205):**
-- Pass `timeslip.driver.name` as the second argument to `calculateTotalJobsFromDriverDate`
+### Data sources (no new tables)
+- `invoice_history`: `total_amount`, `order_count`, `customer_name`, `start_date`, `end_date`
+- `timeslips` (via existing service functions): driver pay, van allowance, mileage, bike-type revenue
 
-### What this fixes
-- All orders for a driver are found regardless of whether "Abs" or "Abdullah Hussain " was used
-- Trailing spaces are handled automatically via `.trim()`
-- Revenue correctly reflects all bike types and quantities across all matched orders
-- No database changes needed
+### Technical notes
+- Invoice date overlap query: `start_date <= selectedEnd AND end_date >= selectedStart`
+- Route revenue reuses existing `getTimeslipsForMonth` / `aggregateProfitability` for the selected period
+- RLS on `invoice_history` is `user_id = auth.uid()`, so the admin who created the invoices will see them
 
