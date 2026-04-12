@@ -104,8 +104,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // 8. Driver role restrictions - only allow timeslips and profile
   const isTimeslipsPage = location.pathname === '/driver-timeslips';
   const isProfilePage = location.pathname === '/profile';
+  const isFuelFinderPage = location.pathname === '/fuel-finder';
   if (userProfile?.role === 'driver') {
-    if (!isTimeslipsPage && !isProfilePage) {
+    if (!isTimeslipsPage && !isProfilePage && !isFuelFinderPage) {
       return <Navigate to="/driver-timeslips" replace />;
     }
     return <>{children}</>;
