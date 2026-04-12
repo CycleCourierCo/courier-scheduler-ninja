@@ -145,22 +145,36 @@ const fetchOrdersForDate = async (date: string) => {
   return Array.from(allOrders.values());
 };
 
+// Build a set of trimmed name variants for a driver
+const buildDriverNameVariants = (shipdayName?: string | null, fullName?: string | null): Set<string> => {
+  const variants = new Set<string>();
+  if (shipdayName) variants.add(shipdayName.trim());
+  if (fullName) variants.add(fullName.trim());
+  return variants;
+};
+
+// Match an order against a set of driver name variants
+const orderMatchesDriver = (order: { collection_driver_name?: string | null; delivery_driver_name?: string | null }, nameVariants: Set<string>): boolean => {
+  const col = order.collection_driver_name?.trim();
+  const del = order.delivery_driver_name?.trim();
+  return (!!col && nameVariants.has(col)) || (!!del && nameVariants.has(del));
+};
+
 // Calculate total jobs by matching driver name + date in orders table (for historic timeslips)
 export const calculateTotalJobsFromDriverDate = async (
   shipdayDriverName: string,
-  date: string
+  date: string,
+  driverFullName?: string | null
 ): Promise<number> => {
-  console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, date });
+  console.log('🔍 calculateTotalJobsFromDriverDate called:', { shipdayDriverName, driverFullName, date });
   
   const dateFilteredData = await fetchOrdersForDate(date);
 
   console.log('📅 Orders matching date:', dateFilteredData.length);
 
-  // Filter by driver name
-  const filteredData = dateFilteredData.filter(order => 
-    order.collection_driver_name === shipdayDriverName || 
-    order.delivery_driver_name === shipdayDriverName
-  );
+  // Filter by driver name variants (shipday name + full name, both trimmed)
+  const nameVariants = buildDriverNameVariants(shipdayDriverName, driverFullName);
+  const filteredData = dateFilteredData.filter(order => orderMatchesDriver(order, nameVariants));
 
   console.log('🔎 Filtered orders matching driver:', {
     filtered_count: filteredData.length,
@@ -210,7 +224,8 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
     
     const jobsFromOrders = await calculateTotalJobsFromDriverDate(
       timeslip.driver.shipday_driver_name,
-      timeslip.date
+      timeslip.date,
+      timeslip.driver.name
     );
     
     console.log('📊 Jobs calculated from driver/date:', jobsFromOrders);
@@ -274,16 +289,15 @@ export const clearSpecialRatePriceCache = () => {
 // If a customer has a special_rate_price, use that instead of standard bike-type pricing
 export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
   const driverName = timeslip.driver?.shipday_driver_name;
+  const driverFullName = timeslip.driver?.name;
   const date = timeslip.date;
 
-  if (!driverName || !date) return 0;
+  if ((!driverName && !driverFullName) || !date) return 0;
 
+  const nameVariants = buildDriverNameVariants(driverName, driverFullName);
   const dateFilteredOrders = await fetchOrdersForDate(date);
 
-  const driverOrders = dateFilteredOrders.filter(order =>
-    order.collection_driver_name === driverName ||
-    order.delivery_driver_name === driverName
-  );
+  const driverOrders = dateFilteredOrders.filter(order => orderMatchesDriver(order, nameVariants));
 
   // Deduplicate by order ID
   const uniqueOrders = Array.from(
