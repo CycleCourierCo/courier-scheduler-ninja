@@ -330,6 +330,13 @@ const RouteProfitabilityPage = () => {
           totals={monthlyChartData.length > 0 ? yearlyTotals : undefined}
         />
 
+        {/* Invoice vs Route Comparison */}
+        <InvoiceVsCostComparison
+          costPerMile={costPerMile}
+          revenuePerStop={revenuePerStop}
+          useBikeTypePricing={useBikeTypePricing}
+        />
+
         {/* Settings Section */}
         <Card>
           <CardHeader>
