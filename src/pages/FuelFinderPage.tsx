@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown, Database } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown, Database, Plus, Trash2, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { geocodeAddress } from "@/utils/geocoding";
@@ -61,6 +62,16 @@ interface FuelStation {
   distance_miles: number;
 }
 
+interface FuelCard {
+  id: string;
+  card_name: string;
+  price_per_litre: number;
+  is_active: boolean;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const DEPOT_LAT = 52.4690197;
 const DEPOT_LON = -1.8757663;
 const MILES_TO_KM = 1.60934;
@@ -88,27 +99,38 @@ const FuelFinderPage: React.FC = () => {
   const [mode, setMode] = useState<"depot" | "route">("depot");
   const [currentLocation, setCurrentLocation] = useState("");
   const [destination, setDestination] = useState("");
-  const [fuelCardPrice, setFuelCardPrice] = useState("");
   const [searchTriggered, setSearchTriggered] = useState(false);
   const [searchParams, setSearchParams] = useState<any>(null);
   const [sortBy, setSortBy] = useState<"price" | "distance" | "updated">("price");
   const [radiusMiles, setRadiusMiles] = useState(10);
 
-  // Fetch fuel card settings
-  const { data: fuelCardSettings } = useQuery({
-    queryKey: ["fuel-card-settings"],
+  // New fuel card form state
+  const [newCardName, setNewCardName] = useState("");
+  const [newCardPrice, setNewCardPrice] = useState("");
+  const [editingCard, setEditingCard] = useState<FuelCard | null>(null);
+  const [editCardName, setEditCardName] = useState("");
+  const [editCardPrice, setEditCardPrice] = useState("");
+
+  // Fetch fuel cards
+  const { data: fuelCards = [] } = useQuery({
+    queryKey: ["fuel-cards"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fuel_card_settings" as any)
+        .from("fuel_cards" as any)
         .select("*")
-        .order("updated_at", { ascending: false })
-        .limit(1);
+        .order("card_name", { ascending: true });
       if (error) throw error;
-      return (data as any)?.[0] || null;
+      return (data as any[] || []) as FuelCard[];
     },
   });
 
-  // Independent cache status query — runs on mount, not gated by search
+  const activeFuelCards = fuelCards.filter(c => c.is_active);
+  const cheapestCardPrice = activeFuelCards.length > 0
+    ? Math.min(...activeFuelCards.map(c => Number(c.price_per_litre)))
+    : null;
+  const cheapestCard = activeFuelCards.find(c => Number(c.price_per_litre) === cheapestCardPrice);
+
+  // Independent cache status query
   const { data: cacheStatus, isLoading: cacheStatusLoading } = useQuery({
     queryKey: ["fuel-cache-status"],
     queryFn: async () => {
@@ -128,40 +150,75 @@ const FuelFinderPage: React.FC = () => {
     enabled: !!userProfile,
   });
 
-  useEffect(() => {
-    if (fuelCardSettings?.price_per_litre) {
-      setFuelCardPrice(String(fuelCardSettings.price_per_litre));
-    }
-  }, [fuelCardSettings]);
-
-  // Save fuel card price
-  const saveFuelCard = useMutation({
-    mutationFn: async (price: number) => {
-      if (fuelCardSettings?.id) {
-        const { error } = await supabase
-          .from("fuel_card_settings" as any)
-          .update({ price_per_litre: price, updated_at: new Date().toISOString(), updated_by: userProfile?.id } as any)
-          .eq("id", fuelCardSettings.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("fuel_card_settings" as any)
-          .insert({ price_per_litre: price, updated_by: userProfile?.id } as any);
-        if (error) throw error;
-      }
+  // Add fuel card
+  const addFuelCard = useMutation({
+    mutationFn: async ({ name, price }: { name: string; price: number }) => {
+      const { error } = await supabase
+        .from("fuel_cards" as any)
+        .insert({ card_name: name, price_per_litre: price, updated_by: userProfile?.id } as any);
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fuel-card-settings"] });
-      toast.success("Fuel card price updated");
+      queryClient.invalidateQueries({ queryKey: ["fuel-cards"] });
+      setNewCardName("");
+      setNewCardPrice("");
+      toast.success("Fuel card added");
     },
-    onError: () => toast.error("Failed to save fuel card price"),
+    onError: () => toast.error("Failed to add fuel card"),
   });
 
-  // Fetch fuel stations from cache (client-side query + distance filter)
+  // Update fuel card
+  const updateFuelCard = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const { error } = await supabase
+        .from("fuel_cards" as any)
+        .update({ ...updates, updated_by: userProfile?.id } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fuel-cards"] });
+      setEditingCard(null);
+      toast.success("Fuel card updated");
+    },
+    onError: () => toast.error("Failed to update fuel card"),
+  });
+
+  // Delete fuel card
+  const deleteFuelCard = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("fuel_cards" as any)
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fuel-cards"] });
+      toast.success("Fuel card deleted");
+    },
+    onError: () => toast.error("Failed to delete fuel card"),
+  });
+
+  // Toggle fuel card active status
+  const toggleFuelCard = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase
+        .from("fuel_cards" as any)
+        .update({ is_active, updated_by: userProfile?.id } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fuel-cards"] });
+    },
+    onError: () => toast.error("Failed to update fuel card"),
+  });
+
+  // Fetch fuel stations from cache
   const { data: stationData, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["fuel-stations", searchParams, radiusMiles],
     queryFn: async () => {
-      // Paginate to fetch ALL cached stations
       let allStations: any[] = [];
       let from = 0;
       const batchSize = 1000;
@@ -177,7 +234,7 @@ const FuelFinderPage: React.FC = () => {
         if (batch.length < batchSize) break;
         from += batchSize;
       }
-      
+
       if (allStations.length === 0) {
         return { stations: [] as FuelStation[], count: 0, cached_at: null as string | null, needs_refresh: true };
       }
@@ -191,10 +248,7 @@ const FuelFinderPage: React.FC = () => {
 
       for (const s of allStations) {
         if (!s.latitude || !s.longitude) continue;
-
-        if (!latestCachedAt || s.cached_at > latestCachedAt) {
-          latestCachedAt = s.cached_at;
-        }
+        if (!latestCachedAt || s.cached_at > latestCachedAt) latestCachedAt = s.cached_at;
 
         let distKm: number;
         if (searchMode === "depot") {
@@ -295,7 +349,6 @@ const FuelFinderPage: React.FC = () => {
   const mostRecent = stations.length > 0
     ? stations.reduce((a, b) => (new Date(b.last_updated) > new Date(a.last_updated) ? b : a))
     : null;
-  const cardPrice = fuelCardSettings?.price_per_litre ? Number(fuelCardSettings.price_per_litre) : null;
 
   return (
     <Layout>
@@ -308,48 +361,139 @@ const FuelFinderPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Admin Fuel Card Price */}
+        {/* Admin Fuel Cards Management */}
         {isAdmin && (
           <Card className="mb-6 border-primary/20">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
-                Fuel Card Price
+                Fuel Cards
               </CardTitle>
-              <CardDescription>Set the current fuel card price (pence per litre) for comparison</CardDescription>
+              <CardDescription>Manage fuel card prices (pence per litre) for comparison</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex gap-3 items-end">
+            <CardContent className="space-y-4">
+              {/* Existing cards list */}
+              {fuelCards.length > 0 && (
+                <div className="space-y-2">
+                  {fuelCards.map((card) => (
+                    <div key={card.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                      {editingCard?.id === card.id ? (
+                        <>
+                          <div className="flex-1 flex gap-2">
+                            <Input
+                              value={editCardName}
+                              onChange={(e) => setEditCardName(e.target.value)}
+                              placeholder="Card name"
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editCardPrice}
+                              onChange={(e) => setEditCardPrice(e.target.value)}
+                              placeholder="Price (ppl)"
+                              className="w-28"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              const price = parseFloat(editCardPrice);
+                              if (!editCardName.trim() || isNaN(price) || price <= 0) {
+                                toast.error("Enter a valid name and price");
+                                return;
+                              }
+                              updateFuelCard.mutate({ id: card.id, updates: { card_name: editCardName.trim(), price_per_litre: price } });
+                            }}
+                            disabled={updateFuelCard.isPending}
+                          >
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingCard(null)}>Cancel</Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{card.card_name}</span>
+                              <span className="text-sm font-bold text-primary">{Number(card.price_per_litre)}p/l</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Updated {formatDistanceToNow(new Date(card.updated_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={card.is_active}
+                            onCheckedChange={(checked) => toggleFuelCard.mutate({ id: card.id, is_active: checked })}
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setEditingCard(card);
+                              setEditCardName(card.card_name);
+                              setEditCardPrice(String(card.price_per_litre));
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => {
+                              if (confirm(`Delete "${card.card_name}"?`)) {
+                                deleteFuelCard.mutate(card.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new card */}
+              <div className="flex gap-2 items-end pt-2 border-t">
                 <div className="flex-1">
-                  <Label htmlFor="fuelCardPrice">Price (ppl)</Label>
+                  <Label htmlFor="newCardName" className="text-xs">Card Name</Label>
                   <Input
-                    id="fuelCardPrice"
+                    id="newCardName"
+                    placeholder="e.g. Shell Fuel Card"
+                    value={newCardName}
+                    onChange={(e) => setNewCardName(e.target.value)}
+                  />
+                </div>
+                <div className="w-28">
+                  <Label htmlFor="newCardPrice" className="text-xs">Price (ppl)</Label>
+                  <Input
+                    id="newCardPrice"
                     type="number"
                     step="0.1"
-                    placeholder="e.g. 139.9"
-                    value={fuelCardPrice}
-                    onChange={(e) => setFuelCardPrice(e.target.value)}
+                    placeholder="139.9"
+                    value={newCardPrice}
+                    onChange={(e) => setNewCardPrice(e.target.value)}
                   />
                 </div>
                 <Button
                   onClick={() => {
-                    const price = parseFloat(fuelCardPrice);
-                    if (isNaN(price) || price <= 0) {
-                      toast.error("Enter a valid price");
+                    const price = parseFloat(newCardPrice);
+                    if (!newCardName.trim() || isNaN(price) || price <= 0) {
+                      toast.error("Enter a valid name and price");
                       return;
                     }
-                    saveFuelCard.mutate(price);
+                    addFuelCard.mutate({ name: newCardName.trim(), price });
                   }}
-                  disabled={saveFuelCard.isPending}
+                  disabled={addFuelCard.isPending}
+                  size="sm"
                 >
-                  {saveFuelCard.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                  <Plus className="h-4 w-4 mr-1" />Add
                 </Button>
               </div>
-              {fuelCardSettings?.updated_at && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Last updated: {formatDistanceToNow(new Date(fuelCardSettings.updated_at), { addSuffix: true })}
-                </p>
-              )}
             </CardContent>
           </Card>
         )}
@@ -390,13 +534,17 @@ const FuelFinderPage: React.FC = () => {
         )}
 
         {/* Fuel card price display for non-admins */}
-        {!isAdmin && cardPrice && (
+        {!isAdmin && activeFuelCards.length > 0 && (
           <Card className="mb-6 bg-muted/50">
-            <CardContent className="py-3 flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                Fuel card price: <span className="font-semibold text-foreground">{cardPrice}p/litre</span>
-              </span>
+            <CardContent className="py-3 space-y-1">
+              {activeFuelCards.map(card => (
+                <div key={card.id} className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {card.card_name}: <span className="font-semibold text-foreground">{Number(card.price_per_litre)}p/litre</span>
+                  </span>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
@@ -485,13 +633,13 @@ const FuelFinderPage: React.FC = () => {
           </Card>
         )}
 
-        {/* All stations more expensive than fuel card */}
-        {searchTriggered && stations.length > 0 && cardPrice && stations.every((s) => s.diesel_price > cardPrice) && (
+        {/* All stations more expensive than cheapest fuel card */}
+        {searchTriggered && stations.length > 0 && cheapestCardPrice && cheapestCard && stations.every((s) => s.diesel_price > cheapestCardPrice) && (
           <Card className="mb-6 border-destructive/50 bg-destructive/5">
             <CardContent className="py-4 flex items-center gap-3">
               <CreditCard className="h-5 w-5 text-destructive" />
               <p className="text-sm font-medium text-destructive">
-                All stations are more expensive than your fuel card ({cardPrice}p). Use your fuel card!
+                All stations are more expensive than your {cheapestCard.card_name} ({cheapestCardPrice}p). Use your fuel card!
               </p>
             </CardContent>
           </Card>
@@ -602,7 +750,7 @@ const FuelFinderPage: React.FC = () => {
             {sortedStations.map((station, idx) => {
               const isCheapest = station.diesel_price === cheapestPrice;
               const isMostRecent = station.site_id === mostRecent?.site_id;
-              const moreExpensiveThanCard = cardPrice && station.diesel_price > cardPrice;
+              const moreExpensiveThanCard = cheapestCardPrice && station.diesel_price > cheapestCardPrice;
 
               return (
                 <Card
@@ -624,9 +772,9 @@ const FuelFinderPage: React.FC = () => {
                               <Clock className="h-3 w-3 mr-1" />Most Recent
                             </Badge>
                           )}
-                          {moreExpensiveThanCard && (
+                          {moreExpensiveThanCard && cheapestCard && (
                             <Badge variant="destructive" className="text-xs">
-                              <CreditCard className="h-3 w-3 mr-1" />Use fuel card
+                              <CreditCard className="h-3 w-3 mr-1" />Use {cheapestCard.card_name}
                             </Badge>
                           )}
                         </div>
