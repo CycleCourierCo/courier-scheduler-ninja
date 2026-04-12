@@ -75,3 +75,6 @@ verify_jwt = false
 
 [functions.predict-routes-v2]
 verify_jwt = false
+
+[functions.fuel-finder]
+verify_jwt = false

@@ -1,5 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { captureException, withSentry } from '../_shared/sentry.ts';
+import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const DEPOT_LAT = 52.4690197;
@@ -318,6 +319,11 @@ Deno.serve(async (req) => {
       const mode = body.mode || 'depot';
 
       if (mode === 'refresh') {
+        // Refresh requires admin or cron auth
+        const authResult = await requireAdminOrCronAuth(req);
+        if (!authResult.success) {
+          return createAuthErrorResponse(authResult.error || 'Unauthorized', authResult.status || 401);
+        }
         return await handleRefresh();
       } else {
         return await handleSearch(body);
