@@ -555,7 +555,7 @@ const FuelFinderPage: React.FC = () => {
             <RadioGroup value={mode} onValueChange={(v) => setMode(v as "depot" | "route")} className="mb-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="depot" id="depot" />
-                <Label htmlFor="depot" className="cursor-pointer">Start from Depot (B10 0AD)</Label>
+                <Label htmlFor="depot" className="cursor-pointer">Start from Depot</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="route" id="route" />
