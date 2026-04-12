@@ -34,6 +34,7 @@ import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitability
 import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabilityChart";
 import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
 import UnitEconomicsCard from "@/components/analytics/UnitEconomicsCard";
+import InvoiceVsCostComparison from "@/components/analytics/InvoiceVsCostComparison";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
