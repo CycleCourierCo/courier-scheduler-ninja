@@ -1,28 +1,22 @@
 
 
-## Show Driver Info & Editable Notes on Order Detail
+## Fix: Move BST adjustment after date variable declarations
 
-### What changes
+### Root cause
+The BST fix placed the `adjustTimeForShipday()` calls on lines 182-190, but `expectedPickupDateFormatted` and `expectedDeliveryDateFormatted` aren't declared until lines 193-206. This causes `ReferenceError: Cannot access before initialization` every time the function runs, breaking all Shipday order creation.
 
-**1. Add Driver Assignment section to OrderDetail page**
-- Display `collection_driver_name` and `delivery_driver_name` in a new section visible to admin and route_planner roles
-- Show between the scheduled dates and the scheduling buttons area
-- Simple two-column layout: "Collection Driver" and "Delivery Driver" with the name or "Not assigned"
+### Fix
+**File: `supabase/functions/create-shipday-order/index.ts`**
 
-**2. Add editable Delivery Instructions & Notes section**
-- Add a new card/section on the OrderDetail page (visible to admin/route_planner) showing:
-  - **Delivery Instructions** (`delivery_instructions`) - editable textarea
-  - **Sender Notes** (`sender_notes`) - editable textarea  
-  - **Receiver Notes** (`receiver_notes`) - editable textarea
-- Each field has an inline edit button; clicking saves directly to the database via Supabase update
-- Non-admin users see these as read-only text (already partially handled via ContactDetails for sender/receiver notes)
+Move the BST adjustment block (lines 181-190) to after line 206 (after both date variables are declared and assigned). The reordered code:
 
-### Files changed
+1. Lines 178-179: Parse timeslots (unchanged)
+2. Lines 193-206: Declare and assign `expectedPickupDateFormatted` and `expectedDeliveryDateFormatted` (unchanged)
+3. **Then** apply BST adjustments and logging
 
-**`src/pages/OrderDetail.tsx`**
-- After the scheduled dates section (~line 1202), add a "Driver Assignment" display block showing `order.collection_driver_name` and `order.delivery_driver_name`
-- Before the contacts section, add an editable "Notes & Instructions" section with three textareas for `deliveryInstructions`, `senderNotes`, `receiverNotes` — each with a Save button that updates the order in Supabase
+Specifically:
+- Remove lines 181-190 (the `adjustTimeForShipday` calls and BST logging)
+- Insert them after line 209 (after the date console.log statements)
 
-### No database changes needed
-All fields (`collection_driver_name`, `delivery_driver_name`, `sender_notes`, `receiver_notes`, `delivery_instructions`) already exist on the `orders` table.
+Then redeploy the `create-shipday-order` edge function.
 
