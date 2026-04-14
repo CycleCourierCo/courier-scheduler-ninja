@@ -1,7 +1,8 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Package, Printer, RotateCcw, Truck, Save, Pencil } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
 import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
@@ -94,6 +95,80 @@ const safeFormat = (date: Date | string | null | undefined, formatStr: string): 
     console.error("Error formatting date in OrderDetail:", error, date);
     return "Date error";
   }
+};
+
+// Editable Notes Section Component
+const EditableNotesSection = ({ order, onUpdate }: { order: Order; onUpdate: () => void }) => {
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [deliveryInstructions, setDeliveryInstructions] = useState(order.deliveryInstructions || '');
+  const [senderNotes, setSenderNotes] = useState(order.senderNotes || '');
+  const [receiverNotes, setReceiverNotes] = useState(order.receiverNotes || '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDeliveryInstructions(order.deliveryInstructions || '');
+    setSenderNotes(order.senderNotes || '');
+    setReceiverNotes(order.receiverNotes || '');
+  }, [order.deliveryInstructions, order.senderNotes, order.receiverNotes]);
+
+  const handleSave = async (field: string) => {
+    setSaving(true);
+    const fieldMap: Record<string, { dbField: string; value: string }> = {
+      deliveryInstructions: { dbField: 'delivery_instructions', value: deliveryInstructions },
+      senderNotes: { dbField: 'sender_notes', value: senderNotes },
+      receiverNotes: { dbField: 'receiver_notes', value: receiverNotes },
+    };
+    const { dbField, value } = fieldMap[field];
+    const { error } = await supabase
+      .from('orders')
+      .update({ [dbField]: value || null })
+      .eq('id', order.id);
+    setSaving(false);
+    if (error) {
+      toast.error('Failed to save: ' + error.message);
+    } else {
+      toast.success('Notes updated');
+      setEditingField(null);
+      onUpdate();
+    }
+  };
+
+  const renderField = (label: string, fieldKey: string, value: string, setValue: (v: string) => void) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium">{label}</h4>
+        {editingField !== fieldKey ? (
+          <Button variant="ghost" size="sm" onClick={() => setEditingField(fieldKey)}>
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+          </Button>
+        ) : (
+          <Button variant="default" size="sm" onClick={() => handleSave(fieldKey)} disabled={saving}>
+            <Save className="h-3.5 w-3.5 mr-1" /> {saving ? 'Saving...' : 'Save'}
+          </Button>
+        )}
+      </div>
+      {editingField === fieldKey ? (
+        <Textarea value={value} onChange={(e) => setValue(e.target.value)} rows={3} />
+      ) : (
+        <div className="bg-muted p-3 rounded-md min-h-[40px]">
+          <p className={value ? "text-sm whitespace-pre-wrap" : "text-sm text-muted-foreground"}>
+            {value || 'No notes'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Notes & Instructions</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {renderField('Delivery Instructions', 'deliveryInstructions', deliveryInstructions, setDeliveryInstructions)}
+        {renderField('Sender Notes', 'senderNotes', senderNotes, setSenderNotes)}
+        {renderField('Receiver Notes', 'receiverNotes', receiverNotes, setReceiverNotes)}
+      </div>
+    </div>
+  );
 };
 
 const OrderDetail = () => {
@@ -1201,6 +1276,34 @@ const OrderDetail = () => {
                 </div>
               </div>
 
+              {/* Driver Assignment Display */}
+              {isAdminOrRoutePlanner && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium flex items-center gap-1.5">
+                      <Truck className="h-4 w-4" />
+                      Collection Driver
+                    </h3>
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className={order.collection_driver_name ? "font-medium" : "text-muted-foreground"}>
+                        {order.collection_driver_name || "Not assigned"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium flex items-center gap-1.5">
+                      <Truck className="h-4 w-4" />
+                      Delivery Driver
+                    </h3>
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className={order.delivery_driver_name ? "font-medium" : "text-muted-foreground"}>
+                        {order.delivery_driver_name || "Not assigned"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Sender and Receiver Selected Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -1399,6 +1502,14 @@ const OrderDetail = () => {
               </div>
               <TrackingTimeline order={order} />
             </div>
+            
+            {/* Editable Notes & Instructions - admin/route_planner only */}
+            {isAdminOrRoutePlanner && (
+              <>
+                <Separator className="my-6" />
+                <EditableNotesSection order={order} onUpdate={handleRefreshOrder} />
+              </>
+            )}
             
             <Separator className="my-6" />
             
