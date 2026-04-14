@@ -1276,6 +1276,34 @@ const OrderDetail = () => {
                 </div>
               </div>
 
+              {/* Driver Assignment Display */}
+              {isAdminOrRoutePlanner && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium flex items-center gap-1.5">
+                      <Truck className="h-4 w-4" />
+                      Collection Driver
+                    </h3>
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className={order.collection_driver_name ? "font-medium" : "text-muted-foreground"}>
+                        {order.collection_driver_name || "Not assigned"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium flex items-center gap-1.5">
+                      <Truck className="h-4 w-4" />
+                      Delivery Driver
+                    </h3>
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className={order.delivery_driver_name ? "font-medium" : "text-muted-foreground"}>
+                        {order.delivery_driver_name || "Not assigned"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Sender and Receiver Selected Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
