@@ -177,17 +177,6 @@ serve(async (req) => {
     // Get the actual timeslots from the order
     const pickupWindow = parseTimeSlot(order.pickup_timeslot);
     const deliveryWindow = parseTimeSlot(order.delivery_timeslot);
-    
-    // Adjust times for BST so Shipday displays correctly
-    pickupWindow.start = adjustTimeForShipday(pickupWindow.start, expectedPickupDateFormatted);
-    pickupWindow.end = adjustTimeForShipday(pickupWindow.end, expectedPickupDateFormatted);
-    deliveryWindow.start = adjustTimeForShipday(deliveryWindow.start, expectedDeliveryDateFormatted);
-    deliveryWindow.end = adjustTimeForShipday(deliveryWindow.end, expectedDeliveryDateFormatted);
-    
-    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window (BST-adjusted):', pickupWindow);
-    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window (BST-adjusted):', deliveryWindow);
-    console.log('BST active for pickup date?', isDateInBST(expectedPickupDateFormatted));
-    console.log('BST active for delivery date?', isDateInBST(expectedDeliveryDateFormatted));
 
     // Get DATE portion from scheduled dates, default to tomorrow if not set
     let expectedPickupDateFormatted: string;
@@ -207,6 +196,17 @@ serve(async (req) => {
     
     console.log("Expected pickup date:", expectedPickupDateFormatted);
     console.log("Expected delivery date:", expectedDeliveryDateFormatted);
+
+    // Adjust times for BST so Shipday displays correctly
+    pickupWindow.start = adjustTimeForShipday(pickupWindow.start, expectedPickupDateFormatted);
+    pickupWindow.end = adjustTimeForShipday(pickupWindow.end, expectedPickupDateFormatted);
+    deliveryWindow.start = adjustTimeForShipday(deliveryWindow.start, expectedDeliveryDateFormatted);
+    deliveryWindow.end = adjustTimeForShipday(deliveryWindow.end, expectedDeliveryDateFormatted);
+    
+    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window (BST-adjusted):', pickupWindow);
+    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window (BST-adjusted):', deliveryWindow);
+    console.log('BST active for pickup date?', isDateInBST(expectedPickupDateFormatted));
+    console.log('BST active for delivery date?', isDateInBST(expectedDeliveryDateFormatted));
 
     // Build comprehensive delivery instructions with all order details
     const bikeInfo = order.bike_brand && order.bike_model 
