@@ -178,8 +178,16 @@ serve(async (req) => {
     const pickupWindow = parseTimeSlot(order.pickup_timeslot);
     const deliveryWindow = parseTimeSlot(order.delivery_timeslot);
     
-    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window:', pickupWindow);
-    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window:', deliveryWindow);
+    // Adjust times for BST so Shipday displays correctly
+    pickupWindow.start = adjustTimeForShipday(pickupWindow.start, expectedPickupDateFormatted);
+    pickupWindow.end = adjustTimeForShipday(pickupWindow.end, expectedPickupDateFormatted);
+    deliveryWindow.start = adjustTimeForShipday(deliveryWindow.start, expectedDeliveryDateFormatted);
+    deliveryWindow.end = adjustTimeForShipday(deliveryWindow.end, expectedDeliveryDateFormatted);
+    
+    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window (BST-adjusted):', pickupWindow);
+    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window (BST-adjusted):', deliveryWindow);
+    console.log('BST active for pickup date?', isDateInBST(expectedPickupDateFormatted));
+    console.log('BST active for delivery date?', isDateInBST(expectedDeliveryDateFormatted));
 
     // Get DATE portion from scheduled dates, default to tomorrow if not set
     let expectedPickupDateFormatted: string;
