@@ -1,39 +1,28 @@
 
 
-## Fix Shipday Time Offset (BST +1 Hour Issue)
+## Show Driver Info & Editable Notes on Order Detail
 
-### Root cause
-The `pickup_timeslot` and `delivery_timeslot` are stored as UK local times (e.g., "13:00" meaning 1pm BST). These are sent directly to Shipday as-is. Shipday interprets them as UTC, then displays in UK timezone (BST = UTC+1), resulting in times appearing 1 hour later than intended during British Summer Time.
+### What changes
 
-### Fix
-**File: `supabase/functions/create-shipday-order/index.ts`**
+**1. Add Driver Assignment section to OrderDetail page**
+- Display `collection_driver_name` and `delivery_driver_name` in a new section visible to admin and route_planner roles
+- Show between the scheduled dates and the scheduling buttons area
+- Simple two-column layout: "Collection Driver" and "Delivery Driver" with the name or "Not assigned"
 
-Add a helper function that determines whether a given date falls within BST (last Sunday in March to last Sunday in October), and if so, subtracts 1 hour from the timeslot values before sending to Shipday. This way, when Shipday adds the BST offset for display, the times match what was scheduled on the portal.
+**2. Add editable Delivery Instructions & Notes section**
+- Add a new card/section on the OrderDetail page (visible to admin/route_planner) showing:
+  - **Delivery Instructions** (`delivery_instructions`) - editable textarea
+  - **Sender Notes** (`sender_notes`) - editable textarea  
+  - **Receiver Notes** (`receiver_notes`) - editable textarea
+- Each field has an inline edit button; clicking saves directly to the database via Supabase update
+- Non-admin users see these as read-only text (already partially handled via ContactDetails for sender/receiver notes)
 
-Changes:
-1. Add a `isDateInBST(date: Date)` function that checks if a date falls within BST
-2. Add an `adjustTimeForShipday(timeStr: string, dateStr: string)` function that subtracts 1 hour from the time when the scheduled date is in BST
-3. Apply this adjustment to `pickupWindow.start`, `pickupWindow.end`, `deliveryWindow.start`, and `deliveryWindow.end` before building the Shipday payloads
+### Files changed
 
-### Example
-- Portal timeslot: 13:00 (BST)
-- Date is in BST period, so subtract 1 hour: send 12:00 to Shipday
-- Shipday interprets 12:00 UTC, displays as 13:00 BST -- correct
+**`src/pages/OrderDetail.tsx`**
+- After the scheduled dates section (~line 1202), add a "Driver Assignment" display block showing `order.collection_driver_name` and `order.delivery_driver_name`
+- Before the contacts section, add an editable "Notes & Instructions" section with three textareas for `deliveryInstructions`, `senderNotes`, `receiverNotes` — each with a Save button that updates the order in Supabase
 
-During GMT (winter), no adjustment is made since UK time = UTC.
-
-### Technical detail
-```
-function isDateInBST(date: Date): boolean {
-  // Check if date falls between last Sunday of March and last Sunday of October
-  const year = date.getUTCFullYear();
-  const marchLast = new Date(Date.UTC(year, 2, 31));
-  const bstStart = new Date(Date.UTC(year, 2, 31 - marchLast.getUTCDay(), 1, 0, 0));
-  const octLast = new Date(Date.UTC(year, 9, 31));
-  const bstEnd = new Date(Date.UTC(year, 9, 31 - octLast.getUTCDay(), 1, 0, 0));
-  return date >= bstStart && date < bstEnd;
-}
-```
-
-One file changed, no database changes needed. Redeploy the `create-shipday-order` edge function.
+### No database changes needed
+All fields (`collection_driver_name`, `delivery_driver_name`, `sender_notes`, `receiver_notes`, `delivery_instructions`) already exist on the `orders` table.
 
