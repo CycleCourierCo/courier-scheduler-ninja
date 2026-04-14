@@ -1503,6 +1503,14 @@ const OrderDetail = () => {
               <TrackingTimeline order={order} />
             </div>
             
+            {/* Editable Notes & Instructions - admin/route_planner only */}
+            {isAdminOrRoutePlanner && (
+              <>
+                <Separator className="my-6" />
+                <EditableNotesSection order={order} onUpdate={handleRefreshOrder} />
+              </>
+            )}
+            
             <Separator className="my-6" />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
