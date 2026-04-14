@@ -19,6 +19,29 @@ interface OrderRequest {
   deliveryInstruction?: string;
 }
 
+const isDateInBST = (dateStr: string): boolean => {
+  const date = new Date(dateStr + 'T12:00:00Z');
+  const year = date.getUTCFullYear();
+  // BST starts: last Sunday of March at 01:00 UTC
+  const marchLast = new Date(Date.UTC(year, 2, 31));
+  const bstStart = new Date(Date.UTC(year, 2, 31 - marchLast.getUTCDay(), 1, 0, 0));
+  // BST ends: last Sunday of October at 01:00 UTC
+  const octLast = new Date(Date.UTC(year, 9, 31));
+  const bstEnd = new Date(Date.UTC(year, 9, 31 - octLast.getUTCDay(), 1, 0, 0));
+  return date >= bstStart && date < bstEnd;
+};
+
+const adjustTimeForShipday = (timeStr: string, dateStr: string): string => {
+  if (!isDateInBST(dateStr)) return timeStr;
+  // Subtract 1 hour so Shipday's BST display matches portal time
+  const [hourStr, minuteStr] = timeStr.split(':');
+  let hour = parseInt(hourStr, 10) - 1;
+  if (hour < 0) hour = 0; // clamp to 00:00
+  const minute = minuteStr || '00';
+  const seconds = timeStr.split(':')[2] || '00';
+  return `${hour.toString().padStart(2, '0')}:${minute}:${seconds}`;
+};
+
 const formatDateForShipday = (date: Date | null) => {
   if (!date) return undefined;
   
@@ -155,8 +178,16 @@ serve(async (req) => {
     const pickupWindow = parseTimeSlot(order.pickup_timeslot);
     const deliveryWindow = parseTimeSlot(order.delivery_timeslot);
     
-    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window:', pickupWindow);
-    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window:', deliveryWindow);
+    // Adjust times for BST so Shipday displays correctly
+    pickupWindow.start = adjustTimeForShipday(pickupWindow.start, expectedPickupDateFormatted);
+    pickupWindow.end = adjustTimeForShipday(pickupWindow.end, expectedPickupDateFormatted);
+    deliveryWindow.start = adjustTimeForShipday(deliveryWindow.start, expectedDeliveryDateFormatted);
+    deliveryWindow.end = adjustTimeForShipday(deliveryWindow.end, expectedDeliveryDateFormatted);
+    
+    console.log('Pickup timeslot from order:', order.pickup_timeslot, '-> Window (BST-adjusted):', pickupWindow);
+    console.log('Delivery timeslot from order:', order.delivery_timeslot, '-> Window (BST-adjusted):', deliveryWindow);
+    console.log('BST active for pickup date?', isDateInBST(expectedPickupDateFormatted));
+    console.log('BST active for delivery date?', isDateInBST(expectedDeliveryDateFormatted));
 
     // Get DATE portion from scheduled dates, default to tomorrow if not set
     let expectedPickupDateFormatted: string;
