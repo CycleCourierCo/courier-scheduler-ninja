@@ -674,7 +674,7 @@ const BicycleInspections = () => {
                 Inspected by {inspection.inspected_by_name} on{" "}
                 {new Date(inspection.inspected_at).toLocaleDateString()}
               </p>
-              {isAdmin && inspection?.status === "inspected" && (
+              {(isAdmin || isMechanic) && inspection?.status === "inspected" && (
                 <Button
                   size="sm"
                   variant="outline"
