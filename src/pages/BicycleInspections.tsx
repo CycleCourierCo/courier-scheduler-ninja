@@ -614,8 +614,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Resolve Button (admin only, for issues_found status) */}
-                  {isAdmin && inspection?.status === "issues_found" && (issue.status === "approved" || issue.status === "declined") && (
+                  {/* Resolve Button (admin/mechanic, for issues_found status) */}
+                  {(isAdmin || isMechanic) && inspection?.status === "issues_found" && (issue.status === "approved" || issue.status === "declined") && (
                     <div className="mt-3">
                       <Button
                         size="sm"
