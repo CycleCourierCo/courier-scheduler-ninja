@@ -1,52 +1,26 @@
 
 
-## Fix Mechanic Permissions for Bicycle Inspections
+## Show "Mark as Repaired" button to mechanics
 
 ### Root cause
-RLS policies on `bicycle_inspections` and `inspection_issues` only allow `admin` (and order owners for SELECT). The `mechanic` role is completely missing, so for mechanics:
-- The inspection record can't be SELECTed → status badge always falls back to "Awaiting Inspection" and existing issues/notes don't display (this is the "status not showing" the user noticed).
-- Cannot INSERT a new inspection record → "Start Inspection" silently fails (`getOrCreateInspection` returns null).
-- Cannot UPDATE inspections → can't mark as inspected, move to in_repair, or repaired.
-- Cannot INSERT/UPDATE inspection_issues → can't report or mark issues repaired.
+`src/pages/BicycleInspections.tsx` line 598:
+```tsx
+{isAdmin && inspection?.status === "in_repair" && issue.status === "approved" && (
+```
+Only admins see the button. Mechanics are blocked even though they have RLS permission to update issues.
 
-UI already grants mechanics access (`canManageInspections = isAdmin || isMechanic` in `BicycleInspections.tsx`), but the database blocks every write.
-
-### Fix — single SQL migration
-
-Add `mechanic` to the relevant RLS policies (alongside existing `admin` checks):
-
-```text
-bicycle_inspections:
-  SELECT  → admin OR mechanic OR order owner
-  INSERT  → admin OR mechanic
-  UPDATE  → admin OR mechanic
-
-inspection_issues:
-  SELECT  → admin OR mechanic OR order owner
-  INSERT  → admin OR mechanic
-  UPDATE  → admin OR mechanic OR order owner (customer keeps approve/decline)
+### Fix
+Change the condition to:
+```tsx
+{(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
 ```
 
-DELETE remains admin-only.
+### Also check (same file)
+While there, verify other action buttons restricted to `isAdmin` that mechanics should also use — specifically anything in the In Repair tab workflow (e.g. "Move to Repaired" for the inspection, "Reset to Pending"). I'll audit all `isAdmin && ...` checks in `BicycleInspections.tsx` and broaden the operational ones (start inspection / report issue / mark repaired / move to repaired) to `isAdmin || isMechanic`. Destructive actions (delete) stay admin-only.
 
-Also confirm mechanics can SELECT the underlying `orders` rows they need. The existing `orders_authenticated_public_select_policy` (any authenticated user where `tracking_number IS NOT NULL`) already covers them, so no orders policy change needed.
+### Files
+- `src/pages/BicycleInspections.tsx` — single-file change, no DB or backend work needed (RLS already permits mechanic).
 
-### What this fixes
-- Inspection status badges (Issues Found / In Repair / Repaired) will display for mechanics.
-- Existing issues, notes, inspector name, etc. will show on mechanic cards.
-- "Start Inspection" checklist will save successfully.
-- Mechanic can mark issues, mark them repaired, and move bikes through the workflow.
-
-### About the storage location badge
-The location pill (e.g. "A12") difference between the two screenshots is just because those are different orders — one has `storage_locations` set, the other doesn't. No code change needed; once a bike has been allocated to a bay it will show for mechanics too (the `storage_locations` column is on the orders row mechanics can already read).
-
-### Files / changes
-- One new migration adding/replacing the six RLS policies above.
-- No frontend code changes required.
-
-### Verification after deploy
-- Log in as mechanic, open Bicycle Inspections → previously hidden status badges (Issues Found, In Repair, Repaired) should now appear on the relevant cards.
-- Click "Start Inspection" on an awaiting bike, complete the checklist with no issues → bike should move to "Inspected & Serviced".
-- Repeat with one issue added → bike should move to "Issues" tab.
-- After customer responds, mechanic should be able to mark the issue repaired and complete repairs.
+### Verification
+- Log in as mechanic → open an inspection in "In Repair" with an approved issue → "Mark as Repaired" button appears and works → once all approved issues are marked repaired, mechanic can move bike to "Repaired".
 
