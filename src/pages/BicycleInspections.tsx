@@ -594,8 +594,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Mark as Repaired Button (admin only for in_repair status, approved issues) */}
-                  {isAdmin && inspection?.status === "in_repair" && issue.status === "approved" && (
+                  {/* Mark as Repaired Button (admin/mechanic for in_repair status, approved issues) */}
+                  {(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
                     <div className="mt-3">
                       <Button
                         size="sm"
