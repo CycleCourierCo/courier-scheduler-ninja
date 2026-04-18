@@ -637,8 +637,8 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Complete Repairs Button (admin only for in_repair when all approved are repaired) */}
-          {isAdmin && inspection?.status === "in_repair" && allApprovedRepaired && (
+          {/* Complete Repairs Button (admin/mechanic for in_repair when all approved are repaired) */}
+          {(isAdmin || isMechanic) && inspection?.status === "in_repair" && allApprovedRepaired && (
             <div className="pt-2">
               <Button
                 onClick={() => completeRepairsMutation.mutate(inspection.id)}
