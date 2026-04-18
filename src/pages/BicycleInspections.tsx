@@ -594,8 +594,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Mark as Repaired Button (admin only for in_repair status, approved issues) */}
-                  {isAdmin && inspection?.status === "in_repair" && issue.status === "approved" && (
+                  {/* Mark as Repaired Button (admin/mechanic for in_repair status, approved issues) */}
+                  {(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -614,8 +614,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Resolve Button (admin only, for issues_found status) */}
-                  {isAdmin && inspection?.status === "issues_found" && (issue.status === "approved" || issue.status === "declined") && (
+                  {/* Resolve Button (admin/mechanic, for issues_found status) */}
+                  {(isAdmin || isMechanic) && inspection?.status === "issues_found" && (issue.status === "approved" || issue.status === "declined") && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -637,8 +637,8 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Complete Repairs Button (admin only for in_repair when all approved are repaired) */}
-          {isAdmin && inspection?.status === "in_repair" && allApprovedRepaired && (
+          {/* Complete Repairs Button (admin/mechanic for in_repair when all approved are repaired) */}
+          {(isAdmin || isMechanic) && inspection?.status === "in_repair" && allApprovedRepaired && (
             <div className="pt-2">
               <Button
                 onClick={() => completeRepairsMutation.mutate(inspection.id)}
@@ -674,7 +674,7 @@ const BicycleInspections = () => {
                 Inspected by {inspection.inspected_by_name} on{" "}
                 {new Date(inspection.inspected_at).toLocaleDateString()}
               </p>
-              {isAdmin && inspection?.status === "inspected" && (
+              {(isAdmin || isMechanic) && inspection?.status === "inspected" && (
                 <Button
                   size="sm"
                   variant="outline"
