@@ -1,41 +1,55 @@
 
 
-## Fix: BST adjustment missing in WhatsApp/SendZen Shipday updates
+## Fix: Route planner can't see opening hours + show only on the matching stop
 
 ### Root cause
-The original BST fix was added to `create-shipday-order` (initial Shipday job creation) but **not** to the two functions that **update** the Shipday job when an admin sends a timeslot:
-- `supabase/functions/send-timeslot-whatsapp/index.ts` (lines ~313, 391–405)
-- `supabase/functions/send-sendzen-whatsapp/index.ts` (lines ~145, 232–236)
 
-Both call `PUT https://api.shipday.com/order/edit/{shipdayId}` with `expectedPickupTime` / `expectedDeliveryTime` taken straight from the timeslot (e.g. `13:50:00`). Shipday treats those as UTC and adds the company's BST offset → portal shows `14:50`.
+**Issue 1 — Route planner sees no hours.** RLS on `profiles` only allows a user to SELECT their own row or admins to SELECT all (`Consolidated profiles SELECT policy`). The `route_planner` role is not granted access, so the query in `RouteBuilder.tsx` (lines 800–815) silently returns zero rows for non‑admins. Hence no badges in the route, and no hours block in the timeslot dialog.
 
-For order `CCC754236186579DANW11` the DB has `pickup_timeslot = 13:50:00`. The site renders `13:50–16:50` correctly. The most recent Shipday update came from one of these two functions (when the timeslot was sent), pushing `13:50/16:50` → Shipday displays `14:50/17:50`. This matches what the user sees.
+**Issue 2 — Hours show on the wrong stop.** A B2B account is usually the business at one end of a job (sender on outbound, receiver on inbound). Right now the badge/dialog uses the order's `user_id` opening hours for **both** pickup and delivery, even when that stop is actually a private customer at the other end. The hours should only apply when the stop's contact email matches the B2B account's email (or `accounts_email`).
 
 ### Fix
-Reuse the same BST helpers from `create-shipday-order`:
-```ts
-isDateInBST(dateStr: string): boolean
-adjustTimeForShipday(timeStr, dateStr): string  // subtracts 1h when in BST
+
+**1. RLS — let route planners read opening hours (and only that)**
+
+Create a security‑definer RPC `get_business_opening_hours(user_ids uuid[])` that returns `(id, email, accounts_email, opening_hours, is_business)` for the requested ids, gated to admin / route_planner / loader. This keeps the existing strict profiles SELECT policy intact (no PII leak) while exposing exactly the four fields needed for scheduling.
+
+Update `RouteBuilder.tsx` to call this RPC instead of `from('profiles').select(...)`. Store `email` / `accounts_email` alongside `opening_hours` in `profileOpeningHours` so the matching check below can run.
+
+**2. Match opening hours to the correct stop only**
+
+In `getOpeningHoursBadge` (and the dialog `selectedDayHours` block), add a `stopEmail` parameter and only return a badge when:
+
+```text
+stopEmail (lower-cased, trimmed) === profile.email
+  OR stopEmail === profile.accounts_email
 ```
 
-Apply them in both update functions just before building `requestBody`:
-```ts
-const adjustedStart = adjustTimeForShipday(expectedPickupTime,  expectedDeliveryDate);
-const adjustedEnd   = adjustTimeForShipday(expectedDeliveryTime, expectedDeliveryDate);
-```
-Then send `adjustedStart` / `adjustedEnd` as `expectedPickupTime` / `expectedDeliveryTime`.
+Wire it up at the call sites:
+- Job row badge (lines ~411 and ~498): pass `job.orderData.sender.email` for pickups, `job.orderData.receiver.email` for deliveries.
+- `TimeslotEditDialog`: change the `openingHours` prop to a small object `{ hours, profileEmail, profileAccountsEmail }` and only render the "Opening Hours …" / "Closed on …" / weekly summary blocks when the job's stop email matches.
 
-`expectedDeliveryDate` is already the right date string (handles end-of-day rollover), so it's the correct date to test BST against.
+If no match → no badge, no dialog block (treat as a regular residential stop).
 
 ### Files changed
-1. `supabase/functions/send-timeslot-whatsapp/index.ts` — add BST helpers (top of file) and adjust times before the `PUT /order/edit/{id}` call.
-2. `supabase/functions/send-sendzen-whatsapp/index.ts` — same change.
 
-No DB changes. No frontend changes. `create-shipday-order` already correct from the previous fix.
+1. **New migration** — `get_business_opening_hours(uuid[])` SECURITY DEFINER returning the four fields, with `EXECUTE` granted only when caller has `admin`, `route_planner`, or `loader` role (function body checks `has_role(auth.uid(), …)` and returns empty otherwise).
+2. **`src/components/scheduling/RouteBuilder.tsx`**
+   - Replace the `profiles` select with `supabase.rpc('get_business_opening_hours', { user_ids: userIds })`.
+   - Store `{ hours, email, accounts_email }` per user_id in state.
+   - Update `getOpeningHoursBadge` signature to accept `stopEmail` and short‑circuit to `null` when emails don't match.
+   - Pass the right stop email at both badge call sites.
+3. **`src/components/scheduling/TimeslotEditDialog.tsx`**
+   - Update `openingHours` prop shape to include profile email + accounts_email, plus the job's stop email.
+   - Only render the opening‑hours UI when emails match.
+
+No DB schema changes beyond the new function. No change to `create-shipday-order` / WhatsApp functions.
 
 ### Verification
-- After redeploy, re-trigger the timeslot send for `CCC754236186579DANW11` (or any current BST-dated order with timeslot `13:50`).
-- Check edge function logs — payload should now show `expectedPickupTime: "12:50:00"`, `expectedDeliveryTime: "15:50:00"`.
-- Shipday portal should display `13:50 – 16:50`, matching the website.
-- For a winter (GMT) date, no adjustment is applied — times pass through unchanged.
+
+- Log in as a `route_planner`, open Route Builder with a route containing a B2B order → opening‑hours badges appear (previously blank).
+- B2B account is the **sender** on order A: only the **collection** stop shows the hours badge / dialog block; the delivery (private receiver) shows nothing.
+- B2B account is the **receiver** on order B (return / restock): only the **delivery** stop shows hours.
+- Non‑business orders (private both ends) show no hours anywhere — unchanged.
+- Admin behaviour unchanged.
 
