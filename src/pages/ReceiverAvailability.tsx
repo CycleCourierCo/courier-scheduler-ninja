@@ -62,7 +62,8 @@ export default function ReceiverAvailability() {
     calendarEndDate,
     isConfirmed,
     confirmedDates,
-    confirmedNotes
+    confirmedNotes,
+    hasInspectionBuffer
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
@@ -131,6 +132,9 @@ export default function ReceiverAvailability() {
         onSubmit={handleSubmit}
         isDateDisabled={isDateDisabled}
         calendarEndDate={calendarEndDate}
+        bufferNotice={hasInspectionBuffer
+          ? "This bike will be inspected and serviced before delivery, so we've added a short gap between collection and delivery dates. Please pick dates from the earliest available."
+          : undefined}
       />
     </Layout>
   );
