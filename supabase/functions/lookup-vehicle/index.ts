@@ -57,11 +57,11 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) {
       return json({ error: "Unauthorized" }, 401);
     }
-    const userId = claimsData.claims.sub as string;
+    const userId = userData.user.id;
 
     const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
       _user_id: userId,
