@@ -32,8 +32,14 @@ export const VEHICLE_STATUS_OPTIONS: { value: VehicleStatus; label: string }[] =
   { value: "purchased", label: "Purchased" },
   { value: "in_prep", label: "In Prep" },
   { value: "in_use", label: "In Use" },
-  { value: "sold", label: "Sold" },
+  { value: "in_service", label: "In Service" },
+  { value: "in_repair", label: "In Repair" },
+  { value: "mot_due", label: "MOT Due" },
+  { value: "reserved", label: "Reserved" },
   { value: "off_road", label: "Off Road" },
+  { value: "awaiting_sale", label: "Awaiting Sale" },
+  { value: "sold", label: "Sold" },
+  { value: "written_off", label: "Written Off" },
 ];
 
 export const normaliseReg = (s: string) =>
