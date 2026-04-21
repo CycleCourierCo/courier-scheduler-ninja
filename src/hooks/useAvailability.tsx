@@ -36,6 +36,7 @@ export const useAvailability = ({
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [confirmedDates, setConfirmedDates] = useState<string[]>([]);
   const [confirmedNotes, setConfirmedNotes] = useState<string>("");
+  const [hasInspectionBuffer, setHasInspectionBuffer] = useState(false);
 
   // Fetch holiday dates on mount
   useEffect(() => {
