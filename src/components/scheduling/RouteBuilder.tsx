@@ -811,16 +811,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
     const fetchHours = async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, opening_hours')
-        .in('id', userIds);
+        .rpc('get_business_opening_hours' as any, { user_ids: userIds });
       if (error) {
         console.error('Error fetching opening hours:', error);
         return;
       }
       const mapped: Record<string, any> = {};
       (data || []).forEach((p: any) => {
-        if (p.opening_hours) mapped[p.id] = p.opening_hours;
+        if (p.opening_hours) {
+          mapped[p.id] = {
+            hours: p.opening_hours,
+            email: p.email,
+            accounts_email: p.accounts_email,
+          };
+        }
       });
       setProfileOpeningHours(mapped);
     };
