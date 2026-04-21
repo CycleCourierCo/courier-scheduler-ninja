@@ -798,6 +798,24 @@ const BicycleInspections = () => {
           </Card>
         ) : (
           <Tabs defaultValue="awaiting" className="space-y-4">
+            {canManageInspections && (
+              <div className="flex items-center justify-end gap-2">
+                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
+                  Sort by:
+                </Label>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                  <SelectTrigger id="sort-inspections" className="w-[220px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
+                    <SelectItem value="newest_collected">Newest collected first</SelectItem>
+                    <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
