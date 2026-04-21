@@ -78,6 +78,7 @@ const BicycleInspections = () => {
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
+  const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
