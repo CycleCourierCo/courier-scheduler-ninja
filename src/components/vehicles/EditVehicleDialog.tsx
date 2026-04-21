@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,6 +28,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
   const [londonAutoPay, setLondonAutoPay] = useState(false);
   const [dartford, setDartford] = useState(false);
   const [notes, setNotes] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -36,6 +38,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
       setLondonAutoPay(vehicle.london_auto_pay);
       setDartford(vehicle.dartford_crossing);
       setNotes(vehicle.notes ?? "");
+      setPurchaseDate(vehicle.purchase_date ?? "");
     }
   }, [vehicle]);
 
@@ -49,6 +52,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
         london_auto_pay: londonAutoPay,
         dartford_crossing: dartford,
         notes: notes || null,
+        purchase_date: purchaseDate || null,
       });
       toast.success("Vehicle updated");
       onSaved?.();
@@ -124,16 +128,27 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as VehicleStatus)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {VEHICLE_STATUS_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as VehicleStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {VEHICLE_STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="purchase-date-edit">Purchase date</Label>
+              <Input
+                id="purchase-date-edit"
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">

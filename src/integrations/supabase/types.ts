@@ -1639,6 +1639,7 @@ export type Database = {
           mot_expiry_date: string | null
           mot_status: string | null
           notes: string | null
+          purchase_date: string | null
           real_driving_emissions: string | null
           registration: string
           revenue_weight: number | null
@@ -1669,6 +1670,7 @@ export type Database = {
           mot_expiry_date?: string | null
           mot_status?: string | null
           notes?: string | null
+          purchase_date?: string | null
           real_driving_emissions?: string | null
           registration: string
           revenue_weight?: number | null
@@ -1699,6 +1701,7 @@ export type Database = {
           mot_expiry_date?: string | null
           mot_status?: string | null
           notes?: string | null
+          purchase_date?: string | null
           real_driving_emissions?: string | null
           registration?: string
           revenue_weight?: number | null

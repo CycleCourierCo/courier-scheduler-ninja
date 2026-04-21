@@ -168,6 +168,7 @@ const VehicleManagement = () => {
                     <TableHead>Registration</TableHead>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Purchased</TableHead>
                     <TableHead>Tax</TableHead>
                     <TableHead>MOT</TableHead>
                     <TableHead>Auto Pay</TableHead>
@@ -188,6 +189,11 @@ const VehicleManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell><VehicleStatusBadge status={v.status} /></TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {v.purchase_date
+                          ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                          : "—"}
+                      </TableCell>
                       <TableCell><ExpiryCell status={v.tax_status} date={v.tax_due_date} /></TableCell>
                       <TableCell><ExpiryCell status={v.mot_status} date={v.mot_expiry_date} /></TableCell>
                       <TableCell>
@@ -254,6 +260,11 @@ const VehicleManagement = () => {
                     <VehicleStatusBadge status={v.status} />
                   </div>
                   <div className="text-sm">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Purchased: {v.purchase_date
+                      ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                      : "—"}
+                  </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <div className="text-muted-foreground">Tax</div>
