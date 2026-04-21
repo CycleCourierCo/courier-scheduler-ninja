@@ -1,55 +1,86 @@
 
 
-## Fix: Route planner can't see opening hours + show only on the matching stop
+## Vehicle Management Page
 
-### Root cause
+A new admin page to manage the van fleet. Add a van by registration → DVLA VES API auto-populates details → store + display with status, London Auto Pay flag, and Dartford Crossing flag.
 
-**Issue 1 — Route planner sees no hours.** RLS on `profiles` only allows a user to SELECT their own row or admins to SELECT all (`Consolidated profiles SELECT policy`). The `route_planner` role is not granted access, so the query in `RouteBuilder.tsx` (lines 800–815) silently returns zero rows for non‑admins. Hence no badges in the route, and no hours block in the timeslot dialog.
+### Data model — new table `vehicles`
 
-**Issue 2 — Hours show on the wrong stop.** A B2B account is usually the business at one end of a job (sender on outbound, receiver on inbound). Right now the badge/dialog uses the order's `user_id` opening hours for **both** pickup and delivery, even when that stop is actually a private customer at the other end. The hours should only apply when the stop's contact email matches the B2B account's email (or `accounts_email`).
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | `gen_random_uuid()` |
+| `registration` | text UNIQUE (uppercased) | user input |
+| `status` | enum `vehicle_status` | `purchased`, `in_prep`, `in_use`, `sold`, `off_road` (default `purchased`) |
+| `london_auto_pay` | boolean | default false |
+| `dartford_crossing` | boolean | default false |
+| `make` / `colour` / `fuel_type` / `year_of_manufacture` | text/int | from VES |
+| `engine_capacity` | int | cc |
+| `co2_emissions` | int | g/km |
+| `tax_status` / `tax_due_date` | text / date | from VES |
+| `mot_status` / `mot_expiry_date` | text / date | from VES |
+| `date_of_last_v5c_issued` | date | from VES |
+| `marked_for_export` / `type_approval` / `wheelplan` / `revenue_weight` / `euro_status` / `real_driving_emissions` | misc | from VES |
+| `notes` | text | optional admin notes |
+| `ves_raw` | jsonb | full last response (debug / future fields) |
+| `last_refreshed_at` | timestamptz | when VES was last fetched |
+| `created_by` | uuid | `auth.uid()` |
+| `created_at` / `updated_at` | timestamptz | with trigger |
 
-### Fix
+RLS: admin-only for all CRUD (`has_role(uid,'admin')`), following the standard performance pattern. New enum `vehicle_status`.
 
-**1. RLS — let route planners read opening hours (and only that)**
+### DVLA VES integration
 
-Create a security‑definer RPC `get_business_opening_hours(user_ids uuid[])` that returns `(id, email, accounts_email, opening_hours, is_business)` for the requested ids, gated to admin / route_planner / loader. This keeps the existing strict profiles SELECT policy intact (no PII leak) while exposing exactly the four fields needed for scheduling.
+VES requires an API key in header `x-api-key`, POST to `https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles` with `{ "registrationNumber": "ABC123" }`.
 
-Update `RouteBuilder.tsx` to call this RPC instead of `from('profiles').select(...)`. Store `email` / `accounts_email` alongside `opening_hours` in `profileOpeningHours` so the matching check below can run.
+- New secret: `DVLA_VES_API_KEY` (request from user before deploying).
+- New edge function `lookup-vehicle` (admin-only via JWT + `has_role` check):
+  - Input: `{ registration }`
+  - Validates/normalises registration (strip spaces, uppercase, basic UK regex).
+  - Calls VES, returns mapped fields + raw payload.
+  - Handles 404 (not found) and 400 (bad reg) with clean errors.
+- Used by both "Add vehicle" and a per-row "Refresh from DVLA" button.
 
-**2. Match opening hours to the correct stop only**
+### Pages & components
 
-In `getOpeningHoursBadge` (and the dialog `selectedDayHours` block), add a `stopEmail` parameter and only return a badge when:
+- `src/pages/VehicleManagement.tsx` — wrapped in `Layout` + `ProtectedRoute` (admin only), route `/vehicles`. Table of all vans with: reg, make, colour, status badge, tax status + due, MOT status + expiry, London Auto Pay ✓, Dartford ✓, last refreshed, actions (Edit, Refresh, Delete).
+- `src/components/vehicles/AddVehicleDialog.tsx` — input registration → calls `lookup-vehicle` → preview fetched details → toggles for London Auto Pay / Dartford Crossing → status select → Save (insert into `vehicles`).
+- `src/components/vehicles/EditVehicleDialog.tsx` — edit status, the two toggles, notes; "Refresh from DVLA" re-runs lookup and updates DVLA-sourced fields + `last_refreshed_at`.
+- `src/components/vehicles/VehicleStatusBadge.tsx` — colour-coded badge for the 5 statuses.
+- `src/services/vehicleService.ts` — CRUD helpers + `invoke('lookup-vehicle')` wrapper.
+- Sidebar nav: add "Vehicles" entry (admin-only), icon `Truck`.
+- `App.tsx`: register `/vehicles` route.
 
-```text
-stopEmail (lower-cased, trimmed) === profile.email
-  OR stopEmail === profile.accounts_email
-```
+### UX details
 
-Wire it up at the call sites:
-- Job row badge (lines ~411 and ~498): pass `job.orderData.sender.email` for pickups, `job.orderData.receiver.email` for deliveries.
-- `TimeslotEditDialog`: change the `openingHours` prop to a small object `{ hours, profileEmail, profileAccountsEmail }` and only render the "Opening Hours …" / "Closed on …" / weekly summary blocks when the job's stop email matches.
+- Tax/MOT expiry highlighted amber if within 30 days, red if expired.
+- Status filter + search by reg.
+- After Add, row appears immediately with `last_refreshed_at = now()`.
+- Mobile: cards instead of table (matches existing patterns).
 
-If no match → no badge, no dialog block (treat as a regular residential stop).
+### Files
 
-### Files changed
+**New**
+- migration: `vehicle_status` enum + `vehicles` table + RLS + `update_updated_at` trigger.
+- `supabase/functions/lookup-vehicle/index.ts` (+ admin auth check, CORS, Zod validation).
+- `src/pages/VehicleManagement.tsx`
+- `src/components/vehicles/AddVehicleDialog.tsx`
+- `src/components/vehicles/EditVehicleDialog.tsx`
+- `src/components/vehicles/VehicleStatusBadge.tsx`
+- `src/services/vehicleService.ts`
 
-1. **New migration** — `get_business_opening_hours(uuid[])` SECURITY DEFINER returning the four fields, with `EXECUTE` granted only when caller has `admin`, `route_planner`, or `loader` role (function body checks `has_role(auth.uid(), …)` and returns empty otherwise).
-2. **`src/components/scheduling/RouteBuilder.tsx`**
-   - Replace the `profiles` select with `supabase.rpc('get_business_opening_hours', { user_ids: userIds })`.
-   - Store `{ hours, email, accounts_email }` per user_id in state.
-   - Update `getOpeningHoursBadge` signature to accept `stopEmail` and short‑circuit to `null` when emails don't match.
-   - Pass the right stop email at both badge call sites.
-3. **`src/components/scheduling/TimeslotEditDialog.tsx`**
-   - Update `openingHours` prop shape to include profile email + accounts_email, plus the job's stop email.
-   - Only render the opening‑hours UI when emails match.
+**Modified**
+- `src/App.tsx` — new route.
+- Sidebar component (admin nav) — new "Vehicles" link.
 
-No DB schema changes beyond the new function. No change to `create-shipday-order` / WhatsApp functions.
+### Pre-implementation step
+
+Request `DVLA_VES_API_KEY` secret. Sign up at the DVLA developer portal (link in your message), create an application for the Vehicle Enquiry Service, copy the API key, paste into the secret prompt. Nothing else is needed from your side.
 
 ### Verification
 
-- Log in as a `route_planner`, open Route Builder with a route containing a B2B order → opening‑hours badges appear (previously blank).
-- B2B account is the **sender** on order A: only the **collection** stop shows the hours badge / dialog block; the delivery (private receiver) shows nothing.
-- B2B account is the **receiver** on order B (return / restock): only the **delivery** stop shows hours.
-- Non‑business orders (private both ends) show no hours anywhere — unchanged.
-- Admin behaviour unchanged.
+- Add reg `AA19AAA` (or any real van reg) → preview shows make/colour/tax/MOT → save → row appears.
+- Toggle London Auto Pay / Dartford on the row → persists.
+- Change status to `in_prep` → badge updates.
+- Click Refresh on an existing row → `last_refreshed_at` updates, MOT/tax fields refresh.
+- Non-admin user navigating to `/vehicles` → redirected (ProtectedRoute).
 
