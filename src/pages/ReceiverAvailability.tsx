@@ -62,7 +62,8 @@ export default function ReceiverAvailability() {
     calendarEndDate,
     isConfirmed,
     confirmedDates,
-    confirmedNotes
+    confirmedNotes,
+    hasInspectionBuffer
   } = useAvailability({
     type: 'receiver',
     updateFunction: updateReceiverAvailability,
