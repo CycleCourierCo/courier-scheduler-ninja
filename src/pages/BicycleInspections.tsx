@@ -499,6 +499,11 @@ const BicycleInspections = () => {
               <CardDescription>
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              {order.customer_order_number && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Order #: <span className="font-medium">{order.customer_order_number}</span>
+                </p>
+              )}
               {/* Order status and storage location badges */}
               <div className="flex flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
@@ -512,6 +517,14 @@ const BicycleInspections = () => {
                       </Badge>
                     ))}
                   </>
+                )}
+                {canManageInspections && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {order.collection_confirmation_sent_at
+                      ? `Collected ${formatDistanceToNowStrict(new Date(order.collection_confirmation_sent_at))} ago`
+                      : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
+                  </Badge>
                 )}
               </div>
             </div>
