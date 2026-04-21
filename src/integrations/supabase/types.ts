@@ -1908,6 +1908,16 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_business_opening_hours: {
+        Args: { user_ids: string[] }
+        Returns: {
+          accounts_email: string
+          email: string
+          id: string
+          is_business: boolean
+          opening_hours: Json
+        }[]
+      }
       get_cron_secret: { Args: never; Returns: string }
       get_user_role: {
         Args: { user_id: string }
