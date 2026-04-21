@@ -44,6 +44,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   onSubmit,
   isDateDisabled,
   calendarEndDate,
+  bufferNotice,
 }) => {
   const today = startOfDay(new Date());
   const [validationError, setValidationError] = useState<string | null>(null);
