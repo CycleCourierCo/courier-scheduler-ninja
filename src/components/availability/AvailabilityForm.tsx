@@ -104,6 +104,14 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
+          {bufferNotice && (
+            <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-500/40">
+              <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertDescription className="text-amber-900 dark:text-amber-100">
+                {bufferNotice}
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex flex-col md:flex-row gap-8">
             <div className="flex-1">
               <h3 className="text-lg font-medium mb-4 flex items-center">
