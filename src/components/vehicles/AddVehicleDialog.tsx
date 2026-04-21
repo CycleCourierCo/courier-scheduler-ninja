@@ -33,6 +33,8 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
   const [londonAutoPay, setLondonAutoPay] = useState(false);
   const [dartford, setDartford] = useState(false);
   const [notes, setNotes] = useState("");
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const [purchaseDate, setPurchaseDate] = useState<string>(todayIso());
 
   const reset = () => {
     setRegistration("");
@@ -41,6 +43,7 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
     setLondonAutoPay(false);
     setDartford(false);
     setNotes("");
+    setPurchaseDate(todayIso());
   };
 
   const handleLookup = async () => {
@@ -68,6 +71,7 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
       await createVehicle({
         registration: details.registration,
         status,
+        purchase_date: purchaseDate || null,
         london_auto_pay: londonAutoPay,
         dartford_crossing: dartford,
         notes: notes || null,
@@ -148,16 +152,27 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as VehicleStatus)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {VEHICLE_STATUS_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as VehicleStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {VEHICLE_STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="purchase-date">Purchase date</Label>
+              <Input
+                id="purchase-date"
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">
