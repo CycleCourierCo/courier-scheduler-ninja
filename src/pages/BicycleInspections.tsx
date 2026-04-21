@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink } from "lucide-react";
+import { formatDistanceToNowStrict } from "date-fns";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
