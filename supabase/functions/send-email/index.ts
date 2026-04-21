@@ -723,6 +723,58 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       }
     }
 
+    // If this order needs inspection, send a follow-up "on the way to service centre" email to the receiver
+    if (order.needs_inspection && order.receiver && order.receiver.email) {
+      console.log("Order needs inspection — sending 'on the way to service centre' email to receiver:", order.receiver.email);
+
+      const serviceCentreHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Dear ${order.receiver.name || "Customer"},</h2>
+          <p>Your bicycle has been collected and is now on its way to our service centre.</p>
+          <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Order Details:</strong></p>
+            <p>- Tracking Number: ${order.tracking_number || "N/A"}</p>
+            ${order.customer_order_number ? `<p>- Customer Order Number: ${order.customer_order_number}</p>` : ""}
+            <p>- Bicycle: ${itemName}</p>
+          </div>
+          <div style="margin: 25px 0; padding: 15px; background-color: #fff8e6; border-radius: 5px; border-left: 4px solid #f59e0b;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">What happens next:</p>
+            <ol style="margin: 0; padding-left: 20px; color: #555;">
+              <li style="margin-bottom: 8px;">Our mechanics will inspect the bike and carry out any agreed work</li>
+              <li style="margin-bottom: 8px;">We'll be in touch once the service is complete to confirm your delivery date</li>
+              <li style="margin-bottom: 0;">Please allow a short gap between collection and delivery for the inspection and any servicing</li>
+            </ol>
+          </div>
+          <p>You can track progress at any time:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Track Your Order
+            </a>
+          </div>
+          <p>Thank you for choosing The Cycle Courier Co.</p>
+          <p>Best regards,<br>The Cycle Courier Co. Team</p>
+        </div>
+      `;
+
+      try {
+        const { error: serviceErr } = await resend.emails.send({
+          from: "Ccc@notification.cyclecourierco.com",
+          to: order.receiver.email,
+          subject: `Your bike is on the way to our service centre - ${order.tracking_number || orderId}`,
+          html: serviceCentreHtml,
+          reply_to: "Info@cyclecourierco.com"
+        });
+
+        if (serviceErr) {
+          console.error("Error sending service centre notification to receiver:", serviceErr);
+        } else {
+          console.log("Successfully sent 'on the way to service centre' email to receiver");
+        }
+      } catch (e) {
+        console.error("Exception sending service centre email:", e);
+      }
+    }
+
     // Check if receiver has no availability dates set - if so, send receiver availability email
     // This handles the case where senders skip setting dates but the bike is still collected
     const deliveryDate = order.delivery_date;
