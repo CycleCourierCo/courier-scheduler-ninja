@@ -192,9 +192,19 @@ const getOpeningHoursBadge = (
   jobType: 'pickup' | 'delivery' | 'break',
   estimatedTime: string | undefined,
   selectedDate: Date | undefined,
-  openingHours: any | undefined
+  profileEntry: { hours: any; email?: string | null; accounts_email?: string | null } | undefined,
+  stopEmail: string | undefined | null
 ): { text: string; color: string } | null => {
-  if (!openingHours || !selectedDate || jobType === 'break') return null;
+  if (!profileEntry || !profileEntry.hours || !selectedDate || jobType === 'break') return null;
+
+  // Only show hours when the stop's contact email matches the B2B account email
+  const normalizedStop = (stopEmail || '').toLowerCase().trim();
+  if (!normalizedStop) return null;
+  const profileEmail = (profileEntry.email || '').toLowerCase().trim();
+  const accountsEmail = (profileEntry.accounts_email || '').toLowerCase().trim();
+  if (normalizedStop !== profileEmail && normalizedStop !== accountsEmail) return null;
+
+  const openingHours = profileEntry.hours;
 
   const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayKey = days[selectedDate.getDay()];
