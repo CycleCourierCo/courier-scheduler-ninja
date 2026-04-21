@@ -1,26 +1,41 @@
 
 
-## Show "Mark as Repaired" button to mechanics
+## Fix: BST adjustment missing in WhatsApp/SendZen Shipday updates
 
 ### Root cause
-`src/pages/BicycleInspections.tsx` line 598:
-```tsx
-{isAdmin && inspection?.status === "in_repair" && issue.status === "approved" && (
-```
-Only admins see the button. Mechanics are blocked even though they have RLS permission to update issues.
+The original BST fix was added to `create-shipday-order` (initial Shipday job creation) but **not** to the two functions that **update** the Shipday job when an admin sends a timeslot:
+- `supabase/functions/send-timeslot-whatsapp/index.ts` (lines ~313, 391–405)
+- `supabase/functions/send-sendzen-whatsapp/index.ts` (lines ~145, 232–236)
+
+Both call `PUT https://api.shipday.com/order/edit/{shipdayId}` with `expectedPickupTime` / `expectedDeliveryTime` taken straight from the timeslot (e.g. `13:50:00`). Shipday treats those as UTC and adds the company's BST offset → portal shows `14:50`.
+
+For order `CCC754236186579DANW11` the DB has `pickup_timeslot = 13:50:00`. The site renders `13:50–16:50` correctly. The most recent Shipday update came from one of these two functions (when the timeslot was sent), pushing `13:50/16:50` → Shipday displays `14:50/17:50`. This matches what the user sees.
 
 ### Fix
-Change the condition to:
-```tsx
-{(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
+Reuse the same BST helpers from `create-shipday-order`:
+```ts
+isDateInBST(dateStr: string): boolean
+adjustTimeForShipday(timeStr, dateStr): string  // subtracts 1h when in BST
 ```
 
-### Also check (same file)
-While there, verify other action buttons restricted to `isAdmin` that mechanics should also use — specifically anything in the In Repair tab workflow (e.g. "Move to Repaired" for the inspection, "Reset to Pending"). I'll audit all `isAdmin && ...` checks in `BicycleInspections.tsx` and broaden the operational ones (start inspection / report issue / mark repaired / move to repaired) to `isAdmin || isMechanic`. Destructive actions (delete) stay admin-only.
+Apply them in both update functions just before building `requestBody`:
+```ts
+const adjustedStart = adjustTimeForShipday(expectedPickupTime,  expectedDeliveryDate);
+const adjustedEnd   = adjustTimeForShipday(expectedDeliveryTime, expectedDeliveryDate);
+```
+Then send `adjustedStart` / `adjustedEnd` as `expectedPickupTime` / `expectedDeliveryTime`.
 
-### Files
-- `src/pages/BicycleInspections.tsx` — single-file change, no DB or backend work needed (RLS already permits mechanic).
+`expectedDeliveryDate` is already the right date string (handles end-of-day rollover), so it's the correct date to test BST against.
+
+### Files changed
+1. `supabase/functions/send-timeslot-whatsapp/index.ts` — add BST helpers (top of file) and adjust times before the `PUT /order/edit/{id}` call.
+2. `supabase/functions/send-sendzen-whatsapp/index.ts` — same change.
+
+No DB changes. No frontend changes. `create-shipday-order` already correct from the previous fix.
 
 ### Verification
-- Log in as mechanic → open an inspection in "In Repair" with an approved issue → "Mark as Repaired" button appears and works → once all approved issues are marked repaired, mechanic can move bike to "Repaired".
+- After redeploy, re-trigger the timeslot send for `CCC754236186579DANW11` (or any current BST-dated order with timeslot `13:50`).
+- Check edge function logs — payload should now show `expectedPickupTime: "12:50:00"`, `expectedDeliveryTime: "15:50:00"`.
+- Shipday portal should display `13:50 – 16:50`, matching the website.
+- For a winter (GMT) date, no adjustment is applied — times pass through unchanged.
 
