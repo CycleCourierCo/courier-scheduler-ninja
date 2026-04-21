@@ -115,7 +115,10 @@ export const getPendingInspections = async () => {
         receiver,
         user_id,
         needs_inspection,
-        storage_locations
+        storage_locations,
+        customer_order_number,
+        collection_confirmation_sent_at,
+        created_at
       `)
       .eq('needs_inspection', true)
       .neq('status', 'cancelled')
