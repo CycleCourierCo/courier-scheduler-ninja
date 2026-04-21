@@ -3398,7 +3398,20 @@ Route Link: ${routeLink}`;
         }}
         isLoading={isSendingTimeslots}
         adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
-        openingHours={jobToEdit?.orderData?.user_id ? profileOpeningHours[jobToEdit.orderData.user_id] : undefined}
+        openingHours={(() => {
+          if (!jobToEdit?.orderData?.user_id) return undefined;
+          const entry = profileOpeningHours[jobToEdit.orderData.user_id];
+          if (!entry) return undefined;
+          const stopEmail = jobToEdit.type === 'pickup'
+            ? jobToEdit.orderData?.sender?.email
+            : jobToEdit.orderData?.receiver?.email;
+          return {
+            hours: entry.hours,
+            profileEmail: entry.email,
+            profileAccountsEmail: entry.accounts_email,
+            stopEmail,
+          };
+        })()}
       />
 
       <CSVMatchReviewDialog
