@@ -1,49 +1,26 @@
 
 
-## Quick status change + extra van statuses
+## Fix DVLA reg lookup (edge function 500)
 
-### New statuses (added to existing 5)
+### Root cause
+`supabase/functions/lookup-vehicle/index.ts` validates the caller using `supabase.auth.getClaims(token)`. That method doesn't exist on `@supabase/supabase-js@2.45.0`, so the function throws `TypeError: supabase.auth.getClaims is not a function` and returns a non-2xx — exactly the toast the user saw.
 
-The current set is: Purchased, In Prep, In Use, Sold, Off Road. I'd suggest adding these common van fleet states:
+### Fix
+Replace the claims call with the standard `auth.getUser(token)` pattern (same one used elsewhere in this project's edge functions):
 
-- **In Service** — booked in for routine servicing/tyres at a garage.
-- **In Repair** — broken down / awaiting parts (distinct from planned service).
-- **MOT Due** — flagged for upcoming MOT (lets you filter the fleet quickly).
-- **Awaiting Sale** — listed for sale but not yet sold (between "in use" and "sold").
-- **Written Off** — insurance write-off (distinct from "sold").
-- **Reserved** — assigned to a specific driver/route, not in the general pool.
+```ts
+const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+const userId = userData.user.id;
+```
 
-Each gets its own coloured badge in `VehicleStatusBadge.tsx` (e.g. service = sky, repair = orange, MOT due = yellow, awaiting sale = violet, written off = rose, reserved = teal).
-
-I'll ask below which of these you actually want — no point cluttering the dropdown with statuses you won't use.
-
-### Quick "Change status" button on each row
-
-On every vehicle row (and mobile card), add an inline status control so you don't have to open the Edit dialog:
-
-- Replace the static badge cell with a compact **DropdownMenu** triggered by the badge itself (looks like the badge, click → menu of all statuses with a tick next to current).
-- Picking a status calls `updateVehicle(id, { status })` immediately, optimistically updates the row, and shows a toast "AB12 CDE → In Prep".
-- Keeps the Edit pencil for full edits (notes, dates, toggles).
-
-Mobile: same pattern — tap the badge to change.
+Everything else (admin `has_role` RPC check, DVLA POST, response shape) stays the same.
 
 ### Files
-
-**Schema (migration)**
-- Extend the `vehicle_status` enum with the chosen new values (`ALTER TYPE ... ADD VALUE`).
-
-**Code**
-- `src/services/vehicleService.ts` — add new entries to `VEHICLE_STATUS_OPTIONS`.
-- `src/components/vehicles/VehicleStatusBadge.tsx` — colour classes + labels for new values.
-- `src/pages/VehicleManagement.tsx` — wrap badge in `DropdownMenu`; add `handleStatusChange(v, status)` with optimistic update + toast; reuse on desktop row + mobile card.
+- `supabase/functions/lookup-vehicle/index.ts` — swap `getClaims` → `getUser`.
 
 ### Verification
-
-- Click the badge on a row → menu lists all statuses with current one ticked → pick one → row updates immediately, toast confirms, no dialog opens.
-- Filter dropdown at the top includes all new statuses.
-- Refresh the page → status persisted.
-
-### One question before I build
-
-Which of the suggested extra statuses do you actually want? (Pick any combo — see the question below.)
+- Add Vehicle → type `MD71FDX` → click search → DVLA fields populate, no toast error.
+- Non-admin user → still gets 403.
+- No auth header → still gets 401.
 
