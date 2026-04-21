@@ -277,6 +277,7 @@ export const useAvailability = ({
     calendarEndDate,
     isConfirmed,
     confirmedDates,
-    confirmedNotes
+    confirmedNotes,
+    hasInspectionBuffer
   };
 };
