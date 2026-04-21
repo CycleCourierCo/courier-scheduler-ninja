@@ -44,6 +44,7 @@ import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import MyStockPage from "./pages/MyStockPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
+import VehicleManagement from "./pages/VehicleManagement";
 
 const queryClient = new QueryClient();
 
@@ -193,6 +194,11 @@ function App() {
               <Route path="/fuel-finder" element={
                 <ProtectedRoute>
                   <FuelFinderPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/vehicles" element={
+                <ProtectedRoute adminOnly={true}>
+                  <VehicleManagement />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />
