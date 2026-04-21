@@ -161,12 +161,12 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           )}
 
           {/* Show compact opening hours summary when no date selected */}
-          {!selectedDate && openingHours && (
+          {!selectedDate && effectiveOpeningHours && (
             <div className="space-y-1">
               <Label>Opening Hours</Label>
               <div className="text-xs bg-muted p-2 rounded-md space-y-0.5">
                 {DAY_NAMES.filter(day => day !== 'friday').map(day => {
-                  const d = openingHours[day];
+                  const d = effectiveOpeningHours[day];
                   return (
                     <div key={day} className="flex justify-between">
                       <span className="capitalize font-medium">{day.slice(0, 3)}</span>
