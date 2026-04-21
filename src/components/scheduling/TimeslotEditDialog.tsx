@@ -87,8 +87,15 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
   const senderNotes = job?.orderData?.sender_notes || job?.order?.senderNotes || null;
   const receiverNotes = job?.orderData?.receiver_notes || job?.order?.receiverNotes || null;
 
+  // Determine if this stop matches the B2B account email — only then show opening hours
+  const normalizedStop = (openingHours?.stopEmail || '').toLowerCase().trim();
+  const profileEmail = (openingHours?.profileEmail || '').toLowerCase().trim();
+  const accountsEmail = (openingHours?.profileAccountsEmail || '').toLowerCase().trim();
+  const stopMatchesBusiness = !!normalizedStop && (normalizedStop === profileEmail || normalizedStop === accountsEmail);
+  const effectiveOpeningHours = stopMatchesBusiness ? openingHours?.hours : undefined;
+
   // Get opening hours for the selected date
-  const selectedDayHours = selectedDate && openingHours ? openingHours[getDayKeyFromDate(selectedDate)] : null;
+  const selectedDayHours = selectedDate && effectiveOpeningHours ? effectiveOpeningHours[getDayKeyFromDate(selectedDate)] : null;
 
   if (!job) return null;
 
