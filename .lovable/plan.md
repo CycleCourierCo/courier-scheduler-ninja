@@ -1,61 +1,49 @@
 
 
-## Add purchase date + daily DVLA refresh cron
+## Quick status change + extra van statuses
 
-### 1. Schema change
+### New statuses (added to existing 5)
 
-Add to `vehicles` table:
-- `purchase_date date NULL` — when the van was bought (user input on add).
+The current set is: Purchased, In Prep, In Use, Sold, Off Road. I'd suggest adding these common van fleet states:
 
-Migration only adds the column; existing rows stay `NULL`.
+- **In Service** — booked in for routine servicing/tyres at a garage.
+- **In Repair** — broken down / awaiting parts (distinct from planned service).
+- **MOT Due** — flagged for upcoming MOT (lets you filter the fleet quickly).
+- **Awaiting Sale** — listed for sale but not yet sold (between "in use" and "sold").
+- **Written Off** — insurance write-off (distinct from "sold").
+- **Reserved** — assigned to a specific driver/route, not in the general pool.
 
-### 2. Add Vehicle dialog
+Each gets its own coloured badge in `VehicleStatusBadge.tsx` (e.g. service = sky, repair = orange, MOT due = yellow, awaiting sale = violet, written off = rose, reserved = teal).
 
-`src/components/vehicles/AddVehicleDialog.tsx`:
-- New "Purchase date" field (date input via shadcn `Input type="date"` for simplicity / mobile-friendly), shown alongside Status.
-- Default to today.
-- Pass `purchase_date` into `createVehicle()`.
+I'll ask below which of these you actually want — no point cluttering the dropdown with statuses you won't use.
 
-### 3. Edit Vehicle dialog
+### Quick "Change status" button on each row
 
-`src/components/vehicles/EditVehicleDialog.tsx`:
-- Add editable Purchase date field so existing vehicles can be back-filled.
+On every vehicle row (and mobile card), add an inline status control so you don't have to open the Edit dialog:
 
-### 4. Vehicle Management page
+- Replace the static badge cell with a compact **DropdownMenu** triggered by the badge itself (looks like the badge, click → menu of all statuses with a tick next to current).
+- Picking a status calls `updateVehicle(id, { status })` immediately, optimistically updates the row, and shows a toast "AB12 CDE → In Prep".
+- Keeps the Edit pencil for full edits (notes, dates, toggles).
 
-`src/pages/VehicleManagement.tsx`:
-- Add "Purchased" column in the table (formatted `dd MMM yyyy`, "—" if null).
-- Show on the mobile card too.
+Mobile: same pattern — tap the badge to change.
 
-### 5. Daily refresh cron
+### Files
 
-New edge function `supabase/functions/refresh-vehicles/index.ts`:
-- Auth: requires `X-Cron-Secret` header matching the existing `cron_secret` vault entry (same pattern as `invoke_generate_timeslips`).
-- Loads all vehicles, calls DVLA VES for each registration sequentially with a small delay (DVLA rate limits), updates DVLA-sourced fields + `last_refreshed_at` + `ves_raw`.
-- Logs counts (success / failed) without printing PII (just registrations + status code per the sanitization rules).
-- Failures on individual regs do not abort the run.
+**Schema (migration)**
+- Extend the `vehicle_status` enum with the chosen new values (`ALTER TYPE ... ADD VALUE`).
 
-DB cron job (via insert tool, not migration — contains anon key per `schedule-jobs-supabase-edge-functions` rule):
-- Wrapper SQL function `public.invoke_refresh_vehicles()` (SECURITY DEFINER) that fetches `cron_secret` from vault and `net.http_post`s the function — same pattern as `invoke_generate_timeslips`.
-- `cron.schedule('refresh-vehicles-daily', '0 3 * * *', $$ select public.invoke_refresh_vehicles(); $$)` — runs 03:00 UTC daily (off-peak).
-
-### 6. Files
-
-**New**
-- migration: `ALTER TABLE vehicles ADD COLUMN purchase_date date`.
-- `supabase/functions/refresh-vehicles/index.ts`.
-- DB function `invoke_refresh_vehicles` + cron job entry (via insert tool).
-
-**Modified**
-- `src/components/vehicles/AddVehicleDialog.tsx` — purchase date field.
-- `src/components/vehicles/EditVehicleDialog.tsx` — purchase date field.
-- `src/pages/VehicleManagement.tsx` — Purchased column / card line.
-- `src/services/vehicleService.ts` — type already inherits from generated `VehicleInsert/Update` so no manual change needed once migration runs.
+**Code**
+- `src/services/vehicleService.ts` — add new entries to `VEHICLE_STATUS_OPTIONS`.
+- `src/components/vehicles/VehicleStatusBadge.tsx` — colour classes + labels for new values.
+- `src/pages/VehicleManagement.tsx` — wrap badge in `DropdownMenu`; add `handleStatusChange(v, status)` with optimistic update + toast; reuse on desktop row + mobile card.
 
 ### Verification
 
-- Add a new van → pick purchase date → row shows the date in the table.
-- Edit an existing van → set purchase date → persists.
-- Manually invoke `refresh-vehicles` (with `X-Cron-Secret`) → all vehicles' `last_refreshed_at` updates; tax/MOT changes (if any) reflected.
-- Cron job listed in `cron.job` with schedule `0 3 * * *`.
+- Click the badge on a row → menu lists all statuses with current one ticked → pick one → row updates immediately, toast confirms, no dialog opens.
+- Filter dropdown at the top includes all new statuses.
+- Refresh the page → status persisted.
+
+### One question before I build
+
+Which of the suggested extra statuses do you actually want? (Pick any combo — see the question below.)
 
