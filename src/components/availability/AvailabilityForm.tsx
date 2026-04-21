@@ -28,6 +28,7 @@ interface AvailabilityFormProps {
   onSubmit: (e: React.FormEvent) => void;
   isDateDisabled?: (date: Date) => boolean;
   calendarEndDate?: Date;
+  bufferNotice?: string;
 }
 
 export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
