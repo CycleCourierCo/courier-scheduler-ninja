@@ -451,11 +451,27 @@ const BicycleInspections = () => {
     }
   };
 
+  // Sort inspections (admin/mechanic only - customers always see newest first by default query)
+  const sortedInspections = useMemo(() => {
+    if (!canManageInspections) return inspections;
+    const arr = [...inspections];
+    arr.sort((a: any, b: any) => {
+      if (sortBy === "tracking_asc") {
+        return (a.tracking_number || "").localeCompare(b.tracking_number || "");
+      }
+      // Use collection_confirmation_sent_at if available, fallback to created_at
+      const aTime = new Date(a.collection_confirmation_sent_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.collection_confirmation_sent_at || b.created_at || 0).getTime();
+      return sortBy === "oldest_collected" ? aTime - bTime : bTime - aTime;
+    });
+    return arr;
+  }, [inspections, sortBy, canManageInspections]);
+
   // Filter inspections by status
-  const awaitingInspection = inspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const withIssues = inspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const inRepair = inspections.filter((i: any) => i.inspection?.status === "in_repair");
-  const inspectedAndServiced = inspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const inRepair = sortedInspections.filter((i: any) => i.inspection?.status === "in_repair");
+  const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
