@@ -506,7 +506,8 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Opening Hours Badge */}
                       {(() => {
-                        const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id]);
+                        const stopEmail = job.type === 'pickup' ? job.orderData?.sender?.email : job.orderData?.receiver?.email;
+                        const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id], stopEmail);
                         return hoursBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
                             {hoursBadge.text}
