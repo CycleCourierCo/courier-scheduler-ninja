@@ -2071,7 +2071,18 @@ export type Database = {
         | "sales"
         | "driver"
         | "mechanic"
-      vehicle_status: "purchased" | "in_prep" | "in_use" | "sold" | "off_road"
+      vehicle_status:
+        | "purchased"
+        | "in_prep"
+        | "in_use"
+        | "sold"
+        | "off_road"
+        | "in_service"
+        | "in_repair"
+        | "mot_due"
+        | "awaiting_sale"
+        | "written_off"
+        | "reserved"
       warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
     CompositeTypes: {
@@ -2229,7 +2240,19 @@ export const Constants = {
         "driver",
         "mechanic",
       ],
-      vehicle_status: ["purchased", "in_prep", "in_use", "sold", "off_road"],
+      vehicle_status: [
+        "purchased",
+        "in_prep",
+        "in_use",
+        "sold",
+        "off_road",
+        "in_service",
+        "in_repair",
+        "mot_due",
+        "awaiting_sale",
+        "written_off",
+        "reserved",
+      ],
       warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],
     },
   },

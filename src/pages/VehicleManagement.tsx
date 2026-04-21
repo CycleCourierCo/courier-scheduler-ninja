@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
+import { Check, Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
 import EditVehicleDialog from "@/components/vehicles/EditVehicleDialog";
@@ -108,6 +109,42 @@ const VehicleManagement = () => {
     }
   };
 
+  const handleStatusChange = async (v: Vehicle, status: VehicleStatus) => {
+    if (v.status === status) return;
+    const prev = vehicles;
+    setVehicles((vs) => vs.map((x) => (x.id === v.id ? { ...x, status } : x)));
+    try {
+      await updateVehicle(v.id, { status });
+      const label = VEHICLE_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+      toast.success(`${v.registration} → ${label}`);
+    } catch (e) {
+      setVehicles(prev);
+      toast.error((e as Error).message);
+    }
+  };
+
+  const StatusDropdown = ({ v }: { v: Vehicle }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring rounded-full">
+          <VehicleStatusBadge status={v.status} className="hover:opacity-80 transition-opacity" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48">
+        {VEHICLE_STATUS_OPTIONS.map((o) => (
+          <DropdownMenuItem
+            key={o.value}
+            onClick={() => handleStatusChange(v, o.value)}
+            className="flex items-center justify-between"
+          >
+            <span>{o.label}</span>
+            {v.status === o.value && <Check className="h-4 w-4 text-primary" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const handleDelete = async (v: Vehicle) => {
     try {
       await deleteVehicle(v.id);
@@ -188,7 +225,7 @@ const VehicleManagement = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell><VehicleStatusBadge status={v.status} /></TableCell>
+                      <TableCell><StatusDropdown v={v} /></TableCell>
                       <TableCell className="text-sm whitespace-nowrap">
                         {v.purchase_date
                           ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
@@ -257,7 +294,7 @@ const VehicleManagement = () => {
                 <Card key={v.id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="font-mono font-semibold">{v.registration}</div>
-                    <VehicleStatusBadge status={v.status} />
+                    <StatusDropdown v={v} />
                   </div>
                   <div className="text-sm">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
                   <div className="text-xs text-muted-foreground">
