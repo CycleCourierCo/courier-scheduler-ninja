@@ -40,12 +40,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const cronSecret = req.headers.get("X-Cron-Secret");
-  const expected = Deno.env.get("CRON_SECRET");
-  if (!expected || cronSecret !== expected) {
-    return json({ error: "Unauthorized" }, 401);
-  }
-
   const apiKey = Deno.env.get("DVLA_VES_API_KEY");
   if (!apiKey) return json({ error: "Missing DVLA_VES_API_KEY" }, 500);
 
@@ -53,6 +47,13 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Validate cron secret against vault entry 'cron_secret'
+  const cronSecret = req.headers.get("X-Cron-Secret");
+  const { data: expected, error: secretErr } = await supabase.rpc("get_cron_secret");
+  if (secretErr || !expected || cronSecret !== expected) {
+    return json({ error: "Unauthorized" }, 401);
+  }
 
   const { data: vehicles, error } = await supabase
     .from("vehicles")
