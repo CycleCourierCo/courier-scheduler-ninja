@@ -36,6 +36,13 @@ interface AdminComment {
   created_at: string;
 }
 
+interface OpeningHoursPayload {
+  hours: OpeningHours;
+  profileEmail?: string | null;
+  profileAccountsEmail?: string | null;
+  stopEmail?: string | null;
+}
+
 interface TimeslotEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,7 +50,7 @@ interface TimeslotEditDialogProps {
   onConfirm: (job: SelectedJob, editedTime: string, selectedDate: Date) => void;
   isLoading?: boolean;
   adminComments?: AdminComment[];
-  openingHours?: OpeningHours;
+  openingHours?: OpeningHoursPayload;
 }
 
 const getDayKeyFromDate = (date: Date): keyof OpeningHours => {
@@ -80,8 +87,15 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
   const senderNotes = job?.orderData?.sender_notes || job?.order?.senderNotes || null;
   const receiverNotes = job?.orderData?.receiver_notes || job?.order?.receiverNotes || null;
 
+  // Determine if this stop matches the B2B account email — only then show opening hours
+  const normalizedStop = (openingHours?.stopEmail || '').toLowerCase().trim();
+  const profileEmail = (openingHours?.profileEmail || '').toLowerCase().trim();
+  const accountsEmail = (openingHours?.profileAccountsEmail || '').toLowerCase().trim();
+  const stopMatchesBusiness = !!normalizedStop && (normalizedStop === profileEmail || normalizedStop === accountsEmail);
+  const effectiveOpeningHours = stopMatchesBusiness ? openingHours?.hours : undefined;
+
   // Get opening hours for the selected date
-  const selectedDayHours = selectedDate && openingHours ? openingHours[getDayKeyFromDate(selectedDate)] : null;
+  const selectedDayHours = selectedDate && effectiveOpeningHours ? effectiveOpeningHours[getDayKeyFromDate(selectedDate)] : null;
 
   if (!job) return null;
 
@@ -129,7 +143,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           </div>
 
           {/* Opening Hours for selected date */}
-          {selectedDate && openingHours && (
+          {selectedDate && effectiveOpeningHours && (
             <div className="space-y-1">
               <Label>Opening Hours ({format(selectedDate, "EEEE")})</Label>
               {selectedDayHours ? (
@@ -147,12 +161,12 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           )}
 
           {/* Show compact opening hours summary when no date selected */}
-          {!selectedDate && openingHours && (
+          {!selectedDate && effectiveOpeningHours && (
             <div className="space-y-1">
               <Label>Opening Hours</Label>
               <div className="text-xs bg-muted p-2 rounded-md space-y-0.5">
                 {DAY_NAMES.filter(day => day !== 'friday').map(day => {
-                  const d = openingHours[day];
+                  const d = effectiveOpeningHours[day];
                   return (
                     <div key={day} className="flex justify-between">
                       <span className="capitalize font-medium">{day.slice(0, 3)}</span>

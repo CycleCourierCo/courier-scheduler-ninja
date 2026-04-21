@@ -1620,6 +1620,102 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          co2_emissions: number | null
+          colour: string | null
+          created_at: string
+          created_by: string | null
+          dartford_crossing: boolean
+          date_of_last_v5c_issued: string | null
+          engine_capacity: number | null
+          euro_status: string | null
+          fuel_type: string | null
+          id: string
+          last_refreshed_at: string | null
+          london_auto_pay: boolean
+          make: string | null
+          marked_for_export: boolean | null
+          mot_expiry_date: string | null
+          mot_status: string | null
+          notes: string | null
+          purchase_date: string | null
+          real_driving_emissions: string | null
+          registration: string
+          revenue_weight: number | null
+          status: Database["public"]["Enums"]["vehicle_status"]
+          tax_due_date: string | null
+          tax_status: string | null
+          type_approval: string | null
+          updated_at: string
+          ves_raw: Json | null
+          wheelplan: string | null
+          year_of_manufacture: number | null
+        }
+        Insert: {
+          co2_emissions?: number | null
+          colour?: string | null
+          created_at?: string
+          created_by?: string | null
+          dartford_crossing?: boolean
+          date_of_last_v5c_issued?: string | null
+          engine_capacity?: number | null
+          euro_status?: string | null
+          fuel_type?: string | null
+          id?: string
+          last_refreshed_at?: string | null
+          london_auto_pay?: boolean
+          make?: string | null
+          marked_for_export?: boolean | null
+          mot_expiry_date?: string | null
+          mot_status?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          real_driving_emissions?: string | null
+          registration: string
+          revenue_weight?: number | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          tax_due_date?: string | null
+          tax_status?: string | null
+          type_approval?: string | null
+          updated_at?: string
+          ves_raw?: Json | null
+          wheelplan?: string | null
+          year_of_manufacture?: number | null
+        }
+        Update: {
+          co2_emissions?: number | null
+          colour?: string | null
+          created_at?: string
+          created_by?: string | null
+          dartford_crossing?: boolean
+          date_of_last_v5c_issued?: string | null
+          engine_capacity?: number | null
+          euro_status?: string | null
+          fuel_type?: string | null
+          id?: string
+          last_refreshed_at?: string | null
+          london_auto_pay?: boolean
+          make?: string | null
+          marked_for_export?: boolean | null
+          mot_expiry_date?: string | null
+          mot_status?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          real_driving_emissions?: string | null
+          registration?: string
+          revenue_weight?: number | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          tax_due_date?: string | null
+          tax_status?: string | null
+          type_approval?: string | null
+          updated_at?: string
+          ves_raw?: Json | null
+          wheelplan?: string | null
+          year_of_manufacture?: number | null
+        }
+        Relationships: []
+      }
       warehouse_stock: {
         Row: {
           bay: string
@@ -1908,6 +2004,16 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_business_opening_hours: {
+        Args: { user_ids: string[] }
+        Returns: {
+          accounts_email: string
+          email: string
+          id: string
+          is_business: boolean
+          opening_hours: Json
+        }[]
+      }
       get_cron_secret: { Args: never; Returns: string }
       get_user_role: {
         Args: { user_id: string }
@@ -1931,6 +2037,7 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      invoke_refresh_vehicles: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
@@ -1964,6 +2071,18 @@ export type Database = {
         | "sales"
         | "driver"
         | "mechanic"
+      vehicle_status:
+        | "purchased"
+        | "in_prep"
+        | "in_use"
+        | "sold"
+        | "off_road"
+        | "in_service"
+        | "in_repair"
+        | "mot_due"
+        | "awaiting_sale"
+        | "written_off"
+        | "reserved"
       warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
     CompositeTypes: {
@@ -2120,6 +2239,19 @@ export const Constants = {
         "sales",
         "driver",
         "mechanic",
+      ],
+      vehicle_status: [
+        "purchased",
+        "in_prep",
+        "in_use",
+        "sold",
+        "off_road",
+        "in_service",
+        "in_repair",
+        "mot_due",
+        "awaiting_sale",
+        "written_off",
+        "reserved",
       ],
       warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],
     },

@@ -11,6 +11,28 @@ const corsHeaders = {
 
 type JobType = "pickup" | "delivery";
 
+// BST adjustment: Shipday treats time strings as UTC and adds the company's BST
+// offset for display, so during BST we subtract 1h from the outgoing time.
+function isDateInBST(dateStr: string): boolean {
+  const date = new Date(dateStr + "T12:00:00Z");
+  const year = date.getUTCFullYear();
+  const marchLast = new Date(Date.UTC(year, 2, 31));
+  const bstStart = new Date(Date.UTC(year, 2, 31 - marchLast.getUTCDay(), 1, 0, 0));
+  const octLast = new Date(Date.UTC(year, 9, 31));
+  const bstEnd = new Date(Date.UTC(year, 9, 31 - octLast.getUTCDay(), 1, 0, 0));
+  return date >= bstStart && date < bstEnd;
+}
+
+function adjustTimeForShipday(timeStr: string, dateStr: string): string {
+  if (!isDateInBST(dateStr)) return timeStr;
+  const parts = timeStr.split(":");
+  let hour = parseInt(parts[0], 10) - 1;
+  if (hour < 0) hour = 0;
+  const minute = parts[1] || "00";
+  const seconds = parts[2] || "00";
+  return `${hour.toString().padStart(2, "0")}:${minute}:${seconds}`;
+}
+
 interface RelatedJob {
   orderId: string;
   jobType: JobType;
@@ -231,8 +253,8 @@ async function updateShipday(
       customerPhoneNumber: jobContact?.phone,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
-      expectedPickupTime,
-      expectedDeliveryTime,
+      expectedPickupTime: adjustTimeForShipday(expectedPickupTime, expectedDeliveryDate),
+      expectedDeliveryTime: adjustTimeForShipday(expectedDeliveryTime, expectedDeliveryDate),
       expectedDeliveryDate,
       deliveryInstruction: allInstructions,
     };

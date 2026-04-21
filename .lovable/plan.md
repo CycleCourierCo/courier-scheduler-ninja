@@ -1,26 +1,26 @@
 
 
-## Show "Mark as Repaired" button to mechanics
+## Fix DVLA reg lookup (edge function 500)
 
 ### Root cause
-`src/pages/BicycleInspections.tsx` line 598:
-```tsx
-{isAdmin && inspection?.status === "in_repair" && issue.status === "approved" && (
-```
-Only admins see the button. Mechanics are blocked even though they have RLS permission to update issues.
+`supabase/functions/lookup-vehicle/index.ts` validates the caller using `supabase.auth.getClaims(token)`. That method doesn't exist on `@supabase/supabase-js@2.45.0`, so the function throws `TypeError: supabase.auth.getClaims is not a function` and returns a non-2xx — exactly the toast the user saw.
 
 ### Fix
-Change the condition to:
-```tsx
-{(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
+Replace the claims call with the standard `auth.getUser(token)` pattern (same one used elsewhere in this project's edge functions):
+
+```ts
+const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+const userId = userData.user.id;
 ```
 
-### Also check (same file)
-While there, verify other action buttons restricted to `isAdmin` that mechanics should also use — specifically anything in the In Repair tab workflow (e.g. "Move to Repaired" for the inspection, "Reset to Pending"). I'll audit all `isAdmin && ...` checks in `BicycleInspections.tsx` and broaden the operational ones (start inspection / report issue / mark repaired / move to repaired) to `isAdmin || isMechanic`. Destructive actions (delete) stay admin-only.
+Everything else (admin `has_role` RPC check, DVLA POST, response shape) stays the same.
 
 ### Files
-- `src/pages/BicycleInspections.tsx` — single-file change, no DB or backend work needed (RLS already permits mechanic).
+- `supabase/functions/lookup-vehicle/index.ts` — swap `getClaims` → `getUser`.
 
 ### Verification
-- Log in as mechanic → open an inspection in "In Repair" with an approved issue → "Mark as Repaired" button appears and works → once all approved issues are marked repaired, mechanic can move bike to "Repaired".
+- Add Vehicle → type `MD71FDX` → click search → DVLA fields populate, no toast error.
+- Non-admin user → still gets 403.
+- No auth header → still gets 401.
 

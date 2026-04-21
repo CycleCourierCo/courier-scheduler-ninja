@@ -192,9 +192,19 @@ const getOpeningHoursBadge = (
   jobType: 'pickup' | 'delivery' | 'break',
   estimatedTime: string | undefined,
   selectedDate: Date | undefined,
-  openingHours: any | undefined
+  profileEntry: { hours: any; email?: string | null; accounts_email?: string | null } | undefined,
+  stopEmail: string | undefined | null
 ): { text: string; color: string } | null => {
-  if (!openingHours || !selectedDate || jobType === 'break') return null;
+  if (!profileEntry || !profileEntry.hours || !selectedDate || jobType === 'break') return null;
+
+  // Only show hours when the stop's contact email matches the B2B account email
+  const normalizedStop = (stopEmail || '').toLowerCase().trim();
+  if (!normalizedStop) return null;
+  const profileEmail = (profileEntry.email || '').toLowerCase().trim();
+  const accountsEmail = (profileEntry.accounts_email || '').toLowerCase().trim();
+  if (normalizedStop !== profileEmail && normalizedStop !== accountsEmail) return null;
+
+  const openingHours = profileEntry.hours;
 
   const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayKey = days[selectedDate.getDay()];
@@ -408,7 +418,8 @@ const JobItem: React.FC<JobItemProps> = ({
                             })()}
                             {/* Opening Hours Badge */}
                             {(() => {
-                              const hoursBadge = getOpeningHoursBadge(groupedJob.type, groupedJob.estimatedTime, selectedDate, openingHoursMap[groupedJob.orderData?.user_id]);
+                              const stopEmail = groupedJob.type === 'pickup' ? groupedJob.orderData?.sender?.email : groupedJob.orderData?.receiver?.email;
+                              const hoursBadge = getOpeningHoursBadge(groupedJob.type, groupedJob.estimatedTime, selectedDate, openingHoursMap[groupedJob.orderData?.user_id], stopEmail);
                               return hoursBadge ? (
                                 <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
                                   {hoursBadge.text}
@@ -495,7 +506,8 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Opening Hours Badge */}
                       {(() => {
-                        const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id]);
+                        const stopEmail = job.type === 'pickup' ? job.orderData?.sender?.email : job.orderData?.receiver?.email;
+                        const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id], stopEmail);
                         return hoursBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
                             {hoursBadge.text}
@@ -799,16 +811,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
     const fetchHours = async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, opening_hours')
-        .in('id', userIds);
+        .rpc('get_business_opening_hours' as any, { user_ids: userIds });
       if (error) {
         console.error('Error fetching opening hours:', error);
         return;
       }
       const mapped: Record<string, any> = {};
       (data || []).forEach((p: any) => {
-        if (p.opening_hours) mapped[p.id] = p.opening_hours;
+        if (p.opening_hours) {
+          mapped[p.id] = {
+            hours: p.opening_hours,
+            email: p.email,
+            accounts_email: p.accounts_email,
+          };
+        }
       });
       setProfileOpeningHours(mapped);
     };
@@ -3382,7 +3398,20 @@ Route Link: ${routeLink}`;
         }}
         isLoading={isSendingTimeslots}
         adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
-        openingHours={jobToEdit?.orderData?.user_id ? profileOpeningHours[jobToEdit.orderData.user_id] : undefined}
+        openingHours={(() => {
+          if (!jobToEdit?.orderData?.user_id) return undefined;
+          const entry = profileOpeningHours[jobToEdit.orderData.user_id];
+          if (!entry) return undefined;
+          const stopEmail = jobToEdit.type === 'pickup'
+            ? jobToEdit.orderData?.sender?.email
+            : jobToEdit.orderData?.receiver?.email;
+          return {
+            hours: entry.hours,
+            profileEmail: entry.email,
+            profileAccountsEmail: entry.accounts_email,
+            stopEmail,
+          };
+        })()}
       />
 
       <CSVMatchReviewDialog
