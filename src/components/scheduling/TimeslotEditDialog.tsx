@@ -36,6 +36,13 @@ interface AdminComment {
   created_at: string;
 }
 
+interface OpeningHoursPayload {
+  hours: OpeningHours;
+  profileEmail?: string | null;
+  profileAccountsEmail?: string | null;
+  stopEmail?: string | null;
+}
+
 interface TimeslotEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,7 +50,7 @@ interface TimeslotEditDialogProps {
   onConfirm: (job: SelectedJob, editedTime: string, selectedDate: Date) => void;
   isLoading?: boolean;
   adminComments?: AdminComment[];
-  openingHours?: OpeningHours;
+  openingHours?: OpeningHoursPayload;
 }
 
 const getDayKeyFromDate = (date: Date): keyof OpeningHours => {
