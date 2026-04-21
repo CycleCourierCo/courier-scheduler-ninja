@@ -2037,6 +2037,7 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      invoke_refresh_vehicles: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
