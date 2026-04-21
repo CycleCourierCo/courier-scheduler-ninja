@@ -143,7 +143,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           </div>
 
           {/* Opening Hours for selected date */}
-          {selectedDate && openingHours && (
+          {selectedDate && effectiveOpeningHours && (
             <div className="space-y-1">
               <Label>Opening Hours ({format(selectedDate, "EEEE")})</Label>
               {selectedDayHours ? (
