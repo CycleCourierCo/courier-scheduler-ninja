@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink } from "lucide-react";
+import { formatDistanceToNowStrict } from "date-fns";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -77,6 +78,7 @@ const BicycleInspections = () => {
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
+  const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
@@ -449,11 +451,27 @@ const BicycleInspections = () => {
     }
   };
 
+  // Sort inspections (admin/mechanic only - customers always see newest first by default query)
+  const sortedInspections = useMemo(() => {
+    if (!canManageInspections) return inspections;
+    const arr = [...inspections];
+    arr.sort((a: any, b: any) => {
+      if (sortBy === "tracking_asc") {
+        return (a.tracking_number || "").localeCompare(b.tracking_number || "");
+      }
+      // Use collection_confirmation_sent_at if available, fallback to created_at
+      const aTime = new Date(a.collection_confirmation_sent_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.collection_confirmation_sent_at || b.created_at || 0).getTime();
+      return sortBy === "oldest_collected" ? aTime - bTime : bTime - aTime;
+    });
+    return arr;
+  }, [inspections, sortBy, canManageInspections]);
+
   // Filter inspections by status
-  const awaitingInspection = inspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const withIssues = inspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const inRepair = inspections.filter((i: any) => i.inspection?.status === "in_repair");
-  const inspectedAndServiced = inspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const inRepair = sortedInspections.filter((i: any) => i.inspection?.status === "in_repair");
+  const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
@@ -481,6 +499,11 @@ const BicycleInspections = () => {
               <CardDescription>
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              {order.customer_order_number && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Order #: <span className="font-medium">{order.customer_order_number}</span>
+                </p>
+              )}
               {/* Order status and storage location badges */}
               <div className="flex flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
@@ -494,6 +517,14 @@ const BicycleInspections = () => {
                       </Badge>
                     ))}
                   </>
+                )}
+                {canManageInspections && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {order.collection_confirmation_sent_at
+                      ? `Collected ${formatDistanceToNowStrict(new Date(order.collection_confirmation_sent_at))} ago`
+                      : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
+                  </Badge>
                 )}
               </div>
             </div>
@@ -767,6 +798,24 @@ const BicycleInspections = () => {
           </Card>
         ) : (
           <Tabs defaultValue="awaiting" className="space-y-4">
+            {canManageInspections && (
+              <div className="flex items-center justify-end gap-2">
+                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
+                  Sort by:
+                </Label>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                  <SelectTrigger id="sort-inspections" className="w-[220px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
+                    <SelectItem value="newest_collected">Newest collected first</SelectItem>
+                    <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting

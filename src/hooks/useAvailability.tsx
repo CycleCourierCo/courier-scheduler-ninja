@@ -36,6 +36,7 @@ export const useAvailability = ({
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [confirmedDates, setConfirmedDates] = useState<string[]>([]);
   const [confirmedNotes, setConfirmedNotes] = useState<string>("");
+  const [hasInspectionBuffer, setHasInspectionBuffer] = useState(false);
 
   // Fetch holiday dates on mount
   useEffect(() => {
@@ -129,8 +130,16 @@ export const useAvailability = ({
                 const earliestSenderDate = new Date(Math.min(...senderDates.map(date => date.getTime())));
                 console.log("Earliest sender date found:", earliestSenderDate.toISOString());
                 
-                // Set the minimum date to the earliest sender date
-                setMinDate(earliestSenderDate);
+                // If this order needs inspection, add a 3-day service buffer
+                if (fetchedOrder.needsInspection) {
+                  const bufferedDate = addDays(earliestSenderDate, 3);
+                  console.log("Inspection buffer applied. New min date:", bufferedDate.toISOString());
+                  setMinDate(bufferedDate);
+                  setHasInspectionBuffer(true);
+                } else {
+                  setMinDate(earliestSenderDate);
+                  setHasInspectionBuffer(false);
+                }
               } else {
                 console.log("No valid sender dates found, using default minimum date");
                 setMinDate(getMinDate());
@@ -268,6 +277,7 @@ export const useAvailability = ({
     calendarEndDate,
     isConfirmed,
     confirmedDates,
-    confirmedNotes
+    confirmedNotes,
+    hasInspectionBuffer
   };
 };
