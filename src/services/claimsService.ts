@@ -132,7 +132,8 @@ export interface DerivedClaimFields {
   customerPhone: string | null;
   collectionDate: string | null;
   deliveryDate: string | null;
-  driverName: string | null;
+  collectionDriverName: string | null;
+  deliveryDriverName: string | null;
   bikeMakeModel: string | null;
   declaredValue: number | null;
   senderPostcode: string | null;
@@ -180,7 +181,8 @@ export function deriveClaimFields(claim: Claim, order: ClaimOrder | null): Deriv
     customerPhone: recv.phone ?? send.phone ?? null,
     collectionDate: datePart(order?.scheduled_pickup_date ?? null),
     deliveryDate: datePart(order?.scheduled_delivery_date ?? null),
-    driverName: order?.delivery_driver_name ?? order?.collection_driver_name ?? null,
+    collectionDriverName: order?.collection_driver_name ?? null,
+    deliveryDriverName: order?.delivery_driver_name ?? null,
     bikeMakeModel,
     declaredValue: order?.bike_value ?? null,
     senderPostcode: send.postal_code ?? send.postalCode ?? null,
