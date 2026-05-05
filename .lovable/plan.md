@@ -1,47 +1,81 @@
+## Damage Claims Module — Internal Dashboard
 
+Admin-only case-management tool for handling damage/loss claims. No customer-facing surface; all entries created by staff.
 
-## Inspection improvements + service-buffer for delivery
+### Routes (added to `src/App.tsx`)
+- `/claims` — list view (admin only)
+- `/claims/new` — new claim form (admin only)
+- `/claims/:id` — individual claim view with tabs (admin only)
 
-### 1. Bicycle Inspections page — sorting + collected-for + customer order #
+All wrapped in `ProtectedRoute adminOnly`. Nav link "Claims" added to `src/components/Layout.tsx` desktop + mobile menus (admin-gated, near Vehicles).
 
-**File:** `src/pages/BicycleInspections.tsx`
+### Database (Supabase migration)
 
-- Add a sort dropdown (admin/mechanic only) above the tabs with options:
-  - Oldest collected first (default)
-  - Newest collected first
-  - Tracking # A→Z
-- To know "how long collected for", extend `getPendingInspections` and `getMyInspections` (`src/services/inspectionService.ts`) to also select `collection_confirmation_sent_at` and `created_at` on the order.
-- On each card (admin/mechanic view), show a small badge like:
-  - `Collected 4d ago` (using `collection_confirmation_sent_at`, formatted with `date-fns/formatDistanceToNowStrict`)
-  - If not yet collected, fall back to `Awaiting collection · created 2d ago`
-- On each card (customer view), if the order has a `customer_order_number`, show it under the tracking number line: `Order #: ABC-123`.
+**Enum** `claim_status`: `open | awaiting_info | under_review | offer_made | settled | rejected | closed`
+**Enum** `claim_damage_type`: `visible | concealed | loss | missing_parts`
 
-### 2. Service buffer on receiver availability
+**Table `claims`**
+- `id uuid pk`, `claim_ref text unique` (format `CLM-YYYY-XXXX`, generated server-side via sequence + trigger)
+- `status claim_status not null default 'open'`
+- Booking: `booking_ref text not null`, `order_id uuid null` (optional FK-style ref to `orders.id`), `customer_name`, `customer_email`, `customer_phone`, `collection_date date`, `delivery_date date`, `route_name`, `driver_name`
+- Bike: `bike_make_model`, `declared_value numeric`, `has_upgrades bool default false`, `upgrades_notes text`
+- Damage: `damage_type claim_damage_type`, `damage_description text`, `recorded_at_delivery text` (`yes|no|unknown`), `notification_date date`, `within_timeframe bool` (auto-computed)
+- Evidence checklist: 9 boolean columns (`ev_booking_ref`, `ev_pre_collection_photos`, `ev_delivery_photos`, `ev_full_bike_photos`, `ev_proof_ownership`, `ev_proof_value`, `ev_upgrade_details`, `ev_repair_estimate`, `ev_delivery_note`)
+- Assessment: `claim_kind text` (`repair|total_loss`), `assessor_appointed bool`, `assessor_name`, `repair_quote numeric`, `market_value numeric`, `betterment bool`, `betterment_amount numeric`, `betterment_reason text`, `recommended_settlement numeric`, `settlement_override_reason text`
+- Settlement: `offer_amount numeric`, `offer_date date`, `offer_accepted text` (`yes|no|pending`), `payment_reference text`, `settlement_notes text`, `title_transferred bool default false`
+- `internal_notes text` (free text from form)
+- `created_by uuid`, `created_at`, `updated_at`
 
-**Files:** `src/hooks/useAvailability.tsx`, `src/components/availability/AvailabilityForm.tsx`, `src/pages/ReceiverAvailability.tsx`
+**Table `claim_evidence_files`** — uploaded photos/docs
+- `id`, `claim_id`, `storage_path`, `file_name`, `mime_type`, `label`, `kind` (`photo|document`), `uploaded_by`, `uploaded_at`
 
-- In `useAvailability`, when `type === 'receiver'` AND `order.needsInspection === true`:
-  - After computing `earliestSenderDate`, add **3 calendar days** before using it as `minDate` (`addDays(earliestSenderDate, 3)`).
-  - Expose a new flag `hasInspectionBuffer: boolean` from the hook.
-- In `AvailabilityForm`, accept an optional `bufferNotice?: string` prop and, when set, render a yellow/info `Alert` above the calendar:
-  > "This bike will be inspected and serviced before delivery, so we've added a short gap between collection and delivery dates. Please pick dates from the earliest available."
-- `ReceiverAvailability.tsx` passes the notice when `hasInspectionBuffer` is true.
+**Table `claim_notes`** — chronological log
+- `id`, `claim_id`, `author_id`, `author_name`, `note text`, `created_at`
 
-### 3. Extra "on the way to service centre" email on collection
+**Table `claim_status_log`** — audit
+- `id`, `claim_id`, `from_status`, `to_status`, `changed_by`, `changed_by_name`, `changed_at`, `note text null`
+- Trigger on `claims` after status change inserts a row.
 
-**File:** `supabase/functions/send-email/index.ts` (`handleCollectionConfirmation`)
+**Sequence + trigger** for `claim_ref`: yearly sequence; `BEFORE INSERT` trigger sets `CLM-YYYY-` + zero-padded 4-digit number.
 
-- After the existing receiver "Bike Collected" email succeeds, if `order.needs_inspection === true`, send a **second** email to the receiver:
-  - Subject: `Your bike is on the way to our service centre - {tracking_number}`
-  - Body: Friendly note explaining the bike has been collected, will now be transported to our service centre for inspection and any agreed work, and they'll be contacted with delivery dates after the service is complete. Includes tracking link and customer order number if present.
-  - Uses the same `from`/`reply_to` config as the other emails.
-- Wrapped in its own try/catch so a failure doesn't block the flow. Gated so it only fires for inspection orders, and only on the first run (the existing `collection_confirmation_sent_at` guard already prevents repeats).
+**RLS**: all 4 tables enabled; admin-only via `has_role(auth.uid(), 'admin')` for SELECT/INSERT/UPDATE/DELETE (matches existing pattern, e.g. `bicycle_inspections`).
+
+**Storage bucket** `claim-evidence` (private). RLS on `storage.objects` restricts read/write to admins only.
+
+### Service layer — `src/services/claimsService.ts`
+Functions: `listClaims(filters)`, `getClaim(id)`, `createClaim(payload)`, `updateClaim(id, patch)`, `changeStatus(id, newStatus, note?)`, `addNote(id, note)`, `uploadEvidence(id, file, label, kind)`, `listEvidence(id)`, `deleteEvidence(fileId)`, `getStatusLog(id)`, `getClaimsStats()` (returns counts + month settled total + avg days to resolution).
+
+### UI components
+
+**`src/pages/ClaimsList.tsx`**
+- Header: title + green `+ New Claim` button (links to `/claims/new`)
+- Stats bar: 4 `StatsCard`s — Open Claims, Awaiting Response (= awaiting_info count), Settled This Month (£), Avg Days to Resolution
+- Search input (booking ref / customer / bike)
+- Filter chip row: All | Open | Under Review | Awaiting Info | Settled | Rejected | Closed (toggle buttons)
+- Table: Claim ID · Booking Ref · Customer · Bike · Damage Type · Date Opened · Status pill · Settlement £ · View. Row click and View button both navigate to `/claims/:id`.
+
+**`src/components/claims/ClaimStatusBadge.tsx`** — coloured pill per status (blue/amber/purple/teal/green/red/grey).
+
+**`src/pages/NewClaim.tsx`**
+- Single scrolling form, react-hook-form + zod validation.
+- Sections A–E exactly per spec (Booking, Bike, Damage, Evidence checklist, Internal Notes).
+- Live timeframe flag: computes gap between `delivery_date` (or scheduled date for non-delivery) and `notification_date`, shows green tick or red warning inline (does not block).
+- Bottom buttons: `Save as Draft` (status `open`, `internal_notes` only) and `Open Claim` (full payload, status `open`). Both redirect to `/claims/:id` after insert.
+
+**`src/pages/ClaimDetail.tsx`** — split layout
+- Left sticky panel: claim ref, big `ClaimStatusBadge`, booking ref, customer, bike, declared value, date opened, days open (computed), vertical timeline strip from `claim_status_log`.
+- Right panel `Tabs`:
+  - **Details** — same fields as new claim form, editable inline; `Save` button appears on dirty.
+  - **Evidence** — checklist toggles (auto-saved), photo grid + upload (`Input type=file` to Supabase Storage `claim-evidence/{claim_id}/...`), document attachments list, label field per upload.
+  - **Assessment** — claim_kind toggle, assessor fields, repair quote, market value, betterment toggle/amount/reason, computed cap = `min(repair_quote, market_value, declared_value)` shown read-only with "Recommended settlement" prefilled; manual override requires reason text.
+  - **Settlement** — offer amount/date, accepted radio, payment ref, notes; if `offer_amount >= declared_value`, show `Title Transfer` checkbox with confirmation note.
+  - **Notes & History** — chronological merged feed of `claim_notes` + `claim_status_log` (timestamps + author), add-note input + button.
+- Contextual action buttons (top-right of detail) per status table in spec; each calls `changeStatus()`. `Make Settlement Offer` opens a small modal capturing offer amount + date before transitioning to `offer_made`.
 
 ### Verification
-
-- Admin/mechanic on `/bicycle-inspections` sees a sort dropdown; cards show "Collected Nd ago" badges; sort order updates correctly.
-- Customer on `/bicycle-inspections` sees their `customer_order_number` on each card.
-- Inspection order: sender picks earliest 25 Apr → receiver page shows banner + earliest selectable date is 28 Apr.
-- Non-inspection order: receiver behaviour unchanged (no banner, no buffer).
-- Marking a Shipday job collected on an inspection order: receiver gets the standard "Bike Collected" email **and** a second "on the way to our service centre" email; non-inspection orders get only the standard one.
-
+- Admin lands on `/claims` → sees stats, empty table, can create a claim → claim appears with `CLM-2026-0001` ref.
+- Filter chips and search narrow the table.
+- Open claim → status badge, timeline, all 5 tabs render. Edit fields, upload a photo, add a note, change status → audit log entry appears.
+- Non-admin hitting `/claims` is redirected by `ProtectedRoute`.
+- Notification timeframe: visible damage with gap > 48h shows red warning; ≤48h shows green tick.
+- Settlement cap auto-calculates and is overridable with reason.
