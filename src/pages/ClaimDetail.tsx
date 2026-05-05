@@ -255,8 +255,15 @@ const ClaimDetail = () => {
       text: `${s.from_status ? `${s.from_status} → ` : "Created as "}${s.to_status}`,
       who: s.changed_by_name,
       kind: "status" as const,
+      isSystem: true,
     })),
-    ...notes.map((n) => ({ ts: n.created_at, text: n.note, who: n.author_name, kind: "note" as const })),
+    ...notes.map((n) => ({
+      ts: n.created_at,
+      text: n.note,
+      who: n.author_name,
+      kind: "note" as const,
+      isSystem: !!n.is_system,
+    })),
   ].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
 
   return (
@@ -268,6 +275,12 @@ const ClaimDetail = () => {
           </Button>
           <div className="flex flex-wrap gap-2">{actionButtons()}</div>
         </div>
+
+        <Card>
+          <CardContent className="p-3">
+            <ClaimStepper status={claim.status} />
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           {/* Sticky summary */}
