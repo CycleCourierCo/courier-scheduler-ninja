@@ -45,6 +45,9 @@ import WarehouseStockPage from "./pages/WarehouseStockPage";
 import MyStockPage from "./pages/MyStockPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
 import VehicleManagement from "./pages/VehicleManagement";
+import ClaimsList from "./pages/ClaimsList";
+import NewClaim from "./pages/NewClaim";
+import ClaimDetail from "./pages/ClaimDetail";
 
 const queryClient = new QueryClient();
 
