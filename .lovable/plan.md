@@ -1,23 +1,37 @@
-## Fix Claim Detail "Something went wrong" + show collection/delivery drivers
+## Step-by-Step Claim Workflow
 
-### Root cause
-`src/pages/ClaimDetail.tsx` calls `useMemo` for `derived` before the `if (!claim) return …` early return, then calls another `useMemo` for `cap` after it. When the claim finishes loading, the hook count changes between renders → React error #310 → ErrorFallback ("Something went wrong").
+### 1. Database migration
+- Add new values to `claim_status` enum: `opened`, `info_requested`, `info_provided`, `assessment`, `settlement_proposed`, `negotiation`, `settlement_agreed`.
+- Add `is_system boolean NOT NULL DEFAULT false` to `claim_notes`.
+- Existing values (`open`, `awaiting_info`, `under_review`, `offer_made`, `settled`, `rejected`, `closed`) remain valid; existing claims continue to work and are mapped to the nearest new step in the UI.
 
-### Changes
+### 2. Service layer (`src/services/claimsService.ts`)
+- Update `ClaimStatus` types and human labels for the 8-step flow + `rejected`.
+- Add `advanceClaim(id, extraData?)`:
+  - Determines next step from current status.
+  - Validates required data per step (e.g. `settlement_proposed` requires `offer_amount`).
+  - Updates the claim status and writes a system note to `claim_notes` (with `is_system=true`) describing the transition (e.g. "Settlement of £450.00 proposed on 5 May 2026 by Jane").
+- Keep manual note creation for ad-hoc admin notes.
 
-**`src/services/claimsService.ts`**
-- In `DerivedClaimFields`, replace `driverName: string | null` with:
-  - `collectionDriverName: string | null`
-  - `deliveryDriverName: string | null`
-- In `deriveClaimFields`, replace the `driverName` line with:
-  - `collectionDriverName: order?.collection_driver_name ?? null`
-  - `deliveryDriverName: order?.delivery_driver_name ?? null`
+### 3. UI (`src/pages/ClaimDetail.tsx`)
+- Add a horizontal `ClaimStepper` component at the top showing all 8 steps with current/done/upcoming states.
+- Replace ad-hoc status buttons with:
+  - Primary "Advance to: {Next Step}" button.
+  - Secondary "Reject claim" button (terminal).
+  - Step-specific dialog when extra data is needed (offer amount, settlement notes, payment reference, etc.).
+- Notes timeline: render system notes with a distinct style ("System") vs admin-typed notes.
+- Keep the existing free-form note input for manual notes.
 
-**`src/pages/ClaimDetail.tsx`**
-1. Move the `cap` `useMemo` (currently after the early return) up next to the `derived` `useMemo`, before `if (!claim || !derived) return …`. Make it null-safe by reading from `claim` + `draft` directly and returning `null` when `claim` is null. Keep the early return.
-2. In the sticky summary card, replace the single `Driver:` row with two rows:
-   - `Collection driver: {derived.collectionDriverName ?? "—"}`
-   - `Delivery driver: {derived.deliveryDriverName ?? "—"}`
-3. In the Linked Order panel (Details tab), do the same swap.
+### 4. Verification
+- Open a claim → starts at "Opened".
+- Click Advance → progresses through each step; dialogs appear where data is required.
+- Verify a system note is added in the timeline at every transition.
+- Confirm legacy claims still load and map to the nearest step.
 
-No DB migration, no new queries.
+### Step flow
+```text
+opened → info_requested → info_provided → assessment →
+settlement_proposed → negotiation (optional) →
+settlement_agreed → closed
+                              ↘ rejected (terminal, available any step)
+```
