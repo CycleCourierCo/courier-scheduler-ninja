@@ -11,12 +11,12 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClaimStatusBadge from "@/components/claims/ClaimStatusBadge";
 import ClaimStepper from "@/components/claims/ClaimStepper";
+import ClaimAdvanceDialog from "@/components/claims/ClaimAdvanceDialog";
 import {
   addNote,
   advanceClaim,
@@ -76,8 +76,7 @@ const ClaimDetail = () => {
   const [newNote, setNewNote] = useState("");
   const [uploadLabel, setUploadLabel] = useState("");
   const [uploadKind, setUploadKind] = useState<"photo" | "document">("photo");
-  const [offerOpen, setOfferOpen] = useState(false);
-  const [offerForm, setOfferForm] = useState({ amount: "", date: new Date().toISOString().slice(0, 10) });
+  const [advanceOpen, setAdvanceOpen] = useState(false);
 
   const reload = async () => {
     if (!id) return;
@@ -217,15 +216,29 @@ const ClaimDetail = () => {
   const isTerminal = !next;
 
   const onAdvanceClick = () => {
-    if (next === "settlement_proposed") {
-      setOfferForm({
-        amount: view.recommended_settlement?.toString() ?? view.offer_amount?.toString() ?? "",
-        date: new Date().toISOString().slice(0, 10),
-      });
-      setOfferOpen(true);
-      return;
+    if (!next) return;
+    setAdvanceOpen(true);
+  };
+
+  const handleAdvanceConfirm = async (extra: Partial<Claim>, manualNote?: string) => {
+    try {
+      // Persist any field updates first so advanceClaim's validation sees them.
+      if (Object.keys(extra).length > 0) {
+        await updateClaim(claim.id, extra);
+      }
+      const updated = await advanceClaim(claim.id, extra);
+      setClaim(updated);
+      if (manualNote) {
+        await addNote(claim.id, manualNote);
+      }
+      const [n, log] = await Promise.all([listNotes(claim.id), getStatusLog(claim.id)]);
+      setNotes(n);
+      setStatusLog(log);
+      toast.success(`Advanced to ${CLAIM_STATUSES.find((s) => s.value === updated.status)?.label}`);
+    } catch (e: any) {
+      toast.error(e.message);
+      throw e;
     }
-    handleAdvance();
   };
 
   const actionButtons = () => (
@@ -601,30 +614,15 @@ const ClaimDetail = () => {
           </Tabs>
         </div>
 
-        {/* Offer modal */}
-        <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Propose Settlement</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>Offer Amount (£)</Label><Input type="number" step="0.01" value={offerForm.amount} onChange={(e) => setOfferForm((f) => ({ ...f, amount: e.target.value }))} /></div>
-              <div><Label>Offer Date</Label><Input type="date" value={offerForm.date} onChange={(e) => setOfferForm((f) => ({ ...f, date: e.target.value }))} /></div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOfferOpen(false)}>Cancel</Button>
-              <Button
-                onClick={async () => {
-                  if (!offerForm.amount) { toast.error("Amount required"); return; }
-                  await handleAdvance({
-                    offer_amount: Number(offerForm.amount),
-                    offer_date: offerForm.date,
-                    offer_accepted: "pending",
-                  });
-                  setOfferOpen(false);
-                }}
-              >Propose Settlement</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {next && (
+          <ClaimAdvanceDialog
+            open={advanceOpen}
+            onOpenChange={setAdvanceOpen}
+            claim={claim}
+            nextStatus={next}
+            onConfirm={handleAdvanceConfirm}
+          />
+        )}
       </div>
     </Layout>
   );
