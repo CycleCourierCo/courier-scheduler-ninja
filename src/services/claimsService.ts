@@ -146,6 +146,7 @@ export interface ClaimNote {
   author_id: string | null;
   author_name: string | null;
   note: string;
+  is_system?: boolean;
   created_at: string;
 }
 
