@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,15 @@ import {
   getClaimsStats,
   listClaims,
   type Claim,
+  type ClaimOrder,
   type ClaimStatus,
   type ClaimsStats,
+  type DerivedClaimFields,
 } from "@/services/claimsService";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+
+type Row = { claim: Claim; order: ClaimOrder | null; derived: DerivedClaimFields };
 
 const FILTER_CHIPS: { value: ClaimStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -31,7 +35,7 @@ const damageLabel = (v: string | null) => DAMAGE_TYPES.find((d) => d.value === v
 
 const ClaimsList = () => {
   const navigate = useNavigate();
-  const [claims, setClaims] = useState<Claim[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
   const [stats, setStats] = useState<ClaimsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -40,8 +44,8 @@ const ClaimsList = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [c, s] = await Promise.all([listClaims({ status: statusFilter, search }), getClaimsStats()]);
-      setClaims(c);
+      const [r, s] = await Promise.all([listClaims({ status: statusFilter }), getClaimsStats()]);
+      setRows(r);
       setStats(s);
     } finally {
       setLoading(false);
@@ -53,15 +57,15 @@ const ClaimsList = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return claims;
+  const filtered = (() => {
+    if (!search.trim()) return rows;
     const s = search.trim().toLowerCase();
-    return claims.filter((c) =>
-      [c.claim_ref, c.booking_ref, c.customer_name, c.bike_make_model]
+    return rows.filter(({ claim, derived }) =>
+      [claim.claim_ref, derived.bookingRef, derived.customerName, derived.bikeMakeModel]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(s)),
     );
-  }, [claims, search]);
+  })();
 
   return (
     <Layout>
@@ -148,23 +152,23 @@ const ClaimsList = () => {
                 {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No claims found.</TableCell></TableRow>
                 )}
-                {!loading && filtered.map((c) => (
+                {!loading && filtered.map(({ claim, derived }) => (
                   <TableRow
-                    key={c.id}
+                    key={claim.id}
                     className="cursor-pointer"
-                    onClick={() => navigate(`/claims/${c.id}`)}
+                    onClick={() => navigate(`/claims/${claim.id}`)}
                   >
-                    <TableCell className="font-mono text-sm">{c.claim_ref}</TableCell>
-                    <TableCell>{c.booking_ref}</TableCell>
-                    <TableCell>{c.customer_name ?? "—"}</TableCell>
-                    <TableCell>{c.bike_make_model ?? "—"}</TableCell>
-                    <TableCell>{damageLabel(c.damage_type)}</TableCell>
-                    <TableCell>{format(new Date(c.created_at), "dd MMM yyyy")}</TableCell>
-                    <TableCell><ClaimStatusBadge status={c.status} /></TableCell>
-                    <TableCell>{fmtMoney(c.offer_amount)}</TableCell>
+                    <TableCell className="font-mono text-sm">{claim.claim_ref}</TableCell>
+                    <TableCell>{derived.bookingRef}</TableCell>
+                    <TableCell>{derived.customerName ?? "—"}</TableCell>
+                    <TableCell>{derived.bikeMakeModel ?? "—"}</TableCell>
+                    <TableCell>{damageLabel(claim.damage_type)}</TableCell>
+                    <TableCell>{format(new Date(claim.created_at), "dd MMM yyyy")}</TableCell>
+                    <TableCell><ClaimStatusBadge status={claim.status} /></TableCell>
+                    <TableCell>{fmtMoney(claim.offer_amount)}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Button asChild size="sm" variant="outline">
-                        <Link to={`/claims/${c.id}`}>View</Link>
+                        <Link to={`/claims/${claim.id}`}>View</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
