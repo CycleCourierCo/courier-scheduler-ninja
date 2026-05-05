@@ -12,9 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { format, formatDistanceToNowStrict } from "date-fns";
+import { format } from "date-fns";
 import ClaimStatusBadge from "@/components/claims/ClaimStatusBadge";
 import {
   addNote,
