@@ -605,7 +605,7 @@ const ClaimDetail = () => {
         {/* Offer modal */}
         <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Make Settlement Offer</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Propose Settlement</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label>Offer Amount (£)</Label><Input type="number" step="0.01" value={offerForm.amount} onChange={(e) => setOfferForm((f) => ({ ...f, amount: e.target.value }))} /></div>
               <div><Label>Offer Date</Label><Input type="date" value={offerForm.date} onChange={(e) => setOfferForm((f) => ({ ...f, date: e.target.value }))} /></div>
