@@ -341,7 +341,7 @@ export async function createClaim(payload: {
     ...payload,
     created_by: userData.user?.id,
     within_timeframe: withinTimeframe,
-    status: payload.status ?? "open",
+    status: payload.status ?? "opened",
   };
   const { data, error } = await (supabase as any).from("claims").insert(insertPayload).select("*").single();
   if (error) throw error;
