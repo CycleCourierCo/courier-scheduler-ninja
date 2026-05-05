@@ -614,30 +614,15 @@ const ClaimDetail = () => {
           </Tabs>
         </div>
 
-        {/* Offer modal */}
-        <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Propose Settlement</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>Offer Amount (£)</Label><Input type="number" step="0.01" value={offerForm.amount} onChange={(e) => setOfferForm((f) => ({ ...f, amount: e.target.value }))} /></div>
-              <div><Label>Offer Date</Label><Input type="date" value={offerForm.date} onChange={(e) => setOfferForm((f) => ({ ...f, date: e.target.value }))} /></div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOfferOpen(false)}>Cancel</Button>
-              <Button
-                onClick={async () => {
-                  if (!offerForm.amount) { toast.error("Amount required"); return; }
-                  await handleAdvance({
-                    offer_amount: Number(offerForm.amount),
-                    offer_date: offerForm.date,
-                    offer_accepted: "pending",
-                  });
-                  setOfferOpen(false);
-                }}
-              >Propose Settlement</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {next && (
+          <ClaimAdvanceDialog
+            open={advanceOpen}
+            onOpenChange={setAdvanceOpen}
+            claim={claim}
+            nextStatus={next}
+            onConfirm={handleAdvanceConfirm}
+          />
+        )}
       </div>
     </Layout>
   );
