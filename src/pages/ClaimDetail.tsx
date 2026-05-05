@@ -20,7 +20,6 @@ import ClaimStepper from "@/components/claims/ClaimStepper";
 import {
   addNote,
   advanceClaim,
-  canonicalStep,
   changeStatus,
   CLAIM_STATUSES,
   DAMAGE_TYPES,
