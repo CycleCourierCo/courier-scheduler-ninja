@@ -108,7 +108,7 @@ const NewClaim = () => {
         recorded_at_delivery: recordedAtDelivery || null,
         notification_date: notificationDate || null,
         internal_notes: internalNotes || null,
-        status: "open",
+        status: "opened",
       };
       if (!asDraft) {
         for (const f of EVIDENCE_FIELDS) payload[f.key] = !!evidence[f.key];

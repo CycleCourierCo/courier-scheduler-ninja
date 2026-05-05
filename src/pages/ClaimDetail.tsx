@@ -16,8 +16,10 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2, ExternalLink } from "lu
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClaimStatusBadge from "@/components/claims/ClaimStatusBadge";
+import ClaimStepper from "@/components/claims/ClaimStepper";
 import {
   addNote,
+  advanceClaim,
   changeStatus,
   CLAIM_STATUSES,
   DAMAGE_TYPES,
@@ -29,6 +31,8 @@ import {
   isWithinTimeframe,
   listEvidence,
   listNotes,
+  nextStep,
+  rejectClaim,
   TIMEFRAME_DAYS,
   updateClaim,
   uploadEvidence,
@@ -186,46 +190,63 @@ const ClaimDetail = () => {
   const tfOk = isWithinTimeframe(view.damage_type, derived.deliveryDate, view.notification_date);
   const daysOpen = Math.floor((Date.now() - new Date(claim.created_at).getTime()) / 86400000);
 
-  const actionButtons = () => {
-    switch (claim.status) {
-      case "open":
-        return (
-          <>
-            <Button size="sm" onClick={() => handleStatus("awaiting_info")}>Request More Info</Button>
-            <Button size="sm" onClick={() => handleStatus("under_review")}>Begin Review</Button>
-            <Button size="sm" variant="destructive" onClick={() => handleStatus("rejected")}>Reject Claim</Button>
-          </>
-        );
-      case "awaiting_info":
-        return (
-          <>
-            <Button size="sm" onClick={() => handleStatus("under_review")}>Mark Info Received</Button>
-            <Button size="sm" variant="destructive" onClick={() => handleStatus("rejected")}>Reject Claim</Button>
-          </>
-        );
-      case "under_review":
-        return (
-          <>
-            <Button size="sm" onClick={() => setOfferOpen(true)}>Make Settlement Offer</Button>
-            <Button size="sm" variant="destructive" onClick={() => handleStatus("rejected")}>Reject Claim</Button>
-          </>
-        );
-      case "offer_made":
-        return (
-          <>
-            <Button size="sm" onClick={() => handleStatus("settled", { offer_accepted: "yes" })}>Mark Accepted</Button>
-            <Button size="sm" variant="outline" onClick={() => handleStatus("under_review", { offer_accepted: "no" })}>Mark Declined</Button>
-          </>
-        );
-      case "settled":
-        return <Button size="sm" onClick={() => handleStatus("closed")}>Close Claim</Button>;
-      case "rejected":
-      case "closed":
-        return <Button size="sm" variant="outline" onClick={() => handleStatus("under_review")}>Reopen Claim</Button>;
-      default:
-        return null;
-    }
+  const handleAdvance = async (extra: Partial<Claim> = {}) => {
+    try {
+      const updated = await advanceClaim(claim.id, extra);
+      setClaim(updated);
+      const [n, log] = await Promise.all([listNotes(claim.id), getStatusLog(claim.id)]);
+      setNotes(n);
+      setStatusLog(log);
+      toast.success(`Advanced to ${CLAIM_STATUSES.find((s) => s.value === updated.status)?.label}`);
+    } catch (e: any) { toast.error(e.message); }
   };
+
+  const handleReject = async () => {
+    if (!confirm("Reject this claim? This is a terminal action.")) return;
+    try {
+      const updated = await rejectClaim(claim.id);
+      setClaim(updated);
+      const n = await listNotes(claim.id);
+      setNotes(n);
+      toast.success("Claim rejected");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const next = nextStep(claim.status);
+  const nextLabel = next ? CLAIM_STATUSES.find((s) => s.value === next)?.label : null;
+  const isTerminal = !next;
+
+  const onAdvanceClick = () => {
+    if (next === "settlement_proposed") {
+      setOfferForm({
+        amount: view.recommended_settlement?.toString() ?? view.offer_amount?.toString() ?? "",
+        date: new Date().toISOString().slice(0, 10),
+      });
+      setOfferOpen(true);
+      return;
+    }
+    handleAdvance();
+  };
+
+  const actionButtons = () => (
+    <>
+      {next && (
+        <Button size="sm" onClick={onAdvanceClick} className="bg-green-600 hover:bg-green-700 text-white">
+          Advance to: {nextLabel}
+        </Button>
+      )}
+      {!isTerminal && (
+        <Button size="sm" variant="destructive" onClick={handleReject}>
+          Reject Claim
+        </Button>
+      )}
+      {isTerminal && claim.status !== "rejected" && (
+        <Button size="sm" variant="outline" onClick={() => changeStatus(claim.id, "assessment").then(reload)}>
+          Reopen
+        </Button>
+      )}
+    </>
+  );
 
   const timeline = [
     ...statusLog.map((s) => ({
@@ -233,8 +254,15 @@ const ClaimDetail = () => {
       text: `${s.from_status ? `${s.from_status} → ` : "Created as "}${s.to_status}`,
       who: s.changed_by_name,
       kind: "status" as const,
+      isSystem: true,
     })),
-    ...notes.map((n) => ({ ts: n.created_at, text: n.note, who: n.author_name, kind: "note" as const })),
+    ...notes.map((n) => ({
+      ts: n.created_at,
+      text: n.note,
+      who: n.author_name,
+      kind: "note" as const,
+      isSystem: !!n.is_system,
+    })),
   ].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
 
   return (
@@ -246,6 +274,12 @@ const ClaimDetail = () => {
           </Button>
           <div className="flex flex-wrap gap-2">{actionButtons()}</div>
         </div>
+
+        <Card>
+          <CardContent className="p-3">
+            <ClaimStepper status={claim.status} />
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           {/* Sticky summary */}
@@ -551,9 +585,12 @@ const ClaimDetail = () => {
                 <CardContent className="space-y-3">
                   {timeline.length === 0 && <div className="text-sm text-muted-foreground">No activity yet.</div>}
                   {timeline.map((t, i) => (
-                    <div key={i} className="border-l-2 pl-3 border-primary/50">
+                    <div
+                      key={i}
+                      className={`border-l-2 pl-3 ${t.isSystem ? "border-muted-foreground/40 bg-muted/30 rounded-r py-1" : "border-primary/50"}`}
+                    >
                       <div className="text-xs text-muted-foreground">
-                        {format(new Date(t.ts), "dd MMM yyyy HH:mm")} · {t.who ?? "—"} · {t.kind === "status" ? "Status" : "Note"}
+                        {format(new Date(t.ts), "dd MMM yyyy HH:mm")} · {t.who ?? "—"} · {t.isSystem ? "System" : "Note"}
                       </div>
                       <div className="text-sm">{t.text}</div>
                     </div>
@@ -567,7 +604,7 @@ const ClaimDetail = () => {
         {/* Offer modal */}
         <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Make Settlement Offer</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Propose Settlement</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label>Offer Amount (£)</Label><Input type="number" step="0.01" value={offerForm.amount} onChange={(e) => setOfferForm((f) => ({ ...f, amount: e.target.value }))} /></div>
               <div><Label>Offer Date</Label><Input type="date" value={offerForm.date} onChange={(e) => setOfferForm((f) => ({ ...f, date: e.target.value }))} /></div>
@@ -577,14 +614,14 @@ const ClaimDetail = () => {
               <Button
                 onClick={async () => {
                   if (!offerForm.amount) { toast.error("Amount required"); return; }
-                  await handleStatus("offer_made", {
+                  await handleAdvance({
                     offer_amount: Number(offerForm.amount),
                     offer_date: offerForm.date,
                     offer_accepted: "pending",
                   });
                   setOfferOpen(false);
                 }}
-              >Send Offer</Button>
+              >Propose Settlement</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

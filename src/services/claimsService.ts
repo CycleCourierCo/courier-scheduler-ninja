@@ -1,13 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type ClaimStatus =
+  // New step-by-step workflow
+  | "opened"
+  | "info_requested"
+  | "info_provided"
+  | "assessment"
+  | "settlement_proposed"
+  | "negotiation"
+  | "settlement_agreed"
+  | "closed"
+  | "rejected"
+  // Legacy values (still valid; mapped to nearest new step in UI)
   | "open"
   | "awaiting_info"
   | "under_review"
   | "offer_made"
-  | "settled"
-  | "rejected"
-  | "closed";
+  | "settled";
 
 export type ClaimDamageType =
   | "visible"
@@ -16,14 +25,59 @@ export type ClaimDamageType =
   | "missing_parts";
 
 export const CLAIM_STATUSES: { value: ClaimStatus; label: string; tone: string }[] = [
-  { value: "open", label: "Open", tone: "bg-blue-500 text-white" },
-  { value: "awaiting_info", label: "Awaiting Info", tone: "bg-amber-500 text-white" },
-  { value: "under_review", label: "Under Review", tone: "bg-purple-500 text-white" },
-  { value: "offer_made", label: "Offer Made", tone: "bg-teal-500 text-white" },
-  { value: "settled", label: "Settled", tone: "bg-green-600 text-white" },
+  { value: "opened", label: "Opened", tone: "bg-blue-500 text-white" },
+  { value: "info_requested", label: "Information Requested", tone: "bg-amber-500 text-white" },
+  { value: "info_provided", label: "Information Provided", tone: "bg-amber-600 text-white" },
+  { value: "assessment", label: "Assessment", tone: "bg-purple-500 text-white" },
+  { value: "settlement_proposed", label: "Settlement Proposed", tone: "bg-teal-500 text-white" },
+  { value: "negotiation", label: "Negotiation", tone: "bg-orange-500 text-white" },
+  { value: "settlement_agreed", label: "Settlement Agreed", tone: "bg-green-500 text-white" },
+  { value: "closed", label: "Closed", tone: "bg-gray-600 text-white" },
   { value: "rejected", label: "Rejected", tone: "bg-red-500 text-white" },
-  { value: "closed", label: "Closed", tone: "bg-gray-500 text-white" },
+  // Legacy
+  { value: "open", label: "Opened", tone: "bg-blue-500 text-white" },
+  { value: "awaiting_info", label: "Information Requested", tone: "bg-amber-500 text-white" },
+  { value: "under_review", label: "Assessment", tone: "bg-purple-500 text-white" },
+  { value: "offer_made", label: "Settlement Proposed", tone: "bg-teal-500 text-white" },
+  { value: "settled", label: "Settlement Agreed", tone: "bg-green-500 text-white" },
 ];
+
+/** Linear workflow steps shown in the stepper. */
+export const CLAIM_STEPS: { value: ClaimStatus; label: string }[] = [
+  { value: "opened", label: "Opened" },
+  { value: "info_requested", label: "Info Requested" },
+  { value: "info_provided", label: "Info Provided" },
+  { value: "assessment", label: "Assessment" },
+  { value: "settlement_proposed", label: "Settlement Proposed" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "settlement_agreed", label: "Settlement Agreed" },
+  { value: "closed", label: "Closed" },
+];
+
+/** Map any (legacy or new) status to the canonical step value. */
+export function canonicalStep(status: ClaimStatus): ClaimStatus {
+  switch (status) {
+    case "open": return "opened";
+    case "awaiting_info": return "info_requested";
+    case "under_review": return "assessment";
+    case "offer_made": return "settlement_proposed";
+    case "settled": return "settlement_agreed";
+    default: return status;
+  }
+}
+
+export function stepIndex(status: ClaimStatus): number {
+  const c = canonicalStep(status);
+  return CLAIM_STEPS.findIndex((s) => s.value === c);
+}
+
+/** Returns the next step in the linear flow, or null if terminal. */
+export function nextStep(status: ClaimStatus): ClaimStatus | null {
+  if (status === "rejected" || status === "closed") return null;
+  const idx = stepIndex(status);
+  if (idx < 0 || idx >= CLAIM_STEPS.length - 1) return null;
+  return CLAIM_STEPS[idx + 1].value;
+}
 
 export const DAMAGE_TYPES: { value: ClaimDamageType; label: string }[] = [
   { value: "visible", label: "Visible Damage" },
@@ -92,6 +146,7 @@ export interface ClaimNote {
   author_id: string | null;
   author_name: string | null;
   note: string;
+  is_system?: boolean;
   created_at: string;
 }
 
@@ -286,7 +341,7 @@ export async function createClaim(payload: {
     ...payload,
     created_by: userData.user?.id,
     within_timeframe: withinTimeframe,
-    status: payload.status ?? "open",
+    status: payload.status ?? "opened",
   };
   const { data, error } = await (supabase as any).from("claims").insert(insertPayload).select("*").single();
   if (error) throw error;
@@ -313,7 +368,7 @@ export async function changeStatus(id: string, status: ClaimStatus, extra: Parti
   return updateClaim(id, { status, ...extra });
 }
 
-export async function addNote(claimId: string, note: string): Promise<ClaimNote> {
+async function getCurrentAuthor(): Promise<{ id: string | null; name: string | null }> {
   const { data: userData } = await supabase.auth.getUser();
   let authorName: string | null = null;
   if (userData.user?.id) {
@@ -324,13 +379,95 @@ export async function addNote(claimId: string, note: string): Promise<ClaimNote>
       .maybeSingle();
     authorName = prof?.name || prof?.email || null;
   }
+  return { id: userData.user?.id ?? null, name: authorName };
+}
+
+export async function addNote(
+  claimId: string,
+  note: string,
+  opts: { isSystem?: boolean } = {},
+): Promise<ClaimNote> {
+  const author = await getCurrentAuthor();
   const { data, error } = await (supabase as any)
     .from("claim_notes")
-    .insert({ claim_id: claimId, note, author_id: userData.user?.id, author_name: authorName })
+    .insert({
+      claim_id: claimId,
+      note,
+      author_id: author.id,
+      author_name: opts.isSystem ? "System" : author.name,
+      is_system: !!opts.isSystem,
+    })
     .select("*")
     .single();
   if (error) throw error;
   return data as ClaimNote;
+}
+
+const fmtMoneyLabel = (v: number | null | undefined) =>
+  v == null ? "—" : `£${Number(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const STEP_LABEL: Record<string, string> =
+  Object.fromEntries(CLAIM_STATUSES.map((s) => [s.value, s.label]));
+
+/**
+ * Advance the claim to the next step in the linear workflow.
+ * Validates required data and writes a system note describing the transition.
+ */
+export async function advanceClaim(
+  id: string,
+  extra: Partial<Claim> = {},
+): Promise<Claim> {
+  const { claim } = await getClaim(id);
+  const next = nextStep(claim.status);
+  if (!next) throw new Error("Claim is already at the final step.");
+
+  // Per-step validation
+  if (next === "settlement_proposed") {
+    const amount = (extra.offer_amount ?? claim.offer_amount) as number | null | undefined;
+    if (amount == null || Number.isNaN(Number(amount))) {
+      throw new Error("Settlement amount is required to propose a settlement.");
+    }
+  }
+  if (next === "settlement_agreed") {
+    if ((extra.offer_accepted ?? claim.offer_accepted) !== "yes") {
+      extra = { ...extra, offer_accepted: "yes" };
+    }
+  }
+  if (next === "closed") {
+    // No hard requirement, but ok
+  }
+
+  const updated = await updateClaim(id, { status: next, ...extra });
+  const author = await getCurrentAuthor();
+  const who = author.name ? ` by ${author.name}` : "";
+  const when = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  let msg = `Advanced to "${STEP_LABEL[next] ?? next}"${who} on ${when}.`;
+  if (next === "settlement_proposed") {
+    msg = `Settlement of ${fmtMoneyLabel(updated.offer_amount)} proposed${who} on ${when}.`;
+  } else if (next === "settlement_agreed") {
+    msg = `Settlement of ${fmtMoneyLabel(updated.offer_amount)} agreed${who} on ${when}.`;
+  } else if (next === "closed") {
+    msg = `Claim closed${who} on ${when}.`;
+  } else if (next === "info_requested") {
+    msg = `Information requested from customer${who} on ${when}.`;
+  } else if (next === "info_provided") {
+    msg = `Customer information received${who} on ${when}.`;
+  } else if (next === "assessment") {
+    msg = `Assessment started${who} on ${when}.`;
+  } else if (next === "negotiation") {
+    msg = `Settlement entered negotiation${who} on ${when}.`;
+  }
+  await addNote(id, msg, { isSystem: true });
+  return updated;
+}
+
+export async function rejectClaim(id: string, reason?: string): Promise<Claim> {
+  const updated = await updateClaim(id, { status: "rejected" });
+  const author = await getCurrentAuthor();
+  const who = author.name ? ` by ${author.name}` : "";
+  const when = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  await addNote(id, `Claim rejected${who} on ${when}${reason ? `: ${reason}` : "."}`, { isSystem: true });
+  return updated;
 }
 
 export async function listNotes(claimId: string): Promise<ClaimNote[]> {
@@ -427,12 +564,13 @@ export async function getClaimsStats(): Promise<ClaimsStats> {
   let settledThisMonth = 0;
   const resolutionDurations: number[] = [];
   for (const r of rows) {
-    if (r.status === "open") open++;
-    if (r.status === "awaiting_info") awaitingInfo++;
-    if (r.status === "settled" && new Date(r.updated_at).getTime() >= startMonth) {
+    const c = canonicalStep(r.status);
+    if (c === "opened") open++;
+    if (c === "info_requested" || c === "info_provided") awaitingInfo++;
+    if (c === "settlement_agreed" && new Date(r.updated_at).getTime() >= startMonth) {
       settledThisMonth += Number(r.offer_amount ?? 0);
     }
-    if (r.status === "settled" || r.status === "closed" || r.status === "rejected") {
+    if (c === "settlement_agreed" || c === "closed" || c === "rejected") {
       const days = (new Date(r.updated_at).getTime() - new Date(r.created_at).getTime()) / 86400000;
       if (days >= 0) resolutionDurations.push(days);
     }
