@@ -1,13 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type ClaimStatus =
+  // New step-by-step workflow
+  | "opened"
+  | "info_requested"
+  | "info_provided"
+  | "assessment"
+  | "settlement_proposed"
+  | "negotiation"
+  | "settlement_agreed"
+  | "closed"
+  | "rejected"
+  // Legacy values (still valid; mapped to nearest new step in UI)
   | "open"
   | "awaiting_info"
   | "under_review"
   | "offer_made"
-  | "settled"
-  | "rejected"
-  | "closed";
+  | "settled";
 
 export type ClaimDamageType =
   | "visible"
@@ -16,14 +25,59 @@ export type ClaimDamageType =
   | "missing_parts";
 
 export const CLAIM_STATUSES: { value: ClaimStatus; label: string; tone: string }[] = [
-  { value: "open", label: "Open", tone: "bg-blue-500 text-white" },
-  { value: "awaiting_info", label: "Awaiting Info", tone: "bg-amber-500 text-white" },
-  { value: "under_review", label: "Under Review", tone: "bg-purple-500 text-white" },
-  { value: "offer_made", label: "Offer Made", tone: "bg-teal-500 text-white" },
-  { value: "settled", label: "Settled", tone: "bg-green-600 text-white" },
+  { value: "opened", label: "Opened", tone: "bg-blue-500 text-white" },
+  { value: "info_requested", label: "Information Requested", tone: "bg-amber-500 text-white" },
+  { value: "info_provided", label: "Information Provided", tone: "bg-amber-600 text-white" },
+  { value: "assessment", label: "Assessment", tone: "bg-purple-500 text-white" },
+  { value: "settlement_proposed", label: "Settlement Proposed", tone: "bg-teal-500 text-white" },
+  { value: "negotiation", label: "Negotiation", tone: "bg-orange-500 text-white" },
+  { value: "settlement_agreed", label: "Settlement Agreed", tone: "bg-green-500 text-white" },
+  { value: "closed", label: "Closed", tone: "bg-gray-600 text-white" },
   { value: "rejected", label: "Rejected", tone: "bg-red-500 text-white" },
-  { value: "closed", label: "Closed", tone: "bg-gray-500 text-white" },
+  // Legacy
+  { value: "open", label: "Opened", tone: "bg-blue-500 text-white" },
+  { value: "awaiting_info", label: "Information Requested", tone: "bg-amber-500 text-white" },
+  { value: "under_review", label: "Assessment", tone: "bg-purple-500 text-white" },
+  { value: "offer_made", label: "Settlement Proposed", tone: "bg-teal-500 text-white" },
+  { value: "settled", label: "Settlement Agreed", tone: "bg-green-500 text-white" },
 ];
+
+/** Linear workflow steps shown in the stepper. */
+export const CLAIM_STEPS: { value: ClaimStatus; label: string }[] = [
+  { value: "opened", label: "Opened" },
+  { value: "info_requested", label: "Info Requested" },
+  { value: "info_provided", label: "Info Provided" },
+  { value: "assessment", label: "Assessment" },
+  { value: "settlement_proposed", label: "Settlement Proposed" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "settlement_agreed", label: "Settlement Agreed" },
+  { value: "closed", label: "Closed" },
+];
+
+/** Map any (legacy or new) status to the canonical step value. */
+export function canonicalStep(status: ClaimStatus): ClaimStatus {
+  switch (status) {
+    case "open": return "opened";
+    case "awaiting_info": return "info_requested";
+    case "under_review": return "assessment";
+    case "offer_made": return "settlement_proposed";
+    case "settled": return "settlement_agreed";
+    default: return status;
+  }
+}
+
+export function stepIndex(status: ClaimStatus): number {
+  const c = canonicalStep(status);
+  return CLAIM_STEPS.findIndex((s) => s.value === c);
+}
+
+/** Returns the next step in the linear flow, or null if terminal. */
+export function nextStep(status: ClaimStatus): ClaimStatus | null {
+  if (status === "rejected" || status === "closed") return null;
+  const idx = stepIndex(status);
+  if (idx < 0 || idx >= CLAIM_STEPS.length - 1) return null;
+  return CLAIM_STEPS[idx + 1].value;
+}
 
 export const DAMAGE_TYPES: { value: ClaimDamageType; label: string }[] = [
   { value: "visible", label: "Visible Damage" },
