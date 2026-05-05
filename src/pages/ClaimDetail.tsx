@@ -615,14 +615,14 @@ const ClaimDetail = () => {
               <Button
                 onClick={async () => {
                   if (!offerForm.amount) { toast.error("Amount required"); return; }
-                  await handleStatus("offer_made", {
+                  await handleAdvance({
                     offer_amount: Number(offerForm.amount),
                     offer_date: offerForm.date,
                     offer_accepted: "pending",
                   });
                   setOfferOpen(false);
                 }}
-              >Send Offer</Button>
+              >Propose Settlement</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
