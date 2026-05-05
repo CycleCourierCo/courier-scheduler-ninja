@@ -119,6 +119,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Car className="mr-2 h-4 w-4" />
                             Vehicles
                           </Link>
+                          <Link to="/claims" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <ShieldAlert className="mr-2 h-4 w-4" />
+                            Damage Claims
+                          </Link>
                           <Link to="/loading" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Package className="mr-2 h-4 w-4" />
                             Loading & Storage
