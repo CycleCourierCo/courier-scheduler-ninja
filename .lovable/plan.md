@@ -1,37 +1,28 @@
-## Step-by-Step Claim Workflow
+## Step-aware advance dialogs
 
-### 1. Database migration
-- Add new values to `claim_status` enum: `opened`, `info_requested`, `info_provided`, `assessment`, `settlement_proposed`, `negotiation`, `settlement_agreed`.
-- Add `is_system boolean NOT NULL DEFAULT false` to `claim_notes`.
-- Existing values (`open`, `awaiting_info`, `under_review`, `offer_made`, `settled`, `rejected`, `closed`) remain valid; existing claims continue to work and are mapped to the nearest new step in the UI.
+Right now the "Advance to: …" button only shows a settlement form, and every other step just bumps status with no context. We'll replace it with a single dialog that renders the form fields for whichever step you're moving into, then advances and writes a system note in one go.
 
-### 2. Service layer (`src/services/claimsService.ts`)
-- Update `ClaimStatus` types and human labels for the 8-step flow + `rejected`.
-- Add `advanceClaim(id, extraData?)`:
-  - Determines next step from current status.
-  - Validates required data per step (e.g. `settlement_proposed` requires `offer_amount`).
-  - Updates the claim status and writes a system note to `claim_notes` (with `is_system=true`) describing the transition (e.g. "Settlement of £450.00 proposed on 5 May 2026 by Jane").
-- Keep manual note creation for ad-hoc admin notes.
+### New component: `src/components/claims/ClaimAdvanceDialog.tsx`
+A dialog that adapts its body to `nextStatus`:
 
-### 3. UI (`src/pages/ClaimDetail.tsx`)
-- Add a horizontal `ClaimStepper` component at the top showing all 8 steps with current/done/upcoming states.
-- Replace ad-hoc status buttons with:
-  - Primary "Advance to: {Next Step}" button.
-  - Secondary "Reject claim" button (terminal).
-  - Step-specific dialog when extra data is needed (offer amount, settlement notes, payment reference, etc.).
-- Notes timeline: render system notes with a distinct style ("System") vs admin-typed notes.
-- Keep the existing free-form note input for manual notes.
+- **Info Requested** — checklist of evidence items being requested + optional message-to-customer note.
+- **Info Provided** — same evidence checklist (tick what's now received) + optional note.
+- **Assessment** — assessor toggle + name, repair quote (£), market value (£), assessment notes.
+- **Settlement Proposed** — offer amount (£, required), offer date, settlement notes.
+- **Negotiation** — latest amount under discussion + required negotiation note (e.g. "Customer rejected £450, wants £600").
+- **Settlement Agreed** — agreed amount, payment reference, title-transferred checkbox, optional note.
+- **Closed** — closing remarks (optional).
 
-### 4. Verification
-- Open a claim → starts at "Opened".
-- Click Advance → progresses through each step; dialogs appear where data is required.
-- Verify a system note is added in the timeline at every transition.
-- Confirm legacy claims still load and map to the nearest step.
+Per-step validation runs before allowing confirm (e.g. negotiation requires a note, settlement_proposed requires an amount).
 
-### Step flow
-```text
-opened → info_requested → info_provided → assessment →
-settlement_proposed → negotiation (optional) →
-settlement_agreed → closed
-                              ↘ rejected (terminal, available any step)
-```
+### `src/pages/ClaimDetail.tsx`
+- Replace the existing settlement-only `Dialog` with `<ClaimAdvanceDialog>`.
+- The "Advance to: {next}" button always opens the dialog (no special-case for settlement).
+- On confirm:
+  1. Save the captured fields via `updateClaim`.
+  2. Call `advanceClaim` to move to the next step (which writes the auto system note).
+  3. If the user added a manual note in the dialog, append it as a regular note.
+  4. Reload claim, notes, and status log.
+
+### Verification
+Open a claim → click Advance → see the correct form for that step (e.g. evidence checklist when requesting info, amount field when proposing settlement, free-text note when negotiating) → confirm → claim moves on, fields are saved, and both the system note and any manual note appear in the History timeline.
