@@ -260,21 +260,13 @@ export type Database = {
           betterment: boolean | null
           betterment_amount: number | null
           betterment_reason: string | null
-          bike_make_model: string | null
           booking_ref: string
           claim_kind: string | null
           claim_ref: string | null
-          collection_date: string | null
           created_at: string
           created_by: string | null
-          customer_email: string | null
-          customer_name: string | null
-          customer_phone: string | null
           damage_description: string | null
           damage_type: Database["public"]["Enums"]["claim_damage_type"] | null
-          declared_value: number | null
-          delivery_date: string | null
-          driver_name: string | null
           ev_booking_ref: boolean | null
           ev_delivery_note: boolean | null
           ev_delivery_photos: boolean | null
@@ -284,7 +276,6 @@ export type Database = {
           ev_proof_value: boolean | null
           ev_repair_estimate: boolean | null
           ev_upgrade_details: boolean | null
-          has_upgrades: boolean | null
           id: string
           internal_notes: string | null
           market_value: number | null
@@ -292,18 +283,16 @@ export type Database = {
           offer_accepted: string | null
           offer_amount: number | null
           offer_date: string | null
-          order_id: string | null
+          order_id: string
           payment_reference: string | null
           recommended_settlement: number | null
           recorded_at_delivery: string | null
           repair_quote: number | null
-          route_name: string | null
           settlement_notes: string | null
           settlement_override_reason: string | null
           status: Database["public"]["Enums"]["claim_status"]
           title_transferred: boolean | null
           updated_at: string
-          upgrades_notes: string | null
           within_timeframe: boolean | null
         }
         Insert: {
@@ -312,21 +301,13 @@ export type Database = {
           betterment?: boolean | null
           betterment_amount?: number | null
           betterment_reason?: string | null
-          bike_make_model?: string | null
           booking_ref: string
           claim_kind?: string | null
           claim_ref?: string | null
-          collection_date?: string | null
           created_at?: string
           created_by?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
           damage_description?: string | null
           damage_type?: Database["public"]["Enums"]["claim_damage_type"] | null
-          declared_value?: number | null
-          delivery_date?: string | null
-          driver_name?: string | null
           ev_booking_ref?: boolean | null
           ev_delivery_note?: boolean | null
           ev_delivery_photos?: boolean | null
@@ -336,7 +317,6 @@ export type Database = {
           ev_proof_value?: boolean | null
           ev_repair_estimate?: boolean | null
           ev_upgrade_details?: boolean | null
-          has_upgrades?: boolean | null
           id?: string
           internal_notes?: string | null
           market_value?: number | null
@@ -344,18 +324,16 @@ export type Database = {
           offer_accepted?: string | null
           offer_amount?: number | null
           offer_date?: string | null
-          order_id?: string | null
+          order_id: string
           payment_reference?: string | null
           recommended_settlement?: number | null
           recorded_at_delivery?: string | null
           repair_quote?: number | null
-          route_name?: string | null
           settlement_notes?: string | null
           settlement_override_reason?: string | null
           status?: Database["public"]["Enums"]["claim_status"]
           title_transferred?: boolean | null
           updated_at?: string
-          upgrades_notes?: string | null
           within_timeframe?: boolean | null
         }
         Update: {
@@ -364,21 +342,13 @@ export type Database = {
           betterment?: boolean | null
           betterment_amount?: number | null
           betterment_reason?: string | null
-          bike_make_model?: string | null
           booking_ref?: string
           claim_kind?: string | null
           claim_ref?: string | null
-          collection_date?: string | null
           created_at?: string
           created_by?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
           damage_description?: string | null
           damage_type?: Database["public"]["Enums"]["claim_damage_type"] | null
-          declared_value?: number | null
-          delivery_date?: string | null
-          driver_name?: string | null
           ev_booking_ref?: boolean | null
           ev_delivery_note?: boolean | null
           ev_delivery_photos?: boolean | null
@@ -388,7 +358,6 @@ export type Database = {
           ev_proof_value?: boolean | null
           ev_repair_estimate?: boolean | null
           ev_upgrade_details?: boolean | null
-          has_upgrades?: boolean | null
           id?: string
           internal_notes?: string | null
           market_value?: number | null
@@ -396,18 +365,16 @@ export type Database = {
           offer_accepted?: string | null
           offer_amount?: number | null
           offer_date?: string | null
-          order_id?: string | null
+          order_id?: string
           payment_reference?: string | null
           recommended_settlement?: number | null
           recorded_at_delivery?: string | null
           repair_quote?: number | null
-          route_name?: string | null
           settlement_notes?: string | null
           settlement_override_reason?: string | null
           status?: Database["public"]["Enums"]["claim_status"]
           title_transferred?: boolean | null
           updated_at?: string
-          upgrades_notes?: string | null
           within_timeframe?: boolean | null
         }
         Relationships: []

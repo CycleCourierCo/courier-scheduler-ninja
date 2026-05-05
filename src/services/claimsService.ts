@@ -37,18 +37,7 @@ export interface Claim {
   claim_ref: string | null;
   status: ClaimStatus;
   booking_ref: string;
-  order_id: string | null;
-  customer_name: string | null;
-  customer_email: string | null;
-  customer_phone: string | null;
-  collection_date: string | null;
-  delivery_date: string | null;
-  route_name: string | null;
-  driver_name: string | null;
-  bike_make_model: string | null;
-  declared_value: number | null;
-  has_upgrades: boolean | null;
-  upgrades_notes: string | null;
+  order_id: string;
   damage_type: ClaimDamageType | null;
   damage_description: string | null;
   recorded_at_delivery: string | null;
@@ -117,6 +106,39 @@ export interface ClaimStatusLogEntry {
   note: string | null;
 }
 
+/** Slim shape of an order used in claim displays/lookups. */
+export interface ClaimOrder {
+  id: string;
+  tracking_number: string | null;
+  status: string | null;
+  sender: any;
+  receiver: any;
+  bikes: any;
+  bike_brand: string | null;
+  bike_model: string | null;
+  bike_value: number | null;
+  scheduled_pickup_date: string | null;
+  scheduled_delivery_date: string | null;
+  collection_driver_name: string | null;
+  delivery_driver_name: string | null;
+  customer_order_number: string | null;
+  created_at: string;
+}
+
+export interface DerivedClaimFields {
+  bookingRef: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  collectionDate: string | null;
+  deliveryDate: string | null;
+  driverName: string | null;
+  bikeMakeModel: string | null;
+  declaredValue: number | null;
+  senderPostcode: string | null;
+  receiverPostcode: string | null;
+}
+
 export const TIMEFRAME_DAYS: Record<ClaimDamageType, number> = {
   visible: 2,
   concealed: 5,
@@ -138,39 +160,132 @@ export function isWithinTimeframe(
   return diffDays <= limit;
 }
 
-export async function listClaims(filters: {
-  status?: ClaimStatus | "all";
-  search?: string;
-} = {}): Promise<Claim[]> {
-  let q = (supabase as any).from("claims").select("*").order("created_at", { ascending: false });
-  if (filters.status && filters.status !== "all") q = q.eq("status", filters.status);
-  if (filters.search?.trim()) {
-    const s = filters.search.trim();
+const datePart = (v: string | null | undefined): string | null => {
+  if (!v) return null;
+  return String(v).slice(0, 10);
+};
+
+export function deriveClaimFields(claim: Claim, order: ClaimOrder | null): DerivedClaimFields {
+  const recv = order?.receiver ?? {};
+  const send = order?.sender ?? {};
+  const bikes = Array.isArray(order?.bikes) ? order!.bikes : [];
+  const firstBike = bikes[0] ?? {};
+  const brand = firstBike.brand ?? order?.bike_brand ?? null;
+  const model = firstBike.model ?? order?.bike_model ?? null;
+  const bikeMakeModel = [brand, model].filter(Boolean).join(" ").trim() || null;
+  return {
+    bookingRef: order?.tracking_number ?? claim.booking_ref,
+    customerName: recv.name ?? send.name ?? null,
+    customerEmail: recv.email ?? send.email ?? null,
+    customerPhone: recv.phone ?? send.phone ?? null,
+    collectionDate: datePart(order?.scheduled_pickup_date ?? null),
+    deliveryDate: datePart(order?.scheduled_delivery_date ?? null),
+    driverName: order?.delivery_driver_name ?? order?.collection_driver_name ?? null,
+    bikeMakeModel,
+    declaredValue: order?.bike_value ?? null,
+    senderPostcode: send.postal_code ?? send.postalCode ?? null,
+    receiverPostcode: recv.postal_code ?? recv.postalCode ?? null,
+  };
+}
+
+const ORDER_FIELDS =
+  "id,tracking_number,status,sender,receiver,bikes,bike_brand,bike_model,bike_value,scheduled_pickup_date,scheduled_delivery_date,collection_driver_name,delivery_driver_name,customer_order_number,created_at";
+
+export async function searchOrdersForClaim(query: string): Promise<ClaimOrder[]> {
+  let q = supabase.from("orders").select(ORDER_FIELDS).order("created_at", { ascending: false }).limit(20);
+  const s = query.trim();
+  if (s) {
+    const safe = s.replace(/[,()]/g, " ");
     q = q.or(
-      `booking_ref.ilike.%${s}%,customer_name.ilike.%${s}%,bike_make_model.ilike.%${s}%,claim_ref.ilike.%${s}%`,
+      `tracking_number.ilike.%${safe}%,receiver->>name.ilike.%${safe}%,receiver->>email.ilike.%${safe}%,sender->>name.ilike.%${safe}%`,
     );
   }
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as Claim[];
+  return (data ?? []) as unknown as ClaimOrder[];
 }
 
-export async function getClaim(id: string): Promise<Claim> {
+export async function getOrder(orderId: string): Promise<ClaimOrder | null> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(ORDER_FIELDS)
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as unknown as ClaimOrder) ?? null;
+}
+
+export async function getOrdersByIds(ids: string[]): Promise<Record<string, ClaimOrder>> {
+  if (!ids.length) return {};
+  const { data, error } = await supabase.from("orders").select(ORDER_FIELDS).in("id", ids);
+  if (error) throw error;
+  const map: Record<string, ClaimOrder> = {};
+  for (const row of (data ?? []) as unknown as ClaimOrder[]) map[row.id] = row;
+  return map;
+}
+
+export async function listClaims(filters: {
+  status?: ClaimStatus | "all";
+  search?: string;
+} = {}): Promise<{ claim: Claim; order: ClaimOrder | null; derived: DerivedClaimFields }[]> {
+  let q = (supabase as any).from("claims").select("*").order("created_at", { ascending: false });
+  if (filters.status && filters.status !== "all") q = q.eq("status", filters.status);
+  if (filters.search?.trim()) {
+    const s = filters.search.trim().replace(/[,()]/g, " ");
+    q = q.or(`booking_ref.ilike.%${s}%,claim_ref.ilike.%${s}%`);
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  const claims = (data ?? []) as Claim[];
+  const orderIds = Array.from(new Set(claims.map((c) => c.order_id).filter(Boolean))) as string[];
+  const orderMap = await getOrdersByIds(orderIds);
+  return claims.map((c) => {
+    const order = orderMap[c.order_id] ?? null;
+    return { claim: c, order, derived: deriveClaimFields(c, order) };
+  });
+}
+
+export async function getClaim(id: string): Promise<{ claim: Claim; order: ClaimOrder | null }> {
   const { data, error } = await (supabase as any).from("claims").select("*").eq("id", id).single();
   if (error) throw error;
-  return data as Claim;
+  const claim = data as Claim;
+  const order = claim.order_id ? await getOrder(claim.order_id) : null;
+  return { claim, order };
 }
 
-export async function createClaim(payload: Partial<Claim>): Promise<Claim> {
+export async function createClaim(payload: {
+  order_id: string;
+  booking_ref: string;
+  damage_type?: ClaimDamageType | null;
+  damage_description?: string | null;
+  recorded_at_delivery?: string | null;
+  notification_date?: string | null;
+  internal_notes?: string | null;
+  ev_booking_ref?: boolean;
+  ev_pre_collection_photos?: boolean;
+  ev_delivery_photos?: boolean;
+  ev_full_bike_photos?: boolean;
+  ev_proof_ownership?: boolean;
+  ev_proof_value?: boolean;
+  ev_upgrade_details?: boolean;
+  ev_repair_estimate?: boolean;
+  ev_delivery_note?: boolean;
+  status?: ClaimStatus;
+}): Promise<Claim> {
   const { data: userData } = await supabase.auth.getUser();
-  const insertPayload: any = { ...payload, created_by: userData.user?.id };
-  if (insertPayload.damage_type) {
-    insertPayload.within_timeframe = isWithinTimeframe(
-      insertPayload.damage_type,
-      insertPayload.delivery_date ?? null,
-      insertPayload.notification_date ?? null,
-    );
+  // For timeframe calc we need delivery date — fetch order
+  let withinTimeframe: boolean | null = null;
+  if (payload.damage_type && payload.notification_date) {
+    const order = await getOrder(payload.order_id);
+    const deliveryDate = datePart(order?.scheduled_delivery_date ?? null);
+    withinTimeframe = isWithinTimeframe(payload.damage_type, deliveryDate, payload.notification_date);
   }
+  const insertPayload: any = {
+    ...payload,
+    created_by: userData.user?.id,
+    within_timeframe: withinTimeframe,
+    status: payload.status ?? "open",
+  };
   const { data, error } = await (supabase as any).from("claims").insert(insertPayload).select("*").single();
   if (error) throw error;
   return data as Claim;
@@ -178,13 +293,13 @@ export async function createClaim(payload: Partial<Claim>): Promise<Claim> {
 
 export async function updateClaim(id: string, patch: Partial<Claim>): Promise<Claim> {
   const next: any = { ...patch };
-  if (next.damage_type !== undefined || next.notification_date !== undefined || next.delivery_date !== undefined) {
-    // recompute when relevant fields change — fetch existing if needed
-    const existing = await getClaim(id);
+  if (next.damage_type !== undefined || next.notification_date !== undefined) {
+    const { claim, order } = await getClaim(id);
+    const deliveryDate = datePart(order?.scheduled_delivery_date ?? null);
     next.within_timeframe = isWithinTimeframe(
-      (next.damage_type ?? existing.damage_type) as ClaimDamageType | null,
-      next.delivery_date ?? existing.delivery_date,
-      next.notification_date ?? existing.notification_date,
+      (next.damage_type ?? claim.damage_type) as ClaimDamageType | null,
+      deliveryDate,
+      next.notification_date ?? claim.notification_date,
     );
   }
   const { data, error } = await (supabase as any).from("claims").update(next).eq("id", id).select("*").single();

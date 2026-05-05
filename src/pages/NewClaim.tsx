@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CheckCircle2, AlertTriangle, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import {
   createClaim,
   DAMAGE_TYPES,
+  deriveClaimFields,
   isWithinTimeframe,
+  searchOrdersForClaim,
   TIMEFRAME_DAYS,
   type ClaimDamageType,
+  type ClaimOrder,
 } from "@/services/claimsService";
 
-const EVIDENCE_FIELDS: { key: string; label: string }[] = [
+const EVIDENCE_FIELDS = [
   { key: "ev_booking_ref", label: "Booking reference provided" },
   { key: "ev_pre_collection_photos", label: "Pre-collection photos" },
   { key: "ev_delivery_photos", label: "Damage on delivery photos" },
@@ -30,70 +35,83 @@ const EVIDENCE_FIELDS: { key: string; label: string }[] = [
   { key: "ev_upgrade_details", label: "Upgrade/custom parts details" },
   { key: "ev_repair_estimate", label: "Repair estimate" },
   { key: "ev_delivery_note", label: "Delivery note / Condition Report / Driver note" },
-];
+] as const;
+
+const fmtDate = (v: string | null) => (v ? format(new Date(v), "dd MMM yyyy") : "—");
 
 const NewClaim = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({
-    booking_ref: "",
-    customer_name: "",
-    customer_email: "",
-    customer_phone: "",
-    collection_date: "",
-    delivery_date: "",
-    route_name: "",
-    driver_name: "",
-    bike_make_model: "",
-    declared_value: "",
-    has_upgrades: false,
-    upgrades_notes: "",
-    damage_type: "" as ClaimDamageType | "",
-    damage_description: "",
-    recorded_at_delivery: "unknown",
-    notification_date: "",
-    internal_notes: "",
-  });
-  EVIDENCE_FIELDS.forEach((f) => {
-    if (form[f.key] === undefined) form[f.key] = false;
-  });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [results, setResults] = useState<ClaimOrder[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [order, setOrder] = useState<ClaimOrder | null>(null);
 
-  const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+  const [damageType, setDamageType] = useState<ClaimDamageType | "">("");
+  const [recordedAtDelivery, setRecordedAtDelivery] = useState("unknown");
+  const [damageDescription, setDamageDescription] = useState("");
+  const [notificationDate, setNotificationDate] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
+  const [evidence, setEvidence] = useState<Record<string, boolean>>({});
+
+  // debounced search
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handle = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const rows = await searchOrdersForClaim(searchTerm);
+        setResults(rows);
+      } catch (e: any) {
+        toast.error(e.message || "Search failed");
+      } finally {
+        setSearching(false);
+      }
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [searchTerm, pickerOpen]);
+
+  const derived = useMemo(
+    () =>
+      order
+        ? deriveClaimFields(
+            { booking_ref: order.tracking_number ?? "" } as any,
+            order,
+          )
+        : null,
+    [order],
+  );
 
   const timeframeOk = useMemo(
-    () => isWithinTimeframe(form.damage_type || null, form.delivery_date || null, form.notification_date || null),
-    [form.damage_type, form.delivery_date, form.notification_date],
+    () =>
+      isWithinTimeframe(
+        damageType || null,
+        derived?.deliveryDate ?? null,
+        notificationDate || null,
+      ),
+    [damageType, derived?.deliveryDate, notificationDate],
   );
 
   const submit = async (asDraft: boolean) => {
-    if (!form.booking_ref.trim()) {
-      toast.error("Booking reference is required");
+    if (!order) {
+      toast.error("Please link an order first");
       return;
     }
     setSaving(true);
     try {
       const payload: any = {
-        booking_ref: form.booking_ref,
-        customer_name: form.customer_name || null,
-        customer_email: form.customer_email || null,
-        customer_phone: form.customer_phone || null,
-        collection_date: form.collection_date || null,
-        delivery_date: form.delivery_date || null,
-        route_name: form.route_name || null,
-        driver_name: form.driver_name || null,
-        bike_make_model: form.bike_make_model || null,
-        declared_value: form.declared_value ? Number(form.declared_value) : null,
-        has_upgrades: !!form.has_upgrades,
-        upgrades_notes: form.upgrades_notes || null,
-        damage_type: form.damage_type || null,
-        damage_description: form.damage_description || null,
-        recorded_at_delivery: form.recorded_at_delivery || null,
-        notification_date: form.notification_date || null,
-        internal_notes: form.internal_notes || null,
+        order_id: order.id,
+        booking_ref: order.tracking_number ?? "",
+        damage_type: damageType || null,
+        damage_description: damageDescription || null,
+        recorded_at_delivery: recordedAtDelivery || null,
+        notification_date: notificationDate || null,
+        internal_notes: internalNotes || null,
         status: "open",
       };
       if (!asDraft) {
-        EVIDENCE_FIELDS.forEach((f) => (payload[f.key] = !!form[f.key]));
+        for (const f of EVIDENCE_FIELDS) payload[f.key] = !!evidence[f.key];
       }
       const created = await createClaim(payload);
       toast.success(`Claim ${created.claim_ref} created`);
@@ -111,32 +129,84 @@ const NewClaim = () => {
         <h1 className="text-2xl font-bold">New Damage Claim</h1>
 
         <Card>
-          <CardHeader><CardTitle>Booking Details</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><Label>Booking Reference *</Label><Input value={form.booking_ref} onChange={(e) => set("booking_ref", e.target.value)} /></div>
-            <div><Label>Customer Name</Label><Input value={form.customer_name} onChange={(e) => set("customer_name", e.target.value)} /></div>
-            <div><Label>Customer Email</Label><Input type="email" value={form.customer_email} onChange={(e) => set("customer_email", e.target.value)} /></div>
-            <div><Label>Customer Phone</Label><Input value={form.customer_phone} onChange={(e) => set("customer_phone", e.target.value)} /></div>
-            <div><Label>Collection Date</Label><Input type="date" value={form.collection_date} onChange={(e) => set("collection_date", e.target.value)} /></div>
-            <div><Label>Delivery Date</Label><Input type="date" value={form.delivery_date} onChange={(e) => set("delivery_date", e.target.value)} /></div>
-            <div><Label>Route</Label><Input value={form.route_name} onChange={(e) => set("route_name", e.target.value)} /></div>
-            <div><Label>Driver</Label><Input value={form.driver_name} onChange={(e) => set("driver_name", e.target.value)} /></div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Bike Details</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label>Make &amp; Model</Label><Input value={form.bike_make_model} onChange={(e) => set("bike_make_model", e.target.value)} /></div>
-              <div><Label>Declared Value (£)</Label><Input type="number" step="0.01" value={form.declared_value} onChange={(e) => set("declared_value", e.target.value)} /></div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={!!form.has_upgrades} onCheckedChange={(v) => set("has_upgrades", v)} />
-              <Label>Declared upgrades or custom parts</Label>
-            </div>
-            {form.has_upgrades && (
-              <div><Label>Upgrade details</Label><Textarea value={form.upgrades_notes} onChange={(e) => set("upgrades_notes", e.target.value)} /></div>
+          <CardHeader>
+            <CardTitle>Linked Order</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!order ? (
+              <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Search className="h-4 w-4 mr-2" />
+                    Search by tracking #, customer name, email…
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(640px,calc(100vw-2rem))] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Type to search orders…"
+                      value={searchTerm}
+                      onValueChange={setSearchTerm}
+                    />
+                    <CommandList>
+                      {searching && <div className="p-3 text-sm text-muted-foreground">Searching…</div>}
+                      {!searching && (
+                        <CommandEmpty>No orders found.</CommandEmpty>
+                      )}
+                      <CommandGroup>
+                        {results.map((o) => {
+                          const d = deriveClaimFields({ booking_ref: o.tracking_number ?? "" } as any, o);
+                          return (
+                            <CommandItem
+                              key={o.id}
+                              value={o.id}
+                              onSelect={() => {
+                                setOrder(o);
+                                setPickerOpen(false);
+                              }}
+                              className="flex flex-col items-start gap-1"
+                            >
+                              <div className="flex w-full justify-between gap-2">
+                                <span className="font-mono text-sm">{o.tracking_number ?? "—"}</span>
+                                <span className="text-xs text-muted-foreground">{o.status ?? ""}</span>
+                              </div>
+                              <div className="text-sm">{d.customerName ?? "—"}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {d.senderPostcode ?? "—"} → {d.receiverPostcode ?? "—"} ·{" "}
+                                {fmtDate(d.collectionDate)} → {fmtDate(d.deliveryDate)}
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-mono text-sm">{order.tracking_number}</div>
+                    <div className="text-xs text-muted-foreground">Linked order</div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setOrder(null)}>
+                    <X className="h-4 w-4 mr-1" /> Change
+                  </Button>
+                </div>
+                {derived && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Email:</span> {derived.customerEmail ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Phone:</span> {derived.customerPhone ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Driver:</span> {derived.driverName ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
+                    <div><span className="text-muted-foreground">Delivery:</span> {fmtDate(derived.deliveryDate)}</div>
+                    <div><span className="text-muted-foreground">Bike:</span> {derived.bikeMakeModel ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Declared value:</span> {derived.declaredValue != null ? `£${derived.declaredValue}` : "—"}</div>
+                  </div>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -147,7 +217,7 @@ const NewClaim = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Damage Type</Label>
-                <Select value={form.damage_type} onValueChange={(v) => set("damage_type", v)}>
+                <Select value={damageType} onValueChange={(v) => setDamageType(v as ClaimDamageType)}>
                   <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
                   <SelectContent>
                     {DAMAGE_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
@@ -156,7 +226,7 @@ const NewClaim = () => {
               </div>
               <div>
                 <Label>Recorded at delivery?</Label>
-                <Select value={form.recorded_at_delivery} onValueChange={(v) => set("recorded_at_delivery", v)}>
+                <Select value={recordedAtDelivery} onValueChange={setRecordedAtDelivery}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="yes">Yes</SelectItem>
@@ -167,23 +237,23 @@ const NewClaim = () => {
               </div>
               <div className="md:col-span-2">
                 <Label>Damage Description</Label>
-                <Textarea value={form.damage_description} onChange={(e) => set("damage_description", e.target.value)} rows={4} />
+                <Textarea value={damageDescription} onChange={(e) => setDamageDescription(e.target.value)} rows={4} />
               </div>
               <div>
                 <Label>Notification Date</Label>
-                <Input type="date" value={form.notification_date} onChange={(e) => set("notification_date", e.target.value)} />
+                <Input type="date" value={notificationDate} onChange={(e) => setNotificationDate(e.target.value)} />
               </div>
             </div>
-            {form.damage_type && form.delivery_date && form.notification_date && (
+            {damageType && derived?.deliveryDate && notificationDate && (
               timeframeOk ? (
                 <Alert className="border-green-600/40 bg-green-500/10">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <AlertDescription>Notification within {TIMEFRAME_DAYS[form.damage_type as ClaimDamageType]} days — within T&amp;C timeframe.</AlertDescription>
+                  <AlertDescription>Notification within {TIMEFRAME_DAYS[damageType as ClaimDamageType]} days — within T&amp;C timeframe.</AlertDescription>
                 </Alert>
               ) : (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>Notification outside the {TIMEFRAME_DAYS[form.damage_type as ClaimDamageType]}-day window. This claim may be out of time.</AlertDescription>
+                  <AlertDescription>Notification outside the {TIMEFRAME_DAYS[damageType as ClaimDamageType]}-day window. This claim may be out of time.</AlertDescription>
                 </Alert>
               )
             )}
@@ -195,7 +265,7 @@ const NewClaim = () => {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {EVIDENCE_FIELDS.map((f) => (
               <label key={f.key} className="flex items-center gap-2 text-sm">
-                <Checkbox checked={!!form[f.key]} onCheckedChange={(v) => set(f.key, !!v)} />
+                <Checkbox checked={!!evidence[f.key]} onCheckedChange={(v) => setEvidence((p) => ({ ...p, [f.key]: !!v }))} />
                 {f.label}
               </label>
             ))}
@@ -205,13 +275,13 @@ const NewClaim = () => {
         <Card>
           <CardHeader><CardTitle>Internal Notes</CardTitle></CardHeader>
           <CardContent>
-            <Textarea value={form.internal_notes} onChange={(e) => set("internal_notes", e.target.value)} rows={4} placeholder="Staff-only notes" />
+            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={4} placeholder="Staff-only notes" />
           </CardContent>
         </Card>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" disabled={saving} onClick={() => submit(true)}>Save as Draft</Button>
-          <Button className="bg-green-600 hover:bg-green-700 text-white" disabled={saving} onClick={() => submit(false)}>Open Claim</Button>
+          <Button variant="outline" disabled={saving || !order} onClick={() => submit(true)}>Save as Draft</Button>
+          <Button className="bg-green-600 hover:bg-green-700 text-white" disabled={saving || !order} onClick={() => submit(false)}>Open Claim</Button>
         </div>
       </div>
     </Layout>

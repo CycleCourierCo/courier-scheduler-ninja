@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClaimStatusBadge from "@/components/claims/ClaimStatusBadge";
@@ -22,6 +22,7 @@ import {
   CLAIM_STATUSES,
   DAMAGE_TYPES,
   deleteEvidence,
+  deriveClaimFields,
   getClaim,
   getEvidenceSignedUrl,
   getStatusLog,
@@ -35,6 +36,7 @@ import {
   type ClaimDamageType,
   type ClaimEvidenceFile,
   type ClaimNote,
+  type ClaimOrder,
   type ClaimStatus,
   type ClaimStatusLogEntry,
 } from "@/services/claimsService";
@@ -54,10 +56,13 @@ const EVIDENCE_FIELDS: { key: keyof Claim; label: string }[] = [
 const fmtMoney = (n: number | null | undefined) =>
   n == null ? "—" : `£${Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const fmtDate = (v: string | null) => (v ? format(new Date(v), "dd MMM yyyy") : "—");
+
 const ClaimDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [claim, setClaim] = useState<Claim | null>(null);
+  const [order, setOrder] = useState<ClaimOrder | null>(null);
   const [notes, setNotes] = useState<ClaimNote[]>([]);
   const [statusLog, setStatusLog] = useState<ClaimStatusLogEntry[]>([]);
   const [evidence, setEvidence] = useState<ClaimEvidenceFile[]>([]);
@@ -72,19 +77,19 @@ const ClaimDetail = () => {
 
   const reload = async () => {
     if (!id) return;
-    const [c, n, s, e] = await Promise.all([
+    const [{ claim: c, order: o }, n, s, e] = await Promise.all([
       getClaim(id),
       listNotes(id),
       getStatusLog(id),
       listEvidence(id),
     ]);
     setClaim(c);
+    setOrder(o);
     setNotes(n);
     setStatusLog(s);
     setEvidence(e);
     setDraft({});
     setDirty(false);
-    // signed urls
     const urls: Record<string, string> = {};
     await Promise.all(
       e.map(async (f) => {
@@ -100,7 +105,12 @@ const ClaimDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (!claim) {
+  const derived = useMemo(
+    () => (claim ? deriveClaimFields(claim, order) : null),
+    [claim, order],
+  );
+
+  if (!claim || !derived) {
     return <Layout><div className="container mx-auto p-6">Loading…</div></Layout>;
   }
 
@@ -163,14 +173,14 @@ const ClaimDetail = () => {
   };
 
   const cap = useMemo(() => {
-    const vals = [view.repair_quote, view.market_value, view.declared_value]
+    const vals = [view.repair_quote, view.market_value, derived.declaredValue]
       .map((v) => (v == null ? null : Number(v)))
       .filter((v) => v != null && !Number.isNaN(v)) as number[];
     if (!vals.length) return null;
     return Math.min(...vals);
-  }, [view.repair_quote, view.market_value, view.declared_value]);
+  }, [view.repair_quote, view.market_value, derived.declaredValue]);
 
-  const tfOk = isWithinTimeframe(view.damage_type, view.delivery_date, view.notification_date);
+  const tfOk = isWithinTimeframe(view.damage_type, derived.deliveryDate, view.notification_date);
   const daysOpen = Math.floor((Date.now() - new Date(claim.created_at).getTime()) / 86400000);
 
   const actionButtons = () => {
@@ -242,12 +252,22 @@ const ClaimDetail = () => {
                 <div className="font-mono text-sm text-muted-foreground">{claim.claim_ref}</div>
                 <ClaimStatusBadge status={claim.status} className="text-sm px-3 py-1" />
                 <div className="space-y-1 text-sm">
-                  <div><span className="text-muted-foreground">Booking:</span> {claim.booking_ref}</div>
-                  <div><span className="text-muted-foreground">Customer:</span> {claim.customer_name ?? "—"}</div>
-                  {claim.customer_email && <div className="text-xs text-muted-foreground">{claim.customer_email}</div>}
-                  {claim.customer_phone && <div className="text-xs text-muted-foreground">{claim.customer_phone}</div>}
-                  <div><span className="text-muted-foreground">Bike:</span> {claim.bike_make_model ?? "—"}</div>
-                  <div><span className="text-muted-foreground">Declared value:</span> {fmtMoney(claim.declared_value)}</div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Booking:</span> {derived.bookingRef}
+                    {claim.order_id && (
+                      <Link to={`/orders/${claim.order_id}`} className="text-primary inline-flex items-center ml-1">
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    )}
+                  </div>
+                  <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
+                  {derived.customerEmail && <div className="text-xs text-muted-foreground">{derived.customerEmail}</div>}
+                  {derived.customerPhone && <div className="text-xs text-muted-foreground">{derived.customerPhone}</div>}
+                  <div><span className="text-muted-foreground">Bike:</span> {derived.bikeMakeModel ?? "—"}</div>
+                  <div><span className="text-muted-foreground">Declared value:</span> {fmtMoney(derived.declaredValue)}</div>
+                  <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
+                  <div><span className="text-muted-foreground">Delivery:</span> {fmtDate(derived.deliveryDate)}</div>
+                  <div><span className="text-muted-foreground">Driver:</span> {derived.driverName ?? "—"}</div>
                   <div><span className="text-muted-foreground">Opened:</span> {format(new Date(claim.created_at), "dd MMM yyyy")}</div>
                   <div><span className="text-muted-foreground">Days open:</span> {daysOpen}</div>
                 </div>
@@ -279,34 +299,41 @@ const ClaimDetail = () => {
             {/* DETAILS */}
             <TabsContent value="details" className="space-y-4">
               <Card>
-                <CardHeader><CardTitle>Booking</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><Label>Booking Ref</Label><Input value={view.booking_ref} onChange={(e) => setField("booking_ref", e.target.value)} /></div>
-                  <div><Label>Customer Name</Label><Input value={view.customer_name ?? ""} onChange={(e) => setField("customer_name", e.target.value)} /></div>
-                  <div><Label>Email</Label><Input value={view.customer_email ?? ""} onChange={(e) => setField("customer_email", e.target.value)} /></div>
-                  <div><Label>Phone</Label><Input value={view.customer_phone ?? ""} onChange={(e) => setField("customer_phone", e.target.value)} /></div>
-                  <div><Label>Collection Date</Label><Input type="date" value={view.collection_date ?? ""} onChange={(e) => setField("collection_date", e.target.value)} /></div>
-                  <div><Label>Delivery Date</Label><Input type="date" value={view.delivery_date ?? ""} onChange={(e) => setField("delivery_date", e.target.value)} /></div>
-                  <div><Label>Route</Label><Input value={view.route_name ?? ""} onChange={(e) => setField("route_name", e.target.value)} /></div>
-                  <div><Label>Driver</Label><Input value={view.driver_name ?? ""} onChange={(e) => setField("driver_name", e.target.value)} /></div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader><CardTitle>Bike</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><Label>Make &amp; Model</Label><Input value={view.bike_make_model ?? ""} onChange={(e) => setField("bike_make_model", e.target.value)} /></div>
-                    <div><Label>Declared Value (£)</Label><Input type="number" step="0.01" value={view.declared_value ?? ""} onChange={(e) => setField("declared_value", e.target.value === "" ? null : Number(e.target.value))} /></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={!!view.has_upgrades} onCheckedChange={(v) => setField("has_upgrades", v)} />
-                    <Label>Upgrades / custom parts</Label>
-                  </div>
-                  {view.has_upgrades && (
-                    <div><Label>Upgrade details</Label><Textarea value={view.upgrades_notes ?? ""} onChange={(e) => setField("upgrades_notes", e.target.value)} /></div>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Linked Order</span>
+                    {claim.order_id && (
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/orders/${claim.order_id}`}>
+                          <ExternalLink className="h-3 w-3 mr-1" /> View order
+                        </Link>
+                      </Button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {order ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div><span className="text-muted-foreground">Tracking #:</span> <span className="font-mono">{order.tracking_number}</span></div>
+                      <div><span className="text-muted-foreground">Order status:</span> {order.status ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Email:</span> {derived.customerEmail ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Phone:</span> {derived.customerPhone ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Driver:</span> {derived.driverName ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
+                      <div><span className="text-muted-foreground">Delivery:</span> {fmtDate(derived.deliveryDate)}</div>
+                      <div><span className="text-muted-foreground">Bike:</span> {derived.bikeMakeModel ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Declared value:</span> {fmtMoney(derived.declaredValue)}</div>
+                    </div>
+                  ) : (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>Linked order not found.</AlertDescription>
+                    </Alert>
                   )}
                 </CardContent>
               </Card>
+
               <Card>
                 <CardHeader><CardTitle>Damage</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
@@ -332,7 +359,7 @@ const ClaimDetail = () => {
                     <div className="md:col-span-2"><Label>Damage Description</Label><Textarea rows={4} value={view.damage_description ?? ""} onChange={(e) => setField("damage_description", e.target.value)} /></div>
                     <div><Label>Notification Date</Label><Input type="date" value={view.notification_date ?? ""} onChange={(e) => setField("notification_date", e.target.value)} /></div>
                   </div>
-                  {view.damage_type && view.delivery_date && view.notification_date && (
+                  {view.damage_type && derived.deliveryDate && view.notification_date && (
                     tfOk ? (
                       <Alert className="border-green-600/40 bg-green-500/10"><CheckCircle2 className="h-4 w-4 text-green-600" /><AlertDescription>Within {TIMEFRAME_DAYS[view.damage_type]}-day T&amp;C window.</AlertDescription></Alert>
                     ) : (
@@ -489,7 +516,7 @@ const ClaimDetail = () => {
                     <div><Label>Payment Reference</Label><Input value={view.payment_reference ?? ""} onChange={(e) => setField("payment_reference", e.target.value)} /></div>
                   </div>
                   <div><Label>Settlement Notes</Label><Textarea value={view.settlement_notes ?? ""} onChange={(e) => setField("settlement_notes", e.target.value)} /></div>
-                  {view.offer_amount != null && view.declared_value != null && Number(view.offer_amount) >= Number(view.declared_value) && (
+                  {view.offer_amount != null && derived.declaredValue != null && Number(view.offer_amount) >= Number(derived.declaredValue) && (
                     <Alert>
                       <AlertDescription className="space-y-2">
                         <div>Full declared value paid — title transfer applies.</div>
