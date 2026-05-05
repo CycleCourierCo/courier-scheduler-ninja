@@ -110,11 +110,21 @@ const ClaimDetail = () => {
     [claim, order],
   );
 
-  if (!claim || !derived) {
+  const view: Claim | null = claim ? ({ ...claim, ...draft } as Claim) : null;
+
+  const cap = useMemo(() => {
+    if (!view || !derived) return null;
+    const vals = [view.repair_quote, view.market_value, derived.declaredValue]
+      .map((v) => (v == null ? null : Number(v)))
+      .filter((v) => v != null && !Number.isNaN(v)) as number[];
+    if (!vals.length) return null;
+    return Math.min(...vals);
+  }, [view?.repair_quote, view?.market_value, derived?.declaredValue]);
+
+  if (!claim || !derived || !view) {
     return <Layout><div className="container mx-auto p-6">Loading…</div></Layout>;
   }
 
-  const view: Claim = { ...claim, ...draft } as Claim;
   const setField = <K extends keyof Claim>(k: K, v: Claim[K]) => {
     setDraft((d) => ({ ...d, [k]: v }));
     setDirty(true);
@@ -172,13 +182,6 @@ const ClaimDetail = () => {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const cap = useMemo(() => {
-    const vals = [view.repair_quote, view.market_value, derived.declaredValue]
-      .map((v) => (v == null ? null : Number(v)))
-      .filter((v) => v != null && !Number.isNaN(v)) as number[];
-    if (!vals.length) return null;
-    return Math.min(...vals);
-  }, [view.repair_quote, view.market_value, derived.declaredValue]);
 
   const tfOk = isWithinTimeframe(view.damage_type, derived.deliveryDate, view.notification_date);
   const daysOpen = Math.floor((Date.now() - new Date(claim.created_at).getTime()) / 86400000);
@@ -267,7 +270,8 @@ const ClaimDetail = () => {
                   <div><span className="text-muted-foreground">Declared value:</span> {fmtMoney(derived.declaredValue)}</div>
                   <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
                   <div><span className="text-muted-foreground">Delivery:</span> {fmtDate(derived.deliveryDate)}</div>
-                  <div><span className="text-muted-foreground">Driver:</span> {derived.driverName ?? "—"}</div>
+                  <div><span className="text-muted-foreground">Collection driver:</span> {derived.collectionDriverName ?? "—"}</div>
+                  <div><span className="text-muted-foreground">Delivery driver:</span> {derived.deliveryDriverName ?? "—"}</div>
                   <div><span className="text-muted-foreground">Opened:</span> {format(new Date(claim.created_at), "dd MMM yyyy")}</div>
                   <div><span className="text-muted-foreground">Days open:</span> {daysOpen}</div>
                 </div>
@@ -319,7 +323,8 @@ const ClaimDetail = () => {
                       <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
                       <div><span className="text-muted-foreground">Email:</span> {derived.customerEmail ?? "—"}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {derived.customerPhone ?? "—"}</div>
-                      <div><span className="text-muted-foreground">Driver:</span> {derived.driverName ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Collection driver:</span> {derived.collectionDriverName ?? "—"}</div>
+                      <div><span className="text-muted-foreground">Delivery driver:</span> {derived.deliveryDriverName ?? "—"}</div>
                       <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
                       <div><span className="text-muted-foreground">Delivery:</span> {fmtDate(derived.deliveryDate)}</div>
                       <div><span className="text-muted-foreground">Bike:</span> {derived.bikeMakeModel ?? "—"}</div>
