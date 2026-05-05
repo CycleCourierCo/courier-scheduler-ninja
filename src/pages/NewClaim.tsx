@@ -199,7 +199,8 @@ const NewClaim = () => {
                     <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
                     <div><span className="text-muted-foreground">Email:</span> {derived.customerEmail ?? "—"}</div>
                     <div><span className="text-muted-foreground">Phone:</span> {derived.customerPhone ?? "—"}</div>
-                    <div><span className="text-muted-foreground">Driver:</span> {derived.driverName ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Collection driver:</span> {derived.collectionDriverName ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Delivery driver:</span> {derived.deliveryDriverName ?? "—"}</div>
                     <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
                     <div><span className="text-muted-foreground">Delivery:</span> {fmtDate(derived.deliveryDate)}</div>
                     <div><span className="text-muted-foreground">Bike:</span> {derived.bikeMakeModel ?? "—"}</div>
