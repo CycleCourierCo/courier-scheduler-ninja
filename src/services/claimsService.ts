@@ -368,7 +368,7 @@ export async function changeStatus(id: string, status: ClaimStatus, extra: Parti
   return updateClaim(id, { status, ...extra });
 }
 
-export async function addNote(claimId: string, note: string): Promise<ClaimNote> {
+async function getCurrentAuthor(): Promise<{ id: string | null; name: string | null }> {
   const { data: userData } = await supabase.auth.getUser();
   let authorName: string | null = null;
   if (userData.user?.id) {
@@ -379,13 +379,95 @@ export async function addNote(claimId: string, note: string): Promise<ClaimNote>
       .maybeSingle();
     authorName = prof?.name || prof?.email || null;
   }
+  return { id: userData.user?.id ?? null, name: authorName };
+}
+
+export async function addNote(
+  claimId: string,
+  note: string,
+  opts: { isSystem?: boolean } = {},
+): Promise<ClaimNote> {
+  const author = await getCurrentAuthor();
   const { data, error } = await (supabase as any)
     .from("claim_notes")
-    .insert({ claim_id: claimId, note, author_id: userData.user?.id, author_name: authorName })
+    .insert({
+      claim_id: claimId,
+      note,
+      author_id: author.id,
+      author_name: opts.isSystem ? "System" : author.name,
+      is_system: !!opts.isSystem,
+    })
     .select("*")
     .single();
   if (error) throw error;
   return data as ClaimNote;
+}
+
+const fmtMoneyLabel = (v: number | null | undefined) =>
+  v == null ? "—" : `£${Number(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const STEP_LABEL: Record<string, string> =
+  Object.fromEntries(CLAIM_STATUSES.map((s) => [s.value, s.label]));
+
+/**
+ * Advance the claim to the next step in the linear workflow.
+ * Validates required data and writes a system note describing the transition.
+ */
+export async function advanceClaim(
+  id: string,
+  extra: Partial<Claim> = {},
+): Promise<Claim> {
+  const { claim } = await getClaim(id);
+  const next = nextStep(claim.status);
+  if (!next) throw new Error("Claim is already at the final step.");
+
+  // Per-step validation
+  if (next === "settlement_proposed") {
+    const amount = (extra.offer_amount ?? claim.offer_amount) as number | null | undefined;
+    if (amount == null || Number.isNaN(Number(amount))) {
+      throw new Error("Settlement amount is required to propose a settlement.");
+    }
+  }
+  if (next === "settlement_agreed") {
+    if ((extra.offer_accepted ?? claim.offer_accepted) !== "yes") {
+      extra = { ...extra, offer_accepted: "yes" };
+    }
+  }
+  if (next === "closed") {
+    // No hard requirement, but ok
+  }
+
+  const updated = await updateClaim(id, { status: next, ...extra });
+  const author = await getCurrentAuthor();
+  const who = author.name ? ` by ${author.name}` : "";
+  const when = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  let msg = `Advanced to "${STEP_LABEL[next] ?? next}"${who} on ${when}.`;
+  if (next === "settlement_proposed") {
+    msg = `Settlement of ${fmtMoneyLabel(updated.offer_amount)} proposed${who} on ${when}.`;
+  } else if (next === "settlement_agreed") {
+    msg = `Settlement of ${fmtMoneyLabel(updated.offer_amount)} agreed${who} on ${when}.`;
+  } else if (next === "closed") {
+    msg = `Claim closed${who} on ${when}.`;
+  } else if (next === "info_requested") {
+    msg = `Information requested from customer${who} on ${when}.`;
+  } else if (next === "info_provided") {
+    msg = `Customer information received${who} on ${when}.`;
+  } else if (next === "assessment") {
+    msg = `Assessment started${who} on ${when}.`;
+  } else if (next === "negotiation") {
+    msg = `Settlement entered negotiation${who} on ${when}.`;
+  }
+  await addNote(id, msg, { isSystem: true });
+  return updated;
+}
+
+export async function rejectClaim(id: string, reason?: string): Promise<Claim> {
+  const updated = await updateClaim(id, { status: "rejected" });
+  const author = await getCurrentAuthor();
+  const who = author.name ? ` by ${author.name}` : "";
+  const when = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  await addNote(id, `Claim rejected${who} on ${when}${reason ? `: ${reason}` : "."}`, { isSystem: true });
+  return updated;
 }
 
 export async function listNotes(claimId: string): Promise<ClaimNote[]> {
