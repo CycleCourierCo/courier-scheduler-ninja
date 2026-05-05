@@ -204,6 +204,21 @@ function App() {
                   <VehicleManagement />
                 </ProtectedRoute>
               } />
+              <Route path="/claims" element={
+                <ProtectedRoute adminOnly={true}>
+                  <ClaimsList />
+                </ProtectedRoute>
+              } />
+              <Route path="/claims/new" element={
+                <ProtectedRoute adminOnly={true}>
+                  <NewClaim />
+                </ProtectedRoute>
+              } />
+              <Route path="/claims/:id" element={
+                <ProtectedRoute adminOnly={true}>
+                  <ClaimDetail />
+                </ProtectedRoute>
+              } />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />
