@@ -76,8 +76,7 @@ const ClaimDetail = () => {
   const [newNote, setNewNote] = useState("");
   const [uploadLabel, setUploadLabel] = useState("");
   const [uploadKind, setUploadKind] = useState<"photo" | "document">("photo");
-  const [offerOpen, setOfferOpen] = useState(false);
-  const [offerForm, setOfferForm] = useState({ amount: "", date: new Date().toISOString().slice(0, 10) });
+  const [advanceOpen, setAdvanceOpen] = useState(false);
 
   const reload = async () => {
     if (!id) return;
