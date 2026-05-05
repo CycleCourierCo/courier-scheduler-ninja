@@ -356,6 +356,12 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        <Link to="/claims" className="cursor-pointer flex w-full items-center">
+                          <ShieldAlert className="mr-2 h-4 w-4" />
+                          <span>Damage Claims</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link to="/loading" className="cursor-pointer flex w-full items-center">
                           <Package className="mr-2 h-4 w-4" />
                           <span>Loading & Storage</span>
