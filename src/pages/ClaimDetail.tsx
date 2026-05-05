@@ -216,15 +216,29 @@ const ClaimDetail = () => {
   const isTerminal = !next;
 
   const onAdvanceClick = () => {
-    if (next === "settlement_proposed") {
-      setOfferForm({
-        amount: view.recommended_settlement?.toString() ?? view.offer_amount?.toString() ?? "",
-        date: new Date().toISOString().slice(0, 10),
-      });
-      setOfferOpen(true);
-      return;
+    if (!next) return;
+    setAdvanceOpen(true);
+  };
+
+  const handleAdvanceConfirm = async (extra: Partial<Claim>, manualNote?: string) => {
+    try {
+      // Persist any field updates first so advanceClaim's validation sees them.
+      if (Object.keys(extra).length > 0) {
+        await updateClaim(claim.id, extra);
+      }
+      const updated = await advanceClaim(claim.id, extra);
+      setClaim(updated);
+      if (manualNote) {
+        await addNote(claim.id, manualNote);
+      }
+      const [n, log] = await Promise.all([listNotes(claim.id), getStatusLog(claim.id)]);
+      setNotes(n);
+      setStatusLog(log);
+      toast.success(`Advanced to ${CLAIM_STATUSES.find((s) => s.value === updated.status)?.label}`);
+    } catch (e: any) {
+      toast.error(e.message);
+      throw e;
     }
-    handleAdvance();
   };
 
   const actionButtons = () => (
