@@ -564,12 +564,13 @@ export async function getClaimsStats(): Promise<ClaimsStats> {
   let settledThisMonth = 0;
   const resolutionDurations: number[] = [];
   for (const r of rows) {
-    if (r.status === "open") open++;
-    if (r.status === "awaiting_info") awaitingInfo++;
-    if (r.status === "settled" && new Date(r.updated_at).getTime() >= startMonth) {
+    const c = canonicalStep(r.status);
+    if (c === "opened") open++;
+    if (c === "info_requested" || c === "info_provided") awaitingInfo++;
+    if (c === "settlement_agreed" && new Date(r.updated_at).getTime() >= startMonth) {
       settledThisMonth += Number(r.offer_amount ?? 0);
     }
-    if (r.status === "settled" || r.status === "closed" || r.status === "rejected") {
+    if (c === "settlement_agreed" || c === "closed" || c === "rejected") {
       const days = (new Date(r.updated_at).getTime() - new Date(r.created_at).getTime()) / 86400000;
       if (days >= 0) resolutionDurations.push(days);
     }
