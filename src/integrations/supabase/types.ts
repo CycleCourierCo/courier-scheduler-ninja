@@ -169,6 +169,7 @@ export type Database = {
           claim_id: string
           created_at: string
           id: string
+          is_system: boolean
           note: string
         }
         Insert: {
@@ -177,6 +178,7 @@ export type Database = {
           claim_id: string
           created_at?: string
           id?: string
+          is_system?: boolean
           note: string
         }
         Update: {
@@ -185,6 +187,7 @@ export type Database = {
           claim_id?: string
           created_at?: string
           id?: string
+          is_system?: boolean
           note?: string
         }
         Relationships: [
@@ -2315,6 +2318,13 @@ export type Database = {
         | "settled"
         | "rejected"
         | "closed"
+        | "opened"
+        | "info_requested"
+        | "info_provided"
+        | "assessment"
+        | "settlement_proposed"
+        | "negotiation"
+        | "settlement_agreed"
       order_status:
         | "created"
         | "sender_availability_pending"
@@ -2491,6 +2501,13 @@ export const Constants = {
         "settled",
         "rejected",
         "closed",
+        "opened",
+        "info_requested",
+        "info_provided",
+        "assessment",
+        "settlement_proposed",
+        "negotiation",
+        "settlement_agreed",
       ],
       order_status: [
         "created",
