@@ -586,9 +586,12 @@ const ClaimDetail = () => {
                 <CardContent className="space-y-3">
                   {timeline.length === 0 && <div className="text-sm text-muted-foreground">No activity yet.</div>}
                   {timeline.map((t, i) => (
-                    <div key={i} className="border-l-2 pl-3 border-primary/50">
+                    <div
+                      key={i}
+                      className={`border-l-2 pl-3 ${t.isSystem ? "border-muted-foreground/40 bg-muted/30 rounded-r py-1" : "border-primary/50"}`}
+                    >
                       <div className="text-xs text-muted-foreground">
-                        {format(new Date(t.ts), "dd MMM yyyy HH:mm")} · {t.who ?? "—"} · {t.kind === "status" ? "Status" : "Note"}
+                        {format(new Date(t.ts), "dd MMM yyyy HH:mm")} · {t.who ?? "—"} · {t.isSystem ? "System" : "Note"}
                       </div>
                       <div className="text-sm">{t.text}</div>
                     </div>
