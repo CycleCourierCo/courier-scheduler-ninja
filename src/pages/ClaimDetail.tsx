@@ -16,8 +16,11 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2, ExternalLink } from "lu
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ClaimStatusBadge from "@/components/claims/ClaimStatusBadge";
+import ClaimStepper from "@/components/claims/ClaimStepper";
 import {
   addNote,
+  advanceClaim,
+  canonicalStep,
   changeStatus,
   CLAIM_STATUSES,
   DAMAGE_TYPES,
@@ -29,6 +32,8 @@ import {
   isWithinTimeframe,
   listEvidence,
   listNotes,
+  nextStep,
+  rejectClaim,
   TIMEFRAME_DAYS,
   updateClaim,
   uploadEvidence,
