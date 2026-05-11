@@ -1,28 +1,17 @@
-## Step-aware advance dialogs
+# Allow Route Planner to Edit Order Addresses
 
-Right now the "Advance to: …" button only shows a settlement form, and every other step just bumps status with no context. We'll replace it with a single dialog that renders the form fields for whichever step you're moving into, then advances and writes a system note in one go.
+## Goal
+Route planners should be able to edit the sender and receiver contact/address blocks on the Order Detail page, just like admins can today.
 
-### New component: `src/components/claims/ClaimAdvanceDialog.tsx`
-A dialog that adapts its body to `nextStatus`:
+## Scope
+Frontend gating only. Database RLS already permits the `route_planner` role to update the `orders` table (`orders_route_planner_update_policy`), so no schema or policy changes are needed.
 
-- **Info Requested** — checklist of evidence items being requested + optional message-to-customer note.
-- **Info Provided** — same evidence checklist (tick what's now received) + optional note.
-- **Assessment** — assessor toggle + name, repair quote (£), market value (£), assessment notes.
-- **Settlement Proposed** — offer amount (£, required), offer date, settlement notes.
-- **Negotiation** — latest amount under discussion + required negotiation note (e.g. "Customer rejected £450, wants £600").
-- **Settlement Agreed** — agreed amount, payment reference, title-transferred checkbox, optional note.
-- **Closed** — closing remarks (optional).
+## Change
+In `src/pages/OrderDetail.tsx`, the sender and receiver blocks currently render `AdminContactEditor` only when `isAdmin` is true, and otherwise fall back to the read-only `ContactDetails`. The variable `isAdminOrRoutePlanner` already exists in the file.
 
-Per-step validation runs before allowing confirm (e.g. negotiation requires a note, settlement_proposed requires an amount).
+Swap the gating condition for both the sender block (~line 1518) and the receiver block (~line 1542) from `isAdmin` to `isAdminOrRoutePlanner`, so route planners get the editable variant.
 
-### `src/pages/ClaimDetail.tsx`
-- Replace the existing settlement-only `Dialog` with `<ClaimAdvanceDialog>`.
-- The "Advance to: {next}" button always opens the dialog (no special-case for settlement).
-- On confirm:
-  1. Save the captured fields via `updateClaim`.
-  2. Call `advanceClaim` to move to the next step (which writes the auto system note).
-  3. If the user added a manual note in the dialog, append it as a regular note.
-  4. Reload claim, notes, and status log.
-
-### Verification
-Open a claim → click Advance → see the correct form for that step (e.g. evidence checklist when requesting info, amount field when proposing settlement, free-text note when negotiating) → confirm → claim moves on, fields are saved, and both the system note and any manual note appear in the History timeline.
+## Out of scope
+- No changes to `AdminContactEditor` itself.
+- `AdminTrackingEditor` and the rest of the admin-only sections remain admin-only.
+- No backend, RLS, or edge function changes.
