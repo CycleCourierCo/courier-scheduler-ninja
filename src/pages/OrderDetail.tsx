@@ -1515,7 +1515,7 @@ const OrderDetail = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                {isAdmin ? (
+                {isAdminOrRoutePlanner ? (
                   <AdminContactEditor 
                     type="sender"
                     contact={order.sender}
@@ -1539,7 +1539,7 @@ const OrderDetail = () => {
               </div>
               
               <div className="space-y-4">
-                {isAdmin ? (
+                {isAdminOrRoutePlanner ? (
                   <AdminContactEditor 
                     type="receiver"
                     contact={order.receiver}
