@@ -118,6 +118,270 @@ export type Database = {
           },
         ]
       }
+      claim_evidence_files: {
+        Row: {
+          claim_id: string
+          file_name: string
+          id: string
+          kind: string
+          label: string | null
+          mime_type: string | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          claim_id: string
+          file_name: string
+          id?: string
+          kind?: string
+          label?: string | null
+          mime_type?: string | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          claim_id?: string
+          file_name?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          mime_type?: string | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_evidence_files_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_notes: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          claim_id: string
+          created_at: string
+          id: string
+          is_system: boolean
+          note: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          claim_id: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          note: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          claim_id?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_notes_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_ref_counters: {
+        Row: {
+          last_value: number
+          year: number
+        }
+        Insert: {
+          last_value?: number
+          year: number
+        }
+        Update: {
+          last_value?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      claim_status_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          claim_id: string
+          from_status: Database["public"]["Enums"]["claim_status"] | null
+          id: string
+          note: string | null
+          to_status: Database["public"]["Enums"]["claim_status"]
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          claim_id: string
+          from_status?: Database["public"]["Enums"]["claim_status"] | null
+          id?: string
+          note?: string | null
+          to_status: Database["public"]["Enums"]["claim_status"]
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          claim_id?: string
+          from_status?: Database["public"]["Enums"]["claim_status"] | null
+          id?: string
+          note?: string | null
+          to_status?: Database["public"]["Enums"]["claim_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_status_log_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claims: {
+        Row: {
+          assessor_appointed: boolean | null
+          assessor_name: string | null
+          betterment: boolean | null
+          betterment_amount: number | null
+          betterment_reason: string | null
+          booking_ref: string
+          claim_kind: string | null
+          claim_ref: string | null
+          created_at: string
+          created_by: string | null
+          damage_description: string | null
+          damage_type: Database["public"]["Enums"]["claim_damage_type"] | null
+          ev_booking_ref: boolean | null
+          ev_delivery_note: boolean | null
+          ev_delivery_photos: boolean | null
+          ev_full_bike_photos: boolean | null
+          ev_pre_collection_photos: boolean | null
+          ev_proof_ownership: boolean | null
+          ev_proof_value: boolean | null
+          ev_repair_estimate: boolean | null
+          ev_upgrade_details: boolean | null
+          id: string
+          internal_notes: string | null
+          market_value: number | null
+          notification_date: string | null
+          offer_accepted: string | null
+          offer_amount: number | null
+          offer_date: string | null
+          order_id: string
+          payment_reference: string | null
+          recommended_settlement: number | null
+          recorded_at_delivery: string | null
+          repair_quote: number | null
+          settlement_notes: string | null
+          settlement_override_reason: string | null
+          status: Database["public"]["Enums"]["claim_status"]
+          title_transferred: boolean | null
+          updated_at: string
+          within_timeframe: boolean | null
+        }
+        Insert: {
+          assessor_appointed?: boolean | null
+          assessor_name?: string | null
+          betterment?: boolean | null
+          betterment_amount?: number | null
+          betterment_reason?: string | null
+          booking_ref: string
+          claim_kind?: string | null
+          claim_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          damage_description?: string | null
+          damage_type?: Database["public"]["Enums"]["claim_damage_type"] | null
+          ev_booking_ref?: boolean | null
+          ev_delivery_note?: boolean | null
+          ev_delivery_photos?: boolean | null
+          ev_full_bike_photos?: boolean | null
+          ev_pre_collection_photos?: boolean | null
+          ev_proof_ownership?: boolean | null
+          ev_proof_value?: boolean | null
+          ev_repair_estimate?: boolean | null
+          ev_upgrade_details?: boolean | null
+          id?: string
+          internal_notes?: string | null
+          market_value?: number | null
+          notification_date?: string | null
+          offer_accepted?: string | null
+          offer_amount?: number | null
+          offer_date?: string | null
+          order_id: string
+          payment_reference?: string | null
+          recommended_settlement?: number | null
+          recorded_at_delivery?: string | null
+          repair_quote?: number | null
+          settlement_notes?: string | null
+          settlement_override_reason?: string | null
+          status?: Database["public"]["Enums"]["claim_status"]
+          title_transferred?: boolean | null
+          updated_at?: string
+          within_timeframe?: boolean | null
+        }
+        Update: {
+          assessor_appointed?: boolean | null
+          assessor_name?: string | null
+          betterment?: boolean | null
+          betterment_amount?: number | null
+          betterment_reason?: string | null
+          booking_ref?: string
+          claim_kind?: string | null
+          claim_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          damage_description?: string | null
+          damage_type?: Database["public"]["Enums"]["claim_damage_type"] | null
+          ev_booking_ref?: boolean | null
+          ev_delivery_note?: boolean | null
+          ev_delivery_photos?: boolean | null
+          ev_full_bike_photos?: boolean | null
+          ev_pre_collection_photos?: boolean | null
+          ev_proof_ownership?: boolean | null
+          ev_proof_value?: boolean | null
+          ev_repair_estimate?: boolean | null
+          ev_upgrade_details?: boolean | null
+          id?: string
+          internal_notes?: string | null
+          market_value?: number | null
+          notification_date?: string | null
+          offer_accepted?: string | null
+          offer_amount?: number | null
+          offer_date?: string | null
+          order_id?: string
+          payment_reference?: string | null
+          recommended_settlement?: number | null
+          recorded_at_delivery?: string | null
+          repair_quote?: number | null
+          settlement_notes?: string | null
+          settlement_override_reason?: string | null
+          status?: Database["public"]["Enums"]["claim_status"]
+          title_transferred?: boolean | null
+          updated_at?: string
+          within_timeframe?: boolean | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           city: string | null
@@ -2045,6 +2309,22 @@ export type Database = {
     }
     Enums: {
       account_status_type: "pending" | "approved" | "rejected" | "suspended"
+      claim_damage_type: "visible" | "concealed" | "loss" | "missing_parts"
+      claim_status:
+        | "open"
+        | "awaiting_info"
+        | "under_review"
+        | "offer_made"
+        | "settled"
+        | "rejected"
+        | "closed"
+        | "opened"
+        | "info_requested"
+        | "info_provided"
+        | "assessment"
+        | "settlement_proposed"
+        | "negotiation"
+        | "settlement_agreed"
       order_status:
         | "created"
         | "sender_availability_pending"
@@ -2212,6 +2492,23 @@ export const Constants = {
   public: {
     Enums: {
       account_status_type: ["pending", "approved", "rejected", "suspended"],
+      claim_damage_type: ["visible", "concealed", "loss", "missing_parts"],
+      claim_status: [
+        "open",
+        "awaiting_info",
+        "under_review",
+        "offer_made",
+        "settled",
+        "rejected",
+        "closed",
+        "opened",
+        "info_requested",
+        "info_provided",
+        "assessment",
+        "settlement_proposed",
+        "negotiation",
+        "settlement_agreed",
+      ],
       order_status: [
         "created",
         "sender_availability_pending",
