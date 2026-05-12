@@ -115,6 +115,12 @@ const VehicleManagement = () => {
 
   const handleStatusChange = async (v: Vehicle, status: VehicleStatus) => {
     if (v.status === status) return;
+    if (status === "sold") {
+      setSoldTarget(v);
+      setSoldDate(new Date().toISOString().slice(0, 10));
+      setSoldMileage("");
+      return;
+    }
     const prev = vehicles;
     setVehicles((vs) => vs.map((x) => (x.id === v.id ? { ...x, status } : x)));
     try {
@@ -124,6 +130,29 @@ const VehicleManagement = () => {
     } catch (e) {
       setVehicles(prev);
       toast.error((e as Error).message);
+    }
+  };
+
+  const handleConfirmSold = async () => {
+    if (!soldTarget) return;
+    if (!soldDate || !soldMileage) {
+      toast.error("Sold date and mileage are required");
+      return;
+    }
+    setSavingSold(true);
+    try {
+      await updateVehicle(soldTarget.id, {
+        status: "sold",
+        sold_date: soldDate,
+        sold_mileage: Number(soldMileage),
+      } as never);
+      toast.success(`${soldTarget.registration} marked as sold`);
+      setSoldTarget(null);
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingSold(false);
     }
   };
 
