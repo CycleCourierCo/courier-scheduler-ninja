@@ -52,6 +52,10 @@ const VehicleManagement = () => {
   const [editing, setEditing] = useState<Vehicle | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
+  const [soldDate, setSoldDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [soldMileage, setSoldMileage] = useState<string>("");
+  const [savingSold, setSavingSold] = useState(false);
 
   const load = async () => {
     setLoading(true);
