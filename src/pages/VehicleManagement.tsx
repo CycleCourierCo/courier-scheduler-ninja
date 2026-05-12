@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -52,6 +54,10 @@ const VehicleManagement = () => {
   const [editing, setEditing] = useState<Vehicle | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
+  const [soldDate, setSoldDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [soldMileage, setSoldMileage] = useState<string>("");
+  const [savingSold, setSavingSold] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -111,6 +117,12 @@ const VehicleManagement = () => {
 
   const handleStatusChange = async (v: Vehicle, status: VehicleStatus) => {
     if (v.status === status) return;
+    if (status === "sold") {
+      setSoldTarget(v);
+      setSoldDate(new Date().toISOString().slice(0, 10));
+      setSoldMileage("");
+      return;
+    }
     const prev = vehicles;
     setVehicles((vs) => vs.map((x) => (x.id === v.id ? { ...x, status } : x)));
     try {
@@ -120,6 +132,29 @@ const VehicleManagement = () => {
     } catch (e) {
       setVehicles(prev);
       toast.error((e as Error).message);
+    }
+  };
+
+  const handleConfirmSold = async () => {
+    if (!soldTarget) return;
+    if (!soldDate || !soldMileage) {
+      toast.error("Sold date and mileage are required");
+      return;
+    }
+    setSavingSold(true);
+    try {
+      await updateVehicle(soldTarget.id, {
+        status: "sold",
+        sold_date: soldDate,
+        sold_mileage: Number(soldMileage),
+      } as never);
+      toast.success(`${soldTarget.registration} marked as sold`);
+      setSoldTarget(null);
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingSold(false);
     }
   };
 
@@ -352,6 +387,44 @@ const VehicleManagement = () => {
           onOpenChange={setEditOpen}
           onSaved={load}
         />
+
+        <Dialog open={!!soldTarget} onOpenChange={(o) => { if (!o) setSoldTarget(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Mark {soldTarget?.registration} as sold</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="quick-sold-date">Sold date</Label>
+                <Input
+                  id="quick-sold-date"
+                  type="date"
+                  value={soldDate}
+                  onChange={(e) => setSoldDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quick-sold-mileage">Mileage at sale</Label>
+                <Input
+                  id="quick-sold-mileage"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={soldMileage}
+                  onChange={(e) => setSoldMileage(e.target.value)}
+                  placeholder="e.g. 89400"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setSoldTarget(null)}>Cancel</Button>
+              <Button onClick={handleConfirmSold} disabled={savingSold || !soldDate || !soldMileage}>
+                {savingSold && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Mark as sold
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
