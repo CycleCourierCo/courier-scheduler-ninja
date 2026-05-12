@@ -203,185 +203,198 @@ const VehicleManagement = () => {
           <AddVehicleDialog onCreated={load} />
         </div>
 
-        <Card className="p-3 flex flex-wrap gap-2 items-center">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by registration or make"
-            className="max-w-xs uppercase"
-          />
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as VehicleStatus | "all")}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {VEHICLE_STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="text-sm text-muted-foreground ml-auto">
-            {filtered.length} of {vehicles.length} vehicles
-          </div>
-        </Card>
+        <Tabs defaultValue="vehicles" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
+            <TabsTrigger value="insurance">Insurance</TabsTrigger>
+          </TabsList>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <Card className="p-8 text-center text-muted-foreground">
-            No vehicles yet. Click "Add Vehicle" to get started.
-          </Card>
-        ) : (
-          <>
-            {/* Desktop */}
-            <Card className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Registration</TableHead>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Purchased</TableHead>
-                    <TableHead>Tax</TableHead>
-                    <TableHead>MOT</TableHead>
-                    <TableHead>Auto Pay</TableHead>
-                    <TableHead>Last refreshed</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((v) => (
-                    <TableRow key={v.id}>
-                      <TableCell className="font-mono font-semibold">{v.registration}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div>{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
-                          <div className="text-muted-foreground text-xs">
-                            {v.fuel_type ?? ""} {v.year_of_manufacture ?? ""}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell><StatusDropdown v={v} /></TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {v.purchase_date
-                          ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                          : "—"}
-                      </TableCell>
-                      <TableCell><ExpiryCell status={v.tax_status} date={v.tax_due_date} /></TableCell>
-                      <TableCell><ExpiryCell status={v.mot_status} date={v.mot_expiry_date} /></TableCell>
-                      <TableCell>
-                        <div className="text-xs space-y-0.5">
-                          <div>London: {v.london_auto_pay ? "✓" : "—"}</div>
-                          <div>Dartford: {v.dartford_crossing ? "✓" : "—"}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {v.last_refreshed_at ? new Date(v.last_refreshed_at).toLocaleDateString() : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleRowRefresh(v)}
-                            disabled={refreshingId === v.id}
-                            title="Refresh from DVLA"
-                          >
-                            {refreshingId === v.id
-                              ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : <RefreshCw className="h-4 w-4" />}
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => { setEditing(v); setEditOpen(true); }}
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="icon" variant="ghost" title="Delete">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete {v.registration}?</AlertDialogTitle>
-                                <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+          <TabsContent value="vehicles" className="space-y-4">
+            <Card className="p-3 flex flex-wrap gap-2 items-center">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by registration or make"
+                className="max-w-xs uppercase"
+              />
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as VehicleStatus | "all")}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {VEHICLE_STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
-                </TableBody>
-              </Table>
+                </SelectContent>
+              </Select>
+              <div className="text-sm text-muted-foreground ml-auto">
+                {filtered.length} of {vehicles.length} vehicles
+              </div>
             </Card>
 
-            {/* Mobile */}
-            <div className="md:hidden space-y-3">
-              {filtered.map((v) => (
-                <Card key={v.id} className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="font-mono font-semibold">{v.registration}</div>
-                    <StatusDropdown v={v} />
-                  </div>
-                  <div className="text-sm">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Purchased: {v.purchase_date
-                      ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                      : "—"}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <div className="text-muted-foreground">Tax</div>
-                      <ExpiryCell status={v.tax_status} date={v.tax_due_date} />
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">MOT</div>
-                      <ExpiryCell status={v.mot_status} date={v.mot_expiry_date} />
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    London Auto Pay: {v.london_auto_pay ? "✓" : "—"} · Dartford: {v.dartford_crossing ? "✓" : "—"}
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
-                      {refreshingId === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditing(v); setEditOpen(true); }}>
-                      <Pencil className="h-3 w-3 mr-1" /> Edit
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete {v.registration}?</AlertDialogTitle>
-                          <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                No vehicles yet. Click "Add Vehicle" to get started.
+              </Card>
+            ) : (
+              <>
+                {/* Desktop */}
+                <Card className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Registration</TableHead>
+                        <TableHead>Vehicle</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Purchased</TableHead>
+                        <TableHead>Tax</TableHead>
+                        <TableHead>MOT</TableHead>
+                        <TableHead>Auto Pay</TableHead>
+                        <TableHead>Last refreshed</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((v) => (
+                        <TableRow key={v.id}>
+                          <TableCell className="font-mono font-semibold">{v.registration}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
+                              <div className="text-muted-foreground text-xs">
+                                {v.fuel_type ?? ""} {v.year_of_manufacture ?? ""}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell><StatusDropdown v={v} /></TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {v.purchase_date
+                              ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                              : "—"}
+                          </TableCell>
+                          <TableCell><ExpiryCell status={v.tax_status} date={v.tax_due_date} /></TableCell>
+                          <TableCell><ExpiryCell status={v.mot_status} date={v.mot_expiry_date} /></TableCell>
+                          <TableCell>
+                            <div className="text-xs space-y-0.5">
+                              <div>London: {v.london_auto_pay ? "✓" : "—"}</div>
+                              <div>Dartford: {v.dartford_crossing ? "✓" : "—"}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {v.last_refreshed_at ? new Date(v.last_refreshed_at).toLocaleDateString() : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleRowRefresh(v)}
+                                disabled={refreshingId === v.id}
+                                title="Refresh from DVLA"
+                              >
+                                {refreshingId === v.id
+                                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                                  : <RefreshCw className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => { setEditing(v); setEditOpen(true); }}
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="icon" variant="ghost" title="Delete">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete {v.registration}?</AlertDialogTitle>
+                                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </Card>
-              ))}
-            </div>
-          </>
-        )}
+
+                {/* Mobile */}
+                <div className="md:hidden space-y-3">
+                  {filtered.map((v) => (
+                    <Card key={v.id} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="font-mono font-semibold">{v.registration}</div>
+                        <StatusDropdown v={v} />
+                      </div>
+                      <div className="text-sm">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Purchased: {v.purchase_date
+                          ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                          : "—"}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className="text-muted-foreground">Tax</div>
+                          <ExpiryCell status={v.tax_status} date={v.tax_due_date} />
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">MOT</div>
+                          <ExpiryCell status={v.mot_status} date={v.mot_expiry_date} />
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        London Auto Pay: {v.london_auto_pay ? "✓" : "—"} · Dartford: {v.dartford_crossing ? "✓" : "—"}
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
+                          {refreshingId === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditing(v); setEditOpen(true); }}>
+                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete {v.registration}?</AlertDialogTitle>
+                              <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="insurance">
+            <InsuranceTab vehicles={vehicles} />
+          </TabsContent>
+        </Tabs>
 
         <EditVehicleDialog
           vehicle={editing}
