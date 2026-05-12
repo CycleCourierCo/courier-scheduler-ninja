@@ -1884,6 +1884,56 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_insurance_policies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          insurer: string
+          notes: string | null
+          policy_number: string | null
+          premium: number | null
+          start_date: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          insurer: string
+          notes?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          start_date: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          insurer?: string
+          notes?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          start_date?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_insurance_policies_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           clean_air_zones: boolean
