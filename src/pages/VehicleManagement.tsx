@@ -385,6 +385,44 @@ const VehicleManagement = () => {
           onOpenChange={setEditOpen}
           onSaved={load}
         />
+
+        <Dialog open={!!soldTarget} onOpenChange={(o) => { if (!o) setSoldTarget(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Mark {soldTarget?.registration} as sold</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="quick-sold-date">Sold date</Label>
+                <Input
+                  id="quick-sold-date"
+                  type="date"
+                  value={soldDate}
+                  onChange={(e) => setSoldDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quick-sold-mileage">Mileage at sale</Label>
+                <Input
+                  id="quick-sold-mileage"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={soldMileage}
+                  onChange={(e) => setSoldMileage(e.target.value)}
+                  placeholder="e.g. 89400"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setSoldTarget(null)}>Cancel</Button>
+              <Button onClick={handleConfirmSold} disabled={savingSold || !soldDate || !soldMileage}>
+                {savingSold && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Mark as sold
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
