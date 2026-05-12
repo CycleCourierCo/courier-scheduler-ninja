@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
 import EditVehicleDialog from "@/components/vehicles/EditVehicleDialog";
 import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
+import InsuranceTab from "@/components/vehicles/InsuranceTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   deleteVehicle,
   listVehicles,
