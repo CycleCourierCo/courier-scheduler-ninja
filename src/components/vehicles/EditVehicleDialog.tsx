@@ -23,37 +23,81 @@ interface Props {
   onSaved?: () => void;
 }
 
+const TOLL_FIELDS = [
+  { key: "london_auto_pay", label: "London Auto Pay" },
+  { key: "dartford_crossing", label: "Dartford Crossing" },
+  { key: "clean_air_zones", label: "Gov Clean Air Zones" },
+  { key: "tyne_tunnel", label: "Tyne Tunnel" },
+  { key: "mersey_tunnel", label: "Mersey Tunnel" },
+  { key: "humber_bridge", label: "Humber Bridge" },
+  { key: "tamar_bridge", label: "Tamar Bridge" },
+] as const;
+
+type TollKey = typeof TOLL_FIELDS[number]["key"];
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
 export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Props) => {
   const [status, setStatus] = useState<VehicleStatus>("purchased");
-  const [londonAutoPay, setLondonAutoPay] = useState(false);
-  const [dartford, setDartford] = useState(false);
+  const [tolls, setTolls] = useState<Record<TollKey, boolean>>({
+    london_auto_pay: false,
+    dartford_crossing: false,
+    clean_air_zones: false,
+    tyne_tunnel: false,
+    mersey_tunnel: false,
+    humber_bridge: false,
+    tamar_bridge: false,
+  });
   const [notes, setNotes] = useState("");
   const [purchaseDate, setPurchaseDate] = useState<string>("");
+  const [purchaseMileage, setPurchaseMileage] = useState<string>("");
+  const [soldDate, setSoldDate] = useState<string>("");
+  const [soldMileage, setSoldMileage] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (vehicle) {
+      const v = vehicle as Vehicle & Partial<Record<TollKey | "purchase_mileage" | "sold_date" | "sold_mileage", unknown>>;
       setStatus(vehicle.status);
-      setLondonAutoPay(vehicle.london_auto_pay);
-      setDartford(vehicle.dartford_crossing);
+      setTolls({
+        london_auto_pay: !!vehicle.london_auto_pay,
+        dartford_crossing: !!vehicle.dartford_crossing,
+        clean_air_zones: !!v.clean_air_zones,
+        tyne_tunnel: !!v.tyne_tunnel,
+        mersey_tunnel: !!v.mersey_tunnel,
+        humber_bridge: !!v.humber_bridge,
+        tamar_bridge: !!v.tamar_bridge,
+      });
       setNotes(vehicle.notes ?? "");
       setPurchaseDate(vehicle.purchase_date ?? "");
+      setPurchaseMileage(v.purchase_mileage != null ? String(v.purchase_mileage) : "");
+      setSoldDate((v.sold_date as string | null) ?? "");
+      setSoldMileage(v.sold_mileage != null ? String(v.sold_mileage) : "");
     }
   }, [vehicle]);
 
   if (!vehicle) return null;
 
+  const isSold = status === "sold";
+  const soldFieldsValid = !isSold || (!!soldDate && !!soldMileage);
+
   const handleSave = async () => {
+    if (isSold && !soldFieldsValid) {
+      toast.error("Sold date and mileage at sale are required");
+      return;
+    }
     setSaving(true);
     try {
       await updateVehicle(vehicle.id, {
         status,
-        london_auto_pay: londonAutoPay,
-        dartford_crossing: dartford,
+        ...tolls,
         notes: notes || null,
         purchase_date: purchaseDate || null,
-      });
+        purchase_mileage: purchaseMileage ? Number(purchaseMileage) : null,
+        sold_date: isSold ? soldDate : null,
+        sold_mileage: isSold && soldMileage ? Number(soldMileage) : null,
+      } as never);
       toast.success("Vehicle updated");
       onSaved?.();
       onOpenChange(false);
@@ -100,7 +144,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{vehicle.registration}</DialogTitle>
         </DialogHeader>
@@ -151,14 +195,61 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="font-medium text-sm">London Auto Pay</div>
-            <Switch checked={londonAutoPay} onCheckedChange={setLondonAutoPay} />
+          <div className="space-y-2">
+            <Label htmlFor="purchase-mileage-edit">Mileage at purchase</Label>
+            <Input
+              id="purchase-mileage-edit"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={purchaseMileage}
+              onChange={(e) => setPurchaseMileage(e.target.value)}
+              placeholder="e.g. 45200"
+            />
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="font-medium text-sm">Dartford Crossing</div>
-            <Switch checked={dartford} onCheckedChange={setDartford} />
+          {isSold && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3">
+              <div className="text-sm font-medium">Sold details (required)</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="sold-date">Sold date</Label>
+                  <Input
+                    id="sold-date"
+                    type="date"
+                    value={soldDate || todayIso()}
+                    onChange={(e) => setSoldDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sold-mileage">Mileage at sale</Label>
+                  <Input
+                    id="sold-mileage"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={soldMileage}
+                    onChange={(e) => setSoldMileage(e.target.value)}
+                    placeholder="e.g. 89400"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Tolls & Zones</Label>
+            <div className="space-y-2">
+              {TOLL_FIELDS.map((f) => (
+                <div key={f.key} className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="font-medium text-sm">{f.label}</div>
+                  <Switch
+                    checked={tolls[f.key]}
+                    onCheckedChange={(v) => setTolls((t) => ({ ...t, [f.key]: v }))}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">
