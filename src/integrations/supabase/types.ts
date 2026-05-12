@@ -1884,8 +1884,59 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_insurance_policies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          insurer: string
+          notes: string | null
+          policy_number: string | null
+          premium: number | null
+          start_date: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          insurer: string
+          notes?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          start_date: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          insurer?: string
+          notes?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          start_date?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_insurance_policies_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
+          clean_air_zones: boolean
           co2_emissions: number | null
           colour: string | null
           created_at: string
@@ -1895,21 +1946,28 @@ export type Database = {
           engine_capacity: number | null
           euro_status: string | null
           fuel_type: string | null
+          humber_bridge: boolean
           id: string
           last_refreshed_at: string | null
           london_auto_pay: boolean
           make: string | null
           marked_for_export: boolean | null
+          mersey_tunnel: boolean
           mot_expiry_date: string | null
           mot_status: string | null
           notes: string | null
           purchase_date: string | null
+          purchase_mileage: number | null
           real_driving_emissions: string | null
           registration: string
           revenue_weight: number | null
+          sold_date: string | null
+          sold_mileage: number | null
           status: Database["public"]["Enums"]["vehicle_status"]
+          tamar_bridge: boolean
           tax_due_date: string | null
           tax_status: string | null
+          tyne_tunnel: boolean
           type_approval: string | null
           updated_at: string
           ves_raw: Json | null
@@ -1917,6 +1975,7 @@ export type Database = {
           year_of_manufacture: number | null
         }
         Insert: {
+          clean_air_zones?: boolean
           co2_emissions?: number | null
           colour?: string | null
           created_at?: string
@@ -1926,21 +1985,28 @@ export type Database = {
           engine_capacity?: number | null
           euro_status?: string | null
           fuel_type?: string | null
+          humber_bridge?: boolean
           id?: string
           last_refreshed_at?: string | null
           london_auto_pay?: boolean
           make?: string | null
           marked_for_export?: boolean | null
+          mersey_tunnel?: boolean
           mot_expiry_date?: string | null
           mot_status?: string | null
           notes?: string | null
           purchase_date?: string | null
+          purchase_mileage?: number | null
           real_driving_emissions?: string | null
           registration: string
           revenue_weight?: number | null
+          sold_date?: string | null
+          sold_mileage?: number | null
           status?: Database["public"]["Enums"]["vehicle_status"]
+          tamar_bridge?: boolean
           tax_due_date?: string | null
           tax_status?: string | null
+          tyne_tunnel?: boolean
           type_approval?: string | null
           updated_at?: string
           ves_raw?: Json | null
@@ -1948,6 +2014,7 @@ export type Database = {
           year_of_manufacture?: number | null
         }
         Update: {
+          clean_air_zones?: boolean
           co2_emissions?: number | null
           colour?: string | null
           created_at?: string
@@ -1957,21 +2024,28 @@ export type Database = {
           engine_capacity?: number | null
           euro_status?: string | null
           fuel_type?: string | null
+          humber_bridge?: boolean
           id?: string
           last_refreshed_at?: string | null
           london_auto_pay?: boolean
           make?: string | null
           marked_for_export?: boolean | null
+          mersey_tunnel?: boolean
           mot_expiry_date?: string | null
           mot_status?: string | null
           notes?: string | null
           purchase_date?: string | null
+          purchase_mileage?: number | null
           real_driving_emissions?: string | null
           registration?: string
           revenue_weight?: number | null
+          sold_date?: string | null
+          sold_mileage?: number | null
           status?: Database["public"]["Enums"]["vehicle_status"]
+          tamar_bridge?: boolean
           tax_due_date?: string | null
           tax_status?: string | null
+          tyne_tunnel?: boolean
           type_approval?: string | null
           updated_at?: string
           ves_raw?: Json | null

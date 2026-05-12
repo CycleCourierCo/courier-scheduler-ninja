@@ -22,6 +22,18 @@ interface Props {
   onCreated?: () => void;
 }
 
+const TOLL_FIELDS = [
+  { key: "london_auto_pay", label: "London Auto Pay", desc: "ULEZ / Congestion auto pay" },
+  { key: "dartford_crossing", label: "Dartford Crossing", desc: "Dart Charge auto pay" },
+  { key: "clean_air_zones", label: "Gov Clean Air Zones", desc: "Birmingham, Bristol, etc." },
+  { key: "tyne_tunnel", label: "Tyne Tunnel", desc: "Auto pay enrolled" },
+  { key: "mersey_tunnel", label: "Mersey Tunnel", desc: "Fast Tag enrolled" },
+  { key: "humber_bridge", label: "Humber Bridge", desc: "Auto pay enrolled" },
+  { key: "tamar_bridge", label: "Tamar Bridge", desc: "Tag enrolled" },
+] as const;
+
+type TollKey = typeof TOLL_FIELDS[number]["key"];
+
 export const AddVehicleDialog = ({ onCreated }: Props) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -30,20 +42,36 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
   const [saving, setSaving] = useState(false);
   const [details, setDetails] = useState<VesLookupResult | null>(null);
   const [status, setStatus] = useState<VehicleStatus>("purchased");
-  const [londonAutoPay, setLondonAutoPay] = useState(false);
-  const [dartford, setDartford] = useState(false);
+  const [tolls, setTolls] = useState<Record<TollKey, boolean>>({
+    london_auto_pay: false,
+    dartford_crossing: false,
+    clean_air_zones: false,
+    tyne_tunnel: false,
+    mersey_tunnel: false,
+    humber_bridge: false,
+    tamar_bridge: false,
+  });
   const [notes, setNotes] = useState("");
   const todayIso = () => new Date().toISOString().slice(0, 10);
   const [purchaseDate, setPurchaseDate] = useState<string>(todayIso());
+  const [purchaseMileage, setPurchaseMileage] = useState<string>("");
 
   const reset = () => {
     setRegistration("");
     setDetails(null);
     setStatus("purchased");
-    setLondonAutoPay(false);
-    setDartford(false);
+    setTolls({
+      london_auto_pay: false,
+      dartford_crossing: false,
+      clean_air_zones: false,
+      tyne_tunnel: false,
+      mersey_tunnel: false,
+      humber_bridge: false,
+      tamar_bridge: false,
+    });
     setNotes("");
     setPurchaseDate(todayIso());
+    setPurchaseMileage("");
   };
 
   const handleLookup = async () => {
@@ -72,8 +100,8 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
         registration: details.registration,
         status,
         purchase_date: purchaseDate || null,
-        london_auto_pay: londonAutoPay,
-        dartford_crossing: dartford,
+        purchase_mileage: purchaseMileage ? Number(purchaseMileage) : null,
+        ...tolls,
         notes: notes || null,
         make: details.make,
         colour: details.colour,
@@ -114,7 +142,7 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
           <Plus className="h-4 w-4 mr-2" /> Add Vehicle
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a vehicle</DialogTitle>
         </DialogHeader>
@@ -175,20 +203,35 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <div className="font-medium text-sm">London Auto Pay</div>
-              <div className="text-xs text-muted-foreground">Set up for ULEZ / Congestion auto pay</div>
-            </div>
-            <Switch checked={londonAutoPay} onCheckedChange={setLondonAutoPay} />
+          <div className="space-y-2">
+            <Label htmlFor="purchase-mileage">Mileage at purchase</Label>
+            <Input
+              id="purchase-mileage"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={purchaseMileage}
+              onChange={(e) => setPurchaseMileage(e.target.value)}
+              placeholder="e.g. 45200"
+            />
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <div className="font-medium text-sm">Dartford Crossing</div>
-              <div className="text-xs text-muted-foreground">Registered for Dart Charge auto pay</div>
+          <div className="space-y-2">
+            <Label>Tolls & Zones</Label>
+            <div className="space-y-2">
+              {TOLL_FIELDS.map((f) => (
+                <div key={f.key} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <div className="font-medium text-sm">{f.label}</div>
+                    <div className="text-xs text-muted-foreground">{f.desc}</div>
+                  </div>
+                  <Switch
+                    checked={tolls[f.key]}
+                    onCheckedChange={(v) => setTolls((t) => ({ ...t, [f.key]: v }))}
+                  />
+                </div>
+              ))}
             </div>
-            <Switch checked={dartford} onCheckedChange={setDartford} />
           </div>
 
           <div className="space-y-2">
