@@ -1,41 +1,40 @@
-## Vehicles page enhancements
+## Insurance tab on Vehicle Management
 
-### 1. New vehicle fields
-Add to `vehicles` table via migration:
-- `purchase_mileage` (integer, nullable) — captured when adding a vehicle
-- `sold_date` (date, nullable) — required when status set to `sold`
-- `sold_mileage` (integer, nullable) — required when status set to `sold`
-- Toll/zone toggles (boolean, default false):
-  - `clean_air_zones` (Gov Clean Air Zones)
-  - `tyne_tunnel`
-  - `mersey_tunnel`
-  - `humber_bridge`
-  - `tamar_bridge`
+Add an **Insurance** tab to the Vehicles page with policy history per vehicle, a fleet-wide Gantt timeline, and an "uninsured vehicles" panel.
 
-(Existing `london_auto_pay` and `dartford_crossing` remain.)
+### Database (new table)
 
-### 2. Add Vehicle dialog (`AddVehicleDialog.tsx`)
-- New "Mileage at purchase" number input next to purchase date.
-- New "Tolls & Zones" section with toggles for: London Auto Pay, Dartford, Clean Air Zones, Tyne Tunnel, Mersey Tunnel, Humber Bridge, Tamar Bridge.
+`vehicle_insurance_policies`
+- `vehicle_id` (uuid, FK → vehicles.id, on delete cascade)
+- `insurer` (text)
+- `policy_number` (text, nullable)
+- `start_date` (date, required)
+- `end_date` (date, required)
+- `premium` (numeric, nullable)
+- `notes` (text, nullable)
+- standard `id`, `created_at`, `updated_at`, `created_by`
 
-### 3. Edit Vehicle dialog (`EditVehicleDialog.tsx`)
-- Show purchase mileage field (editable).
-- When status is changed to `sold`, reveal required "Sold date" (default today) and "Mileage at sale" inputs; block save until both filled.
-- Same expanded Tolls & Zones toggles list as Add dialog.
+RLS: admin full access (matches existing vehicle policies). Index on `(vehicle_id, start_date)`.
 
-### 4. Quick status change buttons
-On the vehicles list page (`VehicleManagement.tsx`) row/card:
-- Add a compact status action menu (dropdown of all `VEHICLE_STATUS_OPTIONS`) so the user can change status in one click without opening Edit.
-- If the chosen status is `sold`, open a small modal prompting for sold date + sold mileage before persisting; otherwise call `updateVehicle` directly and toast.
+### UI
 
-### 5. Service layer (`vehicleService.ts`)
-- Extend `VehicleInsert`/`VehicleUpdate` usage for the new fields (types come from regenerated Supabase types after migration).
-- No new functions needed — `updateVehicle` already handles partial patches.
+`VehicleManagement.tsx` wrapped in `Tabs` with two tabs:
+1. **Vehicles** — existing list/grid, unchanged.
+2. **Insurance** — new view containing:
+   - **Uninsured vehicles** card at top: lists all active (non-sold) vehicles where no policy covers today's date. Each row has a "Add policy" button.
+   - **Coverage timeline** (Gantt): rows = vehicles, x-axis = months. Default range = 12 months from current month, with prev/next navigation. Each policy rendered as a coloured bar; hovering shows insurer + dates; clicking opens edit. Vehicles with gaps show empty space (visually flags uninsured periods).
+   - **Policies table** below the chart: filterable by vehicle, sortable by end date, with Edit/Delete actions and "Expiring in 30 days" highlight.
+
+### New components
+- `src/components/vehicles/InsuranceTab.tsx` — orchestrates the tab.
+- `src/components/vehicles/InsuranceTimeline.tsx` — Gantt chart (pure CSS grid, no new deps).
+- `src/components/vehicles/UninsuredVehiclesCard.tsx`.
+- `src/components/vehicles/PolicyDialog.tsx` — add/edit policy form (vehicle picker, insurer, policy #, start, end, premium, notes).
+
+### Service layer
+- `src/services/insuranceService.ts` — `listPolicies()`, `createPolicy()`, `updatePolicy()`, `deletePolicy()`, plus helper `getCurrentlyUninsuredVehicles(vehicles, policies)` (client-side: vehicle has no policy where `start_date <= today <= end_date`).
 
 ### Out of scope
-- No changes to DVLA lookup, RLS, or list filtering.
-- No reporting/analytics on sold vehicles in this pass.
-
-### Technical notes
-- All new columns nullable so existing rows are unaffected.
-- Sold-date/mileage requirement enforced client-side (consistent with existing validation pattern); no DB CHECK constraint to keep flexibility.
+- No automated renewal reminders / emails.
+- No document upload for policy PDFs (can be added later).
+- No changes to existing vehicle fields.
