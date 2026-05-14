@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -45,17 +45,29 @@ import {
   moveToRepaired,
   checkAllApprovedRepaired,
   reconcileInspectionStatuses,
+  setIssuePrice,
+  releaseInspectionToCustomer,
+  markPartsArrived,
+  unmarkPartsArrived,
+  markPartsOrdered,
+  unmarkPartsOrdered,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
 interface IssueEntry {
   description: string;
   estimatedCost: string;
+  partName: string;
+  partSpec: string;
+  partNumber: string;
 }
 
 interface ChecklistIssue {
   description: string;
   estimatedCost: string;
+  partName: string;
+  partSpec: string;
+  partNumber: string;
 }
 
 // Standard inspection checklist items
@@ -76,9 +88,12 @@ const BicycleInspections = () => {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+  // Per-issue price input for the awaiting-pricing stage
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
@@ -127,7 +142,7 @@ const BicycleInspections = () => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
-      
+
       const results = [];
       for (const issue of issues) {
         if (issue.description.trim()) {
@@ -137,7 +152,12 @@ const BicycleInspections = () => {
             issue.description,
             cost,
             user.id,
-            userProfile.name || user.email || "Admin"
+            userProfile.name || user.email || "Admin",
+            {
+              part_name: issue.partName?.trim() || null,
+              part_spec: issue.partSpec?.trim() || null,
+              part_number: issue.partNumber?.trim() || null,
+            }
           );
           results.push(result);
         }
@@ -148,10 +168,87 @@ const BicycleInspections = () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setIssueDialogOpen(false);
       resetIssueForm();
-      toast.success("Issues reported successfully");
+      toast.success("Issues recorded — awaiting admin pricing");
     },
     onError: (error) => {
       toast.error("Failed to report issues");
+      console.error(error);
+    },
+  });
+
+  // Set price on a single issue (admin pricing stage)
+  const setPriceMutation = useMutation({
+    mutationFn: async ({ issueId, price }: { issueId: string; price: number }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return setIssuePrice(issueId, price, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setPriceInputs(prev => {
+        const next = { ...prev };
+        delete next[vars.issueId];
+        return next;
+      });
+      toast.success("Price saved");
+    },
+    onError: (error) => {
+      toast.error("Failed to save price");
+      console.error(error);
+    },
+  });
+
+  // Release inspection to customer (admin gate)
+  const releaseMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return releaseInspectionToCustomer(
+        inspectionId,
+        user.id,
+        userProfile?.name || user.email || "Admin"
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Inspection released to customer");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to release inspection");
+      console.error(error);
+    },
+  });
+
+  // Toggle parts arrived (mechanic/admin)
+  const togglePartsArrivedMutation = useMutation({
+    mutationFn: async ({ issueId, arrived }: { issueId: string; arrived: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      if (arrived) {
+        return markPartsArrived(issueId, user.id, userProfile?.name || user.email || "Mechanic");
+      }
+      return unmarkPartsArrived(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update parts status");
+      console.error(error);
+    },
+  });
+
+  // Toggle parts ordered (mechanic/admin)
+  const togglePartsOrderedMutation = useMutation({
+    mutationFn: async ({ issueId, ordered }: { issueId: string; ordered: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      if (ordered) {
+        return markPartsOrdered(issueId, user.id, userProfile?.name || user.email || "Mechanic");
+      }
+      return unmarkPartsOrdered(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update parts ordered status");
       console.error(error);
     },
   });
@@ -320,7 +417,7 @@ const BicycleInspections = () => {
   const handleAddChecklistIssue = (itemId: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "" }]
+      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]
     }));
   };
 
@@ -331,10 +428,10 @@ const BicycleInspections = () => {
     }));
   };
 
-  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost', value: string) => {
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: (prev[itemId] || []).map((issue, i) => 
+      [itemId]: (prev[itemId] || []).map((issue, i) =>
         i === index ? { ...issue, [field]: value } : issue
       )
     }));
@@ -345,13 +442,16 @@ const BicycleInspections = () => {
   );
 
   // Collect all issues across all checklist items
-  const allChecklistIssues = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
+  const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
     const itemLabel = INSPECTION_ITEMS.find(i => i.id === itemId)?.label || itemId;
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
         description: `[${itemLabel}] ${issue.description}`,
         estimatedCost: issue.estimatedCost,
+        partName: issue.partName,
+        partSpec: issue.partSpec,
+        partNumber: issue.partNumber,
       }));
   });
 
@@ -359,24 +459,19 @@ const BicycleInspections = () => {
 
   const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
-    
+
     if (hasIssues) {
-      // Submit issues via the existing mutation
-      const validIssues = allChecklistIssues.map(i => ({
-        description: i.description,
-        estimatedCost: i.estimatedCost,
-      }));
-      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: validIssues });
+      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: allChecklistIssues });
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
       const notes = INSPECTION_ITEMS.map(item => {
         const comment = inspectionComments[item.id];
-        return comment 
+        return comment
           ? `✓ ${item.label}: ${comment}`
           : `✓ ${item.label}`;
       }).join('\n');
-      
+
       markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
       setInspectionChecklistOpen(false);
     }
@@ -385,25 +480,25 @@ const BicycleInspections = () => {
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
     setIssueCount(newCount);
-    
+
     setIssues(prev => {
       if (newCount > prev.length) {
-        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "" }))];
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }))];
       } else {
         return prev.slice(0, newCount);
       }
     });
   };
 
-  const updateIssue = (index: number, field: 'description' | 'estimatedCost', value: string) => {
-    setIssues(prev => prev.map((issue, i) => 
+  const updateIssue = (index: number, field: keyof IssueEntry, value: string) => {
+    setIssues(prev => prev.map((issue, i) =>
       i === index ? { ...issue, [field]: value } : issue
     ));
   };
 
   const resetIssueForm = () => {
     setIssueCount(1);
-    setIssues([{ description: "", estimatedCost: "" }]);
+    setIssues([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
     setSelectedOrderId(null);
   };
 
@@ -440,10 +535,15 @@ const BicycleInspections = () => {
     switch (status) {
       case "inspected":
         return { variant: "success" as const, label: "No Issues" };
+      case "awaiting_pricing":
+        return { variant: "warning" as const, label: "Awaiting Pricing" };
       case "issues_found":
         return { variant: "destructive" as const, label: "Issues Found" };
+      case "awaiting_parts":
+        return { variant: "warning" as const, label: "Awaiting Parts" };
+      case "awaiting_repair":
       case "in_repair":
-        return { variant: "warning" as const, label: "In Repair" };
+        return { variant: "warning" as const, label: "Awaiting Repair" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
       default:
@@ -467,11 +567,30 @@ const BicycleInspections = () => {
     return arr;
   }, [inspections, sortBy, canManageInspections]);
 
+  // Apply free-text search across tracking #, customer order #, bike, sender/receiver name
+  const filteredInspections = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sortedInspections;
+    return sortedInspections.filter((o: any) => {
+      const haystack = [
+        o.tracking_number,
+        o.customer_order_number,
+        o.bike_brand,
+        o.bike_model,
+        (o.sender as any)?.name,
+        (o.receiver as any)?.name,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [sortedInspections, searchQuery]);
+
   // Filter inspections by status
-  const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const inRepair = sortedInspections.filter((i: any) => i.inspection?.status === "in_repair");
-  const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const awaitingInspection = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
+  const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
+  const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
+  const inspectedAndServiced = filteredInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
@@ -483,6 +602,13 @@ const BicycleInspections = () => {
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
     const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice;
+    const isAwaitingPricing = inspection?.status === "awaiting_pricing";
+    const isAwaitingParts = inspection?.status === "awaiting_parts";
+    const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
+    const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
+    const approvedCount = approvedIssues.length;
+    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
+
 
     return (
       <Card key={order.id} className="mb-4">
@@ -554,10 +680,18 @@ const BicycleInspections = () => {
                         <AlertTriangle className="h-4 w-4" />
                         {issue.issue_description}
                       </p>
-                      {issue.estimated_cost && (
+                      {issue.estimated_cost != null && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          Estimated Cost: <span className="font-medium">£{issue.estimated_cost.toFixed(2)}</span>
+                          {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
                         </p>
+                      )}
+                      {/* Part info — mechanic/admin only */}
+                      {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
+                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                          {issue.part_name && <p>Part: <span className="font-medium text-foreground">{issue.part_name}</span></p>}
+                          {issue.part_spec && <p>Spec: <span className="font-medium text-foreground">{issue.part_spec}</span></p>}
+                          {issue.part_number && <p>Part #: <span className="font-medium text-foreground">{issue.part_number}</span></p>}
+                        </div>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
                         Reported by {issue.requested_by_name}
@@ -567,6 +701,84 @@ const BicycleInspections = () => {
                       {issue.status}
                     </Badge>
                   </div>
+
+                  {/* Admin pricing input (awaiting_pricing stage) */}
+                  {isAdmin && isAwaitingPricing && (
+                    <div className="mt-3 flex items-end gap-2">
+                      <div className="flex-1">
+                        <Label className="text-xs">Price (£)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
+                          onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                          className="text-sm"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
+                          const val = parseFloat(raw);
+                          if (!isFinite(val) || val < 0) {
+                            toast.error("Enter a valid price");
+                            return;
+                          }
+                          setPriceMutation.mutate({ issueId: issue.id, price: val });
+                        }}
+                        disabled={setPriceMutation.isPending}
+                      >
+                        <PoundSterling className="h-4 w-4 mr-1" /> Save
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
+                  {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
+                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`ordered-${issue.id}`}
+                          checked={!!issue.parts_ordered}
+                          onCheckedChange={(checked) =>
+                            togglePartsOrderedMutation.mutate({ issueId: issue.id, ordered: !!checked })
+                          }
+                        />
+                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                          <PackageCheck className="h-4 w-4" />
+                          Parts ordered
+                          {issue.parts_ordered && issue.parts_ordered_by_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {issue.parts_ordered_by_name}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`parts-${issue.id}`}
+                          checked={!!issue.parts_arrived}
+                          disabled={!issue.parts_ordered}
+                          onCheckedChange={(checked) =>
+                            togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
+                          }
+                        />
+                        <Label
+                          htmlFor={`parts-${issue.id}`}
+                          className={`text-sm flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                        >
+                          <PackageCheck className="h-4 w-4" />
+                          Parts arrived
+                          {issue.parts_arrived && issue.parts_arrived_by_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {issue.parts_arrived_by_name}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Customer Response Display */}
                   {issue.customer_response && (
@@ -625,8 +837,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Mark as Repaired Button (admin/mechanic for in_repair status, approved issues) */}
-                  {(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
+                  {/* Mark as Repaired Button (admin/mechanic for awaiting_repair status, approved issues) */}
+                  {(isAdmin || isMechanic) && isAwaitingRepair && issue.status === "approved" && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -668,8 +880,25 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Complete Repairs Button (admin/mechanic for in_repair when all approved are repaired) */}
-          {(isAdmin || isMechanic) && inspection?.status === "in_repair" && allApprovedRepaired && (
+          {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
+          {isAdmin && isAwaitingPricing && allPriced && (
+            <div className="pt-2">
+              <Button
+                onClick={() => releaseMutation.mutate(inspection.id)}
+                disabled={releaseMutation.isPending}
+              >
+                {releaseMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1" />
+                )}
+                Release to Customer
+              </Button>
+            </div>
+          )}
+
+          {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
+          {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
             <div className="pt-2">
               <Button
                 onClick={() => completeRepairsMutation.mutate(inspection.id)}
@@ -798,24 +1027,35 @@ const BicycleInspections = () => {
           </Card>
         ) : (
           <Tabs defaultValue="awaiting" className="space-y-4">
-            {canManageInspections && (
-              <div className="flex items-center justify-end gap-2">
-                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
-                  Sort by:
-                </Label>
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                  <SelectTrigger id="sort-inspections" className="w-[220px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
-                    <SelectItem value="newest_collected">Newest collected first</SelectItem>
-                    <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <div className="relative flex-1 min-w-[220px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by tracking #, order #, bike or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            )}
+              {canManageInspections && (
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
+                    Sort by:
+                  </Label>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                    <SelectTrigger id="sort-inspections" className="w-[220px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
+                      <SelectItem value="newest_collected">Newest collected first</SelectItem>
+                      <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
@@ -825,6 +1065,14 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {canManageInspections && (
+                <TabsTrigger value="pricing" className="flex items-center gap-1">
+                  Pricing
+                  {awaitingPricing.length > 0 && (
+                    <Badge variant="warning" className="ml-1">{awaitingPricing.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="issues" className="flex items-center gap-1">
                 Issues
                 {withIssues.length > 0 && (
@@ -833,12 +1081,16 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="in-repair" className="flex items-center gap-1">
-                In Repair
-                {inRepair.length > 0 && (
-                  <Badge variant="warning" className="ml-1">
-                    {inRepair.length}
-                  </Badge>
+              <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
+                Awaiting Parts
+                {awaitingParts.length > 0 && (
+                  <Badge variant="warning" className="ml-1">{awaitingParts.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="awaiting-repair" className="flex items-center gap-1">
+                Awaiting Repair
+                {awaitingRepair.length > 0 && (
+                  <Badge variant="warning" className="ml-1">{awaitingRepair.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="inspected-serviced" className="flex items-center gap-1">
@@ -871,13 +1123,29 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="in-repair" className="space-y-4">
-              {inRepair.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No bikes currently in repair
-                </p>
+            {canManageInspections && (
+              <TabsContent value="pricing" className="space-y-4">
+                {awaitingPricing.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No bikes awaiting pricing</p>
+                ) : (
+                  awaitingPricing.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
+            <TabsContent value="awaiting-parts" className="space-y-4">
+              {awaitingParts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No bikes awaiting parts</p>
               ) : (
-                inRepair.map(renderInspectionCard)
+                awaitingParts.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="awaiting-repair" className="space-y-4">
+              {awaitingRepair.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No bikes currently in repair</p>
+              ) : (
+                awaitingRepair.map(renderInspectionCard)
               )}
             </TabsContent>
 
@@ -952,14 +1220,31 @@ const BicycleInspections = () => {
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Estimated cost (£)"
-                              value={issue.estimatedCost}
-                              onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'estimatedCost', e.target.value)}
-                              className="text-sm"
-                            />
+                            {canManageInspections && (
+                              <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  Part details (mechanic/admin only)
+                                </p>
+                                <Input
+                                  placeholder="Part name"
+                                  value={issue.partName}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partName', e.target.value)}
+                                  className="text-sm"
+                                />
+                                <Input
+                                  placeholder="Spec"
+                                  value={issue.partSpec}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partSpec', e.target.value)}
+                                  className="text-sm"
+                                />
+                                <Input
+                                  placeholder="Part number"
+                                  value={issue.partNumber}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partNumber', e.target.value)}
+                                  className="text-sm"
+                                />
+                              </div>
+                            )}
                           </div>
                         ))}
                         

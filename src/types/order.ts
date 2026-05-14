@@ -96,7 +96,22 @@ export type Order = {
     };
   };
   inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
+  inspectionSummary?: InspectionSummary | null;
   createdViaApi?: boolean;
+};
+
+export type InspectionSummary = {
+  inspection_exists: boolean;
+  inspected_at: string | null;
+  has_issues: boolean;
+  total_issues: number;
+  pending_count: number;
+  approved_count: number;
+  declined_count: number;
+  resolved_count: number;
+  repairs_approved_at: string | null;
+  repairs_declined_at: string | null;
+  repairs_completed_at: string | null;
 };
 
 export type CreateOrderFormData = {

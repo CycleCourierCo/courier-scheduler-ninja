@@ -1,40 +1,31 @@
-## Insurance tab on Vehicle Management
+## Changes
 
-Add an **Insurance** tab to the Vehicles page with policy history per vehicle, a fleet-wide Gantt timeline, and an "uninsured vehicles" panel.
+### 1. Remove cost field from mechanic's issue reporting
+- In `src/pages/BicycleInspections.tsx` issue-reporting dialog, remove the `estimated_cost` input. Mechanic only enters description + part name/spec/number.
+- `addInspectionIssue` is called with `estimatedCost: null` so the issue lands in `awaiting_pricing` for admin to price. (Service signature already supports null — no change to `inspectionService.ts` needed.)
 
-### Database (new table)
+### 2. Add "parts ordered" stage in Awaiting Parts
+**DB migration** (`inspection_issues`):
+- Add `parts_ordered boolean NOT NULL DEFAULT false`
+- Add `parts_ordered_at timestamptz`
+- Add `parts_ordered_by_id uuid`, `parts_ordered_by_name text`
 
-`vehicle_insurance_policies`
-- `vehicle_id` (uuid, FK → vehicles.id, on delete cascade)
-- `insurer` (text)
-- `policy_number` (text, nullable)
-- `start_date` (date, required)
-- `end_date` (date, required)
-- `premium` (numeric, nullable)
-- `notes` (text, nullable)
-- standard `id`, `created_at`, `updated_at`, `created_by`
+**Service (`src/services/inspectionService.ts`)**:
+- Add `markPartsOrdered(issueId, byId, byName)` / `unmarkPartsOrdered(issueId)` mirroring the existing parts-arrived helpers.
+- Update `reconcileInspectionStatuses`: in `awaiting_parts`, only transition to `awaiting_repair` when every approved issue has BOTH `parts_ordered = true` AND `parts_arrived = true`.
+- Update `checkAllPartsArrived` (or add `checkAllPartsReady`) to require both flags.
 
-RLS: admin full access (matches existing vehicle policies). Index on `(vehicle_id, start_date)`.
+**Types (`src/types/inspection.ts`)**: add the new fields to `InspectionIssue`.
 
-### UI
-
-`VehicleManagement.tsx` wrapped in `Tabs` with two tabs:
-1. **Vehicles** — existing list/grid, unchanged.
-2. **Insurance** — new view containing:
-   - **Uninsured vehicles** card at top: lists all active (non-sold) vehicles where no policy covers today's date. Each row has a "Add policy" button.
-   - **Coverage timeline** (Gantt): rows = vehicles, x-axis = months. Default range = 12 months from current month, with prev/next navigation. Each policy rendered as a coloured bar; hovering shows insurer + dates; clicking opens edit. Vehicles with gaps show empty space (visually flags uninsured periods).
-   - **Policies table** below the chart: filterable by vehicle, sortable by end date, with Edit/Delete actions and "Expiring in 30 days" highlight.
-
-### New components
-- `src/components/vehicles/InsuranceTab.tsx` — orchestrates the tab.
-- `src/components/vehicles/InsuranceTimeline.tsx` — Gantt chart (pure CSS grid, no new deps).
-- `src/components/vehicles/UninsuredVehiclesCard.tsx`.
-- `src/components/vehicles/PolicyDialog.tsx` — add/edit policy form (vehicle picker, insurer, policy #, start, end, premium, notes).
-
-### Service layer
-- `src/services/insuranceService.ts` — `listPolicies()`, `createPolicy()`, `updatePolicy()`, `deletePolicy()`, plus helper `getCurrentlyUninsuredVehicles(vehicles, policies)` (client-side: vehicle has no policy where `start_date <= today <= end_date`).
+**UI (`src/pages/BicycleInspections.tsx` — Awaiting Parts tab)**:
+- For each approved issue show two checkboxes side-by-side: "Parts ordered" and "Parts arrived" (admin/mechanic only).
+- "Parts arrived" stays disabled until "Parts ordered" is checked.
+- "Move to Awaiting Repair" / auto-transition fires only when all approved issues have both checked.
 
 ### Out of scope
-- No automated renewal reminders / emails.
-- No document upload for policy PDFs (can be added later).
-- No changes to existing vehicle fields.
+- Customer-facing surfaces — they don't show parts state, no change needed.
+- Pricing flow — already implemented in previous turn.
+
+## Technical details
+- Migration adds 4 nullable/defaulted columns — safe for existing rows (default `parts_ordered=false`, but existing inspections already past awaiting_parts won't be re-evaluated because reconcile only looks at `awaiting_parts` status).
+- For any inspection currently in `awaiting_parts` with parts already arrived, admin will need to tick "parts ordered" once. Acceptable given small dataset; alternatively backfill `parts_ordered = parts_arrived` in the migration — recommend backfilling to avoid stuck rows.

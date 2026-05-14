@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
 
@@ -281,8 +281,88 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
         console.log("order.trackingEvents?.shipday:", order.trackingEvents?.shipday);
       }
     }
-    
-    // Try to infer tracking events from order status
+
+    // Inspection lifecycle events (public tracking)
+    if ((order as any).needsInspection) {
+      const summary = (order as any).inspectionSummary;
+      const collectedEvent = events.find(e => e.title === "Bike Collected");
+      const baseDate = collectedEvent?.date || order.updatedAt || order.createdAt;
+
+      if (!summary || !summary.inspection_exists || !summary.inspected_at) {
+        // Awaiting inspection — only show once bike is collected
+        if (collectedEvent) {
+          events.push({
+            title: "Awaiting Inspection",
+            date: baseDate,
+            icon: <Wrench className="h-4 w-4 text-courier-600" />,
+            description: "Bike is awaiting mechanic inspection"
+          });
+        }
+      } else {
+        const inspectedAt = summary.inspected_at;
+        if (!summary.has_issues) {
+          events.push({
+            title: "Inspection Complete — No Issues Found",
+            date: inspectedAt,
+            icon: <Check className="h-4 w-4 text-green-600" />,
+            description: "Inspection completed — no issues identified"
+          });
+        } else {
+          events.push({
+            title: "Inspection Complete — Issues Found",
+            date: inspectedAt,
+            icon: <AlertCircle className="h-4 w-4 text-amber-600" />,
+            description: "Issues identified during inspection — awaiting customer approval"
+          });
+
+          if (summary.repairs_approved_at) {
+            events.push({
+              title: "Repairs Approved",
+              date: summary.repairs_approved_at,
+              icon: <Wrench className="h-4 w-4 text-courier-600" />,
+              description: "Customer has approved the recommended repairs"
+            });
+          }
+
+          if (summary.awaiting_parts_at) {
+            events.push({
+              title: "Awaiting Parts",
+              date: summary.awaiting_parts_at,
+              icon: <Clock className="h-4 w-4 text-courier-600" />,
+              description: "Ordering parts required for the approved repairs"
+            });
+          }
+
+          if (summary.awaiting_repair_at) {
+            events.push({
+              title: "Parts Arrived — Awaiting Repair",
+              date: summary.awaiting_repair_at,
+              icon: <Wrench className="h-4 w-4 text-courier-600" />,
+              description: "All parts have arrived — repairs are about to start"
+            });
+          }
+
+          if (summary.repairs_declined_at) {
+            events.push({
+              title: "Repairs Declined — Proceeding to Delivery",
+              date: summary.repairs_declined_at,
+              icon: <Truck className="h-4 w-4 text-courier-600" />,
+              description: "Customer has declined the recommended repairs"
+            });
+          }
+
+          if (summary.repairs_completed_at) {
+            events.push({
+              title: "Repairs Completed",
+              date: summary.repairs_completed_at,
+              icon: <Check className="h-4 w-4 text-green-600" />,
+              description: "All approved repairs have been completed"
+            });
+          }
+        }
+      }
+    }
+
     if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
         order.status === "collected" || order.status === "delivered") {
       
