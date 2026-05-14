@@ -9,6 +9,9 @@ const ADMIN_ONLY_ISSUE_FIELDS = [
   'priced_at',
   'priced_by_id',
   'priced_by_name',
+  'parts_ordered_at',
+  'parts_ordered_by_id',
+  'parts_ordered_by_name',
 ] as const;
 
 const stripAdminOnlyFromIssue = (issue: any) => {
@@ -24,7 +27,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
   try {
     const { data: inspections, error } = await supabase
       .from('bicycle_inspections')
-      .select('id, status, inspection_issues(status, parts_arrived)')
+      .select('id, status, inspection_issues(status, parts_arrived, parts_ordered)')
       .in('status', ['issues_found', 'awaiting_parts', 'awaiting_repair', 'in_repair']);
 
     if (error) throw error;
@@ -33,7 +36,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
     let updatedCount = 0;
 
     for (const inspection of inspections) {
-      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean }[]) || [];
+      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean; parts_ordered: boolean }[]) || [];
       if (issues.length === 0) continue;
 
       let nextStatus: InspectionStatus | null = null;
@@ -47,14 +50,14 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
       const allDeclined = allResponded && approved.length === 0;
       const allApprovedRepaired =
         approved.length > 0 && approved.every(i => i.status === 'repaired' || i.status === 'resolved');
-      const allPartsArrived =
-        approved.length > 0 && approved.every(i => i.parts_arrived === true);
+      const allPartsReady =
+        approved.length > 0 && approved.every(i => i.parts_arrived === true && i.parts_ordered === true);
 
       const currentStatus = inspection.status as InspectionStatus;
 
       if (currentStatus === 'issues_found' && allResponded) {
         nextStatus = allDeclined ? 'repaired' : 'awaiting_parts';
-      } else if (currentStatus === 'awaiting_parts' && allPartsArrived) {
+      } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
         (currentStatus === 'awaiting_repair' || currentStatus === 'in_repair') &&
@@ -529,6 +532,60 @@ export const declineIssue = async (
   }
 };
 
+// Mark a part as ordered for an issue (mechanic/admin)
+export const markPartsOrdered = async (
+  issueId: string,
+  byId: string,
+  byName: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        parts_ordered: true,
+        parts_ordered_at: new Date().toISOString(),
+        parts_ordered_by_id: byId,
+        parts_ordered_by_name: byName,
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error marking parts ordered:', error);
+    throw error;
+  }
+};
+
+export const unmarkPartsOrdered = async (issueId: string): Promise<InspectionIssue | null> => {
+  try {
+    // Unmarking ordered also clears arrived (can't have arrived without being ordered)
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        parts_ordered: false,
+        parts_ordered_at: null,
+        parts_ordered_by_id: null,
+        parts_ordered_by_name: null,
+        parts_arrived: false,
+        parts_arrived_at: null,
+        parts_arrived_by_id: null,
+        parts_arrived_by_name: null,
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error unmarking parts ordered:', error);
+    throw error;
+  }
+};
+
 // Mark a part as arrived for an issue (mechanic/admin)
 export const markPartsArrived = async (
   issueId: string,
@@ -655,11 +712,14 @@ export const checkAllApprovedRepaired = (issues: InspectionIssue[]): boolean => 
   return approvedIssues.every(issue => issue.status === 'repaired');
 };
 
-// Check if all approved issues have parts arrived
+// Check if all approved issues are ready (parts ordered AND arrived)
 export const checkAllPartsArrived = (issues: InspectionIssue[]): boolean => {
   const approvedIssues = issues.filter(i => i.status === 'approved' || i.status === 'repaired' || i.status === 'resolved');
   if (approvedIssues.length === 0) return false;
-  return approvedIssues.every(issue => !!issue.parts_arrived || issue.status === 'repaired' || issue.status === 'resolved');
+  return approvedIssues.every(issue =>
+    issue.status === 'repaired' || issue.status === 'resolved' ||
+    (!!issue.parts_arrived && !!issue.parts_ordered)
+  );
 };
 
 // Get inspection status for an order (for badges on job scheduling)

@@ -49,6 +49,8 @@ import {
   releaseInspectionToCustomer,
   markPartsArrived,
   unmarkPartsArrived,
+  markPartsOrdered,
+  unmarkPartsOrdered,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
@@ -229,6 +231,24 @@ const BicycleInspections = () => {
     },
     onError: (error) => {
       toast.error("Failed to update parts status");
+      console.error(error);
+    },
+  });
+
+  // Toggle parts ordered (mechanic/admin)
+  const togglePartsOrderedMutation = useMutation({
+    mutationFn: async ({ issueId, ordered }: { issueId: string; ordered: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      if (ordered) {
+        return markPartsOrdered(issueId, user.id, userProfile?.name || user.email || "Mechanic");
+      }
+      return unmarkPartsOrdered(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update parts ordered status");
       console.error(error);
     },
   });
@@ -587,7 +607,7 @@ const BicycleInspections = () => {
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
-    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => i.parts_arrived || i.status === 'repaired' || i.status === 'resolved').length;
+    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
     return (
@@ -714,25 +734,49 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Parts arrived toggle (awaiting_parts stage, approved issues) */}
+                  {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
                   {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <Checkbox
-                        id={`parts-${issue.id}`}
-                        checked={!!issue.parts_arrived}
-                        onCheckedChange={(checked) =>
-                          togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
-                        }
-                      />
-                      <Label htmlFor={`parts-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
-                        <PackageCheck className="h-4 w-4" />
-                        Parts arrived
-                        {issue.parts_arrived && issue.parts_arrived_by_name && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            by {issue.parts_arrived_by_name}
-                          </span>
-                        )}
-                      </Label>
+                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`ordered-${issue.id}`}
+                          checked={!!issue.parts_ordered}
+                          onCheckedChange={(checked) =>
+                            togglePartsOrderedMutation.mutate({ issueId: issue.id, ordered: !!checked })
+                          }
+                        />
+                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                          <PackageCheck className="h-4 w-4" />
+                          Parts ordered
+                          {issue.parts_ordered && issue.parts_ordered_by_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {issue.parts_ordered_by_name}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`parts-${issue.id}`}
+                          checked={!!issue.parts_arrived}
+                          disabled={!issue.parts_ordered}
+                          onCheckedChange={(checked) =>
+                            togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
+                          }
+                        />
+                        <Label
+                          htmlFor={`parts-${issue.id}`}
+                          className={`text-sm flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                        >
+                          <PackageCheck className="h-4 w-4" />
+                          Parts arrived
+                          {issue.parts_arrived && issue.parts_arrived_by_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {issue.parts_arrived_by_name}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
                     </div>
                   )}
 
@@ -1175,14 +1219,6 @@ const BicycleInspections = () => {
                               value={issue.description}
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
-                            />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Estimated cost (£) — optional"
-                              value={issue.estimatedCost}
-                              onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'estimatedCost', e.target.value)}
-                              className="text-sm"
                             />
                             {canManageInspections && (
                               <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">

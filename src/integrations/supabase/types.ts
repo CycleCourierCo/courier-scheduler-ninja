@@ -685,6 +685,10 @@ export type Database = {
           parts_arrived_at: string | null
           parts_arrived_by_id: string | null
           parts_arrived_by_name: string | null
+          parts_ordered: boolean
+          parts_ordered_at: string | null
+          parts_ordered_by_id: string | null
+          parts_ordered_by_name: string | null
           priced_at: string | null
           priced_by_id: string | null
           priced_by_name: string | null
@@ -712,6 +716,10 @@ export type Database = {
           parts_arrived_at?: string | null
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
+          parts_ordered?: boolean
+          parts_ordered_at?: string | null
+          parts_ordered_by_id?: string | null
+          parts_ordered_by_name?: string | null
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
@@ -739,6 +747,10 @@ export type Database = {
           parts_arrived_at?: string | null
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
+          parts_ordered?: boolean
+          parts_ordered_at?: string | null
+          parts_ordered_by_id?: string | null
+          parts_ordered_by_name?: string | null
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
