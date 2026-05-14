@@ -712,11 +712,14 @@ export const checkAllApprovedRepaired = (issues: InspectionIssue[]): boolean => 
   return approvedIssues.every(issue => issue.status === 'repaired');
 };
 
-// Check if all approved issues have parts arrived
+// Check if all approved issues are ready (parts ordered AND arrived)
 export const checkAllPartsArrived = (issues: InspectionIssue[]): boolean => {
   const approvedIssues = issues.filter(i => i.status === 'approved' || i.status === 'repaired' || i.status === 'resolved');
   if (approvedIssues.length === 0) return false;
-  return approvedIssues.every(issue => !!issue.parts_arrived || issue.status === 'repaired' || issue.status === 'resolved');
+  return approvedIssues.every(issue =>
+    issue.status === 'repaired' || issue.status === 'resolved' ||
+    (!!issue.parts_arrived && !!issue.parts_ordered)
+  );
 };
 
 // Get inspection status for an order (for badges on job scheduling)
