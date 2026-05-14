@@ -642,10 +642,18 @@ const BicycleInspections = () => {
                         <AlertTriangle className="h-4 w-4" />
                         {issue.issue_description}
                       </p>
-                      {issue.estimated_cost && (
+                      {issue.estimated_cost != null && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          Estimated Cost: <span className="font-medium">£{issue.estimated_cost.toFixed(2)}</span>
+                          {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
                         </p>
+                      )}
+                      {/* Part info — mechanic/admin only */}
+                      {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
+                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                          {issue.part_name && <p>Part: <span className="font-medium text-foreground">{issue.part_name}</span></p>}
+                          {issue.part_spec && <p>Spec: <span className="font-medium text-foreground">{issue.part_spec}</span></p>}
+                          {issue.part_number && <p>Part #: <span className="font-medium text-foreground">{issue.part_number}</span></p>}
+                        </div>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
                         Reported by {issue.requested_by_name}
@@ -655,6 +663,60 @@ const BicycleInspections = () => {
                       {issue.status}
                     </Badge>
                   </div>
+
+                  {/* Admin pricing input (awaiting_pricing stage) */}
+                  {isAdmin && isAwaitingPricing && (
+                    <div className="mt-3 flex items-end gap-2">
+                      <div className="flex-1">
+                        <Label className="text-xs">Price (£)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
+                          onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                          className="text-sm"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
+                          const val = parseFloat(raw);
+                          if (!isFinite(val) || val < 0) {
+                            toast.error("Enter a valid price");
+                            return;
+                          }
+                          setPriceMutation.mutate({ issueId: issue.id, price: val });
+                        }}
+                        disabled={setPriceMutation.isPending}
+                      >
+                        <PoundSterling className="h-4 w-4 mr-1" /> Save
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Parts arrived toggle (awaiting_parts stage, approved issues) */}
+                  {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Checkbox
+                        id={`parts-${issue.id}`}
+                        checked={!!issue.parts_arrived}
+                        onCheckedChange={(checked) =>
+                          togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
+                        }
+                      />
+                      <Label htmlFor={`parts-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                        <PackageCheck className="h-4 w-4" />
+                        Parts arrived
+                        {issue.parts_arrived && issue.parts_arrived_by_name && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            by {issue.parts_arrived_by_name}
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+                  )}
 
                   {/* Customer Response Display */}
                   {issue.customer_response && (
