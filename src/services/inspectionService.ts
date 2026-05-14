@@ -532,6 +532,60 @@ export const declineIssue = async (
   }
 };
 
+// Mark a part as ordered for an issue (mechanic/admin)
+export const markPartsOrdered = async (
+  issueId: string,
+  byId: string,
+  byName: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        parts_ordered: true,
+        parts_ordered_at: new Date().toISOString(),
+        parts_ordered_by_id: byId,
+        parts_ordered_by_name: byName,
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error marking parts ordered:', error);
+    throw error;
+  }
+};
+
+export const unmarkPartsOrdered = async (issueId: string): Promise<InspectionIssue | null> => {
+  try {
+    // Unmarking ordered also clears arrived (can't have arrived without being ordered)
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        parts_ordered: false,
+        parts_ordered_at: null,
+        parts_ordered_by_id: null,
+        parts_ordered_by_name: null,
+        parts_arrived: false,
+        parts_arrived_at: null,
+        parts_arrived_by_id: null,
+        parts_arrived_by_name: null,
+      })
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error unmarking parts ordered:', error);
+    throw error;
+  }
+};
+
 // Mark a part as arrived for an issue (mechanic/admin)
 export const markPartsArrived = async (
   issueId: string,
