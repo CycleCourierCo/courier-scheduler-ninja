@@ -2353,6 +2353,10 @@ export type Database = {
         }[]
       }
       get_cron_secret: { Args: never; Returns: string }
+      get_public_inspection_summary: {
+        Args: { order_identifier: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
