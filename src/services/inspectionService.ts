@@ -27,7 +27,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
   try {
     const { data: inspections, error } = await supabase
       .from('bicycle_inspections')
-      .select('id, status, inspection_issues(status, parts_arrived)')
+      .select('id, status, inspection_issues(status, parts_arrived, parts_ordered)')
       .in('status', ['issues_found', 'awaiting_parts', 'awaiting_repair', 'in_repair']);
 
     if (error) throw error;
@@ -36,7 +36,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
     let updatedCount = 0;
 
     for (const inspection of inspections) {
-      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean }[]) || [];
+      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean; parts_ordered: boolean }[]) || [];
       if (issues.length === 0) continue;
 
       let nextStatus: InspectionStatus | null = null;
@@ -50,8 +50,8 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
       const allDeclined = allResponded && approved.length === 0;
       const allApprovedRepaired =
         approved.length > 0 && approved.every(i => i.status === 'repaired' || i.status === 'resolved');
-      const allPartsArrived =
-        approved.length > 0 && approved.every(i => i.parts_arrived === true);
+      const allPartsReady =
+        approved.length > 0 && approved.every(i => i.parts_arrived === true && i.parts_ordered === true);
 
       const currentStatus = inspection.status as InspectionStatus;
 
