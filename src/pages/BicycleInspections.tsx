@@ -86,7 +86,9 @@ const BicycleInspections = () => {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+  // Per-issue price input for the awaiting-pricing stage
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   
