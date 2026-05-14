@@ -14,6 +14,27 @@ import { generateTrackingNumber } from "@/services/trackingService";
 import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 
+const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
+  if (!order.needsInspection) {
+    return order;
+  }
+
+  try {
+    const { data: summary } = await supabase.rpc(
+      "get_public_inspection_summary" as any,
+      { order_identifier: orderIdentifier }
+    );
+
+    if (summary) {
+      order.inspectionSummary = summary;
+    }
+  } catch (error) {
+    console.warn("Failed to fetch inspection summary:", error);
+  }
+
+  return order;
+};
+
 export const getOrder = async (id: string): Promise<Order | null> => {
   try {
     const { data, error } = await supabase
@@ -26,7 +47,8 @@ export const getOrder = async (id: string): Promise<Order | null> => {
       return null;
     }
 
-    return mapDbOrderToOrderType(data);
+    const order = mapDbOrderToOrderType(data);
+    return attachInspectionSummary(order, id);
   } catch (error) {
     return null;
   }

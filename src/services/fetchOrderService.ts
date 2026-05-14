@@ -3,6 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 
+const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
+  if (!order.needsInspection) {
+    return order;
+  }
+
+  try {
+    const { data: summary } = await supabase.rpc(
+      "get_public_inspection_summary" as any,
+      { order_identifier: orderIdentifier }
+    );
+
+    if (summary) {
+      order.inspectionSummary = summary;
+    }
+  } catch (e) {
+    console.warn("Failed to fetch inspection summary:", e);
+  }
+
+  return order;
+};
+
 export const getOrders = async (): Promise<Order[]> => {
   const { data, error } = await supabase
     .from("orders")
@@ -27,7 +48,8 @@ export const getOrder = async (id: string): Promise<Order> => {
     throw new Error(error.message);
   }
 
-  return mapDbOrderToOrderType(data);
+  const order = mapDbOrderToOrderType(data);
+  return attachInspectionSummary(order, id);
 };
 
 // Alias for getOrder to maintain compatibility with existing code
@@ -85,21 +107,7 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     }
 
     // Attach inspection summary for orders that need inspection
-    if (order.needsInspection) {
-      try {
-        const { data: summary } = await supabase.rpc(
-          "get_public_inspection_summary" as any,
-          { order_identifier: id }
-        );
-        if (summary) {
-          (order as any).inspectionSummary = summary;
-        }
-      } catch (e) {
-        console.warn("Failed to fetch inspection summary:", e);
-      }
-    }
-
-    return order;
+    return attachInspectionSummary(order, id);
   } catch (err) {
     return null;
   }
