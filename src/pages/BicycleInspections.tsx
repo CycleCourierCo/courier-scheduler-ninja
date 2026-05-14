@@ -818,8 +818,25 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Complete Repairs Button (admin/mechanic for in_repair when all approved are repaired) */}
-          {(isAdmin || isMechanic) && inspection?.status === "in_repair" && allApprovedRepaired && (
+          {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
+          {isAdmin && isAwaitingPricing && allPriced && (
+            <div className="pt-2">
+              <Button
+                onClick={() => releaseMutation.mutate(inspection.id)}
+                disabled={releaseMutation.isPending}
+              >
+                {releaseMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1" />
+                )}
+                Release to Customer
+              </Button>
+            </div>
+          )}
+
+          {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
+          {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
             <div className="pt-2">
               <Button
                 onClick={() => completeRepairsMutation.mutate(inspection.id)}
