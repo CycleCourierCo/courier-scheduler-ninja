@@ -396,7 +396,7 @@ const BicycleInspections = () => {
   const handleAddChecklistIssue = (itemId: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "" }]
+      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]
     }));
   };
 
@@ -407,10 +407,10 @@ const BicycleInspections = () => {
     }));
   };
 
-  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost', value: string) => {
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: (prev[itemId] || []).map((issue, i) => 
+      [itemId]: (prev[itemId] || []).map((issue, i) =>
         i === index ? { ...issue, [field]: value } : issue
       )
     }));
@@ -421,13 +421,16 @@ const BicycleInspections = () => {
   );
 
   // Collect all issues across all checklist items
-  const allChecklistIssues = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
+  const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
     const itemLabel = INSPECTION_ITEMS.find(i => i.id === itemId)?.label || itemId;
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
         description: `[${itemLabel}] ${issue.description}`,
         estimatedCost: issue.estimatedCost,
+        partName: issue.partName,
+        partSpec: issue.partSpec,
+        partNumber: issue.partNumber,
       }));
   });
 
@@ -435,24 +438,19 @@ const BicycleInspections = () => {
 
   const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
-    
+
     if (hasIssues) {
-      // Submit issues via the existing mutation
-      const validIssues = allChecklistIssues.map(i => ({
-        description: i.description,
-        estimatedCost: i.estimatedCost,
-      }));
-      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: validIssues });
+      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: allChecklistIssues });
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
       const notes = INSPECTION_ITEMS.map(item => {
         const comment = inspectionComments[item.id];
-        return comment 
+        return comment
           ? `✓ ${item.label}: ${comment}`
           : `✓ ${item.label}`;
       }).join('\n');
-      
+
       markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
       setInspectionChecklistOpen(false);
     }
@@ -461,25 +459,25 @@ const BicycleInspections = () => {
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
     setIssueCount(newCount);
-    
+
     setIssues(prev => {
       if (newCount > prev.length) {
-        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "" }))];
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }))];
       } else {
         return prev.slice(0, newCount);
       }
     });
   };
 
-  const updateIssue = (index: number, field: 'description' | 'estimatedCost', value: string) => {
-    setIssues(prev => prev.map((issue, i) => 
+  const updateIssue = (index: number, field: keyof IssueEntry, value: string) => {
+    setIssues(prev => prev.map((issue, i) =>
       i === index ? { ...issue, [field]: value } : issue
     ));
   };
 
   const resetIssueForm = () => {
     setIssueCount(1);
-    setIssues([{ description: "", estimatedCost: "" }]);
+    setIssues([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
     setSelectedOrderId(null);
   };
 
