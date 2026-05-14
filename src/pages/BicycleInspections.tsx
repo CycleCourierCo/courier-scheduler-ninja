@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -91,6 +91,7 @@ const BicycleInspections = () => {
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
@@ -546,13 +547,30 @@ const BicycleInspections = () => {
     return arr;
   }, [inspections, sortBy, canManageInspections]);
 
+  // Apply free-text search across tracking #, customer order #, bike, sender/receiver name
+  const filteredInspections = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sortedInspections;
+    return sortedInspections.filter((o: any) => {
+      const haystack = [
+        o.tracking_number,
+        o.customer_order_number,
+        o.bike_brand,
+        o.bike_model,
+        (o.sender as any)?.name,
+        (o.receiver as any)?.name,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [sortedInspections, searchQuery]);
+
   // Filter inspections by status
-  const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const awaitingPricing = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
-  const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const awaitingParts = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
-  const awaitingRepair = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
-  const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const awaitingInspection = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
+  const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
+  const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
+  const inspectedAndServiced = filteredInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
@@ -965,38 +983,41 @@ const BicycleInspections = () => {
           </Card>
         ) : (
           <Tabs defaultValue="awaiting" className="space-y-4">
-            {canManageInspections && (
-              <div className="flex items-center justify-end gap-2">
-                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
-                  Sort by:
-                </Label>
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                  <SelectTrigger id="sort-inspections" className="w-[220px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
-                    <SelectItem value="newest_collected">Newest collected first</SelectItem>
-                    <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <div className="relative flex-1 min-w-[220px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by tracking #, order #, bike or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            )}
+              {canManageInspections && (
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
+                    Sort by:
+                  </Label>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                    <SelectTrigger id="sort-inspections" className="w-[220px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
+                      <SelectItem value="newest_collected">Newest collected first</SelectItem>
+                      <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
                     {awaitingInspection.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="issues" className="flex items-center gap-1">
-                Issues
-                {withIssues.length > 0 && (
-                  <Badge variant="destructive" className="ml-1">
-                    {withIssues.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -1008,6 +1029,14 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
+              <TabsTrigger value="issues" className="flex items-center gap-1">
+                Issues
+                {withIssues.length > 0 && (
+                  <Badge variant="destructive" className="ml-1">
+                    {withIssues.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
                 Awaiting Parts
                 {awaitingParts.length > 0 && (
