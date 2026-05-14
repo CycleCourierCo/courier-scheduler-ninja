@@ -734,25 +734,49 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Parts arrived toggle (awaiting_parts stage, approved issues) */}
+                  {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
                   {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <Checkbox
-                        id={`parts-${issue.id}`}
-                        checked={!!issue.parts_arrived}
-                        onCheckedChange={(checked) =>
-                          togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
-                        }
-                      />
-                      <Label htmlFor={`parts-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
-                        <PackageCheck className="h-4 w-4" />
-                        Parts arrived
-                        {issue.parts_arrived && issue.parts_arrived_by_name && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            by {issue.parts_arrived_by_name}
-                          </span>
-                        )}
-                      </Label>
+                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`ordered-${issue.id}`}
+                          checked={!!issue.parts_ordered}
+                          onCheckedChange={(checked) =>
+                            togglePartsOrderedMutation.mutate({ issueId: issue.id, ordered: !!checked })
+                          }
+                        />
+                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                          <PackageCheck className="h-4 w-4" />
+                          Parts ordered
+                          {issue.parts_ordered && issue.parts_ordered_by_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {issue.parts_ordered_by_name}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`parts-${issue.id}`}
+                          checked={!!issue.parts_arrived}
+                          disabled={!issue.parts_ordered}
+                          onCheckedChange={(checked) =>
+                            togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
+                          }
+                        />
+                        <Label
+                          htmlFor={`parts-${issue.id}`}
+                          className={`text-sm flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                        >
+                          <PackageCheck className="h-4 w-4" />
+                          Parts arrived
+                          {issue.parts_arrived && issue.parts_arrived_by_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              by {issue.parts_arrived_by_name}
+                            </span>
+                          )}
+                        </Label>
+                      </div>
                     </div>
                   )}
 
