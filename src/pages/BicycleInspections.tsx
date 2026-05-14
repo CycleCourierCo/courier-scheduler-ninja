@@ -983,38 +983,41 @@ const BicycleInspections = () => {
           </Card>
         ) : (
           <Tabs defaultValue="awaiting" className="space-y-4">
-            {canManageInspections && (
-              <div className="flex items-center justify-end gap-2">
-                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
-                  Sort by:
-                </Label>
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                  <SelectTrigger id="sort-inspections" className="w-[220px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
-                    <SelectItem value="newest_collected">Newest collected first</SelectItem>
-                    <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <div className="relative flex-1 min-w-[220px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by tracking #, order #, bike or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            )}
+              {canManageInspections && (
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
+                    Sort by:
+                  </Label>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                    <SelectTrigger id="sort-inspections" className="w-[220px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="oldest_collected">Oldest collected first</SelectItem>
+                      <SelectItem value="newest_collected">Newest collected first</SelectItem>
+                      <SelectItem value="tracking_asc">Tracking # A→Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
                     {awaitingInspection.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="issues" className="flex items-center gap-1">
-                Issues
-                {withIssues.length > 0 && (
-                  <Badge variant="destructive" className="ml-1">
-                    {withIssues.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -1026,6 +1029,14 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
+              <TabsTrigger value="issues" className="flex items-center gap-1">
+                Issues
+                {withIssues.length > 0 && (
+                  <Badge variant="destructive" className="ml-1">
+                    {withIssues.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
                 Awaiting Parts
                 {awaitingParts.length > 0 && (
