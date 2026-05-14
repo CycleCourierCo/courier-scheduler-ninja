@@ -45,17 +45,27 @@ import {
   moveToRepaired,
   checkAllApprovedRepaired,
   reconcileInspectionStatuses,
+  setIssuePrice,
+  releaseInspectionToCustomer,
+  markPartsArrived,
+  unmarkPartsArrived,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
 interface IssueEntry {
   description: string;
   estimatedCost: string;
+  partName: string;
+  partSpec: string;
+  partNumber: string;
 }
 
 interface ChecklistIssue {
   description: string;
   estimatedCost: string;
+  partName: string;
+  partSpec: string;
+  partNumber: string;
 }
 
 // Standard inspection checklist items
