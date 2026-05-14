@@ -139,7 +139,7 @@ const BicycleInspections = () => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
-      
+
       const results = [];
       for (const issue of issues) {
         if (issue.description.trim()) {
@@ -149,7 +149,12 @@ const BicycleInspections = () => {
             issue.description,
             cost,
             user.id,
-            userProfile.name || user.email || "Admin"
+            userProfile.name || user.email || "Admin",
+            {
+              part_name: issue.partName?.trim() || null,
+              part_spec: issue.partSpec?.trim() || null,
+              part_number: issue.partNumber?.trim() || null,
+            }
           );
           results.push(result);
         }
@@ -160,10 +165,69 @@ const BicycleInspections = () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setIssueDialogOpen(false);
       resetIssueForm();
-      toast.success("Issues reported successfully");
+      toast.success("Issues recorded — awaiting admin pricing");
     },
     onError: (error) => {
       toast.error("Failed to report issues");
+      console.error(error);
+    },
+  });
+
+  // Set price on a single issue (admin pricing stage)
+  const setPriceMutation = useMutation({
+    mutationFn: async ({ issueId, price }: { issueId: string; price: number }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return setIssuePrice(issueId, price, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setPriceInputs(prev => {
+        const next = { ...prev };
+        delete next[vars.issueId];
+        return next;
+      });
+      toast.success("Price saved");
+    },
+    onError: (error) => {
+      toast.error("Failed to save price");
+      console.error(error);
+    },
+  });
+
+  // Release inspection to customer (admin gate)
+  const releaseMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return releaseInspectionToCustomer(
+        inspectionId,
+        user.id,
+        userProfile?.name || user.email || "Admin"
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Inspection released to customer");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to release inspection");
+      console.error(error);
+    },
+  });
+
+  // Toggle parts arrived (mechanic/admin)
+  const togglePartsArrivedMutation = useMutation({
+    mutationFn: async ({ issueId, arrived }: { issueId: string; arrived: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      if (arrived) {
+        return markPartsArrived(issueId, user.id, userProfile?.name || user.email || "Mechanic");
+      }
+      return unmarkPartsArrived(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update parts status");
       console.error(error);
     },
   });
