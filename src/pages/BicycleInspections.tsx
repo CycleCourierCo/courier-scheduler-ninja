@@ -235,6 +235,24 @@ const BicycleInspections = () => {
     },
   });
 
+  // Toggle parts ordered (mechanic/admin)
+  const togglePartsOrderedMutation = useMutation({
+    mutationFn: async ({ issueId, ordered }: { issueId: string; ordered: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      if (ordered) {
+        return markPartsOrdered(issueId, user.id, userProfile?.name || user.email || "Mechanic");
+      }
+      return unmarkPartsOrdered(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update parts ordered status");
+      console.error(error);
+    },
+  });
+
   // Accept issue mutation
   const acceptIssueMutation = useMutation({
     mutationFn: async (issueId: string) => {
