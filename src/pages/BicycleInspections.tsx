@@ -607,7 +607,7 @@ const BicycleInspections = () => {
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
-    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => i.parts_arrived || i.status === 'repaired' || i.status === 'resolved').length;
+    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
     return (
