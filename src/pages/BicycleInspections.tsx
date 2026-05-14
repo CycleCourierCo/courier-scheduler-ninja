@@ -775,8 +775,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Mark as Repaired Button (admin/mechanic for in_repair status, approved issues) */}
-                  {(isAdmin || isMechanic) && inspection?.status === "in_repair" && issue.status === "approved" && (
+                  {/* Mark as Repaired Button (admin/mechanic for awaiting_repair status, approved issues) */}
+                  {(isAdmin || isMechanic) && isAwaitingRepair && issue.status === "approved" && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -818,8 +818,25 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Complete Repairs Button (admin/mechanic for in_repair when all approved are repaired) */}
-          {(isAdmin || isMechanic) && inspection?.status === "in_repair" && allApprovedRepaired && (
+          {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
+          {isAdmin && isAwaitingPricing && allPriced && (
+            <div className="pt-2">
+              <Button
+                onClick={() => releaseMutation.mutate(inspection.id)}
+                disabled={releaseMutation.isPending}
+              >
+                {releaseMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1" />
+                )}
+                Release to Customer
+              </Button>
+            </div>
+          )}
+
+          {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
+          {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
             <div className="pt-2">
               <Button
                 onClick={() => completeRepairsMutation.mutate(inspection.id)}
@@ -1133,11 +1150,36 @@ const BicycleInspections = () => {
                             <Input
                               type="number"
                               step="0.01"
-                              placeholder="Estimated cost (£)"
+                              placeholder="Estimated cost (£) — optional"
                               value={issue.estimatedCost}
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'estimatedCost', e.target.value)}
                               className="text-sm"
                             />
+                            {canManageInspections && (
+                              <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  Part details (mechanic/admin only)
+                                </p>
+                                <Input
+                                  placeholder="Part name"
+                                  value={issue.partName}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partName', e.target.value)}
+                                  className="text-sm"
+                                />
+                                <Input
+                                  placeholder="Spec"
+                                  value={issue.partSpec}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partSpec', e.target.value)}
+                                  className="text-sm"
+                                />
+                                <Input
+                                  placeholder="Part number"
+                                  value={issue.partNumber}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partNumber', e.target.value)}
+                                  className="text-sm"
+                                />
+                              </div>
+                            )}
                           </div>
                         ))}
                         

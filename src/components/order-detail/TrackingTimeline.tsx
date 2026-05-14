@@ -324,6 +324,24 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             });
           }
 
+          if (summary.awaiting_parts_at) {
+            events.push({
+              title: "Awaiting Parts",
+              date: summary.awaiting_parts_at,
+              icon: <Clock className="h-4 w-4 text-courier-600" />,
+              description: "Ordering parts required for the approved repairs"
+            });
+          }
+
+          if (summary.awaiting_repair_at) {
+            events.push({
+              title: "Parts Arrived — Awaiting Repair",
+              date: summary.awaiting_repair_at,
+              icon: <Wrench className="h-4 w-4 text-courier-600" />,
+              description: "All parts have arrived — repairs are about to start"
+            });
+          }
+
           if (summary.repairs_declined_at) {
             events.push({
               title: "Repairs Declined — Proceeding to Delivery",
