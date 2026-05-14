@@ -921,12 +921,24 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="in-repair" className="flex items-center gap-1">
-                In Repair
-                {inRepair.length > 0 && (
-                  <Badge variant="warning" className="ml-1">
-                    {inRepair.length}
-                  </Badge>
+              {canManageInspections && (
+                <TabsTrigger value="pricing" className="flex items-center gap-1">
+                  Pricing
+                  {awaitingPricing.length > 0 && (
+                    <Badge variant="warning" className="ml-1">{awaitingPricing.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
+                Awaiting Parts
+                {awaitingParts.length > 0 && (
+                  <Badge variant="warning" className="ml-1">{awaitingParts.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="awaiting-repair" className="flex items-center gap-1">
+                Awaiting Repair
+                {awaitingRepair.length > 0 && (
+                  <Badge variant="warning" className="ml-1">{awaitingRepair.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="inspected-serviced" className="flex items-center gap-1">
