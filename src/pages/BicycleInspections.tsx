@@ -1176,14 +1176,6 @@ const BicycleInspections = () => {
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Estimated cost (£) — optional"
-                              value={issue.estimatedCost}
-                              onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'estimatedCost', e.target.value)}
-                              className="text-sm"
-                            />
                             {canManageInspections && (
                               <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
