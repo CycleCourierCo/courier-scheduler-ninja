@@ -514,10 +514,15 @@ const BicycleInspections = () => {
     switch (status) {
       case "inspected":
         return { variant: "success" as const, label: "No Issues" };
+      case "awaiting_pricing":
+        return { variant: "warning" as const, label: "Awaiting Pricing" };
       case "issues_found":
         return { variant: "destructive" as const, label: "Issues Found" };
+      case "awaiting_parts":
+        return { variant: "warning" as const, label: "Awaiting Parts" };
+      case "awaiting_repair":
       case "in_repair":
-        return { variant: "warning" as const, label: "In Repair" };
+        return { variant: "warning" as const, label: "Awaiting Repair" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
       default:
@@ -543,8 +548,10 @@ const BicycleInspections = () => {
 
   // Filter inspections by status
   const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingPricing = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const inRepair = sortedInspections.filter((i: any) => i.inspection?.status === "in_repair");
+  const awaitingParts = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
+  const awaitingRepair = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
   const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
@@ -557,6 +564,13 @@ const BicycleInspections = () => {
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
     const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice;
+    const isAwaitingPricing = inspection?.status === "awaiting_pricing";
+    const isAwaitingParts = inspection?.status === "awaiting_parts";
+    const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
+    const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
+    const approvedCount = approvedIssues.length;
+    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => i.parts_arrived || i.status === 'repaired' || i.status === 'resolved').length;
+
 
     return (
       <Card key={order.id} className="mb-4">
