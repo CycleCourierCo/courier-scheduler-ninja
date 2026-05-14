@@ -43,6 +43,11 @@ export interface InspectionIssue {
   priced_at: string | null;
   priced_by_id: string | null;
   priced_by_name: string | null;
+  // Parts ordered tracking
+  parts_ordered: boolean;
+  parts_ordered_at: string | null;
+  parts_ordered_by_id: string | null;
+  parts_ordered_by_name: string | null;
   // Parts arrived tracking
   parts_arrived: boolean;
   parts_arrived_at: string | null;
