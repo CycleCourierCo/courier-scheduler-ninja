@@ -971,13 +971,29 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="in-repair" className="space-y-4">
-              {inRepair.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No bikes currently in repair
-                </p>
+            {canManageInspections && (
+              <TabsContent value="pricing" className="space-y-4">
+                {awaitingPricing.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No bikes awaiting pricing</p>
+                ) : (
+                  awaitingPricing.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
+            <TabsContent value="awaiting-parts" className="space-y-4">
+              {awaitingParts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No bikes awaiting parts</p>
               ) : (
-                inRepair.map(renderInspectionCard)
+                awaitingParts.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="awaiting-repair" className="space-y-4">
+              {awaitingRepair.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No bikes currently in repair</p>
+              ) : (
+                awaitingRepair.map(renderInspectionCard)
               )}
             </TabsContent>
 
