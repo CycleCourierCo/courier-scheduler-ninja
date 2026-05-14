@@ -1,40 +1,48 @@
-## Insurance tab on Vehicle Management
+# Inspection stages on the public tracking page
 
-Add an **Insurance** tab to the Vehicles page with policy history per vehicle, a fleet-wide Gantt timeline, and an "uninsured vehicles" panel.
+When an order has `needs_inspection = true`, surface the inspection lifecycle on the public Track Your Order page (between "Bike Collected" and "Driver En Route to Delivery").
 
-### Database (new table)
+## Stages to display
 
-`vehicle_insurance_policies`
-- `vehicle_id` (uuid, FK → vehicles.id, on delete cascade)
-- `insurer` (text)
-- `policy_number` (text, nullable)
-- `start_date` (date, required)
-- `end_date` (date, required)
-- `premium` (numeric, nullable)
-- `notes` (text, nullable)
-- standard `id`, `created_at`, `updated_at`, `created_by`
+In timeline order, each driven by real timestamps so they sort naturally:
 
-RLS: admin full access (matches existing vehicle policies). Index on `(vehicle_id, start_date)`.
+1. **Awaiting Inspection** — bike has been collected but no inspection record exists yet (or inspection.status = `pending`).
+2. **Inspection Complete — No Issues Found** — inspection has `inspected_at` and zero issues raised.
+3. **Inspection Complete — Issues Found, Awaiting Customer Approval** — inspected, at least one issue with status `pending`.
+4. **Repairs Approved** — at least one issue moved to `approved`. Date = earliest approved-issue `customer_responded_at`.
+5. **Repairs Declined — Proceeding to Delivery** — all issues are `declined` (no approvals). Date = latest `customer_responded_at`.
+6. **Repairs Completed** — every approved issue is `resolved` or `repaired`. Date = latest `resolved_at` of the approved set.
 
-### UI
+States 2/3 are mutually exclusive. 4 and 5 are mutually exclusive. 6 only appears once all approved issues are closed.
 
-`VehicleManagement.tsx` wrapped in `Tabs` with two tabs:
-1. **Vehicles** — existing list/grid, unchanged.
-2. **Insurance** — new view containing:
-   - **Uninsured vehicles** card at top: lists all active (non-sold) vehicles where no policy covers today's date. Each row has a "Add policy" button.
-   - **Coverage timeline** (Gantt): rows = vehicles, x-axis = months. Default range = 12 months from current month, with prev/next navigation. Each policy rendered as a coloured bar; hovering shows insurer + dates; clicking opens edit. Vehicles with gaps show empty space (visually flags uninsured periods).
-   - **Policies table** below the chart: filterable by vehicle, sortable by end date, with Edit/Delete actions and "Expiring in 30 days" highlight.
+## Backend: public-safe access
 
-### New components
-- `src/components/vehicles/InsuranceTab.tsx` — orchestrates the tab.
-- `src/components/vehicles/InsuranceTimeline.tsx` — Gantt chart (pure CSS grid, no new deps).
-- `src/components/vehicles/UninsuredVehiclesCard.tsx`.
-- `src/components/vehicles/PolicyDialog.tsx` — add/edit policy form (vehicle picker, insurer, policy #, start, end, premium, notes).
+Anonymous tracking can't read `bicycle_inspections` / `inspection_issues` under current RLS, and we don't want to expose issue descriptions or costs publicly.
 
-### Service layer
-- `src/services/insuranceService.ts` — `listPolicies()`, `createPolicy()`, `updatePolicy()`, `deletePolicy()`, plus helper `getCurrentlyUninsuredVehicles(vehicles, policies)` (client-side: vehicle has no policy where `start_date <= today <= end_date`).
+Add a SECURITY DEFINER RPC:
 
-### Out of scope
-- No automated renewal reminders / emails.
-- No document upload for policy PDFs (can be added later).
-- No changes to existing vehicle fields.
+```text
+get_public_inspection_summary(order_identifier text)
+  → resolves order via id / tracking_number / customer_order_number
+  → returns jsonb with only milestone flags + timestamps:
+      inspection_exists, inspected_at,
+      has_issues, total_issues, pending_count, approved_count,
+      declined_count, resolved_count,
+      repairs_approved_at, repairs_declined_at, repairs_completed_at
+GRANT EXECUTE TO anon, authenticated;
+```
+
+No descriptions, no costs, no names — just enough to drive the timeline.
+
+## Frontend changes
+
+1. **`src/types/order.ts`** — add optional `inspectionSummary` field matching the RPC shape.
+2. **`src/services/fetchOrderService.ts`** — in `getPublicOrder`, after the order resolves, if `needs_inspection` call the RPC and attach `inspectionSummary` to the returned order.
+3. **`src/components/order-detail/TrackingTimeline.tsx`** — in `getTrackingEvents()`, when `order.needsInspection` push events derived from `order.inspectionSummary` using the rules above. Icons: `Wrench` (awaiting/approved), `Check` (no issues / completed), `AlertCircle` (issues found awaiting approval), `Truck` (declined → proceeding).
+
+No changes to admin pages, inspection workflow, or the orders schema.
+
+## Out of scope
+- Editing inspection logic, issue descriptions, or pricing.
+- Customer-facing approval UI (already exists separately).
+- Authenticated `OrderDetail` page changes.
