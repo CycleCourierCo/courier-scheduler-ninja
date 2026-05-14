@@ -565,12 +565,12 @@ const BicycleInspections = () => {
   }, [sortedInspections, searchQuery]);
 
   // Filter inspections by status
-  const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const awaitingPricing = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
-  const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const awaitingParts = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
-  const awaitingRepair = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
-  const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const awaitingInspection = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
+  const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
+  const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
+  const inspectedAndServiced = filteredInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
