@@ -547,6 +547,23 @@ const BicycleInspections = () => {
     return arr;
   }, [inspections, sortBy, canManageInspections]);
 
+  // Apply free-text search across tracking #, customer order #, bike, sender/receiver name
+  const filteredInspections = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sortedInspections;
+    return sortedInspections.filter((o: any) => {
+      const haystack = [
+        o.tracking_number,
+        o.customer_order_number,
+        o.bike_brand,
+        o.bike_model,
+        (o.sender as any)?.name,
+        (o.receiver as any)?.name,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [sortedInspections, searchQuery]);
+
   // Filter inspections by status
   const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
   const awaitingPricing = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
