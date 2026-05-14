@@ -57,7 +57,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
 
       if (currentStatus === 'issues_found' && allResponded) {
         nextStatus = allDeclined ? 'repaired' : 'awaiting_parts';
-      } else if (currentStatus === 'awaiting_parts' && allPartsArrived) {
+      } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
         (currentStatus === 'awaiting_repair' || currentStatus === 'in_repair') &&
