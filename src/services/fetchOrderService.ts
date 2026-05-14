@@ -38,7 +38,9 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
     if (!id) {
       return null;
     }
-    
+
+    let order: Order | null = null;
+
     // First try to fetch by UUID (id column)
     if (id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
       const { data, error } = await supabase
@@ -46,39 +48,58 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
         .select("*, tracking_events")
         .eq("id", id)
         .single();
-  
+
       if (!error && data) {
-        return mapDbOrderToOrderType(data);
+        order = mapDbOrderToOrderType(data);
       }
     }
-    
-    // Try to fetch by tracking_number (which should have the CCC754... format)
-    const { data: orderByTracking, error: trackingError } = await supabase
-      .from("orders")
-      .select("*, tracking_events")
-      .eq("tracking_number", id)
-      .single();
-    
-    if (!trackingError && orderByTracking) {
-      return mapDbOrderToOrderType(orderByTracking);
+
+    // Try to fetch by tracking_number
+    if (!order) {
+      const { data: orderByTracking, error: trackingError } = await supabase
+        .from("orders")
+        .select("*, tracking_events")
+        .eq("tracking_number", id)
+        .single();
+
+      if (!trackingError && orderByTracking) {
+        order = mapDbOrderToOrderType(orderByTracking);
+      }
     }
-    
-    // If tracking_number search failed, try to fetch by customer_order_number
-    const { data: orderByCustomId, error: customIdError } = await supabase
-      .from("orders")
-      .select("*, tracking_events")
-      .eq("customer_order_number", id)
-      .single();
-    
-    if (customIdError) {
+
+    // If still nothing, try customer_order_number
+    if (!order) {
+      const { data: orderByCustomId, error: customIdError } = await supabase
+        .from("orders")
+        .select("*, tracking_events")
+        .eq("customer_order_number", id)
+        .single();
+
+      if (!customIdError && orderByCustomId) {
+        order = mapDbOrderToOrderType(orderByCustomId);
+      }
+    }
+
+    if (!order) {
       return null;
     }
 
-    if (!orderByCustomId) {
-      return null;
+    // Attach inspection summary for orders that need inspection
+    if (order.needsInspection) {
+      try {
+        const { data: summary } = await supabase.rpc(
+          "get_public_inspection_summary" as any,
+          { order_identifier: id }
+        );
+        if (summary) {
+          (order as any).inspectionSummary = summary;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch inspection summary:", e);
+      }
     }
 
-    return mapDbOrderToOrderType(orderByCustomId);
+    return order;
   } catch (err) {
     return null;
   }
