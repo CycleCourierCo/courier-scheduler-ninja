@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -45,17 +45,27 @@ import {
   moveToRepaired,
   checkAllApprovedRepaired,
   reconcileInspectionStatuses,
+  setIssuePrice,
+  releaseInspectionToCustomer,
+  markPartsArrived,
+  unmarkPartsArrived,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
 interface IssueEntry {
   description: string;
   estimatedCost: string;
+  partName: string;
+  partSpec: string;
+  partNumber: string;
 }
 
 interface ChecklistIssue {
   description: string;
   estimatedCost: string;
+  partName: string;
+  partSpec: string;
+  partNumber: string;
 }
 
 // Standard inspection checklist items
@@ -76,7 +86,9 @@ const BicycleInspections = () => {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "" }]);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+  // Per-issue price input for the awaiting-pricing stage
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   
@@ -127,7 +139,7 @@ const BicycleInspections = () => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
-      
+
       const results = [];
       for (const issue of issues) {
         if (issue.description.trim()) {
@@ -137,7 +149,12 @@ const BicycleInspections = () => {
             issue.description,
             cost,
             user.id,
-            userProfile.name || user.email || "Admin"
+            userProfile.name || user.email || "Admin",
+            {
+              part_name: issue.partName?.trim() || null,
+              part_spec: issue.partSpec?.trim() || null,
+              part_number: issue.partNumber?.trim() || null,
+            }
           );
           results.push(result);
         }
@@ -148,10 +165,69 @@ const BicycleInspections = () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setIssueDialogOpen(false);
       resetIssueForm();
-      toast.success("Issues reported successfully");
+      toast.success("Issues recorded — awaiting admin pricing");
     },
     onError: (error) => {
       toast.error("Failed to report issues");
+      console.error(error);
+    },
+  });
+
+  // Set price on a single issue (admin pricing stage)
+  const setPriceMutation = useMutation({
+    mutationFn: async ({ issueId, price }: { issueId: string; price: number }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return setIssuePrice(issueId, price, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setPriceInputs(prev => {
+        const next = { ...prev };
+        delete next[vars.issueId];
+        return next;
+      });
+      toast.success("Price saved");
+    },
+    onError: (error) => {
+      toast.error("Failed to save price");
+      console.error(error);
+    },
+  });
+
+  // Release inspection to customer (admin gate)
+  const releaseMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return releaseInspectionToCustomer(
+        inspectionId,
+        user.id,
+        userProfile?.name || user.email || "Admin"
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Inspection released to customer");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to release inspection");
+      console.error(error);
+    },
+  });
+
+  // Toggle parts arrived (mechanic/admin)
+  const togglePartsArrivedMutation = useMutation({
+    mutationFn: async ({ issueId, arrived }: { issueId: string; arrived: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      if (arrived) {
+        return markPartsArrived(issueId, user.id, userProfile?.name || user.email || "Mechanic");
+      }
+      return unmarkPartsArrived(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update parts status");
       console.error(error);
     },
   });
@@ -320,7 +396,7 @@ const BicycleInspections = () => {
   const handleAddChecklistIssue = (itemId: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "" }]
+      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]
     }));
   };
 
@@ -331,10 +407,10 @@ const BicycleInspections = () => {
     }));
   };
 
-  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost', value: string) => {
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: (prev[itemId] || []).map((issue, i) => 
+      [itemId]: (prev[itemId] || []).map((issue, i) =>
         i === index ? { ...issue, [field]: value } : issue
       )
     }));
@@ -345,13 +421,16 @@ const BicycleInspections = () => {
   );
 
   // Collect all issues across all checklist items
-  const allChecklistIssues = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
+  const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
     const itemLabel = INSPECTION_ITEMS.find(i => i.id === itemId)?.label || itemId;
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
         description: `[${itemLabel}] ${issue.description}`,
         estimatedCost: issue.estimatedCost,
+        partName: issue.partName,
+        partSpec: issue.partSpec,
+        partNumber: issue.partNumber,
       }));
   });
 
@@ -359,24 +438,19 @@ const BicycleInspections = () => {
 
   const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
-    
+
     if (hasIssues) {
-      // Submit issues via the existing mutation
-      const validIssues = allChecklistIssues.map(i => ({
-        description: i.description,
-        estimatedCost: i.estimatedCost,
-      }));
-      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: validIssues });
+      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: allChecklistIssues });
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
       const notes = INSPECTION_ITEMS.map(item => {
         const comment = inspectionComments[item.id];
-        return comment 
+        return comment
           ? `✓ ${item.label}: ${comment}`
           : `✓ ${item.label}`;
       }).join('\n');
-      
+
       markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
       setInspectionChecklistOpen(false);
     }
@@ -385,25 +459,25 @@ const BicycleInspections = () => {
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
     setIssueCount(newCount);
-    
+
     setIssues(prev => {
       if (newCount > prev.length) {
-        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "" }))];
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }))];
       } else {
         return prev.slice(0, newCount);
       }
     });
   };
 
-  const updateIssue = (index: number, field: 'description' | 'estimatedCost', value: string) => {
-    setIssues(prev => prev.map((issue, i) => 
+  const updateIssue = (index: number, field: keyof IssueEntry, value: string) => {
+    setIssues(prev => prev.map((issue, i) =>
       i === index ? { ...issue, [field]: value } : issue
     ));
   };
 
   const resetIssueForm = () => {
     setIssueCount(1);
-    setIssues([{ description: "", estimatedCost: "" }]);
+    setIssues([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
     setSelectedOrderId(null);
   };
 
@@ -440,10 +514,15 @@ const BicycleInspections = () => {
     switch (status) {
       case "inspected":
         return { variant: "success" as const, label: "No Issues" };
+      case "awaiting_pricing":
+        return { variant: "warning" as const, label: "Awaiting Pricing" };
       case "issues_found":
         return { variant: "destructive" as const, label: "Issues Found" };
+      case "awaiting_parts":
+        return { variant: "warning" as const, label: "Awaiting Parts" };
+      case "awaiting_repair":
       case "in_repair":
-        return { variant: "warning" as const, label: "In Repair" };
+        return { variant: "warning" as const, label: "Awaiting Repair" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
       default:
@@ -469,8 +548,10 @@ const BicycleInspections = () => {
 
   // Filter inspections by status
   const awaitingInspection = sortedInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingPricing = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = sortedInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const inRepair = sortedInspections.filter((i: any) => i.inspection?.status === "in_repair");
+  const awaitingParts = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
+  const awaitingRepair = sortedInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
   const inspectedAndServiced = sortedInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
@@ -483,6 +564,13 @@ const BicycleInspections = () => {
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
     const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice;
+    const isAwaitingPricing = inspection?.status === "awaiting_pricing";
+    const isAwaitingParts = inspection?.status === "awaiting_parts";
+    const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
+    const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
+    const approvedCount = approvedIssues.length;
+    const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => i.parts_arrived || i.status === 'repaired' || i.status === 'resolved').length;
+
 
     return (
       <Card key={order.id} className="mb-4">
@@ -554,10 +642,18 @@ const BicycleInspections = () => {
                         <AlertTriangle className="h-4 w-4" />
                         {issue.issue_description}
                       </p>
-                      {issue.estimated_cost && (
+                      {issue.estimated_cost != null && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          Estimated Cost: <span className="font-medium">£{issue.estimated_cost.toFixed(2)}</span>
+                          {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
                         </p>
+                      )}
+                      {/* Part info — mechanic/admin only */}
+                      {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
+                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                          {issue.part_name && <p>Part: <span className="font-medium text-foreground">{issue.part_name}</span></p>}
+                          {issue.part_spec && <p>Spec: <span className="font-medium text-foreground">{issue.part_spec}</span></p>}
+                          {issue.part_number && <p>Part #: <span className="font-medium text-foreground">{issue.part_number}</span></p>}
+                        </div>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
                         Reported by {issue.requested_by_name}
@@ -567,6 +663,60 @@ const BicycleInspections = () => {
                       {issue.status}
                     </Badge>
                   </div>
+
+                  {/* Admin pricing input (awaiting_pricing stage) */}
+                  {isAdmin && isAwaitingPricing && (
+                    <div className="mt-3 flex items-end gap-2">
+                      <div className="flex-1">
+                        <Label className="text-xs">Price (£)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
+                          onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                          className="text-sm"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
+                          const val = parseFloat(raw);
+                          if (!isFinite(val) || val < 0) {
+                            toast.error("Enter a valid price");
+                            return;
+                          }
+                          setPriceMutation.mutate({ issueId: issue.id, price: val });
+                        }}
+                        disabled={setPriceMutation.isPending}
+                      >
+                        <PoundSterling className="h-4 w-4 mr-1" /> Save
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Parts arrived toggle (awaiting_parts stage, approved issues) */}
+                  {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Checkbox
+                        id={`parts-${issue.id}`}
+                        checked={!!issue.parts_arrived}
+                        onCheckedChange={(checked) =>
+                          togglePartsArrivedMutation.mutate({ issueId: issue.id, arrived: !!checked })
+                        }
+                      />
+                      <Label htmlFor={`parts-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                        <PackageCheck className="h-4 w-4" />
+                        Parts arrived
+                        {issue.parts_arrived && issue.parts_arrived_by_name && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            by {issue.parts_arrived_by_name}
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+                  )}
 
                   {/* Customer Response Display */}
                   {issue.customer_response && (
@@ -833,12 +983,24 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="in-repair" className="flex items-center gap-1">
-                In Repair
-                {inRepair.length > 0 && (
-                  <Badge variant="warning" className="ml-1">
-                    {inRepair.length}
-                  </Badge>
+              {canManageInspections && (
+                <TabsTrigger value="pricing" className="flex items-center gap-1">
+                  Pricing
+                  {awaitingPricing.length > 0 && (
+                    <Badge variant="warning" className="ml-1">{awaitingPricing.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
+                Awaiting Parts
+                {awaitingParts.length > 0 && (
+                  <Badge variant="warning" className="ml-1">{awaitingParts.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="awaiting-repair" className="flex items-center gap-1">
+                Awaiting Repair
+                {awaitingRepair.length > 0 && (
+                  <Badge variant="warning" className="ml-1">{awaitingRepair.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="inspected-serviced" className="flex items-center gap-1">
@@ -871,13 +1033,29 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="in-repair" className="space-y-4">
-              {inRepair.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No bikes currently in repair
-                </p>
+            {canManageInspections && (
+              <TabsContent value="pricing" className="space-y-4">
+                {awaitingPricing.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No bikes awaiting pricing</p>
+                ) : (
+                  awaitingPricing.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
+            <TabsContent value="awaiting-parts" className="space-y-4">
+              {awaitingParts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No bikes awaiting parts</p>
               ) : (
-                inRepair.map(renderInspectionCard)
+                awaitingParts.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="awaiting-repair" className="space-y-4">
+              {awaitingRepair.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No bikes currently in repair</p>
+              ) : (
+                awaitingRepair.map(renderInspectionCard)
               )}
             </TabsContent>
 

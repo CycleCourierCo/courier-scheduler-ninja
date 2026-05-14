@@ -70,6 +70,9 @@ export type Database = {
           invoice_url: string | null
           notes: string | null
           order_id: string
+          released_by_id: string | null
+          released_by_name: string | null
+          released_to_customer_at: string | null
           status: string
           updated_at: string
         }
@@ -84,6 +87,9 @@ export type Database = {
           invoice_url?: string | null
           notes?: string | null
           order_id: string
+          released_by_id?: string | null
+          released_by_name?: string | null
+          released_to_customer_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -98,6 +104,9 @@ export type Database = {
           invoice_url?: string | null
           notes?: string | null
           order_id?: string
+          released_by_id?: string | null
+          released_by_name?: string | null
+          released_to_customer_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -669,6 +678,16 @@ export type Database = {
           inspection_id: string
           issue_description: string
           order_id: string
+          part_name: string | null
+          part_number: string | null
+          part_spec: string | null
+          parts_arrived: boolean
+          parts_arrived_at: string | null
+          parts_arrived_by_id: string | null
+          parts_arrived_by_name: string | null
+          priced_at: string | null
+          priced_by_id: string | null
+          priced_by_name: string | null
           requested_by_id: string
           requested_by_name: string
           resolved_at: string | null
@@ -686,6 +705,16 @@ export type Database = {
           inspection_id: string
           issue_description: string
           order_id: string
+          part_name?: string | null
+          part_number?: string | null
+          part_spec?: string | null
+          parts_arrived?: boolean
+          parts_arrived_at?: string | null
+          parts_arrived_by_id?: string | null
+          parts_arrived_by_name?: string | null
+          priced_at?: string | null
+          priced_by_id?: string | null
+          priced_by_name?: string | null
           requested_by_id: string
           requested_by_name: string
           resolved_at?: string | null
@@ -703,6 +732,16 @@ export type Database = {
           inspection_id?: string
           issue_description?: string
           order_id?: string
+          part_name?: string | null
+          part_number?: string | null
+          part_spec?: string | null
+          parts_arrived?: boolean
+          parts_arrived_at?: string | null
+          parts_arrived_by_id?: string | null
+          parts_arrived_by_name?: string | null
+          priced_at?: string | null
+          priced_by_id?: string | null
+          priced_by_name?: string | null
           requested_by_id?: string
           requested_by_name?: string
           resolved_at?: string | null
