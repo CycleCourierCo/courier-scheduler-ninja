@@ -49,6 +49,8 @@ import {
   releaseInspectionToCustomer,
   markPartsArrived,
   unmarkPartsArrived,
+  markPartsOrdered,
+  unmarkPartsOrdered,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
