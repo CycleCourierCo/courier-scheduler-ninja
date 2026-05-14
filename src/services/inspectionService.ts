@@ -9,6 +9,9 @@ const ADMIN_ONLY_ISSUE_FIELDS = [
   'priced_at',
   'priced_by_id',
   'priced_by_name',
+  'parts_ordered_at',
+  'parts_ordered_by_id',
+  'parts_ordered_by_name',
 ] as const;
 
 const stripAdminOnlyFromIssue = (issue: any) => {
