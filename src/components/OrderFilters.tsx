@@ -498,6 +498,21 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="w-full md:w-56">
+              <Select value={missingDates ?? "any"} onValueChange={handleMissingDatesChange}>
+                <SelectTrigger>
+                  <CalendarX className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Missing availability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">All Orders</SelectItem>
+                  <SelectItem value="sender">Sender dates missing</SelectItem>
+                  <SelectItem value="receiver">Receiver dates missing</SelectItem>
+                  <SelectItem value="either">Either missing</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             
             <Button variant="outline" onClick={handleClearFilters}>
               Clear Filters
