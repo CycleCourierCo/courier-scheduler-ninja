@@ -1,16 +1,15 @@
-
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users, Bike, CalendarX } from "lucide-react";
+import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users, Bike, CalendarX, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -39,7 +38,7 @@ const statusOptions = [
   { value: "driver_to_delivery", label: "Driver to Delivery" },
   { value: "shipped", label: "Shipped" },
   { value: "delivered", label: "Delivered" },
-  { value: "cancelled", label: "Cancelled" }
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 const bikeTypeOptions = [
@@ -60,7 +59,6 @@ const bikeTypeOptions = [
   { value: "Wheelset/Frameset", label: "Wheelset/Frameset" },
   { value: "Bike Rack", label: "Bike Rack" },
   { value: "Turbo Trainer", label: "Turbo Trainer" },
-  // Legacy types for older orders
   { value: "Electric Bikes", label: "Electric Bikes (Legacy)" },
   { value: "Non-Electric Bikes", label: "Non-Electric Bikes (Legacy)" },
 ];
@@ -69,7 +67,7 @@ const sortOptions = [
   { value: "created_desc", label: "Newest First" },
   { value: "created_asc", label: "Oldest First" },
   { value: "sender_name", label: "Sender Name (A-Z)" },
-  { value: "receiver_name", label: "Receiver Name (A-Z)" }
+  { value: "receiver_name", label: "Receiver Name (A-Z)" },
 ];
 
 interface OrderFiltersProps {
@@ -96,10 +94,10 @@ interface OrderFiltersProps {
   userRole: string | null;
 }
 
-const OrderFilters: React.FC<OrderFiltersProps> = ({ 
-  onFilterChange, 
+const OrderFilters: React.FC<OrderFiltersProps> = ({
+  onFilterChange,
   initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [], missingDates: undefined },
-  userRole
+  userRole,
 }) => {
   const [status, setStatus] = useState<string[]>(initialFilters.status);
   const [search, setSearch] = useState<string>(initialFilters.search);
@@ -113,420 +111,372 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [bikeTypePopoverOpen, setBikeTypePopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch B2B customers for admin users
   const { data: customers } = useQuery({
     queryKey: ["b2b-customers"],
     queryFn: async () => {
       if (userRole !== "admin") return [];
-      
       const { data, error } = await supabase
         .from("profiles")
         .select("id, name, email")
         .eq("role", "b2b_customer")
         .eq("account_status", "approved")
         .order("name");
-      
       if (error) throw error;
       return data as { id: string; name: string; email: string }[];
     },
     enabled: userRole === "admin",
   });
 
-  // Restore focus to search input after re-renders
-  useEffect(() => {
-    if (document.activeElement?.tagName === 'INPUT' && 
-        document.activeElement.getAttribute('placeholder')?.includes('Search')) {
-      // Don't do anything if search input already has focus
-      return;
-    }
-  }, [search]);
+  const emit = (overrides: Partial<{
+    status: string[]; search: string; sortBy: string; dateFrom: Date | undefined; dateTo: Date | undefined; customerId?: string; bikeType: string[]; missingDates?: 'sender' | 'receiver' | 'either';
+  }>) => {
+    onFilterChange({
+      status, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates,
+      ...overrides,
+    });
+  };
 
   const handleStatusToggle = (value: string) => {
-    const newStatus = status.includes(value)
-      ? status.filter(s => s !== value)
-      : [...status, value];
+    const newStatus = status.includes(value) ? status.filter(s => s !== value) : [...status, value];
     setStatus(newStatus);
-    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates });
+    emit({ status: newStatus });
   };
 
   const handleBikeTypeToggle = (value: string) => {
-    const newBikeType = bikeType.includes(value)
-      ? bikeType.filter(t => t !== value)
-      : [...bikeType, value];
+    const newBikeType = bikeType.includes(value) ? bikeType.filter(t => t !== value) : [...bikeType, value];
     setBikeType(newBikeType);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType, missingDates });
+    emit({ bikeType: newBikeType });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearch = e.target.value;
     setSearch(newSearch);
-    
-    // Debounce the search filter change
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    
-    searchTimeoutRef.current = setTimeout(() => {
-      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates });
-    }, 300);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => emit({ search: newSearch }), 300);
+  };
+
+  const clearSearch = () => {
+    setSearch("");
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    emit({ search: "" });
   };
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
-    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId, bikeType, missingDates });
+    emit({ sortBy: value });
   };
 
   const handleDateFromChange = (date: Date | undefined) => {
     setDateFrom(date);
-    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId, bikeType, missingDates });
+    emit({ dateFrom: date });
   };
 
   const handleDateToChange = (date: Date | undefined) => {
     setDateTo(date);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId, bikeType, missingDates });
+    emit({ dateTo: date });
   };
 
   const handleCustomerChange = (value: string) => {
     const newCustomerId = value === "all" ? undefined : value;
     setCustomerId(newCustomerId);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType, missingDates });
+    emit({ customerId: newCustomerId });
   };
 
   const handleMissingDatesChange = (value: string) => {
     const newMissing = value === "any" ? undefined : (value as 'sender' | 'receiver' | 'either');
     setMissingDates(newMissing);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates: newMissing });
+    emit({ missingDates: newMissing });
   };
 
   const handleClearFilters = () => {
-    const defaultFilters = { status: [] as string[], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] as string[], missingDates: undefined };
-    setStatus(defaultFilters.status);
-    setSearch(defaultFilters.search);
-    setSortBy(defaultFilters.sortBy);
-    setDateFrom(defaultFilters.dateFrom);
-    setDateTo(defaultFilters.dateTo);
-    setCustomerId(defaultFilters.customerId);
-    setBikeType(defaultFilters.bikeType);
-    setMissingDates(defaultFilters.missingDates);
-    onFilterChange(defaultFilters);
+    setStatus([]); setSearch(""); setSortBy("created_desc");
+    setDateFrom(undefined); setDateTo(undefined);
+    setCustomerId(undefined); setBikeType([]); setMissingDates(undefined);
+    onFilterChange({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [], missingDates: undefined });
   };
 
-  const getStatusDisplayText = () => {
-    if (status.length === 0) return "All Statuses";
-    if (status.length === 1) {
-      const statusOption = statusOptions.find(opt => opt.value === status[0]);
-      return statusOption?.label || status[0];
-    }
-    return `${status.length} statuses selected`;
-  };
-
-  const getDateDisplayText = () => {
-    if (!dateFrom && !dateTo) return "All Dates";
-    if (dateFrom && dateTo) return `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d")}`;
+  const dateLabel = () => {
+    if (!dateFrom && !dateTo) return "Date Range";
+    if (dateFrom && dateTo) return `${format(dateFrom, "MMM d")} – ${format(dateTo, "MMM d")}`;
     if (dateFrom) return `From ${format(dateFrom, "MMM d")}`;
     if (dateTo) return `Until ${format(dateTo, "MMM d")}`;
-    return "All Dates";
+    return "Date Range";
   };
 
-  const getBikeTypeDisplayText = () => {
-    if (bikeType.length === 0) return "All Bike Types";
-    if (bikeType.length === 1) {
-      const typeOption = bikeTypeOptions.find(opt => opt.value === bikeType[0]);
-      return typeOption?.label || bikeType[0];
-    }
-    return `${bikeType.length} types selected`;
-  };
+  const missingLabel =
+    missingDates === "sender" ? "Sender dates missing"
+    : missingDates === "receiver" ? "Receiver dates missing"
+    : missingDates === "either" ? "Either missing"
+    : null;
+
+  const customerLabel = customerId ? (customers?.find(c => c.id === customerId)?.name ?? "Customer") : null;
+
+  const activeCount =
+    status.length + bikeType.length +
+    (dateFrom || dateTo ? 1 : 0) +
+    (customerId ? 1 : 0) +
+    (missingDates ? 1 : 0) +
+    (sortBy !== "created_desc" ? 1 : 0);
+
+  const hasActiveFilters = activeCount > 0 || search.length > 0;
+
+  const popoverContentBase = "p-0 max-w-[calc(100vw-2rem)]";
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-        <div className="flex flex-col md:flex-row gap-4 flex-1">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search by name, phone, email, postcode, tracking number, or bike details..."
-              value={search}
-              onChange={handleSearchChange}
-              className="pl-10"
-            />
-          </div>
-          
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="w-full md:w-48">
-              <Popover open={statusPopoverOpen} onOpenChange={setStatusPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={statusPopoverOpen}
-                    className="w-full justify-between"
-                  >
-                    <div className="flex items-center">
-                      <Filter className="mr-2 h-4 w-4" />
-                      <span className="truncate">{getStatusDisplayText()}</span>
-                    </div>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0">
-                  <div className="p-4 space-y-2">
-                    <div className="text-sm font-medium mb-3">Filter by Status</div>
-                    {status.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {status.map((selectedStatus) => {
-                          const statusOption = statusOptions.find(opt => opt.value === selectedStatus);
-                          return (
-                            <Badge 
-                              key={selectedStatus} 
-                              variant="secondary" 
-                              className="text-xs cursor-pointer"
-                              onClick={() => handleStatusToggle(selectedStatus)}
-                            >
-                              {statusOption?.label}
-                              <span className="ml-1">×</span>
-                            </Badge>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      {statusOptions.map((option) => (
-                        <div
-                          key={option.value}
-                          className="flex items-center space-x-2 cursor-pointer hover:bg-muted rounded-sm p-2"
-                          onClick={() => handleStatusToggle(option.value)}
-                        >
-                          <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center">
-                            {status.includes(option.value) && (
-                              <Check className="h-3 w-3" />
-                            )}
-                          </div>
-                          <span className="text-sm">{option.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="w-full md:w-48">
-              <Popover open={bikeTypePopoverOpen} onOpenChange={setBikeTypePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={bikeTypePopoverOpen}
-                    className="w-full justify-between"
-                  >
-                    <div className="flex items-center">
-                      <Bike className="mr-2 h-4 w-4" />
-                      <span className="truncate">{getBikeTypeDisplayText()}</span>
-                    </div>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0 max-h-96 overflow-y-auto">
-                  <div className="p-4 space-y-2">
-                    <div className="text-sm font-medium mb-3">Filter by Bike Type</div>
-                    {bikeType.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {bikeType.map((selectedType) => {
-                          const typeOption = bikeTypeOptions.find(opt => opt.value === selectedType);
-                          return (
-                            <Badge 
-                              key={selectedType} 
-                              variant="secondary" 
-                              className="text-xs cursor-pointer"
-                              onClick={() => handleBikeTypeToggle(selectedType)}
-                            >
-                              {typeOption?.label}
-                              <span className="ml-1">×</span>
-                            </Badge>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      {bikeTypeOptions.map((option) => (
-                        <div
-                          key={option.value}
-                          className="flex items-center space-x-2 cursor-pointer hover:bg-muted rounded-sm p-2"
-                          onClick={() => handleBikeTypeToggle(option.value)}
-                        >
-                          <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center">
-                            {bikeType.includes(option.value) && (
-                              <Check className="h-3 w-3" />
-                            )}
-                          </div>
-                          <span className="text-sm">{option.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="w-full md:w-48">
-              <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                  >
-                    <div className="flex items-center">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      <span className="truncate">{getDateDisplayText()}</span>
-                    </div>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-4 space-y-4">
-                    <div className="text-sm font-medium">Filter by Date Range</div>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">From Date</label>
-                        <div className="mt-1">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !dateFrom && "text-muted-foreground"
-                                )}
-                              >
-                                {dateFrom ? format(dateFrom, "PPP") : "Select start date"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={dateFrom}
-                                onSelect={handleDateFromChange}
-                                initialFocus
-                                className={cn("p-3 pointer-events-auto")}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">To Date</label>
-                        <div className="mt-1">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !dateTo && "text-muted-foreground"
-                                )}
-                              >
-                                {dateTo ? format(dateTo, "PPP") : "Select end date"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={dateTo}
-                                onSelect={handleDateToChange}
-                                initialFocus
-                                className={cn("p-3 pointer-events-auto")}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                      {(dateFrom || dateTo) && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                      onClick={() => {
-                        setDateFrom(undefined);
-                        setDateTo(undefined);
-                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId, bikeType, missingDates });
-                      }}
-                      className="w-full"
-                    >
-                      Clear Date Filter
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+    <div className="space-y-3">
+      {/* Search bar row */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, phone, email, postcode, tracking, bike…"
+            value={search}
+            onChange={handleSearchChange}
+            className="pl-12 pr-10 h-12 text-base"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-sm p-1"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-
-        {userRole === "admin" && (
-          <div className="w-full md:w-48">
-            <Select value={customerId || "all"} onValueChange={handleCustomerChange}>
-              <SelectTrigger>
-                <Users className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="All Customers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Customers</SelectItem>
-                {customers?.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-            
-            <div className="w-full md:w-48">
-              <Select value={sortBy} onValueChange={handleSortChange}>
-                <SelectTrigger>
-                  {sortBy.includes("desc") ? (
-                    <SortDesc className="mr-2 h-4 w-4" />
-                  ) : (
-                    <SortAsc className="mr-2 h-4 w-4" />
-                  )}
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="w-full md:w-56">
-              <Select value={missingDates ?? "any"} onValueChange={handleMissingDatesChange}>
-                <SelectTrigger>
-                  <CalendarX className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Missing availability" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">All Orders</SelectItem>
-                  <SelectItem value="sender">Sender dates missing</SelectItem>
-                  <SelectItem value="receiver">Receiver dates missing</SelectItem>
-                  <SelectItem value="either">Either missing</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <Button variant="outline" onClick={handleClearFilters}>
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-        
-        <Button asChild className="w-full lg:w-auto">
+        <Button asChild size="lg" className="h-12 sm:w-auto w-full">
           <Link to="/create-order">
             <Plus className="mr-2 h-4 w-4" />
             New Order
           </Link>
         </Button>
       </div>
+
+      {/* Filter grid */}
+      <div className={cn(
+        "grid gap-2 grid-cols-2 md:grid-cols-3",
+        userRole === "admin" ? "lg:grid-cols-6" : "lg:grid-cols-5",
+      )}>
+        {/* Status */}
+        <Popover open={statusPopoverOpen} onOpenChange={setStatusPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between h-10">
+              <span className="flex items-center min-w-0">
+                <Filter className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">Status</span>
+              </span>
+              {status.length > 0 && (
+                <Badge variant="secondary" className="ml-2 h-5 px-1.5">{status.length}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" collisionPadding={16} className={cn(popoverContentBase, "w-[min(20rem,calc(100vw-2rem))]")}>
+            <div className="p-3 max-h-[60vh] overflow-y-auto">
+              <div className="text-sm font-medium mb-2">Filter by Status</div>
+              <div className="space-y-1">
+                {statusOptions.map(option => (
+                  <div
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-muted rounded-sm p-2"
+                    onClick={() => handleStatusToggle(option.value)}
+                  >
+                    <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center shrink-0">
+                      {status.includes(option.value) && <Check className="h-3 w-3" />}
+                    </div>
+                    <span className="text-sm">{option.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Bike Type */}
+        <Popover open={bikeTypePopoverOpen} onOpenChange={setBikeTypePopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between h-10">
+              <span className="flex items-center min-w-0">
+                <Bike className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">Bike Type</span>
+              </span>
+              {bikeType.length > 0 && (
+                <Badge variant="secondary" className="ml-2 h-5 px-1.5">{bikeType.length}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" collisionPadding={16} className={cn(popoverContentBase, "w-[min(20rem,calc(100vw-2rem))]")}>
+            <div className="p-3 max-h-[60vh] overflow-y-auto">
+              <div className="text-sm font-medium mb-2">Filter by Bike Type</div>
+              <div className="space-y-1">
+                {bikeTypeOptions.map(option => (
+                  <div
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-muted rounded-sm p-2"
+                    onClick={() => handleBikeTypeToggle(option.value)}
+                  >
+                    <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center shrink-0">
+                      {bikeType.includes(option.value) && <Check className="h-3 w-3" />}
+                    </div>
+                    <span className="text-sm">{option.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Date Range */}
+        <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between h-10">
+              <span className="flex items-center min-w-0">
+                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">{dateLabel()}</span>
+              </span>
+              {(dateFrom || dateTo) && (
+                <Badge variant="secondary" className="ml-2 h-5 px-1.5">1</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" collisionPadding={16} className={cn(popoverContentBase, "w-[min(20rem,calc(100vw-2rem))]")}>
+            <div className="p-3 space-y-3">
+              <div className="text-sm font-medium">Filter by Date Range</div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">From</label>
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={handleDateFromChange}
+                    className={cn("p-2 pointer-events-auto rounded-md border mt-1")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">To</label>
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={handleDateToChange}
+                    className={cn("p-2 pointer-events-auto rounded-md border mt-1")}
+                  />
+                </div>
+                {(dateFrom || dateTo) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setDateFrom(undefined);
+                      setDateTo(undefined);
+                      emit({ dateFrom: undefined, dateTo: undefined });
+                    }}
+                  >
+                    Clear Date Filter
+                  </Button>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Sort */}
+        <Select value={sortBy} onValueChange={handleSortChange}>
+          <SelectTrigger className="h-10">
+            {sortBy.includes("desc") ? <SortDesc className="mr-2 h-4 w-4" /> : <SortAsc className="mr-2 h-4 w-4" />}
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Missing Availability */}
+        <Select value={missingDates ?? "any"} onValueChange={handleMissingDatesChange}>
+          <SelectTrigger className="h-10">
+            <CalendarX className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Availability" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">All Orders</SelectItem>
+            <SelectItem value="sender">Sender dates missing</SelectItem>
+            <SelectItem value="receiver">Receiver dates missing</SelectItem>
+            <SelectItem value="either">Either missing</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Customer (admin only) */}
+        {userRole === "admin" && (
+          <Select value={customerId || "all"} onValueChange={handleCustomerChange}>
+            <SelectTrigger className="h-10">
+              <Users className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="All Customers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Customers</SelectItem>
+              {customers?.map(customer => (
+                <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Active filter chips + clear */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {status.map(s => {
+            const opt = statusOptions.find(o => o.value === s);
+            return (
+              <Badge key={`s-${s}`} variant="secondary" className="cursor-pointer gap-1" onClick={() => handleStatusToggle(s)}>
+                {opt?.label ?? s}
+                <X className="h-3 w-3" />
+              </Badge>
+            );
+          })}
+          {bikeType.map(t => {
+            const opt = bikeTypeOptions.find(o => o.value === t);
+            return (
+              <Badge key={`b-${t}`} variant="secondary" className="cursor-pointer gap-1" onClick={() => handleBikeTypeToggle(t)}>
+                {opt?.label ?? t}
+                <X className="h-3 w-3" />
+              </Badge>
+            );
+          })}
+          {(dateFrom || dateTo) && (
+            <Badge
+              variant="secondary"
+              className="cursor-pointer gap-1"
+              onClick={() => {
+                setDateFrom(undefined);
+                setDateTo(undefined);
+                emit({ dateFrom: undefined, dateTo: undefined });
+              }}
+            >
+              {dateLabel()}
+              <X className="h-3 w-3" />
+            </Badge>
+          )}
+          {customerLabel && (
+            <Badge variant="secondary" className="cursor-pointer gap-1" onClick={() => handleCustomerChange("all")}>
+              {customerLabel}
+              <X className="h-3 w-3" />
+            </Badge>
+          )}
+          {missingLabel && (
+            <Badge variant="secondary" className="cursor-pointer gap-1" onClick={() => handleMissingDatesChange("any")}>
+              {missingLabel}
+              <X className="h-3 w-3" />
+            </Badge>
+          )}
+          <Button variant="ghost" size="sm" onClick={handleClearFilters} className="ml-auto">
+            Clear all
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
