@@ -1,32 +1,27 @@
-## Branded Announcement Email Template
+## Goal
 
-Currently the Announcements page sends whatever raw HTML you paste in the body field. We'll add a reusable Cycle Courier branded wrapper so you only type the message content and the styling is applied automatically.
+Show how long each order has been waiting (since `created_at`) on every job card in the Route Builder list on the Job Scheduling page.
 
-### What changes
+## Change
 
-**1. New template builder (`src/utils/announcementEmailTemplate.ts`)**
-- Exports `wrapAnnouncementEmail(content: string, subject: string)` that returns full HTML with:
-  - Cycle Courier branded header (logo + brand colour bar)
-  - White content card with proper padding, system font stack
-  - Auto-conversion of plain-text line breaks to `<p>` tags (so you can just type)
-  - Footer with company name, address, contact info, and unsubscribe-style note
-  - Email-safe inline styles + table layout (works in Gmail, Outlook, Apple Mail)
-- A second helper `buildPlainText(content)` strips/normalises for the text fallback
+**File:** `src/components/scheduling/RouteBuilder.tsx` (job card, around lines 3013–3026)
 
-**2. Announcements page (`src/pages/AnnouncementEmailsPage.tsx`)**
-- Replace the "HTML Body" textarea label with "Message Content" — guidance text: "Just type your message. Branding, header, and footer are added automatically."
-- Add a "Branded preview" toggle that shows the wrapped result in the existing preview panel (instead of raw HTML)
-- On send (immediate + scheduled), pass `wrapAnnouncementEmail(htmlBody, subject)` to `send-email` instead of the raw `htmlBody`
-- Apply the same wrapping in the Edit Scheduled dialog
-- Keep storing the *raw* content in `scheduled_announcements.html_body` so edits stay editable; wrap at send time
+Add a small line under the tracking number / contact showing days since the order was created:
 
-**3. Scheduled-send edge function (`supabase/functions/process-scheduled-announcements/index.ts`)**
-- Inline the same wrapper (Deno-compatible copy) so scheduled emails get the same branding when the cron job sends them
-- Use the wrapped HTML for `html` and plain-text version for `text`
+- Compute `daysOnPlatform = differenceInDays(new Date(), new Date(job.order.created_at))`
+- Render as a `Badge` (or inline text with a `Clock` icon) reading:
+  - `Just added` if 0 days
+  - `1 day waiting` if 1
+  - `N days waiting` otherwise
+- Color-code by age for quick scanning:
+  - 0–2 days → neutral / muted
+  - 3–6 days → amber
+  - 7+ days → red (urgent)
 
-### Out of scope
-- WhatsApp message styling (text-only by nature)
-- Changing existing transactional emails (order confirmations etc.)
-- Switching email infrastructure providers
+Place it next to the tracking number row so it's visible at a glance without enlarging the card.
 
-Want me to proceed?
+## Out of scope
+
+- No changes to data fetching — `created_at` is already on `OrderData`.
+- No changes to `SchedulingCard` (legacy component not used on the current scheduling page).
+- No sorting/filtering changes — display only.
