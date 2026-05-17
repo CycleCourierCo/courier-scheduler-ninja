@@ -1,41 +1,40 @@
-## Goal
+## Problem
 
-When Shipday reports `ORDER_FAILED`:
-1. Reset the affected leg (collection or delivery) — clear scheduled date/timeslot and shipday id for that leg.
-2. Recompute the order status using the same logic as the manual "Reset Collection/Delivery Date" buttons.
-3. Re-create the Shipday job for that leg automatically so it can be re-scheduled.
-4. Make failure events always render in the order's tracking timeline, even after the Shipday id has been replaced.
+`src/components/Layout.tsx` hides nav and menus whenever `isLoader` or `isMechanic` is true:
 
-## 1. `supabase/functions/shipday-webhook/index.ts` — ORDER_FAILED branch
+- Line 35: `const navLinks = !isLoader && !isMechanic ? <>…</> : null;`
+- Line 96 (mobile sheet): wraps the entire admin/sales/B2B/route_planner section in `user && !isLoader && !isMechanic`.
+- Line 307 (desktop dropdown trigger): `user && !isLoader && !isMechanic && <DropdownMenu>…`
+- Mobile sheet also has three mutually-exclusive `{user && isDriver}`, `{user && isLoader}`, `{user && isMechanic}` branches that duplicate items and don't combine.
 
-Replace the current `ORDER_FAILED` handling (lines 144-151) with full leg-reset logic:
+`jnh096506@gmail.com` has multiple roles including loader and/or mechanic, so these checks hide his entire nav even though he is also (e.g.) an admin / route_planner.
 
-- Compute `senderSet` / `receiverSet` from `pickup_date` / `delivery_date` JSONB (non-empty array).
-- Compute `newStatus`:
-  - Pickup failed: same as `computeRevertStatus(false)` — `scheduled_dates_pending` if both set, else `sender_availability_pending` / `receiver_availability_pending`.
-  - Delivery failed: same as `computeRevertStatus(true)` — preserve `'collected'` when already collected, otherwise same rules as above.
-- Add to the `updateData` payload (alongside status + tracking_events):
-  - Pickup failed: `scheduled_pickup_date: null`, `pickup_timeslot: null`, `shipday_pickup_id: null`.
-  - Delivery failed: `scheduled_delivery_date: null`, `delivery_timeslot: null`, `shipday_delivery_id: null`.
-- When appending the failure update to `tracking_events.shipday.updates`, also store `leg: 'pickup' | 'delivery'` on the event (new field) so the timeline can identify it after the shipday id is cleared.
-- Also update `tracking_events.shipday.pickup_id` / `delivery_id` to `null` for the cleared leg so the snapshot stays consistent.
-- After the DB update succeeds, invoke `create-shipday-order` with `{ orderId: dbOrder.id, jobType: 'pickup' | 'delivery' }` via `supabase.functions.invoke(...)` to re-create the job in Shipday. Log errors but don't fail the webhook response.
+`getRoles(profile)` already returns the full `roles` array from `user_roles` (see `src/lib/roles.ts` + `AuthContext.tsx`), so the data is correct — only the UI gating is wrong.
 
-Select columns expanded to include `pickup_date, delivery_date, order_collected` for the status computation.
+## Fix (UI-only, `src/components/Layout.tsx`)
 
-## 2. `src/components/order-detail/TrackingTimeline.tsx` — show failures regardless of current shipday id
+1. Add a small helper at the top of the component:
+   ```ts
+   const onlyLoaderOrMechanic =
+     (isLoader || isMechanic) && !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver
+     && !hasRole(userProfile, 'b2c_customer');
+   ```
+   Treat it as "user has no other responsibilities".
 
-In the `ORDER_FAILED` rendering block (around lines 246-256), determine leg from (in priority):
-1. `update.leg === 'pickup' | 'delivery'` (newly written by the webhook).
-2. Fallback for legacy events: existing `update.orderId === pickupId` / `=== deliveryId` match.
-3. Final fallback: if neither, still render a generic "Job Failed" entry instead of skipping — so historical failures are never silently dropped.
+2. **Public nav links** (line 35): render whenever `!onlyLoaderOrMechanic`. Pure loader/mechanic accounts still get nothing (current behaviour); mixed-role users get the standard Home / Track / Create / Bulk Upload links again.
 
-Apply the same leg-aware logic to `ORDER_ONTHEWAY` and `ORDER_COMPLETED` so future events written with `leg` keep rendering correctly after id rotation.
+3. **Desktop dropdown** (line 307): change gate to just `user && <DropdownMenu>`. Each role section inside (`isAdmin`, `isSales`, `isB2B`, `isRoutePlanner`, `isDriver`, `isMechanic`, etc.) is already additive — they'll all render based on the roles the user actually has. Keep the existing `!isDriver` guard on Dashboard / Fuel Finder so pure driver UX is unchanged, but for a user with driver + admin the admin section will still show those entries.
 
-Add `leg?: 'pickup' | 'delivery'` to the `ShipdayUpdate` type in `src/types/order.ts`.
+4. **Mobile sheet menu**: collapse the three exclusive branches (`user && !isLoader && !isMechanic`, `user && isDriver`, `user && isLoader`, `user && isMechanic`) into one `{user && (…)}` block that mirrors the desktop dropdown's additive structure:
+   - Always show Profile and Dashboard/Fuel Finder (with the existing `!isDriver` rule).
+   - Render each role section independently: admin block when `isAdmin`, sales block when `isSales`, B2B block when `isB2B`, route_planner block when `isRoutePlanner`, driver block when `isDriver`, mechanic block when `isMechanic`. (Loader has no extra items beyond logout — fine.)
+   - Render the Logout button exactly once at the end.
+   - This removes the duplicated "My Timeslips" / "Bicycle Inspections" / "Logout" blocks that currently appear only when the user has _only_ that role.
 
-## 3. Notes
+5. No changes to routing/guards/RLS — `ProtectedRoute` already enforces access per route, so the nav can safely expose links the user is entitled to.
 
-- No schema changes; `tracking_events` is JSONB and `leg` is just a new optional field.
-- No frontend changes needed for the manual reset handlers — webhook now mirrors their behaviour.
-- `create-shipday-order` already supports `jobType` (see `src/services/shipdayService.ts`), so re-creation is a single invoke call.
+## Notes
+
+- No backend / Supabase changes.
+- No new components; only conditional-rendering changes inside `src/components/Layout.tsx`.
+- Public marketing pages (when `!user`) are unaffected.
