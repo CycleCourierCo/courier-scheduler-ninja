@@ -2457,6 +2457,7 @@ export type Database = {
       invoke_refresh_vehicles: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_or_sales: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
