@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { UserRole } from "@/types/user";
+import { wrapAnnouncementEmail, buildPlainText } from "@/utils/announcementEmailTemplate";
 
 interface ProfileRecord {
   id: string;
@@ -251,8 +252,9 @@ const AnnouncementEmailsPage: React.FC = () => {
         for (let i = 0; i < recipients.length; i++) {
           const recipient = recipients[i];
           try {
+            const brandedHtml = wrapAnnouncementEmail(htmlBody, subject);
             const { error } = await supabase.functions.invoke("send-email", {
-              body: { to: recipient.email, subject, html: htmlBody, text: htmlBody.replace(/<[^>]*>/g, "") },
+              body: { to: recipient.email, subject, html: brandedHtml, text: buildPlainText(htmlBody) },
             });
             if (error) throw error;
             successCount++;
@@ -567,17 +569,31 @@ const AnnouncementEmailsPage: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="body">Body (HTML)</Label>
+                <Label htmlFor="body">Message Content</Label>
                 <Button variant="ghost" size="sm" onClick={() => setShowPreview(!showPreview)}>
                   {showPreview ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
                   {showPreview ? "Edit" : "Preview"}
                 </Button>
               </div>
               {showPreview ? (
-                <div className="border rounded-md p-4 min-h-[200px] prose prose-sm max-w-none bg-background" dangerouslySetInnerHTML={{ __html: htmlBody }} />
+                <iframe
+                  title="Email preview"
+                  className="w-full border rounded-md bg-white"
+                  style={{ minHeight: 520 }}
+                  srcDoc={wrapAnnouncementEmail(htmlBody, subject || "Subject preview")}
+                />
               ) : (
-                <Textarea id="body" placeholder='<p>Hello,</p><p>We have exciting news...</p>' value={htmlBody} onChange={(e) => setHtmlBody(e.target.value)} className="min-h-[200px] font-mono text-sm" />
+                <Textarea
+                  id="body"
+                  placeholder={"Just type your message here.\n\nLeave a blank line between paragraphs. Branding, header and footer are added automatically."}
+                  value={htmlBody}
+                  onChange={(e) => setHtmlBody(e.target.value)}
+                  className="min-h-[200px] text-sm"
+                />
               )}
+              <p className="text-xs text-muted-foreground mt-2">
+                Just type your message — the Cycle Courier branded header, footer and contact info are applied automatically on send. Leave a blank line between paragraphs.
+              </p>
             </div>
           </CardContent>
         </Card>
