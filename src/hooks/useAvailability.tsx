@@ -34,14 +34,16 @@ export const useAvailability = ({
   const [minDate, setMinDate] = useState<Date>(getMinDate());
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
+  const [allowedFridayDates, setAllowedFridayDates] = useState<string[]>([]);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [confirmedDates, setConfirmedDates] = useState<string[]>([]);
   const [confirmedNotes, setConfirmedNotes] = useState<string>("");
   const [hasInspectionBuffer, setHasInspectionBuffer] = useState(false);
 
-  // Fetch holiday dates on mount
+  // Fetch holiday + allowed Friday dates on mount
   useEffect(() => {
     fetchHolidayDates().then(setHolidayDates).catch(() => {});
+    fetchAllowedFridayDates().then(setAllowedFridayDates).catch(() => {});
   }, []);
 
   // This function will be used to check if a date should be disabled
