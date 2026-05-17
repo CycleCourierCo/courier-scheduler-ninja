@@ -208,36 +208,64 @@ export type StorageAnalytics = {
   storageDistribution: Array<{ range: string; count: number }>;
 };
 
-// Helper function to extract collection timestamp from tracking events
-const getCollectionTimestamp = (order: Order): Date | null => {
-  if (!order.trackingEvents?.shipday?.updates) return null;
-  
-  // Look for collection events - ORDER_POD_UPLOAD for pickup or various pickup statuses
-  const collectedEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => 
-      update.event === 'ORDER_POD_UPLOAD' && 
-      (update.orderId === (order as any).shipdayPickupId || 
-       update.description?.toLowerCase().includes('collected') ||
-       update.description?.toLowerCase().includes('collect'))
-  );
-  
-  return collectedEvent ? new Date(collectedEvent.timestamp) : null;
+// Helper function to extract collection timestamp from tracking events.
+// Shipday emits ORDER_COMPLETED with a "collected" description on pickup completion.
+// We fall back to ORDER_POD_UPLOAD or ORDER_PIKEDUP for older/edge cases.
+const COLLECTION_EVENTS = new Set(['ORDER_COMPLETED', 'ORDER_POD_UPLOAD', 'ORDER_PIKEDUP']);
+const DELIVERY_EVENTS = new Set(['ORDER_COMPLETED', 'ORDER_POD_UPLOAD']);
+
+const isCollectionDescription = (desc?: string): boolean => {
+  if (!desc) return false;
+  const d = desc.toLowerCase();
+  return d.includes('collect') || d.includes('picked up') || d.includes('pickup');
 };
 
-// Helper function to extract delivery timestamp from tracking events
+const isDeliveryDescription = (desc?: string): boolean => {
+  if (!desc) return false;
+  const d = desc.toLowerCase();
+  return d.includes('deliver');
+};
+
+const getCollectionTimestamp = (order: Order): Date | null => {
+  const updates = order.trackingEvents?.shipday?.updates;
+  if (!updates || updates.length === 0) return null;
+
+  const pickupId = (order as any).shipdayPickupId;
+  // Earliest matching event wins (the moment of collection)
+  const matches = updates
+    .filter((u: any) =>
+      COLLECTION_EVENTS.has(u.event) &&
+      (
+        (pickupId && String(u.orderId) === String(pickupId)) ||
+        isCollectionDescription(u.description)
+      )
+    )
+    .map((u: any) => new Date(u.timestamp).getTime())
+    .filter((t: number) => !isNaN(t));
+
+  if (matches.length === 0) return null;
+  return new Date(Math.min(...matches));
+};
+
 const getDeliveryTimestamp = (order: Order): Date | null => {
-  if (!order.trackingEvents?.shipday?.updates) return null;
-  
-  // Look for delivery events - ORDER_POD_UPLOAD for delivery
-  const deliveredEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => 
-      update.event === 'ORDER_POD_UPLOAD' && 
-      (update.orderId === (order as any).shipdayDeliveryId || 
-       update.description?.toLowerCase().includes('delivered') ||
-       update.description?.toLowerCase().includes('deliver'))
-  );
-  
-  return deliveredEvent ? new Date(deliveredEvent.timestamp) : null;
+  const updates = order.trackingEvents?.shipday?.updates;
+  if (!updates || updates.length === 0) return null;
+
+  const deliveryId = (order as any).shipdayDeliveryId;
+  const matches = updates
+    .filter((u: any) =>
+      DELIVERY_EVENTS.has(u.event) &&
+      (
+        (deliveryId && String(u.orderId) === String(deliveryId)) ||
+        isDeliveryDescription(u.description)
+      )
+    )
+    .map((u: any) => new Date(u.timestamp).getTime())
+    .filter((t: number) => !isNaN(t));
+
+  if (matches.length === 0) return null;
+  // Use the latest delivery event (final delivery for multi-stop)
+  return new Date(Math.max(...matches));
 };
 
 // Calculate time to collection (order creation to collection)
