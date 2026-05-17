@@ -31,16 +31,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify the user is an admin
-    const { data: isAdmin } = await supabaseAdmin.rpc('has_role', { 
-      _user_id: user.id, 
-      _role: 'admin' 
-    });
-    
-    if (!isAdmin) {
-      console.error('User is not admin:', user.id);
+    // Verify the user is admin or sales
+    const [{ data: isAdmin }, { data: isSales }] = await Promise.all([
+      supabaseAdmin.rpc('has_role', { _user_id: user.id, _role: 'admin' }),
+      supabaseAdmin.rpc('has_role', { _user_id: user.id, _role: 'sales' }),
+    ]);
+
+    if (!isAdmin && !isSales) {
+      console.error('User lacks user-management privilege:', user.id);
       return new Response(
-        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        JSON.stringify({ error: 'Forbidden: Admin or Sales access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

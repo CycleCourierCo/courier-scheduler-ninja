@@ -111,11 +111,13 @@ const Layout: React.FC<LayoutProps> = ({
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>
-                      {isAdmin && <>
+                      {(isAdmin || isSales) && (
                           <Link to="/users" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Users className="mr-2 h-4 w-4" />
                             User Management
                           </Link>
+                        )}
+                      {isAdmin && <>
                           <Link to="/vehicles" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Car className="mr-2 h-4 w-4" />
                             Vehicles
@@ -342,7 +344,8 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>
                   
-                  {isAdmin && <>
+                  {(isAdmin || isSales) && (
+                    <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
                         <Link to="/users" className="cursor-pointer flex w-full items-center">
@@ -350,6 +353,9 @@ const Layout: React.FC<LayoutProps> = ({
                           <span>User Management</span>
                         </Link>
                       </DropdownMenuItem>
+                    </>
+                  )}
+                  {isAdmin && <>
                       <DropdownMenuItem asChild>
                         <Link to="/vehicles" className="cursor-pointer flex w-full items-center">
                           <Car className="mr-2 h-4 w-4" />

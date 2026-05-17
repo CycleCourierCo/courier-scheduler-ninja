@@ -118,7 +118,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/users" element={
-                <ProtectedRoute adminOnly={true}>
+                <ProtectedRoute>
                   <UserManagement />
                 </ProtectedRoute>
               } />
