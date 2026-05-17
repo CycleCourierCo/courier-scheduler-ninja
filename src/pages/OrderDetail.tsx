@@ -1181,6 +1181,8 @@ const OrderDetail = () => {
           statusUpdating={statusUpdating}
           selectedStatus={selectedStatus}
           onStatusChange={handleStatusChange}
+          customerName={bookingCustomer?.name}
+          customerEmail={bookingCustomer?.email}
         />
 
         <Card>
