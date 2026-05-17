@@ -281,6 +281,7 @@ serve(async (req) => {
           event: event,
           timestamp: new Date().toISOString(),
           orderId: shipdayOrderId,
+          leg: isPickup ? 'pickup' : 'delivery',
           description: statusDescription,
           podUrls: podUrls,
           signatureUrl: signatureUrl,
@@ -307,6 +308,23 @@ serve(async (req) => {
       updateData.order_delivered = true;
     }
 
+    // On ORDER_FAILED, clear scheduled date/timeslot and shipday id for the failed leg
+    // so the operator can re-schedule, and a fresh Shipday job can be created.
+    if (event === "ORDER_FAILED") {
+      if (isPickup) {
+        updateData.scheduled_pickup_date = null;
+        updateData.pickup_timeslot = null;
+        updateData.shipday_pickup_id = null;
+        shipdayEvents.pickup_id = null;
+      } else {
+        updateData.scheduled_delivery_date = null;
+        updateData.delivery_timeslot = null;
+        updateData.shipday_delivery_id = null;
+        shipdayEvents.delivery_id = null;
+      }
+      updateData.tracking_events = trackingEvents;
+    }
+
     // Update the order
     const { error: updateError } = await supabase
       .from("orders")
@@ -319,6 +337,23 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
+    }
+
+    // After a failure, re-create the Shipday job for the failed leg
+    if (event === "ORDER_FAILED") {
+      try {
+        const jobType: 'pickup' | 'delivery' = isPickup ? 'pickup' : 'delivery';
+        const { error: recreateError } = await supabase.functions.invoke('create-shipday-order', {
+          body: { orderId: dbOrder.id, jobType },
+        });
+        if (recreateError) {
+          console.error(`Failed to re-create Shipday ${jobType} job:`, recreateError);
+        } else {
+          console.log(`Re-created Shipday ${jobType} job for order ${dbOrder.id}`);
+        }
+      } catch (recreateErr) {
+        console.error("Error invoking create-shipday-order after failure:", recreateErr);
+      }
     }
 
     console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);
