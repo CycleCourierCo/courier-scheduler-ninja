@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StorageUnitLayout } from "@/components/loading/StorageUnitLayout";
 import { PendingStorageAllocation } from "@/components/loading/PendingStorageAllocation";
+import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
 import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/services/orderService";
@@ -1351,6 +1352,15 @@ const LoadingUnloadingPage = () => {
             />
           </CardContent>
         </Card>
+
+        <BikeSearchSection
+          orders={orders}
+          storageAllocations={storageAllocations}
+          onAllocateStorage={handleAllocateStorage}
+          onLoadOntoVan={handleRemoveAllBikesFromOrder}
+          onUnloadFromVan={handleUnloadFromVan}
+          onChangeLocation={handleChangeLocation}
+        />
 
         <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-8">
           {/* Bikes Pending Storage Allocation */}
