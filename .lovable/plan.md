@@ -1,27 +1,36 @@
-## Goal
+# Add "Missing Dates" filter to Dashboard
 
-Show how long each order has been waiting (since `created_at`) on every job card in the Route Builder list on the Job Scheduling page.
+Add a quick filter on the Orders dashboard so the logistics manager can surface orders where the sender and/or receiver have not yet chosen their availability dates — making chase-up calls easy.
 
-## Change
+## What the user sees
 
-**File:** `src/components/scheduling/RouteBuilder.tsx` (job card, around lines 3013–3026)
+A new filter chip/toggle group in `OrderFilters` (alongside Status / Bike Type) labelled **"Missing availability"** with three options:
 
-Add a small line under the tracking number / contact showing days since the order was created:
+- **Sender dates missing** — orders where `pickup_date` is null or an empty array
+- **Receiver dates missing** — orders where `delivery_date` is null or an empty array
+- **Either missing** — orders missing at least one of the two
 
-- Compute `daysOnPlatform = differenceInDays(new Date(), new Date(job.order.created_at))`
-- Render as a `Badge` (or inline text with a `Clock` icon) reading:
-  - `Just added` if 0 days
-  - `1 day waiting` if 1
-  - `N days waiting` otherwise
-- Color-code by age for quick scanning:
-  - 0–2 days → neutral / muted
-  - 3–6 days → amber
-  - 7+ days → red (urgent)
+Selecting an option filters the orders list. A "Clear" action removes it. Counts continue to flow through the existing pagination.
 
-Place it next to the tracking number row so it's visible at a glance without enlarging the card.
+## Technical changes
+
+1. **`src/services/orderService.ts`**
+   - Extend `OrderFilters` interface with `missingDates?: 'sender' | 'receiver' | 'either'`.
+   - In `getOrdersWithFilters`, translate it into Supabase filters:
+     - `sender` → `.or('pickup_date.is.null,pickup_date.eq.{}')`
+     - `receiver` → `.or('delivery_date.is.null,delivery_date.eq.{}')`
+     - `either` → `.or('pickup_date.is.null,pickup_date.eq.{},delivery_date.is.null,delivery_date.eq.{}')`
+   - Also exclude terminal statuses (`delivered`, `cancelled`) when this filter is active so completed orders don't pollute the list.
+
+2. **`src/components/OrderFilters.tsx`**
+   - Add a new control (Select or small ToggleGroup) for "Missing availability" with the three options + "Any".
+   - Include `missingDates` in the filter state passed up via `onFilterChange`.
+
+3. **`src/pages/Dashboard.tsx`**
+   - Add `missingDates` to the `filters` state, `handleFilterChange`, `handleClearFilters`, and pass it into `getOrdersWithFilters`.
 
 ## Out of scope
 
-- No changes to data fetching — `created_at` is already on `OrderData`.
-- No changes to `SchedulingCard` (legacy component not used on the current scheduling page).
-- No sorting/filtering changes — display only.
+- No DB schema changes.
+- No changes to scheduling / availability email flows.
+- No new analytics or counts on the header — purely a filter.
