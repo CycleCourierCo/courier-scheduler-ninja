@@ -205,7 +205,18 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                       {allocations[0].bay}{allocations[0].position}
                     </Badge>
                   )}
-                  <h4 className="font-medium text-sm">{allocations[0].customerName}</h4>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <h4 className="font-medium text-sm truncate">{allocations[0].customerName}</h4>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {allocations[0].bikeBrand} {allocations[0].bikeModel}
+                      {order?.trackingNumber && (
+                        <>
+                          {" • "}
+                          <span className="font-mono">{order.trackingNumber}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 flex-wrap">
                   <Badge
