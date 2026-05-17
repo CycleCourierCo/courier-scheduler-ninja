@@ -142,12 +142,25 @@ serve(async (req) => {
         statusDescription = "Driver has delivered the bike";
       }
     } else if (event === "ORDER_FAILED") {
+      const pickupDates = (dbOrder as any).pickup_date;
+      const deliveryDates = (dbOrder as any).delivery_date;
+      const senderSet = Array.isArray(pickupDates) && pickupDates.length > 0;
+      const receiverSet = Array.isArray(deliveryDates) && deliveryDates.length > 0;
+      const isCollected = (dbOrder as any).order_collected === true || dbOrder.status === 'collected';
+
+      const computeRevert = (includeCollected: boolean): string => {
+        if (includeCollected && isCollected) return 'collected';
+        if (senderSet && receiverSet) return 'scheduled_dates_pending';
+        if (!senderSet) return 'sender_availability_pending';
+        return 'receiver_availability_pending';
+      };
+
       if (isPickup) {
-        newStatus = "scheduled_dates_pending";
-        statusDescription = "Collection attempted (date rescheduled)";
+        newStatus = computeRevert(false);
+        statusDescription = "Collection attempt failed - rescheduling required";
       } else {
-        newStatus = "collected";
-        statusDescription = "Delivery attempted (date rescheduled)";
+        newStatus = computeRevert(true);
+        statusDescription = "Delivery attempt failed - rescheduling required";
       }
     } else if (event === "ORDER_POD_UPLOAD") {
       // Check if this POD upload should be treated as completion
