@@ -6,6 +6,7 @@ import { getPublicOrder } from "@/services/fetchOrderService";
 import { Order } from "@/types/order";
 import { format, addDays, startOfDay } from "date-fns";
 import { fetchHolidayDates } from "@/services/holidayService";
+import { fetchAllowedFridayDates } from "@/services/allowedFridaysService";
 
 type AvailabilityType = 'sender' | 'receiver';
 
@@ -33,14 +34,16 @@ export const useAvailability = ({
   const [minDate, setMinDate] = useState<Date>(getMinDate());
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
+  const [allowedFridayDates, setAllowedFridayDates] = useState<string[]>([]);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [confirmedDates, setConfirmedDates] = useState<string[]>([]);
   const [confirmedNotes, setConfirmedNotes] = useState<string>("");
   const [hasInspectionBuffer, setHasInspectionBuffer] = useState(false);
 
-  // Fetch holiday dates on mount
+  // Fetch holiday + allowed Friday dates on mount
   useEffect(() => {
     fetchHolidayDates().then(setHolidayDates).catch(() => {});
+    fetchAllowedFridayDates().then(setAllowedFridayDates).catch(() => {});
   }, []);
 
   // This function will be used to check if a date should be disabled
@@ -53,13 +56,15 @@ export const useAvailability = ({
       return true;
     }
     
-    // Disable Fridays (day 5)
-    if (date.getDay() === 5) {
+    // Build YYYY-MM-DD once
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    // Disable Fridays (day 5) UNLESS this specific Friday is in the allow list
+    if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) {
       return true;
     }
 
     // Disable holiday dates
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     if (holidayDates.includes(dateStr)) {
       return true;
     }
@@ -206,10 +211,10 @@ export const useAvailability = ({
       return;
     }
 
-    // Pre-filter: remove Fridays and holidays before submission
+    // Pre-filter: remove disallowed Fridays and holidays before submission
     const validDates = dates.filter(date => {
-      if (date.getDay() === 5) return false;
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) return false;
       if (holidayDates.includes(dateStr)) return false;
       return true;
     });

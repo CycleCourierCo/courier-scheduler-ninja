@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { CalendarOff, Trash2, Plus } from "lucide-react";
+import { CalendarOff, CalendarCheck, Trash2, Plus } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchHolidays, addHoliday, deleteHoliday, Holiday } from "@/services/holidayService";
+import {
+  fetchAllowedFridays,
+  addAllowedFriday,
+  deleteAllowedFriday,
+  AllowedFriday,
+} from "@/services/allowedFridaysService";
 
 const HolidaysPage: React.FC = () => {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -17,6 +23,12 @@ const HolidaysPage: React.FC = () => {
   const [holidayName, setHolidayName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [allowedFridays, setAllowedFridays] = useState<AllowedFriday[]>([]);
+  const [selectedFridays, setSelectedFridays] = useState<Date[]>([]);
+  const [fridayName, setFridayName] = useState("");
+  const [isLoadingFridays, setIsLoadingFridays] = useState(true);
+  const [isSubmittingFriday, setIsSubmittingFriday] = useState(false);
 
   const loadHolidays = async () => {
     try {
@@ -29,11 +41,24 @@ const HolidaysPage: React.FC = () => {
     }
   };
 
+  const loadAllowedFridays = async () => {
+    try {
+      const data = await fetchAllowedFridays();
+      setAllowedFridays(data);
+    } catch {
+      toast.error("Failed to load allowed Fridays");
+    } finally {
+      setIsLoadingFridays(false);
+    }
+  };
+
   useEffect(() => {
     loadHolidays();
+    loadAllowedFridays();
   }, []);
 
   const existingHolidayDates = holidays.map((h) => h.date);
+  const existingFridayDates = allowedFridays.map((f) => f.date);
 
   const handleAdd = async () => {
     if (!holidayName.trim()) {
@@ -63,12 +88,8 @@ const HolidaysPage: React.FC = () => {
       }
     }
 
-    if (added > 0) {
-      toast.success(`Added ${added} holiday date${added > 1 ? "s" : ""}`);
-    }
-    if (skipped > 0) {
-      toast.warning(`${skipped} date${skipped > 1 ? "s" : ""} already existed or failed`);
-    }
+    if (added > 0) toast.success(`Added ${added} holiday date${added > 1 ? "s" : ""}`);
+    if (skipped > 0) toast.warning(`${skipped} date${skipped > 1 ? "s" : ""} already existed or failed`);
 
     setSelectedDates([]);
     setHolidayName("");
@@ -86,8 +107,55 @@ const HolidaysPage: React.FC = () => {
     }
   };
 
-  // Highlight existing holidays on the calendar
+  const handleAddFriday = async () => {
+    if (!fridayName.trim()) {
+      toast.error("Please enter a name/note");
+      return;
+    }
+    if (selectedFridays.length === 0) {
+      toast.error("Please select at least one Friday");
+      return;
+    }
+
+    setIsSubmittingFriday(true);
+    let added = 0;
+    let skipped = 0;
+
+    for (const date of selectedFridays) {
+      const dateStr = format(date, "yyyy-MM-dd");
+      if (existingFridayDates.includes(dateStr)) {
+        skipped++;
+        continue;
+      }
+      try {
+        await addAllowedFriday(dateStr, fridayName.trim());
+        added++;
+      } catch {
+        skipped++;
+      }
+    }
+
+    if (added > 0) toast.success(`Added ${added} Friday${added > 1 ? "s" : ""}`);
+    if (skipped > 0) toast.warning(`${skipped} Friday${skipped > 1 ? "s" : ""} already existed or failed`);
+
+    setSelectedFridays([]);
+    setFridayName("");
+    await loadAllowedFridays();
+    setIsSubmittingFriday(false);
+  };
+
+  const handleDeleteFriday = async (id: string) => {
+    try {
+      await deleteAllowedFriday(id);
+      toast.success("Allowed Friday removed");
+      await loadAllowedFridays();
+    } catch {
+      toast.error("Failed to remove");
+    }
+  };
+
   const holidayDateObjects = holidays.map((h) => new Date(h.date + "T00:00:00"));
+  const allowedFridayObjects = allowedFridays.map((f) => new Date(f.date + "T00:00:00"));
 
   return (
     <Layout>
@@ -180,6 +248,114 @@ const HolidaysPage: React.FC = () => {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDelete(holiday.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <h2 className="text-2xl font-bold mt-10 mb-4 flex items-center gap-2">
+          <CalendarCheck className="h-7 w-7 text-primary" />
+          Allowed Fridays
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Fridays are blocked by default on customer availability calendars. Add specific Fridays here to make them
+          selectable.
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Add allowed Fridays card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Allowed Friday</CardTitle>
+              <CardDescription>
+                Only Friday dates are pickable. Customers will then be able to choose these dates on their availability calendar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="friday-name">Note / Reason</Label>
+                <Input
+                  id="friday-name"
+                  value={fridayName}
+                  onChange={(e) => setFridayName(e.target.value)}
+                  placeholder="e.g. Easter cover, Special operations"
+                />
+              </div>
+
+              <div className="border rounded-md p-2 bg-background">
+                <Calendar
+                  mode="multiple"
+                  selected={selectedFridays}
+                  onSelect={(dates) => setSelectedFridays(dates || [])}
+                  disabled={(date) => date.getDay() !== 5}
+                  className="p-3 pointer-events-auto"
+                  modifiers={{ allowed: allowedFridayObjects }}
+                  modifiersClassNames={{ allowed: "bg-green-500/20 text-green-700 dark:text-green-400 font-semibold" }}
+                />
+              </div>
+
+              {selectedFridays.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {selectedFridays.length} Friday{selectedFridays.length > 1 ? "s" : ""} selected
+                </p>
+              )}
+
+              <Button
+                onClick={handleAddFriday}
+                disabled={isSubmittingFriday || !fridayName.trim() || selectedFridays.length === 0}
+                className="w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {isSubmittingFriday ? "Adding..." : "Allow Friday"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Existing allowed Fridays card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Allowed Fridays</CardTitle>
+              <CardDescription>
+                {allowedFridays.length} Friday{allowedFridays.length !== 1 ? "s" : ""} allowed
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingFridays ? (
+                <p className="text-muted-foreground">Loading...</p>
+              ) : allowedFridays.length === 0 ? (
+                <p className="text-muted-foreground italic">No Fridays allowed yet.</p>
+              ) : (
+                <div className="max-h-[500px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Note</TableHead>
+                        <TableHead className="w-[60px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allowedFridays.map((friday) => (
+                        <TableRow key={friday.id}>
+                          <TableCell>
+                            {format(new Date(friday.date + "T00:00:00"), "EEE, MMM do yyyy")}
+                          </TableCell>
+                          <TableCell>{friday.name}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteFriday(friday.id)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
