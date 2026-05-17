@@ -207,7 +207,19 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
     if (dateTo) {
       const dateToEnd = new Date(dateTo);
       dateToEnd.setHours(23, 59, 59, 999);
-      query = query.lte("created_at", dateToEnd.toISOString());
+    }
+
+    // Apply missing-dates filter (sender/receiver hasn't picked availability yet)
+    if (missingDates) {
+      // Exclude completed/cancelled orders so this is actionable
+      query = query.not('status', 'in', '(delivered,cancelled)');
+      if (missingDates === 'sender') {
+        query = query.or('pickup_date.is.null,pickup_date.eq.{}');
+      } else if (missingDates === 'receiver') {
+        query = query.or('delivery_date.is.null,delivery_date.eq.{}');
+      } else if (missingDates === 'either') {
+        query = query.or('pickup_date.is.null,pickup_date.eq.{},delivery_date.is.null,delivery_date.eq.{}');
+      }
     }
 
     // Apply sorting
