@@ -76,7 +76,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -90,7 +90,7 @@ serve(async (req) => {
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
