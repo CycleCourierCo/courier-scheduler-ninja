@@ -30,9 +30,14 @@ const Layout: React.FC<LayoutProps> = ({
   const isB2B = hasRole(userProfile, 'b2b_customer');
   const isDriver = hasRole(userProfile, 'driver');
   const isMechanic = hasRole(userProfile, 'mechanic');
-  
-  // Loaders and mechanics should not see general navigation
-  const navLinks = !isLoader && !isMechanic ? <>
+  const isB2C = hasRole(userProfile, 'b2c_customer');
+
+  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic
+  const onlyLoaderOrMechanic =
+    (isLoader || isMechanic) &&
+    !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
+
+  const navLinks = !onlyLoaderOrMechanic ? <>
       <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Home
       </Link>
