@@ -118,6 +118,7 @@ const Dashboard: React.FC = () => {
     dateTo: Date | undefined;
     customerId?: string | undefined;
     bikeType?: string[];
+    missingDates?: 'sender' | 'receiver' | 'either';
   }) => {
     setFilters({
       status: newFilters.status,
@@ -126,13 +127,14 @@ const Dashboard: React.FC = () => {
       dateFrom: newFilters.dateFrom,
       dateTo: newFilters.dateTo,
       customerId: newFilters.customerId,
-      bikeType: newFilters.bikeType || []
+      bikeType: newFilters.bikeType || [],
+      missingDates: newFilters.missingDates,
     });
     setCurrentPage(1); // Reset to first page when filters change
   }, []);
 
   const handleClearFilters = useCallback(() => {
-    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] });
+    setFilters({ status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [], missingDates: undefined });
     setCurrentPage(1);
   }, []);
 
