@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, X, User } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ interface OrderHeaderProps {
   statusUpdating: boolean;
   selectedStatus: OrderStatus | null;
   onStatusChange: (status: OrderStatus) => void;
+  customerName?: string;
+  customerEmail?: string;
 }
 
 const OrderHeader: React.FC<OrderHeaderProps> = ({
@@ -23,6 +25,8 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   statusUpdating,
   selectedStatus,
   onStatusChange,
+  customerName,
+  customerEmail,
 }) => {
   const statusOptions: { value: OrderStatus; label: string }[] = [
     { value: "created", label: "Created" },
@@ -42,11 +46,25 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   ];
 
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-gray-200 dark:border-gray-800">
-      <div className="flex items-center">
-        <h1 className="text-2xl font-bold">Order Details</h1>
-        <ChevronRight className="mx-1 h-5 w-5 text-gray-500" />
-        <StatusBadge status={status} />
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-gray-200 dark:border-gray-800 gap-4">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center">
+          <h1 className="text-2xl font-bold">Order Details</h1>
+          <ChevronRight className="mx-1 h-5 w-5 text-muted-foreground" />
+          <StatusBadge status={status} />
+        </div>
+        {(customerName || customerEmail) && (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <User className="h-4 w-4 mr-1.5" />
+            <span>Booked by </span>
+            <span className="font-medium text-foreground ml-1">
+              {customerName || customerEmail}
+            </span>
+            {customerName && customerEmail && (
+              <span className="ml-1">({customerEmail})</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 md:mt-0 w-full md:w-auto flex flex-col sm:flex-row gap-3">
@@ -67,11 +85,11 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
               ))}
             </SelectContent>
           </Select>
-          
+
           {statusUpdating && (
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
           )}
-          
+
           <Button
             variant="destructive"
             size="sm"

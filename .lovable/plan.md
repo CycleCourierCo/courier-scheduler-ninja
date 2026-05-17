@@ -1,35 +1,36 @@
 ## Goal
-Make the Dashboard filters and search easier to use, prominent, and fully responsive so nothing overflows the viewport.
+Show which customer (the `user_id` profile, typically a B2B portal user) booked each order — both on the admin Order Detail page and as a column on the Dashboard table.
 
-## Changes (single file: `src/components/OrderFilters.tsx`)
+## Changes
 
-### 1. Prominent search bar (top row, full width)
-- Move search out of the cramped flex row onto its own dedicated row at the top.
-- Larger sizing: `h-12 text-base pl-12 pr-10`, larger search icon (`h-5 w-5`), and an "×" clear button on the right when there's a value.
-- Placeholder kept descriptive: "Search by name, phone, email, postcode, tracking, bike…"
-- The "New Order" button moves up next to the search bar (right-aligned on desktop, full-width on mobile) so the action stays one click away.
+### 1. Dashboard table — add visible "Customer" column
+`src/components/OrderTable.tsx`
+- An identical column already exists (`creator` / "Created By") but it's hidden by default. Rather than introduce a duplicate column, rename it for clarity:
+  - In `ALL_COLUMNS`, change `{ id: "creator", label: "Created By" }` → `{ id: "creator", label: "Customer" }`.
+  - Add `"creator"` to `DEFAULT_VISIBLE_COLUMNS` (placed first) so it shows by default for admins/route_planners.
+  - Restrict default visibility to admin/route_planner roles (B2B customers already know themselves, so we skip adding it for them by filtering in the existing role-handling effect; if it was saved in their preferences we leave it alone).
+  - Keep the existing fetch logic (`creatorNames` from `profiles.name || email`) untouched.
 
-### 2. Cleaner filter row with active-filter count
-- Below the search, a single responsive grid: `grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2` containing Status, Bike Type, Date Range, Sort, Missing Availability (Customer chip added as a 6th cell for admins → `lg:grid-cols-6`).
-- Each trigger button uses consistent `h-10` height, icon + truncated label, and a small count badge (e.g. "Status · 3") when filters are active so users can see what's applied without opening the popover.
-- "Clear Filters" only shows when at least one filter is active; rendered as a subtle ghost button at the end of the row, never wrapping off-screen.
+### 2. Order Detail — show the booking customer
+`src/components/order-detail/OrderHeader.tsx` + `src/pages/OrderDetail.tsx`
+- Extend `OrderHeaderProps` with an optional `customerName?: string` and `customerEmail?: string`.
+- Render a small line under the title (admin context only): `Booked by: <name> <muted email>` using semantic tokens. Hidden when no value supplied.
+- `OrderDetail.tsx`:
+  - Add a small `useQuery` (or inline `useEffect`) that fetches `profiles.name, email` for `order.user_id` once the order is loaded.
+  - Pass `customerName` / `customerEmail` props to `<OrderHeader>`.
 
-### 3. Prevent off-screen popovers
-- All `PopoverContent` get `align="start"` plus `collisionPadding={16}` and `max-w-[calc(100vw-2rem)]`, and the bike-type/status popovers switch to `w-[min(20rem,calc(100vw-2rem))]` with internal `max-h-[60vh] overflow-y-auto`.
-- Replace the nested Popover-inside-Popover for date pickers with a single popover containing a two-month inline `Calendar mode="range"` (no nested triggers that overflow on small screens).
-
-### 4. Active filter chips row (optional, only when filters applied)
-- A wrap-friendly row of removable badges under the filter grid summarising every active filter (status values, bike types, date range, customer, missing dates). Click "×" on a chip to remove just that filter.
-
-### 5. No logic/behaviour changes
-- All existing handlers (`onFilterChange`, debounce, customer query) stay identical. Only layout, sizing, and popover containment change.
+### 3. No backend / RLS changes
+- `profiles` already readable by admins/sales (existing `Consolidated profiles SELECT policy`), so this works for the admin Order Detail page.
+- No new tables, columns, or migrations.
 
 ## Technical details
-- File touched: `src/components/OrderFilters.tsx` only.
-- Uses existing shadcn `Input`, `Button`, `Popover`, `Badge`, `Calendar`, `Select` — no new deps.
-- Tailwind responsive classes; semantic tokens (`text-muted-foreground`, `bg-muted`) only — no hard-coded colours.
-- The "New Order" button is moved here from its current location in the same row, preserving the `<Link to="/create-order">`.
+- Files touched:
+  - `src/components/OrderTable.tsx` (rename label, default-visible array)
+  - `src/components/order-detail/OrderHeader.tsx` (new optional props + render)
+  - `src/pages/OrderDetail.tsx` (fetch profile, pass props)
+- The `creator` column already calls `profiles.select('id, name, email')` keyed by `order.user_id`, so reusing it gives us exactly the requested "B2B customer who booked it".
+- Customer-facing order page (`CustomerOrderDetail`) is intentionally unchanged — they already know it's their own.
 
 ## Out of scope
-- No changes to `Dashboard.tsx`, order list, or services.
-- No change to which fields are searched (already handled server-side).
+- No new global "booked by" field on the customer-facing tracking page.
+- No filter logic changes (the existing admin-only Customer filter dropdown stays).
