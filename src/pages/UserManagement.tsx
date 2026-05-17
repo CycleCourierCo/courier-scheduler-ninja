@@ -198,7 +198,7 @@ const UserManagement: React.FC = () => {
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.company_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
+    const matchesRole = filterRole === 'all' || getUserRoles(user).includes(filterRole as UserRole);
     const matchesStatus = filterStatus === 'all' || user.account_status === filterStatus;
     
     return matchesSearch && matchesRole && matchesStatus;
