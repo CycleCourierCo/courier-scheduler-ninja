@@ -357,24 +357,48 @@ const UserManagement: React.FC = () => {
                       <TableCell>{user.email || "N/A"}</TableCell>
                       <TableCell>{user.phone || "—"}</TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="driver">Driver</SelectItem>
-                            <SelectItem value="mechanic">Mechanic</SelectItem>
-                            <SelectItem value="route_planner">Route Planner</SelectItem>
-                            <SelectItem value="sales">Sales</SelectItem>
-                            <SelectItem value="loader">Loader</SelectItem>
-                            <SelectItem value="b2b_customer">B2B Customer</SelectItem>
-                            <SelectItem value="b2c_customer">B2C Customer</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        {(() => {
+                          const current = getUserRoles(user);
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-auto min-h-9 py-1 px-2 flex flex-wrap gap-1 max-w-[260px] justify-start">
+                                  {current.length === 0 ? (
+                                    <span className="text-muted-foreground">No role</span>
+                                  ) : (
+                                    current.map(r => (
+                                      <Badge key={r} variant="secondary" className="text-xs">
+                                        {ALL_ROLES.find(o => o.value === r)?.label || r}
+                                      </Badge>
+                                    ))
+                                  )}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-56 p-2" align="start">
+                                <div className="text-xs font-medium px-2 py-1 text-muted-foreground">Assign roles</div>
+                                <div className="space-y-1">
+                                  {ALL_ROLES.map(opt => {
+                                    const checked = current.includes(opt.value);
+                                    return (
+                                      <label key={opt.value} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer">
+                                        <Checkbox
+                                          checked={checked}
+                                          onCheckedChange={(v) => {
+                                            const next = v
+                                              ? Array.from(new Set([...current, opt.value]))
+                                              : current.filter(r => r !== opt.value);
+                                            handleRolesChange(user.id, next);
+                                          }}
+                                        />
+                                        <span className="text-sm">{opt.label}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(user.account_status)}>
@@ -383,7 +407,7 @@ const UserManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>{user.company_name || "—"}</TableCell>
                       <TableCell>
-                        {user.role === 'driver' ? (
+                        {getUserRoles(user).includes('driver') ? (
                           <Badge variant={user.is_active ? 'default' : 'secondary'}>
                             {user.is_active ? 'Yes' : 'No'}
                           </Badge>
