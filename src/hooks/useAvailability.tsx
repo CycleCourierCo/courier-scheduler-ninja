@@ -6,6 +6,7 @@ import { getPublicOrder } from "@/services/fetchOrderService";
 import { Order } from "@/types/order";
 import { format, addDays, startOfDay } from "date-fns";
 import { fetchHolidayDates } from "@/services/holidayService";
+import { fetchAllowedFridayDates } from "@/services/allowedFridaysService";
 
 type AvailabilityType = 'sender' | 'receiver';
 
