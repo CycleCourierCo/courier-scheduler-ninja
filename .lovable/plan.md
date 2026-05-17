@@ -1,31 +1,27 @@
-## Changes
+## Goal
 
-### 1. Remove cost field from mechanic's issue reporting
-- In `src/pages/BicycleInspections.tsx` issue-reporting dialog, remove the `estimated_cost` input. Mechanic only enters description + part name/spec/number.
-- `addInspectionIssue` is called with `estimatedCost: null` so the issue lands in `awaiting_pricing` for admin to price. (Service signature already supports null — no change to `inspectionService.ts` needed.)
+Show how long each order has been waiting (since `created_at`) on every job card in the Route Builder list on the Job Scheduling page.
 
-### 2. Add "parts ordered" stage in Awaiting Parts
-**DB migration** (`inspection_issues`):
-- Add `parts_ordered boolean NOT NULL DEFAULT false`
-- Add `parts_ordered_at timestamptz`
-- Add `parts_ordered_by_id uuid`, `parts_ordered_by_name text`
+## Change
 
-**Service (`src/services/inspectionService.ts`)**:
-- Add `markPartsOrdered(issueId, byId, byName)` / `unmarkPartsOrdered(issueId)` mirroring the existing parts-arrived helpers.
-- Update `reconcileInspectionStatuses`: in `awaiting_parts`, only transition to `awaiting_repair` when every approved issue has BOTH `parts_ordered = true` AND `parts_arrived = true`.
-- Update `checkAllPartsArrived` (or add `checkAllPartsReady`) to require both flags.
+**File:** `src/components/scheduling/RouteBuilder.tsx` (job card, around lines 3013–3026)
 
-**Types (`src/types/inspection.ts`)**: add the new fields to `InspectionIssue`.
+Add a small line under the tracking number / contact showing days since the order was created:
 
-**UI (`src/pages/BicycleInspections.tsx` — Awaiting Parts tab)**:
-- For each approved issue show two checkboxes side-by-side: "Parts ordered" and "Parts arrived" (admin/mechanic only).
-- "Parts arrived" stays disabled until "Parts ordered" is checked.
-- "Move to Awaiting Repair" / auto-transition fires only when all approved issues have both checked.
+- Compute `daysOnPlatform = differenceInDays(new Date(), new Date(job.order.created_at))`
+- Render as a `Badge` (or inline text with a `Clock` icon) reading:
+  - `Just added` if 0 days
+  - `1 day waiting` if 1
+  - `N days waiting` otherwise
+- Color-code by age for quick scanning:
+  - 0–2 days → neutral / muted
+  - 3–6 days → amber
+  - 7+ days → red (urgent)
 
-### Out of scope
-- Customer-facing surfaces — they don't show parts state, no change needed.
-- Pricing flow — already implemented in previous turn.
+Place it next to the tracking number row so it's visible at a glance without enlarging the card.
 
-## Technical details
-- Migration adds 4 nullable/defaulted columns — safe for existing rows (default `parts_ordered=false`, but existing inspections already past awaiting_parts won't be re-evaluated because reconcile only looks at `awaiting_parts` status).
-- For any inspection currently in `awaiting_parts` with parts already arrived, admin will need to tick "parts ordered" once. Acceptable given small dataset; alternatively backfill `parts_ordered = parts_arrived` in the migration — recommend backfilling to avoid stuck rows.
+## Out of scope
+
+- No changes to data fetching — `created_at` is already on `OrderData`.
+- No changes to `SchedulingCard` (legacy component not used on the current scheduling page).
+- No sorting/filtering changes — display only.

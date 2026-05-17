@@ -23,7 +23,7 @@ import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
@@ -3015,6 +3015,21 @@ Route Link: ${routeLink}`;
                       <p className="font-medium text-sm flex items-center gap-1">
                         <Package className="h-3 w-3 text-muted-foreground" />
                         #{job.order.tracking_number}
+                        {(() => {
+                          const days = differenceInCalendarDays(new Date(), new Date(job.order.created_at));
+                          const label = days <= 0 ? 'Just added' : days === 1 ? '1 day waiting' : `${days} days waiting`;
+                          const tone = days >= 7
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                            : days >= 3
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                            : 'bg-muted text-muted-foreground';
+                          return (
+                            <Badge className={`text-xs ml-auto flex items-center gap-1 ${tone}`}>
+                              <Clock className="h-3 w-3" />
+                              {label}
+                            </Badge>
+                          );
+                        })()}
                       </p>
                       <p className="text-sm">{job.contactName}</p>
                       <div className="flex items-start gap-1">
