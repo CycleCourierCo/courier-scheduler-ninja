@@ -833,8 +833,9 @@ const AnnouncementEmailsPage: React.FC = () => {
               <Input id="edit-subject" value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="edit-body">Body (HTML)</Label>
-              <Textarea id="edit-body" value={editHtmlBody} onChange={(e) => setEditHtmlBody(e.target.value)} className="min-h-[150px] font-mono text-sm" />
+              <Label htmlFor="edit-body">Message Content</Label>
+              <Textarea id="edit-body" value={editHtmlBody} onChange={(e) => setEditHtmlBody(e.target.value)} className="min-h-[150px] text-sm" />
+              <p className="text-xs text-muted-foreground mt-1">Branded header & footer are applied automatically when sent.</p>
             </div>
             <div>
               <Label htmlFor="edit-datetime">Scheduled For</Label>
