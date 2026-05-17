@@ -155,7 +155,8 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       sortBy = "created_desc",
       userId,
       userRole,
-      customerId
+      customerId,
+      missingDates
     } = filters;
 
     let query = supabase.from("orders").select("*", { count: "exact" });
