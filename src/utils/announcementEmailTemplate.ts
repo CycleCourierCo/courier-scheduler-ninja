@@ -85,8 +85,8 @@ export function wrapAnnouncementEmail(content: string, subject: string): string 
                   <td style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:.2px;">
                     ${BRAND.name}
                   </td>
-                  <td align="right" style="color:#e6fffb;font-size:12px;">
-                    UK Bicycle Courier
+                  <td align="right">
+                    <img src="https://booking.cyclecourierco.com/cycle-courier-logo.png" alt="Cycle Courier Co." height="48" style="height:48px;width:auto;display:block;border:0;outline:none;text-decoration:none;background:#ffffff;border-radius:6px;padding:4px;">
                   </td>
                 </tr>
               </table>
