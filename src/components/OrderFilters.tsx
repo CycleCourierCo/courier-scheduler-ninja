@@ -81,6 +81,7 @@ interface OrderFiltersProps {
     dateTo: Date | undefined;
     customerId?: string;
     bikeType?: string[];
+    missingDates?: 'sender' | 'receiver' | 'either';
   }) => void;
   initialFilters?: {
     status: string[];
@@ -90,13 +91,14 @@ interface OrderFiltersProps {
     dateTo: Date | undefined;
     customerId?: string;
     bikeType?: string[];
+    missingDates?: 'sender' | 'receiver' | 'either';
   };
   userRole: string | null;
 }
 
 const OrderFilters: React.FC<OrderFiltersProps> = ({ 
   onFilterChange, 
-  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] },
+  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [], missingDates: undefined },
   userRole
 }) => {
   const [status, setStatus] = useState<string[]>(initialFilters.status);
