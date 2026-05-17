@@ -56,13 +56,15 @@ export const useAvailability = ({
       return true;
     }
     
-    // Disable Fridays (day 5)
-    if (date.getDay() === 5) {
+    // Build YYYY-MM-DD once
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    // Disable Fridays (day 5) UNLESS this specific Friday is in the allow list
+    if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) {
       return true;
     }
 
     // Disable holiday dates
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     if (holidayDates.includes(dateStr)) {
       return true;
     }
