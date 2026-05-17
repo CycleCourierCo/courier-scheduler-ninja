@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
-import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench } from "lucide-react";
+import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
