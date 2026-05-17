@@ -262,9 +262,10 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     );
                   })()}
                 </div>
-              </div>
-              
-              <div className="text-sm text-muted-foreground">
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <div className="text-sm text-muted-foreground">
                 <p className="font-medium">
                   {allocations[0].bikeBrand} {allocations[0].bikeModel}
                   {order?.bikeValue ? ` • £${order.bikeValue.toLocaleString()}` : ''}
@@ -342,7 +343,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     </Button>
                   </div>
                 </div>
-              </div>
+                </div>
+              </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
         );
