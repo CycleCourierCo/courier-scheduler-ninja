@@ -211,10 +211,10 @@ export const useAvailability = ({
       return;
     }
 
-    // Pre-filter: remove Fridays and holidays before submission
+    // Pre-filter: remove disallowed Fridays and holidays before submission
     const validDates = dates.filter(date => {
-      if (date.getDay() === 5) return false;
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) return false;
       if (holidayDates.includes(dateStr)) return false;
       return true;
     });
