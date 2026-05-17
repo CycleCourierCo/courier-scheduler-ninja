@@ -14,6 +14,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { UserProfile, UserRole } from "@/types/user";
 import { EditUserDialog } from "@/components/user-management/EditUserDialog";
 import ShipdayCarriersDialog from "@/components/user-management/ShipdayCarriersDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ALL_ROLES } from "@/lib/roles";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
