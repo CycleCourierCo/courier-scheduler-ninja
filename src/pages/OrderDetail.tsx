@@ -641,6 +641,7 @@ const OrderDetail = () => {
         .update({
           scheduled_delivery_date: null,
           delivery_timeslot: null,
+          status: computeRevertStatus(true),
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
