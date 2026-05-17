@@ -53,18 +53,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
+      const [{ data, error }, { data: rolesData }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('user_roles').select('role').eq('user_id', userId),
+      ]);
+
       if (error) {
         throw error;
       }
-      
-      setUserProfile(data);
-      return data;
+
+      const roles = (rolesData || []).map((r: any) => r.role);
+      const merged = { ...data, roles: roles.length ? roles : (data?.role ? [data.role] : []) };
+      setUserProfile(merged);
+      return merged;
     } catch (error) {
       return null;
     }

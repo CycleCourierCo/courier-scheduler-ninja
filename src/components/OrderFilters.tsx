@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users, Bike } from "lucide-react";
+import { Search, Filter, SortDesc, SortAsc, Check, Plus, Calendar as CalendarIcon, Users, Bike, CalendarX } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,7 @@ interface OrderFiltersProps {
     dateTo: Date | undefined;
     customerId?: string;
     bikeType?: string[];
+    missingDates?: 'sender' | 'receiver' | 'either';
   }) => void;
   initialFilters?: {
     status: string[];
@@ -90,13 +91,14 @@ interface OrderFiltersProps {
     dateTo: Date | undefined;
     customerId?: string;
     bikeType?: string[];
+    missingDates?: 'sender' | 'receiver' | 'either';
   };
   userRole: string | null;
 }
 
 const OrderFilters: React.FC<OrderFiltersProps> = ({ 
   onFilterChange, 
-  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] },
+  initialFilters = { status: [], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [], missingDates: undefined },
   userRole
 }) => {
   const [status, setStatus] = useState<string[]>(initialFilters.status);
@@ -106,6 +108,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [dateTo, setDateTo] = useState<Date | undefined>(initialFilters.dateTo);
   const [customerId, setCustomerId] = useState<string | undefined>(initialFilters.customerId);
   const [bikeType, setBikeType] = useState<string[]>(initialFilters.bikeType || []);
+  const [missingDates, setMissingDates] = useState<'sender' | 'receiver' | 'either' | undefined>(initialFilters.missingDates);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [bikeTypePopoverOpen, setBikeTypePopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
@@ -145,7 +148,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
       ? status.filter(s => s !== value)
       : [...status, value];
     setStatus(newStatus);
-    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId, bikeType });
+    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates });
   };
 
   const handleBikeTypeToggle = (value: string) => {
@@ -153,7 +156,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
       ? bikeType.filter(t => t !== value)
       : [...bikeType, value];
     setBikeType(newBikeType);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType, missingDates });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,33 +169,39 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     }
     
     searchTimeoutRef.current = setTimeout(() => {
-      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId, bikeType });
+      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates });
     }, 300);
   };
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
-    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId, bikeType });
+    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId, bikeType, missingDates });
   };
 
   const handleDateFromChange = (date: Date | undefined) => {
     setDateFrom(date);
-    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId, bikeType });
+    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId, bikeType, missingDates });
   };
 
   const handleDateToChange = (date: Date | undefined) => {
     setDateTo(date);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId, bikeType });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId, bikeType, missingDates });
   };
 
   const handleCustomerChange = (value: string) => {
     const newCustomerId = value === "all" ? undefined : value;
     setCustomerId(newCustomerId);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType, missingDates });
+  };
+
+  const handleMissingDatesChange = (value: string) => {
+    const newMissing = value === "any" ? undefined : (value as 'sender' | 'receiver' | 'either');
+    setMissingDates(newMissing);
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates: newMissing });
   };
 
   const handleClearFilters = () => {
-    const defaultFilters = { status: [] as string[], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] as string[] };
+    const defaultFilters = { status: [] as string[], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] as string[], missingDates: undefined };
     setStatus(defaultFilters.status);
     setSearch(defaultFilters.search);
     setSortBy(defaultFilters.sortBy);
@@ -200,6 +209,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     setDateTo(defaultFilters.dateTo);
     setCustomerId(defaultFilters.customerId);
     setBikeType(defaultFilters.bikeType);
+    setMissingDates(defaultFilters.missingDates);
     onFilterChange(defaultFilters);
   };
 
@@ -437,7 +447,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                       onClick={() => {
                         setDateFrom(undefined);
                         setDateTo(undefined);
-                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId, bikeType });
+                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId, bikeType, missingDates });
                       }}
                       className="w-full"
                     >
@@ -485,6 +495,21 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                       {option.label}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full md:w-56">
+              <Select value={missingDates ?? "any"} onValueChange={handleMissingDatesChange}>
+                <SelectTrigger>
+                  <CalendarX className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Missing availability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">All Orders</SelectItem>
+                  <SelectItem value="sender">Sender dates missing</SelectItem>
+                  <SelectItem value="receiver">Receiver dates missing</SelectItem>
+                  <SelectItem value="either">Either missing</SelectItem>
                 </SelectContent>
               </Select>
             </div>

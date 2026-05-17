@@ -1,27 +1,13 @@
-## Goal
+## Show bike & tracking number in collapsed storage card header
 
-Show how long each order has been waiting (since `created_at`) on every job card in the Route Builder list on the Job Scheduling page.
+In `BikesInStorage.tsx`, surface the bike brand/model and tracking number in the `CollapsibleTrigger` so they're visible without expanding.
 
-## Change
+### Change
 
-**File:** `src/components/scheduling/RouteBuilder.tsx` (job card, around lines 3013–3026)
+In `src/components/loading/BikesInStorage.tsx` (around line 208), inside the trigger, below the customer name row add a small second line showing:
+- `{bikeBrand} {bikeModel}` (from `allocations[0]`)
+- `Tracking: <span class="font-mono">{order.trackingNumber}</span>`
 
-Add a small line under the tracking number / contact showing days since the order was created:
+Styled as `text-xs text-muted-foreground`, truncated on small screens. Keep the existing expanded content (bike + tracking still appear there) unchanged so the accordion remains useful for other details (city, date, value).
 
-- Compute `daysOnPlatform = differenceInDays(new Date(), new Date(job.order.created_at))`
-- Render as a `Badge` (or inline text with a `Clock` icon) reading:
-  - `Just added` if 0 days
-  - `1 day waiting` if 1
-  - `N days waiting` otherwise
-- Color-code by age for quick scanning:
-  - 0–2 days → neutral / muted
-  - 3–6 days → amber
-  - 7+ days → red (urgent)
-
-Place it next to the tracking number row so it's visible at a glance without enlarging the card.
-
-## Out of scope
-
-- No changes to data fetching — `created_at` is already on `OrderData`.
-- No changes to `SchedulingCard` (legacy component not used on the current scheduling page).
-- No sorting/filtering changes — display only.
+No prop, type, or backend changes.

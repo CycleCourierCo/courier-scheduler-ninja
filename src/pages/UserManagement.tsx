@@ -14,9 +14,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { UserProfile, UserRole } from "@/types/user";
 import { EditUserDialog } from "@/components/user-management/EditUserDialog";
 import ShipdayCarriersDialog from "@/components/user-management/ShipdayCarriersDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ALL_ROLES } from "@/lib/roles";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [rolesByUser, setRolesByUser] = useState<Record<string, UserRole[]>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
@@ -42,18 +46,51 @@ const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: rolesData, error: rolesErr }] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('user_roles').select('user_id, role'),
+      ]);
 
       if (error) throw error;
+      if (rolesErr) throw rolesErr;
+
+      const map: Record<string, UserRole[]> = {};
+      (rolesData || []).forEach((row: any) => {
+        if (!map[row.user_id]) map[row.user_id] = [];
+        map[row.user_id].push(row.role as UserRole);
+      });
+      setRolesByUser(map);
       setUsers((data || []) as UserProfile[]);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getUserRoles = (u: UserProfile): UserRole[] => {
+    const fromMap = rolesByUser[u.id];
+    if (fromMap && fromMap.length) return fromMap;
+    return u.role ? [u.role] : [];
+  };
+
+  const handleRolesChange = async (userId: string, nextRoles: UserRole[]) => {
+    if (nextRoles.length === 0) {
+      toast.error("User must have at least one role");
+      return;
+    }
+    try {
+      const { error } = await supabase.functions.invoke('manage-user-roles', {
+        body: { action: 'setMany', userId, roles: nextRoles }
+      });
+      if (error) throw error;
+      setRolesByUser(prev => ({ ...prev, [userId]: nextRoles }));
+      toast.success("Roles updated");
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating roles:", error);
+      toast.error("Failed to update roles");
     }
   };
 
@@ -161,7 +198,7 @@ const UserManagement: React.FC = () => {
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.company_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
+    const matchesRole = filterRole === 'all' || getUserRoles(user).includes(filterRole as UserRole);
     const matchesStatus = filterStatus === 'all' || user.account_status === filterStatus;
     
     return matchesSearch && matchesRole && matchesStatus;
@@ -320,24 +357,48 @@ const UserManagement: React.FC = () => {
                       <TableCell>{user.email || "N/A"}</TableCell>
                       <TableCell>{user.phone || "—"}</TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="driver">Driver</SelectItem>
-                            <SelectItem value="mechanic">Mechanic</SelectItem>
-                            <SelectItem value="route_planner">Route Planner</SelectItem>
-                            <SelectItem value="sales">Sales</SelectItem>
-                            <SelectItem value="loader">Loader</SelectItem>
-                            <SelectItem value="b2b_customer">B2B Customer</SelectItem>
-                            <SelectItem value="b2c_customer">B2C Customer</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        {(() => {
+                          const current = getUserRoles(user);
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-auto min-h-9 py-1 px-2 flex flex-wrap gap-1 max-w-[260px] justify-start">
+                                  {current.length === 0 ? (
+                                    <span className="text-muted-foreground">No role</span>
+                                  ) : (
+                                    current.map(r => (
+                                      <Badge key={r} variant="secondary" className="text-xs">
+                                        {ALL_ROLES.find(o => o.value === r)?.label || r}
+                                      </Badge>
+                                    ))
+                                  )}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-56 p-2" align="start">
+                                <div className="text-xs font-medium px-2 py-1 text-muted-foreground">Assign roles</div>
+                                <div className="space-y-1">
+                                  {ALL_ROLES.map(opt => {
+                                    const checked = current.includes(opt.value);
+                                    return (
+                                      <label key={opt.value} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer">
+                                        <Checkbox
+                                          checked={checked}
+                                          onCheckedChange={(v) => {
+                                            const next = v
+                                              ? Array.from(new Set([...current, opt.value]))
+                                              : current.filter(r => r !== opt.value);
+                                            handleRolesChange(user.id, next);
+                                          }}
+                                        />
+                                        <span className="text-sm">{opt.label}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(user.account_status)}>
@@ -346,7 +407,7 @@ const UserManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>{user.company_name || "—"}</TableCell>
                       <TableCell>
-                        {user.role === 'driver' ? (
+                        {getUserRoles(user).includes('driver') ? (
                           <Badge variant={user.is_active ? 'default' : 'secondary'}>
                             {user.is_active ? 'Yes' : 'No'}
                           </Badge>

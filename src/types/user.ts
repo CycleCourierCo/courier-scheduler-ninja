@@ -36,6 +36,7 @@ export interface UserProfile {
   email: string | null;
   phone: string | null;
   role: UserRole;
+  roles?: UserRole[];
   is_business: boolean | null;
   company_name: string | null;
   website: string | null;

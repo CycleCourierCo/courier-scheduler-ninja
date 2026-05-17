@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
-import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench } from "lucide-react";
+import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
@@ -179,9 +180,9 @@ export const PendingStorageAllocation = ({
         const driverValue = [...collectedForDriver, ...loadedForDriver].reduce((sum, bike) => sum + (bike.bikeValue || 0), 0);
 
         return (
-          <div key={driverName} className="space-y-3">
-            {/* Driver Section Header */}
-            <div className="flex items-center gap-2 flex-wrap pt-2 pb-2 border-b border-border">
+          <Collapsible key={driverName} className="space-y-3 group/driver" defaultOpen={false}>
+            <CollapsibleTrigger className="w-full flex items-center gap-2 flex-wrap pt-2 pb-2 border-b border-border hover:bg-muted/40 rounded-sm px-1 text-left">
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]/driver:-rotate-90" />
               <Truck className="h-5 w-5 text-muted-foreground" />
               <h3 className="font-semibold text-lg">{driverName}</h3>
               <Badge variant="secondary">
@@ -197,7 +198,8 @@ export const PendingStorageAllocation = ({
                   £{driverValue.toLocaleString()}
                 </Badge>
               )}
-            </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3">
 
             {/* Bikes loaded onto van (simplified cards - no allocation) */}
             {loadedForDriver.map((bike) => (
@@ -447,7 +449,8 @@ export const PendingStorageAllocation = ({
                 </Card>
               );
             })}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         );
       })}
 
