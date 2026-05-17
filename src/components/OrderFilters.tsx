@@ -194,8 +194,14 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType, missingDates });
   };
 
+  const handleMissingDatesChange = (value: string) => {
+    const newMissing = value === "any" ? undefined : (value as 'sender' | 'receiver' | 'either');
+    setMissingDates(newMissing);
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates: newMissing });
+  };
+
   const handleClearFilters = () => {
-    const defaultFilters = { status: [] as string[], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] as string[] };
+    const defaultFilters = { status: [] as string[], search: "", sortBy: "created_desc", dateFrom: undefined, dateTo: undefined, customerId: undefined, bikeType: [] as string[], missingDates: undefined };
     setStatus(defaultFilters.status);
     setSearch(defaultFilters.search);
     setSortBy(defaultFilters.sortBy);
@@ -203,6 +209,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     setDateTo(defaultFilters.dateTo);
     setCustomerId(defaultFilters.customerId);
     setBikeType(defaultFilters.bikeType);
+    setMissingDates(defaultFilters.missingDates);
     onFilterChange(defaultFilters);
   };
 
