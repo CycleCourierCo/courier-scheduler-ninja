@@ -29,7 +29,7 @@ interface OrderTableProps {
 
 // Define all available columns
 const ALL_COLUMNS = [
-  { id: "creator", label: "Created By" },
+  { id: "creator", label: "Customer" },
   { id: "trackingNumber", label: "Tracking Number" },
   { id: "status", label: "Status" },
   { id: "sender", label: "Sender" },
@@ -45,7 +45,7 @@ const ALL_COLUMNS = [
 
 // Default visible columns if user has no saved preferences
 const DEFAULT_VISIBLE_COLUMNS = [
-  "trackingNumber", "status", "sender", "receiver", "bike", 
+  "creator", "trackingNumber", "status", "sender", "receiver", "bike",
   "scheduledPickup", "scheduledDelivery", "created", "actions"
 ];
 

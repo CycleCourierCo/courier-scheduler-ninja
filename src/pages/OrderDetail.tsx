@@ -185,11 +185,32 @@ const OrderDetail = () => {
   const [isResendingEmail, setIsResendingEmail] = useState<{sender: boolean; receiver: boolean}>({ sender: false, receiver: false });
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
+  const [bookingCustomer, setBookingCustomer] = useState<{ name?: string; email?: string } | null>(null);
   const [creatingReturn, setCreatingReturn] = useState(false);
   const navigate = useNavigate();
   
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    const uid = order?.user_id;
+    if (!uid) {
+      setBookingCustomer(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', uid)
+        .maybeSingle();
+      if (!cancelled && !error && data) {
+        setBookingCustomer({ name: data.name || undefined, email: data.email || undefined });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [order?.user_id]);
 
   // Reset conflicting states when switching between selection methods
   const resetPickupStates = () => {
@@ -564,15 +585,25 @@ const OrderDetail = () => {
     }
   };
 
+  const computeRevertStatus = (includeCollected: boolean): OrderStatus => {
+    const senderSet = Array.isArray(order?.pickupDate) && (order!.pickupDate as Date[]).length > 0;
+    const receiverSet = Array.isArray(order?.deliveryDate) && (order!.deliveryDate as Date[]).length > 0;
+    if (includeCollected && order?.status === 'collected') return 'collected';
+    if (senderSet && receiverSet) return 'scheduled_dates_pending';
+    if (!senderSet) return 'sender_availability_pending';
+    return 'receiver_availability_pending';
+  };
+
   const handleResetPickupDate = async () => {
     try {
       setIsSubmitting(true);
-      
+
       const { error } = await supabase
         .from('orders')
         .update({
           scheduled_pickup_date: null,
           pickup_timeslot: null,
+          status: computeRevertStatus(false),
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -610,6 +641,7 @@ const OrderDetail = () => {
         .update({
           scheduled_delivery_date: null,
           delivery_timeslot: null,
+          status: computeRevertStatus(true),
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -1180,6 +1212,8 @@ const OrderDetail = () => {
           statusUpdating={statusUpdating}
           selectedStatus={selectedStatus}
           onStatusChange={handleStatusChange}
+          customerName={bookingCustomer?.name}
+          customerEmail={bookingCustomer?.email}
         />
 
         <Card>
