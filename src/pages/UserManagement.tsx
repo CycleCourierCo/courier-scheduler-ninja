@@ -20,6 +20,7 @@ import { ALL_ROLES } from "@/lib/roles";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [rolesByUser, setRolesByUser] = useState<Record<string, UserRole[]>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
@@ -45,18 +46,51 @@ const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: rolesData, error: rolesErr }] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('user_roles').select('user_id, role'),
+      ]);
 
       if (error) throw error;
+      if (rolesErr) throw rolesErr;
+
+      const map: Record<string, UserRole[]> = {};
+      (rolesData || []).forEach((row: any) => {
+        if (!map[row.user_id]) map[row.user_id] = [];
+        map[row.user_id].push(row.role as UserRole);
+      });
+      setRolesByUser(map);
       setUsers((data || []) as UserProfile[]);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getUserRoles = (u: UserProfile): UserRole[] => {
+    const fromMap = rolesByUser[u.id];
+    if (fromMap && fromMap.length) return fromMap;
+    return u.role ? [u.role] : [];
+  };
+
+  const handleRolesChange = async (userId: string, nextRoles: UserRole[]) => {
+    if (nextRoles.length === 0) {
+      toast.error("User must have at least one role");
+      return;
+    }
+    try {
+      const { error } = await supabase.functions.invoke('manage-user-roles', {
+        body: { action: 'setMany', userId, roles: nextRoles }
+      });
+      if (error) throw error;
+      setRolesByUser(prev => ({ ...prev, [userId]: nextRoles }));
+      toast.success("Roles updated");
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating roles:", error);
+      toast.error("Failed to update roles");
     }
   };
 
