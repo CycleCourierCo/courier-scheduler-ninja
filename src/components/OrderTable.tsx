@@ -45,7 +45,7 @@ const ALL_COLUMNS = [
 
 // Default visible columns if user has no saved preferences
 const DEFAULT_VISIBLE_COLUMNS = [
-  "trackingNumber", "status", "sender", "receiver", "bike", 
+  "creator", "trackingNumber", "status", "sender", "receiver", "bike",
   "scheduledPickup", "scheduledDelivery", "created", "actions"
 ];
 
