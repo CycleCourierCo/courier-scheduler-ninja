@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench } from "lucide-react";
+import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
@@ -187,7 +188,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
         return (
           <Card key={orderId} className="p-2 sm:p-3">
             <CardContent className="space-y-3 p-0">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Collapsible defaultOpen={false} className="group/bike space-y-3">
+                <CollapsibleTrigger className="w-full flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-left hover:bg-muted/40 rounded-sm p-1 -m-1">
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]/bike:-rotate-90 sm:hidden" />
                 <div className="flex items-center gap-2 flex-wrap">
                   {isMultiBike ? (
                     <div className="flex flex-wrap gap-1">
@@ -259,9 +262,10 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     );
                   })()}
                 </div>
-              </div>
-              
-              <div className="text-sm text-muted-foreground">
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <div className="text-sm text-muted-foreground">
                 <p className="font-medium">
                   {allocations[0].bikeBrand} {allocations[0].bikeModel}
                   {order?.bikeValue ? ` • £${order.bikeValue.toLocaleString()}` : ''}
@@ -339,7 +343,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     </Button>
                   </div>
                 </div>
-              </div>
+                </div>
+              </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
         );
