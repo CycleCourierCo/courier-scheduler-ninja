@@ -1,54 +1,32 @@
-# Allow Specific Fridays on Availability Calendar
+## Branded Announcement Email Template
 
-Currently every Friday is hard-disabled on sender/receiver availability calendars. This adds an admin-managed allow-list of specific Friday dates that customers will be able to select.
+Currently the Announcements page sends whatever raw HTML you paste in the body field. We'll add a reusable Cycle Courier branded wrapper so you only type the message content and the styling is applied automatically.
 
-## What changes for the user
+### What changes
 
-**Holidays page** (`/holidays`): a new "Allowed Fridays" section below the existing holiday cards.
-- Multi-select calendar that only lets the admin pick Friday dates
-- Name/note field (e.g. "Easter Friday cover")
-- List of currently-allowed Fridays with remove button
-- Visual badge on existing allowed Fridays in the picker
+**1. New template builder (`src/utils/announcementEmailTemplate.ts`)**
+- Exports `wrapAnnouncementEmail(content: string, subject: string)` that returns full HTML with:
+  - Cycle Courier branded header (logo + brand colour bar)
+  - White content card with proper padding, system font stack
+  - Auto-conversion of plain-text line breaks to `<p>` tags (so you can just type)
+  - Footer with company name, address, contact info, and unsubscribe-style note
+  - Email-safe inline styles + table layout (works in Gmail, Outlook, Apple Mail)
+- A second helper `buildPlainText(content)` strips/normalises for the text fallback
 
-**Sender/Receiver availability pages**: Fridays remain disabled by default, except dates present in the allowed-Fridays list, which become selectable like any other weekday.
+**2. Announcements page (`src/pages/AnnouncementEmailsPage.tsx`)**
+- Replace the "HTML Body" textarea label with "Message Content" — guidance text: "Just type your message. Branding, header, and footer are added automatically."
+- Add a "Branded preview" toggle that shows the wrapped result in the existing preview panel (instead of raw HTML)
+- On send (immediate + scheduled), pass `wrapAnnouncementEmail(htmlBody, subject)` to `send-email` instead of the raw `htmlBody`
+- Apply the same wrapping in the Edit Scheduled dialog
+- Keep storing the *raw* content in `scheduled_announcements.html_body` so edits stay editable; wrap at send time
 
-## Technical plan
-
-### 1. Database — new migration
-
-New table `allowed_fridays`:
-- `date` (date, unique, not null)
-- `name` (text)
-- `created_by` (uuid), `created_at` (timestamptz)
-
-RLS:
-- Public `SELECT` (so unauthenticated availability pages can read it, mirroring `holidays`)
-- `INSERT` / `DELETE` restricted to admins via `has_role(auth.uid(), 'admin')`
-
-CHECK constraint: `EXTRACT(DOW FROM date) = 5` to enforce Friday-only.
-
-### 2. Service layer
-
-New `src/services/allowedFridaysService.ts` mirroring `holidayService.ts`:
-- `fetchAllowedFridays()`, `fetchAllowedFridayDates()` (returns `string[]` of `YYYY-MM-DD`)
-- `addAllowedFriday(date, name)`, `deleteAllowedFriday(id)`
-
-### 3. Availability calendar logic
-
-`src/hooks/useAvailability.tsx`:
-- Fetch allowed Friday dates alongside `holidayDates` on mount
-- In `isDateDisabled`, when `date.getDay() === 5`, only disable if the date is NOT in the allowed list
-- In the pre-submit filter (line ~209), apply the same allow-list exception so allowed Fridays aren't stripped
-
-`src/components/availability/AvailabilityForm.tsx`: same Friday-disable logic update (line ~83). Pass the allowed list through from the hook.
-
-### 4. Holidays page UI
-
-`src/pages/HolidaysPage.tsx`: add a second grid row (or new pair of cards) with the same Add/List pattern as holidays, but:
-- Calendar uses `disabled={(date) => date.getDay() !== 5}` so only Fridays are pickable
-- Uses the new service
-- Highlights existing allowed Fridays via `modifiers` (green-tinted, to contrast the red holiday styling)
+**3. Scheduled-send edge function (`supabase/functions/process-scheduled-announcements/index.ts`)**
+- Inline the same wrapper (Deno-compatible copy) so scheduled emails get the same branding when the cron job sends them
+- Use the wrapped HTML for `html` and plain-text version for `text`
 
 ### Out of scope
-- No changes to `OpeningHoursEditor` (which already filters Friday out of the per-customer hours editor — unrelated to the customer-facing availability calendar).
-- No changes to driver scheduling / route planning.
+- WhatsApp message styling (text-only by nature)
+- Changing existing transactional emails (order confirmations etc.)
+- Switching email infrastructure providers
+
+Want me to proceed?
