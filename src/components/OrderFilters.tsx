@@ -108,6 +108,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [dateTo, setDateTo] = useState<Date | undefined>(initialFilters.dateTo);
   const [customerId, setCustomerId] = useState<string | undefined>(initialFilters.customerId);
   const [bikeType, setBikeType] = useState<string[]>(initialFilters.bikeType || []);
+  const [missingDates, setMissingDates] = useState<'sender' | 'receiver' | 'either' | undefined>(initialFilters.missingDates);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [bikeTypePopoverOpen, setBikeTypePopoverOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
