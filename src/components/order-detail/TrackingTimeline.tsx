@@ -211,12 +211,14 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
             return;
           }
           
-          // Check if the update is for pickup or delivery based on orderId only
-          // Only show "driver on the way to collection" when event is ORDER_ONTHEWAY and orderId matches pickup_id
-          const isPickup = update.orderId === pickupId;
-          const isDelivery = update.orderId === deliveryId;
+          // Determine pickup/delivery from explicit leg field (preferred) or
+          // by matching the current shipday ids. Falling back to id match alone
+          // would hide events after the shipday id is rotated (e.g. after a failure).
+          const legHint = (update as ShipdayUpdate).leg;
+          let isPickup = legHint === 'pickup' || update.orderId === pickupId;
+          let isDelivery = legHint === 'delivery' || update.orderId === deliveryId;
           
-          console.log(`Update orderId: ${update.orderId}, isPickup: ${isPickup}, isDelivery: ${isDelivery}`);
+          console.log(`Update orderId: ${update.orderId}, leg: ${legHint}, isPickup: ${isPickup}, isDelivery: ${isDelivery}`);
           
           let title = "";
           let icon = <Truck className="h-4 w-4 text-courier-600" />;
@@ -244,6 +246,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               if (!description) description = "Driver has delivered the bike";
             }
           } else if (update.event === "ORDER_FAILED") {
+            // Always show failures, even if we can't determine the leg
             if (isPickup) {
               title = "Collection Failed";
               icon = <AlertCircle className="h-4 w-4 text-red-600" />;
@@ -252,6 +255,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
               title = "Delivery Failed";
               icon = <AlertCircle className="h-4 w-4 text-red-600" />;
               if (!description) description = "Delivery attempt failed - rescheduling required";
+            } else {
+              title = "Job Failed";
+              icon = <AlertCircle className="h-4 w-4 text-red-600" />;
+              if (!description) description = "Job attempt failed - rescheduling required";
             }
           }
           
