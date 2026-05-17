@@ -45,9 +45,47 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action, userId, role } = await req.json();
+    const { action, userId, role, roles } = await req.json();
 
-    console.log('Managing user role:', { action, userId, role });
+    console.log('Managing user role:', { action, userId, role, roles });
+
+    // Priority order for picking a "primary" role to mirror onto profiles.role
+    const ROLE_PRIORITY = ['admin','route_planner','loader','mechanic','sales','driver','b2b_customer','b2c_customer'];
+    const pickPrimary = (rs: string[]) =>
+      ROLE_PRIORITY.find(r => rs.includes(r)) ?? rs[0];
+
+    if (action === 'setMany') {
+      if (!Array.isArray(roles) || roles.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'roles array required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const uniqueRoles = Array.from(new Set(roles));
+
+      const { error: deleteError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+      if (deleteError) throw deleteError;
+
+      const { error: insertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert(uniqueRoles.map((r: string) => ({ user_id: userId, role: r })));
+      if (insertError) throw insertError;
+
+      const primary = pickPrimary(uniqueRoles);
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ role: primary })
+        .eq('id', userId);
+      if (profileError) throw profileError;
+
+      return new Response(
+        JSON.stringify({ success: true, roles: uniqueRoles, primary }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (action === 'set') {
       // Remove existing roles for this user
