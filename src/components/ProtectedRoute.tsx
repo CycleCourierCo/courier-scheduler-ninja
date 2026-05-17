@@ -82,6 +82,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isTimeslipsPage = location.pathname === '/driver-timeslips';
   const isProfilePage = location.pathname === '/profile';
   const isFuelFinderPage = location.pathname === '/fuel-finder';
+  const isUsersPage = location.pathname === '/users';
 
   const restrictedRoles = ['loader','mechanic','route_planner','sales','driver'] as const;
   const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
@@ -94,7 +95,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       if (r === 'loader' && isLoadingPg) anyAllowed = true;
       if (r === 'mechanic' && isBicycleInspectionsPage) anyAllowed = true;
       if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage)) anyAllowed = true;
-      if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage)) anyAllowed = true;
+      if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage)) anyAllowed = true;
       if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage)) anyAllowed = true;
     }
 
