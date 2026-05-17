@@ -282,7 +282,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
-            {user && !isLoader && !isMechanic && <DropdownMenu>
+            {user && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <User className="h-5 w-5" />
