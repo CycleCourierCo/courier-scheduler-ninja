@@ -449,7 +449,8 @@ export const PendingStorageAllocation = ({
                 </Card>
               );
             })}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         );
       })}
 
