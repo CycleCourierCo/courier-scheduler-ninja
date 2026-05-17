@@ -134,6 +134,7 @@ export interface OrderFilters {
   userId?: string;
   userRole?: string;
   customerId?: string;
+  missingDates?: 'sender' | 'receiver' | 'either';
 }
 
 export interface OrdersResponse {
