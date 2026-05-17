@@ -148,7 +148,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
       ? status.filter(s => s !== value)
       : [...status, value];
     setStatus(newStatus);
-    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId, bikeType });
+    onFilterChange({ status: newStatus, search, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates });
   };
 
   const handleBikeTypeToggle = (value: string) => {
@@ -156,7 +156,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
       ? bikeType.filter(t => t !== value)
       : [...bikeType, value];
     setBikeType(newBikeType);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId, bikeType: newBikeType, missingDates });
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,29 +169,29 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     }
     
     searchTimeoutRef.current = setTimeout(() => {
-      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId, bikeType });
+      onFilterChange({ status, search: newSearch, sortBy, dateFrom, dateTo, customerId, bikeType, missingDates });
     }, 300);
   };
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
-    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId, bikeType });
+    onFilterChange({ status, search, sortBy: value, dateFrom, dateTo, customerId, bikeType, missingDates });
   };
 
   const handleDateFromChange = (date: Date | undefined) => {
     setDateFrom(date);
-    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId, bikeType });
+    onFilterChange({ status, search, sortBy, dateFrom: date, dateTo, customerId, bikeType, missingDates });
   };
 
   const handleDateToChange = (date: Date | undefined) => {
     setDateTo(date);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId, bikeType });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo: date, customerId, bikeType, missingDates });
   };
 
   const handleCustomerChange = (value: string) => {
     const newCustomerId = value === "all" ? undefined : value;
     setCustomerId(newCustomerId);
-    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType });
+    onFilterChange({ status, search, sortBy, dateFrom, dateTo, customerId: newCustomerId, bikeType, missingDates });
   };
 
   const handleClearFilters = () => {
@@ -440,7 +440,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                       onClick={() => {
                         setDateFrom(undefined);
                         setDateTo(undefined);
-                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId, bikeType });
+                        onFilterChange({ status, search, sortBy, dateFrom: undefined, dateTo: undefined, customerId, bikeType, missingDates });
                       }}
                       className="w-full"
                     >
