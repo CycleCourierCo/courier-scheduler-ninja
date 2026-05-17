@@ -192,6 +192,26 @@ const OrderDetail = () => {
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
   const [deliveryDatePicker, setDeliveryDatePicker] = useState<Date | undefined>(undefined);
 
+  useEffect(() => {
+    const uid = order?.user_id;
+    if (!uid) {
+      setBookingCustomer(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', uid)
+        .maybeSingle();
+      if (!cancelled && !error && data) {
+        setBookingCustomer({ name: data.name || undefined, email: data.email || undefined });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [order?.user_id]);
+
   // Reset conflicting states when switching between selection methods
   const resetPickupStates = () => {
     setSelectedPickupDate(null);
