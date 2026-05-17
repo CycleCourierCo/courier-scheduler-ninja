@@ -243,7 +243,8 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     
     // Fetch holidays and filter invalid dates
     const holidayDates = await fetchHolidayDates();
-    const validDates = filterInvalidDates(dates, holidayDates);
+    const allowedFridayDates = await fetchAllowedFridayDates();
+    const validDates = filterInvalidDates(dates, holidayDates, allowedFridayDates);
     
     if (validDates.length < 7) {
       console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
