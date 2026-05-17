@@ -585,15 +585,25 @@ const OrderDetail = () => {
     }
   };
 
+  const computeRevertStatus = (includeCollected: boolean): OrderStatus => {
+    const senderSet = Array.isArray(order?.pickupDate) && (order!.pickupDate as Date[]).length > 0;
+    const receiverSet = Array.isArray(order?.deliveryDate) && (order!.deliveryDate as Date[]).length > 0;
+    if (includeCollected && order?.status === 'collected') return 'collected';
+    if (senderSet && receiverSet) return 'scheduled_dates_pending';
+    if (!senderSet) return 'sender_availability_pending';
+    return 'receiver_availability_pending';
+  };
+
   const handleResetPickupDate = async () => {
     try {
       setIsSubmitting(true);
-      
+
       const { error } = await supabase
         .from('orders')
         .update({
           scheduled_pickup_date: null,
           pickup_timeslot: null,
+          status: computeRevertStatus(false),
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
