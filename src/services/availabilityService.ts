@@ -4,6 +4,7 @@ import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail, sendReceiverDatesConfirmedEmail } from "./emailService";
 import { fetchHolidayDates } from "./holidayService";
+import { fetchAllowedFridayDates } from "./allowedFridaysService";
 
 // Format date as YYYY-MM-DD using local date parts (no timezone shift)
 const toDateString = (date: Date): string => {
@@ -13,13 +14,13 @@ const toDateString = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
-// Filter out Fridays and holiday dates
-const filterInvalidDates = (dates: Date[], holidayDates: string[]): Date[] => {
+// Filter out disallowed Fridays and holiday dates
+const filterInvalidDates = (dates: Date[], holidayDates: string[], allowedFridayDates: string[] = []): Date[] => {
   return dates.filter(date => {
-    // Filter Fridays (day 5)
-    if (date.getDay() === 5) return false;
-    // Filter holidays
     const dateStr = toDateString(date);
+    // Filter Fridays (day 5) unless explicitly allowed
+    if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) return false;
+    // Filter holidays
     if (holidayDates.includes(dateStr)) return false;
     return true;
   });
