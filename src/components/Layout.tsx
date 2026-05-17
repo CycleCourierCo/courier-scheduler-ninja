@@ -98,16 +98,18 @@ const Layout: React.FC<LayoutProps> = ({
                   {driverNavLinks}
                   {mechanicNavLinks}
                   
-                  {user && !isLoader && !isDriver && !isMechanic && <>
+                  {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Fuel className="mr-2 h-4 w-4" />
-                        Fuel Finder
-                      </Link>
-                      <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Home className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Link>
+                      {!isDriver && <>
+                        <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Fuel className="mr-2 h-4 w-4" />
+                          Fuel Finder
+                        </Link>
+                        <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Home className="mr-2 h-4 w-4" />
+                          Dashboard
+                        </Link>
+                      </>}
                       {isAdmin && <Link to="/analytics" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <BarChart3 className="mr-2 h-4 w-4" />
                           Analytics
@@ -230,7 +232,7 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                         </>
                       )}
-                      {isRoutePlanner && <>
+                      {isRoutePlanner && !isAdmin && <>
                         <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
@@ -240,7 +242,7 @@ const Layout: React.FC<LayoutProps> = ({
                           AI Routing
                         </Link>
                       </>}
-                      {isSales && <>
+                      {isSales && !isAdmin && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
@@ -250,53 +252,24 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
+                      {isDriver && <>
+                          <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Clock className="mr-2 h-4 w-4" />
+                            My Timeslips
+                          </Link>
+                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Fuel className="mr-2 h-4 w-4" />
+                            Fuel Finder
+                          </Link>
+                        </>}
+                      {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Wrench className="mr-2 h-4 w-4" />
+                          Bicycle Inspections
+                        </Link>}
                       <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                      </button>
-                    </>}
-                  {user && isDriver && <>
-                      <DropdownMenuSeparator className="my-2" />
-                      <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Clock className="mr-2 h-4 w-4" />
-                        My Timeslips
-                      </Link>
-                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Fuel className="mr-2 h-4 w-4" />
-                        Fuel Finder
-                      </Link>
-                      <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <User className="mr-2 h-4 w-4" />
-                        Your Profile
-                      </Link>
-                      <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                      </button>
-                    </>}
-                  {user && isLoader && <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </button>}
-                  {user && isMechanic && <>
-                      <DropdownMenuSeparator className="my-2" />
-                      <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Wrench className="mr-2 h-4 w-4" />
-                        Bicycle Inspections
-                      </Link>
-                      <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        signOut();
+                        closeSheet();
+                      }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <LogOut className="mr-2 h-4 w-4" />
                         Logout
                       </button>
