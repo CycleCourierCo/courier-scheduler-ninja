@@ -1,42 +1,42 @@
-# Allow multiple roles per user
+## Add Inline Bike Search Section on Loading Page
 
-Right now each user has exactly one role stored on `profiles.role`. The `public.user_roles` table already exists (with `unique(user_id, role)`) and `has_role()` already supports multiple rows per user — but the app's write path overwrites all roles on each change and every UI gate compares against a single string. This plan finishes the multi-role wiring end-to-end.
+Add a dedicated **Find a Bike** section directly above the Pending Storage Allocation list. Searching surfaces the matching bike inline with the same actions the user would get in the regular lists.
 
-## What the user sees
+### What the user sees
 
-In **User Management → Edit User**, the single "Role" dropdown is replaced by a **multi-select checkbox group** of all available roles (Admin, Route Planner, Loader, Mechanic, Driver, Sales, B2B Customer, B2C Customer). The admin can tick any combination and save. The user list shows all assigned roles as small badges instead of a single role label.
+1. New card titled **Find a Bike** at the top of the Loading & Storage page, above Pending Storage Allocation.
+2. A single search input (with search icon and clear button). Placeholder: *"Search by customer name, bike, or tracking number…"*.
+3. As the user types (debounced), matching in-progress bikes appear as result cards below the input. "In-progress" = collected, not delivered, not cancelled.
+4. Each result card shows:
+   - Customer name (sender + receiver)
+   - Bike(s) — brand/model from the `bikes` JSONB snapshot
+   - Tracking number / order ID
+   - A status badge: **Pending Allocation**, **In Storage – Bay X##**, or **On Van**
+   - Scheduled delivery date
+5. Action buttons per result, based on current state:
+   - **Pending Allocation** → `Load onto Van` and `Allocate to Storage` (opens the existing bay/position picker reused from `PendingStorageAllocation`)
+   - **In Storage** → `Load onto Van` (clears storage + marks loaded) and `Move Location`
+   - **On Van** → `Unload from Van` (returns it to pending)
+6. After any action the page data refetches and the result card reflects the new state.
+7. Empty input → section shows a hint, no results list. No matches → "No bikes found".
 
-Permissions become additive: a user with both `sales` and `route_planner` can reach the union of both role's pages.
+### Technical notes
 
-## Technical changes
+- New component: `src/components/loading/BikeSearchSection.tsx`.
+  - Props: `orders`, `storageAllocations`, `onAllocateStorage`, `onLoadOntoVan` (`handleRemoveAllBikesFromOrder`), `onRemoveFromStorage`, `onUnloadFromVan`, `onChangeLocation`.
+  - Local state: `query` (debounced ~200ms).
+- Search candidate set = union of `collectedBikes`, orders in `bikesInStorage`, and `bikesLoadedOntoVan` (already computed in `LoadingUnloadingPage.tsx`).
+- Case-insensitive match against:
+  - `sender.name`, `receiver.name`
+  - `bikeBrand`, `bikeModel`, and each entry in `bikes[]` (`brand`, `model`) per Order Item Display Logic memory
+  - `trackingNumber` and `id`
+- Helper `getOrderLocationState(order)` returns `'pending' | 'storage' | 'van'` plus, for storage, the list of `StorageAllocation` rows for that order.
+- Render in `LoadingUnloadingPage.tsx` immediately above `<PendingStorageAllocation … />`.
+- Reuse the existing storage allocation picker UI rather than rebuilding it (extract a small `AllocatePopover` from `PendingStorageAllocation` if needed, or import and reuse the existing dialog component).
+- No backend, schema, RLS, or edge function changes. All data already loaded on the page.
+- Styling uses existing semantic tokens — no hardcoded colours.
 
-### 1. Edge function `manage-user-roles`
-Add a new action `setMany` that accepts `roles: UserRole[]`:
-- Delete all existing rows in `user_roles` for that `user_id`.
-- Bulk insert the new roles.
-- Update `profiles.role` to a single "primary" role for backward compatibility — pick the highest-privilege staff role in order: `admin → route_planner → loader → mechanic → sales → driver → b2b_customer → b2c_customer`.
+### Out of scope
 
-Keep the existing `set` (single-role) action for now so nothing else breaks.
-
-### 2. `src/contexts/AuthContext.tsx`
-After loading the profile, also fetch `user_roles` for that user and expose a new field `roles: UserRole[]`. Keep `userProfile.role` (primary) for back-compat. Refresh both on auth state change.
-
-### 3. Role gates — switch from equality to `.includes()`
-- `src/components/ProtectedRoute.tsx`: every `userProfile?.role === 'X'` check becomes `roles.includes('X')`. For route-restricted roles (route_planner, sales, driver), use "allow if **any** of their allowed pages match" instead of returning early — so a user with multiple restricted roles gets the union of allowed pages. `admin` short-circuits as before.
-- `src/components/Layout.tsx`: `isAdmin`, `isLoader`, `isRoutePlanner`, `isSales`, `isB2B`, `isDriver`, `isMechanic` flags switch to `roles.includes(...)`. Nav sections render based on whichever flags are true — naturally additive.
-
-### 4. `src/pages/UserManagement.tsx`
-- Replace the single-role `<Select>` in the Edit dialog with a checkbox list bound to a `selectedRoles: UserRole[]` state.
-- On save, call `manage-user-roles` with `action: 'setMany'`.
-- In the user table, render assigned roles as a list of small `Badge`s (fetch `user_roles` joined to profiles, or a second query keyed by user id).
-- Keep the "create user" flow as-is (single initial role); they can add more after creation.
-
-### 5. `src/types/user.ts`
-Add `roles?: UserRole[]` to the user/profile type used by the UI.
-
-## Out of scope
-
-- No DB schema changes — `user_roles` and `has_role()` already support multiple roles.
-- No changes to RLS policies (they already call `has_role(uid, 'X')`, which checks `user_roles` and naturally honors multiple roles).
-- No change to customer registration flow (new B2B/B2C users still get a single role on signup).
-- No bulk role editor on the list page — edits happen per-user in the existing dialog.
+- Searching delivered/cancelled orders.
+- Bulk actions on multiple search results.
