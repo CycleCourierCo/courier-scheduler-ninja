@@ -29,7 +29,7 @@ interface OrderTableProps {
 
 // Define all available columns
 const ALL_COLUMNS = [
-  { id: "creator", label: "Created By" },
+  { id: "creator", label: "Customer" },
   { id: "trackingNumber", label: "Tracking Number" },
   { id: "status", label: "Status" },
   { id: "sender", label: "Sender" },
