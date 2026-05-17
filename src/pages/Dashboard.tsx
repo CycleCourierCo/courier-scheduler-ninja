@@ -35,7 +35,8 @@ const Dashboard: React.FC = () => {
     dateFrom: undefined as Date | undefined,
     dateTo: undefined as Date | undefined,
     customerId: undefined as string | undefined,
-    bikeType: [] as string[]
+    bikeType: [] as string[],
+    missingDates: undefined as 'sender' | 'receiver' | 'either' | undefined
   });
   const { user } = useAuth();
 
