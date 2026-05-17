@@ -542,10 +542,6 @@ const Layout: React.FC<LayoutProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>}
-            {user && isLoader && <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>}
           </div>
         </div>
       </header>
