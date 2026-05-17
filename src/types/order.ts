@@ -38,6 +38,7 @@ export type ShipdayUpdate = {
   status: string;
   timestamp: string;
   orderId: string;
+  leg?: 'pickup' | 'delivery';
   description?: string;
   event?: string;
   podUrls?: string[];
