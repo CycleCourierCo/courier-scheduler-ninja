@@ -185,6 +185,7 @@ const OrderDetail = () => {
   const [isResendingEmail, setIsResendingEmail] = useState<{sender: boolean; receiver: boolean}>({ sender: false, receiver: false });
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
+  const [bookingCustomer, setBookingCustomer] = useState<{ name?: string; email?: string } | null>(null);
   const [creatingReturn, setCreatingReturn] = useState(false);
   const navigate = useNavigate();
   
