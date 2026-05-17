@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
+import { hasRole } from "@/lib/roles";
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -22,13 +23,13 @@ const Layout: React.FC<LayoutProps> = ({
   } = useAuth();
   const [open, setOpen] = useState(false);
   const closeSheet = () => setOpen(false);
-  const isAdmin = userProfile?.role === 'admin';
-  const isLoader = userProfile?.role === 'loader';
-  const isRoutePlanner = userProfile?.role === 'route_planner';
-  const isSales = userProfile?.role === 'sales';
-  const isB2B = userProfile?.role === 'b2b_customer';
-  const isDriver = userProfile?.role === 'driver';
-  const isMechanic = userProfile?.role === 'mechanic';
+  const isAdmin = hasRole(userProfile, 'admin');
+  const isLoader = hasRole(userProfile, 'loader');
+  const isRoutePlanner = hasRole(userProfile, 'route_planner');
+  const isSales = hasRole(userProfile, 'sales');
+  const isB2B = hasRole(userProfile, 'b2b_customer');
+  const isDriver = hasRole(userProfile, 'driver');
+  const isMechanic = hasRole(userProfile, 'mechanic');
   
   // Loaders and mechanics should not see general navigation
   const navLinks = !isLoader && !isMechanic ? <>

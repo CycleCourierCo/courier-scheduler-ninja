@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasRole, getRoles } from "@/lib/roles";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -56,69 +57,66 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // 3. Business account status check - if not approved, redirect to dashboard
-  if (userProfile?.is_business && userProfile?.account_status !== 'approved' && userProfile?.role !== 'admin') {
+  if (userProfile?.is_business && userProfile?.account_status !== 'approved' && !hasRole(userProfile, 'admin')) {
     return <Navigate to="/auth" replace />;
   }
 
-  // 4. Loader role restrictions - only allow access to loading page
-  if (userProfile?.role === 'loader') {
-    if (!isLoadingPage) {
-      return <Navigate to="/loading" replace />;
+  // Admin short-circuit — full access
+  if (hasRole(userProfile, 'admin')) {
+    if (noB2CAccess && getRoles(userProfile).every(r => r === 'b2c_customer')) {
+      return <Navigate to="/dashboard" replace />;
     }
-    // If they're on the loading page, allow access
     return <>{children}</>;
   }
 
-  // 5. Mechanic role restrictions - only allow access to bicycle inspections
+  // Compute which restricted-role pages are allowed for this user (union)
+  const isLoadingPg = location.pathname === '/loading';
   const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
-  if (userProfile?.role === 'mechanic') {
-    if (!isBicycleInspectionsPage) {
-      return <Navigate to="/bicycle-inspections" replace />;
-    }
-    return <>{children}</>;
-  }
-
-  // 6. Route planner role restrictions - only allow scheduling, dashboard, and order details
   const isSchedulingPage = location.pathname === '/scheduling';
   const isDashboardPage = location.pathname === '/dashboard';
   const isOrderDetailPage = location.pathname.startsWith('/orders/');
   const isCustomerOrderDetailPage = location.pathname.startsWith('/customer-orders/');
   const isAIRoutingPage = location.pathname === '/ai-routing';
-  if (userProfile?.role === 'route_planner') {
-    if (!isSchedulingPage && !isDashboardPage && !isOrderDetailPage && !isCustomerOrderDetailPage && !isAIRoutingPage) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    return <>{children}</>;
-  }
-
-  // 7. Sales role restrictions - only allow approvals, invoices, and dashboard
   const isApprovalsPage = location.pathname === '/account-approvals';
   const isInvoicesPage = location.pathname === '/invoices';
-  if (userProfile?.role === 'sales') {
-    if (!isApprovalsPage && !isInvoicesPage && !isDashboardPage) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    return <>{children}</>;
-  }
-
-  // 8. Driver role restrictions - only allow timeslips and profile
   const isTimeslipsPage = location.pathname === '/driver-timeslips';
   const isProfilePage = location.pathname === '/profile';
   const isFuelFinderPage = location.pathname === '/fuel-finder';
-  if (userProfile?.role === 'driver') {
-    if (!isTimeslipsPage && !isProfilePage && !isFuelFinderPage) {
-      return <Navigate to="/driver-timeslips" replace />;
+
+  const restrictedRoles = ['loader','mechanic','route_planner','sales','driver'] as const;
+  const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
+
+  if (userRestricted.length > 0) {
+    const allowed = new Set<boolean>();
+    let anyAllowed = false;
+
+    for (const r of userRestricted) {
+      if (r === 'loader' && isLoadingPg) anyAllowed = true;
+      if (r === 'mechanic' && isBicycleInspectionsPage) anyAllowed = true;
+      if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage)) anyAllowed = true;
+      if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage)) anyAllowed = true;
+      if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage)) anyAllowed = true;
+    }
+
+    if (!anyAllowed) {
+      // Pick a sensible default landing page based on first restricted role
+      const fallback =
+        userRestricted.includes('loader' as any) ? '/loading' :
+        userRestricted.includes('mechanic' as any) ? '/bicycle-inspections' :
+        userRestricted.includes('driver' as any) ? '/driver-timeslips' :
+        '/dashboard';
+      return <Navigate to={fallback} replace />;
     }
     return <>{children}</>;
   }
 
   // 9. Block B2C users from admin-only pages
-  if (noB2CAccess && userProfile?.role === 'b2c_customer') {
+  if (noB2CAccess && hasRole(userProfile, 'b2c_customer')) {
     return <Navigate to="/dashboard" replace />;
   }
 
   // 10. Admin-only route protection
-  if (adminOnly && userProfile?.role !== 'admin') {
+  if (adminOnly && !hasRole(userProfile, 'admin')) {
     return <Navigate to="/dashboard" replace />;
   }
 
