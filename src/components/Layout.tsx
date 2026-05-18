@@ -30,9 +30,14 @@ const Layout: React.FC<LayoutProps> = ({
   const isB2B = hasRole(userProfile, 'b2b_customer');
   const isDriver = hasRole(userProfile, 'driver');
   const isMechanic = hasRole(userProfile, 'mechanic');
-  
-  // Loaders and mechanics should not see general navigation
-  const navLinks = !isLoader && !isMechanic ? <>
+  const isB2C = hasRole(userProfile, 'b2c_customer');
+
+  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic
+  const onlyLoaderOrMechanic =
+    (isLoader || isMechanic) &&
+    !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
+
+  const navLinks = !onlyLoaderOrMechanic ? <>
       <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Home
       </Link>
@@ -93,16 +98,18 @@ const Layout: React.FC<LayoutProps> = ({
                   {driverNavLinks}
                   {mechanicNavLinks}
                   
-                  {user && !isLoader && !isDriver && !isMechanic && <>
+                  {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Fuel className="mr-2 h-4 w-4" />
-                        Fuel Finder
-                      </Link>
-                      <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Home className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Link>
+                      {!isDriver && <>
+                        <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Fuel className="mr-2 h-4 w-4" />
+                          Fuel Finder
+                        </Link>
+                        <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Home className="mr-2 h-4 w-4" />
+                          Dashboard
+                        </Link>
+                      </>}
                       {isAdmin && <Link to="/analytics" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <BarChart3 className="mr-2 h-4 w-4" />
                           Analytics
@@ -225,7 +232,7 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                         </>
                       )}
-                      {isRoutePlanner && <>
+                      {isRoutePlanner && !isAdmin && <>
                         <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
@@ -235,7 +242,7 @@ const Layout: React.FC<LayoutProps> = ({
                           AI Routing
                         </Link>
                       </>}
-                      {isSales && <>
+                      {isSales && !isAdmin && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
@@ -245,53 +252,24 @@ const Layout: React.FC<LayoutProps> = ({
                             Invoices
                           </Link>
                         </>}
+                      {isDriver && <>
+                          <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Clock className="mr-2 h-4 w-4" />
+                            My Timeslips
+                          </Link>
+                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Fuel className="mr-2 h-4 w-4" />
+                            Fuel Finder
+                          </Link>
+                        </>}
+                      {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Wrench className="mr-2 h-4 w-4" />
+                          Bicycle Inspections
+                        </Link>}
                       <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                      </button>
-                    </>}
-                  {user && isDriver && <>
-                      <DropdownMenuSeparator className="my-2" />
-                      <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Clock className="mr-2 h-4 w-4" />
-                        My Timeslips
-                      </Link>
-                      <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Fuel className="mr-2 h-4 w-4" />
-                        Fuel Finder
-                      </Link>
-                      <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <User className="mr-2 h-4 w-4" />
-                        Your Profile
-                      </Link>
-                      <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                      </button>
-                    </>}
-                  {user && isLoader && <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </button>}
-                  {user && isMechanic && <>
-                      <DropdownMenuSeparator className="my-2" />
-                      <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <Wrench className="mr-2 h-4 w-4" />
-                        Bicycle Inspections
-                      </Link>
-                      <button onClick={() => {
-                    signOut();
-                    closeSheet();
-                  }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        signOut();
+                        closeSheet();
+                      }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <LogOut className="mr-2 h-4 w-4" />
                         Logout
                       </button>
@@ -304,7 +282,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             
-            {user && !isLoader && !isMechanic && <DropdownMenu>
+            {user && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <User className="h-5 w-5" />
@@ -564,10 +542,6 @@ const Layout: React.FC<LayoutProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>}
-            {user && isLoader && <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>}
           </div>
         </div>
       </header>

@@ -76,7 +76,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -90,7 +90,7 @@ serve(async (req) => {
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
@@ -142,12 +142,25 @@ serve(async (req) => {
         statusDescription = "Driver has delivered the bike";
       }
     } else if (event === "ORDER_FAILED") {
+      const pickupDates = (dbOrder as any).pickup_date;
+      const deliveryDates = (dbOrder as any).delivery_date;
+      const senderSet = Array.isArray(pickupDates) && pickupDates.length > 0;
+      const receiverSet = Array.isArray(deliveryDates) && deliveryDates.length > 0;
+      const isCollected = (dbOrder as any).order_collected === true || dbOrder.status === 'collected';
+
+      const computeRevert = (includeCollected: boolean): string => {
+        if (includeCollected && isCollected) return 'collected';
+        if (senderSet && receiverSet) return 'scheduled_dates_pending';
+        if (!senderSet) return 'sender_availability_pending';
+        return 'receiver_availability_pending';
+      };
+
       if (isPickup) {
-        newStatus = "scheduled_dates_pending";
-        statusDescription = "Collection attempted (date rescheduled)";
+        newStatus = computeRevert(false);
+        statusDescription = "Collection attempt failed - rescheduling required";
       } else {
-        newStatus = "collected";
-        statusDescription = "Delivery attempted (date rescheduled)";
+        newStatus = computeRevert(true);
+        statusDescription = "Delivery attempt failed - rescheduling required";
       }
     } else if (event === "ORDER_POD_UPLOAD") {
       // Check if this POD upload should be treated as completion
@@ -268,6 +281,7 @@ serve(async (req) => {
           event: event,
           timestamp: new Date().toISOString(),
           orderId: shipdayOrderId,
+          leg: isPickup ? 'pickup' : 'delivery',
           description: statusDescription,
           podUrls: podUrls,
           signatureUrl: signatureUrl,
@@ -294,6 +308,23 @@ serve(async (req) => {
       updateData.order_delivered = true;
     }
 
+    // On ORDER_FAILED, clear scheduled date/timeslot and shipday id for the failed leg
+    // so the operator can re-schedule, and a fresh Shipday job can be created.
+    if (event === "ORDER_FAILED") {
+      if (isPickup) {
+        updateData.scheduled_pickup_date = null;
+        updateData.pickup_timeslot = null;
+        updateData.shipday_pickup_id = null;
+        shipdayEvents.pickup_id = null;
+      } else {
+        updateData.scheduled_delivery_date = null;
+        updateData.delivery_timeslot = null;
+        updateData.shipday_delivery_id = null;
+        shipdayEvents.delivery_id = null;
+      }
+      updateData.tracking_events = trackingEvents;
+    }
+
     // Update the order
     const { error: updateError } = await supabase
       .from("orders")
@@ -306,6 +337,23 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
+    }
+
+    // After a failure, re-create the Shipday job for the failed leg
+    if (event === "ORDER_FAILED") {
+      try {
+        const jobType: 'pickup' | 'delivery' = isPickup ? 'pickup' : 'delivery';
+        const { error: recreateError } = await supabase.functions.invoke('create-shipday-order', {
+          body: { orderId: dbOrder.id, jobType },
+        });
+        if (recreateError) {
+          console.error(`Failed to re-create Shipday ${jobType} job:`, recreateError);
+        } else {
+          console.log(`Re-created Shipday ${jobType} job for order ${dbOrder.id}`);
+        }
+      } catch (recreateErr) {
+        console.error("Error invoking create-shipday-order after failure:", recreateErr);
+      }
     }
 
     console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);

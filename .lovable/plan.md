@@ -1,27 +1,40 @@
-Update the two reset handlers in `src/pages/OrderDetail.tsx` so they restore the order to the correct prior status instead of leaving it as `scheduled` / `collection_scheduled` / `delivery_scheduled`.
+## Problem
 
-## Status helpers (computed from current `order`)
+`src/components/Layout.tsx` hides nav and menus whenever `isLoader` or `isMechanic` is true:
 
-- `senderSet` = `order.pickupDate` is a non-empty array (sender availability chosen)
-- `receiverSet` = `order.deliveryDate` is a non-empty array (receiver availability chosen)
-- `collected` = `order.status === 'collected'` (bike already picked up)
+- Line 35: `const navLinks = !isLoader && !isMechanic ? <>…</> : null;`
+- Line 96 (mobile sheet): wraps the entire admin/sales/B2B/route_planner section in `user && !isLoader && !isMechanic`.
+- Line 307 (desktop dropdown trigger): `user && !isLoader && !isMechanic && <DropdownMenu>…`
+- Mobile sheet also has three mutually-exclusive `{user && isDriver}`, `{user && isLoader}`, `{user && isMechanic}` branches that duplicate items and don't combine.
 
-## `handleResetPickupDate` (Reset Collection Date)
+`jnh096506@gmail.com` has multiple roles including loader and/or mechanic, so these checks hide his entire nav even though he is also (e.g.) an admin / route_planner.
 
-Add `status` to the update payload, chosen as:
-- both `senderSet` && `receiverSet` → `'scheduled_dates_pending'`
-- `!senderSet` → `'sender_availability_pending'`
-- `senderSet` && `!receiverSet` → `'receiver_availability_pending'`
+`getRoles(profile)` already returns the full `roles` array from `user_roles` (see `src/lib/roles.ts` + `AuthContext.tsx`), so the data is correct — only the UI gating is wrong.
 
-## `handleResetDeliveryDate` (Reset Delivery Date)
+## Fix (UI-only, `src/components/Layout.tsx`)
 
-Add `status` to the update payload, chosen as:
-- `collected` → `'collected'`
-- else both `senderSet` && `receiverSet` → `'scheduled_dates_pending'`
-- else `!senderSet` → `'sender_availability_pending'`
-- else `senderSet` && `!receiverSet` → `'receiver_availability_pending'`
+1. Add a small helper at the top of the component:
+   ```ts
+   const onlyLoaderOrMechanic =
+     (isLoader || isMechanic) && !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver
+     && !hasRole(userProfile, 'b2c_customer');
+   ```
+   Treat it as "user has no other responsibilities".
+
+2. **Public nav links** (line 35): render whenever `!onlyLoaderOrMechanic`. Pure loader/mechanic accounts still get nothing (current behaviour); mixed-role users get the standard Home / Track / Create / Bulk Upload links again.
+
+3. **Desktop dropdown** (line 307): change gate to just `user && <DropdownMenu>`. Each role section inside (`isAdmin`, `isSales`, `isB2B`, `isRoutePlanner`, `isDriver`, `isMechanic`, etc.) is already additive — they'll all render based on the roles the user actually has. Keep the existing `!isDriver` guard on Dashboard / Fuel Finder so pure driver UX is unchanged, but for a user with driver + admin the admin section will still show those entries.
+
+4. **Mobile sheet menu**: collapse the three exclusive branches (`user && !isLoader && !isMechanic`, `user && isDriver`, `user && isLoader`, `user && isMechanic`) into one `{user && (…)}` block that mirrors the desktop dropdown's additive structure:
+   - Always show Profile and Dashboard/Fuel Finder (with the existing `!isDriver` rule).
+   - Render each role section independently: admin block when `isAdmin`, sales block when `isSales`, B2B block when `isB2B`, route_planner block when `isRoutePlanner`, driver block when `isDriver`, mechanic block when `isMechanic`. (Loader has no extra items beyond logout — fine.)
+   - Render the Logout button exactly once at the end.
+   - This removes the duplicated "My Timeslips" / "Bicycle Inspections" / "Logout" blocks that currently appear only when the user has _only_ that role.
+
+5. No changes to routing/guards/RLS — `ProtectedRoute` already enforces access per route, so the nav can safely expose links the user is entitled to.
 
 ## Notes
 
-- Only the reset handlers change; no schema, RLS, or other UI changes.
-- Existing local state resets, refetch, and toast messages are preserved.
+- No backend / Supabase changes.
+- No new components; only conditional-rendering changes inside `src/components/Layout.tsx`.
+- Public marketing pages (when `!user`) are unaffected.
