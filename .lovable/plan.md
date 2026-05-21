@@ -1,33 +1,29 @@
-# Backfill missing sender/receiver contact links on orders
+# Backfill missing sender/receiver contact links on orders (SQL)
 
-Link the 21 orders currently missing a `sender_contact_id` and/or `receiver_contact_id` to records in the `contacts` table, creating contacts where none exist.
+Run a one-off SQL script to link the 21 orders missing `sender_contact_id` and/or `receiver_contact_id` to records in `contacts`, creating contacts where none exist.
 
 ## Scope
 - 17 orders missing sender contact
 - 19 orders missing receiver contact
 - 15 missing both
-- Total: 21 distinct orders (Mar–May 2026)
+- 21 distinct orders total
 
-## Approach
+## SQL approach
 
-One-off Supabase edge function `backfill-order-contacts` (admin-invoked, no schedule):
+Single transaction, two passes (sender then receiver). For each pass:
 
-1. Query `orders` where `sender_contact_id IS NULL OR receiver_contact_id IS NULL`.
-2. For each order and each missing side (sender/receiver):
-   - Read the snapshot from `orders.sender` / `orders.receiver` JSONB (name, email, phone, address).
-   - Skip if no email on the snapshot (can't reliably upsert) — log and continue.
-   - Call the same `upsertContact` logic used at order creation: match by `user_id + lower(email)`, insert if missing, update fields otherwise.
-   - Update the order with the resulting `sender_contact_id` / `receiver_contact_id`.
-3. Return a JSON summary: processed, linked, skipped (no email), errors.
+1. **Insert missing contacts** — `INSERT INTO contacts (user_id, name, email, phone, street, city, state, postal_code, country, lat, lon)` selecting from `orders` where the side's contact id is null AND `sender->>'email'` (or receiver) is non-empty, with `ON CONFLICT (user_id, email) DO UPDATE` so existing rows get refreshed name/phone/address.
 
-## Technical notes
-- Uses service role inside the edge function (bypasses RLS for the cross-user update).
-- Address fields and lat/lon copied from order snapshot; no re-geocoding (snapshot is source of truth).
-- Email normalised to lowercase + trimmed before upsert; `contacts.email` is CITEXT so case is handled.
-- Idempotent: re-running only touches orders still missing a link.
-- Invoked once manually from the Supabase dashboard or via `supabase.functions.invoke('backfill-order-contacts')` from an admin page — no UI added.
+2. **Link contact id back onto the order** — `UPDATE orders SET sender_contact_id = c.id FROM contacts c WHERE orders.user_id = c.user_id AND lower(orders.sender->>'email') = lower(c.email::text) AND orders.sender_contact_id IS NULL`. Repeat for receiver.
+
+Email normalised with `lower(trim(...))`; `contacts.email` is CITEXT so the join is case-insensitive.
+
+## Reported afterwards
+A final `SELECT` returns:
+- Orders still missing sender/receiver link (i.e. snapshot had no email) — for manual review.
+- Count of contacts inserted vs updated (via `xmax = 0` trick on the upsert).
 
 ## Out of scope
 - No schema changes.
-- No changes to order-creation flow (it already upserts correctly going forward).
-- Orders with no email on the snapshot will remain unlinked and be reported in the summary for manual review.
+- No edge function, no code changes.
+- Orders with no email on the JSON snapshot stay unlinked and appear in the leftover report.
