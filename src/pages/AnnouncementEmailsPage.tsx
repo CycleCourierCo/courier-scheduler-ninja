@@ -41,13 +41,16 @@ import {
 import type { UserRole } from "@/types/user";
 import { wrapAnnouncementEmail, buildPlainText } from "@/utils/announcementEmailTemplate";
 
+type RecipientRole = UserRole | "b2c_contact";
+
 interface ProfileRecord {
   id: string;
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: UserRole;
+  role: RecipientRole;
   company_name: string | null;
+  source: "profile" | "contact";
 }
 
 interface TemplateComponent {
@@ -79,10 +82,11 @@ interface ScheduledAnnouncement {
   error_message: string | null;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
+const ROLE_LABELS: Record<RecipientRole, string> = {
   admin: "Admin",
   b2b_customer: "B2B Customer",
   b2c_customer: "B2C Customer",
+  b2c_contact: "B2C Contacts",
   driver: "Driver",
   loader: "Loader",
   mechanic: "Mechanic",
@@ -115,7 +119,7 @@ const AnnouncementEmailsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [recipientMode, setRecipientMode] = useState<"individual" | "role">("individual");
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(new Set());
-  const [selectedRoles, setSelectedRoles] = useState<Set<UserRole>>(new Set());
+  const [selectedRoles, setSelectedRoles] = useState<Set<RecipientRole>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   // Email state
   const [subject, setSubject] = useState("");
@@ -142,7 +146,7 @@ const AnnouncementEmailsPage: React.FC = () => {
   const [editScheduledAt, setEditScheduledAt] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const { data: profiles = [], isLoading } = useQuery({
+  const { data: profilesRaw = [], isLoading: profilesLoading } = useQuery({
     queryKey: ["profiles-for-emails"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -152,9 +156,71 @@ const AnnouncementEmailsPage: React.FC = () => {
         .not("email", "is", null)
         .order("name");
       if (error) throw error;
-      return (data || []) as ProfileRecord[];
+      return (data || []) as Array<{
+        id: string;
+        name: string | null;
+        email: string | null;
+        phone: string | null;
+        role: UserRole;
+        company_name: string | null;
+      }>;
     },
   });
+
+  // B2C contacts from the address book (paginated to bypass 1k limit)
+  const { data: contactsRaw = [], isLoading: contactsLoading } = useQuery({
+    queryKey: ["contacts-for-emails"],
+    queryFn: async () => {
+      const PAGE = 1000;
+      let from = 0;
+      const all: Array<{ id: string; name: string | null; email: string | null; phone: string | null }> = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("id, name, email, phone")
+          .not("email", "is", null)
+          .order("name")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    },
+  });
+
+  const profiles = useMemo<ProfileRecord[]>(() => {
+    const emailSeen = new Set<string>();
+    const merged: ProfileRecord[] = [];
+
+    // Profiles win on email conflict
+    for (const p of profilesRaw) {
+      const key = p.email?.toLowerCase();
+      if (!key || emailSeen.has(key)) continue;
+      emailSeen.add(key);
+      merged.push({ ...p, source: "profile" });
+    }
+
+    for (const c of contactsRaw) {
+      const key = c.email?.toLowerCase();
+      if (!key || emailSeen.has(key)) continue;
+      emailSeen.add(key);
+      merged.push({
+        id: `contact:${c.id}`,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        role: "b2c_contact",
+        company_name: null,
+        source: "contact",
+      });
+    }
+    return merged;
+  }, [profilesRaw, contactsRaw]);
+
+  const isLoading = profilesLoading || contactsLoading;
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ["sendzen-templates"],
@@ -227,7 +293,7 @@ const AnnouncementEmailsPage: React.FC = () => {
     });
   };
 
-  const toggleRole = (role: UserRole) => {
+  const toggleRole = (role: RecipientRole) => {
     setSelectedRoles((prev) => {
       const next = new Set(prev);
       next.has(role) ? next.delete(role) : next.add(role);
@@ -529,7 +595,7 @@ const AnnouncementEmailsPage: React.FC = () => {
 
               <TabsContent value="role">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => {
+                  {(Object.keys(ROLE_LABELS) as RecipientRole[]).map((role) => {
                     const count = profiles.filter((p) => p.role === role).length;
                     return (
                       <label key={role} className="flex items-center gap-2 cursor-pointer">
