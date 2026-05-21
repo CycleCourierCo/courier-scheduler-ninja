@@ -114,26 +114,68 @@ serve(async (req) => {
 
     for (const announcement of dueAnnouncements) {
       try {
-        // Resolve recipients
+        // Resolve recipients (profiles + b2c contacts)
         let recipientEmails: string[] = [];
 
         if (announcement.recipient_mode === 'individual' && announcement.recipient_ids?.length > 0) {
-          const { data: profiles } = await adminClient
-            .from('profiles')
-            .select('email')
-            .in('id', announcement.recipient_ids)
-            .not('email', 'is', null);
-          recipientEmails = (profiles || []).map((p: any) => p.email).filter(Boolean);
+          const profileIds: string[] = [];
+          const contactIds: string[] = [];
+          for (const rid of announcement.recipient_ids as string[]) {
+            if (typeof rid === 'string' && rid.startsWith('contact:')) {
+              contactIds.push(rid.slice('contact:'.length));
+            } else {
+              profileIds.push(rid);
+            }
+          }
+          if (profileIds.length > 0) {
+            const { data: profiles } = await adminClient
+              .from('profiles')
+              .select('email')
+              .in('id', profileIds)
+              .not('email', 'is', null);
+            recipientEmails.push(...(profiles || []).map((p: any) => p.email).filter(Boolean));
+          }
+          if (contactIds.length > 0) {
+            const { data: contacts } = await adminClient
+              .from('contacts')
+              .select('email')
+              .in('id', contactIds)
+              .not('email', 'is', null);
+            recipientEmails.push(...(contacts || []).map((c: any) => c.email).filter(Boolean));
+          }
         } else if (announcement.recipient_mode === 'role' && announcement.recipient_roles?.length > 0) {
-          const { data: profiles } = await adminClient
-            .from('profiles')
-            .select('email, role')
-            .eq('account_status', 'approved')
-            .not('email', 'is', null);
-          recipientEmails = (profiles || [])
-            .filter((p: any) => announcement.recipient_roles.includes(p.role))
-            .map((p: any) => p.email)
-            .filter(Boolean);
+          const roles: string[] = announcement.recipient_roles;
+          const profileRoles = roles.filter((r) => r !== 'b2c_contact');
+          if (profileRoles.length > 0) {
+            const { data: profiles } = await adminClient
+              .from('profiles')
+              .select('email, role')
+              .eq('account_status', 'approved')
+              .not('email', 'is', null);
+            recipientEmails.push(
+              ...((profiles || [])
+                .filter((p: any) => profileRoles.includes(p.role))
+                .map((p: any) => p.email)
+                .filter(Boolean))
+            );
+          }
+          if (roles.includes('b2c_contact')) {
+            // Paginate contacts to bypass 1k limit
+            const PAGE = 1000;
+            let from = 0;
+            while (true) {
+              const { data: contacts, error: cErr } = await adminClient
+                .from('contacts')
+                .select('email')
+                .not('email', 'is', null)
+                .range(from, from + PAGE - 1);
+              if (cErr) throw cErr;
+              if (!contacts || contacts.length === 0) break;
+              recipientEmails.push(...contacts.map((c: any) => c.email).filter(Boolean));
+              if (contacts.length < PAGE) break;
+              from += PAGE;
+            }
+          }
         }
 
         // Deduplicate
