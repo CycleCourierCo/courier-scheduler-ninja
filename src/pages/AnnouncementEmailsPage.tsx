@@ -293,7 +293,7 @@ const AnnouncementEmailsPage: React.FC = () => {
     });
   };
 
-  const toggleRole = (role: UserRole) => {
+  const toggleRole = (role: RecipientRole) => {
     setSelectedRoles((prev) => {
       const next = new Set(prev);
       next.has(role) ? next.delete(role) : next.add(role);
