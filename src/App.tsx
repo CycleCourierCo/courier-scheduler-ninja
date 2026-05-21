@@ -170,7 +170,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/emails" element={
-                <ProtectedRoute adminOnly={true}>
+                <ProtectedRoute noB2CAccess={true}>
                   <AnnouncementEmailsPage />
                 </ProtectedRoute>
               } />
