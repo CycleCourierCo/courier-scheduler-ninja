@@ -595,7 +595,7 @@ const AnnouncementEmailsPage: React.FC = () => {
 
               <TabsContent value="role">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => {
+                  {(Object.keys(ROLE_LABELS) as RecipientRole[]).map((role) => {
                     const count = profiles.filter((p) => p.role === role).length;
                     return (
                       <label key={role} className="flex items-center gap-2 cursor-pointer">
