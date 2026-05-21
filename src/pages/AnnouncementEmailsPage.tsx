@@ -41,13 +41,16 @@ import {
 import type { UserRole } from "@/types/user";
 import { wrapAnnouncementEmail, buildPlainText } from "@/utils/announcementEmailTemplate";
 
+type RecipientRole = UserRole | "b2c_contact";
+
 interface ProfileRecord {
   id: string;
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: UserRole;
+  role: RecipientRole;
   company_name: string | null;
+  source: "profile" | "contact";
 }
 
 interface TemplateComponent {
