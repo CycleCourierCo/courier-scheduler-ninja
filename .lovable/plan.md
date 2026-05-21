@@ -1,21 +1,33 @@
-# Give sales role access to the Announcements page
+# Backfill missing sender/receiver contact links on orders
 
-Currently `/emails` (Announcements) is admin-only. Sales users should also see and use it.
+Link the 21 orders currently missing a `sender_contact_id` and/or `receiver_contact_id` to records in the `contacts` table, creating contacts where none exist.
 
-## Changes
+## Scope
+- 17 orders missing sender contact
+- 19 orders missing receiver contact
+- 15 missing both
+- Total: 21 distinct orders (Mar–May 2026)
 
-1. **`src/App.tsx`** — `/emails` route: swap `adminOnly={true}` for `noB2CAccess={true}`. Combined with the restricted-roles block in `ProtectedRoute` (which already gates loader/mechanic/route_planner/driver/sales), this leaves access open to admin and sales while still blocking pure B2C and the other restricted roles.
+## Approach
 
-2. **`src/components/ProtectedRoute.tsx`** — line 98: add `isEmailsPage = location.pathname === '/emails'` and include it in the sales allow-list so a pure-sales user can reach `/emails`. Admin already short-circuits at line 65.
+One-off Supabase edge function `backfill-order-contacts` (admin-invoked, no schedule):
 
-3. **`src/components/Layout.tsx`** — surface the "Announcement Emails" nav link to sales as well:
-   - Mobile sheet (line 188): wrap that single `<Link to="/emails">` with `{(isAdmin || isSales) && …}` so it renders even when the user isn't admin.
-   - Desktop dropdown (line 427 `DropdownMenuItem`): same — wrap with `{(isAdmin || isSales) && …}`.
-   - Leave the surrounding admin-only blocks untouched (Holidays, Notice Bars, Sentry test button stay admin-only).
+1. Query `orders` where `sender_contact_id IS NULL OR receiver_contact_id IS NULL`.
+2. For each order and each missing side (sender/receiver):
+   - Read the snapshot from `orders.sender` / `orders.receiver` JSONB (name, email, phone, address).
+   - Skip if no email on the snapshot (can't reliably upsert) — log and continue.
+   - Call the same `upsertContact` logic used at order creation: match by `user_id + lower(email)`, insert if missing, update fields otherwise.
+   - Update the order with the resulting `sender_contact_id` / `receiver_contact_id`.
+3. Return a JSON summary: processed, linked, skipped (no email), errors.
 
-## Result
+## Technical notes
+- Uses service role inside the edge function (bypasses RLS for the cross-user update).
+- Address fields and lat/lon copied from order snapshot; no re-geocoding (snapshot is source of truth).
+- Email normalised to lowercase + trimmed before upsert; `contacts.email` is CITEXT so case is handled.
+- Idempotent: re-running only touches orders still missing a link.
+- Invoked once manually from the Supabase dashboard or via `supabase.functions.invoke('backfill-order-contacts')` from an admin page — no UI added.
 
-- Admin: unchanged.
-- Sales: can navigate to and use `/emails`.
-- B2B / B2C / driver / loader / mechanic / route_planner: still blocked.
-- No backend / RLS changes.
+## Out of scope
+- No schema changes.
+- No changes to order-creation flow (it already upserts correctly going forward).
+- Orders with no email on the snapshot will remain unlinked and be reported in the summary for manual review.
