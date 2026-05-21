@@ -82,10 +82,11 @@ interface ScheduledAnnouncement {
   error_message: string | null;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
+const ROLE_LABELS: Record<RecipientRole, string> = {
   admin: "Admin",
   b2b_customer: "B2B Customer",
   b2c_customer: "B2C Customer",
+  b2c_contact: "B2C Contacts",
   driver: "Driver",
   loader: "Loader",
   mechanic: "Mechanic",
