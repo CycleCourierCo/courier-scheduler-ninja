@@ -119,7 +119,7 @@ const AnnouncementEmailsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [recipientMode, setRecipientMode] = useState<"individual" | "role">("individual");
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(new Set());
-  const [selectedRoles, setSelectedRoles] = useState<Set<UserRole>>(new Set());
+  const [selectedRoles, setSelectedRoles] = useState<Set<RecipientRole>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   // Email state
   const [subject, setSubject] = useState("");
