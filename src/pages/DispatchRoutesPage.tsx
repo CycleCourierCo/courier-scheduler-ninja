@@ -134,6 +134,7 @@ export default function DispatchRoutesPage() {
   useEffect(() => { boxSelectModeRef.current = boxSelectMode; }, [boxSelectMode]);
 
   const [driverId, setDriverId] = useState<string>("");
+  const [targetRouteId, setTargetRouteId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [optimising, setOptimising] = useState(false);
   const [sequence, setSequence] = useState<string[] | null>(null);
