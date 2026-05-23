@@ -1,18 +1,17 @@
-# Fix the blank map on Dispatch Routes
+# Fix missing pins and map selection on Dispatch Routes
 
 ## What I’ll change
-1. Replace the current lasso implementation that depends on the deprecated Google Drawing library.
-2. Rework the map bootstrapping so the map initializes with supported Maps JS APIs only.
-3. Add a safer fallback/error state so the page shows a clear message if Google Maps loads but the map instance still fails to render.
-4. Re-test `/dispatch/routes` in preview and confirm the map panel renders and pins appear.
+1. Update the pin extraction logic to read coordinates from the real order shape used in this app (`sender.address.lat/lon` and `receiver.address.lat/lon`).
+2. Add a visible empty-state/debug state in the sidebar so the page shows whether there are matching scheduled orders but no coordinates, instead of silently showing `0 unassigned` with no explanation.
+3. Replace the current shift-drag map event handling with a more reliable supported selection flow so box selection works consistently on the Google Maps canvas.
+4. Verify that pins render for the selected date and that selection updates the sidebar count.
 
 ## Expected outcome
-- The map panel on `/dispatch/routes` renders instead of staying blank.
-- Stop pins appear for the selected date.
-- Multi-select still works without relying on the deprecated DrawingManager.
+- Scheduled jobs with saved coordinates appear as pins.
+- If a job has no coordinates, the UI makes that clear.
+- Box/lasso selection works again and updates the selected stop list.
 
 ## Technical details
-- Update `src/hooks/useGoogleMaps.ts` to stop requesting the deprecated `drawing` library unless strictly needed.
-- Update `src/pages/DispatchRoutesPage.tsx` to remove `google.maps.drawing.DrawingManager` usage and replace polygon/lasso selection with a supported interaction approach.
-- Keep the existing optimise/save route flow unchanged.
-- Validate the fix against the live preview after implementation.
+- Patch `src/pages/DispatchRoutesPage.tsx` only.
+- Keep optimise/save route behavior unchanged.
+- No database changes needed.

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { Loader2, Wand2, Trash2, Save, MapPin } from "lucide-react";
+import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -28,44 +28,62 @@ type Pin = {
   address: string;
 };
 
-function pickPins(orders: Order[]): Pin[] {
+function num(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+}
+
+type PinStats = { totalForDate: number; missingCoords: number; alreadyAssigned: number };
+
+function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; stats: PinStats } {
   const pins: Pin[] = [];
+  const stats: PinStats = { totalForDate: orders.length, missingCoords: 0, alreadyAssigned: 0 };
   for (const o of orders) {
     const senderAny: any = (o as any).sender ?? {};
     const receiverAny: any = (o as any).receiver ?? {};
-    const sLat = senderAny.lat ?? senderAny.latitude;
-    const sLon = senderAny.lon ?? senderAny.longitude;
-    const rLat = receiverAny.lat ?? receiverAny.latitude;
-    const rLon = receiverAny.lon ?? receiverAny.longitude;
+    const sAddr = senderAny.address ?? {};
+    const rAddr = receiverAny.address ?? {};
+    const sLat = num(sAddr.lat ?? sAddr.latitude ?? senderAny.lat);
+    const sLon = num(sAddr.lon ?? sAddr.lng ?? sAddr.longitude ?? senderAny.lon);
+    const rLat = num(rAddr.lat ?? rAddr.latitude ?? receiverAny.lat);
+    const rLon = num(rAddr.lon ?? rAddr.lng ?? rAddr.longitude ?? receiverAny.lon);
     const tn = o.trackingNumber || o.id.slice(0, 6);
     const collected = (o as any).order_collected ?? (o as any).orderCollected ?? false;
     const delivered = (o as any).order_delivered ?? (o as any).orderDelivered ?? false;
-    if (typeof sLat === "number" && typeof sLon === "number" && !collected) {
-      pins.push({
-        key: `${o.id}:pickup`,
-        orderId: o.id,
-        type: "pickup",
-        lat: sLat,
-        lon: sLon,
-        label: `${tn} · Pick-up · ${senderAny.name ?? ""}`,
-        address: [senderAny.address?.street, senderAny.address?.city, senderAny.address?.postal_code]
-          .filter(Boolean).join(", "),
-      });
+
+    let hadAnyCandidate = false;
+    if (!collected) {
+      hadAnyCandidate = true;
+      if (sLat !== null && sLon !== null) {
+        const key = `${o.id}:pickup`;
+        if (assignedKeys.has(key)) stats.alreadyAssigned++;
+        else pins.push({
+          key, orderId: o.id, type: "pickup", lat: sLat, lon: sLon,
+          label: `${tn} · Pick-up · ${senderAny.name ?? ""}`,
+          address: [sAddr.street, sAddr.city, sAddr.zipCode ?? sAddr.postal_code].filter(Boolean).join(", "),
+        });
+      } else {
+        stats.missingCoords++;
+      }
     }
-    if (typeof rLat === "number" && typeof rLon === "number" && !delivered) {
-      pins.push({
-        key: `${o.id}:delivery`,
-        orderId: o.id,
-        type: "delivery",
-        lat: rLat,
-        lon: rLon,
-        label: `${tn} · Delivery · ${receiverAny.name ?? ""}`,
-        address: [receiverAny.address?.street, receiverAny.address?.city, receiverAny.address?.postal_code]
-          .filter(Boolean).join(", "),
-      });
+    if (!delivered) {
+      hadAnyCandidate = true;
+      if (rLat !== null && rLon !== null) {
+        const key = `${o.id}:delivery`;
+        if (assignedKeys.has(key)) stats.alreadyAssigned++;
+        else pins.push({
+          key, orderId: o.id, type: "delivery", lat: rLat, lon: rLon,
+          label: `${tn} · Delivery · ${receiverAny.name ?? ""}`,
+          address: [rAddr.street, rAddr.city, rAddr.zipCode ?? rAddr.postal_code].filter(Boolean).join(", "),
+        });
+      } else {
+        stats.missingCoords++;
+      }
     }
+    if (!hadAnyCandidate) stats.alreadyAssigned++;
   }
-  return pins;
+  return { pins, stats };
 }
 
 const UK_CENTER = { lat: 52.5, lng: -1.5 };
@@ -81,31 +99,31 @@ export default function DispatchRoutesPage() {
   const addModeRef = useRef(addMode);
   useEffect(() => { addModeRef.current = addMode; }, [addMode]);
 
+  const [boxSelectMode, setBoxSelectMode] = useState(false);
+  const boxSelectModeRef = useRef(false);
+  useEffect(() => { boxSelectModeRef.current = boxSelectMode; }, [boxSelectMode]);
+
   const [driverId, setDriverId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [optimising, setOptimising] = useState(false);
   const [sequence, setSequence] = useState<string[] | null>(null);
   const [totals, setTotals] = useState<{ km: number; min: number } | null>(null);
 
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
   const polylineRef = useRef<any>(null);
+  const projectionOverlayRef = useRef<any>(null);
 
-  const ordersQuery = useQuery({
-    queryKey: ["dispatch-orders-all"],
-    queryFn: getOrders,
-  });
+  const ordersQuery = useQuery({ queryKey: ["dispatch-orders-all"], queryFn: getOrders });
 
   const drivers = useQuery({
     queryKey: ["dispatch-drivers"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, name, email")
-        .eq("role", "driver" as any)
-        .eq("is_active", true)
-        .order("name");
+        .from("profiles").select("id, name, email")
+        .eq("role", "driver" as any).eq("is_active", true).order("name");
       if (error) throw error;
       return data ?? [];
     },
@@ -134,87 +152,127 @@ export default function DispatchRoutesPage() {
     return all.filter((o) => {
       const p = (o as any).scheduled_pickup_date ?? o.scheduledPickupDate;
       const d = (o as any).scheduled_delivery_date ?? o.scheduledDeliveryDate;
-      const inDate = (v: any) => v && format(new Date(v), "yyyy-MM-dd") === routeDate;
+      const inDate = (v: any) => {
+        if (!v) return false;
+        try { return format(new Date(v), "yyyy-MM-dd") === routeDate; } catch { return false; }
+      };
       return inDate(p) || inDate(d);
     });
   }, [ordersQuery.data, routeDate]);
 
-  const pins = useMemo(() => pickPins(dateOrders).filter((p) => !assignedKeys.has(p.key)), [dateOrders, assignedKeys]);
+  const { pins, stats } = useMemo(() => pickPins(dateOrders, assignedKeys), [dateOrders, assignedKeys]);
   const pinsByKey = useMemo(() => Object.fromEntries(pins.map((p) => [p.key, p])), [pins]);
 
-  // Init map (no drawing library)
+  // Init map
   useEffect(() => {
     if (!ready || !mapDivRef.current || mapRef.current) return;
     const g = (window as any).google;
     if (!g?.maps) return;
     const map = new g.maps.Map(mapDivRef.current, {
-      center: UK_CENTER,
-      zoom: 7,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      gestureHandling: "greedy",
-      clickableIcons: false,
+      center: UK_CENTER, zoom: 6,
+      mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+      gestureHandling: "greedy", clickableIcons: false,
     });
     mapRef.current = map;
 
-    // Shift-drag rectangle selection
-    let rectangle: any = null;
-    let startLatLng: any = null;
-    let originalDraggable = true;
+    // OverlayView for pixel projection (used by box-select)
+    const overlay = new g.maps.OverlayView();
+    overlay.onAdd = () => {};
+    overlay.draw = () => {};
+    overlay.onRemove = () => {};
+    overlay.setMap(map);
+    projectionOverlayRef.current = overlay;
+  }, [ready]);
 
-    const mouseDown = (e: any) => {
-      const domEvent = e.domEvent as MouseEvent | undefined;
-      if (!domEvent?.shiftKey) return;
-      domEvent.preventDefault();
-      startLatLng = e.latLng;
-      originalDraggable = map.get("draggable") !== false;
-      map.setOptions({ draggable: false });
-      const bounds = new g.maps.LatLngBounds(startLatLng, startLatLng);
-      rectangle = new g.maps.Rectangle({
-        bounds,
-        map,
-        fillColor: "#6366f1",
-        fillOpacity: 0.15,
-        strokeColor: "#6366f1",
-        strokeWeight: 2,
-        clickable: false,
-      });
+  // DOM-level shift/box drag selection on the map container
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container || !ready) return;
+
+    let startX = 0, startY = 0;
+    let rectEl: HTMLDivElement | null = null;
+    let dragging = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      const useBox = e.shiftKey || boxSelectModeRef.current;
+      if (!useBox) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = container.getBoundingClientRect();
+      startX = e.clientX - rect.left;
+      startY = e.clientY - rect.top;
+      dragging = true;
+      rectEl = document.createElement("div");
+      rectEl.style.position = "absolute";
+      rectEl.style.left = `${startX}px`;
+      rectEl.style.top = `${startY}px`;
+      rectEl.style.width = "0px";
+      rectEl.style.height = "0px";
+      rectEl.style.border = "2px solid #6366f1";
+      rectEl.style.background = "rgba(99,102,241,0.12)";
+      rectEl.style.pointerEvents = "none";
+      rectEl.style.zIndex = "1000";
+      container.appendChild(rectEl);
+      // disable map drag during selection
+      mapRef.current?.setOptions({ draggable: false });
     };
-
-    const mouseMove = (e: any) => {
-      if (!rectangle || !startLatLng) return;
-      const b = new g.maps.LatLngBounds();
-      b.extend(startLatLng);
-      b.extend(e.latLng);
-      rectangle.setBounds(b);
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging || !rectEl) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const left = Math.min(startX, x);
+      const top = Math.min(startY, y);
+      const w = Math.abs(x - startX);
+      const h = Math.abs(y - startY);
+      rectEl.style.left = `${left}px`;
+      rectEl.style.top = `${top}px`;
+      rectEl.style.width = `${w}px`;
+      rectEl.style.height = `${h}px`;
     };
+    const onMouseUp = (e: MouseEvent) => {
+      if (!dragging) return;
+      dragging = false;
+      const rect = container.getBoundingClientRect();
+      const endX = e.clientX - rect.left;
+      const endY = e.clientY - rect.top;
+      const x1 = Math.min(startX, endX), x2 = Math.max(startX, endX);
+      const y1 = Math.min(startY, endY), y2 = Math.max(startY, endY);
+      if (rectEl) { rectEl.remove(); rectEl = null; }
+      mapRef.current?.setOptions({ draggable: true });
 
-    const mouseUp = () => {
-      if (!rectangle) return;
-      const b = rectangle.getBounds();
+      const overlay = projectionOverlayRef.current;
+      const proj = overlay?.getProjection?.();
+      if (!proj) return;
       const hits: string[] = [];
       for (const key in markersRef.current) {
         const m = markersRef.current[key];
-        if (b.contains(m.getPosition())) hits.push(key);
+        const pt = proj.fromLatLngToContainerPixel(m.getPosition());
+        if (pt && pt.x >= x1 && pt.x <= x2 && pt.y >= y1 && pt.y <= y2) hits.push(key);
+      }
+      if (hits.length === 0 && Math.abs(endX - startX) < 4 && Math.abs(endY - startY) < 4) {
+        // it was a tiny click, not a drag — ignore
+        return;
       }
       setSelected((prev) => {
         const base = addModeRef.current === "add" ? { ...prev } : {};
         for (const h of hits) base[h] = true;
         return base;
       });
-      rectangle.setMap(null);
-      rectangle = null;
-      startLatLng = null;
-      map.setOptions({ draggable: originalDraggable });
+      setBoxSelectMode(false);
     };
 
-    map.addListener("mousedown", mouseDown);
-    map.addListener("mousemove", mouseMove);
-    map.addListener("mouseup", mouseUp);
+    container.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      container.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
   }, [ready]);
 
-  // Render markers
+  // Render markers + fit bounds
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const g = (window as any).google;
@@ -229,22 +287,16 @@ export default function DispatchRoutesPage() {
       const color = p.type === "pickup" ? "#2563eb" : "#16a34a";
       const existing = markersRef.current[p.key];
       const pos = { lat: p.lat, lng: p.lon };
+      const icon = {
+        path: g.maps.SymbolPath.CIRCLE,
+        fillColor: sel ? "#f59e0b" : color,
+        fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: sel ? 9 : 7,
+      };
       if (existing) {
         existing.setPosition(pos);
-        existing.setIcon({
-          path: g.maps.SymbolPath.CIRCLE,
-          fillColor: sel ? "#f59e0b" : color,
-          fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: sel ? 9 : 7,
-        });
+        existing.setIcon(icon);
       } else {
-        const m = new g.maps.Marker({
-          map: mapRef.current, position: pos, title: p.label,
-          icon: {
-            path: g.maps.SymbolPath.CIRCLE,
-            fillColor: sel ? "#f59e0b" : color,
-            fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: sel ? 9 : 7,
-          },
-        });
+        const m = new g.maps.Marker({ map: mapRef.current, position: pos, title: p.label, icon });
         m.addListener("click", () => {
           setSelected((prev) => {
             const next = { ...prev };
@@ -259,29 +311,24 @@ export default function DispatchRoutesPage() {
     if (hasAny) mapRef.current.fitBounds(bounds, 60);
   }, [pins, selected, ready, pinsByKey]);
 
-  // Draw optimised route polyline
+  // Polyline for optimised sequence
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const g = (window as any).google;
     if (polylineRef.current) { polylineRef.current.setMap(null); polylineRef.current = null; }
     if (!sequence || sequence.length < 2) return;
     const path = sequence.map((k) => {
-      const p = pinsByKey[k];
-      return p ? { lat: p.lat, lng: p.lon } : null;
+      const p = pinsByKey[k]; return p ? { lat: p.lat, lng: p.lon } : null;
     }).filter(Boolean) as any[];
     polylineRef.current = new g.maps.Polyline({
-      map: mapRef.current, path,
-      geodesic: true, strokeColor: "#6366f1", strokeOpacity: 0.9, strokeWeight: 4,
+      map: mapRef.current, path, geodesic: true, strokeColor: "#6366f1", strokeOpacity: 0.9, strokeWeight: 4,
     });
   }, [sequence, ready, pinsByKey]);
 
   const selectedPins = pins.filter((p) => selected[p.key]);
 
   const handleOptimise = async () => {
-    if (selectedPins.length < 2) {
-      toast({ title: "Select at least 2 stops", variant: "destructive" });
-      return;
-    }
+    if (selectedPins.length < 2) { toast({ title: "Select at least 2 stops", variant: "destructive" }); return; }
     setOptimising(true);
     try {
       const { data, error } = await supabase.functions.invoke("optimise-route", {
@@ -294,16 +341,11 @@ export default function DispatchRoutesPage() {
       toast({ title: "Route optimised", description: `${seq.length} stops · ${data.total_distance_km?.toFixed(1)} km · ${Math.round(data.total_duration_min)} min` });
     } catch (e: any) {
       toast({ title: "Optimise failed", description: e?.message ?? String(e), variant: "destructive" });
-    } finally {
-      setOptimising(false);
-    }
+    } finally { setOptimising(false); }
   };
 
   const handleSave = async () => {
-    if (selectedPins.length < 1) {
-      toast({ title: "Select at least 1 stop", variant: "destructive" });
-      return;
-    }
+    if (selectedPins.length < 1) { toast({ title: "Select at least 1 stop", variant: "destructive" }); return; }
     setSaving(true);
     try {
       const { data: user } = await supabase.auth.getUser();
@@ -311,42 +353,27 @@ export default function DispatchRoutesPage() {
       const { data: route, error: rErr } = await supabase
         .from("dispatch_routes" as any)
         .insert({
-          name: routeName || `Route ${routeDate}`,
-          route_date: routeDate,
-          driver_id: driverId || null,
-          status: driverId ? "assigned" : "draft",
-          total_distance_km: totals?.km ?? null,
-          total_duration_min: totals?.min ?? null,
-          optimised_at: totals ? new Date().toISOString() : null,
-          created_by: user.user?.id ?? null,
-        })
-        .select("id")
-        .single();
+          name: routeName || `Route ${routeDate}`, route_date: routeDate,
+          driver_id: driverId || null, status: driverId ? "assigned" : "draft",
+          total_distance_km: totals?.km ?? null, total_duration_min: totals?.min ?? null,
+          optimised_at: totals ? new Date().toISOString() : null, created_by: user.user?.id ?? null,
+        }).select("id").single();
       if (rErr) throw rErr;
       const stopsPayload = seq.map((key, i) => {
         const p = pinsByKey[key];
         return {
-          route_id: (route as any).id,
-          order_id: p.orderId,
-          stop_type: p.type,
-          sequence: i + 1,
-          address: p.address,
-          lat: p.lat,
-          lon: p.lon,
+          route_id: (route as any).id, order_id: p.orderId, stop_type: p.type,
+          sequence: i + 1, address: p.address, lat: p.lat, lon: p.lon,
         };
       });
       const { error: sErr } = await supabase.from("dispatch_route_stops" as any).insert(stopsPayload);
       if (sErr) throw sErr;
       toast({ title: "Route saved", description: `${seq.length} stops` });
-      setSelected({});
-      setSequence(null);
-      setTotals(null);
+      setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
     } catch (e: any) {
       toast({ title: "Save failed", description: e?.message ?? String(e), variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -395,11 +422,28 @@ export default function DispatchRoutesPage() {
               <div className="font-semibold text-sm">Stops on {routeDate}</div>
               <Badge variant="secondary">{pins.length} unassigned</Badge>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Hold <kbd className="px-1 border rounded">Shift</kbd> and drag on the map to box-select stops. Click pins to toggle individually.
+
+            <div className="text-[11px] text-muted-foreground leading-snug">
+              {stats.totalForDate === 0
+                ? "No orders are scheduled for this date."
+                : (
+                  <>
+                    {stats.totalForDate} order{stats.totalForDate === 1 ? "" : "s"} scheduled.
+                    {stats.alreadyAssigned > 0 && <> {stats.alreadyAssigned} already on a route.</>}
+                    {stats.missingCoords > 0 && <> {stats.missingCoords} stop{stats.missingCoords === 1 ? "" : "s"} missing coordinates.</>}
+                  </>
+                )}
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span>Box mode:</span>
+
+            <div className="text-xs text-muted-foreground">
+              Click <kbd className="px-1 border rounded">Box select</kbd> (or hold <kbd className="px-1 border rounded">Shift</kbd>) and drag on the map. Click pins to toggle individually.
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Button size="sm" variant={boxSelectMode ? "default" : "outline"} onClick={() => setBoxSelectMode((v) => !v)}>
+                <SquareDashed className="h-3 w-3 mr-1" />
+                {boxSelectMode ? "Drag to box-select…" : "Box select"}
+              </Button>
+              <span>Mode:</span>
               <Button size="sm" variant={addMode === "replace" ? "default" : "outline"} onClick={() => setAddMode("replace")}>New</Button>
               <Button size="sm" variant={addMode === "add" ? "default" : "outline"} onClick={() => setAddMode("add")}>Add</Button>
               <Button size="sm" variant="ghost" onClick={() => { setSelected({}); setSequence(null); setTotals(null); }}>
@@ -429,7 +473,13 @@ export default function DispatchRoutesPage() {
             </ScrollArea>
           </Card>
           <Card className="p-0 overflow-hidden h-[calc(100vh-220px)] bg-white relative">
-            <div ref={mapDivRef} className="absolute inset-0 h-full w-full" />
+            <div
+              ref={mapContainerRef}
+              className="absolute inset-0"
+              style={{ cursor: boxSelectMode ? "crosshair" : undefined }}
+            >
+              <div ref={mapDivRef} className="absolute inset-0 h-full w-full" />
+            </div>
             {!ready && (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground bg-white/80 pointer-events-none">
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Loading map…
