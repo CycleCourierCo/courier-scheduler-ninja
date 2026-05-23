@@ -17,6 +17,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/useGoogleMaps";
 import { getOrders } from "@/services/fetchOrderService";
 import type { Order } from "@/types/order";
+import { DEPOT_LOCATION } from "@/constants/depot";
+
+const ROUTE_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f97316", "#ec4899", "#a855f7"];
+const fmtDuration = (min: number | null | undefined) => {
+  if (min == null || !Number.isFinite(Number(min))) return "—";
+  const total = Number(min);
+  const h = Math.floor(total / 60);
+  const m = Math.round(total % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
 
 type Pin = {
   key: string;
