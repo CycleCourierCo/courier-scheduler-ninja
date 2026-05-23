@@ -157,6 +157,7 @@ export default function DispatchRoutesPage() {
   const polylineRef = useRef<any>(null);
   const projectionOverlayRef = useRef<any>(null);
   const routePolylinesRef = useRef<Record<string, any>>({});
+  const routeStopMarkersRef = useRef<Record<string, any[]>>({});
   const depotMarkerRef = useRef<any>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
 
@@ -390,11 +391,17 @@ export default function DispatchRoutesPage() {
     const routes = routesForDate.data ?? [];
     const visibleIds = new Set(routes.filter((r: any) => !hiddenRoutes[r.id]).map((r: any) => r.id));
 
-    // Remove stale
+    // Remove stale polylines + stop markers
     for (const id of Object.keys(routePolylinesRef.current)) {
       if (!visibleIds.has(id)) {
         routePolylinesRef.current[id].setMap(null);
         delete routePolylinesRef.current[id];
+      }
+    }
+    for (const id of Object.keys(routeStopMarkersRef.current)) {
+      if (!visibleIds.has(id)) {
+        for (const m of routeStopMarkersRef.current[id]) m.setMap(null);
+        delete routeStopMarkersRef.current[id];
       }
     }
 
@@ -414,6 +421,23 @@ export default function DispatchRoutesPage() {
           map: mapRef.current, path, geodesic: true, strokeColor: color, strokeOpacity: 0.85, strokeWeight: 4,
         });
       }
+
+      // Refresh stop markers (simpler than diffing per-stop)
+      const prev = routeStopMarkersRef.current[r.id];
+      if (prev) for (const m of prev) m.setMap(null);
+      routeStopMarkersRef.current[r.id] = stops.map((s: any) => {
+        return new g.maps.Marker({
+          map: mapRef.current,
+          position: { lat: Number(s.lat), lng: Number(s.lon) },
+          title: `${r.name} · ${s.sequence}. ${s.stop_type === "pickup" ? "Pick-up" : "Delivery"} · ${s.address ?? ""}`,
+          label: { text: String(s.sequence), color: "#fff", fontSize: "10px", fontWeight: "700" },
+          icon: {
+            path: g.maps.SymbolPath.CIRCLE,
+            fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 10,
+          },
+          zIndex: 500,
+        });
+      });
     });
 
     // Depot marker
@@ -465,14 +489,30 @@ export default function DispatchRoutesPage() {
     setSaving(true);
     try {
       const { data: user } = await supabase.auth.getUser();
-      const seq = sequence ?? selectedPins.map((p) => p.key);
+      // Auto-optimise from depot if user didn't press Optimise
+      let seq = sequence ?? selectedPins.map((p) => p.key);
+      let km = totals?.km ?? null;
+      let min = totals?.min ?? null;
+      if (!sequence && selectedPins.length >= 2) {
+        const { data: opt, error: optErr } = await supabase.functions.invoke("optimise-route", {
+          body: {
+            origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+            stops: selectedPins.map((p) => ({ id: p.key, lat: p.lat, lon: p.lon })),
+          },
+        });
+        if (optErr) throw optErr;
+        const optSeq: { stop_id: string; sequence: number }[] = opt?.sequence ?? [];
+        if (optSeq.length) seq = optSeq.map((s) => s.stop_id);
+        km = opt?.total_distance_km ?? null;
+        min = opt?.total_duration_min ?? null;
+      }
       const { data: route, error: rErr } = await supabase
         .from("dispatch_routes" as any)
         .insert({
           name: routeName || `Route ${routeDate}`, route_date: routeDate,
           driver_id: driverId || null, status: driverId ? "assigned" : "draft",
-          total_distance_km: totals?.km ?? null, total_duration_min: totals?.min ?? null,
-          optimised_at: totals ? new Date().toISOString() : null, created_by: user.user?.id ?? null,
+          total_distance_km: km, total_duration_min: min,
+          optimised_at: km != null ? new Date().toISOString() : null, created_by: user.user?.id ?? null,
         }).select("id").single();
       if (rErr) throw rErr;
       const stopsPayload = seq.map((key, i) => {
@@ -499,26 +539,73 @@ export default function DispatchRoutesPage() {
     setSaving(true);
     try {
       const sb = supabase as any;
-      const { data: existing } = await sb
+      // Fetch existing stops on the target route
+      const { data: existing, error: exErr } = await sb
         .from("dispatch_route_stops")
-        .select("sequence")
-        .eq("route_id", targetRouteId)
-        .order("sequence", { ascending: false })
-        .limit(1);
-      const start = ((existing?.[0]?.sequence as number) ?? 0) + 1;
-      const seq = sequence ?? selectedPins.map((p) => p.key);
-      const payload = seq.map((key, i) => {
-        const p = pinsByKey[key];
+        .select("order_id, stop_type, address, lat, lon")
+        .eq("route_id", targetRouteId);
+      if (exErr) throw exErr;
+
+      // Combine existing + newly selected (dedupe by order_id:stop_type)
+      type S = { order_id: string; stop_type: "pickup" | "delivery"; address: string | null; lat: number; lon: number };
+      const combinedMap = new Map<string, S>();
+      for (const s of (existing ?? []) as any[]) {
+        if (!Number.isFinite(Number(s.lat)) || !Number.isFinite(Number(s.lon))) continue;
+        combinedMap.set(`${s.order_id}:${s.stop_type}`, {
+          order_id: s.order_id, stop_type: s.stop_type, address: s.address,
+          lat: Number(s.lat), lon: Number(s.lon),
+        });
+      }
+      for (const p of selectedPins) {
+        combinedMap.set(p.key, {
+          order_id: p.orderId, stop_type: p.type, address: p.address, lat: p.lat, lon: p.lon,
+        });
+      }
+      const combined = Array.from(combinedMap.entries()).map(([key, s]) => ({ key, ...s }));
+
+      // Re-optimise the full combined route from depot
+      let orderedKeys = combined.map((c) => c.key);
+      let optKm: number | null = null;
+      let optMin: number | null = null;
+      if (combined.length >= 2) {
+        const { data: opt, error: optErr } = await supabase.functions.invoke("optimise-route", {
+          body: {
+            origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+            stops: combined.map((c) => ({ id: c.key, lat: c.lat, lon: c.lon })),
+          },
+        });
+        if (optErr) throw optErr;
+        const seq: { stop_id: string; sequence: number }[] = opt?.sequence ?? [];
+        if (seq.length) orderedKeys = seq.map((s) => s.stop_id);
+        optKm = opt?.total_distance_km ?? null;
+        optMin = opt?.total_duration_min ?? null;
+      }
+
+      const byKey = new Map(combined.map((c) => [c.key, c]));
+      const payload = orderedKeys.map((key, i) => {
+        const s = byKey.get(key)!;
         return {
-          route_id: targetRouteId, order_id: p.orderId, stop_type: p.type,
-          sequence: start + i, address: p.address, lat: p.lat, lon: p.lon,
+          route_id: targetRouteId, order_id: s.order_id, stop_type: s.stop_type,
+          sequence: i + 1, address: s.address, lat: s.lat, lon: s.lon,
         };
       });
-      const { error } = await sb.from("dispatch_route_stops").insert(payload);
-      if (error) throw error;
-      toast({ title: "Added to route", description: `${payload.length} stops appended` });
+
+      // Replace stops atomically-ish: delete then insert
+      const { error: dErr } = await sb.from("dispatch_route_stops").delete().eq("route_id", targetRouteId);
+      if (dErr) throw dErr;
+      const { error: iErr } = await sb.from("dispatch_route_stops").insert(payload);
+      if (iErr) throw iErr;
+
+      // Update route totals
+      await sb.from("dispatch_routes").update({
+        total_distance_km: optKm, total_duration_min: optMin,
+        optimised_at: optKm != null ? new Date().toISOString() : null,
+      }).eq("id", targetRouteId);
+
+      toast({ title: "Route re-optimised", description: `${payload.length} stops · ${optKm != null ? optKm.toFixed(1) + " km" : "—"}` });
       setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
       toast({ title: "Add failed", description: e?.message ?? String(e), variant: "destructive" });
     } finally { setSaving(false); }
