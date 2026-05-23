@@ -34,14 +34,30 @@ function num(v: any): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-type PinStats = { totalForDate: number; missingCoords: number; alreadyAssigned: number };
+type LegStats = { totalCandidates: number; missingCoords: number; alreadyAssigned: number; completed: number };
 
-function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; stats: PinStats } {
+function dateStr(v: any): string | null {
+  if (!v) return null;
+  try { return format(new Date(v), "yyyy-MM-dd"); } catch { return null; }
+}
+
+function arrIncludes(arr: any, target: string): boolean {
+  if (!Array.isArray(arr)) return false;
+  for (const v of arr) {
+    if (typeof v === "string" && v.startsWith(target)) return true;
+    const s = dateStr(v);
+    if (s === target) return true;
+  }
+  return false;
+}
+
+function pickPins(orders: Order[], assignedKeys: Set<string>, routeDate: string): { pins: Pin[]; stats: LegStats } {
   const pins: Pin[] = [];
-  const stats: PinStats = { totalForDate: orders.length, missingCoords: 0, alreadyAssigned: 0 };
+  const stats: LegStats = { totalCandidates: 0, missingCoords: 0, alreadyAssigned: 0, completed: 0 };
   for (const o of orders) {
-    const senderAny: any = (o as any).sender ?? {};
-    const receiverAny: any = (o as any).receiver ?? {};
+    const oAny: any = o as any;
+    const senderAny: any = oAny.sender ?? {};
+    const receiverAny: any = oAny.receiver ?? {};
     const sAddr = senderAny.address ?? {};
     const rAddr = receiverAny.address ?? {};
     const sLat = num(sAddr.lat ?? sAddr.latitude ?? senderAny.lat);
@@ -49,13 +65,28 @@ function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; st
     const rLat = num(rAddr.lat ?? rAddr.latitude ?? receiverAny.lat);
     const rLon = num(rAddr.lon ?? rAddr.lng ?? rAddr.longitude ?? receiverAny.lon);
     const tn = o.trackingNumber || o.id.slice(0, 6);
-    const collected = (o as any).order_collected ?? (o as any).orderCollected ?? false;
-    const delivered = (o as any).order_delivered ?? (o as any).orderDelivered ?? false;
+    const collected = oAny.order_collected ?? oAny.orderCollected ?? false;
+    const delivered = oAny.order_delivered ?? oAny.orderDelivered ?? false;
 
-    let hadAnyCandidate = false;
-    if (!collected) {
-      hadAnyCandidate = true;
-      if (sLat !== null && sLon !== null) {
+    const schedPickup = dateStr(oAny.scheduled_pickup_date ?? o.scheduledPickupDate);
+    const schedDelivery = dateStr(oAny.scheduled_delivery_date ?? o.scheduledDeliveryDate);
+    const pickupAvail = oAny.pickup_date ?? o.pickupDate;
+    const deliveryAvail = oAny.delivery_date ?? o.deliveryDate;
+
+    const pickupMatches =
+      schedPickup === routeDate ||
+      (!schedPickup && arrIncludes(pickupAvail, routeDate));
+    const deliveryMatches =
+      schedDelivery === routeDate ||
+      (!schedDelivery && arrIncludes(deliveryAvail, routeDate));
+
+    if (pickupMatches) {
+      stats.totalCandidates++;
+      if (collected) {
+        stats.completed++;
+      } else if (sLat === null || sLon === null) {
+        stats.missingCoords++;
+      } else {
         const key = `${o.id}:pickup`;
         if (assignedKeys.has(key)) stats.alreadyAssigned++;
         else pins.push({
@@ -63,13 +94,15 @@ function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; st
           label: `${tn} · Pick-up · ${senderAny.name ?? ""}`,
           address: [sAddr.street, sAddr.city, sAddr.zipCode ?? sAddr.postal_code].filter(Boolean).join(", "),
         });
-      } else {
-        stats.missingCoords++;
       }
     }
-    if (!delivered) {
-      hadAnyCandidate = true;
-      if (rLat !== null && rLon !== null) {
+    if (deliveryMatches) {
+      stats.totalCandidates++;
+      if (delivered) {
+        stats.completed++;
+      } else if (rLat === null || rLon === null) {
+        stats.missingCoords++;
+      } else {
         const key = `${o.id}:delivery`;
         if (assignedKeys.has(key)) stats.alreadyAssigned++;
         else pins.push({
@@ -77,11 +110,8 @@ function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; st
           label: `${tn} · Delivery · ${receiverAny.name ?? ""}`,
           address: [rAddr.street, rAddr.city, rAddr.zipCode ?? rAddr.postal_code].filter(Boolean).join(", "),
         });
-      } else {
-        stats.missingCoords++;
       }
     }
-    if (!hadAnyCandidate) stats.alreadyAssigned++;
   }
   return { pins, stats };
 }
