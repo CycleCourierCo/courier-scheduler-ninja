@@ -413,14 +413,48 @@ export default function DispatchRoutesPage() {
       if (stops.length === 0) return;
       anyVisible = true;
       const depot = { lat: DEPOT_LOCATION.lat, lng: DEPOT_LOCATION.lon };
-      const path = [depot, ...stops.map((s: any) => ({ lat: Number(s.lat), lng: Number(s.lon) })), depot];
+      const straightPath = [depot, ...stops.map((s: any) => ({ lat: Number(s.lat), lng: Number(s.lon) })), depot];
       const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
-      if (routePolylinesRef.current[r.id]) {
-        routePolylinesRef.current[r.id].setOptions({ path, strokeColor: color });
+
+      const applyPath = (path: any[]) => {
+        if (routePolylinesRef.current[r.id]) {
+          routePolylinesRef.current[r.id].setOptions({ path, strokeColor: color });
+        } else {
+          routePolylinesRef.current[r.id] = new g.maps.Polyline({
+            map: mapRef.current, path, strokeColor: color, strokeOpacity: 0.85, strokeWeight: 4,
+          });
+        }
+      };
+
+      // Signature changes when stop set/order changes -> refetch
+      const sig = stops.map((s: any) => `${s.sequence}:${s.lat},${s.lon}`).join("|");
+      const cached = routePathCacheRef.current[r.id];
+      if (cached && cached.sig === sig) {
+        applyPath(cached.path);
       } else {
-        routePolylinesRef.current[r.id] = new g.maps.Polyline({
-          map: mapRef.current, path, geodesic: true, strokeColor: color, strokeOpacity: 0.85, strokeWeight: 4,
-        });
+        // Draw straight line immediately as fallback while road path loads
+        applyPath(straightPath);
+        (async () => {
+          try {
+            const { data, error } = await supabase.functions.invoke("route-path", {
+              body: {
+                origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+                stops: stops.map((s: any) => ({ lat: Number(s.lat), lon: Number(s.lon) })),
+                destination: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+              },
+            });
+            if (error || !data?.encodedPolyline) return;
+            const decoded = g.maps.geometry?.encoding?.decodePath(data.encodedPolyline);
+            if (!decoded || decoded.length === 0) return;
+            routePathCacheRef.current[r.id] = { sig, path: decoded };
+            // Only apply if still visible
+            if (routePolylinesRef.current[r.id]) {
+              routePolylinesRef.current[r.id].setOptions({ path: decoded, strokeColor: color });
+            }
+          } catch (e) {
+            console.warn("route-path fetch failed", e);
+          }
+        })();
       }
 
       // Refresh stop markers (simpler than diffing per-stop)
