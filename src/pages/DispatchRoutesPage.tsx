@@ -444,13 +444,14 @@ export default function DispatchRoutesPage() {
             </div>
 
             <div className="text-[11px] text-muted-foreground leading-snug">
-              {stats.totalForDate === 0
-                ? "No orders are scheduled for this date."
+              {stats.totalCandidates === 0
+                ? "No pickups or deliveries match this date (checked scheduled dates and sender/receiver availability)."
                 : (
                   <>
-                    {stats.totalForDate} order{stats.totalForDate === 1 ? "" : "s"} scheduled.
+                    {stats.totalCandidates} leg{stats.totalCandidates === 1 ? "" : "s"} match this date.
                     {stats.alreadyAssigned > 0 && <> {stats.alreadyAssigned} already on a route.</>}
-                    {stats.missingCoords > 0 && <> {stats.missingCoords} stop{stats.missingCoords === 1 ? "" : "s"} missing coordinates.</>}
+                    {stats.completed > 0 && <> {stats.completed} already completed.</>}
+                    {stats.missingCoords > 0 && <> {stats.missingCoords} missing coordinates.</>}
                   </>
                 )}
             </div>
