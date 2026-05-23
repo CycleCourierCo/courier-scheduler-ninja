@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { Loader2, Wand2, Plus, Trash2, Save, MapPin } from "lucide-react";
+import { Loader2, Wand2, Trash2, Save, MapPin } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { getOrders } from "@/services/fetchOrderService";
 import type { Order } from "@/types/order";
 
 type Pin = {
-  key: string; // stable: `${orderId}:${type}`
+  key: string;
   orderId: string;
   type: "pickup" | "delivery";
   lat: number;
@@ -72,12 +72,15 @@ const UK_CENTER = { lat: 52.5, lng: -1.5 };
 
 export default function DispatchRoutesPage() {
   const qc = useQueryClient();
-  const { ready, error: mapsError } = useGoogleMaps(["drawing", "geometry"]);
+  const { ready, error: mapsError } = useGoogleMaps(["geometry"]);
 
   const [routeDate, setRouteDate] = useState<string>(() => format(new Date(), "yyyy-MM-dd"));
   const [routeName, setRouteName] = useState<string>("Route 1");
-  const [selected, setSelected] = useState<Record<string, true>>({}); // pin keys
+  const [selected, setSelected] = useState<Record<string, true>>({});
   const [addMode, setAddMode] = useState<"replace" | "add">("replace");
+  const addModeRef = useRef(addMode);
+  useEffect(() => { addModeRef.current = addMode; }, [addMode]);
+
   const [driverId, setDriverId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [optimising, setOptimising] = useState(false);
@@ -87,10 +90,8 @@ export default function DispatchRoutesPage() {
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
-  const drawingMgrRef = useRef<any>(null);
   const polylineRef = useRef<any>(null);
 
-  // Orders for the chosen date — pickups OR deliveries scheduled on that date
   const ordersQuery = useQuery({
     queryKey: ["dispatch-orders-all"],
     queryFn: getOrders,
@@ -141,53 +142,85 @@ export default function DispatchRoutesPage() {
   const pins = useMemo(() => pickPins(dateOrders).filter((p) => !assignedKeys.has(p.key)), [dateOrders, assignedKeys]);
   const pinsByKey = useMemo(() => Object.fromEntries(pins.map((p) => [p.key, p])), [pins]);
 
-  // Init map
+  // Init map (no drawing library)
   useEffect(() => {
     if (!ready || !mapDivRef.current || mapRef.current) return;
     const g = (window as any).google;
+    if (!g?.maps) return;
     const map = new g.maps.Map(mapDivRef.current, {
-      center: UK_CENTER, zoom: 7,
-      mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+      center: UK_CENTER,
+      zoom: 7,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      gestureHandling: "greedy",
+      clickableIcons: false,
     });
     mapRef.current = map;
 
-    const dm = new g.maps.drawing.DrawingManager({
-      drawingMode: null,
-      drawingControl: true,
-      drawingControlOptions: {
-        position: g.maps.ControlPosition.TOP_CENTER,
-        drawingModes: [g.maps.drawing.OverlayType.POLYGON],
-      },
-      polygonOptions: { fillOpacity: 0.15, strokeWeight: 2, clickable: false, editable: false, zIndex: 1 },
-    });
-    dm.setMap(map);
-    drawingMgrRef.current = dm;
+    // Shift-drag rectangle selection
+    let rectangle: any = null;
+    let startLatLng: any = null;
+    let originalDraggable = true;
 
-    g.maps.event.addListener(dm, "polygoncomplete", (poly: any) => {
+    const mouseDown = (e: any) => {
+      const domEvent = e.domEvent as MouseEvent | undefined;
+      if (!domEvent?.shiftKey) return;
+      domEvent.preventDefault();
+      startLatLng = e.latLng;
+      originalDraggable = map.get("draggable") !== false;
+      map.setOptions({ draggable: false });
+      const bounds = new g.maps.LatLngBounds(startLatLng, startLatLng);
+      rectangle = new g.maps.Rectangle({
+        bounds,
+        map,
+        fillColor: "#6366f1",
+        fillOpacity: 0.15,
+        strokeColor: "#6366f1",
+        strokeWeight: 2,
+        clickable: false,
+      });
+    };
+
+    const mouseMove = (e: any) => {
+      if (!rectangle || !startLatLng) return;
+      const b = new g.maps.LatLngBounds();
+      b.extend(startLatLng);
+      b.extend(e.latLng);
+      rectangle.setBounds(b);
+    };
+
+    const mouseUp = () => {
+      if (!rectangle) return;
+      const b = rectangle.getBounds();
       const hits: string[] = [];
       for (const key in markersRef.current) {
         const m = markersRef.current[key];
-        if (g.maps.geometry.poly.containsLocation(m.getPosition(), poly)) hits.push(key);
+        if (b.contains(m.getPosition())) hits.push(key);
       }
       setSelected((prev) => {
-        const base = addMode === "add" ? { ...prev } : {};
+        const base = addModeRef.current === "add" ? { ...prev } : {};
         for (const h of hits) base[h] = true;
         return base;
       });
-      poly.setMap(null);
-      dm.setDrawingMode(null);
-    });
-  }, [ready, addMode]);
+      rectangle.setMap(null);
+      rectangle = null;
+      startLatLng = null;
+      map.setOptions({ draggable: originalDraggable });
+    };
+
+    map.addListener("mousedown", mouseDown);
+    map.addListener("mousemove", mouseMove);
+    map.addListener("mouseup", mouseUp);
+  }, [ready]);
 
   // Render markers
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const g = (window as any).google;
-    // remove old
     for (const k of Object.keys(markersRef.current)) {
       if (!pinsByKey[k]) { markersRef.current[k].setMap(null); delete markersRef.current[k]; }
     }
-    // add/update
     const bounds = new g.maps.LatLngBounds();
     let hasAny = false;
     for (const p of pins) {
@@ -363,10 +396,10 @@ export default function DispatchRoutesPage() {
               <Badge variant="secondary">{pins.length} unassigned</Badge>
             </div>
             <div className="text-xs text-muted-foreground">
-              Lasso the map to select. Hold <kbd className="px-1 border rounded">Shift</kbd> while drawing to add to current selection. Click pins to toggle individually.
+              Hold <kbd className="px-1 border rounded">Shift</kbd> and drag on the map to box-select stops. Click pins to toggle individually.
             </div>
             <div className="flex items-center gap-2 text-xs">
-              <span>Lasso mode:</span>
+              <span>Box mode:</span>
               <Button size="sm" variant={addMode === "replace" ? "default" : "outline"} onClick={() => setAddMode("replace")}>New</Button>
               <Button size="sm" variant={addMode === "add" ? "default" : "outline"} onClick={() => setAddMode("add")}>Add</Button>
               <Button size="sm" variant="ghost" onClick={() => { setSelected({}); setSequence(null); setTotals(null); }}>
@@ -395,13 +428,12 @@ export default function DispatchRoutesPage() {
               </div>
             </ScrollArea>
           </Card>
-          <Card className="p-0 overflow-hidden h-[calc(100vh-220px)]">
-            {!ready ? (
-              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+          <Card className="p-0 overflow-hidden h-[calc(100vh-220px)] bg-white relative">
+            <div ref={mapDivRef} className="absolute inset-0 h-full w-full" />
+            {!ready && (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground bg-white/80 pointer-events-none">
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Loading map…
               </div>
-            ) : (
-              <div ref={mapDivRef} className="h-full w-full" />
             )}
           </Card>
         </div>
