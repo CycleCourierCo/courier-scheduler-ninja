@@ -49,6 +49,7 @@ import ClaimsList from "./pages/ClaimsList";
 import NewClaim from "./pages/NewClaim";
 import ClaimDetail from "./pages/ClaimDetail";
 import DispatchOrdersPage from "./pages/DispatchOrdersPage";
+import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 
 const queryClient = new QueryClient();
 
@@ -223,6 +224,11 @@ function App() {
               <Route path="/dispatch/orders" element={
                 <ProtectedRoute>
                   <DispatchOrdersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/dispatch/routes" element={
+                <ProtectedRoute>
+                  <DispatchRoutesPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />

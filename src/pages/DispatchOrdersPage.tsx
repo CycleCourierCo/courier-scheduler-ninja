@@ -142,6 +142,9 @@ const DispatchOrdersPage: React.FC = () => {
               />
             </div>
             <Button variant="outline" asChild>
+              <Link to="/dispatch/routes">Routes</Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link to="/bulk-upload">
                 <Upload className="h-4 w-4 mr-1" /> CSV upload
               </Link>
