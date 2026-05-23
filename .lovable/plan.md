@@ -1,45 +1,29 @@
 ## Goal
-Make `/dispatch/routes` show all eligible jobs for the chosen date, let planners filter by sender/receiver availability, and allow selected jobs to either create a new route or be added to an existing route.
 
-## Plan
-1. **Rebuild the page around a unified job dataset**
-   - Derive map pins and sidebar rows from a single `jobs` list instead of only from `scheduled_pickup_date` / `scheduled_delivery_date`.
-   - Treat each pickup and delivery as its own selectable job.
-   - Include jobs when the chosen date matches:
-     - `scheduled_pickup_date` / `scheduled_delivery_date`, or
-     - `pickup_date` / `delivery_date` availability arrays.
-   - Exclude completed legs (`order_collected` for pickup, `order_delivered` for delivery) and legs already assigned to a route for that day.
+Once a route is created (or already exists) for the selected date, surface it in the left sidebar under the unassigned stops list, draw each route as a polyline on the map starting and ending at the Lawden Road depot (B10 0AD), and show summary stats (distance, time, number of stops).
 
-2. **Make the list and map show the same jobs**
-   - Render the sidebar from the same filtered job collection used for markers.
-   - Show a proper jobs count, selected count, and clear empty states:
-     - no matching availability
-     - already routed
-     - missing coordinates
-   - Keep selection in sync between row clicks, pin clicks, and box/lasso selection.
+## Changes — `src/pages/DispatchRoutesPage.tsx`
 
-3. **Fix lasso/box selection to operate on jobs reliably**
-   - Keep the current drag-selection approach, but wire it against the unified jobs/markers model so selected jobs are always reflected in the sidebar.
-   - Preserve replace vs add-to-selection behavior.
-   - Make “lasso into a route” mean: select jobs on the map, then send that exact selected set into the route action.
+1. Import `DEPOT_LOCATION` from `src/constants/depot.ts`.
+2. Replace the `routesForDate` query to also fetch each route's stops (id, sequence, stop_type, lat, lon, address, order_id) plus `total_distance_km` / `total_duration_min`. Order stops by sequence.
+3. Pass the depot as `origin` to the existing `optimise-route` invocation so new routes are optimised starting from B10 0AD. Persist the depot stats in `total_distance_km` / `total_duration_min` (already done by the function once origin is provided).
+4. Sidebar layout: keep the unassigned stops scroll list at the top, then add a "Routes on {date}" section below it (within the same Card, separated by a divider). Each route card shows:
+   - Route name + driver (if assigned)
+   - Distance (km), duration (min, formatted hh:mm), stop count
+   - Collapsible list of stops in sequence (Depot → stops → Depot)
+   - A small toggle/eye button to show/hide that route's polyline on the map (default: all visible)
+5. Map polylines:
+   - Add a `routePolylinesRef` map (route_id → google.maps.Polyline) plus matching depot markers.
+   - For each visible saved route, build a path `[depot, ...stops sorted by sequence, depot]` and render a polyline. Use a distinct colour per route (cycle through a small palette) so multiple routes stay distinguishable from the in-progress optimised polyline (which stays indigo).
+   - Add two small depot markers (start + end overlap; render one black "B10 0AD" marker) when at least one saved route is visible.
+   - Clean up polylines/markers on unmount and when routes change.
+6. Fit-bounds tweak: include depot + all route stops when computing bounds so saved routes are visible even before any unassigned pins exist.
+7. Leave the existing "Create route", "Add to route", optimise, and selection flows unchanged in behaviour — only the optimise call gains the depot origin.
 
-4. **Add route destination actions**
-   - Keep **Create new route** using the current save flow.
-   - Add **Add to existing route** with a route picker for the chosen date.
-   - When adding to an existing route, append new jobs after the current last sequence and avoid duplicate stop insertion.
+## Technical notes
 
-5. **Validate against live data patterns already in the app**
-   - Align date matching with the logic already used in the scheduling/RouteBuilder flow.
-   - Verify today’s database shape is handled correctly: most eligible jobs are coming from `pickup_date` / `delivery_date` availability arrays, not only scheduled timestamps.
-   - Confirm no database migration is needed.
-
-## Technical details
-- **Primary file:** `src/pages/DispatchRoutesPage.tsx`
-- **Data model change:** create a derived `DispatchJob[]` structure with fields like `key`, `orderId`, `type`, `dateMatchedBy`, `lat`, `lon`, `label`, `address`, `isAssigned`, `isComplete`.
-- **Date matching rules:**
-  - pickup job matches selected date if `scheduled_pickup_date` is that date, or if unscheduled and `pickup_date` contains that date.
-  - delivery job matches selected date if `scheduled_delivery_date` is that date, or if unscheduled and `delivery_date` contains that date.
-- **Assignment actions:**
-  - new route → insert into `dispatch_routes`, then insert ordered rows into `dispatch_route_stops`
-  - existing route → fetch current max sequence, append only non-duplicate `(order_id, stop_type)` rows
-- **No schema changes planned.**
+- No database/schema changes. `dispatch_routes` already stores `total_distance_km` and `total_duration_min`; `dispatch_route_stops` already stores `lat`, `lon`, `sequence`, `stop_type`, `address`.
+- Depot constants: `lat: 52.4690197, lon: -1.8757663`, label "Depot · B10 0AD".
+- Duration formatting helper: `${Math.floor(min/60)}h ${Math.round(min%60)}m` (fallback to "—" when null).
+- Polyline colours: cycle `["#6366f1","#0ea5e9","#10b981","#f97316","#ec4899","#a855f7"]`.
+- No new dependencies.
