@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 const SCRIPT_ID = "google-maps-js";
 let loadPromise: Promise<any> | null = null;
 
-export function loadGoogleMaps(libraries: string[] = ["drawing", "geometry"]): Promise<any> {
+export function loadGoogleMaps(libraries: string[] = ["geometry"]): Promise<any> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("window not available"));
   }
@@ -36,7 +36,7 @@ export function loadGoogleMaps(libraries: string[] = ["drawing", "geometry"]): P
   return loadPromise;
 }
 
-export function useGoogleMaps(libraries: string[] = ["drawing", "geometry"]) {
+export function useGoogleMaps(libraries: string[] = ["geometry"]) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
