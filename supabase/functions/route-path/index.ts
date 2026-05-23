@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'X-Connection-Api-Key': GOOGLE_MAPS_API_KEY,
         'Content-Type': 'application/json',
-        'X-Goog-FieldMask': 'routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration',
+        'X-Goog-FieldMask': 'routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration,routes.legs.duration',
       },
       body: JSON.stringify(reqBody),
     });
@@ -67,12 +67,20 @@ Deno.serve(async (req) => {
     }
 
     const durSec = typeof route.duration === 'string' ? parseInt(route.duration) : 0;
+    const legDurationsSec: number[] = Array.isArray(route.legs)
+      ? route.legs.map((l: any) => {
+          const d = typeof l?.duration === 'string' ? parseInt(l.duration) : 0;
+          return Number.isFinite(d) ? d : 0;
+        })
+      : [];
 
     return new Response(JSON.stringify({
       encodedPolyline: route.polyline.encodedPolyline,
       distance_m: route.distanceMeters ?? 0,
       duration_s: durSec,
+      legDurationsSec,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as any)?.message ?? e) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

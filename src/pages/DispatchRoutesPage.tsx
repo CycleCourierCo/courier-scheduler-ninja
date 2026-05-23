@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed, Pencil } from "lucide-react";
+import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed, Pencil, RefreshCw } from "lucide-react";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -166,13 +166,17 @@ export default function DispatchRoutesPage() {
   const projectionOverlayRef = useRef<any>(null);
   const routePolylinesRef = useRef<Record<string, any>>({});
   const routeStopMarkersRef = useRef<Record<string, any[]>>({});
-  const routePathCacheRef = useRef<Record<string, { sig: string; path: any[] }>>({});
+  const routePathCacheRef = useRef<Record<string, { sig: string; path: any[]; legDurationsSec: number[] }>>({});
   const depotMarkerRef = useRef<any>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reoptimiseTarget, setReoptimiseTarget] = useState<{ id: string; name: string } | null>(null);
   const [routeMutating, setRouteMutating] = useState(false);
+  const [startTime, setStartTime] = useState<string>("08:00");
+  const [, setEtaTick] = useState(0);
+
 
   const cleanupRouteFromMap = (routeId: string) => {
     const pl = routePolylinesRef.current[routeId];
@@ -219,6 +223,61 @@ export default function DispatchRoutesPage() {
       toast({ title: "Delete failed", description: e?.message ?? String(e), variant: "destructive" });
     } finally { setRouteMutating(false); }
   };
+
+  const handleReoptimiseRoute = async () => {
+    if (!reoptimiseTarget) return;
+    const route = (routesForDate.data ?? []).find((r: any) => r.id === reoptimiseTarget.id);
+    if (!route) { setReoptimiseTarget(null); return; }
+    const stops = (route.stops ?? [])
+      .filter((s: any) => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lon)))
+      .map((s: any) => ({ id: s.id, lat: Number(s.lat), lon: Number(s.lon) }));
+    if (stops.length < 2) {
+      toast({ title: "Need at least 2 stops with coordinates", variant: "destructive" });
+      setReoptimiseTarget(null);
+      return;
+    }
+    setRouteMutating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("optimise-route", {
+        body: {
+          origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+          stops,
+        },
+      });
+      if (error) throw error;
+      const seq: { stop_id: string; sequence: number }[] = data?.sequence ?? [];
+      if (seq.length === 0) throw new Error("No sequence returned");
+
+      const sb = supabase as any;
+      // Two-phase update to avoid unique conflicts on (route_id, sequence) if any
+      const tempBase = 10000;
+      for (const s of seq) {
+        const { error: e1 } = await sb.from("dispatch_route_stops")
+          .update({ sequence: tempBase + s.sequence })
+          .eq("id", s.stop_id);
+        if (e1) throw e1;
+      }
+      for (const s of seq) {
+        const { error: e2 } = await sb.from("dispatch_route_stops")
+          .update({ sequence: s.sequence })
+          .eq("id", s.stop_id);
+        if (e2) throw e2;
+      }
+      await sb.from("dispatch_routes").update({
+        total_distance_km: data.total_distance_km ?? null,
+        total_duration_min: data.total_duration_min ?? null,
+        optimised_at: new Date().toISOString(),
+      }).eq("id", reoptimiseTarget.id);
+
+      delete routePathCacheRef.current[reoptimiseTarget.id];
+      toast({ title: "Route reoptimised", description: `${seq.length} stops · ${Number(data.total_distance_km ?? 0).toFixed(1)} km` });
+      setReoptimiseTarget(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Reoptimise failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setRouteMutating(false); }
+  };
+
 
   const ordersQuery = useQuery({ queryKey: ["dispatch-orders-all"], queryFn: getOrders });
 
@@ -517,11 +576,14 @@ export default function DispatchRoutesPage() {
             if (error || !data?.encodedPolyline) return;
             const decoded = g.maps.geometry?.encoding?.decodePath(data.encodedPolyline);
             if (!decoded || decoded.length === 0) return;
-            routePathCacheRef.current[r.id] = { sig, path: decoded };
+            const legs: number[] = Array.isArray(data.legDurationsSec) ? data.legDurationsSec : [];
+            routePathCacheRef.current[r.id] = { sig, path: decoded, legDurationsSec: legs };
+            setEtaTick((t) => t + 1);
             // Only apply if still visible
             if (routePolylinesRef.current[r.id]) {
               routePolylinesRef.current[r.id].setOptions({ path: decoded, strokeColor: color });
             }
+
           } catch (e) {
             console.warn("route-path fetch failed", e);
           }
@@ -853,15 +915,50 @@ export default function DispatchRoutesPage() {
 
               {(routesForDate.data ?? []).length > 0 && (
                 <div className="mt-4 pt-3 border-t space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold text-sm">Routes on {routeDate}</div>
-                    <Badge variant="secondary">{(routesForDate.data ?? []).length}</Badge>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] text-muted-foreground">Start</label>
+                      <Input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="h-7 w-[90px] text-xs"
+                      />
+                      <Badge variant="secondary">{(routesForDate.data ?? []).length}</Badge>
+                    </div>
                   </div>
                   {(routesForDate.data ?? []).map((r: any, idx: number) => {
                     const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
                     const hidden = !!hiddenRoutes[r.id];
                     const driver = (drivers.data ?? []).find((d: any) => d.id === r.driver_id);
                     const stopCount = (r.stops ?? []).length;
+
+                    // Compute ETA per stop using cached legDurationsSec from route-path
+                    const legs = routePathCacheRef.current[r.id]?.legDurationsSec ?? [];
+                    const etaBySeq: Record<number, string> = {};
+                    if (legs.length >= stopCount) {
+                      const [sh, sm] = (startTime || "08:00").split(":").map((x) => parseInt(x) || 0);
+                      let cur = new Date(2024, 0, 1, sh, sm, 0, 0).getTime();
+                      const SERVICE_MIN = 15;
+                      const round5 = (t: number) => {
+                        const d = new Date(t);
+                        const ms = 5 * 60 * 1000;
+                        const r2 = Math.ceil(d.getTime() / ms) * ms;
+                        return r2;
+                      };
+                      const stopsSorted = [...(r.stops ?? [])].sort((a: any, b: any) => Number(a.sequence) - Number(b.sequence));
+                      for (let i = 0; i < stopsSorted.length; i++) {
+                        cur += (legs[i] ?? 0) * 1000;
+                        cur = round5(cur);
+                        const d = new Date(cur);
+                        const hh = String(d.getHours()).padStart(2, "0");
+                        const mm = String(d.getMinutes()).padStart(2, "0");
+                        etaBySeq[Number(stopsSorted[i].sequence)] = `${hh}:${mm}`;
+                        cur += SERVICE_MIN * 60 * 1000;
+                      }
+                    }
+
                     return (
                       <div key={r.id} className="border rounded p-2 text-xs space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
                         <div className="flex items-center justify-between gap-2">
@@ -872,6 +969,13 @@ export default function DispatchRoutesPage() {
                               onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
                             >
                               {hidden ? "Show" : "Hide"}
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-6 w-6 p-0"
+                              title="Reoptimise"
+                              onClick={() => setReoptimiseTarget({ id: r.id, name: r.name })}
+                            >
+                              <RefreshCw className="h-3 w-3" />
                             </Button>
                             <Button
                               size="sm" variant="ghost" className="h-6 w-6 p-0"
@@ -901,12 +1005,10 @@ export default function DispatchRoutesPage() {
                         <details className="text-[11px]">
                           <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
                           <div className="mt-1 space-y-0.5 pl-1">
-                            <div className="text-muted-foreground">0. Depot · B10 0AD</div>
+                            <div className="text-muted-foreground">0. Depot · B10 0AD · {startTime}</div>
                             {(r.stops ?? []).map((s: any) => {
-                              const tsRaw = s.timeslot ? String(s.timeslot).trim() : "";
-                              const tsLabel = tsRaw
-                                ? (/^\d{1,2}:\d{2}$/.test(tsRaw) ? formatTimeslotWindow(tsRaw) : tsRaw)
-                                : "";
+                              const eta = etaBySeq[Number(s.sequence)];
+                              const tsLabel = eta ? formatTimeslotWindow(eta) : "";
                               return (
                                 <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
                                   <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
@@ -926,6 +1028,7 @@ export default function DispatchRoutesPage() {
                       </div>
                     );
                   })}
+
                 </div>
               )}
             </ScrollArea>
@@ -979,6 +1082,23 @@ export default function DispatchRoutesPage() {
             <AlertDialogCancel disabled={routeMutating}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteRoute} disabled={routeMutating}>
               {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!reoptimiseTarget} onOpenChange={(o) => { if (!o) setReoptimiseTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reoptimise this route?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will recompute the best stop order for "{reoptimiseTarget?.name}" using Google Routes. The current sequence will be overwritten.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={routeMutating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReoptimiseRoute} disabled={routeMutating}>
+              {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Reoptimise
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
