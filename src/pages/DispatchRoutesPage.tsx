@@ -947,6 +947,42 @@ export default function DispatchRoutesPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!renameTarget} onOpenChange={(o) => { if (!o) setRenameTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Rename route</DialogTitle></DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleRenameRoute(); }}
+            placeholder="Route name"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+            <Button onClick={handleRenameRoute} disabled={routeMutating}>
+              {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete route?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.name}" and all its stops. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={routeMutating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteRoute} disabled={routeMutating}>
+              {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
