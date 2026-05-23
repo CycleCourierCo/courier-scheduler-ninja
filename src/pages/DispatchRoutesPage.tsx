@@ -383,6 +383,61 @@ export default function DispatchRoutesPage() {
     });
   }, [sequence, ready, pinsByKey]);
 
+  // Saved routes polylines (depot -> stops -> depot)
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    const g = (window as any).google;
+    const routes = routesForDate.data ?? [];
+    const visibleIds = new Set(routes.filter((r: any) => !hiddenRoutes[r.id]).map((r: any) => r.id));
+
+    // Remove stale
+    for (const id of Object.keys(routePolylinesRef.current)) {
+      if (!visibleIds.has(id)) {
+        routePolylinesRef.current[id].setMap(null);
+        delete routePolylinesRef.current[id];
+      }
+    }
+
+    let anyVisible = false;
+    routes.forEach((r: any, idx: number) => {
+      if (!visibleIds.has(r.id)) return;
+      const stops = (r.stops ?? []).filter((s: any) => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lon)));
+      if (stops.length === 0) return;
+      anyVisible = true;
+      const depot = { lat: DEPOT_LOCATION.lat, lng: DEPOT_LOCATION.lon };
+      const path = [depot, ...stops.map((s: any) => ({ lat: Number(s.lat), lng: Number(s.lon) })), depot];
+      const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+      if (routePolylinesRef.current[r.id]) {
+        routePolylinesRef.current[r.id].setOptions({ path, strokeColor: color });
+      } else {
+        routePolylinesRef.current[r.id] = new g.maps.Polyline({
+          map: mapRef.current, path, geodesic: true, strokeColor: color, strokeOpacity: 0.85, strokeWeight: 4,
+        });
+      }
+    });
+
+    // Depot marker
+    if (anyVisible) {
+      if (!depotMarkerRef.current) {
+        depotMarkerRef.current = new g.maps.Marker({
+          map: mapRef.current,
+          position: { lat: DEPOT_LOCATION.lat, lng: DEPOT_LOCATION.lon },
+          title: "Depot · B10 0AD",
+          icon: {
+            path: g.maps.SymbolPath.CIRCLE,
+            fillColor: "#111827", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 10,
+          },
+          zIndex: 9999,
+        });
+      }
+    } else if (depotMarkerRef.current) {
+      depotMarkerRef.current.setMap(null);
+      depotMarkerRef.current = null;
+    }
+  }, [routesForDate.data, hiddenRoutes, ready]);
+
+
+
   const selectedPins = pins.filter((p) => selected[p.key]);
 
   const handleOptimise = async () => {
