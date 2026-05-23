@@ -31,14 +31,16 @@ type Pin = {
 function pickPins(orders: Order[]): Pin[] {
   const pins: Pin[] = [];
   for (const o of orders) {
-    const senderAny = (o as any).sender ?? {};
-    const receiverAny = (o as any).receiver ?? {};
+    const senderAny: any = (o as any).sender ?? {};
+    const receiverAny: any = (o as any).receiver ?? {};
     const sLat = senderAny.lat ?? senderAny.latitude;
     const sLon = senderAny.lon ?? senderAny.longitude;
     const rLat = receiverAny.lat ?? receiverAny.latitude;
     const rLon = receiverAny.lon ?? receiverAny.longitude;
     const tn = o.trackingNumber || o.id.slice(0, 6);
-    if (typeof sLat === "number" && typeof sLon === "number" && !o.orderCollected) {
+    const collected = (o as any).order_collected ?? (o as any).orderCollected ?? false;
+    const delivered = (o as any).order_delivered ?? (o as any).orderDelivered ?? false;
+    if (typeof sLat === "number" && typeof sLon === "number" && !collected) {
       pins.push({
         key: `${o.id}:pickup`,
         orderId: o.id,
@@ -50,7 +52,7 @@ function pickPins(orders: Order[]): Pin[] {
           .filter(Boolean).join(", "),
       });
     }
-    if (typeof rLat === "number" && typeof rLon === "number" && !o.orderDelivered) {
+    if (typeof rLat === "number" && typeof rLon === "number" && !delivered) {
       pins.push({
         key: `${o.id}:delivery`,
         orderId: o.id,
