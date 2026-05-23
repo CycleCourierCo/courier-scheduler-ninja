@@ -390,7 +390,10 @@ export default function DispatchRoutesPage() {
     setOptimising(true);
     try {
       const { data, error } = await supabase.functions.invoke("optimise-route", {
-        body: { stops: selectedPins.map((p) => ({ id: p.key, lat: p.lat, lon: p.lon })) },
+        body: {
+          origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+          stops: selectedPins.map((p) => ({ id: p.key, lat: p.lat, lon: p.lon })),
+        },
       });
       if (error) throw error;
       const seq: { stop_id: string; sequence: number }[] = data.sequence ?? [];
