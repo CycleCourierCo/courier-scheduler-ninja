@@ -915,15 +915,50 @@ export default function DispatchRoutesPage() {
 
               {(routesForDate.data ?? []).length > 0 && (
                 <div className="mt-4 pt-3 border-t space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold text-sm">Routes on {routeDate}</div>
-                    <Badge variant="secondary">{(routesForDate.data ?? []).length}</Badge>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] text-muted-foreground">Start</label>
+                      <Input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="h-7 w-[90px] text-xs"
+                      />
+                      <Badge variant="secondary">{(routesForDate.data ?? []).length}</Badge>
+                    </div>
                   </div>
                   {(routesForDate.data ?? []).map((r: any, idx: number) => {
                     const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
                     const hidden = !!hiddenRoutes[r.id];
                     const driver = (drivers.data ?? []).find((d: any) => d.id === r.driver_id);
                     const stopCount = (r.stops ?? []).length;
+
+                    // Compute ETA per stop using cached legDurationsSec from route-path
+                    const legs = routePathCacheRef.current[r.id]?.legDurationsSec ?? [];
+                    const etaBySeq: Record<number, string> = {};
+                    if (legs.length >= stopCount) {
+                      const [sh, sm] = (startTime || "08:00").split(":").map((x) => parseInt(x) || 0);
+                      let cur = new Date(2024, 0, 1, sh, sm, 0, 0).getTime();
+                      const SERVICE_MIN = 15;
+                      const round5 = (t: number) => {
+                        const d = new Date(t);
+                        const ms = 5 * 60 * 1000;
+                        const r2 = Math.ceil(d.getTime() / ms) * ms;
+                        return r2;
+                      };
+                      const stopsSorted = [...(r.stops ?? [])].sort((a: any, b: any) => Number(a.sequence) - Number(b.sequence));
+                      for (let i = 0; i < stopsSorted.length; i++) {
+                        cur += (legs[i] ?? 0) * 1000;
+                        cur = round5(cur);
+                        const d = new Date(cur);
+                        const hh = String(d.getHours()).padStart(2, "0");
+                        const mm = String(d.getMinutes()).padStart(2, "0");
+                        etaBySeq[Number(stopsSorted[i].sequence)] = `${hh}:${mm}`;
+                        cur += SERVICE_MIN * 60 * 1000;
+                      }
+                    }
+
                     return (
                       <div key={r.id} className="border rounded p-2 text-xs space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
                         <div className="flex items-center justify-between gap-2">
@@ -934,6 +969,13 @@ export default function DispatchRoutesPage() {
                               onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
                             >
                               {hidden ? "Show" : "Hide"}
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-6 w-6 p-0"
+                              title="Reoptimise"
+                              onClick={() => setReoptimiseTarget({ id: r.id, name: r.name })}
+                            >
+                              <RefreshCw className="h-3 w-3" />
                             </Button>
                             <Button
                               size="sm" variant="ghost" className="h-6 w-6 p-0"
@@ -963,12 +1005,10 @@ export default function DispatchRoutesPage() {
                         <details className="text-[11px]">
                           <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
                           <div className="mt-1 space-y-0.5 pl-1">
-                            <div className="text-muted-foreground">0. Depot · B10 0AD</div>
+                            <div className="text-muted-foreground">0. Depot · B10 0AD · {startTime}</div>
                             {(r.stops ?? []).map((s: any) => {
-                              const tsRaw = s.timeslot ? String(s.timeslot).trim() : "";
-                              const tsLabel = tsRaw
-                                ? (/^\d{1,2}:\d{2}$/.test(tsRaw) ? formatTimeslotWindow(tsRaw) : tsRaw)
-                                : "";
+                              const eta = etaBySeq[Number(s.sequence)];
+                              const tsLabel = eta ? formatTimeslotWindow(eta) : "";
                               return (
                                 <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
                                   <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
@@ -988,6 +1028,7 @@ export default function DispatchRoutesPage() {
                       </div>
                     );
                   })}
+
                 </div>
               )}
             </ScrollArea>
