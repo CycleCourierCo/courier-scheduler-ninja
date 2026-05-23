@@ -172,6 +172,18 @@ export default function DispatchRoutesPage() {
     },
   });
 
+  const routesForDate = useQuery({
+    queryKey: ["dispatch-routes-for-date", routeDate],
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data } = await sb.from("dispatch_routes")
+        .select("id, name, driver_id, status")
+        .eq("route_date", routeDate)
+        .order("created_at", { ascending: true });
+      return (data ?? []) as any[];
+    },
+  });
+
   const assignedKeys = useMemo(() => {
     const s = new Set<string>();
     for (const r of existingStops.data ?? []) s.add(`${r.order_id}:${r.stop_type}`);
