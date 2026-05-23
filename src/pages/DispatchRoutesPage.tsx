@@ -2,7 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed } from "lucide-react";
+import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed, Pencil } from "lucide-react";
+import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -161,6 +169,56 @@ export default function DispatchRoutesPage() {
   const routePathCacheRef = useRef<Record<string, { sig: string; path: any[] }>>({});
   const depotMarkerRef = useRef<any>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [routeMutating, setRouteMutating] = useState(false);
+
+  const cleanupRouteFromMap = (routeId: string) => {
+    const pl = routePolylinesRef.current[routeId];
+    if (pl) { try { pl.setMap(null); } catch {} delete routePolylinesRef.current[routeId]; }
+    const markers = routeStopMarkersRef.current[routeId] ?? [];
+    for (const m of markers) { try { m.setMap(null); } catch {} }
+    delete routeStopMarkersRef.current[routeId];
+    delete routePathCacheRef.current[routeId];
+    setHiddenRoutes((p) => { const n = { ...p }; delete n[routeId]; return n; });
+  };
+
+  const handleRenameRoute = async () => {
+    if (!renameTarget) return;
+    const name = renameValue.trim();
+    if (!name) { toast({ title: "Name required", variant: "destructive" }); return; }
+    setRouteMutating(true);
+    try {
+      const { error } = await (supabase as any).from("dispatch_routes")
+        .update({ name }).eq("id", renameTarget.id);
+      if (error) throw error;
+      toast({ title: "Route renamed" });
+      setRenameTarget(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Rename failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setRouteMutating(false); }
+  };
+
+  const handleDeleteRoute = async () => {
+    if (!deleteTarget) return;
+    setRouteMutating(true);
+    try {
+      const sb = supabase as any;
+      const { error: sErr } = await sb.from("dispatch_route_stops").delete().eq("route_id", deleteTarget.id);
+      if (sErr) throw sErr;
+      const { error: rErr } = await sb.from("dispatch_routes").delete().eq("id", deleteTarget.id);
+      if (rErr) throw rErr;
+      cleanupRouteFromMap(deleteTarget.id);
+      toast({ title: "Route deleted" });
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
+      qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Delete failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setRouteMutating(false); }
+  };
 
   const ordersQuery = useQuery({ queryKey: ["dispatch-orders-all"], queryFn: getOrders });
 
@@ -202,9 +260,22 @@ export default function DispatchRoutesPage() {
         .select("route_id, order_id, stop_type, sequence, address, lat, lon")
         .in("route_id", ids)
         .order("sequence", { ascending: true });
+      const stopList = (stops ?? []) as any[];
+      const orderIds = Array.from(new Set(stopList.map((s) => s.order_id).filter(Boolean)));
+      const tsByOrder: Record<string, { pickup?: string | null; delivery?: string | null }> = {};
+      if (orderIds.length) {
+        const { data: ords } = await sb.from("orders")
+          .select("id, pickup_timeslot, delivery_timeslot")
+          .in("id", orderIds);
+        for (const o of (ords ?? [])) {
+          tsByOrder[o.id] = { pickup: o.pickup_timeslot, delivery: o.delivery_timeslot };
+        }
+      }
       const byRoute: Record<string, any[]> = {};
-      for (const s of (stops ?? [])) {
-        (byRoute[s.route_id] ||= []).push(s);
+      for (const s of stopList) {
+        const ts = tsByOrder[s.order_id];
+        const timeslot = ts ? (s.stop_type === "pickup" ? ts.pickup : ts.delivery) : null;
+        (byRoute[s.route_id] ||= []).push({ ...s, timeslot });
       }
       return list.map((r) => ({ ...r, stops: byRoute[r.id] ?? [] }));
     },
@@ -795,12 +866,28 @@ export default function DispatchRoutesPage() {
                       <div key={r.id} className="border rounded p-2 text-xs space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium truncate">{r.name}</div>
-                          <Button
-                            size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
-                            onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
-                          >
-                            {hidden ? "Show" : "Hide"}
-                          </Button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
+                              onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
+                            >
+                              {hidden ? "Show" : "Hide"}
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-6 w-6 p-0"
+                              title="Rename"
+                              onClick={() => { setRenameTarget({ id: r.id, name: r.name }); setRenameValue(r.name ?? ""); }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                              title="Delete"
+                              onClick={() => setDeleteTarget({ id: r.id, name: r.name })}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="text-muted-foreground">
                           {driver ? (driver.name ?? driver.email) : "Unassigned"}
@@ -815,15 +902,24 @@ export default function DispatchRoutesPage() {
                           <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
                           <div className="mt-1 space-y-0.5 pl-1">
                             <div className="text-muted-foreground">0. Depot · B10 0AD</div>
-                            {(r.stops ?? []).map((s: any) => (
-                              <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
-                                <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
-                                <span className={s.stop_type === "pickup" ? "text-blue-600" : "text-green-600"}>
-                                  {s.stop_type === "pickup" ? "P" : "D"}
-                                </span>
-                                <span className="truncate flex-1">{s.address}</span>
-                              </div>
-                            ))}
+                            {(r.stops ?? []).map((s: any) => {
+                              const tsRaw = s.timeslot ? String(s.timeslot).trim() : "";
+                              const tsLabel = tsRaw
+                                ? (/^\d{1,2}:\d{2}$/.test(tsRaw) ? formatTimeslotWindow(tsRaw) : tsRaw)
+                                : "";
+                              return (
+                                <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
+                                  <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
+                                  <span className={s.stop_type === "pickup" ? "text-blue-600" : "text-green-600"}>
+                                    {s.stop_type === "pickup" ? "P" : "D"}
+                                  </span>
+                                  <span className="truncate flex-1">{s.address}</span>
+                                  {tsLabel && (
+                                    <span className="text-muted-foreground whitespace-nowrap">{tsLabel}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                             <div className="text-muted-foreground">{stopCount + 1}. Depot · B10 0AD</div>
                           </div>
                         </details>
@@ -851,6 +947,42 @@ export default function DispatchRoutesPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!renameTarget} onOpenChange={(o) => { if (!o) setRenameTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Rename route</DialogTitle></DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleRenameRoute(); }}
+            placeholder="Route name"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+            <Button onClick={handleRenameRoute} disabled={routeMutating}>
+              {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete route?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.name}" and all its stops. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={routeMutating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteRoute} disabled={routeMutating}>
+              {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
