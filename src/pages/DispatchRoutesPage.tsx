@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed, Pencil } from "lucide-react";
+import { Loader2, Wand2, Trash2, Save, MapPin, SquareDashed, Pencil, RefreshCw } from "lucide-react";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
