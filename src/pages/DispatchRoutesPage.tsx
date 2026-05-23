@@ -391,8 +391,40 @@ export default function DispatchRoutesPage() {
       toast({ title: "Route saved", description: `${seq.length} stops` });
       setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
       toast({ title: "Save failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const handleAddToExisting = async () => {
+    if (!targetRouteId) { toast({ title: "Pick a route to add to", variant: "destructive" }); return; }
+    if (selectedPins.length < 1) { toast({ title: "Select at least 1 stop", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const sb = supabase as any;
+      const { data: existing } = await sb
+        .from("dispatch_route_stops")
+        .select("sequence")
+        .eq("route_id", targetRouteId)
+        .order("sequence", { ascending: false })
+        .limit(1);
+      const start = ((existing?.[0]?.sequence as number) ?? 0) + 1;
+      const seq = sequence ?? selectedPins.map((p) => p.key);
+      const payload = seq.map((key, i) => {
+        const p = pinsByKey[key];
+        return {
+          route_id: targetRouteId, order_id: p.orderId, stop_type: p.type,
+          sequence: start + i, address: p.address, lat: p.lat, lon: p.lon,
+        };
+      });
+      const { error } = await sb.from("dispatch_route_stops").insert(payload);
+      if (error) throw error;
+      toast({ title: "Added to route", description: `${payload.length} stops appended` });
+      setSelected({}); setSequence(null); setTotals(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Add failed", description: e?.message ?? String(e), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
