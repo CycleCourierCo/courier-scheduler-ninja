@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 const SCRIPT_ID = "google-maps-js";
-let loadPromise: Promise<typeof google> | null = null;
+let loadPromise: Promise<any> | null = null;
 
 export function loadGoogleMaps(libraries: string[] = ["drawing", "geometry"]): Promise<any> {
   if (typeof window === "undefined") {
