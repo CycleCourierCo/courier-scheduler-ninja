@@ -866,12 +866,28 @@ export default function DispatchRoutesPage() {
                       <div key={r.id} className="border rounded p-2 text-xs space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium truncate">{r.name}</div>
-                          <Button
-                            size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
-                            onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
-                          >
-                            {hidden ? "Show" : "Hide"}
-                          </Button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
+                              onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
+                            >
+                              {hidden ? "Show" : "Hide"}
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-6 w-6 p-0"
+                              title="Rename"
+                              onClick={() => { setRenameTarget({ id: r.id, name: r.name }); setRenameValue(r.name ?? ""); }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                              title="Delete"
+                              onClick={() => setDeleteTarget({ id: r.id, name: r.name })}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="text-muted-foreground">
                           {driver ? (driver.name ?? driver.email) : "Unassigned"}
@@ -886,15 +902,24 @@ export default function DispatchRoutesPage() {
                           <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
                           <div className="mt-1 space-y-0.5 pl-1">
                             <div className="text-muted-foreground">0. Depot · B10 0AD</div>
-                            {(r.stops ?? []).map((s: any) => (
-                              <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
-                                <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
-                                <span className={s.stop_type === "pickup" ? "text-blue-600" : "text-green-600"}>
-                                  {s.stop_type === "pickup" ? "P" : "D"}
-                                </span>
-                                <span className="truncate flex-1">{s.address}</span>
-                              </div>
-                            ))}
+                            {(r.stops ?? []).map((s: any) => {
+                              const tsRaw = s.timeslot ? String(s.timeslot).trim() : "";
+                              const tsLabel = tsRaw
+                                ? (/^\d{1,2}:\d{2}$/.test(tsRaw) ? formatTimeslotWindow(tsRaw) : tsRaw)
+                                : "";
+                              return (
+                                <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
+                                  <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
+                                  <span className={s.stop_type === "pickup" ? "text-blue-600" : "text-green-600"}>
+                                    {s.stop_type === "pickup" ? "P" : "D"}
+                                  </span>
+                                  <span className="truncate flex-1">{s.address}</span>
+                                  {tsLabel && (
+                                    <span className="text-muted-foreground whitespace-nowrap">{tsLabel}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                             <div className="text-muted-foreground">{stopCount + 1}. Depot · B10 0AD</div>
                           </div>
                         </details>
