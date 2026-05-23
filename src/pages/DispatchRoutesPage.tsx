@@ -316,7 +316,7 @@ export default function DispatchRoutesPage() {
       if (list.length === 0) return list;
       const ids = list.map((r) => r.id);
       const { data: stops } = await sb.from("dispatch_route_stops")
-        .select("route_id, order_id, stop_type, sequence, address, lat, lon")
+        .select("id, route_id, order_id, stop_type, sequence, address, lat, lon")
         .in("route_id", ids)
         .order("sequence", { ascending: true });
       const stopList = (stops ?? []) as any[];
