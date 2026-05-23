@@ -489,14 +489,30 @@ export default function DispatchRoutesPage() {
     setSaving(true);
     try {
       const { data: user } = await supabase.auth.getUser();
-      const seq = sequence ?? selectedPins.map((p) => p.key);
+      // Auto-optimise from depot if user didn't press Optimise
+      let seq = sequence ?? selectedPins.map((p) => p.key);
+      let km = totals?.km ?? null;
+      let min = totals?.min ?? null;
+      if (!sequence && selectedPins.length >= 2) {
+        const { data: opt, error: optErr } = await supabase.functions.invoke("optimise-route", {
+          body: {
+            origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+            stops: selectedPins.map((p) => ({ id: p.key, lat: p.lat, lon: p.lon })),
+          },
+        });
+        if (optErr) throw optErr;
+        const optSeq: { stop_id: string; sequence: number }[] = opt?.sequence ?? [];
+        if (optSeq.length) seq = optSeq.map((s) => s.stop_id);
+        km = opt?.total_distance_km ?? null;
+        min = opt?.total_duration_min ?? null;
+      }
       const { data: route, error: rErr } = await supabase
         .from("dispatch_routes" as any)
         .insert({
           name: routeName || `Route ${routeDate}`, route_date: routeDate,
           driver_id: driverId || null, status: driverId ? "assigned" : "draft",
-          total_distance_km: totals?.km ?? null, total_duration_min: totals?.min ?? null,
-          optimised_at: totals ? new Date().toISOString() : null, created_by: user.user?.id ?? null,
+          total_distance_km: km, total_duration_min: min,
+          optimised_at: km != null ? new Date().toISOString() : null, created_by: user.user?.id ?? null,
         }).select("id").single();
       if (rErr) throw rErr;
       const stopsPayload = seq.map((key, i) => {
