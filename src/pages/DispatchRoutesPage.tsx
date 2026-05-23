@@ -113,11 +113,11 @@ export default function DispatchRoutesPage() {
   const existingStops = useQuery({
     queryKey: ["dispatch-existing-stops", routeDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("dispatch_route_stops" as any)
-        .select("order_id, stop_type, route_id, dispatch_routes!inner(route_date)")
-        .eq("dispatch_routes.route_date" as any, routeDate);
-      if (error) return [] as any[];
+      const sb = supabase as any;
+      const { data: routes } = await sb.from("dispatch_routes").select("id").eq("route_date", routeDate);
+      const ids = (routes ?? []).map((r: any) => r.id);
+      if (ids.length === 0) return [] as any[];
+      const { data } = await sb.from("dispatch_route_stops").select("order_id, stop_type, route_id").in("route_id", ids);
       return (data ?? []) as any[];
     },
   });
