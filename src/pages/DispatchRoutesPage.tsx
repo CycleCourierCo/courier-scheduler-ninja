@@ -177,20 +177,10 @@ export default function DispatchRoutesPage() {
     return s;
   }, [existingStops.data]);
 
-  const dateOrders = useMemo(() => {
-    const all = ordersQuery.data ?? [];
-    return all.filter((o) => {
-      const p = (o as any).scheduled_pickup_date ?? o.scheduledPickupDate;
-      const d = (o as any).scheduled_delivery_date ?? o.scheduledDeliveryDate;
-      const inDate = (v: any) => {
-        if (!v) return false;
-        try { return format(new Date(v), "yyyy-MM-dd") === routeDate; } catch { return false; }
-      };
-      return inDate(p) || inDate(d);
-    });
-  }, [ordersQuery.data, routeDate]);
-
-  const { pins, stats } = useMemo(() => pickPins(dateOrders, assignedKeys), [dateOrders, assignedKeys]);
+  const { pins, stats } = useMemo(
+    () => pickPins(ordersQuery.data ?? [], assignedKeys, routeDate),
+    [ordersQuery.data, assignedKeys, routeDate]
+  );
   const pinsByKey = useMemo(() => Object.fromEntries(pins.map((p) => [p.key, p])), [pins]);
 
   // Init map
