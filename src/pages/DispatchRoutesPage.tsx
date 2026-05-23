@@ -391,11 +391,17 @@ export default function DispatchRoutesPage() {
     const routes = routesForDate.data ?? [];
     const visibleIds = new Set(routes.filter((r: any) => !hiddenRoutes[r.id]).map((r: any) => r.id));
 
-    // Remove stale
+    // Remove stale polylines + stop markers
     for (const id of Object.keys(routePolylinesRef.current)) {
       if (!visibleIds.has(id)) {
         routePolylinesRef.current[id].setMap(null);
         delete routePolylinesRef.current[id];
+      }
+    }
+    for (const id of Object.keys(routeStopMarkersRef.current)) {
+      if (!visibleIds.has(id)) {
+        for (const m of routeStopMarkersRef.current[id]) m.setMap(null);
+        delete routeStopMarkersRef.current[id];
       }
     }
 
@@ -415,6 +421,23 @@ export default function DispatchRoutesPage() {
           map: mapRef.current, path, geodesic: true, strokeColor: color, strokeOpacity: 0.85, strokeWeight: 4,
         });
       }
+
+      // Refresh stop markers (simpler than diffing per-stop)
+      const prev = routeStopMarkersRef.current[r.id];
+      if (prev) for (const m of prev) m.setMap(null);
+      routeStopMarkersRef.current[r.id] = stops.map((s: any) => {
+        return new g.maps.Marker({
+          map: mapRef.current,
+          position: { lat: Number(s.lat), lng: Number(s.lon) },
+          title: `${r.name} · ${s.sequence}. ${s.stop_type === "pickup" ? "Pick-up" : "Delivery"} · ${s.address ?? ""}`,
+          label: { text: String(s.sequence), color: "#fff", fontSize: "10px", fontWeight: "700" },
+          icon: {
+            path: g.maps.SymbolPath.CIRCLE,
+            fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 10,
+          },
+          zIndex: 500,
+        });
+      });
     });
 
     // Depot marker
