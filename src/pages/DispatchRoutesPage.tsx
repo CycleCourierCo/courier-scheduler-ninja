@@ -316,7 +316,7 @@ export default function DispatchRoutesPage() {
       if (list.length === 0) return list;
       const ids = list.map((r) => r.id);
       const { data: stops } = await sb.from("dispatch_route_stops")
-        .select("route_id, order_id, stop_type, sequence, address, lat, lon")
+        .select("id, route_id, order_id, stop_type, sequence, address, lat, lon")
         .in("route_id", ids)
         .order("sequence", { ascending: true });
       const stopList = (stops ?? []) as any[];
@@ -937,15 +937,14 @@ export default function DispatchRoutesPage() {
                     // Compute ETA per stop using cached legDurationsSec from route-path
                     const legs = routePathCacheRef.current[r.id]?.legDurationsSec ?? [];
                     const etaBySeq: Record<number, string> = {};
+                    let depotEta = "";
                     if (legs.length >= stopCount) {
                       const [sh, sm] = (startTime || "08:00").split(":").map((x) => parseInt(x) || 0);
                       let cur = new Date(2024, 0, 1, sh, sm, 0, 0).getTime();
                       const SERVICE_MIN = 15;
                       const round5 = (t: number) => {
-                        const d = new Date(t);
                         const ms = 5 * 60 * 1000;
-                        const r2 = Math.ceil(d.getTime() / ms) * ms;
-                        return r2;
+                        return Math.ceil(t / ms) * ms;
                       };
                       const stopsSorted = [...(r.stops ?? [])].sort((a: any, b: any) => Number(a.sequence) - Number(b.sequence));
                       for (let i = 0; i < stopsSorted.length; i++) {
@@ -956,6 +955,12 @@ export default function DispatchRoutesPage() {
                         const mm = String(d.getMinutes()).padStart(2, "0");
                         etaBySeq[Number(stopsSorted[i].sequence)] = `${hh}:${mm}`;
                         cur += SERVICE_MIN * 60 * 1000;
+                      }
+                      if (legs.length > stopCount) {
+                        cur += (legs[stopCount] ?? 0) * 1000;
+                        cur = round5(cur);
+                        const d = new Date(cur);
+                        depotEta = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
                       }
                     }
 
@@ -1001,6 +1006,7 @@ export default function DispatchRoutesPage() {
                           <span><b>{stopCount}</b> stops</span>
                           <span><b>{r.total_distance_km != null ? Number(r.total_distance_km).toFixed(1) : "—"}</b> km</span>
                           <span><b>{fmtDuration(r.total_duration_min)}</b></span>
+                          {depotEta && <span>Back at depot <b>{depotEta}</b></span>}
                         </div>
                         <details className="text-[11px]">
                           <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
@@ -1022,7 +1028,7 @@ export default function DispatchRoutesPage() {
                                 </div>
                               );
                             })}
-                            <div className="text-muted-foreground">{stopCount + 1}. Depot · B10 0AD</div>
+                            <div className="text-muted-foreground">{stopCount + 1}. Depot · B10 0AD{depotEta ? ` · ${depotEta}` : ""}</div>
                           </div>
                         </details>
                       </div>
