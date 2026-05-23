@@ -48,6 +48,7 @@ import VehicleManagement from "./pages/VehicleManagement";
 import ClaimsList from "./pages/ClaimsList";
 import NewClaim from "./pages/NewClaim";
 import ClaimDetail from "./pages/ClaimDetail";
+import DispatchOrdersPage from "./pages/DispatchOrdersPage";
 
 const queryClient = new QueryClient();
 
@@ -217,6 +218,11 @@ function App() {
               <Route path="/claims/:id" element={
                 <ProtectedRoute adminOnly={true}>
                   <ClaimDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/dispatch/orders" element={
+                <ProtectedRoute>
+                  <DispatchOrdersPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />
