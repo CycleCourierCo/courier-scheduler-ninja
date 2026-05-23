@@ -1086,6 +1086,23 @@ export default function DispatchRoutesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!reoptimiseTarget} onOpenChange={(o) => { if (!o) setReoptimiseTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reoptimise this route?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will recompute the best stop order for "{reoptimiseTarget?.name}" using Google Routes. The current sequence will be overwritten.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={routeMutating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReoptimiseRoute} disabled={routeMutating}>
+              {routeMutating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Reoptimise
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
