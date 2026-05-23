@@ -464,16 +464,32 @@ export default function DispatchRoutesPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 ml-auto items-end">
             <Link to="/dispatch/orders"><Button variant="outline">Orders</Button></Link>
-            <Button onClick={handleOptimise} disabled={optimising || selectedPins.length < 2}>
+            <Button onClick={handleOptimise} disabled={optimising || selectedPins.length < 2} variant="outline">
               {optimising ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
               Optimise
             </Button>
             <Button onClick={handleSave} disabled={saving || selectedPins.length < 1} variant="default">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save route
+              Create route
             </Button>
+            <div className="flex items-end gap-1">
+              <Select value={targetRouteId} onValueChange={setTargetRouteId}>
+                <SelectTrigger className="w-48"><SelectValue placeholder="Existing route…" /></SelectTrigger>
+                <SelectContent>
+                  {(routesForDate.data ?? []).length === 0 && (
+                    <div className="p-2 text-xs text-muted-foreground">No routes for {routeDate}</div>
+                  )}
+                  {(routesForDate.data ?? []).map((r: any) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleAddToExisting} disabled={saving || !targetRouteId || selectedPins.length < 1} variant="secondary">
+                Add to route
+              </Button>
+            </div>
           </div>
         </div>
 
