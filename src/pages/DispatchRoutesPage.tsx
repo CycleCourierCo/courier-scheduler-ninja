@@ -202,9 +202,22 @@ export default function DispatchRoutesPage() {
         .select("route_id, order_id, stop_type, sequence, address, lat, lon")
         .in("route_id", ids)
         .order("sequence", { ascending: true });
+      const stopList = (stops ?? []) as any[];
+      const orderIds = Array.from(new Set(stopList.map((s) => s.order_id).filter(Boolean)));
+      const tsByOrder: Record<string, { pickup?: string | null; delivery?: string | null }> = {};
+      if (orderIds.length) {
+        const { data: ords } = await sb.from("orders")
+          .select("id, pickup_timeslot, delivery_timeslot")
+          .in("id", orderIds);
+        for (const o of (ords ?? [])) {
+          tsByOrder[o.id] = { pickup: o.pickup_timeslot, delivery: o.delivery_timeslot };
+        }
+      }
       const byRoute: Record<string, any[]> = {};
-      for (const s of (stops ?? [])) {
-        (byRoute[s.route_id] ||= []).push(s);
+      for (const s of stopList) {
+        const ts = tsByOrder[s.order_id];
+        const timeslot = ts ? (s.stop_type === "pickup" ? ts.pickup : ts.delivery) : null;
+        (byRoute[s.route_id] ||= []).push({ ...s, timeslot });
       }
       return list.map((r) => ({ ...r, stops: byRoute[r.id] ?? [] }));
     },
