@@ -523,26 +523,73 @@ export default function DispatchRoutesPage() {
     setSaving(true);
     try {
       const sb = supabase as any;
-      const { data: existing } = await sb
+      // Fetch existing stops on the target route
+      const { data: existing, error: exErr } = await sb
         .from("dispatch_route_stops")
-        .select("sequence")
-        .eq("route_id", targetRouteId)
-        .order("sequence", { ascending: false })
-        .limit(1);
-      const start = ((existing?.[0]?.sequence as number) ?? 0) + 1;
-      const seq = sequence ?? selectedPins.map((p) => p.key);
-      const payload = seq.map((key, i) => {
-        const p = pinsByKey[key];
+        .select("order_id, stop_type, address, lat, lon")
+        .eq("route_id", targetRouteId);
+      if (exErr) throw exErr;
+
+      // Combine existing + newly selected (dedupe by order_id:stop_type)
+      type S = { order_id: string; stop_type: "pickup" | "delivery"; address: string | null; lat: number; lon: number };
+      const combinedMap = new Map<string, S>();
+      for (const s of (existing ?? []) as any[]) {
+        if (!Number.isFinite(Number(s.lat)) || !Number.isFinite(Number(s.lon))) continue;
+        combinedMap.set(`${s.order_id}:${s.stop_type}`, {
+          order_id: s.order_id, stop_type: s.stop_type, address: s.address,
+          lat: Number(s.lat), lon: Number(s.lon),
+        });
+      }
+      for (const p of selectedPins) {
+        combinedMap.set(p.key, {
+          order_id: p.orderId, stop_type: p.type, address: p.address, lat: p.lat, lon: p.lon,
+        });
+      }
+      const combined = Array.from(combinedMap.entries()).map(([key, s]) => ({ key, ...s }));
+
+      // Re-optimise the full combined route from depot
+      let orderedKeys = combined.map((c) => c.key);
+      let optKm: number | null = null;
+      let optMin: number | null = null;
+      if (combined.length >= 2) {
+        const { data: opt, error: optErr } = await supabase.functions.invoke("optimise-route", {
+          body: {
+            origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+            stops: combined.map((c) => ({ id: c.key, lat: c.lat, lon: c.lon })),
+          },
+        });
+        if (optErr) throw optErr;
+        const seq: { stop_id: string; sequence: number }[] = opt?.sequence ?? [];
+        if (seq.length) orderedKeys = seq.map((s) => s.stop_id);
+        optKm = opt?.total_distance_km ?? null;
+        optMin = opt?.total_duration_min ?? null;
+      }
+
+      const byKey = new Map(combined.map((c) => [c.key, c]));
+      const payload = orderedKeys.map((key, i) => {
+        const s = byKey.get(key)!;
         return {
-          route_id: targetRouteId, order_id: p.orderId, stop_type: p.type,
-          sequence: start + i, address: p.address, lat: p.lat, lon: p.lon,
+          route_id: targetRouteId, order_id: s.order_id, stop_type: s.stop_type,
+          sequence: i + 1, address: s.address, lat: s.lat, lon: s.lon,
         };
       });
-      const { error } = await sb.from("dispatch_route_stops").insert(payload);
-      if (error) throw error;
-      toast({ title: "Added to route", description: `${payload.length} stops appended` });
+
+      // Replace stops atomically-ish: delete then insert
+      const { error: dErr } = await sb.from("dispatch_route_stops").delete().eq("route_id", targetRouteId);
+      if (dErr) throw dErr;
+      const { error: iErr } = await sb.from("dispatch_route_stops").insert(payload);
+      if (iErr) throw iErr;
+
+      // Update route totals
+      await sb.from("dispatch_routes").update({
+        total_distance_km: optKm, total_duration_min: optMin,
+        optimised_at: optKm != null ? new Date().toISOString() : null,
+      }).eq("id", targetRouteId);
+
+      toast({ title: "Route re-optimised", description: `${payload.length} stops · ${optKm != null ? optKm.toFixed(1) + " km" : "—"}` });
       setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
       toast({ title: "Add failed", description: e?.message ?? String(e), variant: "destructive" });
     } finally { setSaving(false); }
