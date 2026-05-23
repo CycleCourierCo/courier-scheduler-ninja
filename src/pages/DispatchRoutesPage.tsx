@@ -166,13 +166,17 @@ export default function DispatchRoutesPage() {
   const projectionOverlayRef = useRef<any>(null);
   const routePolylinesRef = useRef<Record<string, any>>({});
   const routeStopMarkersRef = useRef<Record<string, any[]>>({});
-  const routePathCacheRef = useRef<Record<string, { sig: string; path: any[] }>>({});
+  const routePathCacheRef = useRef<Record<string, { sig: string; path: any[]; legDurationsSec: number[] }>>({});
   const depotMarkerRef = useRef<any>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reoptimiseTarget, setReoptimiseTarget] = useState<{ id: string; name: string } | null>(null);
   const [routeMutating, setRouteMutating] = useState(false);
+  const [startTime, setStartTime] = useState<string>("08:00");
+  const [, setEtaTick] = useState(0);
+
 
   const cleanupRouteFromMap = (routeId: string) => {
     const pl = routePolylinesRef.current[routeId];
