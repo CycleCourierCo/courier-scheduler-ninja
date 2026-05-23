@@ -186,13 +186,25 @@ export default function DispatchRoutesPage() {
     queryKey: ["dispatch-routes-for-date", routeDate],
     queryFn: async () => {
       const sb = supabase as any;
-      const { data } = await sb.from("dispatch_routes")
-        .select("id, name, driver_id, status")
+      const { data: routes } = await sb.from("dispatch_routes")
+        .select("id, name, driver_id, status, total_distance_km, total_duration_min")
         .eq("route_date", routeDate)
         .order("created_at", { ascending: true });
-      return (data ?? []) as any[];
+      const list = (routes ?? []) as any[];
+      if (list.length === 0) return list;
+      const ids = list.map((r) => r.id);
+      const { data: stops } = await sb.from("dispatch_route_stops")
+        .select("route_id, order_id, stop_type, sequence, address, lat, lon")
+        .in("route_id", ids)
+        .order("sequence", { ascending: true });
+      const byRoute: Record<string, any[]> = {};
+      for (const s of (stops ?? [])) {
+        (byRoute[s.route_id] ||= []).push(s);
+      }
+      return list.map((r) => ({ ...r, stops: byRoute[r.id] ?? [] }));
     },
   });
+
 
   const assignedKeys = useMemo(() => {
     const s = new Set<string>();
