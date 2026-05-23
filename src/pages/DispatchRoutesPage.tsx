@@ -224,6 +224,61 @@ export default function DispatchRoutesPage() {
     } finally { setRouteMutating(false); }
   };
 
+  const handleReoptimiseRoute = async () => {
+    if (!reoptimiseTarget) return;
+    const route = (routesForDate.data ?? []).find((r: any) => r.id === reoptimiseTarget.id);
+    if (!route) { setReoptimiseTarget(null); return; }
+    const stops = (route.stops ?? [])
+      .filter((s: any) => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lon)))
+      .map((s: any) => ({ id: s.id, lat: Number(s.lat), lon: Number(s.lon) }));
+    if (stops.length < 2) {
+      toast({ title: "Need at least 2 stops with coordinates", variant: "destructive" });
+      setReoptimiseTarget(null);
+      return;
+    }
+    setRouteMutating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("optimise-route", {
+        body: {
+          origin: { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon },
+          stops,
+        },
+      });
+      if (error) throw error;
+      const seq: { stop_id: string; sequence: number }[] = data?.sequence ?? [];
+      if (seq.length === 0) throw new Error("No sequence returned");
+
+      const sb = supabase as any;
+      // Two-phase update to avoid unique conflicts on (route_id, sequence) if any
+      const tempBase = 10000;
+      for (const s of seq) {
+        const { error: e1 } = await sb.from("dispatch_route_stops")
+          .update({ sequence: tempBase + s.sequence })
+          .eq("id", s.stop_id);
+        if (e1) throw e1;
+      }
+      for (const s of seq) {
+        const { error: e2 } = await sb.from("dispatch_route_stops")
+          .update({ sequence: s.sequence })
+          .eq("id", s.stop_id);
+        if (e2) throw e2;
+      }
+      await sb.from("dispatch_routes").update({
+        total_distance_km: data.total_distance_km ?? null,
+        total_duration_min: data.total_duration_min ?? null,
+        optimised_at: new Date().toISOString(),
+      }).eq("id", reoptimiseTarget.id);
+
+      delete routePathCacheRef.current[reoptimiseTarget.id];
+      toast({ title: "Route reoptimised", description: `${seq.length} stops · ${Number(data.total_distance_km ?? 0).toFixed(1)} km` });
+      setReoptimiseTarget(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Reoptimise failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setRouteMutating(false); }
+  };
+
+
   const ordersQuery = useQuery({ queryKey: ["dispatch-orders-all"], queryFn: getOrders });
 
   const drivers = useQuery({
