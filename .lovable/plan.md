@@ -1,33 +1,53 @@
 ## Goal
 
-On the Dispatch Routes page, in the "Routes on {date}" list:
+On the Dispatch Routes page, in each saved route card:
 
-1. Show the timeslot for each stop next to the address.
-2. Add **Rename** and **Delete** buttons to each saved route.
+1. Show a calculated timeslot (ETA window) next to each stop, using the same logic as the Job Scheduling Route Builder (cumulative travel time from depot + 15 min service per stop, rounded to the next 5 min).
+2. Add a **Reoptimise** button on each route.
 
-## 1. Per-stop timeslots
+## Why timeslots aren't showing today
 
-Timeslots live on the `orders` table (`pickup_timeslot`, `delivery_timeslot`) — not on `dispatch_route_stops`. They are matched by `(order_id, stop_type)`: `pickup` → `pickup_timeslot`, `delivery` → `delivery_timeslot`.
+The current code reads `orders.pickup_timeslot` / `orders.delivery_timeslot`, but those columns are NULL for these orders — they only get populated when a user explicitly sends timeslots from the Job Scheduling page. So nothing renders.
 
-Changes in `src/pages/DispatchRoutesPage.tsx`:
+The user wants the dispatch route to **compute** the timeslot the same way Job Scheduling does (see `RouteBuilder.calculateTimeslots` around line 1445): start from depot at a configurable start time, add Google travel time between consecutive stops, +15 min service per stop, round up to next 5 min, format as a 3-hour window (`formatTimeslotWindow`).
 
-- Extend the `routesForDate` query (around line 194) to also fetch order timeslots for every order_id referenced by the day's stops in a single `orders` query (`select id, pickup_timeslot, delivery_timeslot`). Build a `Map<order_id, {pickup, delivery}>`.
-- Attach the relevant timeslot string onto each stop as `s.timeslot` when grouping stops by route.
-- In the stop list (line 818–826), render the timeslot as a small muted suffix, e.g. `14:00–17:00` after the address. Use `formatTimeslotWindow` from `src/utils/timeslotUtils.ts` if the value is a single `HH:MM`, otherwise display as-is.
+## 1. Per-stop ETA computation
 
-No DB changes.
+### Edge function: extend `supabase/functions/route-path/index.ts`
 
-## 2. Rename + Delete buttons
+It already calls `routes/directions/v2:computeRoutes` for the polyline. Add `legs.duration` to the field mask and return an additional array `legDurationsSec: number[]` (length = `intermediates.length + 1`, one per leg between consecutive waypoints including depot→first and last→depot).
 
-In the route card header (around line 796–804), next to the existing Show/Hide button, add two small icon buttons:
+No other behaviour changes.
 
-- **Rename** (Pencil icon): opens a lightweight inline prompt (use the existing `Dialog` from shadcn or a simple `prompt()`-style `Input` inside a small `Dialog`). On submit, `update dispatch_routes set name=? where id=?`, then `qc.invalidateQueries(["dispatch-routes-for-date", routeDate])`.
-- **Delete** (Trash icon): wrap in an `AlertDialog` confirmation. On confirm, delete `dispatch_route_stops` where `route_id=?`, then delete `dispatch_routes` where `id=?`, then invalidate `["dispatch-routes-for-date", routeDate]` and `["dispatch-existing-stops", routeDate]`. Also remove the route's polyline / markers from the local refs (`routePolylinesRef`, `routeStopMarkersRef`, `routePathCacheRef`) and `hiddenRoutes` state to avoid stale map artefacts.
+### Frontend: `src/pages/DispatchRoutesPage.tsx`
 
-Both actions show a toast on success/failure. RLS already permits the existing save/optimise operations, so the same auth context covers update/delete.
+- Add a small `startTime` state (default `"08:00"`) with a tiny `<Input type="time">` in the "Routes on {date}" header so the planner can change the depot departure time (mirrors Job Scheduling's `startTime`).
+- In the same `useEffect` that already fetches the polyline per saved route, also read `legDurationsSec` from the response and store it in `routePathCacheRef.current[routeId]` alongside the existing `path`.
+- Build a derived `etaByStop: Record<routeId, Record<sequence, string>>` in render: start from `startTime`, for each stop `i` add `legDurationsSec[i]` seconds, round up to the next 5 min → that's the arrival time; then add 15 min service before moving on. Use the same `roundTimeToNext5Minutes` helper logic inline.
+- In the stop list rendering (current lines 905–922), replace the existing `s.timeslot` lookup with the computed ETA:
+  - If we have a computed ETA, show `formatTimeslotWindow(eta)` (e.g. `08:23 to 11:23`) as a muted suffix.
+  - If the cache hasn't loaded yet for that route, show nothing (or `…`).
+- Drop the now-unused `orders` timeslot join from `routesForDate` to keep the query lean.
+
+This keeps the math 100% client-side and consistent with Job Scheduling.
+
+## 2. Reoptimise button
+
+In the route card header (lines 869–890), add a third icon button (e.g. `RefreshCw`) between Rename and Delete with a confirmation `AlertDialog` ("Reoptimise this route? Stop order will change.").
+
+Handler `handleReoptimiseRoute(route)`:
+
+1. Build `stops` payload from `route.stops` → `{ id: stop.id, lat, lon }` (filter missing coords; require ≥2).
+2. `supabase.functions.invoke('optimise-route', { body: { stops } })` — same edge function the page already uses for new routes.
+3. On success, update `dispatch_route_stops.sequence` for each returned `stop_id` (batch `upsert` or per-row `update`), and `dispatch_routes` with `total_distance_km`, `total_duration_min`, `optimised_at: now()`.
+4. Clear `routePathCacheRef.current[routeId]` so the polyline + ETAs refetch with the new order, and invalidate `["dispatch-routes-for-date", routeDate]`.
+5. Toast success/failure. Use existing `routeMutating` state to disable buttons.
+
+RLS already permits these updates for admin/route_planner.
 
 ## Out of scope
 
-- No changes to `optimise-route` or `route-path` edge functions.
 - No DB schema changes.
-- No changes to the map rendering logic beyond cleanup on delete.
+- No changes to `optimise-route` itself.
+- No changes to map rendering beyond the existing per-route refresh path.
+- No writing of the computed ETA back to `orders.pickup_timeslot` / `delivery_timeslot` — this stays a display-only calculation, same as the Route Builder preview before the user explicitly sends it.
