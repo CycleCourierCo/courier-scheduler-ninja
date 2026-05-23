@@ -169,6 +169,56 @@ export default function DispatchRoutesPage() {
   const routePathCacheRef = useRef<Record<string, { sig: string; path: any[] }>>({});
   const depotMarkerRef = useRef<any>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [routeMutating, setRouteMutating] = useState(false);
+
+  const cleanupRouteFromMap = (routeId: string) => {
+    const pl = routePolylinesRef.current[routeId];
+    if (pl) { try { pl.setMap(null); } catch {} delete routePolylinesRef.current[routeId]; }
+    const markers = routeStopMarkersRef.current[routeId] ?? [];
+    for (const m of markers) { try { m.setMap(null); } catch {} }
+    delete routeStopMarkersRef.current[routeId];
+    delete routePathCacheRef.current[routeId];
+    setHiddenRoutes((p) => { const n = { ...p }; delete n[routeId]; return n; });
+  };
+
+  const handleRenameRoute = async () => {
+    if (!renameTarget) return;
+    const name = renameValue.trim();
+    if (!name) { toast({ title: "Name required", variant: "destructive" }); return; }
+    setRouteMutating(true);
+    try {
+      const { error } = await (supabase as any).from("dispatch_routes")
+        .update({ name }).eq("id", renameTarget.id);
+      if (error) throw error;
+      toast({ title: "Route renamed" });
+      setRenameTarget(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Rename failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setRouteMutating(false); }
+  };
+
+  const handleDeleteRoute = async () => {
+    if (!deleteTarget) return;
+    setRouteMutating(true);
+    try {
+      const sb = supabase as any;
+      const { error: sErr } = await sb.from("dispatch_route_stops").delete().eq("route_id", deleteTarget.id);
+      if (sErr) throw sErr;
+      const { error: rErr } = await sb.from("dispatch_routes").delete().eq("id", deleteTarget.id);
+      if (rErr) throw rErr;
+      cleanupRouteFromMap(deleteTarget.id);
+      toast({ title: "Route deleted" });
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
+      qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Delete failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setRouteMutating(false); }
+  };
 
   const ordersQuery = useQuery({ queryKey: ["dispatch-orders-all"], queryFn: getOrders });
 
