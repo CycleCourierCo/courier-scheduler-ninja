@@ -34,14 +34,30 @@ function num(v: any): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-type PinStats = { totalForDate: number; missingCoords: number; alreadyAssigned: number };
+type LegStats = { totalCandidates: number; missingCoords: number; alreadyAssigned: number; completed: number };
 
-function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; stats: PinStats } {
+function dateStr(v: any): string | null {
+  if (!v) return null;
+  try { return format(new Date(v), "yyyy-MM-dd"); } catch { return null; }
+}
+
+function arrIncludes(arr: any, target: string): boolean {
+  if (!Array.isArray(arr)) return false;
+  for (const v of arr) {
+    if (typeof v === "string" && v.startsWith(target)) return true;
+    const s = dateStr(v);
+    if (s === target) return true;
+  }
+  return false;
+}
+
+function pickPins(orders: Order[], assignedKeys: Set<string>, routeDate: string): { pins: Pin[]; stats: LegStats } {
   const pins: Pin[] = [];
-  const stats: PinStats = { totalForDate: orders.length, missingCoords: 0, alreadyAssigned: 0 };
+  const stats: LegStats = { totalCandidates: 0, missingCoords: 0, alreadyAssigned: 0, completed: 0 };
   for (const o of orders) {
-    const senderAny: any = (o as any).sender ?? {};
-    const receiverAny: any = (o as any).receiver ?? {};
+    const oAny: any = o as any;
+    const senderAny: any = oAny.sender ?? {};
+    const receiverAny: any = oAny.receiver ?? {};
     const sAddr = senderAny.address ?? {};
     const rAddr = receiverAny.address ?? {};
     const sLat = num(sAddr.lat ?? sAddr.latitude ?? senderAny.lat);
@@ -49,13 +65,28 @@ function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; st
     const rLat = num(rAddr.lat ?? rAddr.latitude ?? receiverAny.lat);
     const rLon = num(rAddr.lon ?? rAddr.lng ?? rAddr.longitude ?? receiverAny.lon);
     const tn = o.trackingNumber || o.id.slice(0, 6);
-    const collected = (o as any).order_collected ?? (o as any).orderCollected ?? false;
-    const delivered = (o as any).order_delivered ?? (o as any).orderDelivered ?? false;
+    const collected = oAny.order_collected ?? oAny.orderCollected ?? false;
+    const delivered = oAny.order_delivered ?? oAny.orderDelivered ?? false;
 
-    let hadAnyCandidate = false;
-    if (!collected) {
-      hadAnyCandidate = true;
-      if (sLat !== null && sLon !== null) {
+    const schedPickup = dateStr(oAny.scheduled_pickup_date ?? o.scheduledPickupDate);
+    const schedDelivery = dateStr(oAny.scheduled_delivery_date ?? o.scheduledDeliveryDate);
+    const pickupAvail = oAny.pickup_date ?? o.pickupDate;
+    const deliveryAvail = oAny.delivery_date ?? o.deliveryDate;
+
+    const pickupMatches =
+      schedPickup === routeDate ||
+      (!schedPickup && arrIncludes(pickupAvail, routeDate));
+    const deliveryMatches =
+      schedDelivery === routeDate ||
+      (!schedDelivery && arrIncludes(deliveryAvail, routeDate));
+
+    if (pickupMatches) {
+      stats.totalCandidates++;
+      if (collected) {
+        stats.completed++;
+      } else if (sLat === null || sLon === null) {
+        stats.missingCoords++;
+      } else {
         const key = `${o.id}:pickup`;
         if (assignedKeys.has(key)) stats.alreadyAssigned++;
         else pins.push({
@@ -63,13 +94,15 @@ function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; st
           label: `${tn} · Pick-up · ${senderAny.name ?? ""}`,
           address: [sAddr.street, sAddr.city, sAddr.zipCode ?? sAddr.postal_code].filter(Boolean).join(", "),
         });
-      } else {
-        stats.missingCoords++;
       }
     }
-    if (!delivered) {
-      hadAnyCandidate = true;
-      if (rLat !== null && rLon !== null) {
+    if (deliveryMatches) {
+      stats.totalCandidates++;
+      if (delivered) {
+        stats.completed++;
+      } else if (rLat === null || rLon === null) {
+        stats.missingCoords++;
+      } else {
         const key = `${o.id}:delivery`;
         if (assignedKeys.has(key)) stats.alreadyAssigned++;
         else pins.push({
@@ -77,11 +110,8 @@ function pickPins(orders: Order[], assignedKeys: Set<string>): { pins: Pin[]; st
           label: `${tn} · Delivery · ${receiverAny.name ?? ""}`,
           address: [rAddr.street, rAddr.city, rAddr.zipCode ?? rAddr.postal_code].filter(Boolean).join(", "),
         });
-      } else {
-        stats.missingCoords++;
       }
     }
-    if (!hadAnyCandidate) stats.alreadyAssigned++;
   }
   return { pins, stats };
 }
@@ -104,6 +134,7 @@ export default function DispatchRoutesPage() {
   useEffect(() => { boxSelectModeRef.current = boxSelectMode; }, [boxSelectMode]);
 
   const [driverId, setDriverId] = useState<string>("");
+  const [targetRouteId, setTargetRouteId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [optimising, setOptimising] = useState(false);
   const [sequence, setSequence] = useState<string[] | null>(null);
@@ -141,26 +172,28 @@ export default function DispatchRoutesPage() {
     },
   });
 
+  const routesForDate = useQuery({
+    queryKey: ["dispatch-routes-for-date", routeDate],
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data } = await sb.from("dispatch_routes")
+        .select("id, name, driver_id, status")
+        .eq("route_date", routeDate)
+        .order("created_at", { ascending: true });
+      return (data ?? []) as any[];
+    },
+  });
+
   const assignedKeys = useMemo(() => {
     const s = new Set<string>();
     for (const r of existingStops.data ?? []) s.add(`${r.order_id}:${r.stop_type}`);
     return s;
   }, [existingStops.data]);
 
-  const dateOrders = useMemo(() => {
-    const all = ordersQuery.data ?? [];
-    return all.filter((o) => {
-      const p = (o as any).scheduled_pickup_date ?? o.scheduledPickupDate;
-      const d = (o as any).scheduled_delivery_date ?? o.scheduledDeliveryDate;
-      const inDate = (v: any) => {
-        if (!v) return false;
-        try { return format(new Date(v), "yyyy-MM-dd") === routeDate; } catch { return false; }
-      };
-      return inDate(p) || inDate(d);
-    });
-  }, [ordersQuery.data, routeDate]);
-
-  const { pins, stats } = useMemo(() => pickPins(dateOrders, assignedKeys), [dateOrders, assignedKeys]);
+  const { pins, stats } = useMemo(
+    () => pickPins(ordersQuery.data ?? [], assignedKeys, routeDate),
+    [ordersQuery.data, assignedKeys, routeDate]
+  );
   const pinsByKey = useMemo(() => Object.fromEntries(pins.map((p) => [p.key, p])), [pins]);
 
   // Init map
@@ -371,8 +404,40 @@ export default function DispatchRoutesPage() {
       toast({ title: "Route saved", description: `${seq.length} stops` });
       setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+      qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
       toast({ title: "Save failed", description: e?.message ?? String(e), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const handleAddToExisting = async () => {
+    if (!targetRouteId) { toast({ title: "Pick a route to add to", variant: "destructive" }); return; }
+    if (selectedPins.length < 1) { toast({ title: "Select at least 1 stop", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const sb = supabase as any;
+      const { data: existing } = await sb
+        .from("dispatch_route_stops")
+        .select("sequence")
+        .eq("route_id", targetRouteId)
+        .order("sequence", { ascending: false })
+        .limit(1);
+      const start = ((existing?.[0]?.sequence as number) ?? 0) + 1;
+      const seq = sequence ?? selectedPins.map((p) => p.key);
+      const payload = seq.map((key, i) => {
+        const p = pinsByKey[key];
+        return {
+          route_id: targetRouteId, order_id: p.orderId, stop_type: p.type,
+          sequence: start + i, address: p.address, lat: p.lat, lon: p.lon,
+        };
+      });
+      const { error } = await sb.from("dispatch_route_stops").insert(payload);
+      if (error) throw error;
+      toast({ title: "Added to route", description: `${payload.length} stops appended` });
+      setSelected({}); setSequence(null); setTotals(null);
+      qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
+    } catch (e: any) {
+      toast({ title: "Add failed", description: e?.message ?? String(e), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -399,16 +464,32 @@ export default function DispatchRoutesPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 ml-auto items-end">
             <Link to="/dispatch/orders"><Button variant="outline">Orders</Button></Link>
-            <Button onClick={handleOptimise} disabled={optimising || selectedPins.length < 2}>
+            <Button onClick={handleOptimise} disabled={optimising || selectedPins.length < 2} variant="outline">
               {optimising ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
               Optimise
             </Button>
             <Button onClick={handleSave} disabled={saving || selectedPins.length < 1} variant="default">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save route
+              Create route
             </Button>
+            <div className="flex items-end gap-1">
+              <Select value={targetRouteId} onValueChange={setTargetRouteId}>
+                <SelectTrigger className="w-48"><SelectValue placeholder="Existing route…" /></SelectTrigger>
+                <SelectContent>
+                  {(routesForDate.data ?? []).length === 0 && (
+                    <div className="p-2 text-xs text-muted-foreground">No routes for {routeDate}</div>
+                  )}
+                  {(routesForDate.data ?? []).map((r: any) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleAddToExisting} disabled={saving || !targetRouteId || selectedPins.length < 1} variant="secondary">
+                Add to route
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -424,13 +505,14 @@ export default function DispatchRoutesPage() {
             </div>
 
             <div className="text-[11px] text-muted-foreground leading-snug">
-              {stats.totalForDate === 0
-                ? "No orders are scheduled for this date."
+              {stats.totalCandidates === 0
+                ? "No pickups or deliveries match this date (checked scheduled dates and sender/receiver availability)."
                 : (
                   <>
-                    {stats.totalForDate} order{stats.totalForDate === 1 ? "" : "s"} scheduled.
+                    {stats.totalCandidates} leg{stats.totalCandidates === 1 ? "" : "s"} match this date.
                     {stats.alreadyAssigned > 0 && <> {stats.alreadyAssigned} already on a route.</>}
-                    {stats.missingCoords > 0 && <> {stats.missingCoords} stop{stats.missingCoords === 1 ? "" : "s"} missing coordinates.</>}
+                    {stats.completed > 0 && <> {stats.completed} already completed.</>}
+                    {stats.missingCoords > 0 && <> {stats.missingCoords} missing coordinates.</>}
                   </>
                 )}
             </div>
@@ -456,18 +538,40 @@ export default function DispatchRoutesPage() {
             </div>
             <ScrollArea className="flex-1 -mx-1 px-1">
               <div className="space-y-1">
-                {(sequence ? sequence.map((k) => pinsByKey[k]).filter(Boolean) : selectedPins).map((p, i) => (
-                  <div key={p.key} className="flex items-start gap-2 text-xs border rounded p-2">
-                    <div className="font-mono w-5 text-muted-foreground">{i + 1}</div>
-                    <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium">{p.label}</div>
-                      <div className="truncate text-muted-foreground">{p.address}</div>
+                {sequence ? (
+                  sequence.map((k) => pinsByKey[k]).filter(Boolean).map((p, i) => (
+                    <div key={p.key} className="flex items-start gap-2 text-xs border rounded p-2 bg-amber-50">
+                      <div className="font-mono w-5 text-muted-foreground">{i + 1}</div>
+                      <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{p.label}</div>
+                        <div className="truncate text-muted-foreground">{p.address}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {selectedPins.length === 0 && (
-                  <div className="text-xs text-muted-foreground italic p-2">No stops selected.</div>
+                  ))
+                ) : pins.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic p-2">No stops for this date.</div>
+                ) : (
+                  pins.map((p) => {
+                    const sel = !!selected[p.key];
+                    return (
+                      <div
+                        key={p.key}
+                        onClick={() => setSelected((prev) => {
+                          const next = { ...prev };
+                          if (next[p.key]) delete next[p.key]; else next[p.key] = true;
+                          return next;
+                        })}
+                        className={`flex items-start gap-2 text-xs border rounded p-2 cursor-pointer hover:bg-accent ${sel ? "ring-2 ring-amber-400 bg-amber-50" : ""}`}
+                      >
+                        <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate font-medium">{p.label}</div>
+                          <div className="truncate text-muted-foreground">{p.address}</div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>
