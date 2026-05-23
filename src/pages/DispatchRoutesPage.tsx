@@ -538,18 +538,40 @@ export default function DispatchRoutesPage() {
             </div>
             <ScrollArea className="flex-1 -mx-1 px-1">
               <div className="space-y-1">
-                {(sequence ? sequence.map((k) => pinsByKey[k]).filter(Boolean) : selectedPins).map((p, i) => (
-                  <div key={p.key} className="flex items-start gap-2 text-xs border rounded p-2">
-                    <div className="font-mono w-5 text-muted-foreground">{i + 1}</div>
-                    <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium">{p.label}</div>
-                      <div className="truncate text-muted-foreground">{p.address}</div>
+                {sequence ? (
+                  sequence.map((k) => pinsByKey[k]).filter(Boolean).map((p, i) => (
+                    <div key={p.key} className="flex items-start gap-2 text-xs border rounded p-2 bg-amber-50">
+                      <div className="font-mono w-5 text-muted-foreground">{i + 1}</div>
+                      <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{p.label}</div>
+                        <div className="truncate text-muted-foreground">{p.address}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {selectedPins.length === 0 && (
-                  <div className="text-xs text-muted-foreground italic p-2">No stops selected.</div>
+                  ))
+                ) : pins.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic p-2">No stops for this date.</div>
+                ) : (
+                  pins.map((p) => {
+                    const sel = !!selected[p.key];
+                    return (
+                      <div
+                        key={p.key}
+                        onClick={() => setSelected((prev) => {
+                          const next = { ...prev };
+                          if (next[p.key]) delete next[p.key]; else next[p.key] = true;
+                          return next;
+                        })}
+                        className={`flex items-start gap-2 text-xs border rounded p-2 cursor-pointer hover:bg-accent ${sel ? "ring-2 ring-amber-400 bg-amber-50" : ""}`}
+                      >
+                        <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate font-medium">{p.label}</div>
+                          <div className="truncate text-muted-foreground">{p.address}</div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>
