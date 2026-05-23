@@ -657,8 +657,62 @@ export default function DispatchRoutesPage() {
                   })
                 )}
               </div>
+
+              {(routesForDate.data ?? []).length > 0 && (
+                <div className="mt-4 pt-3 border-t space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-sm">Routes on {routeDate}</div>
+                    <Badge variant="secondary">{(routesForDate.data ?? []).length}</Badge>
+                  </div>
+                  {(routesForDate.data ?? []).map((r: any, idx: number) => {
+                    const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+                    const hidden = !!hiddenRoutes[r.id];
+                    const driver = (drivers.data ?? []).find((d: any) => d.id === r.driver_id);
+                    const stopCount = (r.stops ?? []).length;
+                    return (
+                      <div key={r.id} className="border rounded p-2 text-xs space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium truncate">{r.name}</div>
+                          <Button
+                            size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
+                            onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
+                          >
+                            {hidden ? "Show" : "Hide"}
+                          </Button>
+                        </div>
+                        <div className="text-muted-foreground">
+                          {driver ? (driver.name ?? driver.email) : "Unassigned"}
+                          {" · "}{r.status}
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+                          <span><b>{stopCount}</b> stops</span>
+                          <span><b>{r.total_distance_km != null ? Number(r.total_distance_km).toFixed(1) : "—"}</b> km</span>
+                          <span><b>{fmtDuration(r.total_duration_min)}</b></span>
+                        </div>
+                        <details className="text-[11px]">
+                          <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
+                          <div className="mt-1 space-y-0.5 pl-1">
+                            <div className="text-muted-foreground">0. Depot · B10 0AD</div>
+                            {(r.stops ?? []).map((s: any) => (
+                              <div key={`${r.id}-${s.sequence}`} className="flex gap-1">
+                                <span className="font-mono text-muted-foreground w-5">{s.sequence}.</span>
+                                <span className={s.stop_type === "pickup" ? "text-blue-600" : "text-green-600"}>
+                                  {s.stop_type === "pickup" ? "P" : "D"}
+                                </span>
+                                <span className="truncate flex-1">{s.address}</span>
+                              </div>
+                            ))}
+                            <div className="text-muted-foreground">{stopCount + 1}. Depot · B10 0AD</div>
+                          </div>
+                        </details>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </ScrollArea>
           </Card>
+
           <Card className="p-0 overflow-hidden h-[calc(100vh-220px)] bg-white relative">
             <div
               ref={mapContainerRef}
