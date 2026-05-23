@@ -156,6 +156,9 @@ export default function DispatchRoutesPage() {
   const markersRef = useRef<Record<string, any>>({});
   const polylineRef = useRef<any>(null);
   const projectionOverlayRef = useRef<any>(null);
+  const routePolylinesRef = useRef<Record<string, any>>({});
+  const depotMarkerRef = useRef<any>(null);
+  const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
 
   const ordersQuery = useQuery({ queryKey: ["dispatch-orders-all"], queryFn: getOrders });
 
