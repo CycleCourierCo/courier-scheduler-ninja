@@ -157,6 +157,7 @@ export default function DispatchRoutesPage() {
   const polylineRef = useRef<any>(null);
   const projectionOverlayRef = useRef<any>(null);
   const routePolylinesRef = useRef<Record<string, any>>({});
+  const routeStopMarkersRef = useRef<Record<string, any[]>>({});
   const depotMarkerRef = useRef<any>(null);
   const [hiddenRoutes, setHiddenRoutes] = useState<Record<string, true>>({});
 
