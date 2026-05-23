@@ -521,11 +521,14 @@ export default function DispatchRoutesPage() {
             if (error || !data?.encodedPolyline) return;
             const decoded = g.maps.geometry?.encoding?.decodePath(data.encodedPolyline);
             if (!decoded || decoded.length === 0) return;
-            routePathCacheRef.current[r.id] = { sig, path: decoded };
+            const legs: number[] = Array.isArray(data.legDurationsSec) ? data.legDurationsSec : [];
+            routePathCacheRef.current[r.id] = { sig, path: decoded, legDurationsSec: legs };
+            setEtaTick((t) => t + 1);
             // Only apply if still visible
             if (routePolylinesRef.current[r.id]) {
               routePolylinesRef.current[r.id].setOptions({ path: decoded, strokeColor: color });
             }
+
           } catch (e) {
             console.warn("route-path fetch failed", e);
           }
