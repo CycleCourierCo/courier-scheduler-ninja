@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import OrderDetail from "./pages/OrderDetail";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import CreateOrder from "./pages/CreateOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import SenderAvailability from "./pages/SenderAvailability";
@@ -68,7 +69,7 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/:mode" element={<Auth />} />
-              <Route path="/reset-password" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

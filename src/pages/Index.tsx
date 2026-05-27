@@ -1,10 +1,10 @@
-import React, { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { Package, CalendarCheck, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 
 const features = [{
   title: "Easy Order Creation",
@@ -17,22 +17,8 @@ const features = [{
 }];
 
 const Index = () => {
-  const {
-    user,
-    isPasswordReset
-  } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // Check for password reset hash in URL
-  useEffect(() => {
-    if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token='))) {
-      console.log("Password reset hash detected on homepage, redirecting to auth page");
-      navigate("/auth?action=resetPassword", {
-        replace: true
-      });
-      toast.info("Please set your new password");
-    }
-  }, [navigate]);
 
   return (
     <Layout>
