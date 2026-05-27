@@ -13,6 +13,20 @@ import BusinessRegistrationComplete from "@/components/auth/BusinessRegistration
 
 const PRIMARY_RESET_URL = "https://booking.cyclecourierco.com/reset-password";
 
+// Safety net: if a (malformed) reset email link lands the user here with a
+// recovery token in the URL, forward to /reset-password so the token is used.
+const hasRecoveryToken = () => {
+  if (typeof window === "undefined") return false;
+  const search = window.location.search || "";
+  const hash = window.location.hash || "";
+  return (
+    search.includes("token_hash=") ||
+    /[?&]type=recovery(?:&|$)/.test(search) ||
+    hash.includes("access_token=") ||
+    hash.includes("type=recovery")
+  );
+};
+
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [businessRegistrationComplete, setBusinessRegistrationComplete] = useState(false);
@@ -22,8 +36,27 @@ const Auth = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Run BEFORE the "user → /dashboard" effect so a stale session doesn't
+  // shortcut us past the reset flow.
   useEffect(() => {
-    if (user) {
+    if (hasRecoveryToken()) {
+      const search = window.location.search || "";
+      const hash = window.location.hash || "";
+      // Extract just the auth-relevant params; drop anything else like
+      // ?action=resetPassword that may have been concatenated by a bad template.
+      const incoming = new URLSearchParams(search.replace(/^\?/, ""));
+      const forward = new URLSearchParams();
+      const tokenHash = incoming.get("token_hash");
+      const type = incoming.get("type") || "recovery";
+      if (tokenHash) forward.set("token_hash", tokenHash);
+      forward.set("type", type);
+      const qs = forward.toString();
+      navigate(`/reset-password${qs ? `?${qs}` : ""}${hash}`, { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user && !hasRecoveryToken()) {
       navigate("/dashboard");
     }
   }, [user, navigate]);
