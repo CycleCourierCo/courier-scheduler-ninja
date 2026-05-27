@@ -26,30 +26,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
-  const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const isPasswordReset = false;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Check if URL has reset password token
-  const checkForPasswordResetToken = () => {
-    
-    // Check all possible token locations
-    const hasToken = 
-      (window.location.hash && (
-        window.location.hash.includes('access_token=') || 
-        window.location.hash.includes('type=recovery')
-      )) || 
-      (window.location.search && window.location.search.includes('type=recovery')) ||
-      (window.location.pathname.includes('/reset-password')) ||
-      (window.location.pathname.includes('/reset'));
-      
-    if (hasToken) {
-      setIsPasswordReset(true);
-      return true;
-    }
-    
-    return false;
-  };
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -92,18 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Check for password reset token first
-    const hasResetToken = checkForPasswordResetToken();
-    const isOnResetPage = 
-      window.location.pathname.includes('/reset-password') || 
-      window.location.pathname.includes('/reset') ||
-      (window.location.pathname.includes('/auth') && window.location.search.includes('action=resetPassword'));
-      
-    if (hasResetToken || isOnResetPage) {
-      setIsPasswordReset(true);
-      setIsLoading(false);
-      return;
-    }
+    // /reset-password handles its own session/verify flow — don't auto-redirect.
+
 
     // Set up auth state listener FIRST (before getSession)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {

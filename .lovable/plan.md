@@ -1,38 +1,62 @@
-# Surface B2C contacts in the Announcements recipient picker
-
 ## Problem
-The Announcements page only fetches from `profiles` where `account_status = 'approved'`. The business has just 1 B2C profile — real B2C customers exist as entries in the `contacts` table (linked to orders as sender/receiver). They never appear individually or via the role filter.
 
-## Approach
+Auth logs show recurring `403: Email link is invalid or has expired` / `One-time token not found` errors on `/verify` for password reset, especially for Hotmail/Outlook users. The current flow uses Supabase's default `?token=...` link which hits `/auth/v1/verify` and 303-redirects back to the app with tokens in the URL hash. This token is **single-use** — and Outlook Safe Links, Gmail, and corporate antivirus scanners "click" the link in the background to check it, burning the token before the real user gets there.
 
-Pull B2C contacts from the `contacts` table alongside profiles and merge them into the recipient picker.
+Secondary issues:
+- `redirectTo` uses `window.location.origin`, so a reset initiated from `id-preview…lovable.app` or any non-primary host sends the user back to the wrong domain. Project rule: all auth flows must land on `booking.cyclecourierco.com`.
+- Once the recovery session is established, nothing calls `supabase.auth.signOut()` after the password update, so the user stays signed in via the recovery session without being redirected cleanly.
+- Lots of leftover `console.log` debugging in `src/pages/Auth.tsx` and `AuthContext`.
 
-### Data source
-Query `contacts` with `email IS NOT NULL`. Deduplicate by lowercased email. Each contact gets a synthetic record:
-- `id`: `contact:<uuid>` prefix to keep distinct from profile ids
-- `name`, `email`, `phone` from the contact row
-- `role`: pseudo-role `b2c_contact`
-- `company_name`: null
+## Plan
 
-Merge order: profiles first, then contacts whose email isn't already covered by a profile (profiles win on conflict).
+### 1. Switch password reset to the PKCE / `token_hash` + `verifyOtp` flow
 
-### UI changes (`AnnouncementEmailsPage.tsx`)
-- **Individual tab**: existing search list now includes B2C contacts with a small "B2C Contact" badge so they're distinguishable from registered users.
-- **Role tab**: add a "B2C Contacts" entry to `ROLE_LABELS` (label only — not a real `user_role` enum value) and let the role filter match `role === 'b2c_contact'`.
-- Recipient dedupe by lowercased email is already in place — keep as-is.
+This is Supabase's recommended fix for the prefetch problem because the token is bound to a code verifier stored in the originating browser — scanners can't consume it.
 
-### Backend / RLS
-No schema changes. Admin and sales already have `SELECT` on `contacts` via existing policies (`has_role(uid,'admin')`). Confirmed in current RLS.
+**a. `src/pages/Auth.tsx` — `handleForgotPassword`**
+- Keep `resetPasswordForEmail`, but force `redirectTo` to the absolute primary domain:  
+  `https://booking.cyclecourierco.com/reset-password`  
+  (not `window.location.origin`).
 
-### Persistence
-`scheduled_announcements.recipient_ids` and `recipient_roles` continue to store the synthetic ids / pseudo-role string. The scheduled-announcements cron resolves them the same way at send time — it will need the same merged source. Touch `supabase/functions/process-scheduled-announcements/index.ts` so scheduled sends to B2C contacts also work.
+**b. Add a dedicated `/reset-password` route** (`src/pages/ResetPassword.tsx`, registered in `src/App.tsx` as a public route).
+- On mount, read `token_hash` and `type` from the query string (`?token_hash=...&type=recovery`).
+- If present, call `supabase.auth.verifyOtp({ type: 'recovery', token_hash })`. Only when this resolves successfully do we render the "set new password" form. This is what defeats prefetch: the verifier in localStorage is required, so background scanners can't complete the exchange.
+- Also handle the legacy hash format (`#access_token=...&type=recovery`) as a fallback so any reset emails already in users' inboxes keep working — `detectSessionInUrl: true` is already on, so we just check for the session and show the form.
+- On submit, call `supabase.auth.updateUser({ password })`, then `supabase.auth.signOut()`, then `navigate('/auth')` with a success toast. Signing out prevents the recovery session from leaking into a logged-in state.
+- Show clear error states: "link expired" (with a "send a new reset email" button that returns to `/auth`) vs. "verifying…" vs. the form.
 
-## Out of scope
-- No new tables, no migration.
-- No changes to send-email / send-sendzen edge functions (they already take a `to` address).
-- No phone-number cleanup for contacts.
+**c. Update the Supabase Auth "Reset Password" email template** (manual step — call it out in the message to the user, with a link to the dashboard) to use the token-hash format:
+```
+{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery
+```
+instead of `{{ .ConfirmationURL }}`. Without this template change the new `/reset-password` page can't pick up `token_hash`, so this is required.
 
-## Technical notes
-- Contacts count is large (thousands) — fetch with `.range()` pagination loop (Supabase 1k limit).
-- Memoised `mergedRecipients` derived once, reused by both search-filter and role-filter `useMemo`s.
-- Sales role already has access to `/emails` and `contacts.SELECT` — no role plumbing changes.
+### 2. Clean up `src/pages/Auth.tsx`
+
+- Remove the inline "reset" tab and `ResetPasswordForm` rendering — `/reset-password` becomes the single source of truth.
+- Remove all `console.log` debug statements.
+- Keep the "forgot password" entry point on the login tab and the "reset email sent" confirmation.
+
+### 3. Clean up `src/contexts/AuthContext.tsx`
+
+- Drop the `isPasswordReset` URL sniffing (it's no longer needed — `/reset-password` is its own route).
+- Keep the existing `onAuthStateChange` + `getSession` logic untouched.
+
+### 4. `src/pages/Index.tsx`
+
+- Remove the homepage hash-redirect for `type=recovery` — the email now always points to `/reset-password` directly.
+
+## Technical notes (out of scope to change)
+
+- No DB / RLS changes.
+- No edge function changes.
+- The Supabase email template update is a dashboard change, not code; I'll surface the SQL Editor / Auth Templates link in the build response.
+- We deliberately do **not** switch to OTP codes (numeric code entry) — link flow is preserved, just made prefetch-resistant.
+
+## Files touched
+
+- `src/pages/Auth.tsx` (cleanup, redirectTo to absolute primary domain)
+- `src/pages/ResetPassword.tsx` (new)
+- `src/App.tsx` (register `/reset-password` route)
+- `src/contexts/AuthContext.tsx` (remove `isPasswordReset` plumbing)
+- `src/pages/Index.tsx` (remove recovery-hash redirect)

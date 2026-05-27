@@ -469,6 +469,113 @@ export type Database = {
         }
         Relationships: []
       }
+      dispatch_route_stops: {
+        Row: {
+          address: string | null
+          arrived_at: string | null
+          completed_at: string | null
+          created_at: string
+          eta: string | null
+          id: string
+          lat: number | null
+          lon: number | null
+          notes: string | null
+          order_id: string
+          route_id: string
+          sequence: number
+          status: string
+          stop_type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          arrived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          eta?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          notes?: string | null
+          order_id: string
+          route_id: string
+          sequence: number
+          status?: string
+          stop_type: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          arrived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          eta?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          notes?: string | null
+          order_id?: string
+          route_id?: string
+          sequence?: number
+          status?: string
+          stop_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "dispatch_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_routes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          driver_id: string | null
+          id: string
+          name: string
+          optimisation_meta: Json | null
+          optimised_at: string | null
+          route_date: string
+          status: string
+          total_distance_km: number | null
+          total_duration_min: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          driver_id?: string | null
+          id?: string
+          name: string
+          optimisation_meta?: Json | null
+          optimised_at?: string | null
+          route_date: string
+          status?: string
+          total_distance_km?: number | null
+          total_duration_min?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          driver_id?: string | null
+          id?: string
+          name?: string
+          optimisation_meta?: Json | null
+          optimised_at?: string | null
+          route_date?: string
+          status?: string
+          total_distance_km?: number | null
+          total_duration_min?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fuel_card_settings: {
         Row: {
           id: string
