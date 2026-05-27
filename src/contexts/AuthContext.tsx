@@ -72,18 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Check for password reset token first
-    const hasResetToken = checkForPasswordResetToken();
-    const isOnResetPage = 
-      window.location.pathname.includes('/reset-password') || 
-      window.location.pathname.includes('/reset') ||
-      (window.location.pathname.includes('/auth') && window.location.search.includes('action=resetPassword'));
-      
-    if (hasResetToken || isOnResetPage) {
-      setIsPasswordReset(true);
-      setIsLoading(false);
-      return;
-    }
+    // /reset-password handles its own session/verify flow — don't auto-redirect.
+
 
     // Set up auth state listener FIRST (before getSession)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
