@@ -26,30 +26,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
-  const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const isPasswordReset = false;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Check if URL has reset password token
-  const checkForPasswordResetToken = () => {
-    
-    // Check all possible token locations
-    const hasToken = 
-      (window.location.hash && (
-        window.location.hash.includes('access_token=') || 
-        window.location.hash.includes('type=recovery')
-      )) || 
-      (window.location.search && window.location.search.includes('type=recovery')) ||
-      (window.location.pathname.includes('/reset-password')) ||
-      (window.location.pathname.includes('/reset'));
-      
-    if (hasToken) {
-      setIsPasswordReset(true);
-      return true;
-    }
-    
-    return false;
-  };
 
   const fetchUserProfile = async (userId: string) => {
     try {
