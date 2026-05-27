@@ -1,62 +1,47 @@
-## Problem
+## Root cause
 
-Auth logs show recurring `403: Email link is invalid or has expired` / `One-time token not found` errors on `/verify` for password reset, especially for Hotmail/Outlook users. The current flow uses Supabase's default `?token=...` link which hits `/auth/v1/verify` and 303-redirects back to the app with tokens in the URL hash. This token is **single-use** — and Outlook Safe Links, Gmail, and corporate antivirus scanners "click" the link in the background to check it, burning the token before the real user gets there.
+The reset email link is malformed:
 
-Secondary issues:
-- `redirectTo` uses `window.location.origin`, so a reset initiated from `id-preview…lovable.app` or any non-primary host sends the user back to the wrong domain. Project rule: all auth flows must land on `booking.cyclecourierco.com`.
-- Once the recovery session is established, nothing calls `supabase.auth.signOut()` after the password update, so the user stays signed in via the recovery session without being redirected cleanly.
-- Lots of leftover `console.log` debugging in `src/pages/Auth.tsx` and `AuthContext`.
+```
+https://booking.cyclecourierco.com/auth?action=resetPassword/reset-password?token_hash=...&type=recovery
+```
 
-## Plan
+The path is `/auth` (login page). Everything after `?` is a query string, so `token_hash` never reaches `/reset-password`. That's why clicking the email lands on the login screen.
 
-### 1. Switch password reset to the PKCE / `token_hash` + `verifyOtp` flow
+This happened because the template's button `href` was constructed by concatenating `/reset-password?...` onto a URL that already pointed at `/auth?action=resetPassword`. Likely the template still uses something like `{{ .SiteURL }}{{ .ConfirmationURL }}/reset-password?...` or the Site URL was set to `https://booking.cyclecourierco.com/auth?action=resetPassword`.
 
-This is Supabase's recommended fix for the prefetch problem because the token is bound to a code verifier stored in the originating browser — scanners can't consume it.
+## Fix — two parts
 
-**a. `src/pages/Auth.tsx` — `handleForgotPassword`**
-- Keep `resetPasswordForEmail`, but force `redirectTo` to the absolute primary domain:  
-  `https://booking.cyclecourierco.com/reset-password`  
-  (not `window.location.origin`).
+### 1. Correct the email template (you, in Supabase Dashboard)
 
-**b. Add a dedicated `/reset-password` route** (`src/pages/ResetPassword.tsx`, registered in `src/App.tsx` as a public route).
-- On mount, read `token_hash` and `type` from the query string (`?token_hash=...&type=recovery`).
-- If present, call `supabase.auth.verifyOtp({ type: 'recovery', token_hash })`. Only when this resolves successfully do we render the "set new password" form. This is what defeats prefetch: the verifier in localStorage is required, so background scanners can't complete the exchange.
-- Also handle the legacy hash format (`#access_token=...&type=recovery`) as a fallback so any reset emails already in users' inboxes keep working — `detectSessionInUrl: true` is already on, so we just check for the session and show the form.
-- On submit, call `supabase.auth.updateUser({ password })`, then `supabase.auth.signOut()`, then `navigate('/auth')` with a success toast. Signing out prevents the recovery session from leaking into a logged-in state.
-- Show clear error states: "link expired" (with a "send a new reset email" button that returns to `/auth`) vs. "verifying…" vs. the form.
+Authentication → Email Templates → **Reset Password**. The button/link `href` must be **exactly**:
 
-**c. Update the Supabase Auth "Reset Password" email template** (manual step — call it out in the message to the user, with a link to the dashboard) to use the token-hash format:
 ```
 {{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery
 ```
-instead of `{{ .ConfirmationURL }}`. Without this template change the new `/reset-password` page can't pick up `token_hash`, so this is required.
 
-### 2. Clean up `src/pages/Auth.tsx`
+Not `{{ .ConfirmationURL }}`, not concatenated onto anything else. And in Authentication → URL Configuration:
 
-- Remove the inline "reset" tab and `ResetPasswordForm` rendering — `/reset-password` becomes the single source of truth.
-- Remove all `console.log` debug statements.
-- Keep the "forgot password" entry point on the login tab and the "reset email sent" confirmation.
+- **Site URL:** `https://booking.cyclecourierco.com` (no path, no query)
+- **Redirect URLs** must include `https://booking.cyclecourierco.com/reset-password`
 
-### 3. Clean up `src/contexts/AuthContext.tsx`
+I'll re-send the trimmed branded template so you can paste it verbatim.
 
-- Drop the `isPasswordReset` URL sniffing (it's no longer needed — `/reset-password` is its own route).
-- Keep the existing `onAuthStateChange` + `getSession` logic untouched.
+### 2. Client-side safety net (code change)
 
-### 4. `src/pages/Index.tsx`
+Even with the template fixed, old emails already sent are broken. Update `src/pages/Auth.tsx` so that on mount, if the URL contains `token_hash` + `type=recovery` (or legacy `#access_token=...&type=recovery`), it immediately `navigate('/reset-password?' + params, { replace: true })` before any other auth logic runs. This rescues every malformed link — old and new — by forwarding the token to `ResetPassword.tsx`.
 
-- Remove the homepage hash-redirect for `type=recovery` — the email now always points to `/reset-password` directly.
+Same guard added to `src/pages/Index.tsx` for completeness (in case the URL lands on `/` with recovery params).
 
-## Technical notes (out of scope to change)
+## Technical detail
 
-- No DB / RLS changes.
-- No edge function changes.
-- The Supabase email template update is a dashboard change, not code; I'll surface the SQL Editor / Auth Templates link in the build response.
-- We deliberately do **not** switch to OTP codes (numeric code entry) — link flow is preserved, just made prefetch-resistant.
+Files touched:
+- `src/pages/Auth.tsx` — add a `useEffect` at top that reads `searchParams.get('token_hash')` / `searchParams.get('type')` and `window.location.hash`, builds the forwarding URL, and calls `navigate('/reset-password?...', { replace: true })` synchronously.
+- `src/pages/Index.tsx` — same guard.
 
-## Files touched
+No DB or edge function changes. Verification: click the existing broken email link → should now hop to `/reset-password` and show the new-password form.
 
-- `src/pages/Auth.tsx` (cleanup, redirectTo to absolute primary domain)
-- `src/pages/ResetPassword.tsx` (new)
-- `src/App.tsx` (register `/reset-password` route)
-- `src/contexts/AuthContext.tsx` (remove `isPasswordReset` plumbing)
-- `src/pages/Index.tsx` (remove recovery-hash redirect)
+## What you need to do
+
+1. Fix the template & Site URL in the Supabase Dashboard (instructions above).
+2. Approve this plan so I implement the safety-net redirect.
