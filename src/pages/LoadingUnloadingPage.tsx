@@ -1067,13 +1067,33 @@ const LoadingUnloadingPage = () => {
                              </div>
                            </div>
                            {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
-                             <Button 
-                               size="sm" 
-                               variant="outline"
-                               onClick={handleSendLoadingList}
-                             >
-                               📱 Send Loading List
-                             </Button>
+                             <div className="flex gap-2 flex-wrap">
+                               <Button
+                                 size="sm"
+                                 onClick={async () => {
+                                   const bikes = getBikesNeedingLoading(selectedLoadingDate);
+                                   if (bikes.length === 0) return;
+                                   try {
+                                     for (const b of bikes) {
+                                       await handleRemoveAllBikesFromOrder(b.id);
+                                     }
+                                     toast.success(`Loaded ${bikes.length} bike(s) onto van`);
+                                   } catch (e) {
+                                     console.error('Load all error:', e);
+                                     toast.error('Failed to load some bikes');
+                                   }
+                                 }}
+                               >
+                                 <Truck className="h-4 w-4 mr-1" /> Load All onto Van
+                               </Button>
+                               <Button
+                                 size="sm"
+                                 variant="outline"
+                                 onClick={handleSendLoadingList}
+                               >
+                                 📱 Send Loading List
+                               </Button>
+                             </div>
                            )}
                          </div>
 
