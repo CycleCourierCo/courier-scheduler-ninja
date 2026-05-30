@@ -1,47 +1,13 @@
-## Root cause
+## Update "Load All onto Van" to skip unassigned bikes
 
-The reset email link is malformed:
+In `src/pages/LoadingUnloadingPage.tsx`, change the `onClick` of the new "Load All onto Van" button so it:
 
-```
-https://booking.cyclecourierco.com/auth?action=resetPassword/reset-password?token_hash=...&type=recovery
-```
+1. Gets the full list from `getBikesNeedingLoading(selectedLoadingDate)`.
+2. Splits into:
+   - `toLoad` = bikes where `delivery_driver_name` is set.
+   - `skipped` = bikes where `delivery_driver_name` is null/empty.
+3. If `toLoad.length === 0` → show a warning toast ("No bikes with an assigned driver to load") and return.
+4. Sequentially `await handleRemoveAllBikesFromOrder(b.id)` for each bike in `toLoad`.
+5. Show a success toast: `Loaded N bike(s) onto van` and, if `skipped.length > 0`, append `(skipped X with no driver assigned)`.
 
-The path is `/auth` (login page). Everything after `?` is a query string, so `token_hash` never reaches `/reset-password`. That's why clicking the email lands on the login screen.
-
-This happened because the template's button `href` was constructed by concatenating `/reset-password?...` onto a URL that already pointed at `/auth?action=resetPassword`. Likely the template still uses something like `{{ .SiteURL }}{{ .ConfirmationURL }}/reset-password?...` or the Site URL was set to `https://booking.cyclecourierco.com/auth?action=resetPassword`.
-
-## Fix — two parts
-
-### 1. Correct the email template (you, in Supabase Dashboard)
-
-Authentication → Email Templates → **Reset Password**. The button/link `href` must be **exactly**:
-
-```
-{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery
-```
-
-Not `{{ .ConfirmationURL }}`, not concatenated onto anything else. And in Authentication → URL Configuration:
-
-- **Site URL:** `https://booking.cyclecourierco.com` (no path, no query)
-- **Redirect URLs** must include `https://booking.cyclecourierco.com/reset-password`
-
-I'll re-send the trimmed branded template so you can paste it verbatim.
-
-### 2. Client-side safety net (code change)
-
-Even with the template fixed, old emails already sent are broken. Update `src/pages/Auth.tsx` so that on mount, if the URL contains `token_hash` + `type=recovery` (or legacy `#access_token=...&type=recovery`), it immediately `navigate('/reset-password?' + params, { replace: true })` before any other auth logic runs. This rescues every malformed link — old and new — by forwarding the token to `ResetPassword.tsx`.
-
-Same guard added to `src/pages/Index.tsx` for completeness (in case the URL lands on `/` with recovery params).
-
-## Technical detail
-
-Files touched:
-- `src/pages/Auth.tsx` — add a `useEffect` at top that reads `searchParams.get('token_hash')` / `searchParams.get('type')` and `window.location.hash`, builds the forwarding URL, and calls `navigate('/reset-password?...', { replace: true })` synchronously.
-- `src/pages/Index.tsx` — same guard.
-
-No DB or edge function changes. Verification: click the existing broken email link → should now hop to `/reset-password` and show the new-password form.
-
-## What you need to do
-
-1. Fix the template & Site URL in the Supabase Dashboard (instructions above).
-2. Approve this plan so I implement the safety-net redirect.
+No changes to the individual per-card "Load onto Van" button — only the bulk action filters by assigned driver.
