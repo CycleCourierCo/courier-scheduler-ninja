@@ -1072,12 +1072,20 @@ const LoadingUnloadingPage = () => {
                                  size="sm"
                                  onClick={async () => {
                                    const bikes = getBikesNeedingLoading(selectedLoadingDate);
-                                   if (bikes.length === 0) return;
+                                   const toLoad = bikes.filter(b => b.delivery_driver_name);
+                                   const skipped = bikes.length - toLoad.length;
+                                   if (toLoad.length === 0) {
+                                     toast.warning("No bikes with an assigned driver to load");
+                                     return;
+                                   }
                                    try {
-                                     for (const b of bikes) {
+                                     for (const b of toLoad) {
                                        await handleRemoveAllBikesFromOrder(b.id);
                                      }
-                                     toast.success(`Loaded ${bikes.length} bike(s) onto van`);
+                                     toast.success(
+                                       `Loaded ${toLoad.length} bike(s) onto van` +
+                                       (skipped > 0 ? ` (skipped ${skipped} with no driver assigned)` : '')
+                                     );
                                    } catch (e) {
                                      console.error('Load all error:', e);
                                      toast.error('Failed to load some bikes');
