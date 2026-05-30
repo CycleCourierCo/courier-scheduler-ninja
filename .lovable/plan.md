@@ -1,47 +1,31 @@
-## Root cause
+## 1. "Load All onto Vans" button (loading list)
 
-The reset email link is malformed:
+**Location:** Top of `PendingStorageAllocation` (above the driver groups), so it's visible on the loading page for the currently-displayed day.
 
-```
-https://booking.cyclecourierco.com/auth?action=resetPassword/reset-password?token_hash=...&type=recovery
-```
+**Behaviour:**
+- Button labelled `Load All onto Vans` with a `Truck` icon.
+- Shows the total count of pending bikes (`collectedBikes` with `delivery_driver_name` assigned).
+- Disabled when no eligible bikes exist.
+- On click, opens an `AlertDialog` confirmation: "Load all N bikes onto their assigned vans?" — to prevent mis-taps.
+- On confirm, iterates every bike in `collectedBikes` that has a `delivery_driver_name` and calls the existing `onLoadOntoVan(bike.id)` handler for each (same as the per-bike button), then shows a single toast `Loaded N bikes onto vans`.
+- Bikes without an assigned delivery driver are skipped (matches per-bike behaviour where the individual Load button only renders when a driver is assigned).
 
-The path is `/auth` (login page). Everything after `?` is a query string, so `token_hash` never reaches `/reset-password`. That's why clicking the email lands on the login screen.
+**Files:**
+- `src/components/loading/PendingStorageAllocation.tsx` — add the button + confirm dialog at the top of the returned JSX.
 
-This happened because the template's button `href` was constructed by concatenating `/reset-password?...` onto a URL that already pointed at `/auth?action=resetPassword`. Likely the template still uses something like `{{ .SiteURL }}{{ .ConfirmationURL }}/reset-password?...` or the Site URL was set to `https://booking.cyclecourierco.com/auth?action=resetPassword`.
+No new props or backend changes — reuses the existing `onLoadOntoVan` handler in `LoadingUnloadingPage.tsx`.
 
-## Fix — two parts
+## 2. Bike photo in search results
 
-### 1. Correct the email template (you, in Supabase Dashboard)
+**Location:** `BikeSearchSection.tsx` result cards.
 
-Authentication → Email Templates → **Reset Password**. The button/link `href` must be **exactly**:
+**Behaviour:**
+- Reuse the existing collection-image extractor (copy `getCollectionImages` helper from `PendingStorageAllocation.tsx` — pulls POD URLs from `trackingEvents.shipday.updates`).
+- For each search result, show the first collection photo as a small thumbnail (~64×64, rounded, object-cover) on the left of the card header.
+- If no photo is available, show a placeholder `Image` icon in the same slot so layout stays consistent.
+- Clicking the thumbnail opens the full image in a dialog (same pattern as `PendingStorageAllocation`'s image dialog), so users can verify the bike at a glance.
 
-```
-{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery
-```
+**Files:**
+- `src/components/loading/BikeSearchSection.tsx` — add helper, thumbnail in the card, and image dialog state.
 
-Not `{{ .ConfirmationURL }}`, not concatenated onto anything else. And in Authentication → URL Configuration:
-
-- **Site URL:** `https://booking.cyclecourierco.com` (no path, no query)
-- **Redirect URLs** must include `https://booking.cyclecourierco.com/reset-password`
-
-I'll re-send the trimmed branded template so you can paste it verbatim.
-
-### 2. Client-side safety net (code change)
-
-Even with the template fixed, old emails already sent are broken. Update `src/pages/Auth.tsx` so that on mount, if the URL contains `token_hash` + `type=recovery` (or legacy `#access_token=...&type=recovery`), it immediately `navigate('/reset-password?' + params, { replace: true })` before any other auth logic runs. This rescues every malformed link — old and new — by forwarding the token to `ResetPassword.tsx`.
-
-Same guard added to `src/pages/Index.tsx` for completeness (in case the URL lands on `/` with recovery params).
-
-## Technical detail
-
-Files touched:
-- `src/pages/Auth.tsx` — add a `useEffect` at top that reads `searchParams.get('token_hash')` / `searchParams.get('type')` and `window.location.hash`, builds the forwarding URL, and calls `navigate('/reset-password?...', { replace: true })` synchronously.
-- `src/pages/Index.tsx` — same guard.
-
-No DB or edge function changes. Verification: click the existing broken email link → should now hop to `/reset-password` and show the new-password form.
-
-## What you need to do
-
-1. Fix the template & Site URL in the Supabase Dashboard (instructions above).
-2. Approve this plan so I implement the safety-net redirect.
+No backend or type changes.
