@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Check, Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
 import EditVehicleDialog from "@/components/vehicles/EditVehicleDialog";
 import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
 import InsuranceTab from "@/components/vehicles/InsuranceTab";
+import InsuranceTimeline from "@/components/vehicles/InsuranceTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   deleteVehicle,
@@ -25,6 +26,7 @@ import {
   type Vehicle,
   type VehicleStatus,
 } from "@/services/vehicleService";
+import { listPolicies, type InsurancePolicy } from "@/services/insuranceService";
 
 const isExpired = (date: string | null) => !!date && new Date(date) < new Date();
 const isSoon = (date: string | null) => {
@@ -33,6 +35,10 @@ const isSoon = (date: string | null) => {
   const now = Date.now();
   return d >= now && d - now <= 30 * 24 * 60 * 60 * 1000;
 };
+
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
+
 
 const ExpiryCell = ({ status, date }: { status: string | null; date: string | null }) => {
   const cls = isExpired(date)
