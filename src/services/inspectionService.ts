@@ -740,6 +740,7 @@ export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspe
       .single();
 
     if (error) throw error;
+    await triggerReceiverAvailabilityIfDeferred(inspectionId);
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error moving to repaired:', error);
