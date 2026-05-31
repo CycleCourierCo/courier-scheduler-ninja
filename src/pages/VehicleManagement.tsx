@@ -56,10 +56,13 @@ const ExpiryCell = ({ status, date }: { status: string | null; date: string | nu
 
 const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [policies, setPolicies] = useState<InsurancePolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("in_use");
   const [editing, setEditing] = useState<Vehicle | null>(null);
+  const [timelineStart, setTimelineStart] = useState<Date>(() => addMonths(startOfMonth(new Date()), -1));
+
   const [editOpen, setEditOpen] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
