@@ -63,7 +63,32 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
     } catch (confirmError) {
       console.error("Error sending sender dates confirmed email:", confirmError);
     }
-    
+
+    // Check if inspection is required - skip receiver flow until inspection completes
+    const { data: orderMeta } = await supabase
+      .from("orders")
+      .select("needs_inspection")
+      .eq("id", orderId)
+      .single();
+    const needsInspection = (orderMeta as any)?.needs_inspection === true;
+
+    if (needsInspection) {
+      // Leave status as sender_availability_confirmed; receiver email will be
+      // triggered after the inspection is repaired/declined.
+      const { error: confirmStatusError } = await supabase
+        .from("orders")
+        .update({
+          status: "sender_availability_confirmed",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", orderId);
+      if (confirmStatusError) {
+        console.error("Error setting sender_availability_confirmed status:", confirmStatusError);
+      }
+      console.log("Order needs inspection - skipping receiver availability email.");
+      return true;
+    }
+
     // Automatically update status to receiver_availability_pending
     const { error: updateError } = await supabase
       .from("orders")
