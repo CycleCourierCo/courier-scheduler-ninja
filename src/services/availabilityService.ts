@@ -178,6 +178,16 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
+    // Determine if this order needs inspection - in that case, receiver
+    // availability is requested LATER (after repairs are completed/declined),
+    // not immediately when sender confirms.
+    const { data: orderMeta } = await supabase
+      .from("orders")
+      .select("needs_inspection")
+      .eq("id", orderId)
+      .single();
+    const needsInspection = (orderMeta as any)?.needs_inspection === true;
+
     // Update the order with all sender availability data in one transaction
     const { data, error } = await supabase
       .from("orders")
@@ -185,7 +195,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
         pickup_date: dateStrings,
         sender_notes: notes.trim(),
         sender_confirmed_at: new Date().toISOString(),
-        status: "receiver_availability_pending",
+        status: needsInspection ? "sender_availability_confirmed" : "receiver_availability_pending",
         updated_at: new Date().toISOString()
       })
       .eq("id", orderId)
@@ -197,7 +207,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       return null;
     }
     
-    console.log("Sender availability confirmed. Proceeding to notify receiver.");
+    console.log("Sender availability confirmed.", needsInspection ? "Inspection required - deferring receiver notification." : "Proceeding to notify receiver.");
     
     // Map the database response to our Order type
     const order = mapDbOrderToOrderType(data);
@@ -210,16 +220,21 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       console.error("Error sending sender dates confirmed email:", confirmError);
     }
     
-    // Send receiver availability email
-    try {
-      const emailSent = await resendReceiverAvailabilityEmail(orderId);
-      console.log("Receiver availability email sent:", emailSent);
-      
-      if (!emailSent) {
-        console.error("Failed to send receiver availability email");
+    // Send receiver availability email — skip when inspection is required.
+    // It will be triggered after the inspection completes (repairs done or all declined).
+    if (!needsInspection) {
+      try {
+        const emailSent = await resendReceiverAvailabilityEmail(orderId);
+        console.log("Receiver availability email sent:", emailSent);
+
+        if (!emailSent) {
+          console.error("Failed to send receiver availability email");
+        }
+      } catch (emailError) {
+        console.error("Error sending receiver availability email:", emailError);
       }
-    } catch (emailError) {
-      console.error("Error sending receiver availability email:", emailError);
+    } else {
+      console.log("Skipping receiver availability email - order needs inspection. Will send once inspection is complete.");
     }
     
     return order;
