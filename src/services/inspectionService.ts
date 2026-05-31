@@ -1,5 +1,49 @@
 import { supabase } from "@/integrations/supabase/client";
 import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
+import { resendReceiverAvailabilityEmail } from "./emailService";
+
+// When an inspection transitions to 'repaired' (all approved issues repaired,
+// or every issue declined), trigger receiver availability email if it hasn't
+// been sent yet. This is the deferred handoff for orders with needs_inspection.
+const triggerReceiverAvailabilityIfDeferred = async (inspectionId: string): Promise<void> => {
+  try {
+    const { data: inspection } = await supabase
+      .from('bicycle_inspections')
+      .select('order_id')
+      .eq('id', inspectionId)
+      .maybeSingle();
+    if (!inspection?.order_id) return;
+
+    const { data: order } = await supabase
+      .from('orders')
+      .select('id, status, needs_inspection, delivery_date')
+      .eq('id', inspection.order_id)
+      .maybeSingle();
+    if (!order) return;
+
+    const needsInspection = (order as any).needs_inspection === true;
+    const hasReceiverDates = Array.isArray((order as any).delivery_date) && (order as any).delivery_date.length > 0;
+    // Idempotency guard: only fire when we're still in the deferred state
+    // (sender confirmed but receiver flow hasn't started yet).
+    if (!needsInspection) return;
+    if (hasReceiverDates) return;
+    if ((order as any).status !== 'sender_availability_confirmed') return;
+
+    await supabase
+      .from('orders')
+      .update({
+        status: 'receiver_availability_pending',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', order.id);
+
+    const sent = await resendReceiverAvailabilityEmail(order.id);
+    console.log('Post-inspection receiver availability email sent:', sent, 'for order:', order.id);
+  } catch (err) {
+    console.error('Error triggering post-inspection receiver availability email:', err);
+  }
+};
+
 
 // Fields that should never leak to non-admin/non-mechanic users.
 const ADMIN_ONLY_ISSUE_FIELDS = [
