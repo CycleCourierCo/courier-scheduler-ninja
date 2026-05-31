@@ -118,7 +118,12 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
           .from('bicycle_inspections')
           .update({ status: nextStatus })
           .eq('id', inspection.id);
-        if (!updateError) updatedCount++;
+        if (!updateError) {
+          updatedCount++;
+          if (nextStatus === 'repaired') {
+            await triggerReceiverAvailabilityIfDeferred(inspection.id);
+          }
+        }
       }
     }
 
