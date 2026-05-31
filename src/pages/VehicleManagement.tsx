@@ -227,6 +227,30 @@ const VehicleManagement = () => {
           </TabsList>
 
           <TabsContent value="vehicles" className="space-y-4">
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">Insurance coverage timeline</h3>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => setTimelineStart((d) => addMonths(d, -3))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setTimelineStart(addMonths(startOfMonth(new Date()), -1))}>
+                    Today
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setTimelineStart((d) => addMonths(d, 3))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <InsuranceTimeline
+                vehicles={inUseVehicles}
+                policies={policies}
+                monthsCount={12}
+                startMonth={timelineStart}
+                onPolicyClick={() => {}}
+              />
+            </Card>
+
             <Card className="p-3 flex flex-wrap gap-2 items-center">
               <Input
                 value={search}
