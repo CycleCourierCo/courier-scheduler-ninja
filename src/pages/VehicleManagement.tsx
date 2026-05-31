@@ -73,7 +73,9 @@ const VehicleManagement = () => {
   const load = async () => {
     setLoading(true);
     try {
-      setVehicles(await listVehicles());
+      const [vs, ps] = await Promise.all([listVehicles(), listPolicies().catch(() => [])]);
+      setVehicles(vs);
+      setPolicies(ps);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -82,6 +84,12 @@ const VehicleManagement = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const inUseVehicles = useMemo(
+    () => vehicles.filter((v) => v.status === "in_use"),
+    [vehicles],
+  );
+
 
   const filtered = useMemo(() => {
     const q = search.trim().toUpperCase();
