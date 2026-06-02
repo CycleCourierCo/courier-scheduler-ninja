@@ -145,15 +145,28 @@ const JobScheduling = () => {
       const pickupDates = order.pickup_date as string[] | null;
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
-      
-      // "Collection today" filter: order must have a pickup_date matching target date and not yet collected
+
+      // "Collecting before delivery date" filter: include only orders that will be
+      // available to deliver on the target date (already collected, or pickup scheduled
+      // strictly before the target date). Pickups are hidden under this filter.
       if (showCollectionToday) {
-        const matchesCollectionToday = !isCollected && pickupDates && pickupDates.some(date =>
-          format(new Date(date), 'yyyy-MM-dd') === targetDateStr
+        const collectedBeforeTarget = isCollected || (
+          !!pickupDates && pickupDates.some(date =>
+            format(new Date(date), 'yyyy-MM-dd') < targetDateStr
+          )
         );
-        if (!matchesCollectionToday) return false;
+        if (!collectedBeforeTarget) return false;
+
+        const hasUnscheduledDelivery = !order.scheduled_delivery_date;
+        const deliveryPassesDateFilter = !filterDate ||
+          !deliveryDates ||
+          deliveryDates.length === 0 ||
+          deliveryDates.some(date =>
+            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
+          );
+        return hasUnscheduledDelivery && deliveryPassesDateFilter;
       }
-      
+
       // Check if order has a valid pickup job (not scheduled, and passes date filter)
       const hasUnscheduledPickup = !order.scheduled_pickup_date;
       const pickupPassesDateFilter = !filterDate || 
