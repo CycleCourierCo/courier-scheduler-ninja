@@ -14,12 +14,14 @@ import {
   getBikeBrandAnalytics,
   getCollectionTimeAnalytics,
   getDeliveryTimeAnalytics,
-  getStorageAnalytics
+  getStorageAnalytics,
+  getAllCustomersAnalytics
 } from "@/services/analyticsService";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
 import TopCustomersChart from "@/components/analytics/TopCustomersChart";
+import B2BLeaderboard from "@/components/analytics/B2BLeaderboard";
 import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
@@ -59,7 +61,7 @@ const AnalyticsPage = () => {
   const storageData = getStorageAnalytics(orders);
 
   // Get only B2B customers for business tab
-  const b2bCustomers = topCustomersData.filter(customer => customer.isB2B);
+  const b2bCustomers = getAllCustomersAnalytics(orders).filter(customer => customer.isB2B);
 
   return (
     <Layout>
@@ -160,7 +162,7 @@ const AnalyticsPage = () => {
                   <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
-                  <TopCustomersChart data={b2bCustomers} />
+                  <B2BLeaderboard customers={b2bCustomers} orders={orders} />
                 </div>
               </TabsContent>
               

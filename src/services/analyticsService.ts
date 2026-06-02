@@ -146,6 +146,47 @@ export const getTopCustomersAnalytics = (orders: Order[]): CustomerOrderCount[] 
     .slice(0, 10);
 };
 
+export const getAllCustomersAnalytics = (orders: Order[]): CustomerOrderCount[] => {
+  const customerCounts: Record<string, { count: number; isB2B: boolean }> = {};
+
+  orders.forEach(order => {
+    // @ts-ignore
+    const customerName = order.companyName || order.sender.name;
+    // @ts-ignore
+    const isB2B = order.isBusiness || order.userRole === 'b2b_customer';
+    if (!customerName) return;
+    if (!customerCounts[customerName]) {
+      customerCounts[customerName] = { count: 0, isB2B };
+    }
+    customerCounts[customerName].count++;
+  });
+
+  return Object.entries(customerCounts)
+    .map(([customerName, { count, isB2B }]) => ({ customerName, count, isB2B }))
+    .sort((a, b) => b.count - a.count);
+};
+
+export const getCustomerOrdersOverTime = (
+  orders: Order[],
+  customerName: string
+): { month: string; count: number }[] => {
+  const monthMap: Record<string, number> = {};
+
+  orders.forEach(order => {
+    // @ts-ignore
+    const name = order.companyName || order.sender.name;
+    if (name !== customerName) return;
+    const d = new Date(order.createdAt);
+    if (isNaN(d.getTime())) return;
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    monthMap[monthKey] = (monthMap[monthKey] || 0) + 1;
+  });
+
+  return Object.entries(monthMap)
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+};
+
 export const getPartExchangeAnalytics = (orders: Order[]) => {
   const partExchangeCount = orders.filter(order => order.isBikeSwap).length;
   const normalCount = orders.length - partExchangeCount;
