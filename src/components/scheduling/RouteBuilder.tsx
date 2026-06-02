@@ -2946,6 +2946,19 @@ Route Link: ${routeLink}`;
                 Collected (ready to deliver)
               </Label>
             </div>
+
+            {/* Collection Today Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="collection-today-filter"
+                checked={showCollectionToday}
+                onCheckedChange={handleShowCollectionTodayChange}
+              />
+              <Label htmlFor="collection-today-filter" className="text-sm cursor-pointer">
+                Collection {filterDate ? 'on selected date' : 'today'}
+              </Label>
+            </div>
+            
             
             {/* CSV Upload Button */}
             <CSVUploadButton 
