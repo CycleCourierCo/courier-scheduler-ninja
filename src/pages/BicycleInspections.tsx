@@ -207,6 +207,68 @@ const BicycleInspections = () => {
     },
   });
 
+  // Update an existing issue (admin/mechanic during pricing)
+  const updateIssueMutation = useMutation({
+    mutationFn: async ({ issueId, fields }: { issueId: string; fields: Parameters<typeof updateInspectionIssue>[1] }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return updateInspectionIssue(issueId, fields, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setEditingIssueId(null);
+      toast.success("Issue updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update issue");
+      console.error(error);
+    },
+  });
+
+  // Delete an issue (admin only)
+  const deleteIssueMutation = useMutation({
+    mutationFn: async (issueId: string) => deleteInspectionIssue(issueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Issue removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove issue");
+      console.error(error);
+    },
+  });
+
+  // Add a new issue to an existing inspection (pricing stage)
+  const addIssueAtPricingMutation = useMutation({
+    mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const cost = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      return addIssueToExistingInspection(
+        inspectionId,
+        orderId,
+        draft.description.trim(),
+        cost,
+        user.id,
+        userProfile?.name || user.email || "Admin",
+        {
+          part_name: draft.partName.trim() || null,
+          part_spec: draft.partSpec.trim() || null,
+          part_number: draft.partNumber.trim() || null,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setAddIssueForInspectionId(null);
+      setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+      toast.success("Issue added");
+    },
+    onError: (error) => {
+      toast.error("Failed to add issue");
+      console.error(error);
+    },
+  });
+
+
   // Release inspection to customer (admin gate)
   const releaseMutation = useMutation({
     mutationFn: async (inspectionId: string) => {
