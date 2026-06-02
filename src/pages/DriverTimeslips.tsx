@@ -32,6 +32,7 @@ const DriverTimeslips = () => {
   const queryClient = useQueryClient();
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [showBulkVehicleDialog, setShowBulkVehicleDialog] = useState(false);
   const [deletingTimeslipId, setDeletingTimeslipId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('draft');
   const [filters, setFilters] = useState<{
@@ -244,10 +245,16 @@ const DriverTimeslips = () => {
         </DashboardHeader>
 
         {isAdmin && (
-          <Button onClick={() => setShowGenerateDialog(true)}>
-            <Calendar className="h-4 w-4 mr-2" />
-            Generate Timeslips
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setShowGenerateDialog(true)}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Generate Timeslips
+            </Button>
+            <Button variant="outline" onClick={() => setShowBulkVehicleDialog(true)}>
+              <Truck className="h-4 w-4 mr-2" />
+              Bulk Assign Vehicle
+            </Button>
+          </div>
         )}
 
         {isAdmin && (
