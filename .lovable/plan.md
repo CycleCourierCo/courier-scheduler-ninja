@@ -1,26 +1,15 @@
-Rework the new toggle so it surfaces orders that will be collected before the selected delivery date (i.e. will be available to deliver on the selected date), and fix the label.
+One adjustment to the Job Scheduling filters: stop hiding pickup jobs when the "Collecting before delivery date" toggle is ON.
 
-Current behaviour (wrong): toggle filters for orders whose `pickup_date` equals the selected date, and the label switches to "Collection on selected date".
+## Change
 
-New behaviour:
-- Rename the toggle to **"Collecting before delivery date"** (static label, no swap).
-- When the toggle is ON and `filterDate` is set:
-  - Show **delivery jobs only** for orders that are either already collected (`order_collected === true`) OR whose `pickup_date` contains at least one date strictly before `filterDate`.
-  - Hide pickup jobs entirely (they aren't relevant for "what can I deliver that day").
-- When the toggle is ON but no `filterDate` is set: treat target as today's date — show deliveries whose collection is already done or scheduled before today.
-- When OFF: existing behaviour, no change.
+When this toggle is ON, pickup jobs are currently removed from both the map and Route Builder. Change it so pickup jobs continue to show as long as they pass the normal date filter (a pickup that is possible on the selected date stays visible). The delivery-side rule is unchanged: deliveries only appear if the order is already collected OR has a `pickup_date` strictly before the target date.
 
-Changes:
+## Files
 
-1. `src/components/scheduling/RouteBuilder.tsx`
-   - In `getJobsFromOrders`, replace the `isCollectionToday` helper with `isCollectedBeforeTarget(order)`:
-     - returns true if `order_collected === true`, OR if any entry in `order.pickup_date` parses to a date strictly less than the target date (filterDate ?? today).
-   - When `showCollectionToday` is true:
-     - Skip pickup jobs (don't push).
-     - For delivery jobs, only include when `isCollectedBeforeTarget(order)` is true (and existing date/collected filters still apply).
-   - Update the Switch label to `Collecting before delivery date` (drop the conditional text).
+- `src/pages/JobScheduling.tsx`
+  - In the `showCollectionToday` branch of `filteredOrdersForMap`, drop the "hide pickups" behaviour. Evaluate pickup eligibility using the same rules as the default branch and return true if either the pickup OR the (existing rule) delivery qualifies.
 
-2. `src/pages/JobScheduling.tsx`
-   - Apply the same logic to `filteredOrdersForMap`: when `showCollectionToday` is true, keep an order only if it has an unscheduled delivery AND (`order_collected === true` OR `pickup_date` has a date strictly before the target). Pickup-only inclusion is dropped under this filter.
+- `src/components/scheduling/RouteBuilder.tsx`
+  - In `getJobsFromOrders`, remove the branch that skips pickup jobs when `showCollectionToday` is true. Pickups go through normal date/collected filtering. Delivery filtering via `isCollectedBeforeTarget` is unchanged.
 
-Naming: the existing state variable `showCollectionToday` is kept as-is to minimise churn; only the user-facing label changes.
+No DB, edge function, email, label, or new-toggle changes.
