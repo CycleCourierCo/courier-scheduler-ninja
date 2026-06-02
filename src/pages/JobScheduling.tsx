@@ -52,6 +52,7 @@ const JobScheduling = () => {
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  const [showCollectionToday, setShowCollectionToday] = useState(false);
   
   // Initial jobs from URL parameters
   const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
