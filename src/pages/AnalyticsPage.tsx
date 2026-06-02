@@ -296,6 +296,33 @@ const AnalyticsPage = () => {
                   <InspectionsOverTimeChart data={inspectionsOverTime} />
                 </div>
               </TabsContent>
+
+              <TabsContent value="vehicles" className="space-y-2 sm:space-y-4">
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Vehicles & Routes</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <StatsCard
+                    title="Total Miles"
+                    value={vehicleTotals.totalMiles.toLocaleString()}
+                    description={`Avg ${vehicleTotals.avgMilesPerWeek.toLocaleString()} miles/week`}
+                    icon={Truck}
+                  />
+                  <StatsCard
+                    title="Total Routes"
+                    value={vehicleTotals.totalRoutes.toLocaleString()}
+                    description={`Avg ${vehicleTotals.avgRoutesPerWeek} routes/week`}
+                    icon={Route}
+                  />
+                  <StatsCard
+                    title="Avg Drivers / Week"
+                    value={vehicleTotals.avgDriversPerWeek}
+                    description="Unique drivers active per week"
+                    icon={Users}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                  <WeeklyVehicleStatsChart data={weeklyVehicleStats} />
+                </div>
+              </TabsContent>
             </Tabs>
           </>
         )}
