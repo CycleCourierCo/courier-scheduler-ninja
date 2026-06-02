@@ -197,6 +197,30 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                         />
                         <Label htmlFor={`is_active-${driver.id}`}>Active</Label>
                       </div>
+                      <div className="col-span-2">
+                        <Label htmlFor={`default_vehicle-${driver.id}`}>Default Vehicle</Label>
+                        <Select
+                          value={(editForm as any).default_vehicle_id ?? 'none'}
+                          onValueChange={(value) =>
+                            setEditForm({ ...editForm, default_vehicle_id: value === 'none' ? null : value } as any)
+                          }
+                        >
+                          <SelectTrigger id={`default_vehicle-${driver.id}`}>
+                            <SelectValue placeholder="No default vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No default vehicle</SelectItem>
+                            {vehicles?.map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.registration}{v.make ? ` — ${v.make}` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Auto-assigned to new timeslips generated for this driver.
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-4 text-sm">
