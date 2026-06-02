@@ -146,26 +146,37 @@ const JobScheduling = () => {
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
 
-      // "Collecting before delivery date" filter: include only orders that will be
-      // available to deliver on the target date (already collected, or pickup scheduled
-      // strictly before the target date). Pickups are hidden under this filter.
+      // "Collecting before delivery date" filter: deliveries only appear if the order
+      // is already collected OR has a pickup date strictly before the target date.
+      // Pickups continue to follow the normal date filter and stay visible.
       if (showCollectionToday) {
         const collectedBeforeTarget = isCollected || (
           !!pickupDates && pickupDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') < targetDateStr
           )
         );
-        if (!collectedBeforeTarget) return false;
+
+        const hasUnscheduledPickup = !order.scheduled_pickup_date;
+        const pickupPassesDateFilter = !filterDate ||
+          !pickupDates ||
+          pickupDates.length === 0 ||
+          pickupDates.some(date =>
+            format(new Date(date), 'yyyy-MM-dd') === targetDateStr
+          );
+        const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter;
 
         const hasUnscheduledDelivery = !order.scheduled_delivery_date;
         const deliveryPassesDateFilter = !filterDate ||
           !deliveryDates ||
           deliveryDates.length === 0 ||
           deliveryDates.some(date =>
-            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
+            format(new Date(date), 'yyyy-MM-dd') === targetDateStr
           );
-        return hasUnscheduledDelivery && deliveryPassesDateFilter;
+        const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget;
+
+        return hasValidPickup || hasValidDelivery;
       }
+
 
       // Check if order has a valid pickup job (not scheduled, and passes date filter)
       const hasUnscheduledPickup = !order.scheduled_pickup_date;
