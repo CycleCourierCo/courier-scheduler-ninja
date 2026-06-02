@@ -34,9 +34,9 @@ import {
   fetchTimeslipsForAnalytics,
   getWeeklyVehicleStats,
   getVehicleTotals,
+  getVehicleLeaderboard,
   type DateRange,
 } from "@/services/vehicleAnalyticsService";
-import { getVehicleLeaderboard } from "@/services/vehicleAnalyticsService";
 import { listVehicles } from "@/services/vehicleService";
 import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsChart";
 import VehicleMileageChart from "@/components/analytics/VehicleMileageChart";
