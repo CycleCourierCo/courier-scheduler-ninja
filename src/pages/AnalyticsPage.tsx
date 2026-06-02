@@ -1,8 +1,14 @@
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { 
   fetchOrdersForAnalytics, 
   getOrderStatusAnalytics,
@@ -28,6 +34,7 @@ import {
   fetchTimeslipsForAnalytics,
   getWeeklyVehicleStats,
   getVehicleTotals,
+  type DateRange,
 } from "@/services/vehicleAnalyticsService";
 import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsChart";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
@@ -41,7 +48,22 @@ import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+
+const weeksAgoRange = (weeks: number): DateRange => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - weeks * 7);
+  return {
+    start: format(start, "yyyy-MM-dd"),
+    end: format(end, "yyyy-MM-dd"),
+  };
+};
+
+const AnalyticsPage = () => {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [vehicleRange, setVehicleRange] = useState<DateRange | undefined>(() => weeksAgoRange(8));
+
 
 const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
