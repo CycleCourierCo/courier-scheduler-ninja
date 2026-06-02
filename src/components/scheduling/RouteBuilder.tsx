@@ -952,8 +952,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
           );
         
-        // If "collected only" is on, only show collected deliveries
-        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable) {
+        // If "collected only" is on, only show collected deliveries.
+        // If "collecting before delivery date" is on, only show deliveries whose
+        // order is already collected or has a pickup strictly before the target date.
+        const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
+        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable && passesCollectingBefore) {
+
           jobs.push({
             orderId: order.id,
             type: 'delivery',
