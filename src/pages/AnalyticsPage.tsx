@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
@@ -105,14 +105,13 @@ const AnalyticsPage = () => {
     [vehicleTimeslips, vehicleLookup],
   );
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
-
-  // Default-select top 5 vehicles by miles when leaderboard first becomes available
-  const seededRef = useMemo(() => ({ seeded: false }), []);
-  if (!seededRef.seeded && vehicleLeaderboard.length > 0 && selectedVehicleIds.length === 0) {
-    seededRef.seeded = true;
-    // schedule async to avoid setState during render
-    queueMicrotask(() => setSelectedVehicleIds(vehicleLeaderboard.slice(0, 5).map((r) => r.vehicle_id)));
-  }
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (vehicleLeaderboard.length === 0) return;
+    seededRef.current = true;
+    setSelectedVehicleIds(vehicleLeaderboard.slice(0, 5).map((r) => r.vehicle_id));
+  }, [vehicleLeaderboard]);
 
   const milesPerRoute = vehicleTotals.totalRoutes > 0
     ? Math.round(vehicleTotals.totalMiles / vehicleTotals.totalRoutes)
