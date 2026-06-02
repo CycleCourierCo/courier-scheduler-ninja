@@ -36,7 +36,11 @@ import {
   getVehicleTotals,
   type DateRange,
 } from "@/services/vehicleAnalyticsService";
+import { getVehicleLeaderboard } from "@/services/vehicleAnalyticsService";
+import { listVehicles } from "@/services/vehicleService";
 import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsChart";
+import VehicleMileageChart from "@/components/analytics/VehicleMileageChart";
+import VehicleLeaderboardCard from "@/components/analytics/VehicleLeaderboardCard";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
@@ -84,8 +88,36 @@ const AnalyticsPage = () => {
     queryKey: ["vehiclesAnalytics", vehicleRange?.start ?? "all", vehicleRange?.end ?? "all"],
     queryFn: () => fetchTimeslipsForAnalytics(vehicleRange),
   });
+  const { data: vehiclesList = [] } = useQuery({
+    queryKey: ["vehiclesListForAnalytics"],
+    queryFn: listVehicles,
+  });
   const weeklyVehicleStats = getWeeklyVehicleStats(vehicleTimeslips);
   const vehicleTotals = getVehicleTotals(weeklyVehicleStats);
+
+  const vehicleLookup = useMemo(() => {
+    const o: Record<string, { registration: string }> = {};
+    for (const v of vehiclesList) o[v.id] = { registration: v.registration };
+    return o;
+  }, [vehiclesList]);
+  const vehicleLeaderboard = useMemo(
+    () => getVehicleLeaderboard(vehicleTimeslips, vehicleLookup),
+    [vehicleTimeslips, vehicleLookup],
+  );
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
+
+  // Default-select top 5 vehicles by miles when leaderboard first becomes available
+  const seededRef = useMemo(() => ({ seeded: false }), []);
+  if (!seededRef.seeded && vehicleLeaderboard.length > 0 && selectedVehicleIds.length === 0) {
+    seededRef.seeded = true;
+    // schedule async to avoid setState during render
+    queueMicrotask(() => setSelectedVehicleIds(vehicleLeaderboard.slice(0, 5).map((r) => r.vehicle_id)));
+  }
+
+  const milesPerRoute = vehicleTotals.totalRoutes > 0
+    ? Math.round(vehicleTotals.totalMiles / vehicleTotals.totalRoutes)
+    : 0;
+  const topVehicle = vehicleLeaderboard[0];
 
   // Calculate quick stats
   const totalOrders = orders.length;
