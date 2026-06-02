@@ -16,6 +16,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
   const [isEnablingInspection, setIsEnablingInspection] = useState(false);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
 
   const quantity = order.bikeQuantity || 1;
   const groupedBikes = getGroupedBikes(order);
