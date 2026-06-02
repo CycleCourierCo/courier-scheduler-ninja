@@ -64,10 +64,6 @@ const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [vehicleRange, setVehicleRange] = useState<DateRange | undefined>(() => weeksAgoRange(8));
 
-
-const AnalyticsPage = () => {
-  const [activeTab, setActiveTab] = useState("overview");
-
   // Fetch orders for analytics
   const { data: orders = [], isLoading, error } = useQuery({
     queryKey: ["ordersAnalytics"],
@@ -85,8 +81,8 @@ const AnalyticsPage = () => {
   const issueApproval = getIssueApprovalRate(inspections);
 
   const { data: vehicleTimeslips = [] } = useQuery({
-    queryKey: ["vehiclesAnalytics"],
-    queryFn: fetchTimeslipsForAnalytics,
+    queryKey: ["vehiclesAnalytics", vehicleRange?.start ?? "all", vehicleRange?.end ?? "all"],
+    queryFn: () => fetchTimeslipsForAnalytics(vehicleRange),
   });
   const weeklyVehicleStats = getWeeklyVehicleStats(vehicleTimeslips);
   const vehicleTotals = getVehicleTotals(weeklyVehicleStats);
