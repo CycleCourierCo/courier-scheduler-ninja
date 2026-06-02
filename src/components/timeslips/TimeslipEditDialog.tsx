@@ -220,6 +220,32 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="vehicle_id">Vehicle</Label>
+            <Select
+              value={formData.vehicle_id ?? 'none'}
+              onValueChange={(value) =>
+                setFormData({ ...formData, vehicle_id: value === 'none' ? null : value })
+              }
+            >
+              <SelectTrigger id="vehicle_id">
+                <SelectValue placeholder="Select vehicle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
+                {activeVehicles.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.registration}
+                    {v.make ? ` — ${v.make}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Which van the driver used (for mileage tracking).
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
             <Select
               value={formData.status}
