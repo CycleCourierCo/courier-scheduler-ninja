@@ -61,8 +61,10 @@ interface RouteBuilderProps {
   orders: OrderData[];
   filterDate?: Date;
   showCollectedOnly?: boolean;
+  showCollectionToday?: boolean;
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
+  onShowCollectionTodayChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
   isVerifyingShipday?: boolean;
@@ -665,8 +667,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   orders, 
   filterDate: externalFilterDate,
   showCollectedOnly: externalShowCollectedOnly,
+  showCollectionToday: externalShowCollectionToday,
   onFilterDateChange,
   onShowCollectedOnlyChange,
+  onShowCollectionTodayChange,
   initialJobs,
   shipdayVerification = {},
   isVerifyingShipday = false,
@@ -705,10 +709,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Filter states - use external state if provided, otherwise use internal state
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
+  const [internalShowCollectionToday, setInternalShowCollectionToday] = useState(false);
   
   // Use external state if provided, otherwise fall back to internal state
   const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
   const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
+  const showCollectionToday = externalShowCollectionToday !== undefined ? externalShowCollectionToday : internalShowCollectionToday;
   
   // Handle filter changes - notify parent if callbacks provided
   const handleFilterDateChange = (date: Date | undefined) => {
@@ -724,6 +730,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       onShowCollectedOnlyChange(value);
     } else {
       setInternalShowCollectedOnly(value);
+    }
+  };
+
+  const handleShowCollectionTodayChange = (value: boolean) => {
+    if (onShowCollectionTodayChange) {
+      onShowCollectionTodayChange(value);
+    } else {
+      setInternalShowCollectionToday(value);
     }
   };
 
@@ -884,9 +898,23 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       lon?: number;
     }> = [];
     
+    const collectionTodayTarget = filterDate || new Date();
+    const collectionTodayStr = format(collectionTodayTarget, 'yyyy-MM-dd');
+    const isCollectionToday = (order: OrderData): boolean => {
+      const pickupDates = order.pickup_date as string[] | null;
+      if (order.order_collected === true) return false;
+      if (!pickupDates || pickupDates.length === 0) return false;
+      return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') === collectionTodayStr);
+    };
+
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
+
+      // "Collection today" filter restricts to orders scheduled to be collected on target date
+      if (applyFilters && showCollectionToday && !isCollectionToday(order)) {
+        return;
+      }
       
       // Add pickup job if not scheduled
       if (!order.scheduled_pickup_date) {
@@ -2765,7 +2793,7 @@ Route Link: ${routeLink}`;
 
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
-  const hasActiveFilters = filterDate || showCollectedOnly;
+  const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday;
 
   // Helper to get Shipday status for a job
   const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
@@ -2918,6 +2946,19 @@ Route Link: ${routeLink}`;
                 Collected (ready to deliver)
               </Label>
             </div>
+
+            {/* Collection Today Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="collection-today-filter"
+                checked={showCollectionToday}
+                onCheckedChange={handleShowCollectionTodayChange}
+              />
+              <Label htmlFor="collection-today-filter" className="text-sm cursor-pointer">
+                Collection {filterDate ? 'on selected date' : 'today'}
+              </Label>
+            </div>
+            
             
             {/* CSV Upload Button */}
             <CSVUploadButton 

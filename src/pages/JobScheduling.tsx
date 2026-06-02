@@ -52,6 +52,7 @@ const JobScheduling = () => {
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  const [showCollectionToday, setShowCollectionToday] = useState(false);
   
   // Initial jobs from URL parameters
   const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
@@ -137,10 +138,21 @@ const JobScheduling = () => {
   const filteredOrdersForMap = useMemo(() => {
     if (!orders) return [];
     
+    const targetDate = filterDate || new Date();
+    const targetDateStr = format(targetDate, 'yyyy-MM-dd');
+    
     return orders.filter(order => {
       const pickupDates = order.pickup_date as string[] | null;
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
+      
+      // "Collection today" filter: order must have a pickup_date matching target date and not yet collected
+      if (showCollectionToday) {
+        const matchesCollectionToday = !isCollected && pickupDates && pickupDates.some(date =>
+          format(new Date(date), 'yyyy-MM-dd') === targetDateStr
+        );
+        if (!matchesCollectionToday) return false;
+      }
       
       // Check if order has a valid pickup job (not scheduled, and passes date filter)
       const hasUnscheduledPickup = !order.scheduled_pickup_date;
@@ -166,7 +178,7 @@ const JobScheduling = () => {
       // Keep order if it has at least one valid job
       return hasValidPickup || hasValidDelivery;
     });
-  }, [orders, filterDate, showCollectedOnly]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday]);
 
   return (
     <Layout>
@@ -211,8 +223,10 @@ const JobScheduling = () => {
                 orders={orders || []}
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
+                showCollectionToday={showCollectionToday}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
+                onShowCollectionTodayChange={setShowCollectionToday}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 isVerifyingShipday={isVerifyingShipday}
