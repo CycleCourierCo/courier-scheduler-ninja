@@ -898,9 +898,23 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       lon?: number;
     }> = [];
     
+    const collectionTodayTarget = filterDate || new Date();
+    const collectionTodayStr = format(collectionTodayTarget, 'yyyy-MM-dd');
+    const isCollectionToday = (order: OrderData): boolean => {
+      const pickupDates = order.pickup_date as string[] | null;
+      if (order.order_collected === true) return false;
+      if (!pickupDates || pickupDates.length === 0) return false;
+      return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') === collectionTodayStr);
+    };
+
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
+
+      // "Collection today" filter restricts to orders scheduled to be collected on target date
+      if (applyFilters && showCollectionToday && !isCollectionToday(order)) {
+        return;
+      }
       
       // Add pickup job if not scheduled
       if (!order.scheduled_pickup_date) {
