@@ -898,26 +898,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       lon?: number;
     }> = [];
     
-    const collectionTodayTarget = filterDate || new Date();
-    const collectionTodayStr = format(collectionTodayTarget, 'yyyy-MM-dd');
-    const isCollectionToday = (order: OrderData): boolean => {
+    const collectingBeforeTarget = filterDate || new Date();
+    const collectingBeforeTargetStr = format(collectingBeforeTarget, 'yyyy-MM-dd');
+    // True if the bike will already be (or has been) collected before the target delivery date,
+    // i.e. it is available to deliver on the target date.
+    const isCollectedBeforeTarget = (order: OrderData): boolean => {
+      if (order.order_collected === true) return true;
       const pickupDates = order.pickup_date as string[] | null;
-      if (order.order_collected === true) return false;
       if (!pickupDates || pickupDates.length === 0) return false;
-      return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') === collectionTodayStr);
+      return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') < collectingBeforeTargetStr);
     };
 
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
 
-      // "Collection today" filter restricts to orders scheduled to be collected on target date
-      if (applyFilters && showCollectionToday && !isCollectionToday(order)) {
+      // "Collecting before delivery date" filter: only include orders whose collection
+      // is already done or scheduled strictly before the target date.
+      if (applyFilters && showCollectionToday && !isCollectedBeforeTarget(order)) {
         return;
       }
       
-      // Add pickup job if not scheduled
-      if (!order.scheduled_pickup_date) {
+      // Add pickup job if not scheduled (skipped when the "collecting before" filter is on -
+      // that filter only surfaces deliverable orders).
+      if (!order.scheduled_pickup_date && !(applyFilters && showCollectionToday)) {
         // Check date filter for pickups
         const pickupDates = order.pickup_date as string[] | null;
         const pickupAvailable = !applyFilters || !filterDate || 
