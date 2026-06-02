@@ -24,6 +24,12 @@ import {
   getAverageRepairCost,
   getIssueApprovalRate,
 } from "@/services/inspectionAnalyticsService";
+import {
+  fetchTimeslipsForAnalytics,
+  getWeeklyVehicleStats,
+  getVehicleTotals,
+} from "@/services/vehicleAnalyticsService";
+import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsChart";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
