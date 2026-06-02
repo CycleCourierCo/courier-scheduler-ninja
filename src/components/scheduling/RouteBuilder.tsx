@@ -2959,7 +2959,7 @@ Route Link: ${routeLink}`;
                 onCheckedChange={handleShowCollectionTodayChange}
               />
               <Label htmlFor="collection-today-filter" className="text-sm cursor-pointer">
-                Collection {filterDate ? 'on selected date' : 'today'}
+                Collecting before delivery date
               </Label>
             </div>
             
