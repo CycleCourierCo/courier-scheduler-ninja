@@ -248,6 +248,13 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                         <span className="text-muted-foreground">Status:</span>{' '}
                         {driver.is_active ? 'Active' : 'Inactive'}
                       </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Default Vehicle:</span>{' '}
+                        {(() => {
+                          const v = vehicles?.find((x) => x.id === (driver as any).default_vehicle_id);
+                          return v ? `${v.registration}${v.make ? ` — ${v.make}` : ''}` : 'None';
+                        })()}
+                      </div>
                     </div>
                   )}
                 </CardContent>
