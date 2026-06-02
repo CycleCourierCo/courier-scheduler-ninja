@@ -19,6 +19,7 @@ import InsuranceTimeline from "@/components/vehicles/InsuranceTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   deleteVehicle,
+  getVehicleMileageTotals,
   listVehicles,
   lookupVehicleFromDVLA,
   updateVehicle,
@@ -57,6 +58,7 @@ const ExpiryCell = ({ status, date }: { status: string | null; date: string | nu
 const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [policies, setPolicies] = useState<InsurancePolicy[]>([]);
+  const [mileageByVehicle, setMileageByVehicle] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("in_use");
@@ -73,9 +75,14 @@ const VehicleManagement = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [vs, ps] = await Promise.all([listVehicles(), listPolicies().catch(() => [])]);
+      const [vs, ps, mileage] = await Promise.all([
+        listVehicles(),
+        listPolicies().catch(() => []),
+        getVehicleMileageTotals().catch(() => ({} as Record<string, number>)),
+      ]);
       setVehicles(vs);
       setPolicies(ps);
+      setMileageByVehicle(mileage);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
