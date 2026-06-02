@@ -392,7 +392,7 @@ const AnalyticsPage = () => {
                     </Popover>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <StatsCard
                     title="Total Miles"
                     value={vehicleTotals.totalMiles.toLocaleString()}
@@ -411,9 +411,28 @@ const AnalyticsPage = () => {
                     description="Unique drivers active per week"
                     icon={Users}
                   />
+                  <StatsCard
+                    title="Miles / Route"
+                    value={milesPerRoute.toLocaleString()}
+                    description="Average miles per completed route"
+                    icon={Route}
+                  />
+                  <StatsCard
+                    title="Most-Used Vehicle"
+                    value={topVehicle?.registration ?? "—"}
+                    description={topVehicle ? `${topVehicle.miles.toLocaleString()} mi · ${topVehicle.routes} routes` : "No data"}
+                    icon={Truck}
+                  />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <WeeklyVehicleStatsChart data={weeklyVehicleStats} />
+                  <VehicleMileageChart
+                    rows={vehicleTimeslips}
+                    vehicles={vehiclesList}
+                    selectedIds={selectedVehicleIds}
+                    onSelectedIdsChange={setSelectedVehicleIds}
+                  />
+                  <VehicleLeaderboardCard rows={vehicleLeaderboard} />
                 </div>
               </TabsContent>
             </Tabs>
