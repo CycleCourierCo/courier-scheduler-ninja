@@ -21,6 +21,7 @@ import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
 import TopCustomersChart from "@/components/analytics/TopCustomersChart";
+import B2BLeaderboard from "@/components/analytics/B2BLeaderboard";
 import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
