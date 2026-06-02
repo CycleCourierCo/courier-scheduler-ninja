@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Timeslip, CustomAddon } from '@/types/timeslip';
+import { listVehicles } from '@/services/vehicleService';
 import {
   Dialog,
   DialogContent,
@@ -41,10 +43,19 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     hourly_rate: timeslip?.hourly_rate || 11,
     van_allowance: timeslip?.van_allowance || 0,
     mileage: timeslip?.mileage || null,
+    vehicle_id: timeslip?.vehicle_id || null,
     status: timeslip?.status || 'draft',
     admin_notes: timeslip?.admin_notes || '',
     custom_addons: timeslip?.custom_addons || [],
   });
+
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ['vehicles-active'],
+    queryFn: listVehicles,
+  });
+  const activeVehicles = vehicles.filter(
+    (v) => v.status !== 'sold' && v.status !== 'written_off'
+  );
 
   const [newAddon, setNewAddon] = useState({ title: '', hours: 0 });
 
@@ -57,6 +68,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
         hourly_rate: timeslip.hourly_rate,
         van_allowance: timeslip.van_allowance,
         mileage: timeslip.mileage,
+        vehicle_id: timeslip.vehicle_id || null,
         status: timeslip.status,
         admin_notes: timeslip.admin_notes || '',
         custom_addons: timeslip.custom_addons || [],
@@ -205,6 +217,32 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                   : 'Enter actual miles driven'}
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="vehicle_id">Vehicle</Label>
+            <Select
+              value={formData.vehicle_id ?? 'none'}
+              onValueChange={(value) =>
+                setFormData({ ...formData, vehicle_id: value === 'none' ? null : value })
+              }
+            >
+              <SelectTrigger id="vehicle_id">
+                <SelectValue placeholder="Select vehicle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
+                {activeVehicles.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.registration}
+                    {v.make ? ` — ${v.make}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Which van the driver used (for mileage tracking).
+            </p>
           </div>
 
           <div className="space-y-2">
