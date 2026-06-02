@@ -1,40 +1,33 @@
-## Goal
+# B2B Leaderboard + Customer Detail Popup
 
-In the **Bicycle Inspections** page, while an inspection is in the `awaiting_pricing` stage, allow admins/mechanics to fully edit each issue (description + part info + price), as well as add new issues and remove existing ones — not just set the price.
-
-Today, the "pricing" stage only exposes a `£ Price` input + Save button per issue. Description, part name/spec/number are read-only and there's no add/remove control.
+## Scope
+Analytics page (`src/pages/AnalyticsPage.tsx`), Business tab — extend the existing `TopCustomersChart` usage with a full leaderboard and a click-through detail dialog.
 
 ## Changes
 
-### 1. `src/services/inspectionService.ts` — add three service functions
+### 1. New component: `src/components/analytics/B2BLeaderboard.tsx`
+- Full ranked table of **all** B2B customers (not just top N), sorted by order count desc.
+- Columns: Rank, Customer Name, Order Count.
+- Scrollable card with sticky header.
+- Each row is clickable → opens detail dialog for that customer.
+- Optional search/filter input at the top for quick lookup.
 
-- `updateInspectionIssue(issueId, fields)` — updates `issue_description`, `estimated_cost`, `part_name`, `part_spec`, `part_number` on an existing row. When `estimated_cost` is provided, also stamp `priced_at` / `priced_by_id` / `priced_by_name` so the "all priced" gate still works.
-- `deleteInspectionIssue(issueId)` — deletes the row from `inspection_issues`.
-- `addIssueToExistingInspection(inspectionId, orderId, …)` — thin wrapper that inserts a new row directly against the existing inspection (so we don't re-trigger the status reset that `addInspectionIssue` does via `getOrCreateInspection`). Stamps `priced_*` if cost provided.
+### 2. New component: `src/components/analytics/CustomerOrdersDialog.tsx`
+- shadcn `Dialog` triggered by leaderboard row click.
+- Header: customer name + total order count.
+- Body: line/bar chart (Recharts) of that customer's orders over time, grouped by month (reuse the date-bucketing pattern from `getOrderTimeAnalytics`).
+- Derives data client-side from the already-fetched `orders` array filtered by customer name/id — no new query needed.
 
-### 2. `src/pages/BicycleInspections.tsx` — pricing-stage UI
+### 3. `src/services/analyticsService.ts`
+- Add `getCustomerOrdersOverTime(orders, customerName)` returning `{ month: string; count: number }[]` sorted chronologically.
+- Existing `getTopCustomersAnalytics` is unchanged (kept for the existing chart on the Customers tab).
 
-Inside the issue card block, gated by `isAdmin && isAwaitingPricing` (also allow `isMechanic` if that matches current part-edit permissions — confirm with existing pattern that mechanics already manage parts at this stage):
-
-- Replace the current price-only row with an **inline editable form** per issue containing:
-  - Description (textarea)
-  - Estimated cost (£ number input)
-  - Part name / spec / number (three inputs, mechanic+admin)
-  - **Save** button → calls `updateInspectionIssue`
-  - **Delete** button (destructive, with `AlertDialog` confirm) → calls `deleteInspectionIssue`
-- Below the issue list, add an **"Add issue"** button that opens a small inline form (or reuses the existing add-issue dialog scoped to this inspection) and on submit calls `addIssueToExistingInspection`.
-- Local state keyed by `issue.id` to track edited values; on successful mutation invalidate `["bicycle-inspections"]`.
-
-### 3. New mutations in the same component
-
-- `updateIssueMutation`, `deleteIssueMutation`, `addIssueAtPricingMutation` — mirror the existing `setPriceMutation` shape (toast on success/error, invalidate the inspections query).
-
-### 4. No backend / RLS changes
-
-`inspection_issues` already supports insert/update/delete for admin+mechanic via existing policies used by `addInspectionIssue` / `setIssuePrice`. No migration needed; if the delete call fails for RLS we'll add a policy then.
+### 4. `src/pages/AnalyticsPage.tsx` (Business tab only)
+- Replace `<TopCustomersChart data={b2bCustomers} />` with `<B2BLeaderboard customers={b2bCustomers} orders={orders} />`.
+- Leaderboard owns the dialog state and renders `CustomerOrdersDialog` internally.
+- Other tabs (Customers, Overview, etc.) untouched — top-10 bar chart stays where it currently is.
 
 ## Out of scope
-
-- No changes to the customer-facing flow (issues only become visible to customer after "Release to Customer").
-- No changes to other stages (`awaiting_parts`, `awaiting_repair`, `issues_found`).
-- No email/notification changes.
+- No backend, DB, or RLS changes.
+- No changes to B2C customer views.
+- No new data fetching — everything derives from the existing `ordersAnalytics` query.
