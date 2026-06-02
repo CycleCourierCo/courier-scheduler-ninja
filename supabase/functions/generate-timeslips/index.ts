@@ -341,6 +341,7 @@ const handler = async (req: Request): Promise<Response> => {
           hourly_rate: driver.hourly_rate || 11.00,
           van_allowance: driver.uses_own_van ? (driver.van_allowance || 0.00) : 0.00,
           mileage: (driver.van_allowance || 0) > 0 ? 160 : null,
+          vehicle_id: driver.default_vehicle_id || null,
           total_stops: totalStops,
           total_jobs: totalJobs > 0 ? totalJobs : null,
           route_links: routeLinks,

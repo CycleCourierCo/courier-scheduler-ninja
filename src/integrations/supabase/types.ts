@@ -1393,6 +1393,7 @@ export type Database = {
           country: string | null
           county: string | null
           created_at: string
+          default_vehicle_id: string | null
           email: string | null
           hourly_rate: number | null
           id: string
@@ -1429,6 +1430,7 @@ export type Database = {
           country?: string | null
           county?: string | null
           created_at?: string
+          default_vehicle_id?: string | null
           email?: string | null
           hourly_rate?: number | null
           id: string
@@ -1465,6 +1467,7 @@ export type Database = {
           country?: string | null
           county?: string | null
           created_at?: string
+          default_vehicle_id?: string | null
           email?: string | null
           hourly_rate?: number | null
           id?: string
@@ -1488,7 +1491,15 @@ export type Database = {
           van_allowance?: number | null
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_vehicle_id_fkey"
+            columns: ["default_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quickbooks_tokens: {
         Row: {
@@ -2504,6 +2515,7 @@ export type Database = {
           country: string | null
           county: string | null
           created_at: string
+          default_vehicle_id: string | null
           email: string | null
           hourly_rate: number | null
           id: string

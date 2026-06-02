@@ -12,8 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit, Save, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { listVehicles } from '@/services/vehicleService';
 import { toast } from 'sonner';
 
 interface DriverManagementDialogProps {
@@ -40,6 +42,12 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
       if (error) throw error;
       return data;
     },
+    enabled: isOpen,
+  });
+
+  const { data: vehicles } = useQuery({
+    queryKey: ['vehicles-for-driver-defaults'],
+    queryFn: listVehicles,
     enabled: isOpen,
   });
 
@@ -189,6 +197,30 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                         />
                         <Label htmlFor={`is_active-${driver.id}`}>Active</Label>
                       </div>
+                      <div className="col-span-2">
+                        <Label htmlFor={`default_vehicle-${driver.id}`}>Default Vehicle</Label>
+                        <Select
+                          value={(editForm as any).default_vehicle_id ?? 'none'}
+                          onValueChange={(value) =>
+                            setEditForm({ ...editForm, default_vehicle_id: value === 'none' ? null : value } as any)
+                          }
+                        >
+                          <SelectTrigger id={`default_vehicle-${driver.id}`}>
+                            <SelectValue placeholder="No default vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No default vehicle</SelectItem>
+                            {vehicles?.map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.registration}{v.make ? ` — ${v.make}` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Auto-assigned to new timeslips generated for this driver.
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -215,6 +247,13 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                       <div>
                         <span className="text-muted-foreground">Status:</span>{' '}
                         {driver.is_active ? 'Active' : 'Inactive'}
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Default Vehicle:</span>{' '}
+                        {(() => {
+                          const v = vehicles?.find((x) => x.id === (driver as any).default_vehicle_id);
+                          return v ? `${v.registration}${v.make ? ` — ${v.make}` : ''}` : 'None';
+                        })()}
                       </div>
                     </div>
                   )}
