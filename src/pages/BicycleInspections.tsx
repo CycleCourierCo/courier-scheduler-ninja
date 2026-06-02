@@ -95,6 +95,12 @@ const BicycleInspections = () => {
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
   // Per-issue price input for the awaiting-pricing stage
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  // Edit-mode state for issues during awaiting_pricing
+  const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  // Add-issue inline form state, keyed by inspection id
+  const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   const [searchQuery, setSearchQuery] = useState("");
