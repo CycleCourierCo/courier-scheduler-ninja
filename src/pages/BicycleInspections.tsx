@@ -1072,6 +1072,83 @@ const BicycleInspections = () => {
             </div>
           )}
 
+          {/* Add-issue inline form (awaiting_pricing) */}
+          {canManageInspections && isAwaitingPricing && inspection && (
+            <div className="pt-1">
+              {addIssueForInspectionId === inspection.id ? (
+                <div className="space-y-2 p-3 rounded-md border bg-background">
+                  <div>
+                    <Label className="text-xs">Description</Label>
+                    <Textarea
+                      value={newIssueDraft.description}
+                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, description: e.target.value }))}
+                      className="text-sm"
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Estimated cost (£)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newIssueDraft.cost}
+                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-xs">Part name</Label>
+                      <Input value={newIssueDraft.partName} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Spec</Label>
+                      <Input value={newIssueDraft.partSpec} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Part #</Label>
+                      <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!newIssueDraft.description.trim()) {
+                          toast.error("Description is required");
+                          return;
+                        }
+                        const costStr = newIssueDraft.cost.trim();
+                        if (costStr !== "" && (!isFinite(parseFloat(costStr)) || parseFloat(costStr) < 0)) {
+                          toast.error("Enter a valid cost");
+                          return;
+                        }
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft });
+                      }}
+                      disabled={addIssueAtPricingMutation.isPending}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add issue
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" }); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddIssueForInspectionId(inspection.id)}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add issue
+                </Button>
+              )}
+            </div>
+          )}
+
+
+
           {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
           {isAdmin && isAwaitingPricing && allPriced && (
             <div className="pt-2">
