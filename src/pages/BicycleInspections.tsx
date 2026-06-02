@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -51,6 +52,9 @@ import {
   unmarkPartsArrived,
   markPartsOrdered,
   unmarkPartsOrdered,
+  updateInspectionIssue,
+  deleteInspectionIssue,
+  addIssueToExistingInspection,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
@@ -91,6 +95,12 @@ const BicycleInspections = () => {
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
   // Per-issue price input for the awaiting-pricing stage
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  // Edit-mode state for issues during awaiting_pricing
+  const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  // Add-issue inline form state, keyed by inspection id
+  const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   const [searchQuery, setSearchQuery] = useState("");
@@ -196,6 +206,68 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // Update an existing issue (admin/mechanic during pricing)
+  const updateIssueMutation = useMutation({
+    mutationFn: async ({ issueId, fields }: { issueId: string; fields: Parameters<typeof updateInspectionIssue>[1] }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return updateInspectionIssue(issueId, fields, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setEditingIssueId(null);
+      toast.success("Issue updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update issue");
+      console.error(error);
+    },
+  });
+
+  // Delete an issue (admin only)
+  const deleteIssueMutation = useMutation({
+    mutationFn: async (issueId: string) => deleteInspectionIssue(issueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Issue removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove issue");
+      console.error(error);
+    },
+  });
+
+  // Add a new issue to an existing inspection (pricing stage)
+  const addIssueAtPricingMutation = useMutation({
+    mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const cost = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      return addIssueToExistingInspection(
+        inspectionId,
+        orderId,
+        draft.description.trim(),
+        cost,
+        user.id,
+        userProfile?.name || user.email || "Admin",
+        {
+          part_name: draft.partName.trim() || null,
+          part_spec: draft.partSpec.trim() || null,
+          part_number: draft.partNumber.trim() || null,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setAddIssueForInspectionId(null);
+      setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+      toast.success("Issue added");
+    },
+    onError: (error) => {
+      toast.error("Failed to add issue");
+      console.error(error);
+    },
+  });
+
 
   // Release inspection to customer (admin gate)
   const releaseMutation = useMutation({
@@ -702,37 +774,157 @@ const BicycleInspections = () => {
                     </Badge>
                   </div>
 
-                  {/* Admin pricing input (awaiting_pricing stage) */}
-                  {isAdmin && isAwaitingPricing && (
-                    <div className="mt-3 flex items-end gap-2">
-                      <div className="flex-1">
-                        <Label className="text-xs">Price (£)</Label>
+                  {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
+                  {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Price (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
+                            onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
+                            const val = parseFloat(raw);
+                            if (!isFinite(val) || val < 0) {
+                              toast.error("Enter a valid price");
+                              return;
+                            }
+                            setPriceMutation.mutate({ issueId: issue.id, price: val });
+                          }}
+                          disabled={setPriceMutation.isPending}
+                        >
+                          <PoundSterling className="h-4 w-4 mr-1" /> Save
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingIssueId(issue.id);
+                            setEditIssueDraft({
+                              description: issue.issue_description || "",
+                              cost: issue.estimated_cost != null ? String(issue.estimated_cost) : "",
+                              partName: issue.part_name || "",
+                              partSpec: issue.part_spec || "",
+                              partNumber: issue.part_number || "",
+                            });
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" /> Edit
+                        </Button>
+                        {isAdmin && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4 mr-1" /> Remove
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove this issue?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This permanently deletes the issue from the inspection. This cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteIssueMutation.mutate(issue.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Edit form (awaiting_pricing) */}
+                  {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
+                    <div className="mt-3 space-y-2 p-3 rounded-md border bg-background">
+                      <div>
+                        <Label className="text-xs">Description</Label>
+                        <Textarea
+                          value={editIssueDraft.description}
+                          onChange={(e) => setEditIssueDraft(prev => ({ ...prev, description: e.target.value }))}
+                          className="text-sm"
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Estimated cost (£)</Label>
                         <Input
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
-                          onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                          value={editIssueDraft.cost}
+                          onChange={(e) => setEditIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
                           className="text-sm"
                         />
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
-                          const val = parseFloat(raw);
-                          if (!isFinite(val) || val < 0) {
-                            toast.error("Enter a valid price");
-                            return;
-                          }
-                          setPriceMutation.mutate({ issueId: issue.id, price: val });
-                        }}
-                        disabled={setPriceMutation.isPending}
-                      >
-                        <PoundSterling className="h-4 w-4 mr-1" /> Save
-                      </Button>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <Label className="text-xs">Part name</Label>
+                          <Input value={editIssueDraft.partName} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Spec</Label>
+                          <Input value={editIssueDraft.partSpec} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Part #</Label>
+                          <Input value={editIssueDraft.partNumber} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!editIssueDraft.description.trim()) {
+                              toast.error("Description is required");
+                              return;
+                            }
+                            const costStr = editIssueDraft.cost.trim();
+                            const costVal = costStr === "" ? null : parseFloat(costStr);
+                            if (costVal != null && (!isFinite(costVal) || costVal < 0)) {
+                              toast.error("Enter a valid cost");
+                              return;
+                            }
+                            updateIssueMutation.mutate({
+                              issueId: issue.id,
+                              fields: {
+                                issue_description: editIssueDraft.description.trim(),
+                                estimated_cost: costVal,
+                                part_name: editIssueDraft.partName.trim() || null,
+                                part_spec: editIssueDraft.partSpec.trim() || null,
+                                part_number: editIssueDraft.partNumber.trim() || null,
+                              },
+                            });
+                          }}
+                          disabled={updateIssueMutation.isPending}
+                        >
+                          <Save className="h-4 w-4 mr-1" /> Save changes
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingIssueId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   )}
+
 
                   {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
                   {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
@@ -879,6 +1071,83 @@ const BicycleInspections = () => {
               ))}
             </div>
           )}
+
+          {/* Add-issue inline form (awaiting_pricing) */}
+          {canManageInspections && isAwaitingPricing && inspection && (
+            <div className="pt-1">
+              {addIssueForInspectionId === inspection.id ? (
+                <div className="space-y-2 p-3 rounded-md border bg-background">
+                  <div>
+                    <Label className="text-xs">Description</Label>
+                    <Textarea
+                      value={newIssueDraft.description}
+                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, description: e.target.value }))}
+                      className="text-sm"
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Estimated cost (£)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newIssueDraft.cost}
+                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-xs">Part name</Label>
+                      <Input value={newIssueDraft.partName} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Spec</Label>
+                      <Input value={newIssueDraft.partSpec} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Part #</Label>
+                      <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!newIssueDraft.description.trim()) {
+                          toast.error("Description is required");
+                          return;
+                        }
+                        const costStr = newIssueDraft.cost.trim();
+                        if (costStr !== "" && (!isFinite(parseFloat(costStr)) || parseFloat(costStr) < 0)) {
+                          toast.error("Enter a valid cost");
+                          return;
+                        }
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft });
+                      }}
+                      disabled={addIssueAtPricingMutation.isPending}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add issue
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" }); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddIssueForInspectionId(inspection.id)}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add issue
+                </Button>
+              )}
+            </div>
+          )}
+
+
 
           {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
           {isAdmin && isAwaitingPricing && allPriced && (

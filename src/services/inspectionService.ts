@@ -803,3 +803,100 @@ export const getInspectionStatusForOrder = async (orderId: string): Promise<{
     return null;
   }
 };
+
+// Update fields on an existing inspection issue (admin/mechanic — used in pricing stage).
+// When estimated_cost is provided, also stamps priced_* so the "all priced" gate still works.
+export const updateInspectionIssue = async (
+  issueId: string,
+  fields: {
+    issue_description?: string;
+    estimated_cost?: number | null;
+    part_name?: string | null;
+    part_spec?: string | null;
+    part_number?: string | null;
+  },
+  actorId?: string,
+  actorName?: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const update: Record<string, any> = { ...fields };
+    if (Object.prototype.hasOwnProperty.call(fields, 'estimated_cost')) {
+      if (fields.estimated_cost != null) {
+        update.priced_at = new Date().toISOString();
+        if (actorId) update.priced_by_id = actorId;
+        if (actorName) update.priced_by_name = actorName;
+      } else {
+        update.priced_at = null;
+        update.priced_by_id = null;
+        update.priced_by_name = null;
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update(update)
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error updating inspection issue:', error);
+    throw error;
+  }
+};
+
+// Delete an existing inspection issue (admin only per RLS).
+export const deleteInspectionIssue = async (issueId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('inspection_issues')
+      .delete()
+      .eq('id', issueId);
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting inspection issue:', error);
+    throw error;
+  }
+};
+
+// Insert a new issue against an existing inspection (used in pricing stage so we
+// don't re-trigger the status reset that addInspectionIssue does).
+export const addIssueToExistingInspection = async (
+  inspectionId: string,
+  orderId: string,
+  issueDescription: string,
+  estimatedCost: number | null,
+  requestedById: string,
+  requestedByName: string,
+  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null }
+): Promise<InspectionIssue | null> => {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .insert({
+        inspection_id: inspectionId,
+        order_id: orderId,
+        issue_description: issueDescription,
+        estimated_cost: estimatedCost,
+        requested_by_id: requestedById,
+        requested_by_name: requestedByName,
+        status: 'pending' as IssueStatus,
+        part_name: partInfo?.part_name || null,
+        part_spec: partInfo?.part_spec || null,
+        part_number: partInfo?.part_number || null,
+        priced_at: estimatedCost != null ? now : null,
+        priced_by_id: estimatedCost != null ? requestedById : null,
+        priced_by_name: estimatedCost != null ? requestedByName : null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error adding issue to existing inspection:', error);
+    throw error;
+  }
+};
