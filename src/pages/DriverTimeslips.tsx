@@ -40,6 +40,8 @@ const DriverTimeslips = () => {
     dateFrom?: Date;
     dateTo?: Date;
     sortBy: string;
+    noMileage?: boolean;
+    noVehicle?: boolean;
   }>({
     sortBy: 'date_desc',
   });
@@ -48,7 +50,7 @@ const DriverTimeslips = () => {
 
   // Fetch all timeslips for accurate counts (no status filter)
   const { data: allTimeslips } = useQuery({
-    queryKey: ['timeslips', 'counts', filters.driverId, filters.dateFrom, filters.dateTo],
+    queryKey: ['timeslips', 'counts', filters.driverId, filters.dateFrom, filters.dateTo, filters.noMileage, filters.noVehicle],
     queryFn: () => {
       if (isAdmin) {
         return timeslipService.getAllTimeslips({
@@ -56,6 +58,8 @@ const DriverTimeslips = () => {
           driverId: filters.driverId,
           dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
           dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+          noMileage: filters.noMileage,
+          noVehicle: filters.noVehicle,
         });
       }
       return [];
@@ -65,7 +69,7 @@ const DriverTimeslips = () => {
 
   // Fetch timeslips based on user role and active tab
   const { data: timeslips, isLoading } = useQuery({
-    queryKey: ['timeslips', activeTab, filters.driverId, filters.dateFrom, filters.dateTo],
+    queryKey: ['timeslips', activeTab, filters.driverId, filters.dateFrom, filters.dateTo, filters.noMileage, filters.noVehicle],
     queryFn: () => {
       if (isAdmin) {
         return timeslipService.getAllTimeslips({
@@ -73,6 +77,8 @@ const DriverTimeslips = () => {
           driverId: filters.driverId,
           dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
           dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+          noMileage: filters.noMileage,
+          noVehicle: filters.noVehicle,
         });
       }
       // For drivers, fetch only approved timeslips

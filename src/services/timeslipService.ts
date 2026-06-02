@@ -8,6 +8,8 @@ export const timeslipService = {
     driverId?: string;
     dateFrom?: string;
     dateTo?: string;
+    noMileage?: boolean;
+    noVehicle?: boolean;
   }) {
     let query = supabase
       .from('timeslips')
@@ -28,6 +30,14 @@ export const timeslipService = {
     
     if (filters?.dateTo) {
       query = query.lte('date', filters.dateTo);
+    }
+
+    if (filters?.noMileage) {
+      query = query.or('mileage.is.null,mileage.eq.0');
+    }
+
+    if (filters?.noVehicle) {
+      query = query.is('vehicle_id', null);
     }
     
     const { data, error } = await query;
