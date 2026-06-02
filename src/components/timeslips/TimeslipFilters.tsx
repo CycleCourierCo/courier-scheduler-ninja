@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, X, ArrowUpDown, User } from 'lucide-react';
+import { Calendar, X, ArrowUpDown, User, Route, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/types/user';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,8 @@ interface TimeslipFiltersProps {
     dateFrom?: Date;
     dateTo?: Date;
     sortBy: string;
+    noMileage?: boolean;
+    noVehicle?: boolean;
   }) => void;
 }
 
@@ -35,6 +38,8 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [sortBy, setSortBy] = useState('date_desc');
+  const [noMileage, setNoMileage] = useState(false);
+  const [noVehicle, setNoVehicle] = useState(false);
 
   // Fetch all drivers
   const { data: drivers } = useQuery({
@@ -59,17 +64,21 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
       dateFrom,
       dateTo,
       sortBy,
+      noMileage,
+      noVehicle,
     });
-  }, [driverId, dateFrom, dateTo, sortBy, onFilterChange]);
+  }, [driverId, dateFrom, dateTo, sortBy, noMileage, noVehicle, onFilterChange]);
 
   const handleClearFilters = () => {
     setDriverId('all');
     setDateFrom(undefined);
     setDateTo(undefined);
     setSortBy('date_desc');
+    setNoMileage(false);
+    setNoVehicle(false);
   };
 
-  const hasActiveFilters = driverId !== 'all' || dateFrom || dateTo;
+  const hasActiveFilters = driverId !== 'all' || dateFrom || dateTo || noMileage || noVehicle;
 
   return (
     <Card className="p-4">
@@ -164,6 +173,32 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
               <SelectItem value="total_pay_asc">Lowest Pay</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Quick Filters */}
+        <div className="flex items-center gap-4 flex-1 min-w-[220px]">
+          <div className="flex items-center gap-2 flex-1">
+            <Switch
+              id="no-mileage"
+              checked={noMileage}
+              onCheckedChange={setNoMileage}
+            />
+            <label htmlFor="no-mileage" className="flex items-center gap-1 text-sm cursor-pointer">
+              <Route className="h-4 w-4 text-muted-foreground" />
+              No mileage
+            </label>
+          </div>
+          <div className="flex items-center gap-2 flex-1">
+            <Switch
+              id="no-vehicle"
+              checked={noVehicle}
+              onCheckedChange={setNoVehicle}
+            />
+            <label htmlFor="no-vehicle" className="flex items-center gap-1 text-sm cursor-pointer">
+              <Truck className="h-4 w-4 text-muted-foreground" />
+              No vehicle
+            </label>
+          </div>
         </div>
 
         {/* Clear Filters Button */}
