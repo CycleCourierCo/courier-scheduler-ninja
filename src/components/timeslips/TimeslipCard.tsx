@@ -116,6 +116,15 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                 <span className="font-medium">{timeslip.mileage} miles</span>
               </div>
             )}
+            {isAdmin && timeslip.vehicle && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Vehicle:</span>
+                <span className="font-medium">
+                  {timeslip.vehicle.registration}
+                  {timeslip.vehicle.make ? ` — ${timeslip.vehicle.make}` : ''}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Route Links */}
