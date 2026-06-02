@@ -52,6 +52,9 @@ import {
   unmarkPartsArrived,
   markPartsOrdered,
   unmarkPartsOrdered,
+  updateInspectionIssue,
+  deleteInspectionIssue,
+  addIssueToExistingInspection,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 
