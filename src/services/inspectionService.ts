@@ -900,3 +900,14 @@ export const addIssueToExistingInspection = async (
     throw error;
   }
 };
+
+export const createInspectionServiceInvoice = async (
+  orderId: string
+): Promise<{ invoiceNumber: string; invoiceId: string; invoiceUrl: string; totalAmount: number }> => {
+  const { data, error } = await supabase.functions.invoke('create-inspection-service-invoice', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
