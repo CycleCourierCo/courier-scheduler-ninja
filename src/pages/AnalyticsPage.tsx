@@ -1,8 +1,14 @@
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { 
   fetchOrdersForAnalytics, 
   getOrderStatusAnalytics,
@@ -28,6 +34,7 @@ import {
   fetchTimeslipsForAnalytics,
   getWeeklyVehicleStats,
   getVehicleTotals,
+  type DateRange,
 } from "@/services/vehicleAnalyticsService";
 import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsChart";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
@@ -41,10 +48,21 @@ import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+
+const weeksAgoRange = (weeks: number): DateRange => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - weeks * 7);
+  return {
+    start: format(start, "yyyy-MM-dd"),
+    end: format(end, "yyyy-MM-dd"),
+  };
+};
 
 const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [vehicleRange, setVehicleRange] = useState<DateRange | undefined>(() => weeksAgoRange(8));
 
   // Fetch orders for analytics
   const { data: orders = [], isLoading, error } = useQuery({
@@ -63,8 +81,8 @@ const AnalyticsPage = () => {
   const issueApproval = getIssueApprovalRate(inspections);
 
   const { data: vehicleTimeslips = [] } = useQuery({
-    queryKey: ["vehiclesAnalytics"],
-    queryFn: fetchTimeslipsForAnalytics,
+    queryKey: ["vehiclesAnalytics", vehicleRange?.start ?? "all", vehicleRange?.end ?? "all"],
+    queryFn: () => fetchTimeslipsForAnalytics(vehicleRange),
   });
   const weeklyVehicleStats = getWeeklyVehicleStats(vehicleTimeslips);
   const vehicleTotals = getVehicleTotals(weeklyVehicleStats);
@@ -124,7 +142,7 @@ const AnalyticsPage = () => {
               <StatsCard
                 title="Delivered Orders"
                 value={deliveredOrders}
-                icon={Calendar}
+                icon={CalendarLucide}
               />
               <StatsCard
                 title="Cancelled Orders"
@@ -298,7 +316,51 @@ const AnalyticsPage = () => {
               </TabsContent>
 
               <TabsContent value="vehicles" className="space-y-2 sm:space-y-4">
-                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Vehicles & Routes</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
+                  <h2 className="text-lg sm:text-xl font-semibold">Vehicles & Routes</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-1">
+                      <Button size="sm" variant={vehicleRange && Math.round((new Date(vehicleRange.end).getTime() - new Date(vehicleRange.start).getTime()) / (7 * 86400000)) === 4 ? "default" : "outline"} onClick={() => setVehicleRange(weeksAgoRange(4))}>4w</Button>
+                      <Button size="sm" variant={vehicleRange && Math.round((new Date(vehicleRange.end).getTime() - new Date(vehicleRange.start).getTime()) / (7 * 86400000)) === 8 ? "default" : "outline"} onClick={() => setVehicleRange(weeksAgoRange(8))}>8w</Button>
+                      <Button size="sm" variant={vehicleRange && Math.round((new Date(vehicleRange.end).getTime() - new Date(vehicleRange.start).getTime()) / (7 * 86400000)) === 12 ? "default" : "outline"} onClick={() => setVehicleRange(weeksAgoRange(12))}>12w</Button>
+                      <Button size="sm" variant={!vehicleRange ? "default" : "outline"} onClick={() => setVehicleRange(undefined)}>All</Button>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button size="sm" variant="outline" className={cn("justify-start text-left font-normal", !vehicleRange && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {vehicleRange?.start ? format(new Date(vehicleRange.start), "dd MMM yy") : "Start"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={vehicleRange?.start ? new Date(vehicleRange.start) : undefined}
+                          onSelect={(d) => d && setVehicleRange((r) => ({ start: format(d, "yyyy-MM-dd"), end: r?.end ?? format(new Date(), "yyyy-MM-dd") }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button size="sm" variant="outline" className={cn("justify-start text-left font-normal", !vehicleRange && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {vehicleRange?.end ? format(new Date(vehicleRange.end), "dd MMM yy") : "End"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={vehicleRange?.end ? new Date(vehicleRange.end) : undefined}
+                          onSelect={(d) => d && setVehicleRange((r) => ({ start: r?.start ?? format(new Date(), "yyyy-MM-dd"), end: format(d, "yyyy-MM-dd") }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <StatsCard
                     title="Total Miles"

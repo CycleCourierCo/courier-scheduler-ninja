@@ -15,17 +15,26 @@ export interface WeeklyVehicleStat {
   drivers: number;
 }
 
-export const fetchTimeslipsForAnalytics = async (): Promise<TimeslipRow[]> => {
+export interface DateRange {
+  start: string;
+  end: string;
+}
+
+export const fetchTimeslipsForAnalytics = async (range?: DateRange): Promise<TimeslipRow[]> => {
   const all: TimeslipRow[] = [];
   const pageSize = 1000;
   let from = 0;
   while (true) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("timeslips")
       .select("id,date,mileage,driver_id")
       .eq("status", "approved")
       .order("date", { ascending: true })
       .range(from, from + pageSize - 1);
+    if (range) {
+      query = query.gte("date", range.start).lte("date", range.end);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     if (!data || data.length === 0) break;
     all.push(...(data as TimeslipRow[]));
