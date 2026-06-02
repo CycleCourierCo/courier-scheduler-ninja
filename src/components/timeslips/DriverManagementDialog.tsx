@@ -45,6 +45,12 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
     enabled: isOpen,
   });
 
+  const { data: vehicles } = useQuery({
+    queryKey: ['vehicles-for-driver-defaults'],
+    queryFn: listVehicles,
+    enabled: isOpen,
+  });
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<UserProfile> }) => {
       const { data, error } = await supabase
