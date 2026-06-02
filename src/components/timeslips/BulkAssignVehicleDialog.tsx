@@ -159,6 +159,9 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
                 {drivers?.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name || d.email || 'Unknown'}
+                    {d.is_active === false && (
+                      <span className="ml-1 text-xs text-muted-foreground">(disabled)</span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
