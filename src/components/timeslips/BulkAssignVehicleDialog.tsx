@@ -50,13 +50,12 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
   const [submitting, setSubmitting] = useState(false);
 
   const { data: drivers } = useQuery({
-    queryKey: ['drivers'],
+    queryKey: ['drivers-all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'driver')
-        .eq('is_active', true)
         .order('name');
       if (error) throw error;
       return data as UserProfile[];
@@ -160,6 +159,9 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
                 {drivers?.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name || d.email || 'Unknown'}
+                    {d.is_active === false && (
+                      <span className="ml-1 text-xs text-muted-foreground">(disabled)</span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
