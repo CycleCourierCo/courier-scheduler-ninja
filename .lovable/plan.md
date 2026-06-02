@@ -1,39 +1,40 @@
-## Goals
+## Goal
 
-1. When a Shipday **delivery leg fails** (`ORDER_FAILED` on the delivery job) on an already-collected order, do **not** trigger the "Bike Collected" emails (to sender + receiver) nor the auto "Please confirm your delivery availability" email.
-2. When an order **needs inspection**, do **not** email the receiver to choose delivery dates as soon as the sender confirms theirs. Only trigger that receiver-availability email **after** the inspection reaches `repaired` (i.e. all approved issues repaired, or every issue declined — both already resolve to `status='repaired'`).
+In the **Bicycle Inspections** page, while an inspection is in the `awaiting_pricing` stage, allow admins/mechanics to fully edit each issue (description + part info + price), as well as add new issues and remove existing ones — not just set the price.
+
+Today, the "pricing" stage only exposes a `£ Price` input + Save button per issue. Description, part name/spec/number are read-only and there's no add/remove control.
 
 ## Changes
 
-### 1. `supabase/functions/shipday-webhook/index.ts`
+### 1. `src/services/inspectionService.ts` — add three service functions
 
-Today on a failed delivery for a collected bike, `computeRevert(true)` sets `newStatus = 'collected'`. The block at lines 363–435 then fires "collection confirmation" emails and (inside `send-email`) the receiver-availability email.
+- `updateInspectionIssue(issueId, fields)` — updates `issue_description`, `estimated_cost`, `part_name`, `part_spec`, `part_number` on an existing row. When `estimated_cost` is provided, also stamp `priced_at` / `priced_by_id` / `priced_by_name` so the "all priced" gate still works.
+- `deleteInspectionIssue(issueId)` — deletes the row from `inspection_issues`.
+- `addIssueToExistingInspection(inspectionId, orderId, …)` — thin wrapper that inserts a new row directly against the existing inspection (so we don't re-trigger the status reset that `addInspectionIssue` does via `getOrCreateInspection`). Stamps `priced_*` if cost provided.
 
-- Gate the `newStatus === "collected"` email block (line 364) with an additional condition: only invoke `send-email` when `event === "ORDER_COMPLETED"` or `event === "ORDER_POD_UPLOAD"` (the two paths that legitimately move the order to `collected`). Skip entirely for `ORDER_FAILED`.
-- Leave status revert + Shipday job re-creation untouched — only the email side effect is suppressed.
+### 2. `src/pages/BicycleInspections.tsx` — pricing-stage UI
 
-### 2. `src/services/availabilityService.ts`
+Inside the issue card block, gated by `isAdmin && isAwaitingPricing` (also allow `isMechanic` if that matches current part-edit permissions — confirm with existing pattern that mechanics already manage parts at this stage):
 
-In `updateSenderAvailability` and `confirmSenderAvailability`:
+- Replace the current price-only row with an **inline editable form** per issue containing:
+  - Description (textarea)
+  - Estimated cost (£ number input)
+  - Part name / spec / number (three inputs, mechanic+admin)
+  - **Save** button → calls `updateInspectionIssue`
+  - **Delete** button (destructive, with `AlertDialog` confirm) → calls `deleteInspectionIssue`
+- Below the issue list, add an **"Add issue"** button that opens a small inline form (or reuses the existing add-issue dialog scoped to this inspection) and on submit calls `addIssueToExistingInspection`.
+- Local state keyed by `issue.id` to track edited values; on successful mutation invalidate `["bicycle-inspections"]`.
 
-- After updating the order with `pickup_date`, fetch `needs_inspection` (already loaded on the returned row in `updateSenderAvailability`; add a select for `confirmSenderAvailability`).
-- If `needs_inspection === true`:
-  - Still send the sender-dates-confirmed email.
-  - **Skip** `resendReceiverAvailabilityEmail(orderId)` and **skip** the `status → receiver_availability_pending` update. Instead leave status as `sender_availability_confirmed` (or new `awaiting_inspection_completion` — simplest is to keep `sender_availability_confirmed` to avoid a migration) so no receiver email is triggered.
-- If `needs_inspection !== true`: existing behaviour (send receiver availability email immediately).
+### 3. New mutations in the same component
 
-### 3. `src/services/inspectionService.ts`
+- `updateIssueMutation`, `deleteIssueMutation`, `addIssueAtPricingMutation` — mirror the existing `setPriceMutation` shape (toast on success/error, invalidate the inspections query).
 
-When an inspection transitions to `repaired` (the reconcile loop at lines 58–70, plus any direct setters that move status to `'repaired'`):
+### 4. No backend / RLS changes
 
-- After the `UPDATE bicycle_inspections SET status='repaired'` succeeds, look up the order's `delivery_date` and `needs_inspection`:
-  - If `needs_inspection === true` AND receiver has no `delivery_date` set yet, call `resendReceiverAvailabilityEmail(order_id)` and update the order `status` to `receiver_availability_pending`.
-  - Guard with an idempotency check (e.g. only send when current order status is `sender_availability_confirmed`) to avoid duplicate sends if reconcile runs repeatedly.
-
-No DB schema changes required. No edge-function-only behaviour beyond the webhook tweak (which will be redeployed).
+`inspection_issues` already supports insert/update/delete for admin+mechanic via existing policies used by `addInspectionIssue` / `setIssuePrice`. No migration needed; if the delete call fails for RLS we'll add a policy then.
 
 ## Out of scope
 
-- No UI changes.
-- No changes to the "delivery confirmation" email flow.
-- No changes to inspection workflow itself — only the email trigger timing.
+- No changes to the customer-facing flow (issues only become visible to customer after "Release to Customer").
+- No changes to other stages (`awaiting_parts`, `awaiting_repair`, `issues_found`).
+- No email/notification changes.

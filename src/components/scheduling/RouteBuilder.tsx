@@ -61,8 +61,10 @@ interface RouteBuilderProps {
   orders: OrderData[];
   filterDate?: Date;
   showCollectedOnly?: boolean;
+  showCollectionToday?: boolean;
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
+  onShowCollectionTodayChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
   isVerifyingShipday?: boolean;
@@ -665,8 +667,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   orders, 
   filterDate: externalFilterDate,
   showCollectedOnly: externalShowCollectedOnly,
+  showCollectionToday: externalShowCollectionToday,
   onFilterDateChange,
   onShowCollectedOnlyChange,
+  onShowCollectionTodayChange,
   initialJobs,
   shipdayVerification = {},
   isVerifyingShipday = false,
@@ -705,10 +709,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Filter states - use external state if provided, otherwise use internal state
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
+  const [internalShowCollectionToday, setInternalShowCollectionToday] = useState(false);
   
   // Use external state if provided, otherwise fall back to internal state
   const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
   const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
+  const showCollectionToday = externalShowCollectionToday !== undefined ? externalShowCollectionToday : internalShowCollectionToday;
   
   // Handle filter changes - notify parent if callbacks provided
   const handleFilterDateChange = (date: Date | undefined) => {
@@ -724,6 +730,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       onShowCollectedOnlyChange(value);
     } else {
       setInternalShowCollectedOnly(value);
+    }
+  };
+
+  const handleShowCollectionTodayChange = (value: boolean) => {
+    if (onShowCollectionTodayChange) {
+      onShowCollectionTodayChange(value);
+    } else {
+      setInternalShowCollectionToday(value);
     }
   };
 
@@ -884,12 +898,25 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       lon?: number;
     }> = [];
     
+    const collectingBeforeTarget = filterDate || new Date();
+    const collectingBeforeTargetStr = format(collectingBeforeTarget, 'yyyy-MM-dd');
+    // True if the bike will already be (or has been) collected before the target delivery date,
+    // i.e. it is available to deliver on the target date.
+    const isCollectedBeforeTarget = (order: OrderData): boolean => {
+      if (order.order_collected === true) return true;
+      const pickupDates = order.pickup_date as string[] | null;
+      if (!pickupDates || pickupDates.length === 0) return false;
+      return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') < collectingBeforeTargetStr);
+    };
+
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
-      
-      // Add pickup job if not scheduled
+
+      // Add pickup job if not scheduled. Pickups always follow the normal date filter,
+      // even when "Collecting before delivery date" is on.
       if (!order.scheduled_pickup_date) {
+
         // Check date filter for pickups
         const pickupDates = order.pickup_date as string[] | null;
         const pickupAvailable = !applyFilters || !filterDate || 
@@ -925,8 +952,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
           );
         
-        // If "collected only" is on, only show collected deliveries
-        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable) {
+        // If "collected only" is on, only show collected deliveries.
+        // If "collecting before delivery date" is on, only show deliveries whose
+        // order is already collected or has a pickup strictly before the target date.
+        const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
+        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable && passesCollectingBefore) {
+
           jobs.push({
             orderId: order.id,
             type: 'delivery',
@@ -2765,7 +2796,7 @@ Route Link: ${routeLink}`;
 
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
-  const hasActiveFilters = filterDate || showCollectedOnly;
+  const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday;
 
   // Helper to get Shipday status for a job
   const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
@@ -2918,6 +2949,19 @@ Route Link: ${routeLink}`;
                 Collected (ready to deliver)
               </Label>
             </div>
+
+            {/* Collection Today Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="collection-today-filter"
+                checked={showCollectionToday}
+                onCheckedChange={handleShowCollectionTodayChange}
+              />
+              <Label htmlFor="collection-today-filter" className="text-sm cursor-pointer">
+                Collecting before delivery date
+              </Label>
+            </div>
+            
             
             {/* CSV Upload Button */}
             <CSVUploadButton 

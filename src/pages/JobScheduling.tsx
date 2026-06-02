@@ -52,6 +52,7 @@ const JobScheduling = () => {
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
+  const [showCollectionToday, setShowCollectionToday] = useState(false);
   
   // Initial jobs from URL parameters
   const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
@@ -137,11 +138,46 @@ const JobScheduling = () => {
   const filteredOrdersForMap = useMemo(() => {
     if (!orders) return [];
     
+    const targetDate = filterDate || new Date();
+    const targetDateStr = format(targetDate, 'yyyy-MM-dd');
+    
     return orders.filter(order => {
       const pickupDates = order.pickup_date as string[] | null;
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
-      
+
+      // "Collecting before delivery date" filter: deliveries only appear if the order
+      // is already collected OR has a pickup date strictly before the target date.
+      // Pickups continue to follow the normal date filter and stay visible.
+      if (showCollectionToday) {
+        const collectedBeforeTarget = isCollected || (
+          !!pickupDates && pickupDates.some(date =>
+            format(new Date(date), 'yyyy-MM-dd') < targetDateStr
+          )
+        );
+
+        const hasUnscheduledPickup = !order.scheduled_pickup_date;
+        const pickupPassesDateFilter = !filterDate ||
+          !pickupDates ||
+          pickupDates.length === 0 ||
+          pickupDates.some(date =>
+            format(new Date(date), 'yyyy-MM-dd') === targetDateStr
+          );
+        const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter;
+
+        const hasUnscheduledDelivery = !order.scheduled_delivery_date;
+        const deliveryPassesDateFilter = !filterDate ||
+          !deliveryDates ||
+          deliveryDates.length === 0 ||
+          deliveryDates.some(date =>
+            format(new Date(date), 'yyyy-MM-dd') === targetDateStr
+          );
+        const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget;
+
+        return hasValidPickup || hasValidDelivery;
+      }
+
+
       // Check if order has a valid pickup job (not scheduled, and passes date filter)
       const hasUnscheduledPickup = !order.scheduled_pickup_date;
       const pickupPassesDateFilter = !filterDate || 
@@ -166,7 +202,7 @@ const JobScheduling = () => {
       // Keep order if it has at least one valid job
       return hasValidPickup || hasValidDelivery;
     });
-  }, [orders, filterDate, showCollectedOnly]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday]);
 
   return (
     <Layout>
@@ -211,8 +247,10 @@ const JobScheduling = () => {
                 orders={orders || []}
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
+                showCollectionToday={showCollectionToday}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
+                onShowCollectionTodayChange={setShowCollectionToday}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 isVerifyingShipday={isVerifyingShipday}
