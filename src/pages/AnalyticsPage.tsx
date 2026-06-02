@@ -142,7 +142,7 @@ const AnalyticsPage = () => {
               <StatsCard
                 title="Delivered Orders"
                 value={deliveredOrders}
-                icon={Calendar}
+                icon={CalendarLucide}
               />
               <StatsCard
                 title="Cancelled Orders"
