@@ -84,6 +84,33 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
             {isEnablingInspection ? "Enabling..." : "Inspect and Service"}
           </Button>
         )}
+        {isAdmin && order.needsInspection && order.id && (
+          <Button
+            onClick={async () => {
+              try {
+                setIsCreatingInvoice(true);
+                const result = await createInspectionServiceInvoice(order.id);
+                toast.success(`Inspection invoice created: ${result.invoiceNumber}`, {
+                  action: result.invoiceUrl
+                    ? { label: "Open", onClick: () => window.open(result.invoiceUrl, "_blank") }
+                    : undefined,
+                });
+              } catch (error: any) {
+                console.error("Error creating inspection invoice:", error);
+                toast.error(error?.message || "Failed to create inspection invoice");
+              } finally {
+                setIsCreatingInvoice(false);
+              }
+            }}
+            disabled={isCreatingInvoice}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 mt-3"
+          >
+            <Receipt className="h-4 w-4" />
+            {isCreatingInvoice ? "Creating..." : "Create Inspection Invoice"}
+          </Button>
+        )}
       </div>
       
       {order.deliveryInstructions && (
