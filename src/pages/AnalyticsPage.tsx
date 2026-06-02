@@ -161,7 +161,7 @@ const AnalyticsPage = () => {
                   <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
-                  <TopCustomersChart data={b2bCustomers} />
+                  <B2BLeaderboard customers={b2bCustomers} orders={orders} />
                 </div>
               </TabsContent>
               
