@@ -1976,6 +1976,7 @@ export type Database = {
           total_stops: number
           updated_at: string | null
           van_allowance: number | null
+          vehicle_id: string | null
         }
         Insert: {
           admin_notes?: string | null
@@ -2005,6 +2006,7 @@ export type Database = {
           total_stops?: number
           updated_at?: string | null
           van_allowance?: number | null
+          vehicle_id?: string | null
         }
         Update: {
           admin_notes?: string | null
@@ -2034,6 +2036,7 @@ export type Database = {
           total_stops?: number
           updated_at?: string | null
           van_allowance?: number | null
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -2041,6 +2044,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeslips_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]
