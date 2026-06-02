@@ -667,8 +667,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   orders, 
   filterDate: externalFilterDate,
   showCollectedOnly: externalShowCollectedOnly,
+  showCollectionToday: externalShowCollectionToday,
   onFilterDateChange,
   onShowCollectedOnlyChange,
+  onShowCollectionTodayChange,
   initialJobs,
   shipdayVerification = {},
   isVerifyingShipday = false,
@@ -707,10 +709,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Filter states - use external state if provided, otherwise use internal state
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
+  const [internalShowCollectionToday, setInternalShowCollectionToday] = useState(false);
   
   // Use external state if provided, otherwise fall back to internal state
   const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
   const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
+  const showCollectionToday = externalShowCollectionToday !== undefined ? externalShowCollectionToday : internalShowCollectionToday;
   
   // Handle filter changes - notify parent if callbacks provided
   const handleFilterDateChange = (date: Date | undefined) => {
@@ -726,6 +730,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       onShowCollectedOnlyChange(value);
     } else {
       setInternalShowCollectedOnly(value);
+    }
+  };
+
+  const handleShowCollectionTodayChange = (value: boolean) => {
+    if (onShowCollectionTodayChange) {
+      onShowCollectionTodayChange(value);
+    } else {
+      setInternalShowCollectionToday(value);
     }
   };
 
