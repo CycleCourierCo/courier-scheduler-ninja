@@ -16,8 +16,6 @@ import {
   getDeliveryTimeAnalytics,
   getStorageAnalytics,
   getAllCustomersAnalytics
-
-  getStorageAnalytics
 } from "@/services/analyticsService";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
