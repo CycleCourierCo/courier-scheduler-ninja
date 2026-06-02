@@ -1,22 +1,24 @@
-# Add Date Filter to Vehicles Analytics Tab
+## Bulk Assign Vehicle to Timeslips
 
-## Goal
-Add a date range filter to the Vehicles tab on the Analytics page so users can control which weeks of driver timeslip data are shown.
+Add an admin tool on the Driver Timeslips page that assigns one vehicle to all timeslips for a chosen driver within a chosen date range.
 
-## Changes
+### UX
+- New "Bulk Assign Vehicle" button (admin only) next to "Generate Timeslips".
+- Opens a dialog with:
+  - Driver picker (reuses existing driver list from `TimeslipFilters`).
+  - Date range (start + end) using shadcn date pickers.
+  - Vehicle picker (active vehicles only, same filter as `TimeslipEditDialog`).
+  - Optional toggle: "Only fill timeslips with no vehicle" (default on) so existing assignments aren't overwritten.
+  - Preview count: "X timeslips will be updated" before confirming.
+- Confirm button runs the update, shows a toast with the count, and refreshes the list.
 
-### 1. Backend — `src/services/vehicleAnalyticsService.ts`
-- Add a `DateRange` interface (`{ start: string; end: string }`).
-- Update `fetchTimeslipsForAnalytics(range?)` to accept an optional date range and apply `.gte("date", range.start)` / `.lte("date", range.end)` to the Supabase query.
+### Technical
+- New `BulkAssignVehicleDialog.tsx` in `src/components/timeslips/`.
+- New `timeslipService.bulkAssignVehicle({ driverId, dateFrom, dateTo, vehicleId, onlyEmpty })` that runs a single `supabase.from('timeslips').update({ vehicle_id }).eq('driver_id', ...).gte('date', ...).lte('date', ...)` (with `.is('vehicle_id', null)` when `onlyEmpty`). Returns affected count.
+- Preview uses the same filters with `select('id', { count: 'exact', head: true })`.
+- No DB schema changes — `vehicle_id` column already exists.
+- Invalidate `['timeslips']` query on success.
 
-### 2. UI — `src/pages/AnalyticsPage.tsx`
-- Add local state for the vehicles tab date range (`vehicleDateRange`).
-- Default to the last 8 weeks (Monday → Sunday) on first load.
-- Add quick-filter buttons: **Last 4 weeks**, **Last 8 weeks**, **Last 12 weeks**, **All time**.
-- Add two popover date pickers (Calendar inside Popover) for custom start/end dates.
-- Update the `useQuery` for `vehicleTimeslips` to include the date range in its `queryKey` and pass it to `fetchTimeslipsForAnalytics`.
-- Wrap the filter controls in a flex row above the stats cards in the `vehicles` tab.
-
-### 3. Out of scope
-- No changes to other analytics tabs.
-- No new dependencies (reuses existing `Calendar`, `Popover`, `Button` shadcn components and `date-fns`).
+### Out of scope
+- Bulk editing other fields (rate, mileage, approval).
+- Editing timeslips outside the admin role.
