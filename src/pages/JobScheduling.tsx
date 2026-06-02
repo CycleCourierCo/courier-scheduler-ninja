@@ -223,8 +223,10 @@ const JobScheduling = () => {
                 orders={orders || []}
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
+                showCollectionToday={showCollectionToday}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
+                onShowCollectionTodayChange={setShowCollectionToday}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 isVerifyingShipday={isVerifyingShipday}
