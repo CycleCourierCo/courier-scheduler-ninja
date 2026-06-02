@@ -251,6 +251,33 @@ const AnalyticsPage = () => {
                   <StorageAnalyticsChart data={storageData} />
                 </div>
               </TabsContent>
+
+              <TabsContent value="inspections" className="space-y-2 sm:space-y-4">
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Inspections</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <StatsCard
+                    title="% With Issues"
+                    value={`${inspectionsWithIssues.percentage.toFixed(0)}%`}
+                    description={`${inspectionsWithIssues.withIssues} of ${inspectionsWithIssues.total} inspections`}
+                    icon={AlertTriangle}
+                  />
+                  <StatsCard
+                    title="Avg Repair Cost"
+                    value={`£${avgRepairCost.average.toFixed(2)}`}
+                    description={`Across ${avgRepairCost.sampleSize} repaired inspections`}
+                    icon={PoundSterling}
+                  />
+                  <StatsCard
+                    title="Issues Approved"
+                    value={`${issueApproval.percentage.toFixed(0)}%`}
+                    description={`${issueApproval.approved} of ${issueApproval.responded} responded`}
+                    icon={ThumbsUp}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                  <InspectionsOverTimeChart data={inspectionsOverTime} />
+                </div>
+              </TabsContent>
             </Tabs>
           </>
         )}
