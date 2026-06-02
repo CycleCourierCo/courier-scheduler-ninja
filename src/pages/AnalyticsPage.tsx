@@ -17,6 +17,13 @@ import {
   getStorageAnalytics,
   getAllCustomersAnalytics
 } from "@/services/analyticsService";
+import {
+  fetchInspectionsForAnalytics,
+  getInspectionsOverTime,
+  getInspectionsWithIssuesRate,
+  getAverageRepairCost,
+  getIssueApprovalRate,
+} from "@/services/inspectionAnalyticsService";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
@@ -26,8 +33,9 @@ import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
+import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer } from "lucide-react";
+import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp } from "lucide-react";
 
 const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -37,6 +45,16 @@ const AnalyticsPage = () => {
     queryKey: ["ordersAnalytics"],
     queryFn: fetchOrdersForAnalytics
   });
+
+  const { data: inspections = [] } = useQuery({
+    queryKey: ["inspectionsAnalytics"],
+    queryFn: fetchInspectionsForAnalytics,
+  });
+
+  const inspectionsOverTime = getInspectionsOverTime(inspections);
+  const inspectionsWithIssues = getInspectionsWithIssuesRate(inspections);
+  const avgRepairCost = getAverageRepairCost(inspections);
+  const issueApproval = getIssueApprovalRate(inspections);
 
   // Calculate quick stats
   const totalOrders = orders.length;
@@ -108,7 +126,7 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 h-auto mb-4 sm:mb-8">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 h-auto mb-4 sm:mb-8">
                 <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <BarChart className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Overview</span>
@@ -129,10 +147,15 @@ const AnalyticsPage = () => {
                   <span className="hidden sm:inline">Products</span>
                   <span className="sm:hidden">Prod</span>
                 </TabsTrigger>
-                <TabsTrigger value="performance" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2 col-span-2 sm:col-span-1">
+                <TabsTrigger value="performance" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Performance</span>
                   <span className="sm:hidden">Perf</span>
+                </TabsTrigger>
+                <TabsTrigger value="inspections" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2 col-span-2 sm:col-span-1">
+                  <ClipboardCheck className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Inspections</span>
+                  <span className="sm:hidden">Insp</span>
                 </TabsTrigger>
               </TabsList>
               
@@ -226,6 +249,33 @@ const AnalyticsPage = () => {
                 
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <StorageAnalyticsChart data={storageData} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="inspections" className="space-y-2 sm:space-y-4">
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Inspections</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <StatsCard
+                    title="% With Issues"
+                    value={`${inspectionsWithIssues.percentage.toFixed(0)}%`}
+                    description={`${inspectionsWithIssues.withIssues} of ${inspectionsWithIssues.total} inspections`}
+                    icon={AlertTriangle}
+                  />
+                  <StatsCard
+                    title="Avg Repair Cost"
+                    value={`£${avgRepairCost.average.toFixed(2)}`}
+                    description={`Across ${avgRepairCost.sampleSize} repaired inspections`}
+                    icon={PoundSterling}
+                  />
+                  <StatsCard
+                    title="Issues Approved"
+                    value={`${issueApproval.percentage.toFixed(0)}%`}
+                    description={`${issueApproval.approved} of ${issueApproval.responded} responded`}
+                    icon={ThumbsUp}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                  <InspectionsOverTimeChart data={inspectionsOverTime} />
                 </div>
               </TabsContent>
             </Tabs>
