@@ -62,6 +62,13 @@ const AnalyticsPage = () => {
   const avgRepairCost = getAverageRepairCost(inspections);
   const issueApproval = getIssueApprovalRate(inspections);
 
+  const { data: vehicleTimeslips = [] } = useQuery({
+    queryKey: ["vehiclesAnalytics"],
+    queryFn: fetchTimeslipsForAnalytics,
+  });
+  const weeklyVehicleStats = getWeeklyVehicleStats(vehicleTimeslips);
+  const vehicleTotals = getVehicleTotals(weeklyVehicleStats);
+
   // Calculate quick stats
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(order => 
