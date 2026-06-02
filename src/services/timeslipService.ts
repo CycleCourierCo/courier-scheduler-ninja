@@ -11,7 +11,7 @@ export const timeslipService = {
   }) {
     let query = supabase
       .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
+      .select('*, driver:profiles!timeslips_driver_id_fkey(*), vehicle:vehicles(id, registration, make)')
       .order('date', { ascending: false });
     
     if (filters?.status) {
