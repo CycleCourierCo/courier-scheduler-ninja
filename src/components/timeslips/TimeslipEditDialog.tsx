@@ -68,6 +68,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
         hourly_rate: timeslip.hourly_rate,
         van_allowance: timeslip.van_allowance,
         mileage: timeslip.mileage,
+        vehicle_id: timeslip.vehicle_id || null,
         status: timeslip.status,
         admin_notes: timeslip.admin_notes || '',
         custom_addons: timeslip.custom_addons || [],
