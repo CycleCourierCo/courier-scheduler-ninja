@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench } from "lucide-react";
+import { Package, FileText, Wrench, Receipt } from "lucide-react";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
-import { enableInspectionForOrder } from "@/services/inspectionService";
+import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
@@ -16,6 +16,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
   const [isEnablingInspection, setIsEnablingInspection] = useState(false);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
 
   const quantity = order.bikeQuantity || 1;
   const groupedBikes = getGroupedBikes(order);
@@ -81,6 +82,33 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           >
             <Wrench className="h-4 w-4" />
             {isEnablingInspection ? "Enabling..." : "Inspect and Service"}
+          </Button>
+        )}
+        {isAdmin && order.needsInspection && order.id && (
+          <Button
+            onClick={async () => {
+              try {
+                setIsCreatingInvoice(true);
+                const result = await createInspectionServiceInvoice(order.id);
+                toast.success(`Inspection invoice created: ${result.invoiceNumber}`, {
+                  action: result.invoiceUrl
+                    ? { label: "Open", onClick: () => window.open(result.invoiceUrl, "_blank") }
+                    : undefined,
+                });
+              } catch (error: any) {
+                console.error("Error creating inspection invoice:", error);
+                toast.error(error?.message || "Failed to create inspection invoice");
+              } finally {
+                setIsCreatingInvoice(false);
+              }
+            }}
+            disabled={isCreatingInvoice}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 mt-3"
+          >
+            <Receipt className="h-4 w-4" />
+            {isCreatingInvoice ? "Creating..." : "Create Inspection Invoice"}
           </Button>
         )}
       </div>
