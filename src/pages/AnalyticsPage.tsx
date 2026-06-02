@@ -17,6 +17,13 @@ import {
   getStorageAnalytics,
   getAllCustomersAnalytics
 } from "@/services/analyticsService";
+import {
+  fetchInspectionsForAnalytics,
+  getInspectionsOverTime,
+  getInspectionsWithIssuesRate,
+  getAverageRepairCost,
+  getIssueApprovalRate,
+} from "@/services/inspectionAnalyticsService";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
@@ -26,8 +33,9 @@ import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
+import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer } from "lucide-react";
+import { Bike, Calendar, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp } from "lucide-react";
 
 const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
