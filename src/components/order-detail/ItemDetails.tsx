@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench } from "lucide-react";
+import { Package, FileText, Wrench, Receipt } from "lucide-react";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
-import { enableInspectionForOrder } from "@/services/inspectionService";
+import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
