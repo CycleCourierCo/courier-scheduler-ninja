@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Timeslip, CustomAddon } from '@/types/timeslip';
+import { listVehicles } from '@/services/vehicleService';
 import {
   Dialog,
   DialogContent,
