@@ -369,6 +369,12 @@ const DriverTimeslips = () => {
         onGenerate={handleGenerate}
       />
 
+      <BulkAssignVehicleDialog
+        isOpen={showBulkVehicleDialog}
+        onClose={() => setShowBulkVehicleDialog(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['timeslips'] })}
+      />
+
       <AlertDialog open={!!deletingTimeslipId} onOpenChange={(open) => !open && setDeletingTimeslipId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
