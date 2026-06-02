@@ -1,22 +1,22 @@
-## Add Vehicle Selection to Driver Timeslips
+# Add Date Filter to Vehicles Analytics Tab
 
-### Database
-- Add `vehicle_id uuid` column to `timeslips` (nullable, references `vehicles(id)`).
-- Add index on `(vehicle_id, date)` for mileage-by-vehicle reporting.
+## Goal
+Add a date range filter to the Vehicles tab on the Analytics page so users can control which weeks of driver timeslip data are shown.
 
-### Backend / Types
-- Regenerated Supabase types will include the new column.
-- Update `src/types/timeslip.ts` to include `vehicle_id?: string | null`.
-- `timeslipService.updateTimeslip` already passes through arbitrary updates — no change needed.
+## Changes
 
-### UI — `src/components/timeslips/TimeslipEditDialog.tsx`
-- Fetch active vehicles via `listVehicles()` from `vehicleService` (filter out `sold`/`written_off`).
-- Add a "Vehicle" `Select` next to Mileage showing `registration — make` for each vehicle, plus an "Unassigned" option.
-- Persist `vehicle_id` in `onSave`.
+### 1. Backend — `src/services/vehicleAnalyticsService.ts`
+- Add a `DateRange` interface (`{ start: string; end: string }`).
+- Update `fetchTimeslipsForAnalytics(range?)` to accept an optional date range and apply `.gte("date", range.start)` / `.lte("date", range.end)` to the Supabase query.
 
-### UI — `src/components/timeslips/TimeslipCard.tsx` (display)
-- Show the assigned vehicle registration next to the mileage line so admins/drivers can see which van was used.
+### 2. UI — `src/pages/AnalyticsPage.tsx`
+- Add local state for the vehicles tab date range (`vehicleDateRange`).
+- Default to the last 8 weeks (Monday → Sunday) on first load.
+- Add quick-filter buttons: **Last 4 weeks**, **Last 8 weeks**, **Last 12 weeks**, **All time**.
+- Add two popover date pickers (Calendar inside Popover) for custom start/end dates.
+- Update the `useQuery` for `vehicleTimeslips` to include the date range in its `queryKey` and pass it to `fetchTimeslipsForAnalytics`.
+- Wrap the filter controls in a flex row above the stats cards in the `vehicles` tab.
 
-### Out of scope (for now)
-- No changes to analytics yet — once data accrues we can add per-vehicle mileage to the Vehicles analytics tab in a follow-up.
-- No auto-assignment logic; admin picks the vehicle when editing/approving the timeslip.
+### 3. Out of scope
+- No changes to other analytics tabs.
+- No new dependencies (reuses existing `Calendar`, `Popover`, `Button` shadcn components and `date-fns`).
