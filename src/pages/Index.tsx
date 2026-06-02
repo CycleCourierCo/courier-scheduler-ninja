@@ -1,5 +1,5 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { Package, CalendarCheck, LogIn } from "lucide-react";
@@ -18,6 +18,29 @@ const features = [{
 
 const Index = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Safety net: forward malformed reset links that land on "/" to /reset-password.
+  useEffect(() => {
+    const search = window.location.search || "";
+    const hash = window.location.hash || "";
+    const hasRecovery =
+      search.includes("token_hash=") ||
+      /[?&]type=recovery(?:&|$)/.test(search) ||
+      hash.includes("access_token=") ||
+      hash.includes("type=recovery");
+    if (hasRecovery) {
+      const incoming = new URLSearchParams(search.replace(/^\?/, ""));
+      const forward = new URLSearchParams();
+      const tokenHash = incoming.get("token_hash");
+      const type = incoming.get("type") || "recovery";
+      if (tokenHash) forward.set("token_hash", tokenHash);
+      forward.set("type", type);
+      const qs = forward.toString();
+      navigate(`/reset-password${qs ? `?${qs}` : ""}${hash}`, { replace: true });
+    }
+  }, [navigate]);
+
 
 
   return (

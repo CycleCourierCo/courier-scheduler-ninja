@@ -1067,13 +1067,41 @@ const LoadingUnloadingPage = () => {
                              </div>
                            </div>
                            {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
-                             <Button 
-                               size="sm" 
-                               variant="outline"
-                               onClick={handleSendLoadingList}
-                             >
-                               📱 Send Loading List
-                             </Button>
+                             <div className="flex gap-2 flex-wrap">
+                               <Button
+                                 size="sm"
+                                 onClick={async () => {
+                                   const bikes = getBikesNeedingLoading(selectedLoadingDate);
+                                   const toLoad = bikes.filter(b => b.delivery_driver_name);
+                                   const skipped = bikes.length - toLoad.length;
+                                   if (toLoad.length === 0) {
+                                     toast.warning("No bikes with an assigned driver to load");
+                                     return;
+                                   }
+                                   try {
+                                     for (const b of toLoad) {
+                                       await handleRemoveAllBikesFromOrder(b.id);
+                                     }
+                                     toast.success(
+                                       `Loaded ${toLoad.length} bike(s) onto van` +
+                                       (skipped > 0 ? ` (skipped ${skipped} with no driver assigned)` : '')
+                                     );
+                                   } catch (e) {
+                                     console.error('Load all error:', e);
+                                     toast.error('Failed to load some bikes');
+                                   }
+                                 }}
+                               >
+                                 <Truck className="h-4 w-4 mr-1" /> Load All onto Van
+                               </Button>
+                               <Button
+                                 size="sm"
+                                 variant="outline"
+                                 onClick={handleSendLoadingList}
+                               >
+                                 📱 Send Loading List
+                               </Button>
+                             </div>
                            )}
                          </div>
 

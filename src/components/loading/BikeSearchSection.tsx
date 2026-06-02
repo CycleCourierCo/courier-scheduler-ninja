@@ -209,7 +209,29 @@ export const BikeSearchSection = ({
               return (
                 <Card key={order.id} className="p-3 border-primary/30">
                   <CardContent className="p-0 space-y-3">
-                    <div className="space-y-1">
+                    <div className="flex gap-3">
+                      {(() => {
+                        const updates = order.trackingEvents?.shipday?.updates || [];
+                        const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
+                        const podEvent = updates.find((u: any) =>
+                          (u.event === 'ORDER_COMPLETED' || u.event === 'ORDER_POD_UPLOAD') &&
+                          u.orderId === pickupId &&
+                          u.podUrls && u.podUrls.length > 0
+                        );
+                        const photo = podEvent?.podUrls?.[0];
+                        if (!photo) return null;
+                        return (
+                          <a href={photo} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                            <img
+                              src={photo}
+                              alt="Collection"
+                              className="h-20 w-20 object-cover rounded border"
+                              loading="lazy"
+                            />
+                          </a>
+                        );
+                      })()}
+                      <div className="space-y-1 flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 flex-wrap">
                         <h4 className="font-semibold text-sm">{order.sender?.name}</h4>
                         {state === "pending" && (
@@ -244,6 +266,7 @@ export const BikeSearchSection = ({
                           Scheduled delivery: {new Date(order.scheduledDeliveryDate).toLocaleDateString("en-GB")}
                         </p>
                       )}
+                      </div>
                     </div>
 
                     {state === "pending" && remaining > 0 && (

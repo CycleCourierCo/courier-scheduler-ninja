@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Check, Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
 import EditVehicleDialog from "@/components/vehicles/EditVehicleDialog";
 import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
 import InsuranceTab from "@/components/vehicles/InsuranceTab";
+import InsuranceTimeline from "@/components/vehicles/InsuranceTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   deleteVehicle,
@@ -25,6 +26,7 @@ import {
   type Vehicle,
   type VehicleStatus,
 } from "@/services/vehicleService";
+import { listPolicies, type InsurancePolicy } from "@/services/insuranceService";
 
 const isExpired = (date: string | null) => !!date && new Date(date) < new Date();
 const isSoon = (date: string | null) => {
@@ -33,6 +35,10 @@ const isSoon = (date: string | null) => {
   const now = Date.now();
   return d >= now && d - now <= 30 * 24 * 60 * 60 * 1000;
 };
+
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
+
 
 const ExpiryCell = ({ status, date }: { status: string | null; date: string | null }) => {
   const cls = isExpired(date)
@@ -50,10 +56,13 @@ const ExpiryCell = ({ status, date }: { status: string | null; date: string | nu
 
 const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [policies, setPolicies] = useState<InsurancePolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("in_use");
   const [editing, setEditing] = useState<Vehicle | null>(null);
+  const [timelineStart, setTimelineStart] = useState<Date>(() => addMonths(startOfMonth(new Date()), -1));
+
   const [editOpen, setEditOpen] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
@@ -64,7 +73,9 @@ const VehicleManagement = () => {
   const load = async () => {
     setLoading(true);
     try {
-      setVehicles(await listVehicles());
+      const [vs, ps] = await Promise.all([listVehicles(), listPolicies().catch(() => [])]);
+      setVehicles(vs);
+      setPolicies(ps);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -73,6 +84,12 @@ const VehicleManagement = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const inUseVehicles = useMemo(
+    () => vehicles.filter((v) => v.status === "in_use"),
+    [vehicles],
+  );
+
 
   const filtered = useMemo(() => {
     const q = search.trim().toUpperCase();
@@ -210,6 +227,30 @@ const VehicleManagement = () => {
           </TabsList>
 
           <TabsContent value="vehicles" className="space-y-4">
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">Insurance coverage timeline</h3>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => setTimelineStart((d) => addMonths(d, -3))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setTimelineStart(addMonths(startOfMonth(new Date()), -1))}>
+                    Today
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setTimelineStart((d) => addMonths(d, 3))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <InsuranceTimeline
+                vehicles={inUseVehicles}
+                policies={policies}
+                monthsCount={12}
+                startMonth={timelineStart}
+                onPolicyClick={() => {}}
+              />
+            </Card>
+
             <Card className="p-3 flex flex-wrap gap-2 items-center">
               <Input
                 value={search}

@@ -361,7 +361,9 @@ serve(async (req) => {
 
 
     // Send collection confirmation emails if status is "collected"
-    if (newStatus === "collected") {
+    // Only on real completion events — never on ORDER_FAILED (which can revert
+    // status to 'collected' for an already-collected order whose delivery just failed).
+    if (newStatus === "collected" && (event === "ORDER_COMPLETED" || event === "ORDER_POD_UPLOAD")) {
       try {
         console.log("Checking if collection confirmation needed for order:", dbOrder.id);
         
