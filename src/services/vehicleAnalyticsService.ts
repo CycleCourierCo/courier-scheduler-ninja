@@ -5,6 +5,7 @@ export interface TimeslipRow {
   date: string;
   mileage: number | null;
   driver_id: string;
+  vehicle_id: string | null;
 }
 
 export interface WeeklyVehicleStat {
@@ -27,7 +28,7 @@ export const fetchTimeslipsForAnalytics = async (range?: DateRange): Promise<Tim
   while (true) {
     let query = supabase
       .from("timeslips")
-      .select("id,date,mileage,driver_id")
+      .select("id,date,mileage,driver_id,vehicle_id")
       .eq("status", "approved")
       .order("date", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -86,11 +87,6 @@ export const getVehicleTotals = (weekly: WeeklyVehicleStat[]) => {
   const weeks = weekly.length || 1;
   const totalMiles = weekly.reduce((s, w) => s + w.miles, 0);
   const totalRoutes = weekly.reduce((s, w) => s + w.routes, 0);
-  const allDrivers = new Set<string>();
-  weekly.forEach((w) => {
-    // approximate unique drivers across all weeks by max in single week is inaccurate;
-    // expose avg drivers/week instead
-  });
   const avgDriversPerWeek =
     weekly.reduce((s, w) => s + w.drivers, 0) / weeks;
   return {
@@ -100,4 +96,83 @@ export const getVehicleTotals = (weekly: WeeklyVehicleStat[]) => {
     avgRoutesPerWeek: Math.round(totalRoutes / weeks),
     avgDriversPerWeek: Math.round(avgDriversPerWeek * 10) / 10,
   };
+};
+
+// Sum mileage grouped by vehicle_id, regardless of date range filter applied at fetch
+export const getMileageByVehicle = (rows: TimeslipRow[]): Record<string, number> => {
+  const totals: Record<string, number> = {};
+  for (const r of rows) {
+    if (!r.vehicle_id) continue;
+    totals[r.vehicle_id] = (totals[r.vehicle_id] || 0) + (Number(r.mileage) || 0);
+  }
+  return totals;
+};
+
+export interface VehicleLeaderboardRow {
+  vehicle_id: string;
+  registration: string;
+  miles: number;
+  routes: number;
+  activeDays: number;
+}
+
+export const getVehicleLeaderboard = (
+  rows: TimeslipRow[],
+  vehicleLookup: Record<string, { registration: string }>,
+): VehicleLeaderboardRow[] => {
+  const map = new Map<string, { miles: number; routes: number; days: Set<string> }>();
+  for (const r of rows) {
+    if (!r.vehicle_id) continue;
+    if (!map.has(r.vehicle_id)) {
+      map.set(r.vehicle_id, { miles: 0, routes: 0, days: new Set() });
+    }
+    const e = map.get(r.vehicle_id)!;
+    e.miles += Number(r.mileage) || 0;
+    e.routes += 1;
+    if (r.date) e.days.add(r.date);
+  }
+  return Array.from(map.entries())
+    .map(([vehicle_id, v]) => ({
+      vehicle_id,
+      registration: vehicleLookup[vehicle_id]?.registration ?? "Unknown",
+      miles: Math.round(v.miles),
+      routes: v.routes,
+      activeDays: v.days.size,
+    }))
+    .sort((a, b) => b.miles - a.miles);
+};
+
+export interface WeeklyMileageByVehicleRow {
+  week: string;
+  label: string;
+  [registration: string]: string | number;
+}
+
+export const getWeeklyMileageByVehicle = (
+  rows: TimeslipRow[],
+  vehicleIds: string[],
+  vehicleLookup: Record<string, { registration: string }>,
+): WeeklyMileageByVehicleRow[] => {
+  const selected = new Set(vehicleIds);
+  const weekMap = new Map<string, { date: Date; perReg: Record<string, number> }>();
+  for (const r of rows) {
+    if (!r.vehicle_id || !selected.has(r.vehicle_id) || !r.date) continue;
+    const reg = vehicleLookup[r.vehicle_id]?.registration ?? "Unknown";
+    const ws = getWeekStart(r.date);
+    const key = ws.toISOString().slice(0, 10);
+    if (!weekMap.has(key)) weekMap.set(key, { date: ws, perReg: {} });
+    const entry = weekMap.get(key)!;
+    entry.perReg[reg] = (entry.perReg[reg] || 0) + (Number(r.mileage) || 0);
+  }
+  return Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, v]) => {
+      const row: WeeklyMileageByVehicleRow = { week, label: fmtWeekLabel(v.date) };
+      // Ensure every selected vehicle has a numeric value (0 if absent) for clean lines
+      for (const id of vehicleIds) {
+        const reg = vehicleLookup[id]?.registration ?? "Unknown";
+        row[reg] = Math.round(v.perReg[reg] || 0);
+      }
+      return row;
+    });
 };

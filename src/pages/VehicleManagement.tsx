@@ -19,6 +19,7 @@ import InsuranceTimeline from "@/components/vehicles/InsuranceTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   deleteVehicle,
+  getVehicleMileageTotals,
   listVehicles,
   lookupVehicleFromDVLA,
   updateVehicle,
@@ -57,6 +58,7 @@ const ExpiryCell = ({ status, date }: { status: string | null; date: string | nu
 const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [policies, setPolicies] = useState<InsurancePolicy[]>([]);
+  const [mileageByVehicle, setMileageByVehicle] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("in_use");
@@ -73,9 +75,14 @@ const VehicleManagement = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [vs, ps] = await Promise.all([listVehicles(), listPolicies().catch(() => [])]);
+      const [vs, ps, mileage] = await Promise.all([
+        listVehicles(),
+        listPolicies().catch(() => []),
+        getVehicleMileageTotals().catch(() => ({} as Record<string, number>)),
+      ]);
       setVehicles(vs);
       setPolicies(ps);
+      setMileageByVehicle(mileage);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -293,6 +300,7 @@ const VehicleManagement = () => {
                         <TableHead>Purchased</TableHead>
                         <TableHead>Tax</TableHead>
                         <TableHead>MOT</TableHead>
+                        <TableHead className="text-right">Miles driven</TableHead>
                         <TableHead>Auto Pay</TableHead>
                         <TableHead>Last refreshed</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -318,6 +326,16 @@ const VehicleManagement = () => {
                           </TableCell>
                           <TableCell><ExpiryCell status={v.tax_status} date={v.tax_due_date} /></TableCell>
                           <TableCell><ExpiryCell status={v.mot_status} date={v.mot_expiry_date} /></TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <div className="text-sm font-medium">
+                              {(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi
+                            </div>
+                            {v.status === "sold" && (v as any).sold_mileage != null && (
+                              <div className="text-xs text-muted-foreground">
+                                Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <div className="text-xs space-y-0.5">
                               <div>London: {v.london_auto_pay ? "✓" : "—"}</div>
@@ -399,6 +417,13 @@ const VehicleManagement = () => {
                       </div>
                       <div className="text-xs text-muted-foreground">
                         London Auto Pay: {v.london_auto_pay ? "✓" : "—"} · Dartford: {v.dartford_crossing ? "✓" : "—"}
+                      </div>
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Miles driven: </span>
+                        <span className="font-medium">{(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi</span>
+                        {v.status === "sold" && (v as any).sold_mileage != null && (
+                          <span className="text-muted-foreground"> · Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi</span>
+                        )}
                       </div>
                       <div className="flex gap-2 pt-2">
                         <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>

@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
@@ -34,9 +34,13 @@ import {
   fetchTimeslipsForAnalytics,
   getWeeklyVehicleStats,
   getVehicleTotals,
+  getVehicleLeaderboard,
   type DateRange,
 } from "@/services/vehicleAnalyticsService";
+import { listVehicles } from "@/services/vehicleService";
 import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsChart";
+import VehicleMileageChart from "@/components/analytics/VehicleMileageChart";
+import VehicleLeaderboardCard from "@/components/analytics/VehicleLeaderboardCard";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
 import OrderTimeChart from "@/components/analytics/OrderTimeChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
@@ -84,8 +88,35 @@ const AnalyticsPage = () => {
     queryKey: ["vehiclesAnalytics", vehicleRange?.start ?? "all", vehicleRange?.end ?? "all"],
     queryFn: () => fetchTimeslipsForAnalytics(vehicleRange),
   });
+  const { data: vehiclesList = [] } = useQuery({
+    queryKey: ["vehiclesListForAnalytics"],
+    queryFn: listVehicles,
+  });
   const weeklyVehicleStats = getWeeklyVehicleStats(vehicleTimeslips);
   const vehicleTotals = getVehicleTotals(weeklyVehicleStats);
+
+  const vehicleLookup = useMemo(() => {
+    const o: Record<string, { registration: string }> = {};
+    for (const v of vehiclesList) o[v.id] = { registration: v.registration };
+    return o;
+  }, [vehiclesList]);
+  const vehicleLeaderboard = useMemo(
+    () => getVehicleLeaderboard(vehicleTimeslips, vehicleLookup),
+    [vehicleTimeslips, vehicleLookup],
+  );
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (vehicleLeaderboard.length === 0) return;
+    seededRef.current = true;
+    setSelectedVehicleIds(vehicleLeaderboard.slice(0, 5).map((r) => r.vehicle_id));
+  }, [vehicleLeaderboard]);
+
+  const milesPerRoute = vehicleTotals.totalRoutes > 0
+    ? Math.round(vehicleTotals.totalMiles / vehicleTotals.totalRoutes)
+    : 0;
+  const topVehicle = vehicleLeaderboard[0];
 
   // Calculate quick stats
   const totalOrders = orders.length;
@@ -361,7 +392,7 @@ const AnalyticsPage = () => {
                     </Popover>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <StatsCard
                     title="Total Miles"
                     value={vehicleTotals.totalMiles.toLocaleString()}
@@ -380,9 +411,28 @@ const AnalyticsPage = () => {
                     description="Unique drivers active per week"
                     icon={Users}
                   />
+                  <StatsCard
+                    title="Miles / Route"
+                    value={milesPerRoute.toLocaleString()}
+                    description="Average miles per completed route"
+                    icon={Route}
+                  />
+                  <StatsCard
+                    title="Most-Used Vehicle"
+                    value={topVehicle?.registration ?? "—"}
+                    description={topVehicle ? `${topVehicle.miles.toLocaleString()} mi · ${topVehicle.routes} routes` : "No data"}
+                    icon={Truck}
+                  />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <WeeklyVehicleStatsChart data={weeklyVehicleStats} />
+                  <VehicleMileageChart
+                    rows={vehicleTimeslips}
+                    vehicles={vehiclesList}
+                    selectedIds={selectedVehicleIds}
+                    onSelectedIdsChange={setSelectedVehicleIds}
+                  />
+                  <VehicleLeaderboardCard rows={vehicleLeaderboard} />
                 </div>
               </TabsContent>
             </Tabs>

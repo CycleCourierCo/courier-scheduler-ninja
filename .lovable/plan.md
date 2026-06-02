@@ -1,24 +1,40 @@
-## Bulk Assign Vehicle to Timeslips
+## 1. Vehicle mileage on Vehicles page
 
-Add an admin tool on the Driver Timeslips page that assigns one vehicle to all timeslips for a chosen driver within a chosen date range.
+- Extend `vehicleService.ts` with `getVehicleMileageTotals()` that sums `timeslips.mileage` grouped by `vehicle_id` (paginated, status `approved`) and returns a `Record<vehicleId, number>`.
+- In `VehicleManagement.tsx`:
+  - Load mileage totals alongside `listVehicles()`.
+  - Add a **"Miles driven"** column to the desktop table and a row on the mobile card. Format with `toLocaleString('en-GB')` + " mi".
+  - For `sold` vehicles, also show their `sold_mileage` underneath (if present) for reference.
 
-### UX
-- New "Bulk Assign Vehicle" button (admin only) next to "Generate Timeslips".
-- Opens a dialog with:
-  - Driver picker (reuses existing driver list from `TimeslipFilters`).
-  - Date range (start + end) using shadcn date pickers.
-  - Vehicle picker (active vehicles only, same filter as `TimeslipEditDialog`).
-  - Optional toggle: "Only fill timeslips with no vehicle" (default on) so existing assignments aren't overwritten.
-  - Preview count: "X timeslips will be updated" before confirming.
-- Confirm button runs the update, shows a toast with the count, and refreshes the list.
+## 2. Per-vehicle mileage analytics
 
-### Technical
-- New `BulkAssignVehicleDialog.tsx` in `src/components/timeslips/`.
-- New `timeslipService.bulkAssignVehicle({ driverId, dateFrom, dateTo, vehicleId, onlyEmpty })` that runs a single `supabase.from('timeslips').update({ vehicle_id }).eq('driver_id', ...).gte('date', ...).lte('date', ...)` (with `.is('vehicle_id', null)` when `onlyEmpty`). Returns affected count.
-- Preview uses the same filters with `select('id', { count: 'exact', head: true })`.
-- No DB schema changes — `vehicle_id` column already exists.
-- Invalidate `['timeslips']` query on success.
+Extend `src/services/vehicleAnalyticsService.ts`:
+- `TimeslipRow` gains `vehicle_id: string | null`.
+- `fetchTimeslipsForAnalytics` already paginates — just select `vehicle_id` too.
+- New `getWeeklyMileageByVehicle(rows, vehicleIds)` returning `{ week, label, [reg1]: miles, [reg2]: miles, ... }[]` for Recharts multi-series.
+- New `getVehicleLeaderboard(rows, vehicles)` returning `{ registration, miles, routes, activeDays }[]`.
 
-### Out of scope
-- Bulk editing other fields (rate, mileage, approval).
-- Editing timeslips outside the admin role.
+New component `src/components/analytics/VehicleMileageChart.tsx`:
+- Multi-select vehicle picker (shadcn popover + checkbox list of in-use + sold vehicles, with "Select all / clear").
+- Renders a `LineChart` with one `<Line>` per selected vehicle, distinct HSL colors derived from index `hsl(${(i*47)%360} 70% 50%)`.
+- Empty-state when none selected.
+
+In `AnalyticsPage.tsx` → Vehicles tab:
+- Keep existing date range controls (already there) — they drive the same query.
+- Add the new chart below `WeeklyVehicleStatsChart`.
+- Add a small **Vehicle leaderboard** card (table: reg, miles, routes, active days) sorted by miles desc.
+- Add 2 extra KPI `StatsCard`s for the tab:
+  - **Miles / route** (avg)
+  - **Most-used vehicle** (top reg + miles)
+
+## 3. Out of scope
+
+- No DB changes (mileage already on `timeslips`).
+- No changes to timeslip entry / vehicle assignment flows.
+- No cost-per-mile calculations (separate ask if wanted later).
+
+## Technical notes
+
+- All queries already respect RLS via the authenticated session.
+- Vehicle list for picker reuses `listVehicles()` filtered to non-archived statuses; cached via `useQuery(['vehiclesList'])`.
+- Default selection = top 5 vehicles by miles in the current range, so the chart is useful on first render.
