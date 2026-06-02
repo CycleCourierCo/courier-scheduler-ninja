@@ -46,6 +46,16 @@ const AnalyticsPage = () => {
     queryFn: fetchOrdersForAnalytics
   });
 
+  const { data: inspections = [] } = useQuery({
+    queryKey: ["inspectionsAnalytics"],
+    queryFn: fetchInspectionsForAnalytics,
+  });
+
+  const inspectionsOverTime = getInspectionsOverTime(inspections);
+  const inspectionsWithIssues = getInspectionsWithIssuesRate(inspections);
+  const avgRepairCost = getAverageRepairCost(inspections);
+  const issueApproval = getIssueApprovalRate(inspections);
+
   // Calculate quick stats
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(order => 
