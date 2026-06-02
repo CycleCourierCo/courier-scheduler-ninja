@@ -60,7 +60,7 @@ const AnalyticsPage = () => {
   const storageData = getStorageAnalytics(orders);
 
   // Get only B2B customers for business tab
-  const b2bCustomers = topCustomersData.filter(customer => customer.isB2B);
+  const b2bCustomers = getAllCustomersAnalytics(orders).filter(customer => customer.isB2B);
 
   return (
     <Layout>
