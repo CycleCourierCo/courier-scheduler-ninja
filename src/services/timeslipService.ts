@@ -88,6 +88,26 @@ export const timeslipService = {
     } as Timeslip;
   },
 
+  // Bulk assign vehicle to timeslips for a driver in a date range
+  async bulkAssignVehicle(params: {
+    driverId: string;
+    vehicleId: string;
+    dateFrom: string;
+    dateTo: string;
+    onlyEmpty?: boolean;
+  }) {
+    let query = supabase
+      .from('timeslips')
+      .update({ vehicle_id: params.vehicleId })
+      .eq('driver_id', params.driverId)
+      .gte('date', params.dateFrom)
+      .lte('date', params.dateTo);
+    if (params.onlyEmpty) query = query.is('vehicle_id', null);
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    return data?.length || 0;
+  },
+
   // Approve timeslip
   async approveTimeslip(id: string, adminNotes?: string) {
     const { data: { user } } = await supabase.auth.getUser();
