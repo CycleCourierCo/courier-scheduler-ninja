@@ -1,24 +1,26 @@
-Add a "Collection today" filter toggle to the Job Scheduling page alongside the existing "Collected (ready to deliver)" toggle.
+Rework the new toggle so it surfaces orders that will be collected before the selected delivery date (i.e. will be available to deliver on the selected date), and fix the label.
 
-Problem: The page currently has a filter to show only bikes already collected. Schedulers also need to find bikes that are due to be collected today (or on the selected date) so they can plan tomorrow's deliveries.
+Current behaviour (wrong): toggle filters for orders whose `pickup_date` equals the selected date, and the label switches to "Collection on selected date".
+
+New behaviour:
+- Rename the toggle to **"Collecting before delivery date"** (static label, no swap).
+- When the toggle is ON and `filterDate` is set:
+  - Show **delivery jobs only** for orders that are either already collected (`order_collected === true`) OR whose `pickup_date` contains at least one date strictly before `filterDate`.
+  - Hide pickup jobs entirely (they aren't relevant for "what can I deliver that day").
+- When the toggle is ON but no `filterDate` is set: treat target as today's date — show deliveries whose collection is already done or scheduled before today.
+- When OFF: existing behaviour, no change.
 
 Changes:
 
-1. `src/pages/JobScheduling.tsx`
-   - Add new lifted state: `showCollectionToday` (boolean, default false).
-   - Pass `showCollectionToday` and `onShowCollectionTodayChange` down to `RouteBuilder`.
-   - Update `filteredOrdersForMap` (the ClusterMap filter) so that when the toggle is on, an order is kept only if its `pickup_date` includes today (or the selected `filterDate`) AND `order_collected !== true`.
+1. `src/components/scheduling/RouteBuilder.tsx`
+   - In `getJobsFromOrders`, replace the `isCollectionToday` helper with `isCollectedBeforeTarget(order)`:
+     - returns true if `order_collected === true`, OR if any entry in `order.pickup_date` parses to a date strictly less than the target date (filterDate ?? today).
+   - When `showCollectionToday` is true:
+     - Skip pickup jobs (don't push).
+     - For delivery jobs, only include when `isCollectedBeforeTarget(order)` is true (and existing date/collected filters still apply).
+   - Update the Switch label to `Collecting before delivery date` (drop the conditional text).
 
-2. `src/components/scheduling/RouteBuilder.tsx`
-   - Extend `RouteBuilderProps` with `showCollectionToday?: boolean` and `onShowCollectionTodayChange?: (value: boolean) => void`.
-   - Add internal state fallback (`internalShowCollectionToday`) and wire the handler pattern exactly like `handleShowCollectedOnlyChange`.
-   - Update `getJobsFromOrders`:
-     - Introduce a helper `isCollectionToday(order)` that checks whether the order's `pickup_date` array contains the target date (`filterDate` if set, otherwise today's date) and the order is not yet collected.
-     - When `showCollectionToday` is true, only keep pickup jobs and delivery jobs that satisfy `isCollectionToday(order)`.
-   - Add a new `<Switch>` in the Filter Section UI, placed right after the existing "Collected (ready to deliver)" toggle, labeled "Collection today".
-   - Update `hasActiveFilters` to include `showCollectionToday` so the results badge behaves correctly.
+2. `src/pages/JobScheduling.tsx`
+   - Apply the same logic to `filteredOrdersForMap`: when `showCollectionToday` is true, keep an order only if it has an unscheduled delivery AND (`order_collected === true` OR `pickup_date` has a date strictly before the target). Pickup-only inclusion is dropped under this filter.
 
-Filter behaviour:
-- Off (default): no extra restriction; behaves exactly as before.
-- On: restricts visible jobs to orders whose `pickup_date` includes the chosen calendar date (or today's date when no calendar date is picked) and which are not yet marked as collected (`order_collected !== true`).
-- This applies to both pickup jobs (so drivers can see today's collections) and delivery jobs (so schedulers can spot bikes that will be collected today and could be delivered tomorrow).
+Naming: the existing state variable `showCollectionToday` is kept as-is to minimise churn; only the user-facing label changes.
