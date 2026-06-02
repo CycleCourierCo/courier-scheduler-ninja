@@ -43,10 +43,19 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     hourly_rate: timeslip?.hourly_rate || 11,
     van_allowance: timeslip?.van_allowance || 0,
     mileage: timeslip?.mileage || null,
+    vehicle_id: timeslip?.vehicle_id || null,
     status: timeslip?.status || 'draft',
     admin_notes: timeslip?.admin_notes || '',
     custom_addons: timeslip?.custom_addons || [],
   });
+
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ['vehicles-active'],
+    queryFn: listVehicles,
+  });
+  const activeVehicles = vehicles.filter(
+    (v) => v.status !== 'sold' && v.status !== 'written_off'
+  );
 
   const [newAddon, setNewAddon] = useState({ title: '', hours: 0 });
 
