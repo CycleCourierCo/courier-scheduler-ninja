@@ -14,6 +14,9 @@ import {
   getBikeBrandAnalytics,
   getCollectionTimeAnalytics,
   getDeliveryTimeAnalytics,
+  getStorageAnalytics,
+  getAllCustomersAnalytics
+
   getStorageAnalytics
 } from "@/services/analyticsService";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
