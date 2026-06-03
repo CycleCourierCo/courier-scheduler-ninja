@@ -76,6 +76,18 @@ export type Order = {
   paymentCollectionPhone?: string;
   isBikeSwap?: boolean;
   isEbayOrder?: boolean;
+  isBoxMyBike?: boolean;
+  boxMyBikeStatus?: BoxMyBikeStatus | null;
+  boxLabelUrl?: string | null;
+  boxLabelUploadedAt?: Date | null;
+  boxLabelUploadedBy?: string | null;
+  boxMyBikeInvoiceId?: string | null;
+  boxMyBikeInvoiceNumber?: string | null;
+  boxMyBikeInvoiceUrl?: string | null;
+  boxInDepotAt?: Date | null;
+  boxBoxedAt?: Date | null;
+  boxLabelPrintedAt?: Date | null;
+  boxCollectedBy3pAt?: Date | null;
   collectionCode?: string;
   deliveryInstructions?: string;
   senderNotes?: string;
