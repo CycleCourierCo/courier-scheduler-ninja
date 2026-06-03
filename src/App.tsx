@@ -51,6 +51,7 @@ import NewClaim from "./pages/NewClaim";
 import ClaimDetail from "./pages/ClaimDetail";
 import DispatchOrdersPage from "./pages/DispatchOrdersPage";
 import DispatchRoutesPage from "./pages/DispatchRoutesPage";
+import BoxMyBikePage from "./pages/BoxMyBikePage";
 
 const queryClient = new QueryClient();
 
