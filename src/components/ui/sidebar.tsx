@@ -11,6 +11,7 @@ import {
   Users,
   
   Wrench,
+  Package2,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
