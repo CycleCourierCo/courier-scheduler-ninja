@@ -412,6 +412,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         collection_code: collectionCode,
         delivery_instructions: deliveryInstructions,
         needs_inspection: needsInspection || false,
+        is_box_my_bike: isBoxMyBike || false,
+        box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,
