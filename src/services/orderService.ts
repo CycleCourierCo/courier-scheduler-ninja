@@ -285,7 +285,7 @@ export const updateAdminOrderStatus = updateOrderStatus;
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike } = data;
 
     const {
       street: senderStreet,
@@ -412,6 +412,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         collection_code: collectionCode,
         delivery_instructions: deliveryInstructions,
         needs_inspection: needsInspection || false,
+        is_box_my_bike: isBoxMyBike || false,
+        box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,

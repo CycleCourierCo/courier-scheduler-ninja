@@ -293,6 +293,8 @@ Deno.serve(async (req) => {
         customer_order_number: body.customerOrderNumber || body.customer_order_number || null,
         shopify_order_id: body.shopifyOrderId || body.shopify_order_id || null,
         needs_inspection: body.needsInspection || body.needs_inspection || false,
+        is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
+        box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
         status: 'created',
         tracking_number: trackingNumber,
         pickup_date: body.pickup_date || null,
