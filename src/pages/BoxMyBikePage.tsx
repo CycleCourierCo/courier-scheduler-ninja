@@ -71,7 +71,7 @@ const BoxMyBikePage: React.FC = () => {
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, box_my_bike_status, box_label_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
+        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
         .eq("is_box_my_bike", true)
         .order("created_at", { ascending: false });
       if (!isStaff && user?.id) {
