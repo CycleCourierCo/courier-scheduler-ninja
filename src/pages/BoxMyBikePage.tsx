@@ -122,6 +122,22 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
   });
 
+  const createInvoice = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke("create-box-my-bike-invoice", {
+        body: { orderId: id },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
+      toast.success("Box My Bike invoice created (£60 + VAT)");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to create invoice"),
+  });
+
   const viewLabel = async (path: string) => {
     const { data, error } = await supabase.storage.from("box-my-bike-labels").createSignedUrl(path, 60 * 10);
     if (error || !data?.signedUrl) {
