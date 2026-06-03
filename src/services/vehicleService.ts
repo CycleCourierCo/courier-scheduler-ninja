@@ -94,3 +94,27 @@ export async function deleteVehicle(id: string): Promise<void> {
   const { error } = await supabase.from("vehicles").delete().eq("id", id);
   if (error) throw error;
 }
+
+// Sum approved-timeslip mileage grouped by vehicle_id (paginated to bypass 1000-row limit).
+export async function getVehicleMileageTotals(): Promise<Record<string, number>> {
+  const totals: Record<string, number> = {};
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("timeslips")
+      .select("vehicle_id,mileage")
+      .eq("status", "approved")
+      .not("vehicle_id", "is", null)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data as { vehicle_id: string | null; mileage: number | null }[]) {
+      if (!r.vehicle_id) continue;
+      totals[r.vehicle_id] = (totals[r.vehicle_id] || 0) + (Number(r.mileage) || 0);
+    }
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return totals;
+}

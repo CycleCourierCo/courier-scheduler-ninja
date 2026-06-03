@@ -100,7 +100,25 @@ Deno.serve(async (req) => {
       }
 
       const body = await req.json()
-      
+
+      // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it
+      const isBoxMyBike = body.isBoxMyBike || body.is_box_my_bike || false
+      if (isBoxMyBike) {
+        body.receiver = {
+          name: "Cycle Courier Depot",
+          email: "depot@cyclecourierco.com",
+          phone: "01215050598",
+          address: {
+            street: "Lawden Road",
+            city: "Birmingham",
+            zipCode: "B10 0AD",
+            country: "GB",
+            lat: 52.4690197,
+            lon: -1.8757663,
+          },
+        }
+      }
+
       // Validate required fields
       const requiredFields = ['sender', 'receiver']
       for (const field of requiredFields) {
@@ -117,6 +135,7 @@ Deno.serve(async (req) => {
           )
         }
       }
+
 
       // Validate bikes array or individual bike fields
       let bikeBrand = ''
@@ -293,6 +312,8 @@ Deno.serve(async (req) => {
         customer_order_number: body.customerOrderNumber || body.customer_order_number || null,
         shopify_order_id: body.shopifyOrderId || body.shopify_order_id || null,
         needs_inspection: body.needsInspection || body.needs_inspection || false,
+        is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
+        box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
         status: 'created',
         tracking_number: trackingNumber,
         pickup_date: body.pickup_date || null,

@@ -45,6 +45,8 @@ export interface Timeslip {
   // Route profitability
   mileage?: number | null;
   total_jobs?: number | null; // Total bikes/jobs (sum of bike_quantity). NULL for historic records.
+  vehicle_id?: string | null;
+  vehicle?: { id: string; registration: string; make?: string | null } | null;
   
   // Joined data
   driver?: UserProfile;

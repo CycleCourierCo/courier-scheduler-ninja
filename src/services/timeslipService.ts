@@ -8,10 +8,12 @@ export const timeslipService = {
     driverId?: string;
     dateFrom?: string;
     dateTo?: string;
+    noMileage?: boolean;
+    noVehicle?: boolean;
   }) {
     let query = supabase
       .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
+      .select('*, driver:profiles!timeslips_driver_id_fkey(*), vehicle:vehicles(id, registration, make)')
       .order('date', { ascending: false });
     
     if (filters?.status) {
@@ -28,6 +30,14 @@ export const timeslipService = {
     
     if (filters?.dateTo) {
       query = query.lte('date', filters.dateTo);
+    }
+
+    if (filters?.noMileage) {
+      query = query.or('mileage.is.null,mileage.eq.0');
+    }
+
+    if (filters?.noVehicle) {
+      query = query.is('vehicle_id', null);
     }
     
     const { data, error } = await query;
@@ -86,6 +96,26 @@ export const timeslipService = {
       job_locations: (data.job_locations as any as JobLocation[]) || [],
       custom_addons: (data.custom_addons as any as CustomAddon[]) || []
     } as Timeslip;
+  },
+
+  // Bulk assign vehicle to timeslips for a driver in a date range
+  async bulkAssignVehicle(params: {
+    driverId: string;
+    vehicleId: string;
+    dateFrom: string;
+    dateTo: string;
+    onlyEmpty?: boolean;
+  }) {
+    let query = supabase
+      .from('timeslips')
+      .update({ vehicle_id: params.vehicleId })
+      .eq('driver_id', params.driverId)
+      .gte('date', params.dateFrom)
+      .lte('date', params.dateTo);
+    if (params.onlyEmpty) query = query.is('vehicle_id', null);
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    return data?.length || 0;
   },
 
   // Approve timeslip

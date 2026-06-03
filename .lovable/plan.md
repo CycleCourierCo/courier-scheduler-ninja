@@ -1,40 +1,63 @@
-## Goal
+# Box My Bike — Implementation Plan
 
-In the **Bicycle Inspections** page, while an inspection is in the `awaiting_pricing` stage, allow admins/mechanics to fully edit each issue (description + part info + price), as well as add new issues and remove existing ones — not just set the price.
+A new order option that books a one-leg collection to our depot, where we box the bike up, the customer uploads a shipping label, and a 3rd-party courier collects it. Billed at £60 + VAT in addition to the courier fee.
 
-Today, the "pricing" stage only exposes a `£ Price` input + Save button per issue. Description, part name/spec/number are read-only and there's no add/remove control.
+## 1. Database (migration)
 
-## Changes
+New column on `orders`:
+- `is_box_my_bike boolean default false`
+- `box_my_bike_status text` — one of `awaiting_depot`, `in_depot_awaiting_boxing`, `boxed_awaiting_label`, `awaiting_3p_collection`, `collected_by_3p` (nullable; only set when `is_box_my_bike = true`)
+- `box_label_url text`, `box_label_uploaded_at timestamptz`, `box_label_uploaded_by uuid`
+- `box_my_bike_invoice_id text`, `box_my_bike_invoice_number text`, `box_my_bike_invoice_url text`
+- Timestamp columns per stage transition (`boxed_at`, `label_printed_at`, `collected_by_3p_at`) for the customer timeline.
 
-### 1. `src/services/inspectionService.ts` — add three service functions
+New private storage bucket `box-my-bike-labels`. RLS on `storage.objects`:
+- Customer (order owner) can `INSERT`/`SELECT` files under `{order_id}/...`
+- Admin + mechanic can `SELECT`/`INSERT`/`UPDATE`/`DELETE`
 
-- `updateInspectionIssue(issueId, fields)` — updates `issue_description`, `estimated_cost`, `part_name`, `part_spec`, `part_number` on an existing row. When `estimated_cost` is provided, also stamp `priced_at` / `priced_by_id` / `priced_by_name` so the "all priced" gate still works.
-- `deleteInspectionIssue(issueId)` — deletes the row from `inspection_issues`.
-- `addIssueToExistingInspection(inspectionId, orderId, …)` — thin wrapper that inserts a new row directly against the existing inspection (so we don't re-trigger the status reset that `addInspectionIssue` does via `getOrCreateInspection`). Stamps `priced_*` if cost provided.
+Order-level mutation of `box_my_bike_status`, label fields, and stage timestamps: extend existing orders UPDATE policies — customers can only set the label fields; admin/mechanic can advance/revert status.
 
-### 2. `src/pages/BicycleInspections.tsx` — pricing-stage UI
+## 2. Create Order form (`OrderOptions.tsx`, `CreateOrder.tsx`)
 
-Inside the issue card block, gated by `isAdmin && isAwaitingPricing` (also allow `isMechanic` if that matches current part-edit permissions — confirm with existing pattern that mechanics already manage parts at this stage):
+- New toggle "Box My Bike" (with helper text: international shipping, customer provides label, £60 + VAT).
+- When ON:
+  - Force `isBikeSwap = false` and `isEbayOrder = false` is **not** required (per your answer toggles remain independent), but `needsPaymentOnCollection` and others remain available.
+  - Hide the Delivery tab/step entirely and skip its validation; auto-populate `receiver` with depot contact (Cycle Courier, depot phone/email, `Lawden Road, Birmingham, B10 0AD`, lat/lon from `DEPOT_LOCATION`).
+  - Submit button label switches to "Book Box My Bike" and routing jumps straight from Collection → Options → Submit.
 
-- Replace the current price-only row with an **inline editable form** per issue containing:
-  - Description (textarea)
-  - Estimated cost (£ number input)
-  - Part name / spec / number (three inputs, mechanic+admin)
-  - **Save** button → calls `updateInspectionIssue`
-  - **Delete** button (destructive, with `AlertDialog` confirm) → calls `deleteInspectionIssue`
-- Below the issue list, add an **"Add issue"** button that opens a small inline form (or reuses the existing add-issue dialog scoped to this inspection) and on submit calls `addIssueToExistingInspection`.
-- Local state keyed by `issue.id` to track edited values; on successful mutation invalidate `["bicycle-inspections"]`.
+## 3. Public API (`supabase/functions/orders/index.ts`)
 
-### 3. New mutations in the same component
+- Accept `isBoxMyBike` / `is_box_my_bike` on POST. When true, `receiver` is optional and server auto-fills the depot. Returned order payload includes `is_box_my_bike` + `box_my_bike_status`.
+- Update `docs/API_DOCUMENTATION.md` and `ApiDocumentationPage.tsx` with the new field + behaviour.
 
-- `updateIssueMutation`, `deleteIssueMutation`, `addIssueAtPricingMutation` — mirror the existing `setPriceMutation` shape (toast on success/error, invalidate the inspections query).
+## 4. Invoicing
 
-### 4. No backend / RLS changes
+- New edge function `create-box-my-bike-invoice` modelled on `create-inspection-service-invoice`. Hardcoded line: "Box My Bike Service" £60 net + 20% VAT, attached to the order's customer (B2B/B2C handled the same way the inspection invoice does).
+- Trigger on order creation (when `is_box_my_bike = true`) the same way the inspection invoice flow triggers, and store id/number/url on the order. Courier delivery invoice is unchanged and still raised by the existing flow.
 
-`inspection_issues` already supports insert/update/delete for admin+mechanic via existing policies used by `addInspectionIssue` / `setIssuePrice`. No migration needed; if the delete call fails for RLS we'll add a policy then.
+## 5. Box My Bike workspace page
 
-## Out of scope
+New route `/box-my-bike` (`src/pages/BoxMyBikePage.tsx`) visible to admin, mechanic, b2b_customer, b2c_customer. Nav entry added to `Layout.tsx`.
 
-- No changes to the customer-facing flow (issues only become visible to customer after "Release to Customer").
-- No changes to other stages (`awaiting_parts`, `awaiting_repair`, `issues_found`).
-- No email/notification changes.
+**Admin / mechanic view** — 5 tabs (one per stage):
+1. Awaiting delivery to depot
+2. In depot awaiting boxing
+3. Boxed awaiting label
+4. Awaiting collection by 3rd-party courier
+5. Collected by 3rd-party courier
+
+Each card shows order ref, bike, customer, collection driver, and label preview (when uploaded). Buttons: **Advance →** and **← Revert** (mechanic + admin). Stage 3 → 4 is only allowed once a label is uploaded; the "Print label" button opens the PDF/image. Stage transition writes the corresponding timestamp and pushes a tracking event.
+
+**Customer view**: list of their own Box My Bike orders with a timeline combining the standard collection/delivery events (collected, in depot) and the box-my-bike statuses; at stage "Boxed awaiting label" a label upload control (drag-drop into `box-my-bike-labels` bucket) is shown.
+
+## 6. Customer-facing tracking
+
+- `StatusBadge` / `TrackingTimeline` / `CustomerOrderDetail` extended to render the box-my-bike sub-status alongside the order status, so existing tracking pages keep working but show the extra milestones for these orders.
+
+## Technical notes
+
+- New status column rather than reusing `OrderStatus` enum, so the existing delivery-side flow (Shipday, emails, route builder) is untouched. The order status remains `collected` once the bike reaches the depot; the box-my-bike journey runs in parallel via `box_my_bike_status`.
+- Depot constant already exists at `src/constants/depot.ts` — reuse it for receiver auto-fill in the form and the API.
+- Auto-advance to `in_depot_awaiting_boxing` when the order's main status becomes `collected` (handled in the shipday-webhook completion path).
+- Bulk CSV upload (`bulkOrderService.ts`) defaults `isBoxMyBike` to false; no spec change there.
+- No changes to driver/dispatch logic — Box My Bike orders flow through collection like any other order; the delivery leg is simply never created (no Shipday delivery job, no delivery email).

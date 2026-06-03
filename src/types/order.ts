@@ -34,6 +34,29 @@ export type OrderStatus =
   | 'collection_scheduled'  // New status
   | 'delivery_scheduled';    // New status
 
+export type BoxMyBikeStatus =
+  | 'awaiting_depot'
+  | 'in_depot_awaiting_boxing'
+  | 'boxed_awaiting_label'
+  | 'awaiting_3p_collection'
+  | 'collected_by_3p';
+
+export const BOX_MY_BIKE_STATUS_ORDER: BoxMyBikeStatus[] = [
+  'awaiting_depot',
+  'in_depot_awaiting_boxing',
+  'boxed_awaiting_label',
+  'awaiting_3p_collection',
+  'collected_by_3p',
+];
+
+export const BOX_MY_BIKE_STATUS_LABELS: Record<BoxMyBikeStatus, string> = {
+  awaiting_depot: 'Awaiting delivery to depot',
+  in_depot_awaiting_boxing: 'In depot, awaiting boxing',
+  boxed_awaiting_label: 'Boxed, awaiting label',
+  awaiting_3p_collection: 'Awaiting 3rd-party collection',
+  collected_by_3p: 'Collected by 3rd-party courier',
+};
+
 export type ShipdayUpdate = {
   status: string;
   timestamp: string;
@@ -76,6 +99,18 @@ export type Order = {
   paymentCollectionPhone?: string;
   isBikeSwap?: boolean;
   isEbayOrder?: boolean;
+  isBoxMyBike?: boolean;
+  boxMyBikeStatus?: BoxMyBikeStatus | null;
+  boxLabelUrl?: string | null;
+  boxLabelUploadedAt?: Date | null;
+  boxLabelUploadedBy?: string | null;
+  boxMyBikeInvoiceId?: string | null;
+  boxMyBikeInvoiceNumber?: string | null;
+  boxMyBikeInvoiceUrl?: string | null;
+  boxInDepotAt?: Date | null;
+  boxBoxedAt?: Date | null;
+  boxLabelPrintedAt?: Date | null;
+  boxCollectedBy3pAt?: Date | null;
   collectionCode?: string;
   deliveryInstructions?: string;
   senderNotes?: string;
@@ -163,6 +198,7 @@ export type CreateOrderFormData = {
   collectionCode?: string;
   deliveryInstructions?: string;
   needsInspection: boolean;
+  isBoxMyBike?: boolean;
   // Legacy fields for backward compatibility
   bikeBrand?: string;
   bikeModel?: string;

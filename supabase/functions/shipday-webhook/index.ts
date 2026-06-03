@@ -134,6 +134,82 @@ serve(async (req) => {
         statusDescription = "Driver is on the way to deliver the bike";
       }
     } else if (event === "ORDER_COMPLETED") {
+      // Verify against Shipday before treating this as a real completion.
+      // Shipday occasionally sends ORDER_COMPLETED immediately followed by ORDER_FAILED
+      // (driver marked complete, then failed). Re-fetch canonical status to avoid
+      // sending collection/delivery confirmation emails for failed jobs.
+      const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
+      let canonicalStatus: string | null = null;
+      if (shipdayApiKey) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          const verifyRes = await fetch(`https://api.shipday.com/orders/${shipdayOrderId}`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Basic ${shipdayApiKey}`,
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (verifyRes.ok) {
+            const verifyJson = await verifyRes.json();
+            const verifyOrder = Array.isArray(verifyJson) ? verifyJson[0] : verifyJson;
+            canonicalStatus = verifyOrder?.orderStatus?.orderState
+              || verifyOrder?.orderStatus
+              || verifyOrder?.order_status
+              || null;
+            console.log(`Shipday verification for order ${shipdayOrderId}: canonicalStatus=${JSON.stringify(canonicalStatus)}`);
+          } else {
+            console.warn(`Shipday verification HTTP ${verifyRes.status} for order ${shipdayOrderId} - falling back to inbound event`);
+          }
+        } catch (verifyErr) {
+          console.warn(`Shipday verification failed for order ${shipdayOrderId}, falling back to inbound event:`, verifyErr);
+        }
+      } else {
+        console.warn("SHIPDAY_API_KEY not set - cannot verify completion event");
+      }
+
+      const canonicalStr = (canonicalStatus || "").toString().toUpperCase();
+      const isStaleCompletion = canonicalStr === "FAILED" || canonicalStr === "INCOMPLETE";
+
+      if (isStaleCompletion) {
+        console.log(`Stale ORDER_COMPLETED for ${shipdayOrderId} - Shipday reports ${canonicalStr}. Skipping status/email update.`);
+        const trackingEvents = dbOrder.tracking_events || {};
+        const shipdayEvents = trackingEvents.shipday || {
+          pickup_id: dbOrder.shipday_pickup_id,
+          delivery_id: dbOrder.shipday_delivery_id,
+          updates: [],
+        };
+        shipdayEvents.updates = [
+          ...(shipdayEvents.updates || []),
+          {
+            status: order.order_status,
+            event: "ORDER_COMPLETED_STALE",
+            timestamp: new Date().toISOString(),
+            orderId: shipdayOrderId,
+            leg: isPickup ? 'pickup' : 'delivery',
+            description: `Inbound ORDER_COMPLETED ignored - Shipday canonical status is ${canonicalStr}`,
+            canonicalStatus: canonicalStr,
+          },
+        ];
+        trackingEvents.shipday = shipdayEvents;
+        await supabase
+          .from("orders")
+          .update({ tracking_events: trackingEvents, updated_at: new Date().toISOString() })
+          .eq("id", dbOrder.id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Stale ORDER_COMPLETED ignored - Shipday canonical status is ${canonicalStr}`,
+          orderId: dbOrder.id,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       if (isPickup) {
         newStatus = "collected";
         statusDescription = "Driver has collected the bike";

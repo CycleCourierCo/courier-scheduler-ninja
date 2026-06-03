@@ -22,6 +22,22 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
+import { DEPOT_LOCATION } from "@/constants/depot";
+
+const DEPOT_RECEIVER = {
+  name: "Cycle Courier Depot",
+  email: "info@cyclecourierco.com",
+  phone: "+441217980767",
+  address: {
+    street: "Lawden Road",
+    city: "Birmingham",
+    state: "West Midlands",
+    zipCode: DEPOT_LOCATION.postcode,
+    country: "United Kingdom",
+    lat: DEPOT_LOCATION.lat,
+    lon: DEPOT_LOCATION.lon,
+  },
+};
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -55,31 +71,36 @@ const phoneValidation = z
     message: "Phone number is too short — must be +44 followed by exactly 10 digits",
   });
 
+const addressSchema = z.object({
+  street: z.string().min(2, "Street address is required"),
+  city: z.string().min(2, "City is required"),
+  state: z.string().min(1, "State is required"),
+  zipCode: z.string().min(1, "Zip code is required"),
+  country: z.string().min(2, "Country is required"),
+  lat: z.number().optional(),
+  lon: z.number().optional(),
+});
+
+const contactSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
+  phone: phoneValidation,
+  address: addressSchema,
+});
+
 const orderSchema = z.object({
-  sender: z.object({
-    name: z.string().min(2, "Name is required"),
-    email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: phoneValidation,
-    address: z.object({
-      street: z.string().min(2, "Street address is required"),
-      city: z.string().min(2, "City is required"),
-      state: z.string().min(1, "State is required"),
-      zipCode: z.string().min(1, "Zip code is required"),
-      country: z.string().min(2, "Country is required"),
-      lat: z.number().optional(),
-      lon: z.number().optional(),
-    }),
-  }),
+  sender: contactSchema,
+  // Receiver is auto-populated to depot when isBoxMyBike is true, so relax validation
   receiver: z.object({
-    name: z.string().min(2, "Name is required"),
-    email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: phoneValidation,
+    name: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
     address: z.object({
-      street: z.string().min(2, "Street address is required"),
-      city: z.string().min(2, "City is required"),
-      state: z.string().min(1, "State is required"),
-      zipCode: z.string().min(1, "Zip code is required"),
-      country: z.string().min(2, "Country is required"),
+      street: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      zipCode: z.string().optional(),
+      country: z.string().optional(),
       lat: z.number().optional(),
       lon: z.number().optional(),
     }),
@@ -103,10 +124,29 @@ const orderSchema = z.object({
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
   needsInspection: z.boolean().default(false),
+  isBoxMyBike: z.boolean().default(false),
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
 }).superRefine((data, ctx) => {
+  // Validate receiver only when NOT Box My Bike (depot is auto-filled in that case)
+  if (!data.isBoxMyBike) {
+    const r = data.receiver;
+    if (!r?.name || r.name.length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Name is required", path: ["receiver", "name"] });
+    }
+    if (!r?.email || !EMAIL_REGEX.test(r.email)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid email format", path: ["receiver", "email"] });
+    }
+    if (!r?.phone || !/^\+44[0-9]{10}$/.test(r.phone)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Phone number must be +44 followed by 10 digits", path: ["receiver", "phone"] });
+    }
+    if (!r?.address?.street) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street address is required", path: ["receiver", "address", "street"] });
+    if (!r?.address?.city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required", path: ["receiver", "address", "city"] });
+    if (!r?.address?.zipCode) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Postcode is required", path: ["receiver", "address", "zipCode"] });
+    if (!r?.address?.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required", path: ["receiver", "address", "country"] });
+  }
+
   // Check eBay collection code
   if (data.isEbayOrder && !data.collectionCode?.trim()) {
     ctx.addIssue({
@@ -205,11 +245,34 @@ const CreateOrder = () => {
       collectionCode: "",
       deliveryInstructions: "",
       needsInspection: false,
+      isBoxMyBike: false,
       // Legacy fields for backward compatibility
       bikeBrand: "",
       bikeModel: "",
     },
   });
+
+  const isBoxMyBike = form.watch("isBoxMyBike");
+
+  // Auto-fill receiver with depot when Box My Bike toggled on; clear when toggled off
+  React.useEffect(() => {
+    if (isBoxMyBike) {
+      form.setValue("receiver", DEPOT_RECEIVER as any, { shouldValidate: true });
+      if (activeTab === "receiver") setActiveTab("sender");
+    } else {
+      // Only reset if receiver still matches depot (avoid clobbering user edits)
+      const current = form.getValues("receiver");
+      if (current?.email === DEPOT_RECEIVER.email && current?.address?.zipCode === DEPOT_RECEIVER.address.zipCode) {
+        form.setValue("receiver", {
+          name: "",
+          email: "",
+          phone: "+44",
+          address: { street: "", city: "", state: "", zipCode: "", country: "", lat: undefined, lon: undefined },
+        } as any, { shouldValidate: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBoxMyBike]);
 
   const detailsFields = form.watch([
     "bikeQuantity",
@@ -537,13 +600,15 @@ const CreateOrder = () => {
                       >
                         Collection Information
                       </TabsTrigger>
-                      <TabsTrigger 
-                        value="receiver" 
-                        className={cn("justify-start text-left", (!isSenderValid || !isDetailsValid) && "opacity-50")}
-                        icon={<Truck className="h-4 w-4" />}
-                      >
-                        Delivery Information
-                      </TabsTrigger>
+                      {!isBoxMyBike && (
+                        <TabsTrigger 
+                          value="receiver" 
+                          className={cn("justify-start text-left", (!isSenderValid || !isDetailsValid) && "opacity-50")}
+                          icon={<Truck className="h-4 w-4" />}
+                        >
+                          Delivery Information
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                     
                     <div className="text-sm text-muted-foreground pt-4 hidden lg:block">
@@ -611,17 +676,27 @@ const CreateOrder = () => {
                         >
                           Back to Order Details
                         </Button>
-                        <Button 
-                          type="button" 
-                          onClick={handleNextToReceiver}
-                          className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                        >
-                          Next: Delivery Information
-                        </Button>
+                        {isBoxMyBike ? (
+                          <Button 
+                            type="submit"
+                            className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? "Creating Order..." : "Book Box My Bike"}
+                          </Button>
+                        ) : (
+                          <Button 
+                            type="button" 
+                            onClick={handleNextToReceiver}
+                            className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                          >
+                            Next: Delivery Information
+                          </Button>
+                        )}
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="receiver" className="space-y-6 mt-0">
+                    {!isBoxMyBike && (<TabsContent value="receiver" className="space-y-6 mt-0">
                       <div className="overflow-hidden">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                           <h3 className="text-lg font-medium">Delivery Contact Information</h3>
@@ -672,7 +747,7 @@ const CreateOrder = () => {
                           {isSubmitting ? "Creating Order..." : "Create Order"}
                         </Button>
                       </div>
-                    </TabsContent>
+                    </TabsContent>)}
                   </div>
                 </Tabs>
               </form>

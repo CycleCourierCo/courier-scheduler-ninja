@@ -53,6 +53,11 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     name: "needsInspection",
   });
 
+  const isBoxMyBike = useWatch({
+    control,
+    name: "isBoxMyBike" as any,
+  });
+
   // Clear eBay collection code when toggle is turned off
   React.useEffect(() => {
     if (!isEbayOrder) {
@@ -290,6 +295,29 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
               <FormControl>
                 <Switch
                   checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control}
+          name={"isBoxMyBike" as any}
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
+                  Box My Bike
+                </FormLabel>
+                <FormDescription>
+                  We collect the bike, box it at our depot ready for international shipping, and hand it off to your 3rd-party courier.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={!!field.value}
                   onCheckedChange={field.onChange}
                 />
               </FormControl>
