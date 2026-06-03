@@ -600,13 +600,15 @@ const CreateOrder = () => {
                       >
                         Collection Information
                       </TabsTrigger>
-                      <TabsTrigger 
-                        value="receiver" 
-                        className={cn("justify-start text-left", (!isSenderValid || !isDetailsValid) && "opacity-50")}
-                        icon={<Truck className="h-4 w-4" />}
-                      >
-                        Delivery Information
-                      </TabsTrigger>
+                      {!isBoxMyBike && (
+                        <TabsTrigger 
+                          value="receiver" 
+                          className={cn("justify-start text-left", (!isSenderValid || !isDetailsValid) && "opacity-50")}
+                          icon={<Truck className="h-4 w-4" />}
+                        >
+                          Delivery Information
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                     
                     <div className="text-sm text-muted-foreground pt-4 hidden lg:block">
