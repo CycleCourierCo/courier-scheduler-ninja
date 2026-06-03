@@ -25,6 +25,9 @@ interface BoxOrder {
   status: string;
   box_my_bike_status: BoxMyBikeStatus | null;
   box_label_url: string | null;
+  box_my_bike_invoice_id: string | null;
+  box_my_bike_invoice_number: string | null;
+  box_my_bike_invoice_url: string | null;
   sender: any;
   receiver: any;
   bike_brand: string | null;
