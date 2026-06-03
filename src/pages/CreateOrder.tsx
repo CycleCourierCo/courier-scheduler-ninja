@@ -22,6 +22,22 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
+import { DEPOT_LOCATION } from "@/constants/depot";
+
+const DEPOT_RECEIVER = {
+  name: "Cycle Courier Depot",
+  email: "info@cyclecourierco.com",
+  phone: "+441217980767",
+  address: {
+    street: "Lawden Road",
+    city: "Birmingham",
+    state: "West Midlands",
+    zipCode: DEPOT_LOCATION.postcode,
+    country: "United Kingdom",
+    lat: DEPOT_LOCATION.lat,
+    lon: DEPOT_LOCATION.lon,
+  },
+};
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
