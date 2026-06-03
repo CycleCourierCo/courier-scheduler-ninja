@@ -306,6 +306,28 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, shipday_driver_name: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-default-vehicle">Default Vehicle</Label>
+                  <Select
+                    value={formData.default_vehicle_id ?? 'none'}
+                    onValueChange={(value) => setFormData({ ...formData, default_vehicle_id: value === 'none' ? null : value })}
+                  >
+                    <SelectTrigger id="edit-default-vehicle">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.registration}{v.make ? ` — ${v.make}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-assigned to new timeslips generated for this driver.
+                  </p>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="edit-uses-van"
