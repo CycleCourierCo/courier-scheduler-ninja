@@ -52,6 +52,18 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     createdViaApi: dbOrder.created_via_api || false,
     bikeValue: dbOrder.bike_value || undefined,
     bikes: dbOrder.bikes || undefined,
+    isBoxMyBike: dbOrder.is_box_my_bike || false,
+    boxMyBikeStatus: dbOrder.box_my_bike_status || null,
+    boxLabelUrl: dbOrder.box_label_url || null,
+    boxLabelUploadedAt: dbOrder.box_label_uploaded_at ? parseDate(dbOrder.box_label_uploaded_at) : null,
+    boxLabelUploadedBy: dbOrder.box_label_uploaded_by || null,
+    boxMyBikeInvoiceId: dbOrder.box_my_bike_invoice_id || null,
+    boxMyBikeInvoiceNumber: dbOrder.box_my_bike_invoice_number || null,
+    boxMyBikeInvoiceUrl: dbOrder.box_my_bike_invoice_url || null,
+    boxInDepotAt: dbOrder.box_in_depot_at ? parseDate(dbOrder.box_in_depot_at) : null,
+    boxBoxedAt: dbOrder.box_boxed_at ? parseDate(dbOrder.box_boxed_at) : null,
+    boxLabelPrintedAt: dbOrder.box_label_printed_at ? parseDate(dbOrder.box_label_printed_at) : null,
+    boxCollectedBy3pAt: dbOrder.box_collected_by_3p_at ? parseDate(dbOrder.box_collected_by_3p_at) : null,
   };
 
   // Add optional date fields only if they exist in the DB record
