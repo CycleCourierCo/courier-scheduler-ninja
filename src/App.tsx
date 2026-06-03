@@ -157,6 +157,12 @@ function App() {
                   <BicycleInspections />
                 </ProtectedRoute>
               } />
+              <Route path="/box-my-bike" element={
+                <ProtectedRoute>
+                  <BoxMyBikePage />
+                </ProtectedRoute>
+              } />
+
               <Route path="/holidays" element={
                 <ProtectedRoute adminOnly={true}>
                   <HolidaysPage />
