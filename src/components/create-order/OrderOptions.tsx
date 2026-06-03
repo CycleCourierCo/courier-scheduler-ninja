@@ -53,6 +53,11 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     name: "needsInspection",
   });
 
+  const isBoxMyBike = useWatch({
+    control,
+    name: "isBoxMyBike" as any,
+  });
+
   // Clear eBay collection code when toggle is turned off
   React.useEffect(() => {
     if (!isEbayOrder) {
