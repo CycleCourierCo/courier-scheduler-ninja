@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { UserProfile, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
+import { listVehicles, type Vehicle } from "@/services/vehicleService";
 
 interface EditUserDialogProps {
   user: UserProfile | null;
