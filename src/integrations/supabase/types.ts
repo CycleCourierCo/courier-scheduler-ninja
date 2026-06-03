@@ -1095,6 +1095,17 @@ export type Database = {
           bike_type: string | null
           bike_value: number | null
           bikes: Json | null
+          box_boxed_at: string | null
+          box_collected_by_3p_at: string | null
+          box_in_depot_at: string | null
+          box_label_printed_at: string | null
+          box_label_uploaded_at: string | null
+          box_label_uploaded_by: string | null
+          box_label_url: string | null
+          box_my_bike_invoice_id: string | null
+          box_my_bike_invoice_number: string | null
+          box_my_bike_invoice_url: string | null
+          box_my_bike_status: string | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
@@ -1108,6 +1119,7 @@ export type Database = {
           delivery_timeslot: string | null
           id: string
           is_bike_swap: boolean | null
+          is_box_my_bike: boolean
           is_ebay_order: boolean | null
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
@@ -1146,6 +1158,17 @@ export type Database = {
           bike_type?: string | null
           bike_value?: number | null
           bikes?: Json | null
+          box_boxed_at?: string | null
+          box_collected_by_3p_at?: string | null
+          box_in_depot_at?: string | null
+          box_label_printed_at?: string | null
+          box_label_uploaded_at?: string | null
+          box_label_uploaded_by?: string | null
+          box_label_url?: string | null
+          box_my_bike_invoice_id?: string | null
+          box_my_bike_invoice_number?: string | null
+          box_my_bike_invoice_url?: string | null
+          box_my_bike_status?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -1159,6 +1182,7 @@ export type Database = {
           delivery_timeslot?: string | null
           id?: string
           is_bike_swap?: boolean | null
+          is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
@@ -1197,6 +1221,17 @@ export type Database = {
           bike_type?: string | null
           bike_value?: number | null
           bikes?: Json | null
+          box_boxed_at?: string | null
+          box_collected_by_3p_at?: string | null
+          box_in_depot_at?: string | null
+          box_label_printed_at?: string | null
+          box_label_uploaded_at?: string | null
+          box_label_uploaded_by?: string | null
+          box_label_url?: string | null
+          box_my_bike_invoice_id?: string | null
+          box_my_bike_invoice_number?: string | null
+          box_my_bike_invoice_url?: string | null
+          box_my_bike_status?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -1210,6 +1245,7 @@ export type Database = {
           delivery_timeslot?: string | null
           id?: string
           is_bike_swap?: boolean | null
+          is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
