@@ -301,6 +301,29 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             </FormItem>
           )}
         />
+
+        <FormField
+          control={control}
+          name={"isBoxMyBike" as any}
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
+                  Box My Bike
+                </FormLabel>
+                <FormDescription>
+                  We collect the bike, box it at our depot ready for international shipping, and hand it off to your 3rd-party courier. You provide the shipping label once it's boxed. £60 + VAT for the boxing service in addition to the courier fee. No delivery address needed — collection only.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={!!field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
       </div>
     </div>
   );
