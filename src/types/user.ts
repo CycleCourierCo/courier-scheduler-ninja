@@ -64,4 +64,5 @@ export interface UserProfile {
   // Opening hours
   opening_hours: any | null;
   is_test_account: boolean | null;
+  default_vehicle_id: string | null;
 }
