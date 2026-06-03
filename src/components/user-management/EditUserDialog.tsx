@@ -56,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         available_hours: user.available_hours,
         shipday_driver_id: user.shipday_driver_id,
         shipday_driver_name: user.shipday_driver_name,
+        default_vehicle_id: user.default_vehicle_id,
       });
     }
   }, [user]);
