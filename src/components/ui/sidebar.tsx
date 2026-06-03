@@ -11,6 +11,7 @@ import {
   Users,
   
   Wrench,
+  Package2,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,6 +70,11 @@ export function Sidebar({
         href: "/bicycle-inspections",
         icon: <Wrench className="h-5 w-5" />,
         label: "Bicycle Inspections",
+      });
+      links.push({
+        href: "/box-my-bike",
+        icon: <Package2 className="h-5 w-5" />,
+        label: "Box My Bike",
       });
     }
     

@@ -25,6 +25,9 @@ interface BoxOrder {
   status: string;
   box_my_bike_status: BoxMyBikeStatus | null;
   box_label_url: string | null;
+  box_my_bike_invoice_id: string | null;
+  box_my_bike_invoice_number: string | null;
+  box_my_bike_invoice_url: string | null;
   sender: any;
   receiver: any;
   bike_brand: string | null;
@@ -68,7 +71,7 @@ const BoxMyBikePage: React.FC = () => {
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, box_my_bike_status, box_label_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
+        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
         .eq("is_box_my_bike", true)
         .order("created_at", { ascending: false });
       if (!isStaff && user?.id) {
@@ -117,6 +120,22 @@ const BoxMyBikePage: React.FC = () => {
       toast.success("Label uploaded");
     },
     onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
+  });
+
+  const createInvoice = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke("create-box-my-bike-invoice", {
+        body: { orderId: id },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
+      toast.success("Box My Bike invoice created (£60 + VAT)");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to create invoice"),
   });
 
   const viewLabel = async (path: string) => {
@@ -197,6 +216,36 @@ const BoxMyBikePage: React.FC = () => {
                     />
                   </label>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Invoice (admin) */}
+          {hasRole(userProfile, "admin") && (
+            <div className="rounded-md border p-3 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-sm">
+                <span className="font-medium">Boxing service invoice</span>{" "}
+                <span className="text-muted-foreground">(£60 + VAT)</span>
+                {o.box_my_bike_invoice_number && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Invoice #{o.box_my_bike_invoice_number}
+                  </div>
+                )}
+              </div>
+              {o.box_my_bike_invoice_url ? (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={o.box_my_bike_invoice_url} target="_blank" rel="noreferrer">
+                    <FileText className="h-4 w-4 mr-1" /> View invoice
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={createInvoice.isPending}
+                  onClick={() => createInvoice.mutate(o.id)}
+                >
+                  <FileText className="h-4 w-4 mr-1" /> Generate invoice
+                </Button>
               )}
             </div>
           )}
