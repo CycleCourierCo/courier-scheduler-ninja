@@ -245,11 +245,34 @@ const CreateOrder = () => {
       collectionCode: "",
       deliveryInstructions: "",
       needsInspection: false,
+      isBoxMyBike: false,
       // Legacy fields for backward compatibility
       bikeBrand: "",
       bikeModel: "",
     },
   });
+
+  const isBoxMyBike = form.watch("isBoxMyBike");
+
+  // Auto-fill receiver with depot when Box My Bike toggled on; clear when toggled off
+  React.useEffect(() => {
+    if (isBoxMyBike) {
+      form.setValue("receiver", DEPOT_RECEIVER as any, { shouldValidate: true });
+      if (activeTab === "receiver") setActiveTab("sender");
+    } else {
+      // Only reset if receiver still matches depot (avoid clobbering user edits)
+      const current = form.getValues("receiver");
+      if (current?.email === DEPOT_RECEIVER.email && current?.address?.zipCode === DEPOT_RECEIVER.address.zipCode) {
+        form.setValue("receiver", {
+          name: "",
+          email: "",
+          phone: "+44",
+          address: { street: "", city: "", state: "", zipCode: "", country: "", lat: undefined, lon: undefined },
+        } as any, { shouldValidate: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBoxMyBike]);
 
   const detailsFields = form.watch([
     "bikeQuantity",
