@@ -220,6 +220,36 @@ const BoxMyBikePage: React.FC = () => {
             </div>
           )}
 
+          {/* Invoice (admin) */}
+          {hasRole(userProfile, "admin") && (
+            <div className="rounded-md border p-3 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-sm">
+                <span className="font-medium">Boxing service invoice</span>{" "}
+                <span className="text-muted-foreground">(£60 + VAT)</span>
+                {o.box_my_bike_invoice_number && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Invoice #{o.box_my_bike_invoice_number}
+                  </div>
+                )}
+              </div>
+              {o.box_my_bike_invoice_url ? (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={o.box_my_bike_invoice_url} target="_blank" rel="noreferrer">
+                    <FileText className="h-4 w-4 mr-1" /> View invoice
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={createInvoice.isPending}
+                  onClick={() => createInvoice.mutate(o.id)}
+                >
+                  <FileText className="h-4 w-4 mr-1" /> Generate invoice
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Stage controls (staff only) */}
           {isStaff && (
             <div className="flex items-center justify-between gap-2 flex-wrap">
