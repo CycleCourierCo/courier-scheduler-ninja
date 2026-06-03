@@ -137,6 +137,7 @@ Idempotency-Key: unique_request_id (optional)`}
   "isEbayOrder": true,
   "collectionCode": "EBAY123456",
   "needsInspection": true,
+  "isBoxMyBike": false,
   "deliveryInstructions": "Please ring doorbell and wait"
 }`}
                   </pre>
