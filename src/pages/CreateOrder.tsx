@@ -55,31 +55,36 @@ const phoneValidation = z
     message: "Phone number is too short — must be +44 followed by exactly 10 digits",
   });
 
+const addressSchema = z.object({
+  street: z.string().min(2, "Street address is required"),
+  city: z.string().min(2, "City is required"),
+  state: z.string().min(1, "State is required"),
+  zipCode: z.string().min(1, "Zip code is required"),
+  country: z.string().min(2, "Country is required"),
+  lat: z.number().optional(),
+  lon: z.number().optional(),
+});
+
+const contactSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
+  phone: phoneValidation,
+  address: addressSchema,
+});
+
 const orderSchema = z.object({
-  sender: z.object({
-    name: z.string().min(2, "Name is required"),
-    email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: phoneValidation,
-    address: z.object({
-      street: z.string().min(2, "Street address is required"),
-      city: z.string().min(2, "City is required"),
-      state: z.string().min(1, "State is required"),
-      zipCode: z.string().min(1, "Zip code is required"),
-      country: z.string().min(2, "Country is required"),
-      lat: z.number().optional(),
-      lon: z.number().optional(),
-    }),
-  }),
+  sender: contactSchema,
+  // Receiver is auto-populated to depot when isBoxMyBike is true, so relax validation
   receiver: z.object({
-    name: z.string().min(2, "Name is required"),
-    email: z.string().regex(EMAIL_REGEX, "Invalid email format"),
-    phone: phoneValidation,
+    name: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
     address: z.object({
-      street: z.string().min(2, "Street address is required"),
-      city: z.string().min(2, "City is required"),
-      state: z.string().min(1, "State is required"),
-      zipCode: z.string().min(1, "Zip code is required"),
-      country: z.string().min(2, "Country is required"),
+      street: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      zipCode: z.string().optional(),
+      country: z.string().optional(),
       lat: z.number().optional(),
       lon: z.number().optional(),
     }),
@@ -103,10 +108,29 @@ const orderSchema = z.object({
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
   needsInspection: z.boolean().default(false),
+  isBoxMyBike: z.boolean().default(false),
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
 }).superRefine((data, ctx) => {
+  // Validate receiver only when NOT Box My Bike (depot is auto-filled in that case)
+  if (!data.isBoxMyBike) {
+    const r = data.receiver;
+    if (!r?.name || r.name.length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Name is required", path: ["receiver", "name"] });
+    }
+    if (!r?.email || !EMAIL_REGEX.test(r.email)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid email format", path: ["receiver", "email"] });
+    }
+    if (!r?.phone || !/^\+44[0-9]{10}$/.test(r.phone)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Phone number must be +44 followed by 10 digits", path: ["receiver", "phone"] });
+    }
+    if (!r?.address?.street) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street address is required", path: ["receiver", "address", "street"] });
+    if (!r?.address?.city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required", path: ["receiver", "address", "city"] });
+    if (!r?.address?.zipCode) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Postcode is required", path: ["receiver", "address", "zipCode"] });
+    if (!r?.address?.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required", path: ["receiver", "address", "country"] });
+  }
+
   // Check eBay collection code
   if (data.isEbayOrder && !data.collectionCode?.trim()) {
     ctx.addIssue({
