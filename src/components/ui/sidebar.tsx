@@ -71,6 +71,11 @@ export function Sidebar({
         icon: <Wrench className="h-5 w-5" />,
         label: "Bicycle Inspections",
       });
+      links.push({
+        href: "/box-my-bike",
+        icon: <Package2 className="h-5 w-5" />,
+        label: "Box My Bike",
+      });
     }
     
     links.push({
