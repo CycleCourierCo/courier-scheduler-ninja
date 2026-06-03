@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { UserProfile, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
+import { listVehicles, type Vehicle } from "@/services/vehicleService";
 
 interface EditUserDialogProps {
   user: UserProfile | null;
@@ -24,6 +25,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<UserProfile>>({});
   const [saving, setSaving] = useState(false);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
+  useEffect(() => {
+    listVehicles().then(setVehicles).catch(() => setVehicles([]));
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -50,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         available_hours: user.available_hours,
         shipday_driver_id: user.shipday_driver_id,
         shipday_driver_name: user.shipday_driver_name,
+        default_vehicle_id: user.default_vehicle_id,
       });
     }
   }, [user]);
@@ -298,6 +305,28 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     value={formData.shipday_driver_name || ''}
                     onChange={(e) => setFormData({ ...formData, shipday_driver_name: e.target.value })}
                   />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-default-vehicle">Default Vehicle</Label>
+                  <Select
+                    value={formData.default_vehicle_id ?? 'none'}
+                    onValueChange={(value) => setFormData({ ...formData, default_vehicle_id: value === 'none' ? null : value })}
+                  >
+                    <SelectTrigger id="edit-default-vehicle">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.registration}{v.make ? ` — ${v.make}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-assigned to new timeslips generated for this driver.
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Switch
