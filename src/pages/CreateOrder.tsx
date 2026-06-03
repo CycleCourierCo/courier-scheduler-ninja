@@ -676,17 +676,27 @@ const CreateOrder = () => {
                         >
                           Back to Order Details
                         </Button>
-                        <Button 
-                          type="button" 
-                          onClick={handleNextToReceiver}
-                          className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
-                        >
-                          Next: Delivery Information
-                        </Button>
+                        {isBoxMyBike ? (
+                          <Button 
+                            type="submit"
+                            className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? "Creating Order..." : "Book Box My Bike"}
+                          </Button>
+                        ) : (
+                          <Button 
+                            type="button" 
+                            onClick={handleNextToReceiver}
+                            className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                          >
+                            Next: Delivery Information
+                          </Button>
+                        )}
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="receiver" className="space-y-6 mt-0">
+                    {!isBoxMyBike && (<TabsContent value="receiver" className="space-y-6 mt-0">
                       <div className="overflow-hidden">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                           <h3 className="text-lg font-medium">Delivery Contact Information</h3>
