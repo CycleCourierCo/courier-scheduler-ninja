@@ -122,21 +122,6 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
   });
 
-  const createInvoice = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase.functions.invoke("create-box-my-bike-invoice", {
-        body: { orderId: id },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
-      toast.success("Box My Bike invoice created (£60 + VAT)");
-    },
-    onError: (e: any) => toast.error(e?.message || "Failed to create invoice"),
-  });
 
   const viewLabel = async (path: string) => {
     const { data, error } = await supabase.storage.from("box-my-bike-labels").createSignedUrl(path, 60 * 10);
@@ -220,31 +205,18 @@ const BoxMyBikePage: React.FC = () => {
             </div>
           )}
 
-          {/* Invoice (admin) */}
-          {hasRole(userProfile, "admin") && (
+          {/* Invoice info (admin, read-only) */}
+          {hasRole(userProfile, "admin") && o.box_my_bike_invoice_number && (
             <div className="rounded-md border p-3 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
               <div className="text-sm">
-                <span className="font-medium">Boxing service invoice</span>{" "}
-                <span className="text-muted-foreground">(£60 + VAT)</span>
-                {o.box_my_bike_invoice_number && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Invoice #{o.box_my_bike_invoice_number}
-                  </div>
-                )}
+                <span className="font-medium">Boxing service invoiced</span>{" "}
+                <span className="text-muted-foreground">#{o.box_my_bike_invoice_number}</span>
               </div>
-              {o.box_my_bike_invoice_url ? (
+              {o.box_my_bike_invoice_url && (
                 <Button size="sm" variant="outline" asChild>
                   <a href={o.box_my_bike_invoice_url} target="_blank" rel="noreferrer">
                     <FileText className="h-4 w-4 mr-1" /> View invoice
                   </a>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={createInvoice.isPending}
-                  onClick={() => createInvoice.mutate(o.id)}
-                >
-                  <FileText className="h-4 w-4 mr-1" /> Generate invoice
                 </Button>
               )}
             </div>
