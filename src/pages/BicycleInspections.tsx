@@ -657,7 +657,9 @@ const BicycleInspections = () => {
   }, [sortedInspections, searchQuery]);
 
   // Filter inspections by status
-  const awaitingInspection = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingBase = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingInspection = awaitingBase.filter((i: any) => !i.pickup_date);
+  const collected = awaitingBase.filter((i: any) => !!i.pickup_date);
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
