@@ -56,6 +56,7 @@ const JobScheduling = () => {
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [showCollectionToday, setShowCollectionToday] = useState(false);
+  const [jobTypeFilter, setJobTypeFilter] = useState<JobTypeFilter>('all');
   
   // Initial jobs from URL parameters
   const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
