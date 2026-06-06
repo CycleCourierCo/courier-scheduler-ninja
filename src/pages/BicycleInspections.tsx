@@ -658,8 +658,8 @@ const BicycleInspections = () => {
 
   // Filter inspections by status
   const awaitingBase = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const awaitingInspection = awaitingBase.filter((i: any) => !i.pickup_date);
-  const collected = awaitingBase.filter((i: any) => !!i.pickup_date);
+  const awaitingInspection = awaitingBase.filter((i: any) => !i.collection_confirmation_sent_at);
+  const collected = awaitingBase.filter((i: any) => !!i.collection_confirmation_sent_at);
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
