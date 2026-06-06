@@ -436,11 +436,14 @@ const VehicleManagement = () => {
                         )}
                       </div>
                       <div className="flex gap-2 pt-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setMaintenanceTarget(v)}>
+                          <Wrench className="h-3 w-3 mr-1" /> Service
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
                           {refreshingId === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditing(v); setEditOpen(true); }}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                        <Button size="sm" variant="outline" onClick={() => { setEditing(v); setEditOpen(true); }}>
+                          <Pencil className="h-3 w-3" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
