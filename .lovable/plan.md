@@ -1,97 +1,43 @@
-## Vehicle Maintenance Tracking
+# Job Type Filter — Job Scheduling Page
 
-Add a maintenance history + reminders system to each vehicle so you can see what's been done, when, at what mileage, and what's due next.
+Add a 3-option segmented toggle that filters which job types appear on the Job Scheduling page. All existing functionality (date filter, "show collected only", "collecting before delivery", drag-to-route, Shipday verify, save/load route) keeps working unchanged inside each mode.
 
-### What you'll see
+## UX
 
-On every vehicle (in `VehicleManagement` / detail view), a new **Maintenance** tab with:
+- New segmented control with three options: **All**, **Collections only**, **Deliveries only**.
+- Default: **All** (preserves current behaviour).
+- Placement: in the existing filter row on `JobScheduling.tsx`, next to the "Show K-means Clusters" switch. Stacks below it on mobile.
+- Selection persists in component state for the session (no URL param needed for now).
 
-- **Status panel** — current mileage and a list of upcoming/overdue items with traffic-light badges (Green = OK, Amber = due soon, Red = overdue). Examples:
-  - "Oil & filter — overdue by 1,240 mi"
-  - "Front-left tyre — due in 28 days"
-- **History log** — chronological list of every service done, filterable by type, with date, mileage, cost, notes, and who logged it.
-- **"Log service" button** — opens a dialog to record a new maintenance event.
+## Behaviour
 
-### Service types tracked
+The toggle controls a single `jobTypeFilter: 'all' | 'collection' | 'delivery'` value lifted in `JobScheduling.tsx` (same pattern as the existing lifted filters).
 
-1. **Tyres** — per position (Front-Left, Front-Right, Rear-Left, Rear-Right, Spare). Brand, model, tread depth (optional).
-2. **Oil & filter** — engine oil + oil filter (one combined entry, or separate if you prefer).
-3. **Brakes** — pads & discs, per axle (Front / Rear).
-4. **Other** — free-form (cambelt, air filter, MOT, generic service, etc.) with a custom name.
+- **All** — current behaviour. An order shows if it has a valid pickup OR a valid delivery.
+- **Collections only** — an order only shows if it has a valid pickup job. Deliveries are hidden from the map and from the route builder's draggable job list.
+- **Deliveries only** — mirror of the above. Only valid delivery jobs are shown. The "Collecting before delivery date" and "Show collected only" filters continue to apply to deliveries as they do today.
 
-### Reminders (mileage AND time)
+## Technical changes
 
-Each service type has a default interval (editable per vehicle):
+Frontend only. No DB, no service layer changes.
 
-| Service | Default interval |
-|---|---|
-| Engine oil & filter | 10,000 mi or 12 months |
-| Front tyres | 20,000 mi or 36 months |
-| Rear tyres | 25,000 mi or 36 months |
-| Front brake pads | 25,000 mi or 24 months |
-| Rear brake pads | 40,000 mi or 36 months |
-| Brake discs | 50,000 mi or 48 months |
-| Other | per-entry custom interval |
+1. **`src/pages/JobScheduling.tsx`**
+   - Add `const [jobTypeFilter, setJobTypeFilter] = useState<'all'|'collection'|'delivery'>('all')`.
+   - Render a shadcn `ToggleGroup` (type="single") in the filter row.
+   - Update `filteredOrdersForMap` memo: when filter is `collection`, drop `hasValidDelivery` from the OR; when `delivery`, drop `hasValidPickup`. Keep the existing date / collected / "collecting before delivery" logic intact for whichever side is active.
+   - Pass `jobTypeFilter` into `RouteBuilder` as a new prop.
 
-After logging a service, the system uses **last service date/mileage + interval** to compute next-due. Whichever threshold (miles or months) hits first triggers the warning. Amber starts at 90% of the interval, red at 100%.
+2. **`src/components/scheduling/RouteBuilder.tsx`**
+   - Accept `jobTypeFilter` prop.
+   - In the place(s) where pickup and delivery jobs are derived from an order into the draggable job list, filter out the opposite type when `jobTypeFilter !== 'all'`.
+   - Job counts shown in the header should reflect the filtered set so the user sees the correct totals for the active mode.
+   - No change to save-route, CSV import, Shipday verify, or drag/drop logic — they all operate on the already-filtered job list.
 
-### Mileage source ("Both")
+3. **`src/components/scheduling/ClusterMap.tsx`**
+   - No code change required: it already renders whatever orders/jobs it receives. The narrower `filteredOrdersForMap` plus job-type aware marker rendering already lives inside, but verify during implementation that markers for the hidden type are suppressed. If not, add a small prop-driven filter on the marker render step only.
 
-Current mileage per vehicle is calculated as:
+## Out of scope
 
-1. Sum of approved-timeslip mileage (already available via `getVehicleMileageTotals`), **plus**
-2. An optional **manual odometer baseline** (e.g. when the van was acquired with 45,000 mi already on it),
-3. With an optional **manual override on each service log entry** (driver/admin can type the odo reading at the time of service if they have it — otherwise we fall back to the timeslip-derived figure for that date).
-
-### Who can use it
-
-Admins only — same RLS pattern as `vehicles` today (admin via `has_role`). Drivers and other roles will not see the Maintenance tab.
-
----
-
-## Technical details
-
-### New DB tables (migration)
-
-**`vehicle_maintenance_logs`** — every service event
-- `id`, `vehicle_id` (fk vehicles), `service_type` (enum: `oil_filter`, `tyre`, `brake_pads`, `brake_discs`, `other`), `custom_name` (text, for `other`)
-- `position` (enum nullable: `front_left`, `front_right`, `rear_left`, `rear_right`, `spare`, `front_axle`, `rear_axle`)
-- `service_date` (date), `odometer_mi` (int, nullable — overrides computed mileage)
-- `cost` (numeric nullable), `vendor` (text nullable), `notes` (text nullable)
-- `brand`, `model`, `part_number` (text nullable — useful for tyres/parts)
-- `created_by`, `created_at`, `updated_at`
-
-**`vehicle_maintenance_intervals`** — per-vehicle override of default intervals
-- `id`, `vehicle_id`, `service_type`, `position` (nullable), `custom_name` (nullable for `other`)
-- `interval_miles` (int nullable), `interval_months` (int nullable)
-- unique on (vehicle_id, service_type, position, custom_name)
-
-**`vehicles`** — add one column: `odometer_baseline_mi` (int, default 0) — starting odo reading when added.
-
-All three: standard public-schema `GRANT` block (SELECT/INSERT/UPDATE/DELETE to authenticated, ALL to service_role, no anon), RLS enabled, policies use `has_role(s.uid, 'admin')` via the project's standard `EXISTS (SELECT 1 FROM (SELECT auth.uid() AS uid) s ...)` pattern. `updated_at` trigger using existing `update_updated_at_column()`.
-
-Defaults table is **not** stored in DB — defaults live in `src/constants/vehicleMaintenance.ts` and are overridden per-vehicle via `vehicle_maintenance_intervals` only when changed.
-
-### New service file
-`src/services/vehicleMaintenanceService.ts`
-- `listLogs(vehicleId)`, `createLog(input)`, `updateLog(id, patch)`, `deleteLog(id)`
-- `listIntervals(vehicleId)`, `upsertInterval(input)`
-- `computeCurrentMileage(vehicleId)` — `odometer_baseline_mi` + sum of approved timeslip mileage (reuse pagination from `getVehicleMileageTotals`)
-- `computeNextDue(logs, intervals, currentMileage, today)` — pure function returning `{ serviceType, position, lastDate, lastMiles, dueDate, dueMiles, status: 'ok'|'amber'|'red', remainingMiles, remainingDays }[]`
-
-### New UI
-
-`src/components/vehicles/MaintenanceTab.tsx` — Status panel + history table + filters.
-`src/components/vehicles/LogServiceDialog.tsx` — Form: service type → conditional fields (position for tyres/brakes, custom name for other), date, odometer, cost, brand/model, notes.
-`src/components/vehicles/MaintenanceIntervalsDialog.tsx` — Per-vehicle interval overrides.
-`src/components/vehicles/MaintenanceStatusBadge.tsx` — Green/amber/red pill with miles or days remaining.
-
-Wired into `src/pages/VehicleManagement.tsx` (or the vehicle detail view) as a new tab next to existing tabs.
-
-### Out of scope (for now)
-- Automatic email/WhatsApp reminders (only visible in-app)
-- Driver-side logging
-- Linking a service to a specific timeslip
-- File uploads (receipts, photos)
-
-These can be added later without schema changes (reminders) or with small additions (file column + storage bucket).
+- Persisting the toggle in the URL or localStorage.
+- Changing cluster math (clusters will recompute naturally from the filtered orders).
+- Any change to scheduling, Shipday, or backend logic.
