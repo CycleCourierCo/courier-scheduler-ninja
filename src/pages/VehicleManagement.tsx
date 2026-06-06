@@ -352,6 +352,14 @@ const VehicleManagement = () => {
                               <Button
                                 size="icon"
                                 variant="ghost"
+                                onClick={() => setMaintenanceTarget(v)}
+                                title="Maintenance"
+                              >
+                                <Wrench className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 onClick={() => handleRowRefresh(v)}
                                 disabled={refreshingId === v.id}
                                 title="Refresh from DVLA"
