@@ -20,6 +20,7 @@ const fixLeafletIcon = () => {
 interface ClusterMapProps {
   orders?: OrderData[];
   showClusters?: boolean;
+  jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onClusterChange?: (clusters: Cluster[]) => void;
 }
 
