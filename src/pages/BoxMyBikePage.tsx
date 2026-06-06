@@ -116,6 +116,7 @@ const BoxMyBikePage: React.FC = () => {
       if (col) patch[col] = new Date().toISOString();
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
+      await fireBoxWebhooks(id, stageWebhookEvent(newStage));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
@@ -139,6 +140,7 @@ const BoxMyBikePage: React.FC = () => {
         })
         .eq("id", id);
       if (updErr) throw updErr;
+      await fireBoxWebhooks(id, "order.box.label_uploaded");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
