@@ -1392,6 +1392,16 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
+            <TabsContent value="collected" className="space-y-4">
+              {collected.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No collected bikes awaiting inspection
+                </p>
+              ) : (
+                collected.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
             <TabsContent value="issues" className="space-y-4">
               {withIssues.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
