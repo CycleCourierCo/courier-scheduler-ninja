@@ -9,9 +9,12 @@ import ClusterMap from "@/components/scheduling/ClusterMap";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Cluster } from "@/services/clusteringService";
 import { format } from "date-fns";
 import { toast } from "sonner";
+
+export type JobTypeFilter = 'all' | 'collection' | 'delivery';
 
 export interface OrderData {
   id: string;
