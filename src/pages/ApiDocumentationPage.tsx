@@ -442,6 +442,11 @@ Idempotency-Key: unique_request_id (optional)`}
                     <div><Badge>order.delivery.started</Badge> Driver en route to delivery</div>
                     <div><Badge>order.delivery.completed</Badge> Item delivered</div>
                     <div><Badge>order.cancelled</Badge> Order cancelled</div>
+                    <div><Badge>order.box.status.updated</Badge> Box My Bike status changed (generic)</div>
+                    <div><Badge>order.box.in_depot</Badge> Bike arrived at depot, awaiting boxing</div>
+                    <div><Badge>order.box.boxed</Badge> Bike boxed, awaiting shipping label</div>
+                    <div><Badge>order.box.label_uploaded</Badge> 3rd-party shipping label uploaded</div>
+                    <div><Badge>order.box.collected_by_3p</Badge> Boxed bike collected by 3rd-party courier</div>
                   </div>
                 </div>
 
@@ -463,6 +468,34 @@ Idempotency-Key: unique_request_id (optional)`}
 }`}
                   </pre>
                 </div>
+
+                <div>
+                  <h4 className="font-semibold mb-2">Box My Bike Payload Example</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    When the order has <code>is_box_my_bike: true</code>, Box My Bike events include additional fields tracking the boxing lifecycle.
+                  </p>
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
+                  {`{
+  "event": "order.box.status.updated",
+  "timestamp": "2026-06-06T11:00:00.000Z",
+  "data": {
+    "id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c",
+    "tracking_number": "CCC754773995458CHRCH6",
+    "status": "collected",
+    "is_box_my_bike": true,
+    "box_my_bike_status": "boxed_awaiting_label",
+    "previous_status": "in_depot_awaiting_boxing",
+    "new_status": "boxed_awaiting_label",
+    "box_label_url": null,
+    "box_in_depot_at": "2026-06-05T09:12:00.000Z",
+    "box_boxed_at": "2026-06-06T11:00:00.000Z",
+    "box_label_printed_at": null,
+    "box_collected_by_3p_at": null
+  }
+}`}
+                  </pre>
+                </div>
+
 
                 <div>
                   <h4 className="font-semibold mb-2">Security</h4>
