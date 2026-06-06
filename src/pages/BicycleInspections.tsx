@@ -1336,6 +1336,14 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="collected" className="flex items-center gap-1">
+                Collected
+                {collected.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {collected.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               {canManageInspections && (
                 <TabsTrigger value="pricing" className="flex items-center gap-1">
                   Pricing
