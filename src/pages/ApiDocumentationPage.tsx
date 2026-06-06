@@ -161,7 +161,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     <div><strong>isEbayOrder:</strong> <em>(optional)</em> Whether this is an eBay order</div>
                     <div><strong>collectionCode:</strong> <em>(optional)</em> eBay collection code or similar reference</div>
                     <div><strong>needsInspection:</strong> <em>(optional)</em> Whether the bicycle requires inspection before delivery</div>
-                    <div><strong>isBoxMyBike:</strong> <em>(optional)</em> Boxing service for international shipping. When true, the <code>receiver</code> field is optional and will be auto-filled with the Cycle Courier depot (Lawden Road, Birmingham, B10 0AD). You must arrange a 3rd-party courier and upload the shipping label once the bike is boxed. £60 + VAT for the boxing service in addition to the courier fee.</div>
+                    <div><strong>isBoxMyBike:</strong> <em>(optional)</em> Boxing service for international shipping. When true, the <code>receiver</code> field is optional and will be auto-filled with the Cycle Courier depot. You must arrange a 3rd-party courier and upload the shipping label once the bike is boxed.</div>
                     <div><strong>deliveryInstructions:</strong> <em>(optional)</em> Special delivery instructions</div>
                   </div>
                 </div>
