@@ -62,6 +62,7 @@ interface RouteBuilderProps {
   filterDate?: Date;
   showCollectedOnly?: boolean;
   showCollectionToday?: boolean;
+  jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
   onShowCollectionTodayChange?: (value: boolean) => void;
@@ -668,6 +669,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   filterDate: externalFilterDate,
   showCollectedOnly: externalShowCollectedOnly,
   showCollectionToday: externalShowCollectionToday,
+  jobTypeFilter = 'all',
   onFilterDateChange,
   onShowCollectedOnlyChange,
   onShowCollectionTodayChange,
@@ -913,9 +915,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
 
+      const allowPickup = !applyFilters || jobTypeFilter !== 'delivery';
+      const allowDelivery = !applyFilters || jobTypeFilter !== 'collection';
+
       // Add pickup job if not scheduled. Pickups always follow the normal date filter,
       // even when "Collecting before delivery date" is on.
-      if (!order.scheduled_pickup_date) {
+      if (allowPickup && !order.scheduled_pickup_date) {
 
         // Check date filter for pickups
         const pickupDates = order.pickup_date as string[] | null;
@@ -942,7 +947,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
       
       // Add delivery job if not scheduled
-      if (!order.scheduled_delivery_date) {
+      if (allowDelivery && !order.scheduled_delivery_date) {
         // Check date filter for deliveries
         const deliveryDates = order.delivery_date as string[] | null;
         const deliveryAvailable = !applyFilters || !filterDate || 
