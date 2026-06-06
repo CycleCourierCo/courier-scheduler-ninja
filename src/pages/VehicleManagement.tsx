@@ -482,6 +482,16 @@ const VehicleManagement = () => {
           onSaved={load}
         />
 
+        {maintenanceTarget && (
+          <VehicleMaintenanceDialog
+            vehicleId={maintenanceTarget.id}
+            vehicleReg={maintenanceTarget.registration}
+            baselineMileage={(maintenanceTarget as any).odometer_baseline_mi ?? 0}
+            open={!!maintenanceTarget}
+            onOpenChange={(o) => { if (!o) setMaintenanceTarget(null); }}
+          />
+        )}
+
         <Dialog open={!!soldTarget} onOpenChange={(o) => { if (!o) setSoldTarget(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
