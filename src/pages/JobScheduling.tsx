@@ -178,7 +178,9 @@ const JobScheduling = () => {
           );
         const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget;
 
-        return hasValidPickup || hasValidDelivery;
+        const showPickup = jobTypeFilter !== 'delivery';
+        const showDelivery = jobTypeFilter !== 'collection';
+        return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
       }
 
 
@@ -203,10 +205,11 @@ const JobScheduling = () => {
       const deliveryPassesCollectedFilter = !showCollectedOnly || isCollected;
       const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && deliveryPassesCollectedFilter;
       
-      // Keep order if it has at least one valid job
-      return hasValidPickup || hasValidDelivery;
+      const showPickup = jobTypeFilter !== 'delivery';
+      const showDelivery = jobTypeFilter !== 'collection';
+      return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
     });
-  }, [orders, filterDate, showCollectedOnly, showCollectionToday]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday, jobTypeFilter]);
 
   return (
     <Layout>
