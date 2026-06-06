@@ -947,7 +947,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
       
       // Add delivery job if not scheduled
-      if (!order.scheduled_delivery_date) {
+      if (allowDelivery && !order.scheduled_delivery_date) {
         // Check date filter for deliveries
         const deliveryDates = order.delivery_date as string[] | null;
         const deliveryAvailable = !applyFilters || !filterDate || 
