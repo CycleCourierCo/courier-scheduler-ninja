@@ -229,22 +229,39 @@ const JobScheduling = () => {
           </div>
         ) : (
           <>
-            {/* Cluster Toggle */}
-            <div className="flex items-center space-x-2 mb-4">
-              <Switch
-                id="cluster-mode"
-                checked={showClusters}
-                onCheckedChange={setShowClusters}
-              />
-              <Label htmlFor="cluster-mode">
-                Show K-means Clusters
-              </Label>
+            {/* Filter row */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="cluster-mode"
+                  checked={showClusters}
+                  onCheckedChange={setShowClusters}
+                />
+                <Label htmlFor="cluster-mode">
+                  Show K-means Clusters
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Show:</Label>
+                <ToggleGroup
+                  type="single"
+                  value={jobTypeFilter}
+                  onValueChange={(v) => v && setJobTypeFilter(v as JobTypeFilter)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="all">All</ToggleGroupItem>
+                  <ToggleGroupItem value="collection">Collections</ToggleGroupItem>
+                  <ToggleGroupItem value="delivery">Deliveries</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
             
             <div className="mb-8">
               <ClusterMap 
                 orders={filteredOrdersForMap} 
                 showClusters={showClusters}
+                jobTypeFilter={jobTypeFilter}
                 onClusterChange={setClusters}
               />
             </div>
