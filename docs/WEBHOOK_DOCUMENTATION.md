@@ -216,6 +216,47 @@ Triggered when an order is cancelled.
 }
 ```
 
+### order.box.status.updated
+
+Triggered on any change to an order's Box My Bike status. Fires alongside the more specific event below.
+
+```json
+{
+  "event": "order.box.status.updated",
+  "timestamp": "2026-06-06T11:00:00Z",
+  "data": {
+    "id": "a3ae471c-4a93-44cd-b664-4db4aeeec70c",
+    "tracking_number": "CCC754773995458CHRCH6",
+    "status": "collected",
+    "is_box_my_bike": true,
+    "box_my_bike_status": "boxed_awaiting_label",
+    "box_label_url": null,
+    "box_in_depot_at": "2026-06-05T09:12:00Z",
+    "box_boxed_at": "2026-06-06T11:00:00Z",
+    "box_label_printed_at": null,
+    "box_collected_by_3p_at": null
+  }
+}
+```
+
+### order.box.in_depot
+
+Triggered when the bike has been delivered to the Cycle Courier depot (`box_my_bike_status` → `in_depot_awaiting_boxing`).
+
+### order.box.boxed
+
+Triggered when the bike has been boxed and is awaiting a shipping label (`box_my_bike_status` → `boxed_awaiting_label`).
+
+### order.box.label_uploaded
+
+Triggered when the customer uploads the 3rd-party shipping label. The status transitions to `awaiting_3p_collection` and `box_label_url` is populated.
+
+### order.box.collected_by_3p
+
+Triggered when the 3rd-party courier collects the boxed bike (`box_my_bike_status` → `collected_by_3p`).
+
+
+
 ## Webhook Security
 
 ### Signature Verification
