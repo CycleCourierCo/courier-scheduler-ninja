@@ -60,6 +60,31 @@ function stageTimestampColumn(s: BoxMyBikeStatus): string | null {
   }
 }
 
+function stageWebhookEvent(s: BoxMyBikeStatus): string | null {
+  switch (s) {
+    case "in_depot_awaiting_boxing": return "order.box.in_depot";
+    case "boxed_awaiting_label": return "order.box.boxed";
+    case "awaiting_3p_collection": return "order.box.label_uploaded";
+    case "collected_by_3p": return "order.box.collected_by_3p";
+    default: return null;
+  }
+}
+
+async function fireBoxWebhooks(orderId: string, specificEvent: string | null) {
+  try {
+    const events = ["order.box.status.updated", ...(specificEvent ? [specificEvent] : [])];
+    await Promise.all(
+      events.map((event_type) =>
+        supabase.functions.invoke("trigger-webhook", {
+          body: { order_id: orderId, event_type },
+        })
+      )
+    );
+  } catch (e) {
+    console.error("Failed to trigger box webhooks", e);
+  }
+}
+
 const BoxMyBikePage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
@@ -91,6 +116,7 @@ const BoxMyBikePage: React.FC = () => {
       if (col) patch[col] = new Date().toISOString();
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
+      await fireBoxWebhooks(id, stageWebhookEvent(newStage));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
@@ -114,6 +140,7 @@ const BoxMyBikePage: React.FC = () => {
         })
         .eq("id", id);
       if (updErr) throw updErr;
+      await fireBoxWebhooks(id, "order.box.label_uploaded");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
