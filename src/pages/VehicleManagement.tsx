@@ -67,6 +67,7 @@ const VehicleManagement = () => {
   const [timelineStart, setTimelineStart] = useState<Date>(() => addMonths(startOfMonth(new Date()), -1));
 
   const [editOpen, setEditOpen] = useState(false);
+  const [maintenanceTarget, setMaintenanceTarget] = useState<Vehicle | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
   const [soldDate, setSoldDate] = useState<string>(new Date().toISOString().slice(0, 10));
