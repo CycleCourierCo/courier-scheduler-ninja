@@ -62,6 +62,7 @@ interface RouteBuilderProps {
   filterDate?: Date;
   showCollectedOnly?: boolean;
   showCollectionToday?: boolean;
+  jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
   onShowCollectionTodayChange?: (value: boolean) => void;
