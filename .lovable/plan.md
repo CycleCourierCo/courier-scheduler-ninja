@@ -1,43 +1,35 @@
-# Job Type Filter — Job Scheduling Page
+## Goal
+On the Analytics page → Inspections tab, show the average (and median) time taken for each stage of the inspection workflow, so you can see where bikes are getting stuck.
 
-Add a 3-option segmented toggle that filters which job types appear on the Job Scheduling page. All existing functionality (date filter, "show collected only", "collecting before delivery", drag-to-route, Shipday verify, save/load route) keeps working unchanged inside each mode.
+## Stages tracked
 
-## UX
+| # | Stage | From timestamp | To timestamp |
+|---|-------|----------------|--------------|
+| 1 | Collected → Inspection | `orders.order_collected` true (use most recent collection tracking event, or fall back to `scheduled_pickup_date`) | `bicycle_inspections.inspected_at` |
+| 2 | Inspection → Pricing | `bicycle_inspections.inspected_at` | `inspection_issues.priced_at` (earliest per inspection) |
+| 3 | Pricing → Issues sent to customer | `inspection_issues.priced_at` | `inspection_issues.customer_responded_at` (earliest approved) |
+| 4 | Issues → Waiting for parts | `inspection_issues.customer_responded_at` (approved) | `inspection_issues.parts_ordered_at` |
+| 5 | Waiting for parts → Awaiting repair | `inspection_issues.parts_ordered_at` | `inspection_issues.parts_arrived_at` |
+| 6 | Awaiting repair → Repaired | `inspection_issues.parts_arrived_at` (or `customer_responded_at` if no parts needed) | `inspection_issues.resolved_at` (status `repaired`/`resolved`) |
 
-- New segmented control with three options: **All**, **Collections only**, **Deliveries only**.
-- Default: **All** (preserves current behaviour).
-- Placement: in the existing filter row on `JobScheduling.tsx`, next to the "Show K-means Clusters" switch. Stacks below it on mobile.
-- Selection persists in component state for the session (no URL param needed for now).
+Inspections / issues missing the relevant timestamps are skipped for that stage only (so each stage has its own sample size).
 
-## Behaviour
+## Implementation
 
-The toggle controls a single `jobTypeFilter: 'all' | 'collection' | 'delivery'` value lifted in `JobScheduling.tsx` (same pattern as the existing lifted filters).
+**`src/services/inspectionAnalyticsService.ts`**
+- Extend `InspectionAnalyticsRecord` to also pull `inspected_at`, plus order collection info (`orders.order_collected`, `tracking_events`, `scheduled_pickup_date`) via the existing inspections query (join `orders!inner(...)`).
+- Extend `inspection_issues` selection with `priced_at`, `parts_ordered_at`, `parts_arrived_at`, `resolved_at`, `customer_responded_at`, `customer_response`, `status`.
+- Add `getInspectionStageDurations(inspections)` that returns an array:
+  ```ts
+  { stage: string; avgHours: number; medianHours: number; sampleSize: number }[]
+  ```
+  one row per stage above. Helper to convert ms → hours, compute mean + median, ignore negatives/nulls.
 
-- **All** — current behaviour. An order shows if it has a valid pickup OR a valid delivery.
-- **Collections only** — an order only shows if it has a valid pickup job. Deliveries are hidden from the map and from the route builder's draggable job list.
-- **Deliveries only** — mirror of the above. Only valid delivery jobs are shown. The "Collecting before delivery date" and "Show collected only" filters continue to apply to deliveries as they do today.
+**`src/components/analytics/InspectionStageDurationsChart.tsx`** (new)
+- Horizontal bar chart (Recharts) using the existing `ChartContainer` pattern, one bar per stage showing average hours, tooltip showing median + sample size. Uses semantic tokens (`hsl(var(--primary))` etc.) — no hard-coded colors.
 
-## Technical changes
-
-Frontend only. No DB, no service layer changes.
-
-1. **`src/pages/JobScheduling.tsx`**
-   - Add `const [jobTypeFilter, setJobTypeFilter] = useState<'all'|'collection'|'delivery'>('all')`.
-   - Render a shadcn `ToggleGroup` (type="single") in the filter row.
-   - Update `filteredOrdersForMap` memo: when filter is `collection`, drop `hasValidDelivery` from the OR; when `delivery`, drop `hasValidPickup`. Keep the existing date / collected / "collecting before delivery" logic intact for whichever side is active.
-   - Pass `jobTypeFilter` into `RouteBuilder` as a new prop.
-
-2. **`src/components/scheduling/RouteBuilder.tsx`**
-   - Accept `jobTypeFilter` prop.
-   - In the place(s) where pickup and delivery jobs are derived from an order into the draggable job list, filter out the opposite type when `jobTypeFilter !== 'all'`.
-   - Job counts shown in the header should reflect the filtered set so the user sees the correct totals for the active mode.
-   - No change to save-route, CSV import, Shipday verify, or drag/drop logic — they all operate on the already-filtered job list.
-
-3. **`src/components/scheduling/ClusterMap.tsx`**
-   - No code change required: it already renders whatever orders/jobs it receives. The narrower `filteredOrdersForMap` plus job-type aware marker rendering already lives inside, but verify during implementation that markers for the hidden type are suppressed. If not, add a small prop-driven filter on the marker render step only.
+**`src/pages/AnalyticsPage.tsx`**
+- In the Inspections tab, below the existing `InspectionsOverTimeChart`, render the new `InspectionStageDurationsChart` plus a small summary `StatsCard` for end-to-end average (collected → repaired).
 
 ## Out of scope
-
-- Persisting the toggle in the URL or localStorage.
-- Changing cluster math (clusters will recompute naturally from the filtered orders).
-- Any change to scheduling, Shipday, or backend logic.
+No DB migrations, no edge function changes, no changes to the inspection workflow itself — purely a read-only analytics view over existing timestamps.

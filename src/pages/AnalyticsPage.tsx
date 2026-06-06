@@ -29,7 +29,9 @@ import {
   getInspectionsWithIssuesRate,
   getAverageRepairCost,
   getIssueApprovalRate,
+  getInspectionStageDurations,
 } from "@/services/inspectionAnalyticsService";
+import InspectionStageDurationsChart from "@/components/analytics/InspectionStageDurationsChart";
 import {
   fetchTimeslipsForAnalytics,
   getWeeklyVehicleStats,
@@ -83,6 +85,7 @@ const AnalyticsPage = () => {
   const inspectionsWithIssues = getInspectionsWithIssuesRate(inspections);
   const avgRepairCost = getAverageRepairCost(inspections);
   const issueApproval = getIssueApprovalRate(inspections);
+  const stageDurations = getInspectionStageDurations(inspections);
 
   const { data: vehicleTimeslips = [] } = useQuery({
     queryKey: ["vehiclesAnalytics", vehicleRange?.start ?? "all", vehicleRange?.end ?? "all"],
@@ -343,6 +346,7 @@ const AnalyticsPage = () => {
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <InspectionsOverTimeChart data={inspectionsOverTime} />
+                  <InspectionStageDurationsChart data={stageDurations} />
                 </div>
               </TabsContent>
 
