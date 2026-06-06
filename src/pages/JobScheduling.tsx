@@ -272,6 +272,7 @@ const JobScheduling = () => {
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
                 showCollectionToday={showCollectionToday}
+                jobTypeFilter={jobTypeFilter}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
                 onShowCollectionTodayChange={setShowCollectionToday}
