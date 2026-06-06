@@ -669,6 +669,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   filterDate: externalFilterDate,
   showCollectedOnly: externalShowCollectedOnly,
   showCollectionToday: externalShowCollectionToday,
+  jobTypeFilter = 'all',
   onFilterDateChange,
   onShowCollectedOnlyChange,
   onShowCollectionTodayChange,
