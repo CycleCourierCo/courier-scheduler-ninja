@@ -8,6 +8,7 @@ import { timeslipService } from '@/services/timeslipService';
 import { Timeslip } from '@/types/timeslip';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/lib/roles';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
 import TimeslipCard from '@/components/timeslips/TimeslipCard';
