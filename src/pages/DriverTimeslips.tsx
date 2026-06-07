@@ -316,7 +316,7 @@ const DriverTimeslips = () => {
                       onEdit={handleEdit}
                       onApprove={handleApprove}
                       onReject={handleReject}
-                      onCreateBill={handleCreateBill}
+                      onCreateBill={isTrueAdmin ? handleCreateBill : undefined}
                       onDelete={handleDelete}
                     />
                   ))}
