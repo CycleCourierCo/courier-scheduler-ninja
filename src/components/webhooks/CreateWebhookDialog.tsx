@@ -32,6 +32,11 @@ const AVAILABLE_EVENTS = [
   { id: 'order.delivery.completed', label: 'Delivery Completed' },
   { id: 'order.delivery.failed', label: 'Delivery Failed' },
   { id: 'order.cancelled', label: 'Order Cancelled' },
+  { id: 'order.box.status.updated', label: 'Box My Bike Status Updated' },
+  { id: 'order.box.in_depot', label: 'Box My Bike In Depot' },
+  { id: 'order.box.boxed', label: 'Box My Bike Boxed' },
+  { id: 'order.box.label_uploaded', label: 'Box My Bike Label Uploaded' },
+  { id: 'order.box.collected_by_3p', label: 'Box My Bike Collected by 3rd Party' },
 ];
 
 export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWebhookDialogProps) {

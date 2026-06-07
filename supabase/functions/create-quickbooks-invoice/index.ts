@@ -31,6 +31,7 @@ interface InvoiceRequest {
     sender: any;
     receiver: any;
     needs_inspection?: boolean | null;
+    is_box_my_bike?: boolean | null;
   }>;
 }
 
@@ -580,6 +581,46 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
       }
+
+      // Add Box My Bike line item once per order if applicable
+      if (order.is_box_my_bike) {
+        const boxProduct = await findProductByExactName(
+          tokenData.access_token,
+          tokenData.company_id,
+          'Box My Bike'
+        );
+
+        if (boxProduct) {
+          let boxDescription = `${order.tracking_number || order.id}`;
+          if (order.customer_order_number) {
+            boxDescription += ` (Order #${order.customer_order_number})`;
+          }
+          boxDescription += ` - Box My Bike service - ${senderName}`;
+
+          lineItems.push({
+            Amount: boxProduct.price,
+            DetailType: "SalesItemLineDetail",
+            SalesItemLineDetail: {
+              ItemRef: {
+                value: boxProduct.id,
+                name: boxProduct.name
+              },
+              Qty: 1,
+              UnitPrice: boxProduct.price,
+              ServiceDate: serviceDate,
+              ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+            },
+            Description: boxDescription
+          });
+
+          console.log(`Added Box My Bike line item: ${boxDescription} @ £${boxProduct.price}`);
+        } else {
+          console.warn(`Box My Bike product "Box My Bike" not found in QuickBooks`);
+          if (!missingProducts.includes('Box My Bike')) {
+            missingProducts.push('Box My Bike');
+          }
+        }
+      }
     }
     
     // Check if we have any line items
@@ -679,6 +720,29 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceNumber = qbInvoice?.DocNumber;
     
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+
+    // Persist Box My Bike invoice info on box-my-bike orders included in this invoice
+    try {
+      const boxOrderIds = invoiceData.orders
+        .filter((o) => o.is_box_my_bike)
+        .map((o) => o.id);
+      if (boxOrderIds.length > 0 && invoiceId) {
+        const { error: boxUpdateError } = await supabase
+          .from('orders')
+          .update({
+            box_my_bike_invoice_id: invoiceId,
+            box_my_bike_invoice_number: invoiceNumber,
+            box_my_bike_invoice_url: invoiceUrl,
+            updated_at: new Date().toISOString(),
+          })
+          .in('id', boxOrderIds);
+        if (boxUpdateError) {
+          console.error('Failed to update Box My Bike invoice fields:', boxUpdateError);
+        }
+      }
+    } catch (e) {
+      console.error('Error persisting Box My Bike invoice info:', e);
+    }
 
     // Save invoice history
     const { error: historyError } = await supabase

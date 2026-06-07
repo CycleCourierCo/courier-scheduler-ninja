@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasAnyRole, hasRole } from "@/lib/roles";
 
 export interface SidebarProps {
   className?: string;
@@ -38,7 +39,8 @@ export function Sidebar({
   const isMobile = useIsMobile();
   const { pathname } = useLocation();
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = hasRole(userProfile, 'admin');
+  const canSeeBoxMyBike = hasAnyRole(userProfile, ['admin', 'mechanic', 'b2b_customer', 'b2c_customer']);
 
   const getDefaultLinks = () => {
     const links = [
@@ -59,7 +61,6 @@ export function Sidebar({
       }
     ];
     
-    // Only add Analytics link for admin users
     if (isAdmin) {
       links.push({
         href: "/analytics",
@@ -71,13 +72,16 @@ export function Sidebar({
         icon: <Wrench className="h-5 w-5" />,
         label: "Bicycle Inspections",
       });
+    }
+
+    if (canSeeBoxMyBike) {
       links.push({
         href: "/box-my-bike",
         icon: <Package2 className="h-5 w-5" />,
         label: "Box My Bike",
       });
     }
-    
+
     links.push({
       href: "/approvals",
       icon: <Users className="h-5 w-5" />,

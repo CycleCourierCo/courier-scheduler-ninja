@@ -657,7 +657,9 @@ const BicycleInspections = () => {
   }, [sortedInspections, searchQuery]);
 
   // Filter inspections by status
-  const awaitingInspection = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingBase = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
+  const awaitingInspection = awaitingBase.filter((i: any) => !i.collection_confirmation_sent_at);
+  const collected = awaitingBase.filter((i: any) => !!i.collection_confirmation_sent_at);
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
@@ -1334,6 +1336,14 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="collected" className="flex items-center gap-1">
+                Collected
+                {collected.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {collected.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               {canManageInspections && (
                 <TabsTrigger value="pricing" className="flex items-center gap-1">
                   Pricing
@@ -1379,6 +1389,16 @@ const BicycleInspections = () => {
                 </p>
               ) : (
                 awaitingInspection.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="collected" className="space-y-4">
+              {collected.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No collected bikes awaiting inspection
+                </p>
+              ) : (
+                collected.map(renderInspectionCard)
               )}
             </TabsContent>
 

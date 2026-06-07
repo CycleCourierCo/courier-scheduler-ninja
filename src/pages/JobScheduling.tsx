@@ -9,9 +9,12 @@ import ClusterMap from "@/components/scheduling/ClusterMap";
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Cluster } from "@/services/clusteringService";
 import { format } from "date-fns";
 import { toast } from "sonner";
+
+export type JobTypeFilter = 'all' | 'collection' | 'delivery';
 
 export interface OrderData {
   id: string;
@@ -53,6 +56,7 @@ const JobScheduling = () => {
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [showCollectionToday, setShowCollectionToday] = useState(false);
+  const [jobTypeFilter, setJobTypeFilter] = useState<JobTypeFilter>('all');
   
   // Initial jobs from URL parameters
   const [initialJobs, setInitialJobs] = useState<{ orderId: string; type: 'pickup' | 'delivery' }[]>([]);
@@ -174,7 +178,9 @@ const JobScheduling = () => {
           );
         const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget;
 
-        return hasValidPickup || hasValidDelivery;
+        const showPickup = jobTypeFilter !== 'delivery';
+        const showDelivery = jobTypeFilter !== 'collection';
+        return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
       }
 
 
@@ -199,10 +205,11 @@ const JobScheduling = () => {
       const deliveryPassesCollectedFilter = !showCollectedOnly || isCollected;
       const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && deliveryPassesCollectedFilter;
       
-      // Keep order if it has at least one valid job
-      return hasValidPickup || hasValidDelivery;
+      const showPickup = jobTypeFilter !== 'delivery';
+      const showDelivery = jobTypeFilter !== 'collection';
+      return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
     });
-  }, [orders, filterDate, showCollectedOnly, showCollectionToday]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday, jobTypeFilter]);
 
   return (
     <Layout>
@@ -222,22 +229,39 @@ const JobScheduling = () => {
           </div>
         ) : (
           <>
-            {/* Cluster Toggle */}
-            <div className="flex items-center space-x-2 mb-4">
-              <Switch
-                id="cluster-mode"
-                checked={showClusters}
-                onCheckedChange={setShowClusters}
-              />
-              <Label htmlFor="cluster-mode">
-                Show K-means Clusters
-              </Label>
+            {/* Filter row */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="cluster-mode"
+                  checked={showClusters}
+                  onCheckedChange={setShowClusters}
+                />
+                <Label htmlFor="cluster-mode">
+                  Show K-means Clusters
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Show:</Label>
+                <ToggleGroup
+                  type="single"
+                  value={jobTypeFilter}
+                  onValueChange={(v) => v && setJobTypeFilter(v as JobTypeFilter)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="all">All</ToggleGroupItem>
+                  <ToggleGroupItem value="collection">Collections</ToggleGroupItem>
+                  <ToggleGroupItem value="delivery">Deliveries</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
             
             <div className="mb-8">
               <ClusterMap 
                 orders={filteredOrdersForMap} 
                 showClusters={showClusters}
+                jobTypeFilter={jobTypeFilter}
                 onClusterChange={setClusters}
               />
             </div>
@@ -248,6 +272,7 @@ const JobScheduling = () => {
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
                 showCollectionToday={showCollectionToday}
+                jobTypeFilter={jobTypeFilter}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
                 onShowCollectionTodayChange={setShowCollectionToday}

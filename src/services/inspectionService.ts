@@ -204,6 +204,7 @@ export const getPendingInspections = async () => {
         storage_locations,
         customer_order_number,
         collection_confirmation_sent_at,
+        pickup_date,
         created_at
       `)
       .eq('needs_inspection', true)
@@ -251,6 +252,7 @@ export const getMyInspections = async (userId: string) => {
         storage_locations,
         customer_order_number,
         collection_confirmation_sent_at,
+        pickup_date,
         created_at
       `)
       .eq('user_id', userId)

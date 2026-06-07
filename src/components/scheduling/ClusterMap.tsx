@@ -20,6 +20,7 @@ const fixLeafletIcon = () => {
 interface ClusterMapProps {
   orders?: OrderData[];
   showClusters?: boolean;
+  jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onClusterChange?: (clusters: Cluster[]) => void;
 }
 
@@ -114,6 +115,7 @@ const createCentroidIcon = (color: string, label: string) => {
 const ClusterMap: React.FC<ClusterMapProps> = ({ 
   orders = [], 
   showClusters = true,
+  jobTypeFilter = 'all',
   onClusterChange 
 }) => {
   const mapRef = React.useRef<L.Map | null>(null);
@@ -132,7 +134,10 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
   
   // Extract points and cluster them
   const { clusters, points } = useMemo(() => {
-    const extractedPoints = extractClusterPoints(orders);
+    const allPoints = extractClusterPoints(orders);
+    const extractedPoints = jobTypeFilter === 'all'
+      ? allPoints
+      : allPoints.filter(p => p.type === jobTypeFilter);
     
     if (!showClusters || extractedPoints.length === 0) {
       return { clusters: [], points: extractedPoints };
@@ -140,7 +145,8 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
     
     const result = clusterJobs(extractedPoints);
     return { clusters: result.clusters, points: extractedPoints };
-  }, [orders, showClusters]);
+  }, [orders, showClusters, jobTypeFilter]);
+  
   
   // Notify parent of cluster changes
   useEffect(() => {

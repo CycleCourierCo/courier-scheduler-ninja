@@ -2173,6 +2173,127 @@ export type Database = {
           },
         ]
       }
+      vehicle_maintenance_intervals: {
+        Row: {
+          created_at: string
+          custom_name: string | null
+          id: string
+          interval_miles: number | null
+          interval_months: number | null
+          position:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_type: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          position?:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_type: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          position?:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_type?: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_intervals_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_maintenance_logs: {
+        Row: {
+          brand: string | null
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          custom_name: string | null
+          id: string
+          model: string | null
+          notes: string | null
+          odometer_mi: number | null
+          part_number: string | null
+          position:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_date: string
+          service_type: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at: string
+          vehicle_id: string
+          vendor: string | null
+        }
+        Insert: {
+          brand?: string | null
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          custom_name?: string | null
+          id?: string
+          model?: string | null
+          notes?: string | null
+          odometer_mi?: number | null
+          part_number?: string | null
+          position?:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_date: string
+          service_type: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+          vehicle_id: string
+          vendor?: string | null
+        }
+        Update: {
+          brand?: string | null
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          custom_name?: string | null
+          id?: string
+          model?: string | null
+          notes?: string | null
+          odometer_mi?: number | null
+          part_number?: string | null
+          position?:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_date?: string
+          service_type?: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+          vehicle_id?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           clean_air_zones: boolean
@@ -2195,6 +2316,7 @@ export type Database = {
           mot_expiry_date: string | null
           mot_status: string | null
           notes: string | null
+          odometer_baseline_mi: number
           purchase_date: string | null
           purchase_mileage: number | null
           real_driving_emissions: string | null
@@ -2234,6 +2356,7 @@ export type Database = {
           mot_expiry_date?: string | null
           mot_status?: string | null
           notes?: string | null
+          odometer_baseline_mi?: number
           purchase_date?: string | null
           purchase_mileage?: number | null
           real_driving_emissions?: string | null
@@ -2273,6 +2396,7 @@ export type Database = {
           mot_expiry_date?: string | null
           mot_status?: string | null
           notes?: string | null
+          odometer_baseline_mi?: number
           purchase_date?: string | null
           purchase_mileage?: number | null
           real_driving_emissions?: string | null
@@ -2670,6 +2794,20 @@ export type Database = {
         | "sales"
         | "driver"
         | "mechanic"
+      vehicle_service_position:
+        | "front_left"
+        | "front_right"
+        | "rear_left"
+        | "rear_right"
+        | "spare"
+        | "front_axle"
+        | "rear_axle"
+      vehicle_service_type:
+        | "oil_filter"
+        | "tyre"
+        | "brake_pads"
+        | "brake_discs"
+        | "other"
       vehicle_status:
         | "purchased"
         | "in_prep"
@@ -2855,6 +2993,22 @@ export const Constants = {
         "sales",
         "driver",
         "mechanic",
+      ],
+      vehicle_service_position: [
+        "front_left",
+        "front_right",
+        "rear_left",
+        "rear_right",
+        "spare",
+        "front_axle",
+        "rear_axle",
+      ],
+      vehicle_service_type: [
+        "oil_filter",
+        "tyre",
+        "brake_pads",
+        "brake_discs",
+        "other",
       ],
       vehicle_status: [
         "purchased",

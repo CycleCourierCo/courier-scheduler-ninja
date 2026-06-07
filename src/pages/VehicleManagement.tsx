@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck, Wrench } from "lucide-react";
+import VehicleMaintenanceDialog from "@/components/vehicles/VehicleMaintenanceDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
@@ -66,6 +67,7 @@ const VehicleManagement = () => {
   const [timelineStart, setTimelineStart] = useState<Date>(() => addMonths(startOfMonth(new Date()), -1));
 
   const [editOpen, setEditOpen] = useState(false);
+  const [maintenanceTarget, setMaintenanceTarget] = useState<Vehicle | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
   const [soldDate, setSoldDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -350,6 +352,14 @@ const VehicleManagement = () => {
                               <Button
                                 size="icon"
                                 variant="ghost"
+                                onClick={() => setMaintenanceTarget(v)}
+                                title="Maintenance"
+                              >
+                                <Wrench className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 onClick={() => handleRowRefresh(v)}
                                 disabled={refreshingId === v.id}
                                 title="Refresh from DVLA"
@@ -426,11 +436,14 @@ const VehicleManagement = () => {
                         )}
                       </div>
                       <div className="flex gap-2 pt-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setMaintenanceTarget(v)}>
+                          <Wrench className="h-3 w-3 mr-1" /> Service
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
                           {refreshingId === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditing(v); setEditOpen(true); }}>
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                        <Button size="sm" variant="outline" onClick={() => { setEditing(v); setEditOpen(true); }}>
+                          <Pencil className="h-3 w-3" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -468,6 +481,16 @@ const VehicleManagement = () => {
           onOpenChange={setEditOpen}
           onSaved={load}
         />
+
+        {maintenanceTarget && (
+          <VehicleMaintenanceDialog
+            vehicleId={maintenanceTarget.id}
+            vehicleReg={maintenanceTarget.registration}
+            baselineMileage={(maintenanceTarget as any).odometer_baseline_mi ?? 0}
+            open={!!maintenanceTarget}
+            onOpenChange={(o) => { if (!o) setMaintenanceTarget(null); }}
+          />
+        )}
 
         <Dialog open={!!soldTarget} onOpenChange={(o) => { if (!o) setSoldTarget(null); }}>
           <DialogContent className="max-w-md">

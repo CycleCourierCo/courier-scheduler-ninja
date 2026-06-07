@@ -60,6 +60,31 @@ function stageTimestampColumn(s: BoxMyBikeStatus): string | null {
   }
 }
 
+function stageWebhookEvent(s: BoxMyBikeStatus): string | null {
+  switch (s) {
+    case "in_depot_awaiting_boxing": return "order.box.in_depot";
+    case "boxed_awaiting_label": return "order.box.boxed";
+    case "awaiting_3p_collection": return "order.box.label_uploaded";
+    case "collected_by_3p": return "order.box.collected_by_3p";
+    default: return null;
+  }
+}
+
+async function fireBoxWebhooks(orderId: string, specificEvent: string | null) {
+  try {
+    const events = ["order.box.status.updated", ...(specificEvent ? [specificEvent] : [])];
+    await Promise.all(
+      events.map((event_type) =>
+        supabase.functions.invoke("trigger-webhook", {
+          body: { order_id: orderId, event_type },
+        })
+      )
+    );
+  } catch (e) {
+    console.error("Failed to trigger box webhooks", e);
+  }
+}
+
 const BoxMyBikePage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
@@ -91,6 +116,7 @@ const BoxMyBikePage: React.FC = () => {
       if (col) patch[col] = new Date().toISOString();
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
+      await fireBoxWebhooks(id, stageWebhookEvent(newStage));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
@@ -114,6 +140,7 @@ const BoxMyBikePage: React.FC = () => {
         })
         .eq("id", id);
       if (updErr) throw updErr;
+      await fireBoxWebhooks(id, "order.box.label_uploaded");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
@@ -122,21 +149,6 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
   });
 
-  const createInvoice = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase.functions.invoke("create-box-my-bike-invoice", {
-        body: { orderId: id },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
-      toast.success("Box My Bike invoice created (£60 + VAT)");
-    },
-    onError: (e: any) => toast.error(e?.message || "Failed to create invoice"),
-  });
 
   const viewLabel = async (path: string) => {
     const { data, error } = await supabase.storage.from("box-my-bike-labels").createSignedUrl(path, 60 * 10);
@@ -220,31 +232,18 @@ const BoxMyBikePage: React.FC = () => {
             </div>
           )}
 
-          {/* Invoice (admin) */}
-          {hasRole(userProfile, "admin") && (
+          {/* Invoice info (admin, read-only) */}
+          {hasRole(userProfile, "admin") && o.box_my_bike_invoice_number && (
             <div className="rounded-md border p-3 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
               <div className="text-sm">
-                <span className="font-medium">Boxing service invoice</span>{" "}
-                <span className="text-muted-foreground">(£60 + VAT)</span>
-                {o.box_my_bike_invoice_number && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Invoice #{o.box_my_bike_invoice_number}
-                  </div>
-                )}
+                <span className="font-medium">Boxing service invoiced</span>{" "}
+                <span className="text-muted-foreground">#{o.box_my_bike_invoice_number}</span>
               </div>
-              {o.box_my_bike_invoice_url ? (
+              {o.box_my_bike_invoice_url && (
                 <Button size="sm" variant="outline" asChild>
                   <a href={o.box_my_bike_invoice_url} target="_blank" rel="noreferrer">
                     <FileText className="h-4 w-4 mr-1" /> View invoice
                   </a>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={createInvoice.isPending}
-                  onClick={() => createInvoice.mutate(o.id)}
-                >
-                  <FileText className="h-4 w-4 mr-1" /> Generate invoice
                 </Button>
               )}
             </div>
