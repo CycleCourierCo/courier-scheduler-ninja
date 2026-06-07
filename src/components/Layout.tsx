@@ -283,6 +283,10 @@ const Layout: React.FC<LayoutProps> = ({
                           <Wrench className="mr-2 h-4 w-4" />
                           Bicycle Inspections
                         </Link>}
+                      {isTimeslipAdmin && !isAdmin && <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Clock className="mr-2 h-4 w-4" />
+                          Driver Timeslips
+                        </Link>}
                       <button onClick={() => {
                         signOut();
                         closeSheet();
