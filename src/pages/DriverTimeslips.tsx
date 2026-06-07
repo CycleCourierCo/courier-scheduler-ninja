@@ -47,7 +47,8 @@ const DriverTimeslips = () => {
     sortBy: 'date_desc',
   });
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isTrueAdmin = hasRole(userProfile, 'admin');
+  const isAdmin = isTrueAdmin || hasRole(userProfile, 'timeslip_admin');
 
   // Fetch all timeslips for accurate counts (no status filter)
   const { data: allTimeslips } = useQuery({
