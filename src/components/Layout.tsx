@@ -31,10 +31,11 @@ const Layout: React.FC<LayoutProps> = ({
   const isDriver = hasRole(userProfile, 'driver');
   const isMechanic = hasRole(userProfile, 'mechanic');
   const isB2C = hasRole(userProfile, 'b2c_customer');
+  const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
 
-  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic
+  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic/timeslip_admin
   const onlyLoaderOrMechanic =
-    (isLoader || isMechanic) &&
+    (isLoader || isMechanic || isTimeslipAdmin) &&
     !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
 
   const navLinks = !onlyLoaderOrMechanic ? <>
