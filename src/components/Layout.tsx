@@ -69,6 +69,12 @@ const Layout: React.FC<LayoutProps> = ({
       </Link>
     </> : null;
 
+  const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
+      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Driver Timeslips
+      </Link>
+    </> : null;
+
   return <div className="min-h-screen flex flex-col">
       <NoticeBanner />
       <header className="sticky top-0 z-50 glass border-b border-border/30">
