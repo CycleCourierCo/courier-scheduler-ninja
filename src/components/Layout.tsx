@@ -105,6 +105,7 @@ const Layout: React.FC<LayoutProps> = ({
                   {navLinks}
                   {driverNavLinks}
                   {mechanicNavLinks}
+                  {timeslipAdminNavLinks}
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
