@@ -92,6 +92,7 @@ const ROLE_LABELS: Record<RecipientRole, string> = {
   mechanic: "Mechanic",
   route_planner: "Route Planner",
   sales: "Sales",
+  timeslip_admin: "Timeslip Admin",
 };
 
 function extractTemplateParams(template: SendZenTemplate): string[] {

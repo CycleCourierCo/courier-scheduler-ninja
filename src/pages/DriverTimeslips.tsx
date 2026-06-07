@@ -8,6 +8,7 @@ import { timeslipService } from '@/services/timeslipService';
 import { Timeslip } from '@/types/timeslip';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/lib/roles';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
 import TimeslipCard from '@/components/timeslips/TimeslipCard';
@@ -46,7 +47,8 @@ const DriverTimeslips = () => {
     sortBy: 'date_desc',
   });
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isTrueAdmin = hasRole(userProfile, 'admin');
+  const isAdmin = isTrueAdmin || hasRole(userProfile, 'timeslip_admin');
 
   // Fetch all timeslips for accurate counts (no status filter)
   const { data: allTimeslips } = useQuery({
@@ -314,7 +316,7 @@ const DriverTimeslips = () => {
                       onEdit={handleEdit}
                       onApprove={handleApprove}
                       onReject={handleReject}
-                      onCreateBill={handleCreateBill}
+                      onCreateBill={isTrueAdmin ? handleCreateBill : undefined}
                       onDelete={handleDelete}
                     />
                   ))}
