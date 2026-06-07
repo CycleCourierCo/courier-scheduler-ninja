@@ -25,6 +25,7 @@ export const ALL_ROLES: { value: UserRole; label: string }[] = [
   { value: "loader", label: "Loader" },
   { value: "mechanic", label: "Mechanic" },
   { value: "sales", label: "Sales" },
+  { value: "timeslip_admin", label: "Timeslip Admin" },
   { value: "driver", label: "Driver" },
   { value: "b2b_customer", label: "B2B Customer" },
   { value: "b2c_customer", label: "B2C Customer" },
