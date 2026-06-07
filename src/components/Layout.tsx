@@ -566,6 +566,13 @@ const Layout: React.FC<LayoutProps> = ({
                         <span>Bicycle Inspections</span>
                       </Link>
                     </DropdownMenuItem>}
+
+                  {isTimeslipAdmin && !isAdmin && <DropdownMenuItem asChild>
+                      <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>Driver Timeslips</span>
+                      </Link>
+                    </DropdownMenuItem>}
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
