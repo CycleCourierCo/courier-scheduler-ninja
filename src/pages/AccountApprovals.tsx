@@ -25,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import BusinessAccountsMap from "@/components/admin/BusinessAccountsMap";
+
 // Define the type for the business account data
 interface BusinessAccount {
   id: string;
@@ -43,6 +45,8 @@ interface BusinessAccount {
   address_line_2: string | null;
   city: string | null;
   postal_code: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const AccountApprovals = () => {
