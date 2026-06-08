@@ -2748,6 +2748,7 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_sales: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_timeslip_admin: { Args: never; Returns: boolean }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
@@ -2794,6 +2795,7 @@ export type Database = {
         | "sales"
         | "driver"
         | "mechanic"
+        | "timeslip_admin"
       vehicle_service_position:
         | "front_left"
         | "front_right"
@@ -2993,6 +2995,7 @@ export const Constants = {
         "sales",
         "driver",
         "mechanic",
+        "timeslip_admin",
       ],
       vehicle_service_position: [
         "front_left",

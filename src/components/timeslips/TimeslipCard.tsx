@@ -210,7 +210,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                   </Button>
                 </>
               )}
-              {timeslip.status === 'approved' && !timeslip.quickbooks_bill_id && (
+              {timeslip.status === 'approved' && !timeslip.quickbooks_bill_id && onCreateBill && (
                 <Button
                   variant="default"
                   size="sm"

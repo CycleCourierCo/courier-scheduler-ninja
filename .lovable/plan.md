@@ -1,17 +1,23 @@
-## Problem
+## Goal
+Add a map at the top of the Account Approvals page that pins every business account with a known location.
 
-The new Box My Bike webhook events were added to `docs/WEBHOOK_DOCUMENTATION.md` and `CreateWebhookDialog.tsx`, but the in-app **API Documentation page** (`src/pages/ApiDocumentationPage.tsx`) still shows only the original 7 events. That's the page the user actually sees, hence "I can't see the documentation".
+## Approach
+1. Extend `get_business_accounts_for_admin` RPC return type (or just the local `BusinessAccount` interface) to include `latitude` and `longitude` from the `profiles` table — these columns already exist.
+2. Create `src/components/admin/BusinessAccountsMap.tsx` using Leaflet (`react-leaflet`) — the same stack already used in `TimeslipMapPreview.tsx`, so no new deps.
+   - Centers on the UK, auto-fits bounds to all pinned businesses.
+   - Marker per business with a popup showing: company name, contact name, status badge text, city/postcode.
+   - Color-code markers by `account_status` (pending = amber, approved = green, rejected/suspended = red) using the existing colored marker icon URLs already used in the project.
+   - For businesses missing lat/lon, fall back to geocoding their postcode client-side via Geoapify (`VITE_GEOAPIFY_API_KEY` already in env) and cache results in component state so the map fills in progressively. No DB writes.
+3. In `src/pages/AccountApprovals.tsx`:
+   - Import and render `<BusinessAccountsMap accounts={filteredAccounts} />` above the existing Card.
+   - Respects the existing status filter so the map updates when the user changes the dropdown.
+4. Empty state: if no accounts have a location yet, show a muted placeholder message inside the map container (same pattern as `TimeslipMapPreview`).
 
-## Change
+## Out of scope
+- No DB schema changes, no migrations.
+- No backfill/storage of geocoded coordinates.
+- No changes to the table, filters, or approve/reject actions.
 
-Update `src/pages/ApiDocumentationPage.tsx` in the Webhooks → Available Events section to add 5 new entries:
-
-- `order.box.status.updated` — Box My Bike status changed (generic)
-- `order.box.in_depot` — Bike arrived at depot, awaiting boxing
-- `order.box.boxed` — Bike boxed, awaiting shipping label
-- `order.box.label_uploaded` — 3rd-party shipping label uploaded
-- `order.box.collected_by_3p` — Boxed bike collected by 3rd-party courier
-
-Also add a small "Box My Bike payload example" block under the existing Webhook Payload Example showing the extra `data` fields (`is_box_my_bike`, `box_my_bike_status`, `box_label_url`, `box_in_depot_at`, `box_boxed_at`, `box_label_printed_at`, `box_collected_by_3p_at`).
-
-No other files change. No backend or logic changes.
+## Files
+- New: `src/components/admin/BusinessAccountsMap.tsx`
+- Edit: `src/pages/AccountApprovals.tsx` (add lat/lon to interface, render map)

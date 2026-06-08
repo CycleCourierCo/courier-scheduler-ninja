@@ -25,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import BusinessAccountsMap from "@/components/admin/BusinessAccountsMap";
+
 // Define the type for the business account data
 interface BusinessAccount {
   id: string;
@@ -43,6 +45,8 @@ interface BusinessAccount {
   address_line_2: string | null;
   city: string | null;
   postal_code: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const AccountApprovals = () => {
@@ -227,7 +231,8 @@ const AccountApprovals = () => {
         </DashboardHeader>
       </div>
       
-      <div className="container px-4 py-6 md:px-6">
+      <div className="container px-4 py-6 md:px-6 space-y-6">
+        <BusinessAccountsMap accounts={filteredAccounts} />
         <Card className="overflow-hidden shadow-md">
           <CardHeader className="bg-white dark:bg-background p-6 border-b">
             <CardTitle className="flex items-center gap-2 text-3xl font-bold">

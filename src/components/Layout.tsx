@@ -31,10 +31,11 @@ const Layout: React.FC<LayoutProps> = ({
   const isDriver = hasRole(userProfile, 'driver');
   const isMechanic = hasRole(userProfile, 'mechanic');
   const isB2C = hasRole(userProfile, 'b2c_customer');
+  const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
 
-  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic
+  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic/timeslip_admin
   const onlyLoaderOrMechanic =
-    (isLoader || isMechanic) &&
+    (isLoader || isMechanic || isTimeslipAdmin) &&
     !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
 
   const navLinks = !onlyLoaderOrMechanic ? <>
@@ -68,6 +69,12 @@ const Layout: React.FC<LayoutProps> = ({
       </Link>
     </> : null;
 
+  const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
+      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Driver Timeslips
+      </Link>
+    </> : null;
+
   return <div className="min-h-screen flex flex-col">
       <NoticeBanner />
       <header className="sticky top-0 z-50 glass border-b border-border/30">
@@ -80,6 +87,7 @@ const Layout: React.FC<LayoutProps> = ({
             {navLinks}
             {driverNavLinks}
             {mechanicNavLinks}
+            {timeslipAdminNavLinks}
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
@@ -97,6 +105,7 @@ const Layout: React.FC<LayoutProps> = ({
                   {navLinks}
                   {driverNavLinks}
                   {mechanicNavLinks}
+                  {timeslipAdminNavLinks}
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
@@ -273,6 +282,10 @@ const Layout: React.FC<LayoutProps> = ({
                       {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Wrench className="mr-2 h-4 w-4" />
                           Bicycle Inspections
+                        </Link>}
+                      {isTimeslipAdmin && !isAdmin && <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Clock className="mr-2 h-4 w-4" />
+                          Driver Timeslips
                         </Link>}
                       <button onClick={() => {
                         signOut();
@@ -551,6 +564,13 @@ const Layout: React.FC<LayoutProps> = ({
                       <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
                         <Wrench className="mr-2 h-4 w-4" />
                         <span>Bicycle Inspections</span>
+                      </Link>
+                    </DropdownMenuItem>}
+
+                  {isTimeslipAdmin && !isAdmin && <DropdownMenuItem asChild>
+                      <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>Driver Timeslips</span>
                       </Link>
                     </DropdownMenuItem>}
                   
