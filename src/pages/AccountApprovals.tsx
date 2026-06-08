@@ -231,7 +231,8 @@ const AccountApprovals = () => {
         </DashboardHeader>
       </div>
       
-      <div className="container px-4 py-6 md:px-6">
+      <div className="container px-4 py-6 md:px-6 space-y-6">
+        <BusinessAccountsMap accounts={filteredAccounts} />
         <Card className="overflow-hidden shadow-md">
           <CardHeader className="bg-white dark:bg-background p-6 border-b">
             <CardTitle className="flex items-center gap-2 text-3xl font-bold">
