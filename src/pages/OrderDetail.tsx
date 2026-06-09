@@ -1620,14 +1620,66 @@ const OrderDetail = () => {
             
             <OrderComments orderId={order.id} />
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-wrap justify-between gap-3">
             <Button asChild>
               <Link to="/dashboard">
                 <ArrowLeft className="mr-2" />
                 Return to Dashboard
               </Link>
             </Button>
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={deleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {deleting ? "Deleting..." : "Delete Order"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the order from the portal and remove its Shipday jobs.
+                      Cancellation emails will NOT be sent. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={deleting}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        if (!order) return;
+                        setDeleting(true);
+                        try {
+                          try {
+                            await deleteShipdayJobs(order.id);
+                          } catch (shipErr) {
+                            console.error("Shipday deletion failed:", shipErr);
+                            toast.warning("Shipday cleanup failed, continuing with order deletion");
+                          }
+                          const { error: delErr } = await supabase
+                            .from('orders')
+                            .delete()
+                            .eq('id', order.id);
+                          if (delErr) throw delErr;
+                          toast.success("Order deleted");
+                          navigate("/dashboard");
+                        } catch (err: any) {
+                          console.error("Failed to delete order:", err);
+                          toast.error(err?.message || "Failed to delete order");
+                          setDeleting(false);
+                        }
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </CardFooter>
+
         </Card>
       </div>
     </Layout>
