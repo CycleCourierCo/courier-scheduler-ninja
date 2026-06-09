@@ -756,13 +756,19 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Resend API key not configured, skipping management email');
     }
 
-    // === WHATSAPP + EMAIL: Send to loader (management overview) ===
+    // === WHATSAPP + EMAIL: Send to loader (management overview + bay breakdown) ===
     let loaderWhatsAppSent = false;
     let loaderEmailSent = false;
 
+    // Build bay breakdown once and append to loader-only sends.
+    const bayBreakdown = buildBayBreakdown(bikesFromDepot);
+    const loaderMessage = bayBreakdown.text
+      ? `${managementMessage}\n${bayBreakdown.text}`
+      : managementMessage;
+
     if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
       console.log('Sending loading list to loader WhatsApp:', loaderPhoneNumber);
-      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, managementMessage);
+      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, loaderMessage);
       console.log('Loader WhatsApp response:', loaderWhatsApp.data);
       results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderWhatsApp.data });
       loaderWhatsAppSent = loaderWhatsApp.ok;
@@ -774,12 +780,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (resend && loaderEmail && loaderEmail.trim()) {
       try {
-        const managementEmailHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        const baseHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        // Inject bay breakdown before closing </body> if present, otherwise append.
+        const loaderEmailHtml = bayBreakdown.html
+          ? (baseHtml.includes('</body>')
+              ? baseHtml.replace('</body>', `${bayBreakdown.html}\n</body>`)
+              : `${baseHtml}\n${bayBreakdown.html}`)
+          : baseHtml;
         const emailResult = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
           to: loaderEmail,
           subject: `Loading List - ${date}`,
-          html: managementEmailHtml,
+          html: loaderEmailHtml,
           reply_to: "Info@cyclecourierco.com"
         });
         console.log('Loader email sent:', emailResult);
@@ -790,6 +802,7 @@ const handler = async (req: Request): Promise<Response> => {
         results.push({ recipient: 'loader', channel: 'email', to: loaderEmail, error: emailError.message });
       }
     }
+
 
     // === Send to individual drivers (and also forward to loader) ===
     let driverWhatsAppsSent = 0;
