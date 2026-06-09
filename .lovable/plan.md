@@ -1,62 +1,25 @@
-## Restyle bay breakdown to match management list layout
+## Goal
+Prevent users whose only role is `b2b_customer` from accessing operational/admin pages. Users with additional roles (e.g. sales + b2b) keep access through their other role.
 
-Update `buildBayBreakdown()` in `supabase/functions/send-loading-list-whatsapp/index.ts` so the WhatsApp text (and matching email HTML) uses the same visual language as the management overview message.
+## Change
 
-### New WhatsApp text format
+### `src/components/ProtectedRoute.tsx`
+Add a B2B restriction block after the admin short-circuit and before the restricted-roles union logic:
 
-```
-🗄️ BAY BREAKDOWN - BIKES OUT TODAY
+- Define `b2bBlockedPaths`:
+  - `/scheduling`
+  - `/account-approvals`
+  - `/invoices`
+  - `/loading`
+  - `/driver-timeslips`
+  - `/ai-routing`
+  - `/dispatch/orders`
+  - `/dispatch/routes` (and any `/dispatch/*` path via `startsWith('/dispatch')`)
+- If `hasRole(userProfile, 'b2b_customer')` AND user has no other operational role (`admin`, `route_planner`, `sales`, `driver`, `loader`, `mechanic`) AND `location.pathname` matches a blocked path → `Navigate to="/dashboard"`.
 
-📅 Date: <same date as management msg>
-
-🅰️ BAY A (3 bikes)
-━━━━━━━━━━━━━━━━━━━━
-
-1. <Brand> <Model>
-   📍 A1
-   📦 <Customer name>
-   🔢 <Tracking number>
-   👨‍💼 <Driver name>
-   🚲 Quantity: N bikes   (only when >1)
-
-2. ...
-
-━━━━━━━━━━━━━━━━━━━━
-
-🅱️ BAY B (2 bikes)
-━━━━━━━━━━━━━━━━━━━━
-... 
-
-━━━━━━━━━━━━━━━━━━━━
-
-📊 SUMMARY
-• Total bikes out: X
-• Bays in use: Y
-```
-
-- Bay emojis: A→🅰️, B→🅱️, C→🅲️ fallback to plain `BAY C` if no glyph (use a small map; unknown bays render as `📦 BAY <letter>`).
-- Sort bays A→D, then by position ascending (unchanged).
-- Each bike shown as a numbered multi-line block with the same emoji set as the management overview (`📍 📦 🔢 👨‍💼`), so the loader sees a consistent style across both messages.
-- Use the same `━━━━━━━━━━━━━━━━━━━━` separator the management message uses — this also gives `splitMessage()` clean chunk boundaries.
-- Pass the existing `date` string into `buildBayBreakdown(bikesFromDepot, date)` so the header matches the management message.
-
-### Email HTML
-
-Keep the existing bay-grouped table layout (it's already readable in email) but:
-- Change the heading wording to `🗄️ Bay Breakdown - Bikes Out Today` and subtitle `Grouped by bay, sorted by position.` to mirror the WhatsApp header.
-- Add a final summary line: `Total bikes out: X · Bays in use: Y`.
-- No table column changes.
-
-### Call site
-
-Update the single call in the loader-only branch (around line 800) from `buildBayBreakdown(bikesFromDepot)` to `buildBayBreakdown(bikesFromDepot, date)`. No other call sites.
+This is a router-level guard so direct URL visits are blocked. Nav links to these pages are already gated on role flags (isRoutePlanner / isSales / isDriver / isAdmin / isLoader) and not shown to pure b2b users, so no Layout changes are required.
 
 ### Out of scope
-
-- No change to management overview message, per-driver messages, management email, recipients, chunking helper, or DB.
-- No new button / route / schema change.
-- Driver assignment, location/position data, and sort order remain identical.
-
-### Files
-
-- Edit: `supabase/functions/send-loading-list-whatsapp/index.ts` (only `buildBayBreakdown` + its one call site).
+- No DB / RLS changes.
+- No changes to nav menus (already correctly gated).
+- No changes to pages allowing admins/other roles.
