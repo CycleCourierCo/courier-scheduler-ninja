@@ -38,6 +38,7 @@ import OrderComments from "@/components/order-detail/OrderComments";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
+import { hasRole } from "@/lib/roles";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
@@ -1201,8 +1202,8 @@ const OrderDetail = () => {
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
   
   const showAdminControls = true;
-  const isAdmin = userProfile?.role === 'admin';
-  const isAdminOrRoutePlanner = userProfile?.role === 'admin' || userProfile?.role === 'route_planner';
+  const isAdmin = hasRole(userProfile, 'admin');
+  const isAdminOrRoutePlanner = hasRole(userProfile, 'admin') || hasRole(userProfile, 'route_planner');
   
   const handleRefreshOrder = async () => {
     if (!id) return;

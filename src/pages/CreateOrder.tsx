@@ -23,6 +23,7 @@ import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
 import { DEPOT_LOCATION } from "@/constants/depot";
+import { hasRole } from "@/lib/roles";
 
 const DEPOT_RECEIVER = {
   name: "Cycle Courier Depot",
@@ -196,7 +197,7 @@ const CreateOrder = () => {
   const { userProfile, user } = useAuth();
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = hasRole(userProfile, 'admin');
   const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(user?.id, isAdmin);
 
   const form = useForm<CreateOrderFormData>({

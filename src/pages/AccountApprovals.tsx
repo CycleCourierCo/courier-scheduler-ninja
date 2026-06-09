@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import BusinessAccountsMap from "@/components/admin/BusinessAccountsMap";
+import { hasRole } from "@/lib/roles";
 
 // Define the type for the business account data
 interface BusinessAccount {
@@ -87,7 +88,7 @@ const AccountApprovals = () => {
   };
 
   useEffect(() => {
-    if (userProfile?.role === 'admin') {
+    if (hasRole(userProfile, 'admin')) {
       fetchBusinessAccounts();
     }
   }, [userProfile]);

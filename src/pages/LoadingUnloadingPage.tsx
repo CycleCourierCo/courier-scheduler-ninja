@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
 import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -74,8 +75,8 @@ const LoadingUnloadingPage = () => {
   const [loaderProfiles, setLoaderProfiles] = useState<Array<{ id: string; name: string; phone: string | null; email: string | null }>>([]);
   const [loaderProfileSelection, setLoaderProfileSelection] = useState<string>('');
 
-  const { user } = useAuth();
-  const isAdmin = user?.user_metadata?.role === 'admin';
+  const { user, userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, 'admin');
 
   // Helper to get bikes for delivery on a given date
   const getBikesForDelivery = (date: Date) => {
