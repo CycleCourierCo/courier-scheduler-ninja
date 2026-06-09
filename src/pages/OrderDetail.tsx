@@ -198,6 +198,7 @@ const OrderDetail = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
   const [bookingCustomer, setBookingCustomer] = useState<{ name?: string; email?: string } | null>(null);
   const [creatingReturn, setCreatingReturn] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
