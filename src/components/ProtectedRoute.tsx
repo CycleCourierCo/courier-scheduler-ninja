@@ -69,6 +69,28 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
+  // B2B-only users: block operational/admin pages even if reached via direct URL
+  {
+    const operationalRoles = ['admin','route_planner','sales','driver','loader','mechanic'] as const;
+    const isPureB2B = hasRole(userProfile, 'b2b_customer')
+      && !operationalRoles.some(r => hasRole(userProfile, r));
+    if (isPureB2B) {
+      const path = location.pathname;
+      const b2bBlocked =
+        path === '/scheduling' ||
+        path === '/account-approvals' ||
+        path === '/invoices' ||
+        path === '/loading' ||
+        path === '/driver-timeslips' ||
+        path === '/ai-routing' ||
+        path === '/fuel-finder' ||
+        path.startsWith('/dispatch');
+      if (b2bBlocked) {
+        return <Navigate to="/dashboard" replace />;
+      }
+    }
+  }
+
   // Compute which restricted-role pages are allowed for this user (union)
   const isLoadingPg = location.pathname === '/loading';
   const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';

@@ -467,6 +467,107 @@ function buildDriverEmailHtml(
     </html>
   `;
 }
+// Build a bay-grouped breakdown of bikes coming OUT of storage today.
+// Returns both plain-text (for WhatsApp) and HTML (for email).
+function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoading'], date: string): { text: string; html: string } {
+  // Flatten: one entry per allocation (a bike may occupy multiple positions)
+  type Row = { bay: string; position: number; bike: typeof bikesFromDepot[number] };
+  const rows: Row[] = [];
+  for (const bike of bikesFromDepot) {
+    for (const alloc of (bike.storageAllocations || [])) {
+      rows.push({ bay: alloc.bay, position: alloc.position, bike });
+    }
+  }
+  if (rows.length === 0) return { text: '', html: '' };
+
+  // Group by bay
+  const byBay: Record<string, Row[]> = {};
+  for (const r of rows) {
+    if (!byBay[r.bay]) byBay[r.bay] = [];
+    byBay[r.bay].push(r);
+  }
+
+  const bayOrder = ['A', 'B', 'C', 'D'];
+  const bayKeys = Object.keys(byBay).sort((a, b) => {
+    const ai = bayOrder.indexOf(a);
+    const bi = bayOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  const bayEmoji: Record<string, string> = { A: '🅰️', B: '🅱️', C: '🇨', D: '🇩' };
+
+  let text = `🗄️ BAY BREAKDOWN - BIKES OUT TODAY\n\n📅 Date: ${date}\n\n`;
+  let htmlSections = '';
+  let totalBikes = 0;
+
+  for (const bay of bayKeys) {
+    const list = byBay[bay].sort((a, b) => a.position - b.position);
+    totalBikes += list.length;
+    const emoji = bayEmoji[bay] || '📦';
+
+    text += `${emoji} BAY ${bay} (${list.length})\n`;
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
+    let htmlRows = '';
+    list.forEach((r, idx) => {
+      const driver = r.bike.deliveryDriverName || 'Unassigned';
+      const brandModel = `${r.bike.bikeBrand} ${r.bike.bikeModel}`.trim();
+      text += `${idx + 1}. ${brandModel}\n`;
+      text += `   📍 ${r.bay}${r.position}\n`;
+      text += `   📦 ${r.bike.receiver.name}\n`;
+      text += `   🔢 ${r.bike.trackingNumber}\n`;
+      text += `   👨‍💼 ${driver}\n`;
+      if (r.bike.bikeQuantity && r.bike.bikeQuantity > 1) {
+        text += `   🚲 Quantity: ${r.bike.bikeQuantity} bikes\n`;
+      }
+      text += '\n';
+
+      htmlRows += `
+        <tr>
+          <td style="padding: 6px 8px; font-weight: 600; white-space: nowrap;">${r.bay}${r.position}</td>
+          <td style="padding: 6px 8px; white-space: nowrap;">${r.bike.trackingNumber}</td>
+          <td style="padding: 6px 8px;">${brandModel}</td>
+          <td style="padding: 6px 8px;">${r.bike.receiver.name}</td>
+          <td style="padding: 6px 8px; color: #555;">${driver}</td>
+        </tr>`;
+    });
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
+    htmlSections += `
+      <h3 style="margin: 16px 0 6px; color: #1a1a1a;">${emoji} Bay ${bay} <span style="color:#666;font-weight:400;">(${list.length})</span></h3>
+      <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background:#f5f5f5; text-align:left;">
+            <th style="padding:6px 8px;">Position</th>
+            <th style="padding:6px 8px;">Tracking</th>
+            <th style="padding:6px 8px;">Bike</th>
+            <th style="padding:6px 8px;">Customer</th>
+            <th style="padding:6px 8px;">Driver</th>
+          </tr>
+        </thead>
+        <tbody>${htmlRows}</tbody>
+      </table>`;
+  }
+
+  text += `📊 SUMMARY\n`;
+  text += `• Total bikes out: ${totalBikes}\n`;
+  text += `• Bays in use: ${bayKeys.length}\n`;
+
+  const html = `
+    <div style="margin-top: 24px; padding: 16px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa;">
+      <h2 style="margin: 0 0 8px; font-size: 18px;">🗄️ Bay Breakdown - Bikes Out Today</h2>
+      <p style="margin: 0 0 8px; color:#555; font-size: 13px;">Grouped by bay, sorted by position. Date: ${date}</p>
+      ${htmlSections}
+      <p style="margin: 12px 0 0; font-size: 13px; color:#333;"><strong>Total bikes out:</strong> ${totalBikes} · <strong>Bays in use:</strong> ${bayKeys.length}</p>
+    </div>`;
+
+  return { text, html };
+}
+
+
 
 // Helper to send a SendZen session text message
 async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messageBody: string): Promise<{ ok: boolean; data: any }> {
@@ -497,6 +598,48 @@ async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messa
     console.error(`SendZen send error to ${toNumber}:`, error);
     return { ok: false, data: { error: error.message } };
   }
+}
+
+// Split a long message into chunks <= maxLen, preferring safe boundaries.
+function splitMessage(message: string, maxLen = 3900): string[] {
+  if (message.length <= maxLen) return [message];
+  const chunks: string[] = [];
+  let remaining = message;
+  while (remaining.length > maxLen) {
+    let slice = remaining.slice(0, maxLen);
+    let cut = slice.lastIndexOf('\n━');
+    if (cut < maxLen * 0.5) cut = slice.lastIndexOf('\n\n');
+    if (cut < maxLen * 0.5) cut = slice.lastIndexOf('\n');
+    if (cut <= 0) cut = maxLen;
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length) chunks.push(remaining);
+  return chunks;
+}
+
+// Send a (possibly long) WhatsApp message in chunks, tagged (i/N).
+async function sendChunkedWhatsApp(
+  sendzenApiKey: string,
+  toNumber: string,
+  message: string,
+  label: string
+): Promise<{ ok: boolean; results: any[] }> {
+  const chunks = splitMessage(message);
+  const results: any[] = [];
+  let allOk = true;
+  for (let i = 0; i < chunks.length; i++) {
+    const tag = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
+    const body = `${tag}${chunks[i]}`;
+    const res = await sendSendZenMessage(sendzenApiKey, toNumber, body);
+    console.log(`${label} WhatsApp chunk ${i + 1}/${chunks.length} response:`, res.data);
+    if (!res.ok) {
+      allOk = false;
+      console.error(`${label} WhatsApp chunk ${i + 1}/${chunks.length} error:`, JSON.stringify(res.data));
+    }
+    results.push(res.data);
+  }
+  return { ok: allOk, results };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -648,14 +791,9 @@ const handler = async (req: Request): Promise<Response> => {
     const managementEmail = 'Info@cyclecourierco.com';
     const results: any[] = [];
 
-    // === WHATSAPP: Send to management via SendZen ===
-    const mgmtWhatsApp = await sendSendZenMessage(sendzenApiKey, managementPhone, managementMessage);
-    console.log('Management WhatsApp response:', mgmtWhatsApp.data);
-    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: mgmtWhatsApp.data });
-
-    if (!mgmtWhatsApp.ok) {
-      console.error(`Management WhatsApp API error: ${JSON.stringify(mgmtWhatsApp.data)}`);
-    }
+    // === WHATSAPP: Send to management via SendZen (chunked) ===
+    const mgmtWhatsApp = await sendChunkedWhatsApp(sendzenApiKey, managementPhone, managementMessage, 'Management');
+    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: mgmtWhatsApp.results });
 
     // === EMAIL: Send to management ===
     let managementEmailSent = false;
@@ -680,30 +818,41 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Resend API key not configured, skipping management email');
     }
 
-    // === WHATSAPP + EMAIL: Send to loader (management overview) ===
+    // === WHATSAPP + EMAIL: Send to loader (management overview + bay breakdown) ===
     let loaderWhatsAppSent = false;
     let loaderEmailSent = false;
 
+    const bayBreakdown = buildBayBreakdown(bikesFromDepot, date);
+
     if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
       console.log('Sending loading list to loader WhatsApp:', loaderPhoneNumber);
-      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, managementMessage);
-      console.log('Loader WhatsApp response:', loaderWhatsApp.data);
-      results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderWhatsApp.data });
-      loaderWhatsAppSent = loaderWhatsApp.ok;
+      // 1) Management overview (chunked)
+      const loaderOverview = await sendChunkedWhatsApp(sendzenApiKey, loaderPhoneNumber, managementMessage, 'Loader overview');
+      results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderOverview.results });
+      loaderWhatsAppSent = loaderOverview.ok;
 
-      if (!loaderWhatsApp.ok) {
-        console.error(`Loader WhatsApp API error: ${JSON.stringify(loaderWhatsApp.data)}`);
+      // 2) Bay breakdown as a separate message (chunked), only if non-empty
+      if (bayBreakdown.text && bayBreakdown.text.trim()) {
+        const loaderBays = await sendChunkedWhatsApp(sendzenApiKey, loaderPhoneNumber, bayBreakdown.text, 'Loader bay breakdown');
+        results.push({ recipient: 'loader', channel: 'whatsapp-bays', phone: loaderPhoneNumber, result: loaderBays.results });
+        loaderWhatsAppSent = loaderWhatsAppSent && loaderBays.ok;
       }
     }
 
     if (resend && loaderEmail && loaderEmail.trim()) {
       try {
-        const managementEmailHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        const baseHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        // Inject bay breakdown before closing </body> if present, otherwise append.
+        const loaderEmailHtml = bayBreakdown.html
+          ? (baseHtml.includes('</body>')
+              ? baseHtml.replace('</body>', `${bayBreakdown.html}\n</body>`)
+              : `${baseHtml}\n${bayBreakdown.html}`)
+          : baseHtml;
         const emailResult = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
           to: loaderEmail,
           subject: `Loading List - ${date}`,
-          html: managementEmailHtml,
+          html: loaderEmailHtml,
           reply_to: "Info@cyclecourierco.com"
         });
         console.log('Loader email sent:', emailResult);
@@ -714,6 +863,7 @@ const handler = async (req: Request): Promise<Response> => {
         results.push({ recipient: 'loader', channel: 'email', to: loaderEmail, error: emailError.message });
       }
     }
+
 
     // === Send to individual drivers (and also forward to loader) ===
     let driverWhatsAppsSent = 0;

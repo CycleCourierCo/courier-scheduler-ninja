@@ -6,6 +6,7 @@ import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/serv
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
+import { hasRole } from "@/lib/roles";
 
 interface ItemDetailsProps {
   order: Order;
@@ -14,7 +15,7 @@ interface ItemDetailsProps {
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = hasRole(userProfile, 'admin');
   const [isEnablingInspection, setIsEnablingInspection] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
 

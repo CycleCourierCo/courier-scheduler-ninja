@@ -1,7 +1,18 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Printer, RotateCcw, Truck, Save, Pencil } from "lucide-react";
+import { ArrowLeft, Package, Printer, RotateCcw, Truck, Save, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
@@ -27,6 +38,7 @@ import OrderComments from "@/components/order-detail/OrderComments";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
+import { hasRole } from "@/lib/roles";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
@@ -187,6 +199,7 @@ const OrderDetail = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
   const [bookingCustomer, setBookingCustomer] = useState<{ name?: string; email?: string } | null>(null);
   const [creatingReturn, setCreatingReturn] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
@@ -1189,8 +1202,8 @@ const OrderDetail = () => {
   const needsReceiverConfirmation = order.status === 'sender_availability_confirmed' || order.status === 'receiver_availability_pending';
   
   const showAdminControls = true;
-  const isAdmin = userProfile?.role === 'admin';
-  const isAdminOrRoutePlanner = userProfile?.role === 'admin' || userProfile?.role === 'route_planner';
+  const isAdmin = hasRole(userProfile, 'admin');
+  const isAdminOrRoutePlanner = hasRole(userProfile, 'admin') || hasRole(userProfile, 'route_planner');
   
   const handleRefreshOrder = async () => {
     if (!id) return;
@@ -1608,14 +1621,66 @@ const OrderDetail = () => {
             
             <OrderComments orderId={order.id} />
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-wrap justify-between gap-3">
             <Button asChild>
               <Link to="/dashboard">
                 <ArrowLeft className="mr-2" />
                 Return to Dashboard
               </Link>
             </Button>
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={deleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {deleting ? "Deleting..." : "Delete Order"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the order from the portal and remove its Shipday jobs.
+                      Cancellation emails will NOT be sent. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={deleting}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        if (!order) return;
+                        setDeleting(true);
+                        try {
+                          try {
+                            await deleteShipdayJobs(order.id);
+                          } catch (shipErr) {
+                            console.error("Shipday deletion failed:", shipErr);
+                            toast.warning("Shipday cleanup failed, continuing with order deletion");
+                          }
+                          const { error: delErr } = await supabase
+                            .from('orders')
+                            .delete()
+                            .eq('id', order.id);
+                          if (delErr) throw delErr;
+                          toast.success("Order deleted");
+                          navigate("/dashboard");
+                        } catch (err: any) {
+                          console.error("Failed to delete order:", err);
+                          toast.error(err?.message || "Failed to delete order");
+                          setDeleting(false);
+                        }
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </CardFooter>
+
         </Card>
       </div>
     </Layout>

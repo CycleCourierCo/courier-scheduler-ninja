@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { hasRole } from "@/lib/roles";
 
 interface OrderComment {
   id: string;
@@ -28,7 +29,7 @@ const OrderComments: React.FC<OrderCommentsProps> = ({ orderId }) => {
   const [submitting, setSubmitting] = useState(false);
   const { userProfile } = useAuth();
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = hasRole(userProfile, 'admin');
 
   useEffect(() => {
     fetchComments();

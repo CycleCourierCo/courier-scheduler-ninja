@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Bike, MapPin, Wrench, CalendarCheck, Info } from "lucide-react";
 import { pricingData } from "@/constants/bikePricing";
+import { hasRole } from "@/lib/roles";
 
 const PricingPage: React.FC = () => {
   const { userProfile } = useAuth();
 
-  const isB2B = userProfile?.role === "b2b_customer";
-  const isAdmin = userProfile?.role === "admin";
+  const isB2B = hasRole(userProfile, "b2b_customer");
+  const isAdmin = hasRole(userProfile, "admin");
 
   if (!isB2B && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
