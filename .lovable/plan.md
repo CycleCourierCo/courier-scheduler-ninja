@@ -1,25 +1,23 @@
-## Goal
-Prevent users whose only role is `b2b_customer` from accessing operational/admin pages. Users with additional roles (e.g. sales + b2b) keep access through their other role.
+# Fix: Mechanics can't see Box My Bike page
+
+## Root cause
+`src/components/ProtectedRoute.tsx` whitelists routes per restricted role. The `mechanic` role only allows `/bicycle-inspections`, so a mechanic-only user hitting `/box-my-bike` falls through the "no allowed page" branch and gets redirected to `/bicycle-inspections`. Admins are unaffected (they short-circuit earlier), which is why nobody noticed until a pure-mechanic user tried it.
 
 ## Change
+In `src/components/ProtectedRoute.tsx`:
 
-### `src/components/ProtectedRoute.tsx`
-Add a B2B restriction block after the admin short-circuit and before the restricted-roles union logic:
+1. Add a path flag:
+   ```ts
+   const isBoxMyBikePage = location.pathname === '/box-my-bike';
+   ```
+2. Extend the `mechanic` branch of the allow-list loop:
+   ```ts
+   if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage)) anyAllowed = true;
+   ```
 
-- Define `b2bBlockedPaths`:
-  - `/scheduling`
-  - `/account-approvals`
-  - `/invoices`
-  - `/loading`
-  - `/driver-timeslips`
-  - `/ai-routing`
-  - `/dispatch/orders`
-  - `/dispatch/routes` (and any `/dispatch/*` path via `startsWith('/dispatch')`)
-- If `hasRole(userProfile, 'b2b_customer')` AND user has no other operational role (`admin`, `route_planner`, `sales`, `driver`, `loader`, `mechanic`) AND `location.pathname` matches a blocked path → `Navigate to="/dashboard"`.
+No other roles are added (the page itself already gates content on `admin` or `mechanic` via `isStaff`, and customers reach it as their own orders through the `b2c`/`b2b` default path which already renders children).
 
-This is a router-level guard so direct URL visits are blocked. Nav links to these pages are already gated on role flags (isRoutePlanner / isSales / isDriver / isAdmin / isLoader) and not shown to pure b2b users, so no Layout changes are required.
-
-### Out of scope
-- No DB / RLS changes.
-- No changes to nav menus (already correctly gated).
-- No changes to pages allowing admins/other roles.
+## Out of scope
+- No DB/RLS changes
+- No nav menu changes (mechanics already see the link via existing Layout logic if applicable)
+- No changes to the page component itself
