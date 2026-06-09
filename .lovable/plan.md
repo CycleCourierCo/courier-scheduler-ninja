@@ -1,42 +1,29 @@
-## Append Bay Breakdown to Existing Loader Loading List
+## Fix loader WhatsApp 4096-char overflow (management list + bay breakdown missing)
 
-Extend the existing "Send Loading List" flow so the message sent to the **loader only** (WhatsApp + email at `loaderPhoneNumber` / `loaderEmail`) includes an extra "Bay Breakdown" section grouping bikes-needing-loading by storage bay. Driver messages are unchanged.
+### Root cause
+The latest send-loading-list-whatsapp run failed for the loader with:
 
-### Client changes
-- File: `src/pages/LoadingUnloadingPage.tsx`
-- In `handleSendWithDriverNumbers`, after building `bikesNeedingLoadingData`, build a `bayBreakdown` array from in-storage bikes for the selected date:
-  ```ts
-  bayBreakdown: [
-    { bay: "A", bikes: [{ position, trackingNumber, bikeBrand, bikeModel, receiverName, deliveryDriverName, bikeQuantity }, ...] },
-    { bay: "B", ... }, ...
-  ]
-  ```
-  - Source: `bikesNeedingLoadingData.filter(b => b.isInStorage)` flattened over `storageAllocations`.
-  - Sort bays A→D (then any others alphabetically); within each bay sort bikes by `position` ascending.
-- Pass `bayBreakdown` as a new field in the existing `supabase.functions.invoke('send-loading-list-whatsapp', { body: { ... } })` call. No new button, no new dialog.
+```
+'body' in the text object is required and cannot exceed 4096 characters.
+```
 
-### Edge function changes
-- File: `supabase/functions/send-loading-list-whatsapp/index.ts`
-- Extend `LoadingListRequest` with optional `bayBreakdown` (same shape as above).
-- Add a `formatBayBreakdownText(bayBreakdown)` helper that renders:
-  ```
-  BAY BREAKDOWN
-  
-  Bay A
-   • A1  TRK-123  Trek Domane – J. Smith (Tom)
-   • A2  TRK-456  ...
-  Bay B
-   • B1  ...
-  ```
-  and a matching `formatBayBreakdownHtml(...)` for the email.
-- **Only when composing the loader's WhatsApp text and the loader's email** (the existing branch that uses `loaderPhoneNumber` / `loaderEmail`), append the bay-breakdown section to the message body. Driver-specific WhatsApp/email composition is left untouched.
-- Skip the section entirely if `bayBreakdown` is empty or undefined.
+`send-loading-list-whatsapp/index.ts` currently sends the loader a single WhatsApp message containing **management overview + bay breakdown** concatenated (`loaderMessage = managementMessage + bayBreakdown.text`). The combined body exceeds SendZen's 4096-char text limit, so the loader receives nothing for the overview or the bay breakdown — only the per-driver follow-ups arrive. Management's WhatsApp (overview only, no bay breakdown) was just under the limit and went through.
+
+### Fix
+Edit `supabase/functions/send-loading-list-whatsapp/index.ts` only:
+
+1. Add a small `sendChunkedWhatsApp(apiKey, phone, message, label)` helper that splits any body >~3900 chars at safe boundaries (prefer `\n━━━`, then double newline, then single newline, then hard cut) and sends each chunk sequentially via `sendSendZenMessage`, tagging chunks `(1/N)`, `(2/N)`, …. Returns aggregated ok/data array.
+2. Replace the single loader WhatsApp send so the loader receives **two separate WhatsApp messages**:
+   - Management overview (`managementMessage`), chunked via helper.
+   - Bay breakdown (`bayBreakdown.text`), chunked via helper — only if non-empty.
+3. Use the same chunking helper for the **management** WhatsApp send too, so future growth doesn't silently truncate it.
+4. Log per-chunk responses with the existing `console.log` / `console.error` pattern, and push each chunk result into the existing `results` array.
+5. Leave per-driver WhatsApp/email sends, all email composition, bay-breakdown email injection, and management email behavior unchanged.
 
 ### Out of scope
-- No new button, route, dialog, DB schema, or RLS change.
-- No change to driver messages, templates, or per-driver categorisation logic.
-- Not sent to management contacts beyond the existing loader recipient.
+- No client changes, no schema/RLS changes, no new buttons or routes.
+- No change to bay-breakdown content/format, management email, driver messages, or templates.
+- Not adding bay breakdown to the management recipient.
 
 ### Files
-- Edit: `src/pages/LoadingUnloadingPage.tsx`
 - Edit: `supabase/functions/send-loading-list-whatsapp/index.ts`
