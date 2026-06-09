@@ -83,6 +83,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         path === '/loading' ||
         path === '/driver-timeslips' ||
         path === '/ai-routing' ||
+        path === '/fuel-finder' ||
         path.startsWith('/dispatch');
       if (b2bBlocked) {
         return <Navigate to="/dashboard" replace />;
