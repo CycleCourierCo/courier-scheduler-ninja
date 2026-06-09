@@ -469,7 +469,7 @@ function buildDriverEmailHtml(
 }
 // Build a bay-grouped breakdown of bikes coming OUT of storage today.
 // Returns both plain-text (for WhatsApp) and HTML (for email).
-function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoading']): { text: string; html: string } {
+function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoading'], date: string): { text: string; html: string } {
   // Flatten: one entry per allocation (a bike may occupy multiple positions)
   type Row = { bay: string; position: number; bike: typeof bikesFromDepot[number] };
   const rows: Row[] = [];
@@ -497,16 +497,34 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
     return ai - bi;
   });
 
-  let text = '\n🗄️ BAY BREAKDOWN (bikes coming out today)\n\n';
+  const bayEmoji: Record<string, string> = { A: '🅰️', B: '🅱️', C: '🇨', D: '🇩' };
+
+  let text = `🗄️ BAY BREAKDOWN - BIKES OUT TODAY\n\n📅 Date: ${date}\n\n`;
   let htmlSections = '';
+  let totalBikes = 0;
+
   for (const bay of bayKeys) {
     const list = byBay[bay].sort((a, b) => a.position - b.position);
-    text += `Bay ${bay} (${list.length})\n`;
+    totalBikes += list.length;
+    const emoji = bayEmoji[bay] || '📦';
+
+    text += `${emoji} BAY ${bay} (${list.length})\n`;
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
     let htmlRows = '';
-    for (const r of list) {
+    list.forEach((r, idx) => {
       const driver = r.bike.deliveryDriverName || 'Unassigned';
       const brandModel = `${r.bike.bikeBrand} ${r.bike.bikeModel}`.trim();
-      text += ` • ${r.bay}${r.position}  ${r.bike.trackingNumber}  ${brandModel} – ${r.bike.receiver.name} (${driver})\n`;
+      text += `${idx + 1}. ${brandModel}\n`;
+      text += `   📍 ${r.bay}${r.position}\n`;
+      text += `   📦 ${r.bike.receiver.name}\n`;
+      text += `   🔢 ${r.bike.trackingNumber}\n`;
+      text += `   👨‍💼 ${driver}\n`;
+      if (r.bike.bikeQuantity && r.bike.bikeQuantity > 1) {
+        text += `   🚲 Quantity: ${r.bike.bikeQuantity} bikes\n`;
+      }
+      text += '\n';
+
       htmlRows += `
         <tr>
           <td style="padding: 6px 8px; font-weight: 600; white-space: nowrap;">${r.bay}${r.position}</td>
@@ -515,10 +533,11 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
           <td style="padding: 6px 8px;">${r.bike.receiver.name}</td>
           <td style="padding: 6px 8px; color: #555;">${driver}</td>
         </tr>`;
-    }
-    text += '\n';
+    });
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
     htmlSections += `
-      <h3 style="margin: 16px 0 6px; color: #1a1a1a;">Bay ${bay} <span style="color:#666;font-weight:400;">(${list.length})</span></h3>
+      <h3 style="margin: 16px 0 6px; color: #1a1a1a;">${emoji} Bay ${bay} <span style="color:#666;font-weight:400;">(${list.length})</span></h3>
       <table style="width:100%; border-collapse: collapse; font-size: 13px;">
         <thead>
           <tr style="background:#f5f5f5; text-align:left;">
@@ -533,15 +552,21 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
       </table>`;
   }
 
+  text += `📊 SUMMARY\n`;
+  text += `• Total bikes out: ${totalBikes}\n`;
+  text += `• Bays in use: ${bayKeys.length}\n`;
+
   const html = `
     <div style="margin-top: 24px; padding: 16px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa;">
-      <h2 style="margin: 0 0 8px; font-size: 18px;">🗄️ Bay Breakdown</h2>
-      <p style="margin: 0 0 8px; color:#555; font-size: 13px;">Bikes coming out of storage today, grouped by bay.</p>
+      <h2 style="margin: 0 0 8px; font-size: 18px;">🗄️ Bay Breakdown - Bikes Out Today</h2>
+      <p style="margin: 0 0 8px; color:#555; font-size: 13px;">Grouped by bay, sorted by position. Date: ${date}</p>
       ${htmlSections}
+      <p style="margin: 12px 0 0; font-size: 13px; color:#333;"><strong>Total bikes out:</strong> ${totalBikes} · <strong>Bays in use:</strong> ${bayKeys.length}</p>
     </div>`;
 
   return { text, html };
 }
+
 
 
 // Helper to send a SendZen session text message
