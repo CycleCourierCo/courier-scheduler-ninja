@@ -117,7 +117,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     for (const r of userRestricted) {
       if (r === 'loader' && isLoadingPg) anyAllowed = true;
-      if (r === 'mechanic' && isBicycleInspectionsPage) anyAllowed = true;
+      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage)) anyAllowed = true;
       if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage)) anyAllowed = true;
       if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage)) anyAllowed = true;
       if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage)) anyAllowed = true;
