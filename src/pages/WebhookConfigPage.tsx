@@ -11,6 +11,7 @@ import { Plus, AlertCircle, Webhook as WebhookIcon, Trash2 } from "lucide-react"
 import { CreateWebhookDialog } from "@/components/webhooks/CreateWebhookDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
+import { hasRole } from "@/lib/roles";
 
 interface WebhookConfig {
   id: string;
@@ -26,7 +27,7 @@ interface WebhookConfig {
 
 export default function WebhookConfigPage() {
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = hasRole(userProfile, 'admin');
   const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);

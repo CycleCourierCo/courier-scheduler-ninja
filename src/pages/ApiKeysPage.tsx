@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Key, Copy, Trash2, Plus, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
+import { hasRole } from '@/lib/roles';
 
 interface ApiKey {
   id: string;
@@ -51,7 +52,7 @@ export default function ApiKeysPage() {
   const [showNewKey, setShowNewKey] = useState(false);
 
   useEffect(() => {
-    if (userProfile?.role === 'admin') {
+    if (hasRole(userProfile, 'admin')) {
       fetchApiKeys();
       fetchCustomers();
     }

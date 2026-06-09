@@ -19,6 +19,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { hasRole } from "@/lib/roles";
 
 // Fix Leaflet default icon
 const fixLeafletIcon = () => {
@@ -94,7 +95,7 @@ function distanceToSegmentKm(px: number, py: number, ax: number, ay: number, bx:
 const FuelFinderPage: React.FC = () => {
   const { userProfile } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = userProfile?.role === "admin";
+  const isAdmin = hasRole(userProfile, "admin");
 
   const [mode, setMode] = useState<"depot" | "route">("depot");
   const [currentLocation, setCurrentLocation] = useState("");

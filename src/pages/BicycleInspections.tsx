@@ -57,6 +57,7 @@ import {
   addIssueToExistingInspection,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
+import { hasRole } from "@/lib/roles";
 
 interface IssueEntry {
   description: string;
@@ -85,8 +86,8 @@ const INSPECTION_ITEMS = [
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = userProfile?.role === "admin";
-  const isMechanic = userProfile?.role === "mechanic";
+  const isAdmin = hasRole(userProfile, "admin");
+  const isMechanic = hasRole(userProfile, "mechanic");
   const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
