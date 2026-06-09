@@ -1,29 +1,62 @@
-## Fix loader WhatsApp 4096-char overflow (management list + bay breakdown missing)
+## Restyle bay breakdown to match management list layout
 
-### Root cause
-The latest send-loading-list-whatsapp run failed for the loader with:
+Update `buildBayBreakdown()` in `supabase/functions/send-loading-list-whatsapp/index.ts` so the WhatsApp text (and matching email HTML) uses the same visual language as the management overview message.
+
+### New WhatsApp text format
 
 ```
-'body' in the text object is required and cannot exceed 4096 characters.
+🗄️ BAY BREAKDOWN - BIKES OUT TODAY
+
+📅 Date: <same date as management msg>
+
+🅰️ BAY A (3 bikes)
+━━━━━━━━━━━━━━━━━━━━
+
+1. <Brand> <Model>
+   📍 A1
+   📦 <Customer name>
+   🔢 <Tracking number>
+   👨‍💼 <Driver name>
+   🚲 Quantity: N bikes   (only when >1)
+
+2. ...
+
+━━━━━━━━━━━━━━━━━━━━
+
+🅱️ BAY B (2 bikes)
+━━━━━━━━━━━━━━━━━━━━
+... 
+
+━━━━━━━━━━━━━━━━━━━━
+
+📊 SUMMARY
+• Total bikes out: X
+• Bays in use: Y
 ```
 
-`send-loading-list-whatsapp/index.ts` currently sends the loader a single WhatsApp message containing **management overview + bay breakdown** concatenated (`loaderMessage = managementMessage + bayBreakdown.text`). The combined body exceeds SendZen's 4096-char text limit, so the loader receives nothing for the overview or the bay breakdown — only the per-driver follow-ups arrive. Management's WhatsApp (overview only, no bay breakdown) was just under the limit and went through.
+- Bay emojis: A→🅰️, B→🅱️, C→🅲️ fallback to plain `BAY C` if no glyph (use a small map; unknown bays render as `📦 BAY <letter>`).
+- Sort bays A→D, then by position ascending (unchanged).
+- Each bike shown as a numbered multi-line block with the same emoji set as the management overview (`📍 📦 🔢 👨‍💼`), so the loader sees a consistent style across both messages.
+- Use the same `━━━━━━━━━━━━━━━━━━━━` separator the management message uses — this also gives `splitMessage()` clean chunk boundaries.
+- Pass the existing `date` string into `buildBayBreakdown(bikesFromDepot, date)` so the header matches the management message.
 
-### Fix
-Edit `supabase/functions/send-loading-list-whatsapp/index.ts` only:
+### Email HTML
 
-1. Add a small `sendChunkedWhatsApp(apiKey, phone, message, label)` helper that splits any body >~3900 chars at safe boundaries (prefer `\n━━━`, then double newline, then single newline, then hard cut) and sends each chunk sequentially via `sendSendZenMessage`, tagging chunks `(1/N)`, `(2/N)`, …. Returns aggregated ok/data array.
-2. Replace the single loader WhatsApp send so the loader receives **two separate WhatsApp messages**:
-   - Management overview (`managementMessage`), chunked via helper.
-   - Bay breakdown (`bayBreakdown.text`), chunked via helper — only if non-empty.
-3. Use the same chunking helper for the **management** WhatsApp send too, so future growth doesn't silently truncate it.
-4. Log per-chunk responses with the existing `console.log` / `console.error` pattern, and push each chunk result into the existing `results` array.
-5. Leave per-driver WhatsApp/email sends, all email composition, bay-breakdown email injection, and management email behavior unchanged.
+Keep the existing bay-grouped table layout (it's already readable in email) but:
+- Change the heading wording to `🗄️ Bay Breakdown - Bikes Out Today` and subtitle `Grouped by bay, sorted by position.` to mirror the WhatsApp header.
+- Add a final summary line: `Total bikes out: X · Bays in use: Y`.
+- No table column changes.
+
+### Call site
+
+Update the single call in the loader-only branch (around line 800) from `buildBayBreakdown(bikesFromDepot)` to `buildBayBreakdown(bikesFromDepot, date)`. No other call sites.
 
 ### Out of scope
-- No client changes, no schema/RLS changes, no new buttons or routes.
-- No change to bay-breakdown content/format, management email, driver messages, or templates.
-- Not adding bay breakdown to the management recipient.
+
+- No change to management overview message, per-driver messages, management email, recipients, chunking helper, or DB.
+- No new button / route / schema change.
+- Driver assignment, location/position data, and sort order remain identical.
 
 ### Files
-- Edit: `supabase/functions/send-loading-list-whatsapp/index.ts`
+
+- Edit: `supabase/functions/send-loading-list-whatsapp/index.ts` (only `buildBayBreakdown` + its one call site).
