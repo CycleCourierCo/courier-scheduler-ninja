@@ -822,7 +822,7 @@ const handler = async (req: Request): Promise<Response> => {
     let loaderWhatsAppSent = false;
     let loaderEmailSent = false;
 
-    const bayBreakdown = buildBayBreakdown(bikesFromDepot);
+    const bayBreakdown = buildBayBreakdown(bikesFromDepot, date);
 
     if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
       console.log('Sending loading list to loader WhatsApp:', loaderPhoneNumber);
