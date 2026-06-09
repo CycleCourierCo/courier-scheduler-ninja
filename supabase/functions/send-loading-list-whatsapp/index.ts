@@ -766,14 +766,9 @@ const handler = async (req: Request): Promise<Response> => {
     const managementEmail = 'Info@cyclecourierco.com';
     const results: any[] = [];
 
-    // === WHATSAPP: Send to management via SendZen ===
-    const mgmtWhatsApp = await sendSendZenMessage(sendzenApiKey, managementPhone, managementMessage);
-    console.log('Management WhatsApp response:', mgmtWhatsApp.data);
-    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: mgmtWhatsApp.data });
-
-    if (!mgmtWhatsApp.ok) {
-      console.error(`Management WhatsApp API error: ${JSON.stringify(mgmtWhatsApp.data)}`);
-    }
+    // === WHATSAPP: Send to management via SendZen (chunked) ===
+    const mgmtWhatsApp = await sendChunkedWhatsApp(sendzenApiKey, managementPhone, managementMessage, 'Management');
+    results.push({ recipient: 'management', channel: 'whatsapp', phone: managementPhone, result: mgmtWhatsApp.results });
 
     // === EMAIL: Send to management ===
     let managementEmailSent = false;
@@ -802,21 +797,20 @@ const handler = async (req: Request): Promise<Response> => {
     let loaderWhatsAppSent = false;
     let loaderEmailSent = false;
 
-    // Build bay breakdown once and append to loader-only sends.
     const bayBreakdown = buildBayBreakdown(bikesFromDepot);
-    const loaderMessage = bayBreakdown.text
-      ? `${managementMessage}\n${bayBreakdown.text}`
-      : managementMessage;
 
     if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
       console.log('Sending loading list to loader WhatsApp:', loaderPhoneNumber);
-      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, loaderMessage);
-      console.log('Loader WhatsApp response:', loaderWhatsApp.data);
-      results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderWhatsApp.data });
-      loaderWhatsAppSent = loaderWhatsApp.ok;
+      // 1) Management overview (chunked)
+      const loaderOverview = await sendChunkedWhatsApp(sendzenApiKey, loaderPhoneNumber, managementMessage, 'Loader overview');
+      results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderOverview.results });
+      loaderWhatsAppSent = loaderOverview.ok;
 
-      if (!loaderWhatsApp.ok) {
-        console.error(`Loader WhatsApp API error: ${JSON.stringify(loaderWhatsApp.data)}`);
+      // 2) Bay breakdown as a separate message (chunked), only if non-empty
+      if (bayBreakdown.text && bayBreakdown.text.trim()) {
+        const loaderBays = await sendChunkedWhatsApp(sendzenApiKey, loaderPhoneNumber, bayBreakdown.text, 'Loader bay breakdown');
+        results.push({ recipient: 'loader', channel: 'whatsapp-bays', phone: loaderPhoneNumber, result: loaderBays.results });
+        loaderWhatsAppSent = loaderWhatsAppSent && loaderBays.ok;
       }
     }
 
