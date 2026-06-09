@@ -106,6 +106,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isFuelFinderPage = location.pathname === '/fuel-finder';
   const isUsersPage = location.pathname === '/users';
   const isEmailsPage = location.pathname === '/emails';
+  const isBoxMyBikePage = location.pathname === '/box-my-bike';
 
   const restrictedRoles = ['loader','mechanic','route_planner','sales','driver'] as const;
   const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
