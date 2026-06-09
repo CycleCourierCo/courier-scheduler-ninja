@@ -575,6 +575,48 @@ async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messa
   }
 }
 
+// Split a long message into chunks <= maxLen, preferring safe boundaries.
+function splitMessage(message: string, maxLen = 3900): string[] {
+  if (message.length <= maxLen) return [message];
+  const chunks: string[] = [];
+  let remaining = message;
+  while (remaining.length > maxLen) {
+    let slice = remaining.slice(0, maxLen);
+    let cut = slice.lastIndexOf('\n━');
+    if (cut < maxLen * 0.5) cut = slice.lastIndexOf('\n\n');
+    if (cut < maxLen * 0.5) cut = slice.lastIndexOf('\n');
+    if (cut <= 0) cut = maxLen;
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length) chunks.push(remaining);
+  return chunks;
+}
+
+// Send a (possibly long) WhatsApp message in chunks, tagged (i/N).
+async function sendChunkedWhatsApp(
+  sendzenApiKey: string,
+  toNumber: string,
+  message: string,
+  label: string
+): Promise<{ ok: boolean; results: any[] }> {
+  const chunks = splitMessage(message);
+  const results: any[] = [];
+  let allOk = true;
+  for (let i = 0; i < chunks.length; i++) {
+    const tag = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
+    const body = `${tag}${chunks[i]}`;
+    const res = await sendSendZenMessage(sendzenApiKey, toNumber, body);
+    console.log(`${label} WhatsApp chunk ${i + 1}/${chunks.length} response:`, res.data);
+    if (!res.ok) {
+      allOk = false;
+      console.error(`${label} WhatsApp chunk ${i + 1}/${chunks.length} error:`, JSON.stringify(res.data));
+    }
+    results.push(res.data);
+  }
+  return { ok: allOk, results };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
