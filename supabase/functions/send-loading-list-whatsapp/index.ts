@@ -467,6 +467,82 @@ function buildDriverEmailHtml(
     </html>
   `;
 }
+// Build a bay-grouped breakdown of bikes coming OUT of storage today.
+// Returns both plain-text (for WhatsApp) and HTML (for email).
+function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoading']): { text: string; html: string } {
+  // Flatten: one entry per allocation (a bike may occupy multiple positions)
+  type Row = { bay: string; position: number; bike: typeof bikesFromDepot[number] };
+  const rows: Row[] = [];
+  for (const bike of bikesFromDepot) {
+    for (const alloc of (bike.storageAllocations || [])) {
+      rows.push({ bay: alloc.bay, position: alloc.position, bike });
+    }
+  }
+  if (rows.length === 0) return { text: '', html: '' };
+
+  // Group by bay
+  const byBay: Record<string, Row[]> = {};
+  for (const r of rows) {
+    if (!byBay[r.bay]) byBay[r.bay] = [];
+    byBay[r.bay].push(r);
+  }
+
+  const bayOrder = ['A', 'B', 'C', 'D'];
+  const bayKeys = Object.keys(byBay).sort((a, b) => {
+    const ai = bayOrder.indexOf(a);
+    const bi = bayOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  let text = '\n🗄️ BAY BREAKDOWN (bikes coming out today)\n\n';
+  let htmlSections = '';
+  for (const bay of bayKeys) {
+    const list = byBay[bay].sort((a, b) => a.position - b.position);
+    text += `Bay ${bay} (${list.length})\n`;
+    let htmlRows = '';
+    for (const r of list) {
+      const driver = r.bike.deliveryDriverName || 'Unassigned';
+      const brandModel = `${r.bike.bikeBrand} ${r.bike.bikeModel}`.trim();
+      text += ` • ${r.bay}${r.position}  ${r.bike.trackingNumber}  ${brandModel} – ${r.bike.receiver.name} (${driver})\n`;
+      htmlRows += `
+        <tr>
+          <td style="padding: 6px 8px; font-weight: 600; white-space: nowrap;">${r.bay}${r.position}</td>
+          <td style="padding: 6px 8px; white-space: nowrap;">${r.bike.trackingNumber}</td>
+          <td style="padding: 6px 8px;">${brandModel}</td>
+          <td style="padding: 6px 8px;">${r.bike.receiver.name}</td>
+          <td style="padding: 6px 8px; color: #555;">${driver}</td>
+        </tr>`;
+    }
+    text += '\n';
+    htmlSections += `
+      <h3 style="margin: 16px 0 6px; color: #1a1a1a;">Bay ${bay} <span style="color:#666;font-weight:400;">(${list.length})</span></h3>
+      <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background:#f5f5f5; text-align:left;">
+            <th style="padding:6px 8px;">Position</th>
+            <th style="padding:6px 8px;">Tracking</th>
+            <th style="padding:6px 8px;">Bike</th>
+            <th style="padding:6px 8px;">Customer</th>
+            <th style="padding:6px 8px;">Driver</th>
+          </tr>
+        </thead>
+        <tbody>${htmlRows}</tbody>
+      </table>`;
+  }
+
+  const html = `
+    <div style="margin-top: 24px; padding: 16px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa;">
+      <h2 style="margin: 0 0 8px; font-size: 18px;">🗄️ Bay Breakdown</h2>
+      <p style="margin: 0 0 8px; color:#555; font-size: 13px;">Bikes coming out of storage today, grouped by bay.</p>
+      ${htmlSections}
+    </div>`;
+
+  return { text, html };
+}
+
 
 // Helper to send a SendZen session text message
 async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messageBody: string): Promise<{ ok: boolean; data: any }> {
@@ -680,13 +756,19 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Resend API key not configured, skipping management email');
     }
 
-    // === WHATSAPP + EMAIL: Send to loader (management overview) ===
+    // === WHATSAPP + EMAIL: Send to loader (management overview + bay breakdown) ===
     let loaderWhatsAppSent = false;
     let loaderEmailSent = false;
 
+    // Build bay breakdown once and append to loader-only sends.
+    const bayBreakdown = buildBayBreakdown(bikesFromDepot);
+    const loaderMessage = bayBreakdown.text
+      ? `${managementMessage}\n${bayBreakdown.text}`
+      : managementMessage;
+
     if (loaderPhoneNumber && loaderPhoneNumber.trim()) {
       console.log('Sending loading list to loader WhatsApp:', loaderPhoneNumber);
-      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, managementMessage);
+      const loaderWhatsApp = await sendSendZenMessage(sendzenApiKey, loaderPhoneNumber, loaderMessage);
       console.log('Loader WhatsApp response:', loaderWhatsApp.data);
       results.push({ recipient: 'loader', channel: 'whatsapp', phone: loaderPhoneNumber, result: loaderWhatsApp.data });
       loaderWhatsAppSent = loaderWhatsApp.ok;
@@ -698,12 +780,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (resend && loaderEmail && loaderEmail.trim()) {
       try {
-        const managementEmailHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        const baseHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
+        // Inject bay breakdown before closing </body> if present, otherwise append.
+        const loaderEmailHtml = bayBreakdown.html
+          ? (baseHtml.includes('</body>')
+              ? baseHtml.replace('</body>', `${bayBreakdown.html}\n</body>`)
+              : `${baseHtml}\n${bayBreakdown.html}`)
+          : baseHtml;
         const emailResult = await resend.emails.send({
           from: "Ccc@notification.cyclecourierco.com",
           to: loaderEmail,
           subject: `Loading List - ${date}`,
-          html: managementEmailHtml,
+          html: loaderEmailHtml,
           reply_to: "Info@cyclecourierco.com"
         });
         console.log('Loader email sent:', emailResult);
@@ -714,6 +802,7 @@ const handler = async (req: Request): Promise<Response> => {
         results.push({ recipient: 'loader', channel: 'email', to: loaderEmail, error: emailError.message });
       }
     }
+
 
     // === Send to individual drivers (and also forward to loader) ===
     let driverWhatsAppsSent = 0;
