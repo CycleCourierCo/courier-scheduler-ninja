@@ -78,3 +78,12 @@ verify_jwt = false
 
 [functions.fuel-finder]
 verify_jwt = false
+
+[functions.cs-inbound-email]
+verify_jwt = false
+
+[functions.cs-inbound-whatsapp]
+verify_jwt = false
+
+[functions.cs-send-message]
+verify_jwt = true
