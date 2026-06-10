@@ -164,6 +164,16 @@ function App() {
                   <BoxMyBikePage />
                 </ProtectedRoute>
               } />
+              <Route path="/inbox" element={
+                <ProtectedRoute>
+                  <CustomerServiceInbox />
+                </ProtectedRoute>
+              } />
+              <Route path="/inbox/:conversationId" element={
+                <ProtectedRoute>
+                  <CustomerServiceInbox />
+                </ProtectedRoute>
+              } />
 
               <Route path="/holidays" element={
                 <ProtectedRoute adminOnly={true}>
