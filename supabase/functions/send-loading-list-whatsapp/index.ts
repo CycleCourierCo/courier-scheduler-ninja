@@ -648,7 +648,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // Require admin authentication
-  const authResult = await requireAdminAuth(req);
+  const authResult = await requireLoadingListAuth(req);
   if (!authResult.success) {
     return createAuthErrorResponse(authResult.error!, authResult.status!);
   }
