@@ -52,6 +52,7 @@ import ClaimDetail from "./pages/ClaimDetail";
 import DispatchOrdersPage from "./pages/DispatchOrdersPage";
 import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
+import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 
 const queryClient = new QueryClient();
 
@@ -161,6 +162,16 @@ function App() {
               <Route path="/box-my-bike" element={
                 <ProtectedRoute>
                   <BoxMyBikePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inbox" element={
+                <ProtectedRoute>
+                  <CustomerServiceInbox />
+                </ProtectedRoute>
+              } />
+              <Route path="/inbox/:conversationId" element={
+                <ProtectedRoute>
+                  <CustomerServiceInbox />
                 </ProtectedRoute>
               } />
 
