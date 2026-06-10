@@ -2796,6 +2796,7 @@ export type Database = {
         | "driver"
         | "mechanic"
         | "timeslip_admin"
+        | "cs_agent"
       vehicle_service_position:
         | "front_left"
         | "front_right"
@@ -2996,6 +2997,7 @@ export const Constants = {
         "driver",
         "mechanic",
         "timeslip_admin",
+        "cs_agent",
       ],
       vehicle_service_position: [
         "front_left",
