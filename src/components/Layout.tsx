@@ -344,6 +344,15 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>
 
+                  {(isAdmin || isCsAgent) && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/inbox" className="cursor-pointer flex w-full items-center">
+                        <Inbox className="mr-2 h-4 w-4" />
+                        <span>Customer Service Inbox</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
                   {(isAdmin || isMechanic || isB2B || isB2C) && (
                     <DropdownMenuItem asChild>
                       <Link to="/box-my-bike" className="cursor-pointer flex w-full items-center">
