@@ -128,6 +128,10 @@ const Layout: React.FC<LayoutProps> = ({
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>
+                      <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        Tasks
+                      </Link>
                       {(isAdmin || isMechanic || isB2B || isB2C) && (
                         <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Package2 className="mr-2 h-4 w-4" />
