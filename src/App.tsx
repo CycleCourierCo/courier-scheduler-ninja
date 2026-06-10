@@ -53,6 +53,7 @@ import DispatchOrdersPage from "./pages/DispatchOrdersPage";
 import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
+import Tasks from "./pages/Tasks";
 
 const queryClient = new QueryClient();
 
@@ -172,6 +173,11 @@ function App() {
               <Route path="/inbox/:conversationId" element={
                 <ProtectedRoute>
                   <CustomerServiceInbox />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasks" element={
+                <ProtectedRoute>
+                  <Tasks />
                 </ProtectedRoute>
               } />
 
