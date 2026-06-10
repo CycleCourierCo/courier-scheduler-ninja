@@ -108,7 +108,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isEmailsPage = location.pathname === '/emails';
   const isBoxMyBikePage = location.pathname === '/box-my-bike';
 
-  const restrictedRoles = ['loader','mechanic','route_planner','sales','driver'] as const;
+  const restrictedRoles = ['loader','mechanic','route_planner','sales','driver','timeslip_admin'] as const;
   const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
 
   if (userRestricted.length > 0) {
@@ -121,6 +121,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage)) anyAllowed = true;
       if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage)) anyAllowed = true;
       if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage)) anyAllowed = true;
+      if (r === 'timeslip_admin' && (isTimeslipsPage || isProfilePage)) anyAllowed = true;
     }
 
     if (!anyAllowed) {
@@ -129,6 +130,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         userRestricted.includes('loader' as any) ? '/loading' :
         userRestricted.includes('mechanic' as any) ? '/bicycle-inspections' :
         userRestricted.includes('driver' as any) ? '/driver-timeslips' :
+        userRestricted.includes('timeslip_admin' as any) ? '/driver-timeslips' :
         '/dashboard';
       return <Navigate to={fallback} replace />;
     }
