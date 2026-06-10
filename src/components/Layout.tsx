@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -127,6 +127,10 @@ const Layout: React.FC<LayoutProps> = ({
                       <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
+                      </Link>
+                      <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        Tasks
                       </Link>
                       {(isAdmin || isMechanic || isB2B || isB2C) && (
                         <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
@@ -352,6 +356,13 @@ const Layout: React.FC<LayoutProps> = ({
                       </Link>
                     </DropdownMenuItem>
                   )}
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/tasks" className="cursor-pointer flex w-full items-center">
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      <span>Tasks</span>
+                    </Link>
+                  </DropdownMenuItem>
 
                   {(isAdmin || isMechanic || isB2B || isB2C) && (
                     <DropdownMenuItem asChild>

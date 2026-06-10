@@ -35,6 +35,7 @@ import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
+import OrderTasksPanel from "@/components/tasks/OrderTasksPanel";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
 import { supabase } from "@/integrations/supabase/client";
@@ -1618,7 +1619,11 @@ const OrderDetail = () => {
             )}
             
             <Separator className="my-6" />
-            
+
+            <OrderTasksPanel orderId={order.id} />
+
+            <Separator className="my-6" />
+
             <OrderComments orderId={order.id} />
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-3">

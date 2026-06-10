@@ -9,6 +9,7 @@ import { fetchOrdersByIds, searchOrdersForLink, updateConversation } from "@/ser
 import type { CsConversation } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import ConversationTasksPanel from "@/components/tasks/ConversationTasksPanel";
 
 interface Props {
   conversation: CsConversation;
@@ -131,6 +132,15 @@ const ContextPanel: React.FC<Props> = ({ conversation }) => {
             {searchResults.map(o => <OrderRow key={o.id} o={o} onLink={() => linkOrder(o.id)} />)}
           </div>
         )}
+      </div>
+
+      <div className="border-t pt-3">
+        <ConversationTasksPanel
+          conversationId={conversation.id}
+          linkedOrderId={conversation.linked_order_id}
+          suggestedTitle={conversation.subject || `Follow up: ${conversation.contact?.display_name || conversation.contact?.handle || ''}`.trim()}
+          suggestedDescription={conversation.last_message_preview || ''}
+        />
       </div>
     </div>
   );
