@@ -1,23 +1,18 @@
-# Fix: Mechanics can't see Box My Bike page
+# Fix: Jabir gets "Failed to send loading list"
 
 ## Root cause
-`src/components/ProtectedRoute.tsx` whitelists routes per restricted role. The `mechanic` role only allows `/bicycle-inspections`, so a mechanic-only user hitting `/box-my-bike` falls through the "no allowed page" branch and gets redirected to `/bicycle-inspections`. Admins are unaffected (they short-circuit earlier), which is why nobody noticed until a pure-mechanic user tried it.
+The `send-loading-list-whatsapp` edge function is gated by `requireAdminAuth()`, which requires the `admin` role. Jabir has `route_planner, sales, loader, mechanic, timeslip_admin` but not `admin`, so the function returns **403 Forbidden** and the UI shows "Failed to send loading list".
 
-## Change
-In `src/components/ProtectedRoute.tsx`:
+## Fix
+Broaden the auth check on `send-loading-list-whatsapp` to allow the roles that actually operate the Loading & Unloading page.
 
-1. Add a path flag:
-   ```ts
-   const isBoxMyBikePage = location.pathname === '/box-my-bike';
-   ```
-2. Extend the `mechanic` branch of the allow-list loop:
-   ```ts
-   if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage)) anyAllowed = true;
-   ```
+### Changes
+1. **`supabase/functions/_shared/auth.ts`** — add a small helper `requireLoadingListAuth(req)` that accepts any of: `admin`, `route_planner`, `loader`. (Mirrors the pattern of `requireAdminOrRoutePlannerAuth`.) Returns 403 otherwise.
+2. **`supabase/functions/send-loading-list-whatsapp/index.ts`** — replace the `requireAdminAuth` call with `requireLoadingListAuth`. No other logic changes.
 
-No other roles are added (the page itself already gates content on `admin` or `mechanic` via `isStaff`, and customers reach it as their own orders through the `b2c`/`b2b` default path which already renders children).
+No frontend changes required. No DB / RLS changes. No other edge functions touched.
 
-## Out of scope
-- No DB/RLS changes
-- No nav menu changes (mechanics already see the link via existing Layout logic if applicable)
-- No changes to the page component itself
+## Verification
+- Jabir (loader + route_planner) can press **Send Loading List** without the 403 toast.
+- A logged-out / customer user still receives 401/403.
+- Admin behaviour unchanged.

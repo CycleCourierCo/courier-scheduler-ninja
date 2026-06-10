@@ -469,6 +469,210 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_channel_endpoints: {
+        Row: {
+          address: string
+          channel: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string | null
+        }
+        Insert: {
+          address: string
+          channel: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+        }
+        Update: {
+          address?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+        }
+        Relationships: []
+      }
+      cs_contacts: {
+        Row: {
+          channel: string
+          created_at: string
+          display_name: string | null
+          handle: string
+          id: string
+          linked_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          display_name?: string | null
+          handle: string
+          id?: string
+          linked_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          display_name?: string | null
+          handle?: string
+          id?: string
+          linked_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_contacts_linked_user_id_fkey"
+            columns: ["linked_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_conversations: {
+        Row: {
+          assignee_id: string | null
+          auto_link_locked: boolean
+          channel: string
+          contact_id: string
+          created_at: string
+          id: string
+          last_message_at: string
+          last_message_preview: string | null
+          linked_order_id: string | null
+          snooze_until: string | null
+          status: string
+          subject: string | null
+          suggested_order_ids: string[]
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          auto_link_locked?: boolean
+          channel: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          linked_order_id?: string | null
+          snooze_until?: string | null
+          status?: string
+          subject?: string | null
+          suggested_order_ids?: string[]
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          auto_link_locked?: boolean
+          channel?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          linked_order_id?: string | null
+          snooze_until?: string | null
+          status?: string
+          subject?: string | null
+          suggested_order_ids?: string[]
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_conversations_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_conversations_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_messages: {
+        Row: {
+          attachments: Json
+          author_id: string | null
+          body_html: string | null
+          body_text: string | null
+          conversation_id: string
+          created_at: string
+          direction: string
+          email_message_id: string | null
+          error: string | null
+          external_id: string | null
+          id: string
+          in_reply_to: string | null
+          status: string
+        }
+        Insert: {
+          attachments?: Json
+          author_id?: string | null
+          body_html?: string | null
+          body_text?: string | null
+          conversation_id: string
+          created_at?: string
+          direction: string
+          email_message_id?: string | null
+          error?: string | null
+          external_id?: string | null
+          id?: string
+          in_reply_to?: string | null
+          status?: string
+        }
+        Update: {
+          attachments?: Json
+          author_id?: string | null
+          body_html?: string | null
+          body_text?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          email_message_id?: string | null
+          error?: string | null
+          external_id?: string | null
+          id?: string
+          in_reply_to?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "cs_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dispatch_route_stops: {
         Row: {
           address: string | null
@@ -1958,6 +2162,125 @@ export type Database = {
         }
         Relationships: []
       }
+      task_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assignee_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          linked_conversation_id: string | null
+          linked_order_id: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          linked_conversation_id?: string | null
+          linked_order_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          linked_conversation_id?: string | null
+          linked_order_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_linked_conversation_id_fkey"
+            columns: ["linked_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "cs_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timeslip_generation_logs: {
         Row: {
           drivers_processed: number | null
@@ -2748,7 +3071,16 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_sales: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
       is_timeslip_admin: { Args: never; Returns: boolean }
+      list_internal_users: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+          name: string
+        }[]
+      }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
@@ -2786,6 +3118,8 @@ export type Database = {
         | "driver_to_delivery"
         | "collection_scheduled"
         | "delivery_scheduled"
+      task_priority: "low" | "normal" | "high" | "urgent"
+      task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
         | "admin"
         | "b2b_customer"
@@ -2796,6 +3130,7 @@ export type Database = {
         | "driver"
         | "mechanic"
         | "timeslip_admin"
+        | "cs_agent"
       vehicle_service_position:
         | "front_left"
         | "front_right"
@@ -2986,6 +3321,8 @@ export const Constants = {
         "collection_scheduled",
         "delivery_scheduled",
       ],
+      task_priority: ["low", "normal", "high", "urgent"],
+      task_status: ["open", "in_progress", "blocked", "done", "cancelled"],
       user_role: [
         "admin",
         "b2b_customer",
@@ -2996,6 +3333,7 @@ export const Constants = {
         "driver",
         "mechanic",
         "timeslip_admin",
+        "cs_agent",
       ],
       vehicle_service_position: [
         "front_left",

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { requireAdminAuth, createAuthErrorResponse } from '../_shared/auth.ts';
+import { requireLoadingListAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -648,7 +648,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // Require admin authentication
-  const authResult = await requireAdminAuth(req);
+  const authResult = await requireLoadingListAuth(req);
   if (!authResult.success) {
     return createAuthErrorResponse(authResult.error!, authResult.status!);
   }

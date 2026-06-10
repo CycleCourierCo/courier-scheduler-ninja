@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -32,10 +32,11 @@ const Layout: React.FC<LayoutProps> = ({
   const isMechanic = hasRole(userProfile, 'mechanic');
   const isB2C = hasRole(userProfile, 'b2c_customer');
   const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
+  const isCsAgent = hasRole(userProfile, 'cs_agent');
 
-  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic/timeslip_admin
+  // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic/timeslip_admin/cs_agent
   const onlyLoaderOrMechanic =
-    (isLoader || isMechanic || isTimeslipAdmin) &&
+    (isLoader || isMechanic || isTimeslipAdmin || isCsAgent) &&
     !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
 
   const navLinks = !onlyLoaderOrMechanic ? <>
@@ -126,6 +127,10 @@ const Layout: React.FC<LayoutProps> = ({
                       <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
+                      </Link>
+                      <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        Tasks
                       </Link>
                       {(isAdmin || isMechanic || isB2B || isB2C) && (
                         <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
@@ -340,6 +345,22 @@ const Layout: React.FC<LayoutProps> = ({
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Your Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {(isAdmin || isCsAgent) && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/inbox" className="cursor-pointer flex w-full items-center">
+                        <Inbox className="mr-2 h-4 w-4" />
+                        <span>Customer Service Inbox</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/tasks" className="cursor-pointer flex w-full items-center">
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      <span>Tasks</span>
                     </Link>
                   </DropdownMenuItem>
 

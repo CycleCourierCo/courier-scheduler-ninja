@@ -107,8 +107,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isUsersPage = location.pathname === '/users';
   const isEmailsPage = location.pathname === '/emails';
   const isBoxMyBikePage = location.pathname === '/box-my-bike';
+  const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
+  const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
 
-  const restrictedRoles = ['loader','mechanic','route_planner','sales','driver','timeslip_admin'] as const;
+  const restrictedRoles = ['loader','mechanic','route_planner','sales','driver','timeslip_admin','cs_agent'] as const;
   const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
 
   if (userRestricted.length > 0) {
@@ -116,12 +118,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     let anyAllowed = false;
 
     for (const r of userRestricted) {
-      if (r === 'loader' && isLoadingPg) anyAllowed = true;
-      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage)) anyAllowed = true;
-      if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage)) anyAllowed = true;
-      if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage)) anyAllowed = true;
-      if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage)) anyAllowed = true;
-      if (r === 'timeslip_admin' && (isTimeslipsPage || isProfilePage)) anyAllowed = true;
+      if (r === 'loader' && (isLoadingPg || isTasksPage)) anyAllowed = true;
+      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage)) anyAllowed = true;
+      if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage || isTasksPage)) anyAllowed = true;
+      if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage || isTasksPage)) anyAllowed = true;
+      if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage || isTasksPage)) anyAllowed = true;
+      if (r === 'timeslip_admin' && (isTimeslipsPage || isProfilePage || isTasksPage)) anyAllowed = true;
+      if (r === 'cs_agent' && (isInboxPage || isProfilePage || isOrderDetailPage || isCustomerOrderDetailPage || isDashboardPage || isTasksPage)) anyAllowed = true;
     }
 
     if (!anyAllowed) {
@@ -131,6 +134,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         userRestricted.includes('mechanic' as any) ? '/bicycle-inspections' :
         userRestricted.includes('driver' as any) ? '/driver-timeslips' :
         userRestricted.includes('timeslip_admin' as any) ? '/driver-timeslips' :
+        userRestricted.includes('cs_agent' as any) ? '/inbox' :
         '/dashboard';
       return <Navigate to={fallback} replace />;
     }
