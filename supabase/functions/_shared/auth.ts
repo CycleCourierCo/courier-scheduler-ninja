@@ -185,6 +185,40 @@ export async function requireAdminOrRoutePlannerAuth(req: Request): Promise<Auth
 }
 
 /**
+ * Require admin, route_planner, or loader auth — used for the loading list workflow.
+ */
+export async function requireLoadingListAuth(req: Request): Promise<AuthResult> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  for (const role of ['admin', 'route_planner', 'loader'] as const) {
+    const { data: ok } = await supabaseAdmin.rpc('has_role', { _user_id: user.id, _role: role });
+    if (ok) {
+      return { success: true, userId: user.id, authType: role === 'admin' ? 'admin' : 'user' };
+    }
+  }
+
+  console.error('Auth failed: User lacks loading-list role', {
+    timestamp: new Date().toISOString(),
+    userId: user.id,
+  });
+  return { success: false, error: 'Forbidden: Admin, route planner or loader access required', status: 403 };
+}
+
+
+/**
  * Create standardized error response with CORS headers
  */
 export function createAuthErrorResponse(
