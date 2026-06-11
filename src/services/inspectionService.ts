@@ -356,6 +356,10 @@ export const markAsInspected = async (
 
     if (error) throw error;
 
+    // No-issues path completes the inspection; trigger any deferred receiver
+    // availability email now (mirrors the 'repaired' transition handler).
+    await triggerReceiverAvailabilityIfDeferred(inspection.id);
+
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error marking as inspected:', error);
