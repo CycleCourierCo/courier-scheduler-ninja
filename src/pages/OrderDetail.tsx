@@ -1103,6 +1103,13 @@ const OrderDetail = () => {
     
     try {
       setIsResendingEmail(prev => ({ ...prev, receiver: true }));
+
+      const blocked = await isReceiverAvailabilityBlockedByInspection(id);
+      if (blocked) {
+        toast.error("Cannot send availability email: bike is awaiting inspection or repair. It will be sent automatically once inspection is complete.");
+        return;
+      }
+
       const success = await resendReceiverAvailabilityEmail(id);
       
       if (success) {
