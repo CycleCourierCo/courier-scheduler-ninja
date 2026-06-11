@@ -733,11 +733,15 @@ const OrderDetail = () => {
         .eq('id', id);
 
       if (error) throw error;
-      
-      // Resend availability email
-      await resendReceiverAvailabilityEmail(id);
-      
-      toast.success("Receiver availability reset. Email sent.");
+
+      // Defer the email if the bike still needs inspection.
+      const blocked = await isReceiverAvailabilityBlockedByInspection(id);
+      if (blocked) {
+        toast.success("Receiver availability reset. Email deferred until inspection is complete.");
+      } else {
+        await resendReceiverAvailabilityEmail(id);
+        toast.success("Receiver availability reset. Email sent.");
+      }
       // Refresh order
       const updatedOrder = await getOrderById(id);
       if (updatedOrder) setOrder(updatedOrder);
