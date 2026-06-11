@@ -60,7 +60,7 @@ const triggerReceiverAvailabilityIfDeferred = async (inspectionId: string): Prom
     // (sender confirmed but receiver flow hasn't started yet).
     if (!needsInspection) return;
     if (hasReceiverDates) return;
-    if ((order as any).status !== 'sender_availability_confirmed') return;
+    if (!['sender_availability_confirmed', 'receiver_availability_pending'].includes((order as any).status)) return;
 
     await supabase
       .from('orders')
