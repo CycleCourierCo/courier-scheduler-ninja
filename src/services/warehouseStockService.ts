@@ -227,10 +227,7 @@ export const requestDeliveryFromStock = async (
   );
   // Skip receiver availability email when the bike still needs inspection.
   // It will be triggered automatically when the inspection completes.
-  import("@/services/inspectionService")
-    .then(({ isReceiverAvailabilityBlockedByInspection }) =>
-      isReceiverAvailabilityBlockedByInspection(order.id)
-    )
+  isReceiverAvailabilityBlockedByInspection(order.id)
     .then((blocked) => {
       if (blocked) {
         console.log("Skipping receiver availability email - order needs inspection.");
