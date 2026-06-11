@@ -3,6 +3,7 @@ import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseSt
 import { generateTrackingNumber } from "@/services/trackingService";
 import { sendOrderCreationConfirmationToUser, sendOrderNotificationToReceiver, sendReceiverAvailabilityEmail } from "@/services/emailService";
 import { createShipdayOrder } from "@/services/shipdayService";
+import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 
 export const getWarehouseStock = async (): Promise<WarehouseStock[]> => {
   const { data, error } = await supabase
@@ -224,9 +225,19 @@ export const requestDeliveryFromStock = async (
   sendOrderNotificationToReceiver(order.id).catch(err =>
     console.error("Failed to send receiver notification email:", err)
   );
-  sendReceiverAvailabilityEmail(order.id).catch(err =>
-    console.error("Failed to send receiver availability email:", err)
-  );
+  // Skip receiver availability email when the bike still needs inspection.
+  // It will be triggered automatically when the inspection completes.
+  isReceiverAvailabilityBlockedByInspection(order.id)
+    .then((blocked) => {
+      if (blocked) {
+        console.log("Skipping receiver availability email - order needs inspection.");
+        return;
+      }
+      return sendReceiverAvailabilityEmail(order.id);
+    })
+    .catch((err) =>
+      console.error("Failed to send receiver availability email:", err)
+    );
 
   // 6. Fire-and-forget: Create Shipday delivery job (no pickup needed)
   createShipdayOrder(order.id, 'delivery').catch(err =>

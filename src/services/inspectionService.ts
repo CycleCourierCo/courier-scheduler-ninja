@@ -2,6 +2,39 @@ import { supabase } from "@/integrations/supabase/client";
 import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
 import { resendReceiverAvailabilityEmail } from "./emailService";
 
+// Returns true when the receiver availability flow should be deferred because
+// the bike still needs inspection / repair. Used by every code path that would
+// otherwise email the receiver or move the order into receiver_availability_pending.
+export const isReceiverAvailabilityBlockedByInspection = async (
+  orderId: string
+): Promise<boolean> => {
+  try {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('needs_inspection')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (!order || (order as any).needs_inspection !== true) return false;
+
+    // Inspection considered complete when there's an inspection row that is
+    // either 'inspected' (no-issues path) or 'repaired' (all approved repairs
+    // done / every issue declined).
+    const { data: inspections } = await supabase
+      .from('bicycle_inspections')
+      .select('status')
+      .eq('order_id', orderId);
+
+    const isComplete = (inspections || []).some(
+      (i: any) => i.status === 'repaired' || i.status === 'inspected'
+    );
+    return !isComplete;
+  } catch (err) {
+    console.error('Error checking inspection block for receiver availability:', err);
+    // Fail safe: block when uncertain
+    return true;
+  }
+};
+
 // When an inspection transitions to 'repaired' (all approved issues repaired,
 // or every issue declined), trigger receiver availability email if it hasn't
 // been sent yet. This is the deferred handoff for orders with needs_inspection.
@@ -27,7 +60,7 @@ const triggerReceiverAvailabilityIfDeferred = async (inspectionId: string): Prom
     // (sender confirmed but receiver flow hasn't started yet).
     if (!needsInspection) return;
     if (hasReceiverDates) return;
-    if ((order as any).status !== 'sender_availability_confirmed') return;
+    if (!['sender_availability_confirmed', 'receiver_availability_pending'].includes((order as any).status)) return;
 
     await supabase
       .from('orders')
@@ -322,6 +355,10 @@ export const markAsInspected = async (
       .single();
 
     if (error) throw error;
+
+    // No-issues path completes the inspection; trigger any deferred receiver
+    // availability email now (mirrors the 'repaired' transition handler).
+    await triggerReceiverAvailabilityIfDeferred(inspection.id);
 
     return data as BicycleInspection;
   } catch (error) {

@@ -117,6 +117,27 @@ export default function ReceiverAvailability() {
     );
   }
 
+  // Block the form when the bike still needs inspection / repair.
+  // The receiver will be re-emailed automatically once inspection completes.
+  const inspectionBlocked =
+    !!order?.needsInspection &&
+    !(
+      order?.inspectionSummary?.repairs_completed_at ||
+      (order?.inspectionSummary?.inspection_exists &&
+        !order?.inspectionSummary?.has_issues)
+    );
+
+  if (inspectionBlocked) {
+    return (
+      <Layout>
+        <ErrorState
+          error="This delivery isn't ready to schedule yet — the bike is being inspected and serviced. We'll email you as soon as it's ready so you can pick your delivery dates."
+          onHome={() => navigate("/")}
+        />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <AvailabilityForm

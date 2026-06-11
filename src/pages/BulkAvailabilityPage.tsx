@@ -12,6 +12,7 @@ import Layout from "@/components/Layout";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { resendReceiverAvailabilityEmail } from "@/services/emailService";
+import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 import { format } from "date-fns";
 import { CalendarIcon, Package } from "lucide-react";
 
@@ -142,16 +143,23 @@ const BulkAvailabilityPage = () => {
         });
 
         if (isSender) {
+          // If the bike needs inspection, defer the receiver flow: keep status
+          // at sender_availability_confirmed and don't send the receiver email.
+          const blockedByInspection = await isReceiverAvailabilityBlockedByInspection(orderId);
+
           // Determine status: if receiver already confirmed, move to scheduled_dates_pending
-          const newStatus = order.receiverConfirmedAt 
-            ? "scheduled_dates_pending" 
-            : "receiver_availability_pending";
+          const newStatus = order.receiverConfirmedAt
+            ? "scheduled_dates_pending"
+            : blockedByInspection
+              ? "sender_availability_confirmed"
+              : "receiver_availability_pending";
 
           console.log("About to update sender with:", {
             pickup_date: dateStrings,
             sender_notes: notes,
             status: newStatus,
-            orderId
+            orderId,
+            blockedByInspection,
           });
 
           const { data, error } = await supabase
@@ -186,6 +194,8 @@ const BulkAvailabilityPage = () => {
               console.error("Error sending receiver availability email:", emailError);
               // Don't throw - continue processing other orders even if email fails
             }
+          } else if (blockedByInspection) {
+            console.log("Receiver email deferred - order awaiting inspection:", orderId);
           }
         } else {
           // Receiver is always setting to scheduled_dates_pending since sender must confirm first
