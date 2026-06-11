@@ -3,6 +3,7 @@ import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseSt
 import { generateTrackingNumber } from "@/services/trackingService";
 import { sendOrderCreationConfirmationToUser, sendOrderNotificationToReceiver, sendReceiverAvailabilityEmail } from "@/services/emailService";
 import { createShipdayOrder } from "@/services/shipdayService";
+import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 
 export const getWarehouseStock = async (): Promise<WarehouseStock[]> => {
   const { data, error } = await supabase
