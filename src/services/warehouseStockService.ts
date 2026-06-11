@@ -224,9 +224,22 @@ export const requestDeliveryFromStock = async (
   sendOrderNotificationToReceiver(order.id).catch(err =>
     console.error("Failed to send receiver notification email:", err)
   );
-  sendReceiverAvailabilityEmail(order.id).catch(err =>
-    console.error("Failed to send receiver availability email:", err)
-  );
+  // Skip receiver availability email when the bike still needs inspection.
+  // It will be triggered automatically when the inspection completes.
+  import("@/services/inspectionService")
+    .then(({ isReceiverAvailabilityBlockedByInspection }) =>
+      isReceiverAvailabilityBlockedByInspection(order.id)
+    )
+    .then((blocked) => {
+      if (blocked) {
+        console.log("Skipping receiver availability email - order needs inspection.");
+        return;
+      }
+      return sendReceiverAvailabilityEmail(order.id);
+    })
+    .catch((err) =>
+      console.error("Failed to send receiver availability email:", err)
+    );
 
   // 6. Fire-and-forget: Create Shipday delivery job (no pickup needed)
   createShipdayOrder(order.id, 'delivery').catch(err =>
