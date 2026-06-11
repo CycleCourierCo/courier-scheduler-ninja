@@ -12,6 +12,7 @@ import Layout from "@/components/Layout";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { resendReceiverAvailabilityEmail } from "@/services/emailService";
+import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 import { format } from "date-fns";
 import { CalendarIcon, Package } from "lucide-react";
 
