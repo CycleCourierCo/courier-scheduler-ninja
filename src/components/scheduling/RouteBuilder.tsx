@@ -956,7 +956,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           );
         
           // Always show pickups that pass the date filter (showCollectedOnly only affects deliveries)
-          if (pickupAvailable) {
+          const pickupExpiredOk = !applyFilters || !showExpiredDatesOnly || hasAllDatesExpired(pickupDates);
+          if (pickupAvailable && pickupExpiredOk) {
           jobs.push({
             orderId: order.id,
             type: 'pickup',
