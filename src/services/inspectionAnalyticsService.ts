@@ -90,6 +90,32 @@ export const getInspectionsWithIssuesRate = (inspections: InspectionAnalyticsRec
   return { withIssues, withoutIssues, total, percentage };
 };
 
+const parseValue = (v: unknown): number | null => {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.]/g, ''));
+  return isFinite(n) && n > 0 ? n : null;
+};
+
+export const getAverageBikeValue = (inspections: InspectionAnalyticsRecord[]) => {
+  const values: number[] = [];
+  inspections.forEach(i => {
+    const order = i.orders;
+    if (!order) return;
+    const bikes = Array.isArray(order.bikes) ? order.bikes : [];
+    const perBike = bikes
+      .map((b: any) => parseValue(b?.value))
+      .filter((n): n is number => n !== null);
+    if (perBike.length > 0) {
+      values.push(...perBike);
+    } else {
+      const fallback = parseValue(order.bike_value);
+      if (fallback !== null) values.push(fallback);
+    }
+  });
+  const average = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  return { average, sampleSize: values.length };
+};
+
 const APPROVED_STATUSES = new Set(['approved', 'resolved', 'repaired']);
 
 export const getAverageRepairCost = (inspections: InspectionAnalyticsRecord[]) => {
