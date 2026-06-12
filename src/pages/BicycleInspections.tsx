@@ -55,6 +55,7 @@ import {
   updateInspectionIssue,
   deleteInspectionIssue,
   addIssueToExistingInspection,
+  adminSetInspectionStatus,
 } from "@/services/inspectionService";
 import { InspectionIssue } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
