@@ -952,6 +952,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
+      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      if (applyFilters && showInspectedOnly && !isInspected) return;
 
       const allowPickup = !applyFilters || jobTypeFilter !== 'delivery';
       const allowDelivery = !applyFilters || jobTypeFilter !== 'collection';
