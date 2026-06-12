@@ -57,6 +57,7 @@ const JobScheduling = () => {
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [showCollectionToday, setShowCollectionToday] = useState(false);
   const [showExpiredDatesOnly, setShowExpiredDatesOnly] = useState(false);
+  const [showInspectedOnly, setShowInspectedOnly] = useState(false);
   const [jobTypeFilter, setJobTypeFilter] = useState<JobTypeFilter>('all');
   
   // Initial jobs from URL parameters
