@@ -28,6 +28,7 @@ import {
   getInspectionsOverTime,
   getInspectionsWithIssuesRate,
   getAverageRepairCost,
+  getAverageBikeValue,
   getIssueApprovalRate,
   getInspectionStageDurations,
 } from "@/services/inspectionAnalyticsService";
