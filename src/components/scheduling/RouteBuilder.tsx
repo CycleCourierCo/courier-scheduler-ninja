@@ -927,6 +927,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') < collectingBeforeTargetStr);
     };
 
+    // True if every chosen availability date for this job is strictly before today.
+    // Used by the "Expired availability dates" filter to surface stale jobs.
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const hasAllDatesExpired = (dates: string[] | null | undefined): boolean => {
+      if (!dates || dates.length === 0) return false;
+      return dates.every(d => format(new Date(d), 'yyyy-MM-dd') < todayStr);
+    };
+
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
