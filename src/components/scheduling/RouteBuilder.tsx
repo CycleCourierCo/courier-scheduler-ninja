@@ -721,12 +721,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
   const [internalShowCollectionToday, setInternalShowCollectionToday] = useState(false);
   const [internalShowExpiredDatesOnly, setInternalShowExpiredDatesOnly] = useState(false);
+  const [internalShowInspectedOnly, setInternalShowInspectedOnly] = useState(false);
   
   // Use external state if provided, otherwise fall back to internal state
   const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
   const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
   const showCollectionToday = externalShowCollectionToday !== undefined ? externalShowCollectionToday : internalShowCollectionToday;
   const showExpiredDatesOnly = externalShowExpiredDatesOnly !== undefined ? externalShowExpiredDatesOnly : internalShowExpiredDatesOnly;
+  const showInspectedOnly = externalShowInspectedOnly !== undefined ? externalShowInspectedOnly : internalShowInspectedOnly;
   
   // Handle filter changes - notify parent if callbacks provided
   const handleFilterDateChange = (date: Date | undefined) => {
