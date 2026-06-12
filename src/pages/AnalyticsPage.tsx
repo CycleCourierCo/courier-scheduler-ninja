@@ -326,7 +326,7 @@ const AnalyticsPage = () => {
 
               <TabsContent value="inspections" className="space-y-2 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Inspections</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <StatsCard
                     title="% With Issues"
                     value={`${inspectionsWithIssues.percentage.toFixed(0)}%`}
@@ -338,6 +338,12 @@ const AnalyticsPage = () => {
                     value={`£${avgRepairCost.average.toFixed(2)}`}
                     description={`Across ${avgRepairCost.sampleSize} repaired inspections`}
                     icon={PoundSterling}
+                  />
+                  <StatsCard
+                    title="Avg Bike Value"
+                    value={`£${avgBikeValue.average.toFixed(2)}`}
+                    description={`Across ${avgBikeValue.sampleSize} bikes`}
+                    icon={Bike}
                   />
                   <StatsCard
                     title="Issues Approved"
