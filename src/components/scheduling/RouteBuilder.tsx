@@ -62,10 +62,12 @@ interface RouteBuilderProps {
   filterDate?: Date;
   showCollectedOnly?: boolean;
   showCollectionToday?: boolean;
+  showExpiredDatesOnly?: boolean;
   jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
   onShowCollectionTodayChange?: (value: boolean) => void;
+  onShowExpiredDatesOnlyChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
   isVerifyingShipday?: boolean;
