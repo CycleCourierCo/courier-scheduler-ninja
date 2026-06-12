@@ -1,30 +1,25 @@
 ## Goal
-Add a filter on the Job Scheduling page to show only jobs whose availability dates have all passed (i.e. every chosen pickup/delivery date is before today).
+Add an **"Inspected only"** toggle filter on the Job Scheduling page so schedulers can surface bikes whose inspection is already complete.
 
 ## Why
-Users need to quickly identify "stale" jobs where the sender/receiver chose dates like 1st–8th but today is the 12th, so those jobs need re-contacting or re-scheduling.
+When planning deliveries, the team needs to quickly isolate bikes that have already been inspected (or repaired) and are ready for the next scheduling step, separate from bikes still awaiting inspection work.
 
 ## Changes
 
-### 1. RouteBuilder — add filter toggle
-- Add `showExpiredDatesOnly` boolean state (lifted to `JobScheduling.tsx` like the other filters).
-- Add a new Switch in the filter bar (next to "Collected (ready to deliver)") labelled **"Expired availability dates"**.
-- When enabled, `getJobsFromOrders()` will additionally filter out any job that still has at least one availability date >= today. Only jobs whose **latest** availability date is strictly before today are kept.
-  - For pickup jobs, check `pickup_date` array.
-  - For delivery jobs, check `delivery_date` array.
-  - If the date array is empty/missing, the job is NOT shown (can't determine expiry).
+### 1. JobScheduling.tsx — lift new filter state
+- Add `showInspectedOnly` boolean state.
+- Add `onShowInspectedOnlyChange` handler.
+- Pass the new state and handler down to `RouteBuilder`.
+- Update `filteredOrdersForMap` so that when the filter is on, only orders with a completed inspection (`inspection_status === 'inspected' || inspection_status === 'repaired'`) are kept.
 
-### 2. JobScheduling — lift state
-- Add `showExpiredDatesOnly` state variable.
-- Pass it down to `RouteBuilder` alongside the other lifted filters.
-- Update `filteredOrdersForMap` (used by `ClusterMap`) to respect the same expired-dates logic, so the cluster view stays in sync.
-
-### 3. Visual indicator (optional but helpful)
-- On each unassigned job card, add a small red/orange badge if the job's dates have expired, making them easy to spot even when the filter is off.
-
-## Files to modify
-- `src/pages/JobScheduling.tsx`
-- `src/components/scheduling/RouteBuilder.tsx`
+### 2. RouteBuilder.tsx — wire filter through component
+- Add `showInspectedOnly` and `onShowInspectedOnlyChange` to `RouteBuilderProps`.
+- Add internal/external state handling (same pattern as `showCollectedOnly`, `showExpiredDatesOnly`, etc.).
+- Update `getJobsFromOrders` so that when `showInspectedOnly` is true, only jobs belonging to orders whose `inspection_status` is `'inspected'` or `'repaired'` are returned.
+- Add a Switch toggle in the filter bar, positioned after the existing toggles, labelled **"Inspected only"**.
 
 ## No database changes required
-All data (`pickup_date`, `delivery_date`) is already available on the `orders` rows loaded by the page.
+`needs_inspection` and `inspection_status` are already fetched on every scheduling-orders query and available on `OrderData`.
+
+## Existing visual indicator preserved
+The `getInspectionStatusBadge` helper already renders "Inspection Done" or "Inspection Pending" badges on each job card, so users can still see the exact state of any bike that appears while the filter is off.

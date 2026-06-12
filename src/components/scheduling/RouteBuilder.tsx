@@ -63,11 +63,13 @@ interface RouteBuilderProps {
   showCollectedOnly?: boolean;
   showCollectionToday?: boolean;
   showExpiredDatesOnly?: boolean;
+  showInspectedOnly?: boolean;
   jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
   onShowCollectionTodayChange?: (value: boolean) => void;
   onShowExpiredDatesOnlyChange?: (value: boolean) => void;
+  onShowInspectedOnlyChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
   isVerifyingShipday?: boolean;
@@ -672,11 +674,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   showCollectedOnly: externalShowCollectedOnly,
   showCollectionToday: externalShowCollectionToday,
   showExpiredDatesOnly: externalShowExpiredDatesOnly,
+  showInspectedOnly: externalShowInspectedOnly,
   jobTypeFilter = 'all',
   onFilterDateChange,
   onShowCollectedOnlyChange,
   onShowCollectionTodayChange,
   onShowExpiredDatesOnlyChange,
+  onShowInspectedOnlyChange,
   initialJobs,
   shipdayVerification = {},
   isVerifyingShipday = false,
@@ -717,12 +721,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
   const [internalShowCollectionToday, setInternalShowCollectionToday] = useState(false);
   const [internalShowExpiredDatesOnly, setInternalShowExpiredDatesOnly] = useState(false);
+  const [internalShowInspectedOnly, setInternalShowInspectedOnly] = useState(false);
   
   // Use external state if provided, otherwise fall back to internal state
   const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
   const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
   const showCollectionToday = externalShowCollectionToday !== undefined ? externalShowCollectionToday : internalShowCollectionToday;
   const showExpiredDatesOnly = externalShowExpiredDatesOnly !== undefined ? externalShowExpiredDatesOnly : internalShowExpiredDatesOnly;
+  const showInspectedOnly = externalShowInspectedOnly !== undefined ? externalShowInspectedOnly : internalShowInspectedOnly;
   
   // Handle filter changes - notify parent if callbacks provided
   const handleFilterDateChange = (date: Date | undefined) => {
@@ -754,6 +760,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       onShowExpiredDatesOnlyChange(value);
     } else {
       setInternalShowExpiredDatesOnly(value);
+    }
+  };
+
+  const handleShowInspectedOnlyChange = (value: boolean) => {
+    if (onShowInspectedOnlyChange) {
+      onShowInspectedOnlyChange(value);
+    } else {
+      setInternalShowInspectedOnly(value);
     }
   };
 
@@ -938,6 +952,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
+      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      if (applyFilters && showInspectedOnly && !isInspected) return;
 
       const allowPickup = !applyFilters || jobTypeFilter !== 'delivery';
       const allowDelivery = !applyFilters || jobTypeFilter !== 'collection';
@@ -3002,6 +3018,18 @@ Route Link: ${routeLink}`;
               />
               <Label htmlFor="expired-dates-filter" className="text-sm cursor-pointer">
                 Expired availability dates
+              </Label>
+            </div>
+
+            {/* Inspected Only Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="inspected-filter"
+                checked={showInspectedOnly}
+                onCheckedChange={handleShowInspectedOnlyChange}
+              />
+              <Label htmlFor="inspected-filter" className="text-sm cursor-pointer">
+                Inspected only
               </Label>
             </div>
             

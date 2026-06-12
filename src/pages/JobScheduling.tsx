@@ -57,6 +57,7 @@ const JobScheduling = () => {
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [showCollectionToday, setShowCollectionToday] = useState(false);
   const [showExpiredDatesOnly, setShowExpiredDatesOnly] = useState(false);
+  const [showInspectedOnly, setShowInspectedOnly] = useState(false);
   const [jobTypeFilter, setJobTypeFilter] = useState<JobTypeFilter>('all');
   
   // Initial jobs from URL parameters
@@ -155,6 +156,8 @@ const JobScheduling = () => {
       const pickupDates = order.pickup_date as string[] | null;
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
+      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      if (showInspectedOnly && !isInspected) return false;
 
       // "Collecting before delivery date" filter: deliveries only appear if the order
       // is already collected OR has a pickup date strictly before the target date.
@@ -219,7 +222,7 @@ const JobScheduling = () => {
       const showDelivery = jobTypeFilter !== 'collection';
       return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
     });
-  }, [orders, filterDate, showCollectedOnly, showCollectionToday, showExpiredDatesOnly, jobTypeFilter]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday, showExpiredDatesOnly, showInspectedOnly, jobTypeFilter]);
 
   return (
     <Layout>
@@ -283,11 +286,13 @@ const JobScheduling = () => {
                 showCollectedOnly={showCollectedOnly}
                 showCollectionToday={showCollectionToday}
                 showExpiredDatesOnly={showExpiredDatesOnly}
+                showInspectedOnly={showInspectedOnly}
                 jobTypeFilter={jobTypeFilter}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
                 onShowCollectionTodayChange={setShowCollectionToday}
                 onShowExpiredDatesOnlyChange={setShowExpiredDatesOnly}
+                onShowInspectedOnlyChange={setShowInspectedOnly}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 isVerifyingShipday={isVerifyingShipday}
