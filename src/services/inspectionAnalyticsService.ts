@@ -41,7 +41,7 @@ export const fetchInspectionsForAnalytics = async (): Promise<InspectionAnalytic
       .from("bicycle_inspections")
       .select(
         "id, created_at, status, inspected_at, order_id, " +
-          "orders:order_id(id, order_collected, scheduled_pickup_date, tracking_events), " +
+          "orders:order_id(id, order_collected, scheduled_pickup_date, tracking_events, bikes, bike_value), " +
           "inspection_issues(id, status, estimated_cost, customer_response, customer_responded_at, priced_at, parts_ordered_at, parts_arrived_at, resolved_at, created_at)"
       )
       .order("created_at", { ascending: false })
