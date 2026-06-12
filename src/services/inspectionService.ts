@@ -787,6 +787,18 @@ export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspe
   }
 };
 
+// Admin manual status override — no side effects (no emails, no flags).
+export const adminSetInspectionStatus = async (
+  inspectionId: string,
+  status: InspectionStatus
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({ status })
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
 // Check if all issues have been responded to by customer
 export const checkAllIssuesResolved = (issues: InspectionIssue[]): boolean => {
   return issues.length > 0 && issues.every(
