@@ -763,6 +763,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  const handleShowInspectedOnlyChange = (value: boolean) => {
+    if (onShowInspectedOnlyChange) {
+      onShowInspectedOnlyChange(value);
+    } else {
+      setInternalShowInspectedOnly(value);
+    }
+  };
+
 
 
   // Detect mobile on mount
