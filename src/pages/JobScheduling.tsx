@@ -56,6 +56,7 @@ const JobScheduling = () => {
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [showCollectionToday, setShowCollectionToday] = useState(false);
+  const [showExpiredDatesOnly, setShowExpiredDatesOnly] = useState(false);
   const [jobTypeFilter, setJobTypeFilter] = useState<JobTypeFilter>('all');
   
   // Initial jobs from URL parameters
@@ -144,6 +145,11 @@ const JobScheduling = () => {
     
     const targetDate = filterDate || new Date();
     const targetDateStr = format(targetDate, 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const allDatesExpired = (dates: string[] | null | undefined) => {
+      if (!dates || dates.length === 0) return false;
+      return dates.every(d => format(new Date(d), 'yyyy-MM-dd') < todayStr);
+    };
     
     return orders.filter(order => {
       const pickupDates = order.pickup_date as string[] | null;
@@ -167,7 +173,8 @@ const JobScheduling = () => {
           pickupDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') === targetDateStr
           );
-        const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter;
+        const pickupExpiredOk = !showExpiredDatesOnly || allDatesExpired(pickupDates);
+        const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter && pickupExpiredOk;
 
         const hasUnscheduledDelivery = !order.scheduled_delivery_date;
         const deliveryPassesDateFilter = !filterDate ||
@@ -176,7 +183,8 @@ const JobScheduling = () => {
           deliveryDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') === targetDateStr
           );
-        const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget;
+        const deliveryExpiredOk = !showExpiredDatesOnly || allDatesExpired(deliveryDates);
+        const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget && deliveryExpiredOk;
 
         const showPickup = jobTypeFilter !== 'delivery';
         const showDelivery = jobTypeFilter !== 'collection';
@@ -192,7 +200,8 @@ const JobScheduling = () => {
         pickupDates.some(date => 
           format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
         );
-      const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter;
+      const pickupExpiredOk = !showExpiredDatesOnly || allDatesExpired(pickupDates);
+      const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter && pickupExpiredOk;
       
       // Check if order has a valid delivery job (not scheduled, passes date filter, and passes collected filter)
       const hasUnscheduledDelivery = !order.scheduled_delivery_date;
@@ -203,13 +212,14 @@ const JobScheduling = () => {
           format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
         );
       const deliveryPassesCollectedFilter = !showCollectedOnly || isCollected;
-      const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && deliveryPassesCollectedFilter;
+      const deliveryExpiredOk = !showExpiredDatesOnly || allDatesExpired(deliveryDates);
+      const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && deliveryPassesCollectedFilter && deliveryExpiredOk;
       
       const showPickup = jobTypeFilter !== 'delivery';
       const showDelivery = jobTypeFilter !== 'collection';
       return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
     });
-  }, [orders, filterDate, showCollectedOnly, showCollectionToday, jobTypeFilter]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday, showExpiredDatesOnly, jobTypeFilter]);
 
   return (
     <Layout>
@@ -272,10 +282,12 @@ const JobScheduling = () => {
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
                 showCollectionToday={showCollectionToday}
+                showExpiredDatesOnly={showExpiredDatesOnly}
                 jobTypeFilter={jobTypeFilter}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
                 onShowCollectionTodayChange={setShowCollectionToday}
+                onShowExpiredDatesOnlyChange={setShowExpiredDatesOnly}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 isVerifyingShipday={isVerifyingShipday}

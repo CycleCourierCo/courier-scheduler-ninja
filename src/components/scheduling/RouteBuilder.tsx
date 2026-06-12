@@ -62,10 +62,12 @@ interface RouteBuilderProps {
   filterDate?: Date;
   showCollectedOnly?: boolean;
   showCollectionToday?: boolean;
+  showExpiredDatesOnly?: boolean;
   jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onFilterDateChange?: (date: Date | undefined) => void;
   onShowCollectedOnlyChange?: (value: boolean) => void;
   onShowCollectionTodayChange?: (value: boolean) => void;
+  onShowExpiredDatesOnlyChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
   isVerifyingShipday?: boolean;
@@ -669,10 +671,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   filterDate: externalFilterDate,
   showCollectedOnly: externalShowCollectedOnly,
   showCollectionToday: externalShowCollectionToday,
+  showExpiredDatesOnly: externalShowExpiredDatesOnly,
   jobTypeFilter = 'all',
   onFilterDateChange,
   onShowCollectedOnlyChange,
   onShowCollectionTodayChange,
+  onShowExpiredDatesOnlyChange,
   initialJobs,
   shipdayVerification = {},
   isVerifyingShipday = false,
@@ -712,11 +716,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
   const [internalShowCollectedOnly, setInternalShowCollectedOnly] = useState(false);
   const [internalShowCollectionToday, setInternalShowCollectionToday] = useState(false);
+  const [internalShowExpiredDatesOnly, setInternalShowExpiredDatesOnly] = useState(false);
   
   // Use external state if provided, otherwise fall back to internal state
   const filterDate = externalFilterDate !== undefined ? externalFilterDate : internalFilterDate;
   const showCollectedOnly = externalShowCollectedOnly !== undefined ? externalShowCollectedOnly : internalShowCollectedOnly;
   const showCollectionToday = externalShowCollectionToday !== undefined ? externalShowCollectionToday : internalShowCollectionToday;
+  const showExpiredDatesOnly = externalShowExpiredDatesOnly !== undefined ? externalShowExpiredDatesOnly : internalShowExpiredDatesOnly;
   
   // Handle filter changes - notify parent if callbacks provided
   const handleFilterDateChange = (date: Date | undefined) => {
@@ -742,6 +748,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       setInternalShowCollectionToday(value);
     }
   };
+
+  const handleShowExpiredDatesOnlyChange = (value: boolean) => {
+    if (onShowExpiredDatesOnlyChange) {
+      onShowExpiredDatesOnlyChange(value);
+    } else {
+      setInternalShowExpiredDatesOnly(value);
+    }
+  };
+
+
 
   // Detect mobile on mount
   React.useEffect(() => {
@@ -911,6 +927,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') < collectingBeforeTargetStr);
     };
 
+    // True if every chosen availability date for this job is strictly before today.
+    // Used by the "Expired availability dates" filter to surface stale jobs.
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const hasAllDatesExpired = (dates: string[] | null | undefined): boolean => {
+      if (!dates || dates.length === 0) return false;
+      return dates.every(d => format(new Date(d), 'yyyy-MM-dd') < todayStr);
+    };
+
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
@@ -932,7 +956,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           );
         
           // Always show pickups that pass the date filter (showCollectedOnly only affects deliveries)
-          if (pickupAvailable) {
+          const pickupExpiredOk = !applyFilters || !showExpiredDatesOnly || hasAllDatesExpired(pickupDates);
+          if (pickupAvailable && pickupExpiredOk) {
           jobs.push({
             orderId: order.id,
             type: 'pickup',
@@ -961,7 +986,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         // If "collecting before delivery date" is on, only show deliveries whose
         // order is already collected or has a pickup strictly before the target date.
         const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
-        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable && passesCollectingBefore) {
+        const deliveryExpiredOk = !applyFilters || !showExpiredDatesOnly || hasAllDatesExpired(deliveryDates);
+        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable && passesCollectingBefore && deliveryExpiredOk) {
 
           jobs.push({
             orderId: order.id,
@@ -2801,7 +2827,7 @@ Route Link: ${routeLink}`;
 
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
-  const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday;
+  const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
 
   // Helper to get Shipday status for a job
   const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
@@ -2966,6 +2992,20 @@ Route Link: ${routeLink}`;
                 Collecting before delivery date
               </Label>
             </div>
+
+            {/* Expired Availability Dates Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="expired-dates-filter"
+                checked={showExpiredDatesOnly}
+                onCheckedChange={handleShowExpiredDatesOnlyChange}
+              />
+              <Label htmlFor="expired-dates-filter" className="text-sm cursor-pointer">
+                Expired availability dates
+              </Label>
+            </div>
+            
+
             
             
             {/* CSV Upload Button */}
