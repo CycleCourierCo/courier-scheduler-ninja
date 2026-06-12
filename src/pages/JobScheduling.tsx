@@ -282,10 +282,12 @@ const JobScheduling = () => {
                 filterDate={filterDate}
                 showCollectedOnly={showCollectedOnly}
                 showCollectionToday={showCollectionToday}
+                showExpiredDatesOnly={showExpiredDatesOnly}
                 jobTypeFilter={jobTypeFilter}
                 onFilterDateChange={setFilterDate}
                 onShowCollectedOnlyChange={setShowCollectedOnly}
                 onShowCollectionTodayChange={setShowCollectionToday}
+                onShowExpiredDatesOnlyChange={setShowExpiredDatesOnly}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 isVerifyingShipday={isVerifyingShipday}
