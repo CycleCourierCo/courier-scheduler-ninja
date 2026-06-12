@@ -57,7 +57,7 @@ import {
   addIssueToExistingInspection,
   adminSetInspectionStatus,
 } from "@/services/inspectionService";
-import { InspectionIssue } from "@/types/inspection";
+import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
 
 interface IssueEntry {
