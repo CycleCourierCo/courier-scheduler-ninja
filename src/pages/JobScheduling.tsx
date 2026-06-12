@@ -156,6 +156,8 @@ const JobScheduling = () => {
       const pickupDates = order.pickup_date as string[] | null;
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
+      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      if (showInspectedOnly && !isInspected) return false;
 
       // "Collecting before delivery date" filter: deliveries only appear if the order
       // is already collected OR has a pickup date strictly before the target date.
