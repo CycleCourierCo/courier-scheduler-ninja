@@ -453,6 +453,9 @@ const BicycleInspections = () => {
       toast.error("Failed to update inspection status");
       console.error(error);
     },
+  });
+
+
 
   // Create inspection invoice mutation
   const createInvoiceMutation = useMutation({
