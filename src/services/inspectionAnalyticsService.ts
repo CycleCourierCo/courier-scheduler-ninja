@@ -24,6 +24,8 @@ export interface InspectionAnalyticsRecord {
     order_collected: boolean | null;
     scheduled_pickup_date: string | null;
     tracking_events: any;
+    bikes: any;
+    bike_value: number | null;
   } | null;
   inspection_issues: InspectionAnalyticsIssue[];
 }

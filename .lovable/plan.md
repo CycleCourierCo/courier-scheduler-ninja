@@ -1,27 +1,15 @@
 ## Goal
-Let admins manually change an inspection's `status` on the Bicycle Inspections page so they can move an inspection back (or forward) to any stage when needed.
+Add an "Avg Bike Value" stat to the Inspections tab on the Analytics page, showing the average declared bike value across all inspected bikes.
 
 ## Changes
 
-### 1. `src/services/inspectionService.ts`
-Add `adminSetInspectionStatus(inspectionId: string, status: InspectionStatus): Promise<void>` that updates `bicycle_inspections.status`. No side effects (no email sending, no `released_to_customer_at` mutation) so it's a pure manual override.
+### 1. `src/services/inspectionAnalyticsService.ts`
+- Extend the analytics select to also pull `orders.bikes` (JSONB) and `orders.bike_value` fallback.
+- Add `getAverageBikeValue(inspections)` returning `{ average, sampleSize }`. For each inspection, read declared values from `orders.bikes[].value` (parsed as number, ignoring blanks/zero); fall back to `orders.bike_value` if `bikes` is empty. Average across every individual bike (not per-order) so multi-bike orders contribute multiple values.
 
-### 2. `src/pages/BicycleInspections.tsx`
-On each inspection card, when `isAdmin` is true and an inspection record exists, show a small "Change status" dropdown (shadcn `Select`) next to the existing status badge. Options cover the full lifecycle:
-- `pending`
-- `awaiting_pricing`
-- `issues_found`
-- `awaiting_parts`
-- `awaiting_repair`
-- `inspected`
-- `repaired`
-
-(`in_repair` omitted — deprecated.)
-
-Wire it to a `useMutation` calling the new service. On success: toast confirmation and invalidate the inspections query so the card re-renders in the correct tab. Show a `confirm()` dialog before applying to avoid accidental clicks.
-
-### 3. RLS
-The existing `bicycle_inspections` admin update policy is already in place (admins can update inspections). No migration required.
+### 2. `src/pages/AnalyticsPage.tsx`
+- Compute `avgBikeValue` from the new helper.
+- Add a fourth `StatsCard` in the Inspections tab grid (change grid to `sm:grid-cols-4`) titled "Avg Bike Value", value `£{avgBikeValue.average.toFixed(2)}`, description `Across {sampleSize} bikes`, using the `PoundSterling` (or `Bike`) icon.
 
 ## Out of scope
-- No automatic recalculation of issue statuses, emails, or order flags when the admin overrides status — the override is intentionally a manual escape hatch.
+No changes to data entry, no schema changes, no edits to existing repair-cost metric.
