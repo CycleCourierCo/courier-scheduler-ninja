@@ -2827,7 +2827,7 @@ Route Link: ${routeLink}`;
 
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
-  const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday;
+  const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
 
   // Helper to get Shipday status for a job
   const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
