@@ -2992,6 +2992,20 @@ Route Link: ${routeLink}`;
                 Collecting before delivery date
               </Label>
             </div>
+
+            {/* Expired Availability Dates Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="expired-dates-filter"
+                checked={showExpiredDatesOnly}
+                onCheckedChange={handleShowExpiredDatesOnlyChange}
+              />
+              <Label htmlFor="expired-dates-filter" className="text-sm cursor-pointer">
+                Expired availability dates
+              </Label>
+            </div>
+            
+
             
             
             {/* CSV Upload Button */}
