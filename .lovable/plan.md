@@ -1,25 +1,27 @@
 ## Goal
-Add an **"Inspected only"** toggle filter on the Job Scheduling page so schedulers can surface bikes whose inspection is already complete.
-
-## Why
-When planning deliveries, the team needs to quickly isolate bikes that have already been inspected (or repaired) and are ready for the next scheduling step, separate from bikes still awaiting inspection work.
+Let admins manually change an inspection's `status` on the Bicycle Inspections page so they can move an inspection back (or forward) to any stage when needed.
 
 ## Changes
 
-### 1. JobScheduling.tsx — lift new filter state
-- Add `showInspectedOnly` boolean state.
-- Add `onShowInspectedOnlyChange` handler.
-- Pass the new state and handler down to `RouteBuilder`.
-- Update `filteredOrdersForMap` so that when the filter is on, only orders with a completed inspection (`inspection_status === 'inspected' || inspection_status === 'repaired'`) are kept.
+### 1. `src/services/inspectionService.ts`
+Add `adminSetInspectionStatus(inspectionId: string, status: InspectionStatus): Promise<void>` that updates `bicycle_inspections.status`. No side effects (no email sending, no `released_to_customer_at` mutation) so it's a pure manual override.
 
-### 2. RouteBuilder.tsx — wire filter through component
-- Add `showInspectedOnly` and `onShowInspectedOnlyChange` to `RouteBuilderProps`.
-- Add internal/external state handling (same pattern as `showCollectedOnly`, `showExpiredDatesOnly`, etc.).
-- Update `getJobsFromOrders` so that when `showInspectedOnly` is true, only jobs belonging to orders whose `inspection_status` is `'inspected'` or `'repaired'` are returned.
-- Add a Switch toggle in the filter bar, positioned after the existing toggles, labelled **"Inspected only"**.
+### 2. `src/pages/BicycleInspections.tsx`
+On each inspection card, when `isAdmin` is true and an inspection record exists, show a small "Change status" dropdown (shadcn `Select`) next to the existing status badge. Options cover the full lifecycle:
+- `pending`
+- `awaiting_pricing`
+- `issues_found`
+- `awaiting_parts`
+- `awaiting_repair`
+- `inspected`
+- `repaired`
 
-## No database changes required
-`needs_inspection` and `inspection_status` are already fetched on every scheduling-orders query and available on `OrderData`.
+(`in_repair` omitted — deprecated.)
 
-## Existing visual indicator preserved
-The `getInspectionStatusBadge` helper already renders "Inspection Done" or "Inspection Pending" badges on each job card, so users can still see the exact state of any bike that appears while the filter is off.
+Wire it to a `useMutation` calling the new service. On success: toast confirmation and invalidate the inspections query so the card re-renders in the correct tab. Show a `confirm()` dialog before applying to avoid accidental clicks.
+
+### 3. RLS
+The existing `bicycle_inspections` admin update policy is already in place (admins can update inspections). No migration required.
+
+## Out of scope
+- No automatic recalculation of issue statuses, emails, or order flags when the admin overrides status — the override is intentionally a manual escape hatch.
