@@ -222,7 +222,7 @@ const JobScheduling = () => {
       const showDelivery = jobTypeFilter !== 'collection';
       return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
     });
-  }, [orders, filterDate, showCollectedOnly, showCollectionToday, showExpiredDatesOnly, jobTypeFilter]);
+  }, [orders, filterDate, showCollectedOnly, showCollectionToday, showExpiredDatesOnly, showInspectedOnly, jobTypeFilter]);
 
   return (
     <Layout>
