@@ -3020,6 +3020,18 @@ Route Link: ${routeLink}`;
                 Expired availability dates
               </Label>
             </div>
+
+            {/* Inspected Only Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="inspected-filter"
+                checked={showInspectedOnly}
+                onCheckedChange={handleShowInspectedOnlyChange}
+              />
+              <Label htmlFor="inspected-filter" className="text-sm cursor-pointer">
+                Inspected only
+              </Label>
+            </div>
             
 
             
