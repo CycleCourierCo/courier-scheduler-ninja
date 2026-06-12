@@ -440,6 +440,20 @@ const BicycleInspections = () => {
     },
   });
 
+  // Admin manual status override
+  const adminSetStatusMutation = useMutation({
+    mutationFn: async ({ inspectionId, status }: { inspectionId: string; status: InspectionStatus }) => {
+      return adminSetInspectionStatus(inspectionId, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Inspection status updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update inspection status");
+      console.error(error);
+    },
+
   // Create inspection invoice mutation
   const createInvoiceMutation = useMutation({
     mutationFn: async (inspectionId: string) => {
