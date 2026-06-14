@@ -1,15 +1,17 @@
 ## Goal
-Add an "Avg Bike Value" stat to the Inspections tab on the Analytics page, showing the average declared bike value across all inspected bikes.
+Add a "Load into Shipday" button to the Job Scheduling filter section that pushes every currently filtered job into Shipday so the route planner can build routes from them.
 
 ## Changes
 
-### 1. `src/services/inspectionAnalyticsService.ts`
-- Extend the analytics select to also pull `orders.bikes` (JSONB) and `orders.bike_value` fallback.
-- Add `getAverageBikeValue(inspections)` returning `{ average, sampleSize }`. For each inspection, read declared values from `orders.bikes[].value` (parsed as number, ignoring blanks/zero); fall back to `orders.bike_value` if `bikes` is empty. Average across every individual bike (not per-order) so multi-bike orders contribute multiple values.
-
-### 2. `src/pages/AnalyticsPage.tsx`
-- Compute `avgBikeValue` from the new helper.
-- Add a fourth `StatsCard` in the Inspections tab grid (change grid to `sm:grid-cols-4`) titled "Avg Bike Value", value `£{avgBikeValue.average.toFixed(2)}`, description `Across {sampleSize} bikes`, using the `PoundSterling` (or `Bike`) icon.
+### `src/components/scheduling/RouteBuilder.tsx`
+- Add `isLoadingShipday` state and a `handleLoadFilteredIntoShipday` async handler.
+- Handler iterates `availableJobs` (already date/status/job-type filtered) and for each job calls `createShipdayOrder(job.orderId, job.type)` — sending pickup or delivery individually so we don't push a delivery for a job the planner only wants collected, and skipping jobs that already exist in Shipday (via `getShipdayStatus(job.order, job.type) === 'exists'`).
+- Track successes / skipped / failures, show progress toast (`toast.info` at start, `toast.success`/`toast.warning` at end with counts).
+- On completion call `onReVerifyShipday?.()` so the ticks update.
+- Confirm via `window.confirm` before running when more than ~20 jobs to avoid accidental mass push.
+- Render the button in the Filter Section block (around line 3035, before the CSV buttons) with the `Send` icon, label "Load filtered into Shipday", `disabled={isLoadingShipday || availableJobs.length === 0}`, and a spinner while loading.
 
 ## Out of scope
-No changes to data entry, no schema changes, no edits to existing repair-cost metric.
+- No edge function changes — reuses existing `create-shipday-order` via `createShipdayOrder`.
+- No changes to filter logic, clustering, or Shipday verification edge function.
+- No changes to JobScheduling.tsx top filter row.
