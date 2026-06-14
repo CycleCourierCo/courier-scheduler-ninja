@@ -24,6 +24,8 @@ export interface InspectionAnalyticsRecord {
     order_collected: boolean | null;
     scheduled_pickup_date: string | null;
     tracking_events: any;
+    bikes: any;
+    bike_value: number | null;
   } | null;
   inspection_issues: InspectionAnalyticsIssue[];
 }
@@ -39,7 +41,7 @@ export const fetchInspectionsForAnalytics = async (): Promise<InspectionAnalytic
       .from("bicycle_inspections")
       .select(
         "id, created_at, status, inspected_at, order_id, " +
-          "orders:order_id(id, order_collected, scheduled_pickup_date, tracking_events), " +
+          "orders:order_id(id, order_collected, scheduled_pickup_date, tracking_events, bikes, bike_value), " +
           "inspection_issues(id, status, estimated_cost, customer_response, customer_responded_at, priced_at, parts_ordered_at, parts_arrived_at, resolved_at, created_at)"
       )
       .order("created_at", { ascending: false })
@@ -86,6 +88,32 @@ export const getInspectionsWithIssuesRate = (inspections: InspectionAnalyticsRec
   const withoutIssues = total - withIssues;
   const percentage = total > 0 ? (withIssues / total) * 100 : 0;
   return { withIssues, withoutIssues, total, percentage };
+};
+
+const parseValue = (v: unknown): number | null => {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.]/g, ''));
+  return isFinite(n) && n > 0 ? n : null;
+};
+
+export const getAverageBikeValue = (inspections: InspectionAnalyticsRecord[]) => {
+  const values: number[] = [];
+  inspections.forEach(i => {
+    const order = i.orders;
+    if (!order) return;
+    const bikes = Array.isArray(order.bikes) ? order.bikes : [];
+    const perBike = bikes
+      .map((b: any) => parseValue(b?.value))
+      .filter((n): n is number => n !== null);
+    if (perBike.length > 0) {
+      values.push(...perBike);
+    } else {
+      const fallback = parseValue(order.bike_value);
+      if (fallback !== null) values.push(fallback);
+    }
+  });
+  const average = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  return { average, sampleSize: values.length };
 };
 
 const APPROVED_STATUSES = new Set(['approved', 'resolved', 'repaired']);

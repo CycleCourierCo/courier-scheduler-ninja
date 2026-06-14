@@ -55,8 +55,9 @@ import {
   updateInspectionIssue,
   deleteInspectionIssue,
   addIssueToExistingInspection,
+  adminSetInspectionStatus,
 } from "@/services/inspectionService";
-import { InspectionIssue } from "@/types/inspection";
+import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
 
 interface IssueEntry {
@@ -439,6 +440,23 @@ const BicycleInspections = () => {
     },
   });
 
+  // Admin manual status override
+  const adminSetStatusMutation = useMutation({
+    mutationFn: async ({ inspectionId, status }: { inspectionId: string; status: InspectionStatus }) => {
+      return adminSetInspectionStatus(inspectionId, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Inspection status updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update inspection status");
+      console.error(error);
+    },
+  });
+
+
+
   // Create inspection invoice mutation
   const createInvoiceMutation = useMutation({
     mutationFn: async (inspectionId: string) => {
@@ -729,9 +747,35 @@ const BicycleInspections = () => {
                 )}
               </div>
             </div>
-            <Badge variant={badgeConfig.variant}>
-              {badgeConfig.label}
-            </Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge variant={badgeConfig.variant}>
+                {badgeConfig.label}
+              </Badge>
+              {isAdmin && inspection?.id && (
+                <Select
+                  value={inspection.status}
+                  onValueChange={(value) => {
+                    if (value === inspection.status) return;
+                    if (window.confirm(`Change inspection status to "${value}"? This is a manual override and will not send emails or update related flags.`)) {
+                      adminSetStatusMutation.mutate({ inspectionId: inspection.id, status: value as InspectionStatus });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue placeholder="Change status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="awaiting_pricing">Awaiting Pricing</SelectItem>
+                    <SelectItem value="issues_found">Issues Found</SelectItem>
+                    <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
+                    <SelectItem value="awaiting_repair">Awaiting Repair</SelectItem>
+                    <SelectItem value="inspected">Inspected</SelectItem>
+                    <SelectItem value="repaired">Repaired</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

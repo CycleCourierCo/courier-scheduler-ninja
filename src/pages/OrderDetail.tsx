@@ -18,6 +18,7 @@ import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
 import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
 import { sendOrderCancellationEmails } from "@/services/emailService";
+import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -732,11 +733,15 @@ const OrderDetail = () => {
         .eq('id', id);
 
       if (error) throw error;
-      
-      // Resend availability email
-      await resendReceiverAvailabilityEmail(id);
-      
-      toast.success("Receiver availability reset. Email sent.");
+
+      // Defer the email if the bike still needs inspection.
+      const blocked = await isReceiverAvailabilityBlockedByInspection(id);
+      if (blocked) {
+        toast.success("Receiver availability reset. Email deferred until inspection is complete.");
+      } else {
+        await resendReceiverAvailabilityEmail(id);
+        toast.success("Receiver availability reset. Email sent.");
+      }
       // Refresh order
       const updatedOrder = await getOrderById(id);
       if (updatedOrder) setOrder(updatedOrder);
@@ -1098,6 +1103,13 @@ const OrderDetail = () => {
     
     try {
       setIsResendingEmail(prev => ({ ...prev, receiver: true }));
+
+      const blocked = await isReceiverAvailabilityBlockedByInspection(id);
+      if (blocked) {
+        toast.error("Cannot send availability email: bike is awaiting inspection or repair. It will be sent automatically once inspection is complete.");
+        return;
+      }
+
       const success = await resendReceiverAvailabilityEmail(id);
       
       if (success) {
