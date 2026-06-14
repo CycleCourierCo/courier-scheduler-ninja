@@ -176,8 +176,10 @@ const JobScheduling = () => {
           pickupDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') === targetDateStr
           );
-        const pickupExpiredOk = !showExpiredDatesOnly || allDatesExpired(pickupDates);
-        const hasValidPickup = hasUnscheduledPickup && pickupPassesDateFilter && pickupExpiredOk;
+        const pickupVisibleByDate = showExpiredDatesOnly
+          ? (pickupPassesDateFilter || allDatesExpired(pickupDates))
+          : pickupPassesDateFilter;
+        const hasValidPickup = hasUnscheduledPickup && pickupVisibleByDate;
 
         const hasUnscheduledDelivery = !order.scheduled_delivery_date;
         const deliveryPassesDateFilter = !filterDate ||
@@ -186,8 +188,11 @@ const JobScheduling = () => {
           deliveryDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') === targetDateStr
           );
-        const deliveryExpiredOk = !showExpiredDatesOnly || allDatesExpired(deliveryDates);
-        const hasValidDelivery = hasUnscheduledDelivery && deliveryPassesDateFilter && collectedBeforeTarget && deliveryExpiredOk;
+        const deliveryVisibleByDate = showExpiredDatesOnly
+          ? (deliveryPassesDateFilter || allDatesExpired(deliveryDates))
+          : deliveryPassesDateFilter;
+        const hasValidDelivery = hasUnscheduledDelivery && deliveryVisibleByDate && collectedBeforeTarget;
+
 
         const showPickup = jobTypeFilter !== 'delivery';
         const showDelivery = jobTypeFilter !== 'collection';
