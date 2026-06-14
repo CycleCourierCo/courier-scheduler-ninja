@@ -1,17 +1,28 @@
-## Goal
-Add a "Load into Shipday" button to the Job Scheduling filter section that pushes every currently filtered job into Shipday so the route planner can build routes from them.
+## Problem
 
-## Changes
+On Job Scheduling, the "Expired availability dates" toggle is AND-combined with the date picker. Selecting a specific date and turning expired on requires a job to both match the chosen date AND have every availability date in the past — almost no job satisfies both, so the 4 expired jobs that show without a date filter disappear.
 
-### `src/components/scheduling/RouteBuilder.tsx`
-- Add `isLoadingShipday` state and a `handleLoadFilteredIntoShipday` async handler.
-- Handler iterates `availableJobs` (already date/status/job-type filtered) and for each job calls `createShipdayOrder(job.orderId, job.type)` — sending pickup or delivery individually so we don't push a delivery for a job the planner only wants collected, and skipping jobs that already exist in Shipday (via `getShipdayStatus(job.order, job.type) === 'exists'`).
-- Track successes / skipped / failures, show progress toast (`toast.info` at start, `toast.success`/`toast.warning` at end with counts).
-- On completion call `onReVerifyShipday?.()` so the ticks update.
-- Confirm via `window.confirm` before running when more than ~20 jobs to avoid accidental mass push.
-- Render the button in the Filter Section block (around line 3035, before the CSV buttons) with the `Send` icon, label "Load filtered into Shipday", `disabled={isLoadingShipday || availableJobs.length === 0}`, and a spinner while loading.
+## Fix
+
+Treat "Expired availability dates" as an additive surface: a job qualifies if it passes the date filter OR all of its availability dates are expired. Apply the same OR logic in both places that filter scheduling jobs.
+
+### `src/components/scheduling/RouteBuilder.tsx` (job list, ~lines 963–1015)
+
+- Pickup branch: replace the current `pickupAvailable && pickupExpiredOk` gate with:
+  - `passesDate = !applyFilters || !filterDate || pickupDates matches filterDate`
+  - `isExpired = hasAllDatesExpired(pickupDates)`
+  - Include the pickup when `(!showExpiredDatesOnly && passesDate) || (showExpiredDatesOnly && (passesDate || isExpired))`.
+- Delivery branch: same restructure for `deliveryDates`, kept behind the existing `showCollectedOnly` / `passesCollectingBefore` checks so those still gate deliveries.
+
+### `src/pages/JobScheduling.tsx` (`filteredOrdersForMap`, ~lines 145–205)
+
+Apply the same OR rule so the cluster map matches the job list:
+- `hasValidPickup = hasUnscheduledPickup && ((!showExpiredDatesOnly && pickupPassesDateFilter) || (showExpiredDatesOnly && (pickupPassesDateFilter || allDatesExpired(pickupDates))))`
+- `hasValidDelivery` mirrors that, keeping the existing collected / collecting-before checks.
+- Apply inside both the `showCollectionToday` branch and the default branch.
 
 ## Out of scope
-- No edge function changes — reuses existing `create-shipday-order` via `createShipdayOrder`.
-- No changes to filter logic, clustering, or Shipday verification edge function.
-- No changes to JobScheduling.tsx top filter row.
+
+- No change to other filters (collected only, inspected only, collection-today, job type).
+- No change to `hasAllDatesExpired` definition or to when the expired toggle is shown.
+- No data, edge function, or styling changes.
