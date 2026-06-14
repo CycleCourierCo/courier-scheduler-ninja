@@ -995,19 +995,23 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       if (allowDelivery && !order.scheduled_delivery_date) {
         // Check date filter for deliveries
         const deliveryDates = order.delivery_date as string[] | null;
-        const deliveryAvailable = !applyFilters || !filterDate || 
-          !deliveryDates || 
+        const deliveryPassesDate = !applyFilters || !filterDate ||
+          !deliveryDates ||
           deliveryDates.length === 0 ||
-          deliveryDates.some(date => 
+          deliveryDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
           );
-        
+
         // If "collected only" is on, only show collected deliveries.
         // If "collecting before delivery date" is on, only show deliveries whose
         // order is already collected or has a pickup strictly before the target date.
         const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
-        const deliveryExpiredOk = !applyFilters || !showExpiredDatesOnly || hasAllDatesExpired(deliveryDates);
-        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable && passesCollectingBefore && deliveryExpiredOk) {
+        const deliveryIsExpired = hasAllDatesExpired(deliveryDates);
+        const deliveryVisible = !applyFilters || !showExpiredDatesOnly
+          ? deliveryPassesDate
+          : (deliveryPassesDate || deliveryIsExpired);
+        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryVisible && passesCollectingBefore) {
+
 
           jobs.push({
             orderId: order.id,
