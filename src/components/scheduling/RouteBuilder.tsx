@@ -689,6 +689,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
+
+  // Keep internal orderList in sync with parent-provided orders (useQuery refreshes, refetches, etc.)
+  React.useEffect(() => {
+    setOrderList(orders);
+  }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
@@ -958,25 +963,31 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const allowPickup = !applyFilters || jobTypeFilter !== 'delivery';
       const allowDelivery = !applyFilters || jobTypeFilter !== 'collection';
 
+      // Helper: does this set of dates contain the selected filterDate (or is there no filter to apply)?
+      const matchesFilterDate = (dates: string[] | null | undefined): boolean => {
+        if (!applyFilters) return true;
+        if (!filterDate) return true;
+        if (!dates || dates.length === 0) return true; // jobs with no availability dates always pass date filter
+        const target = format(filterDate, 'yyyy-MM-dd');
+        return dates.some(d => format(new Date(d), 'yyyy-MM-dd') === target);
+      };
+
       // Add pickup job if not scheduled. Pickups always follow the normal date filter,
       // even when "Collecting before delivery date" is on.
       if (allowPickup && !order.scheduled_pickup_date) {
-
-        // Check date filter for pickups
         const pickupDates = order.pickup_date as string[] | null;
-        const pickupPassesDate = !applyFilters || !filterDate ||
-          !pickupDates ||
-          pickupDates.length === 0 ||
-          pickupDates.some(date =>
-            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
-          );
+        const pickupMatchesDate = matchesFilterDate(pickupDates);
+        const pickupIsExpired = hasAllDatesExpired(pickupDates);
 
-          // Expired toggle is additive: include jobs that pass the date filter OR are fully expired
-          const pickupIsExpired = hasAllDatesExpired(pickupDates);
-          const pickupVisible = !applyFilters || !showExpiredDatesOnly
-            ? pickupPassesDate
-            : (pickupPassesDate || pickupIsExpired);
-          if (pickupVisible) {
+        // Expired toggle is ADDITIVE: when on, show jobs that match the date filter OR are fully expired.
+        // When off, show only jobs that match the date filter.
+        const pickupVisible = !applyFilters
+          ? true
+          : showExpiredDatesOnly
+            ? (pickupMatchesDate || pickupIsExpired)
+            : pickupMatchesDate;
+
+        if (pickupVisible) {
           jobs.push({
             orderId: order.id,
             type: 'pickup',
@@ -990,29 +1001,25 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         }
       }
 
-      
       // Add delivery job if not scheduled
       if (allowDelivery && !order.scheduled_delivery_date) {
-        // Check date filter for deliveries
         const deliveryDates = order.delivery_date as string[] | null;
-        const deliveryPassesDate = !applyFilters || !filterDate ||
-          !deliveryDates ||
-          deliveryDates.length === 0 ||
-          deliveryDates.some(date =>
-            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
-          );
+        const deliveryMatchesDate = matchesFilterDate(deliveryDates);
+        const deliveryIsExpired = hasAllDatesExpired(deliveryDates);
 
         // If "collected only" is on, only show collected deliveries.
         // If "collecting before delivery date" is on, only show deliveries whose
         // order is already collected or has a pickup strictly before the target date.
         const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
-        const deliveryIsExpired = hasAllDatesExpired(deliveryDates);
-        const deliveryVisible = !applyFilters || !showExpiredDatesOnly
-          ? deliveryPassesDate
-          : (deliveryPassesDate || deliveryIsExpired);
-        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryVisible && passesCollectingBefore) {
+        const passesCollectedOnly = !applyFilters || !showCollectedOnly || isCollected;
 
+        const deliveryVisible = !applyFilters
+          ? true
+          : showExpiredDatesOnly
+            ? (deliveryMatchesDate || deliveryIsExpired)
+            : deliveryMatchesDate;
 
+        if (passesCollectedOnly && deliveryVisible && passesCollectingBefore) {
           jobs.push({
             orderId: order.id,
             type: 'delivery',
