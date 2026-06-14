@@ -3077,6 +3077,17 @@ Route Link: ${routeLink}`;
 
             
             
+            {/* Load filtered jobs into Shipday */}
+            <Button
+              variant="outline"
+              onClick={handleLoadFilteredIntoShipday}
+              disabled={isLoadingShipday || availableJobs.length === 0}
+              className="flex items-center gap-2"
+            >
+              {isLoadingShipday ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Load filtered into Shipday
+            </Button>
+
             {/* CSV Upload Button */}
             <CSVUploadButton 
               onFileSelect={handleCsvFileSelect}
