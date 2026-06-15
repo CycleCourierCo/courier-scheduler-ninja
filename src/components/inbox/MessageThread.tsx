@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import type { CsMessage } from "@/types/customerService";
 import { format } from "date-fns";
 import { AlertCircle } from "lucide-react";
+import DOMPurify from "dompurify";
 
 interface Props {
   messages: CsMessage[];
