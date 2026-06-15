@@ -265,8 +265,6 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
   }
 };
 
-export const getSenderAvailability = async (orderId: string) => {
-  try {
 const extractDates = (raw: any): Date[] => {
   const dates: Date[] = [];
   if (Array.isArray(raw)) {
@@ -316,4 +314,5 @@ export const getReceiverAvailability = async (orderId: string) => {
     return null;
   }
 };
+
 
