@@ -386,6 +386,11 @@ const JobItem: React.FC<JobItemProps> = ({
                       const collectionBadge = groupedJob.type === 'delivery' 
                         ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at, groupedJob.orderId, job.order, allJobs)
                         : null;
+                      
+                      const isCollectingToday = groupedJob.type === 'delivery'
+                        && groupedJob.orderData?.order_collected !== true
+                        && Array.isArray(groupedJob.orderData?.pickup_date)
+                        && groupedJob.orderData.pickup_date.includes(format(new Date(), 'yyyy-MM-dd'));
                     
                       return (
                         <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="space-y-1 pl-1.5 border-l border-muted">
