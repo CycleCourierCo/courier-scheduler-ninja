@@ -281,10 +281,15 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
               description,
               podUrls: update.podUrls,
               signatureUrl: update.signatureUrl,
+              // Server-supplied flags: indicates the event has POD / signature
+              // even if the URLs themselves are withheld pending verification.
+              hasPod: (update as any).has_pod ?? (Array.isArray(update.podUrls) && update.podUrls.length > 0),
+              hasSignature: (update as any).has_signature ?? (typeof update.signatureUrl === 'string' && update.signatureUrl.length > 0),
               isPickup,
               isDelivery
             });
           }
+
         } catch (error) {
           console.error("Error processing Shipday update:", error, update);
         }
