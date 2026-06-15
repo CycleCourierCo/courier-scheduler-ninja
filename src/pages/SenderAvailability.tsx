@@ -127,6 +127,9 @@ export default function SenderAvailability() {
         setDates={setDates}
         notes={notes}
         setNotes={setNotes}
+        postcode={postcode}
+        setPostcode={setPostcode}
+        postcodeLabel="Pickup postcode"
         placeholder="Add any special instructions for pickup (optional)"
         minDate={minDate}
         isSubmitting={isSubmitting}
@@ -135,5 +138,6 @@ export default function SenderAvailability() {
         calendarEndDate={calendarEndDate}
       />
     </Layout>
+
   );
 }
