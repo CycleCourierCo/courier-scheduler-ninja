@@ -101,6 +101,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'set') {
+      const denied = assertAssignable([role]);
+      if (denied) {
+        return new Response(
+          JSON.stringify({ error: denied }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       // Remove existing roles for this user
       const { error: deleteError } = await supabaseAdmin
         .from('user_roles')
