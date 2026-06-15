@@ -50,6 +50,8 @@ export default function SenderAvailability() {
     setDates,
     notes,
     setNotes,
+    postcode,
+    setPostcode,
     isLoading,
     isSubmitting,
     order,
@@ -72,6 +74,7 @@ export default function SenderAvailability() {
               Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
     }
   });
+
 
   if (paramError) {
     return (
