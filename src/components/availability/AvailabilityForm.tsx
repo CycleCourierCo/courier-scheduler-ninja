@@ -22,6 +22,9 @@ interface AvailabilityFormProps {
   setDates: (dates: Date[]) => void;
   notes: string;
   setNotes: (notes: string) => void;
+  postcode: string;
+  setPostcode: (pc: string) => void;
+  postcodeLabel?: string;
   placeholder: string;
   minDate: Date;
   isSubmitting: boolean;
@@ -30,6 +33,7 @@ interface AvailabilityFormProps {
   calendarEndDate?: Date;
   bufferNotice?: string;
 }
+
 
 export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   title,
