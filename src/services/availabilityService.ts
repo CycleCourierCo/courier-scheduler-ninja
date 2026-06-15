@@ -154,39 +154,26 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
-    // Determine if this order needs inspection - in that case, receiver
-    // availability is requested LATER (after repairs are completed/declined),
-    // not immediately when sender confirms.
-    const { data: orderMeta } = await supabase
-      .from("orders")
-      .select("needs_inspection")
-      .eq("id", orderId)
-      .single();
-    const needsInspection = (orderMeta as any)?.needs_inspection === true;
+    // Submit availability via secure RPC. The RPC reads needs_inspection server-side
+    // and atomically writes dates, notes, confirmed_at, and the appropriate next status.
+    const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "sender",
+      p_dates: dateStrings,
+      p_notes: notes.trim(),
+    });
 
-    // Update the order with all sender availability data in one transaction
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        pickup_date: dateStrings,
-        sender_notes: notes.trim(),
-        sender_confirmed_at: new Date().toISOString(),
-        status: needsInspection ? "sender_availability_confirmed" : "receiver_availability_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
     if (error) {
       console.error("Error updating sender availability:", error);
       return null;
     }
-    
+
+    const order = mapDbOrderToOrderType(rpcData);
+    const needsInspection = order.needsInspection === true;
+
     console.log("Sender availability confirmed.", needsInspection ? "Inspection required - deferring receiver notification." : "Proceeding to notify receiver.");
-    
-    // Map the database response to our Order type
-    const order = mapDbOrderToOrderType(data);
+
+
     
     // Send confirmation email to sender with their selected dates
     try {
