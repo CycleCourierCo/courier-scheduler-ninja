@@ -27,17 +27,20 @@ serve(async (req) => {
     console.log("Received headers:", Object.fromEntries(req.headers.entries()));
     
     const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
-    const enforceTokenValidation = false;
-    
-    if (enforceTokenValidation && expectedToken) {
-      const webhookToken = req.headers.get("x-webhook-token");
-      if (!webhookToken || webhookToken !== expectedToken) {
-        console.error("Invalid webhook token");
-        return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 401,
-        });
-      }
+    if (!expectedToken) {
+      console.error("SHIPDAY_WEBHOOK_TOKEN secret is not configured");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+    const webhookToken = req.headers.get("x-webhook-token");
+    if (!webhookToken || webhookToken !== expectedToken) {
+      console.error("Invalid webhook token");
+      return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     }
 
     const payload = await req.json();
