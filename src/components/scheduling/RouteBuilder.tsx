@@ -2860,6 +2860,20 @@ Route Link: ${routeLink}`;
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
   const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
 
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[RouteBuilder] availableJobs', {
+      filterDate: filterDate ? format(filterDate, 'yyyy-MM-dd') : null,
+      showExpiredDatesOnly,
+      showInspectedOnly,
+      showCollectedOnly,
+      showCollectionToday,
+      total: availableJobs.length,
+      unfiltered: totalUnfilteredJobs,
+    });
+  }
+
+
   // Helper to get Shipday status for a job
   const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
     const shipdayId = jobType === 'pickup' ? order.shipday_pickup_id : order.shipday_delivery_id;
