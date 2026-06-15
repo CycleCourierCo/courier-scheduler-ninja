@@ -36,26 +36,21 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
       return false;
     }
     
-    // Update the order with the new pickup_date and status
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        pickup_date: dateStrings,
-        status: "sender_availability_confirmed",
-        sender_confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
+    // Submit availability via secure RPC (handles dates, notes, confirmed_at, status atomically)
+    const { error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "sender",
+      p_dates: dateStrings,
+      p_notes: null,
+    });
+
     if (error) {
       console.error("Error confirming sender availability:", error);
       return false;
     }
-    
-    console.log("Sender availability confirmed. Proceeding to update status and notify receiver.");
-    
+
+    console.log("Sender availability confirmed.");
+
     // Send confirmation email to sender with their selected dates
     try {
       const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
@@ -64,44 +59,16 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
       console.error("Error sending sender dates confirmed email:", confirmError);
     }
 
-    // Check if inspection is required - skip receiver flow until inspection completes
-    const { data: orderMeta } = await supabase
-      .from("orders")
-      .select("needs_inspection")
-      .eq("id", orderId)
-      .single();
-    const needsInspection = (orderMeta as any)?.needs_inspection === true;
+    // The RPC sets status to either sender_availability_confirmed (needs_inspection)
+    // or receiver_availability_pending. In the non-inspection case, trigger the receiver email.
+    const publicOrder = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+    const needsInspection = (publicOrder.data as any)?.needs_inspection === true;
 
     if (needsInspection) {
-      // Leave status as sender_availability_confirmed; receiver email will be
-      // triggered after the inspection is repaired/declined.
-      const { error: confirmStatusError } = await supabase
-        .from("orders")
-        .update({
-          status: "sender_availability_confirmed",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", orderId);
-      if (confirmStatusError) {
-        console.error("Error setting sender_availability_confirmed status:", confirmStatusError);
-      }
       console.log("Order needs inspection - skipping receiver availability email.");
       return true;
     }
 
-    // Automatically update status to receiver_availability_pending
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "receiver_availability_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId);
-    
-    if (updateError) {
-      console.error("Error updating to receiver_availability_pending:", updateError);
-      // Continue anyway to try sending the email
-    }
     
     // Send receiver availability email
     try {
