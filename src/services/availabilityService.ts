@@ -36,26 +36,21 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
       return false;
     }
     
-    // Update the order with the new pickup_date and status
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        pickup_date: dateStrings,
-        status: "sender_availability_confirmed",
-        sender_confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
+    // Submit availability via secure RPC (handles dates, notes, confirmed_at, status atomically)
+    const { error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "sender",
+      p_dates: dateStrings,
+      p_notes: null,
+    });
+
     if (error) {
       console.error("Error confirming sender availability:", error);
       return false;
     }
-    
-    console.log("Sender availability confirmed. Proceeding to update status and notify receiver.");
-    
+
+    console.log("Sender availability confirmed.");
+
     // Send confirmation email to sender with their selected dates
     try {
       const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
@@ -64,44 +59,16 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
       console.error("Error sending sender dates confirmed email:", confirmError);
     }
 
-    // Check if inspection is required - skip receiver flow until inspection completes
-    const { data: orderMeta } = await supabase
-      .from("orders")
-      .select("needs_inspection")
-      .eq("id", orderId)
-      .single();
-    const needsInspection = (orderMeta as any)?.needs_inspection === true;
+    // The RPC sets status to either sender_availability_confirmed (needs_inspection)
+    // or receiver_availability_pending. In the non-inspection case, trigger the receiver email.
+    const publicOrder = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+    const needsInspection = (publicOrder.data as any)?.needs_inspection === true;
 
     if (needsInspection) {
-      // Leave status as sender_availability_confirmed; receiver email will be
-      // triggered after the inspection is repaired/declined.
-      const { error: confirmStatusError } = await supabase
-        .from("orders")
-        .update({
-          status: "sender_availability_confirmed",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", orderId);
-      if (confirmStatusError) {
-        console.error("Error setting sender_availability_confirmed status:", confirmStatusError);
-      }
       console.log("Order needs inspection - skipping receiver availability email.");
       return true;
     }
 
-    // Automatically update status to receiver_availability_pending
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "receiver_availability_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId);
-    
-    if (updateError) {
-      console.error("Error updating to receiver_availability_pending:", updateError);
-      // Continue anyway to try sending the email
-    }
     
     // Send receiver availability email
     try {
@@ -132,25 +99,20 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
       return false;
     }
     
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        delivery_date: dateStrings,
-        status: "receiver_availability_confirmed",
-        receiver_confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
+    const { error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "receiver",
+      p_dates: dateStrings,
+      p_notes: null,
+    });
+
     if (error) {
       console.error("Error confirming receiver availability:", error);
       return false;
     }
-    
+
     console.log("Receiver availability confirmed successfully");
-    
+
     // Send confirmation email to receiver with their selected dates
     try {
       const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
@@ -158,19 +120,8 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
     } catch (confirmError) {
       console.error("Error sending receiver dates confirmed email:", confirmError);
     }
-    
-    // Automatically update status to scheduled_dates_pending
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "scheduled_dates_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId);
-    
-    if (updateError) {
-      console.error("Error updating to scheduled_dates_pending:", updateError);
-    }
+
+
     
     return true;
   } catch (error) {
@@ -203,39 +154,26 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
-    // Determine if this order needs inspection - in that case, receiver
-    // availability is requested LATER (after repairs are completed/declined),
-    // not immediately when sender confirms.
-    const { data: orderMeta } = await supabase
-      .from("orders")
-      .select("needs_inspection")
-      .eq("id", orderId)
-      .single();
-    const needsInspection = (orderMeta as any)?.needs_inspection === true;
+    // Submit availability via secure RPC. The RPC reads needs_inspection server-side
+    // and atomically writes dates, notes, confirmed_at, and the appropriate next status.
+    const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "sender",
+      p_dates: dateStrings,
+      p_notes: notes.trim(),
+    });
 
-    // Update the order with all sender availability data in one transaction
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        pickup_date: dateStrings,
-        sender_notes: notes.trim(),
-        sender_confirmed_at: new Date().toISOString(),
-        status: needsInspection ? "sender_availability_confirmed" : "receiver_availability_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
     if (error) {
       console.error("Error updating sender availability:", error);
       return null;
     }
-    
+
+    const order = mapDbOrderToOrderType(rpcData);
+    const needsInspection = order.needsInspection === true;
+
     console.log("Sender availability confirmed.", needsInspection ? "Inspection required - deferring receiver notification." : "Proceeding to notify receiver.");
-    
-    // Map the database response to our Order type
-    const order = mapDbOrderToOrderType(data);
+
+
     
     // Send confirmation email to sender with their selected dates
     try {
@@ -295,28 +233,22 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
-    // Update the order with all receiver availability data in one transaction
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        delivery_date: dateStrings,
-        receiver_notes: notes.trim(),
-        receiver_confirmed_at: new Date().toISOString(),
-        status: "scheduled_dates_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
+    // Submit availability via secure RPC (atomic dates + notes + status update)
+    const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "receiver",
+      p_dates: dateStrings,
+      p_notes: notes.trim(),
+    });
+
     if (error) {
       console.error("Error updating receiver availability:", error);
       console.error("Error details:", JSON.stringify(error, null, 2));
       return null;
     }
-    
+
     console.log("Receiver availability confirmed successfully");
-    
+
     // Send confirmation email to receiver with their selected dates
     try {
       const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
@@ -324,48 +256,38 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     } catch (confirmError) {
       console.error("Error sending receiver dates confirmed email:", confirmError);
     }
-    
-    // Map the database response to our Order type
-    const order = mapDbOrderToOrderType(data);
-    
-    return order;
+
+    return mapDbOrderToOrderType(rpcData);
+
   } catch (error) {
     console.error("Unexpected error in updateReceiverAvailability:", error);
     return null;
   }
 };
 
+const extractDates = (raw: any): Date[] => {
+  const dates: Date[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === "string") {
+        try { dates.push(new Date(item)); } catch (e) { /* ignore */ }
+      }
+    }
+  }
+  return dates;
+};
+
 export const getSenderAvailability = async (orderId: string) => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("sender_notes, pickup_date")
-      .eq("id", orderId)
-      .single();
-
-    if (error) {
+    const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+    if (error || !data) {
       console.error("Error fetching sender availability:", error);
       toast.error("Failed to fetch sender availability.");
       return null;
     }
-
-    // Safely convert the JSON array to Date objects with type checking
-    const dates: Date[] = [];
-    if (Array.isArray(data.pickup_date)) {
-      for (const dateItem of data.pickup_date) {
-        if (typeof dateItem === 'string') {
-          try {
-            dates.push(new Date(dateItem));
-          } catch (e) {
-            console.error("Invalid date format in pickup_date:", dateItem);
-          }
-        }
-      }
-    }
-
     return {
-      notes: data.sender_notes || "",
-      dates: dates
+      notes: (data as any).sender_notes || "",
+      dates: extractDates((data as any).pickup_date),
     };
   } catch (error) {
     console.error("Unexpected error fetching sender availability:", error);
@@ -376,35 +298,15 @@ export const getSenderAvailability = async (orderId: string) => {
 
 export const getReceiverAvailability = async (orderId: string) => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("receiver_notes, delivery_date")
-      .eq("id", orderId)
-      .single();
-
-    if (error) {
+    const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+    if (error || !data) {
       console.error("Error fetching receiver availability:", error);
       toast.error("Failed to fetch receiver availability.");
       return null;
     }
-
-    // Safely convert the JSON array to Date objects with type checking
-    const dates: Date[] = [];
-    if (Array.isArray(data.delivery_date)) {
-      for (const dateItem of data.delivery_date) {
-        if (typeof dateItem === 'string') {
-          try {
-            dates.push(new Date(dateItem));
-          } catch (e) {
-            console.error("Invalid date format in delivery_date:", dateItem);
-          }
-        }
-      }
-    }
-
     return {
-      notes: data.receiver_notes || "",
-      dates: dates
+      notes: (data as any).receiver_notes || "",
+      dates: extractDates((data as any).delivery_date),
     };
   } catch (error) {
     console.error("Unexpected error fetching receiver availability:", error);
@@ -412,3 +314,5 @@ export const getReceiverAvailability = async (orderId: string) => {
     return null;
   }
 };
+
+

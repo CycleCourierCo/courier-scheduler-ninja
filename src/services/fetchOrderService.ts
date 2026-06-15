@@ -61,54 +61,24 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       return null;
     }
 
-    let order: Order | null = null;
+    // Use the SECURITY DEFINER RPC which returns a sanitised order (no PII).
+    const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: id });
 
-    // First try to fetch by UUID (id column)
-    if (id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, tracking_events")
-        .eq("id", id)
-        .single();
-
-      if (!error && data) {
-        order = mapDbOrderToOrderType(data);
-      }
-    }
-
-    // Try to fetch by tracking_number
-    if (!order) {
-      const { data: orderByTracking, error: trackingError } = await supabase
-        .from("orders")
-        .select("*, tracking_events")
-        .eq("tracking_number", id)
-        .single();
-
-      if (!trackingError && orderByTracking) {
-        order = mapDbOrderToOrderType(orderByTracking);
-      }
-    }
-
-    // If still nothing, try customer_order_number
-    if (!order) {
-      const { data: orderByCustomId, error: customIdError } = await supabase
-        .from("orders")
-        .select("*, tracking_events")
-        .eq("customer_order_number", id)
-        .single();
-
-      if (!customIdError && orderByCustomId) {
-        order = mapDbOrderToOrderType(orderByCustomId);
-      }
-    }
-
-    if (!order) {
+    if (error || !data) {
       return null;
     }
 
-    // Attach inspection summary for orders that need inspection
-    return attachInspectionSummary(order, id);
+    const order = mapDbOrderToOrderType(data);
+
+    // The RPC already attaches `inspection_summary` when needed; mirror it onto the order.
+    const summary = (data as any).inspection_summary;
+    if (summary) {
+      (order as any).inspectionSummary = summary;
+    }
+
+    return order;
   } catch (err) {
     return null;
   }
 };
+
