@@ -232,12 +232,17 @@ export const useAvailability = ({
       return;
     }
 
+    if (!postcode || postcode.trim().length === 0) {
+      toast.error(`Please enter the ${type === 'sender' ? 'pickup' : 'delivery'} postcode to confirm your identity.`);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
-      console.log("Selected dates:", validDates.map(d => d.toISOString()));
       
-      const updatedOrder = await updateFunction(id, validDates, notes);
+      const updatedOrder = await updateFunction(id, validDates, notes, postcode);
+
 
       if (updatedOrder) {
         toast.success("Your availability has been updated successfully!");
