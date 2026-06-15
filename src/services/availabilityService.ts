@@ -233,28 +233,22 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
-    // Update the order with all receiver availability data in one transaction
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        delivery_date: dateStrings,
-        receiver_notes: notes.trim(),
-        receiver_confirmed_at: new Date().toISOString(),
-        status: "scheduled_dates_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
+    // Submit availability via secure RPC (atomic dates + notes + status update)
+    const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "receiver",
+      p_dates: dateStrings,
+      p_notes: notes.trim(),
+    });
+
     if (error) {
       console.error("Error updating receiver availability:", error);
       console.error("Error details:", JSON.stringify(error, null, 2));
       return null;
     }
-    
+
     console.log("Receiver availability confirmed successfully");
-    
+
     // Send confirmation email to receiver with their selected dates
     try {
       const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
@@ -262,11 +256,9 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     } catch (confirmError) {
       console.error("Error sending receiver dates confirmed email:", confirmError);
     }
-    
-    // Map the database response to our Order type
-    const order = mapDbOrderToOrderType(data);
-    
-    return order;
+
+    return mapDbOrderToOrderType(rpcData);
+
   } catch (error) {
     console.error("Unexpected error in updateReceiverAvailability:", error);
     return null;
