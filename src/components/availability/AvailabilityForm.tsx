@@ -205,7 +205,27 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   className="border-slate-200 resize-none"
                 />
               </div>
+
+              <div className="mt-4">
+                <label htmlFor="postcode" className="block text-sm font-medium mb-2">
+                  {postcodeLabel || 'Postcode'} <span className="text-destructive">*</span>
+                </label>
+                <input
+                  id="postcode"
+                  type="text"
+                  value={postcode}
+                  onChange={(e) => setPostcode(e.target.value)}
+                  required
+                  autoComplete="postal-code"
+                  placeholder="e.g. SW1A 1AA"
+                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  We use this to confirm you're the right person for this order.
+                </p>
+              </div>
             </div>
+
           </div>
           
           <Button 
