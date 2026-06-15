@@ -5,10 +5,18 @@ import { Order, ShipdayUpdate } from "@/types/order";
 import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
+import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
 
 interface TrackingTimelineProps {
   order: Order;
+  /** Identifier (tracking number, customer order number, or order id) used
+   *  to call the server-side postcode verification RPC. */
+  orderIdentifier?: string;
+  /** Called when a successful verification returns a new (more revealing)
+   *  sanitised order payload, so the parent can swap it into the page state. */
+  onOrderUpdated?: (order: Order) => void;
 }
+
 
 // Helper function to safely format dates
 const formatDate = (dateInput: Date | string | any): string => {
@@ -59,13 +67,12 @@ const formatDate = (dateInput: Date | string | any): string => {
   }
 };
 
-const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order }) => {
+const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentifier, onOrderUpdated }) => {
   const [verificationDialog, setVerificationDialog] = useState<{
     isOpen: boolean;
     type: "collection" | "delivery";
-    eventIndex: number;
-  }>({ isOpen: false, type: "collection", eventIndex: -1 });
-  const [verifiedPostcodes, setVerifiedPostcodes] = useState<Set<string>>(new Set());
+  }>({ isOpen: false, type: "collection" });
+
 
   console.log("TrackingTimeline rendering with order:", order.id);
   console.log("TrackingTimeline tracking events:", JSON.stringify(order.trackingEvents, null, 2));
