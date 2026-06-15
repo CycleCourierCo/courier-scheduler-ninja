@@ -503,12 +503,25 @@ const JobItem: React.FC<JobItemProps> = ({
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
                         const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
-                        return collectionBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                            {collectionBadge.icon}
-                            {collectionBadge.text}
-                          </Badge>
-                        ) : null;
+                        const isCollectingToday = job.orderData?.order_collected !== true
+                          && Array.isArray(job.orderData?.pickup_date)
+                          && job.orderData.pickup_date.includes(format(new Date(), 'yyyy-MM-dd'));
+                        return (
+                          <>
+                            {collectionBadge && (
+                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                                {collectionBadge.icon}
+                                {collectionBadge.text}
+                              </Badge>
+                            )}
+                            {isCollectingToday && (
+                              <Badge className="text-xs px-1.5 py-0 flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200">
+                                <Truck className="h-3 w-3" />
+                                Collecting Today
+                              </Badge>
+                            )}
+                          </>
+                        );
                       })()}
                       
                       {/* Inspection Status Badge */}
