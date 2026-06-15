@@ -156,82 +156,60 @@ const JobScheduling = () => {
       const pickupDates = order.pickup_date as string[] | null;
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
-      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
-      if (showInspectedOnly && !isInspected) return false;
+      const needsInspection = order.needs_inspection === true;
+      const isInspectionComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      // Inspected-only only suppresses DELIVERIES for orders that actually need inspection
+      // and haven't completed it. Pickups are unaffected.
+      const passesInspected = !showInspectedOnly || !needsInspection || isInspectionComplete;
+
+      const pickupPassesDateFilter = !filterDate ||
+        !pickupDates ||
+        pickupDates.length === 0 ||
+        pickupDates.some(date => format(new Date(date), 'yyyy-MM-dd') === targetDateStr);
+      const pickupBaseVisible = pickupPassesDateFilter;
+      const pickupExpiredVisible = showExpiredDatesOnly && allDatesExpired(pickupDates);
+      const pickupVisibleByDate = pickupBaseVisible || pickupExpiredVisible;
+
+      const deliveryPassesDateFilter = !filterDate ||
+        !deliveryDates ||
+        deliveryDates.length === 0 ||
+        deliveryDates.some(date => format(new Date(date), 'yyyy-MM-dd') === targetDateStr);
+      const deliveryBaseVisible = deliveryPassesDateFilter;
+      const deliveryExpiredVisible = showExpiredDatesOnly && allDatesExpired(deliveryDates);
+      const deliveryVisibleByDate = deliveryBaseVisible || deliveryExpiredVisible;
+
+      const hasUnscheduledPickup = !order.scheduled_pickup_date;
+      const hasUnscheduledDelivery = !order.scheduled_delivery_date;
+      const hasValidPickup = hasUnscheduledPickup && pickupVisibleByDate;
 
       // "Collecting before delivery date" filter: deliveries only appear if the order
       // is already collected OR has a pickup date strictly before the target date.
-      // Pickups continue to follow the normal date filter and stay visible.
       if (showCollectionToday) {
         const collectedBeforeTarget = isCollected || (
           !!pickupDates && pickupDates.some(date =>
             format(new Date(date), 'yyyy-MM-dd') < targetDateStr
           )
         );
-
-        const hasUnscheduledPickup = !order.scheduled_pickup_date;
-        const pickupPassesDateFilter = !filterDate ||
-          !pickupDates ||
-          pickupDates.length === 0 ||
-          pickupDates.some(date =>
-            format(new Date(date), 'yyyy-MM-dd') === targetDateStr
-          );
-        const pickupVisibleByDate = showExpiredDatesOnly
-          ? (pickupPassesDateFilter || allDatesExpired(pickupDates))
-          : pickupPassesDateFilter;
-        const hasValidPickup = hasUnscheduledPickup && pickupVisibleByDate;
-
-        const hasUnscheduledDelivery = !order.scheduled_delivery_date;
-        const deliveryPassesDateFilter = !filterDate ||
-          !deliveryDates ||
-          deliveryDates.length === 0 ||
-          deliveryDates.some(date =>
-            format(new Date(date), 'yyyy-MM-dd') === targetDateStr
-          );
-        const deliveryVisibleByDate = showExpiredDatesOnly
-          ? (deliveryPassesDateFilter || allDatesExpired(deliveryDates))
-          : deliveryPassesDateFilter;
-        const hasValidDelivery = hasUnscheduledDelivery && deliveryVisibleByDate && collectedBeforeTarget;
-
-
+        const hasValidDelivery = hasUnscheduledDelivery
+          && deliveryVisibleByDate
+          && collectedBeforeTarget
+          && passesInspected;
         const showPickup = jobTypeFilter !== 'delivery';
         const showDelivery = jobTypeFilter !== 'collection';
         return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
       }
 
-
-      // Check if order has a valid pickup job (not scheduled, and passes date filter)
-      const hasUnscheduledPickup = !order.scheduled_pickup_date;
-      const pickupPassesDateFilter = !filterDate || 
-        !pickupDates || 
-        pickupDates.length === 0 ||
-        pickupDates.some(date => 
-          format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
-        );
-      const pickupVisibleByDate = showExpiredDatesOnly
-        ? (pickupPassesDateFilter || allDatesExpired(pickupDates))
-        : pickupPassesDateFilter;
-      const hasValidPickup = hasUnscheduledPickup && pickupVisibleByDate;
-      
-      // Check if order has a valid delivery job (not scheduled, passes date filter, and passes collected filter)
-      const hasUnscheduledDelivery = !order.scheduled_delivery_date;
-      const deliveryPassesDateFilter = !filterDate || 
-        !deliveryDates || 
-        deliveryDates.length === 0 ||
-        deliveryDates.some(date => 
-          format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
-        );
       const deliveryPassesCollectedFilter = !showCollectedOnly || isCollected;
-      const deliveryVisibleByDate = showExpiredDatesOnly
-        ? (deliveryPassesDateFilter || allDatesExpired(deliveryDates))
-        : deliveryPassesDateFilter;
-      const hasValidDelivery = hasUnscheduledDelivery && deliveryVisibleByDate && deliveryPassesCollectedFilter;
-      
+      const hasValidDelivery = hasUnscheduledDelivery
+        && deliveryVisibleByDate
+        && deliveryPassesCollectedFilter
+        && passesInspected;
+
       const showPickup = jobTypeFilter !== 'delivery';
       const showDelivery = jobTypeFilter !== 'collection';
       return (showPickup && hasValidPickup) || (showDelivery && hasValidDelivery);
-
     });
+
   }, [orders, filterDate, showCollectedOnly, showCollectionToday, showExpiredDatesOnly, showInspectedOnly, jobTypeFilter]);
 
   return (

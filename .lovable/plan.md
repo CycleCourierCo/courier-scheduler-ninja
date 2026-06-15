@@ -1,35 +1,54 @@
-# Fix plan
+## Goal
 
-## What I’ll change
-- Update the scheduling filter logic so **Expired availability dates** works as an additive filter.
-- When a date is selected (for example 16th), the result should include:
-  - jobs available on that selected date
-  - plus jobs whose availability dates are fully expired
-- Keep the map and the route-builder job count/list using the exact same rule.
+Two filter bugs on `/scheduling`:
 
-## Implementation
-1. **Unify the visibility rule in `RouteBuilder.tsx`**
-   - Refactor the pickup and delivery filter checks into one consistent condition.
-   - Ensure the expired toggle means:
-     - normal mode: only jobs matching the selected date
-     - expired mode: jobs matching the selected date **or** jobs with all dates expired
-   - Apply the same rule to the `availableJobs` count and cards list.
+1. **Expired availability dates** still collapses the list to 0 instead of being additive (e.g. 108 jobs on 16th + 4 expired = 112).
+2. **Inspected only** + a selected date drops the list to 0. It should keep showing every pickup, and every delivery that doesn't require inspection. Only deliveries whose order `needs_inspection === true` AND whose `inspection_status` is not yet `inspected` / `repaired` should be hidden.
 
-2. **Mirror the same rule in `JobScheduling.tsx`**
-   - Keep `filteredOrdersForMap` aligned with the route-builder logic so the map and list don’t disagree.
-   - Preserve existing collected / collecting-before / inspected / job-type filters.
+## Changes
 
-3. **Tighten the date-expired comparison**
-   - Reuse the same date normalization for both selected-date matching and expired detection.
-   - Avoid edge cases where parsing or timezone formatting causes a job to fail both checks.
+### `src/components/scheduling/RouteBuilder.tsx` — `getJobsFromOrders`
 
-## Technical details
-- Files:
-  - `src/components/scheduling/RouteBuilder.tsx`
-  - `src/pages/JobScheduling.tsx`
-- Expected result:
-  - If 108 jobs match the 16th and 4 jobs are expired, enabling the expired toggle should show **112** jobs, not 0.
-- Scope:
-  - No UI redesign
-  - No database changes
-  - No changes to unrelated filters
+- Remove the early `return` for `showInspectedOnly` at the top of the `orderList.forEach`. Pickups must never be affected by this toggle.
+- Compute once per order:
+  - `needsInspection = order.needs_inspection === true`
+  - `isInspectionComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired'`
+  - `passesInspected = !applyFilters || !showInspectedOnly || !needsInspection || isInspectionComplete`
+- AND `passesInspected` into the delivery branch alongside `passesCollectedOnly`, `passesCollectingBefore`, and the date/expired visibility.
+- Replace the nested ternary expired logic with explicit named booleans so the additive rule is unambiguous:
+
+```text
+pickupBaseVisible    = !applyFilters || pickupMatchesDate
+pickupExpiredVisible = applyFilters && showExpiredDatesOnly && pickupIsExpired
+pickupVisible        = pickupBaseVisible || pickupExpiredVisible
+
+deliveryBaseVisible    = !applyFilters || deliveryMatchesDate
+deliveryExpiredVisible = applyFilters && showExpiredDatesOnly && deliveryIsExpired
+deliveryDateVisible    = deliveryBaseVisible || deliveryExpiredVisible
+deliveryVisible        = deliveryDateVisible
+                         && passesCollectedOnly
+                         && passesCollectingBefore
+                         && passesInspected
+```
+
+- Add a one-shot `console.debug` (gated by `import.meta.env.DEV`) after `availableJobs` is built, logging `{ filterDate, showExpiredDatesOnly, showInspectedOnly, total: availableJobs.length }` so the next reproduction confirms the toggle is flipping the count.
+
+### `src/pages/JobScheduling.tsx` — `filteredOrdersForMap`
+
+Mirror the same rules so the map stays in sync with the list:
+
+- Remove the blanket `if (showInspectedOnly && !isInspected) return false;` early exit.
+- Compute `needsInspection` and `isInspectionComplete` from the order, then `passesInspected = !showInspectedOnly || !needsInspection || isInspectionComplete`.
+- AND `passesInspected` into `hasValidDelivery` in both branches (the `showCollectionToday` branch and the default branch). Pickups remain unaffected.
+- Replace the nested ternary `pickupVisibleByDate` / `deliveryVisibleByDate` with the same explicit `base || expired` form used in RouteBuilder, in both branches.
+
+## Out of scope
+
+- No DB, query, or RLS changes.
+- No UI layout, copy, or new toggles.
+- Selected route, Shipday verification, CSV import, and timeslip logic untouched.
+
+## Expected behavior after fix
+
+- Filter to 16th → 108 jobs. Toggle Expired on → 112 (108 + 4 expired). Off → 108.
+- Filter to 16th → 108 jobs. Toggle Inspected only on → all 108 pickups still show; deliveries that don't require inspection still show; only deliveries whose order needs inspection and isn't yet complete are hidden.
