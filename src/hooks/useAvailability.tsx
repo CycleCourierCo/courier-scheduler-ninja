@@ -279,6 +279,8 @@ export const useAvailability = ({
     setDates,
     notes,
     setNotes,
+    postcode,
+    setPostcode,
     isLoading,
     isSubmitting,
     order,
@@ -294,3 +296,4 @@ export const useAvailability = ({
     hasInspectionBuffer
   };
 };
+
