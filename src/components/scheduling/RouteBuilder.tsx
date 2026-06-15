@@ -151,33 +151,32 @@ const getCollectionStatusBadge = (
   collectionConfirmedAt: string | null | undefined,
   orderId: string,
   deliveryIndex: number | undefined,
-  allJobs: SelectedJob[]
+  allJobs: SelectedJob[],
+  scheduledPickupDate?: string | null,
+  orderCollected?: boolean | null
 ): { text: string; color: string; icon: JSX.Element } => {
   // If already collected, show "Collected"
-  if (collectionConfirmedAt) {
+  if (collectionConfirmedAt || orderCollected === true) {
     return {
       text: 'Collected',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
       icon: <Package className="h-3 w-3" />
     };
   }
-  
+
   // Check if there's a pickup/collection job for the same order on this route
   const matchingCollection = allJobs.find(
     j => j.orderId === orderId && j.type === 'pickup'
   );
   
   if (matchingCollection && matchingCollection.order !== undefined && deliveryIndex !== undefined) {
-    // Same-day collection exists on this route
     if (matchingCollection.order < deliveryIndex) {
-      // Collection is BEFORE delivery in sequence
       return {
         text: 'Collecting on Route',
         color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
         icon: <Package className="h-3 w-3" />
       };
     } else {
-      // Collection is AFTER delivery - this is a problem!
       return {
         text: 'Collection After Delivery!',
         color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
@@ -185,8 +184,20 @@ const getCollectionStatusBadge = (
       };
     }
   }
-  
-  // No matching collection on this route
+
+  // Scheduled to be collected today via another route
+  if (scheduledPickupDate) {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const schedStr = format(new Date(scheduledPickupDate), 'yyyy-MM-dd');
+    if (schedStr === todayStr) {
+      return {
+        text: 'Collecting Today',
+        color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200',
+        icon: <Truck className="h-3 w-3" />
+      };
+    }
+  }
+
   return {
     text: 'Not Collected',
     color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
