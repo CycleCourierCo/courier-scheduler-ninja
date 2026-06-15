@@ -505,9 +505,11 @@ const JobItem: React.FC<JobItemProps> = ({
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
                         const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
+                        const _todayStr = format(new Date(), 'yyyy-MM-dd');
+                        const _scheduledPickup = job.orderData?.scheduled_pickup_date;
+                        const _scheduledPickupStr = _scheduledPickup ? format(new Date(_scheduledPickup), 'yyyy-MM-dd') : null;
                         const isCollectingToday = job.orderData?.order_collected !== true
-                          && Array.isArray(job.orderData?.pickup_date)
-                          && job.orderData.pickup_date.includes(format(new Date(), 'yyyy-MM-dd'));
+                          && _scheduledPickupStr === _todayStr;
                         return (
                           <>
                             {collectionBadge && (
