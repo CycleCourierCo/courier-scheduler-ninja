@@ -500,31 +500,23 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
   // For debugging
   console.log("Processed timeline events:", trackingEvents);
 
-  const handlePostcodeVerification = (postcode: string) => {
-    const { type, eventIndex } = verificationDialog;
-    const key = `${type}-${eventIndex}`;
-    setVerifiedPostcodes(prev => new Set([...prev, key]));
-  };
-
-  const openVerificationDialog = (type: "collection" | "delivery", eventIndex: number) => {
-    setVerificationDialog({ isOpen: true, type, eventIndex });
+  const openVerificationDialog = (type: "collection" | "delivery") => {
+    setVerificationDialog({ isOpen: true, type });
   };
 
   const closeVerificationDialog = () => {
-    setVerificationDialog({ isOpen: false, type: "collection", eventIndex: -1 });
+    setVerificationDialog({ isOpen: false, type: "collection" });
   };
 
-  const isPostcodeVerified = (type: "collection" | "delivery", eventIndex: number) => {
-    const key = `${type}-${eventIndex}`;
-    return verifiedPostcodes.has(key);
-  };
-
-  const getExpectedPostcode = (type: "collection" | "delivery") => {
-    if (type === "collection") {
-      return order.sender?.address?.zipCode || "";
-    } else {
-      return order.receiver?.address?.zipCode || "";
+  // Calls the server-side RPC. The server compares the postcode and, on a
+  // match, returns the order with POD/signature URLs revealed for that side.
+  const submitPostcode = async (postcode: string) => {
+    const identifier = orderIdentifier || order.trackingNumber || order.id;
+    const result = await verifyPublicOrderPostcode(identifier, postcode);
+    if (result.verified && result.order) {
+      onOrderUpdated?.(result.order);
     }
+    return { verified: result.verified, rateLimited: result.rateLimited };
   };
 
   return (
@@ -533,61 +525,63 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         <Truck className="text-courier-600" />
         <h3 className="font-semibold">Tracking Details</h3>
       </div>
-      
+
       {trackingEvents.length > 0 ? (
         <div className="space-y-3 mt-4 overflow-hidden">
-          {trackingEvents.map((event, index) => (
-            <div key={index} className="relative pl-6 pb-3 min-w-0">
-              {index < trackingEvents.length - 1 && (
-                <div className="absolute top-2 left-[7px] h-full w-0.5 bg-gray-200" />
-              )}
-              <div className="absolute top-1 left-0 rounded-full bg-white">
-                {event.icon}
-              </div>
-              <div className="min-w-0 overflow-hidden">
-                <p className="font-medium text-gray-800 break-words">{event.title}</p>
-                <p className="text-xs sm:text-sm text-gray-500 break-words">
-                  {formatDate(event.date)}
-                </p>
-                <p className="text-xs sm:text-sm break-words">{event.description}</p>
-                
-                {/* Display POD images if available with postcode protection */}
-                {(event as any).podUrls && (event as any).podUrls.length > 0 && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-1 mb-2">
-                      <Image className="h-4 w-4 text-courier-600" />
-                      <span className="text-sm font-medium text-gray-700">Proof of Delivery:</span>
-                    </div>
-                    {(() => {
-                      const eventType = (event as any).isPickup ? "collection" : "delivery";
-                      const isVerified = isPostcodeVerified(eventType, index);
-                      
-                      if (!isVerified) {
-                        return (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openVerificationDialog(eventType, index)}
-                            className="flex items-center gap-2"
-                          >
-                            <Lock className="h-4 w-4" />
-                            Verify {eventType} postcode to view images
-                          </Button>
-                        );
-                      }
-                      
-                      return (
+          {trackingEvents.map((event, index) => {
+            const ev = event as any;
+            const eventType: "collection" | "delivery" = ev.isPickup ? "collection" : "delivery";
+            const podUrls: string[] = Array.isArray(ev.podUrls) ? ev.podUrls : [];
+            const signatureUrl: string | undefined = typeof ev.signatureUrl === 'string' ? ev.signatureUrl : undefined;
+            // Server tells us whether proof exists, even when it's withheld
+            const hasPod = !!ev.hasPod || podUrls.length > 0;
+            const hasSignature = !!ev.hasSignature || !!signatureUrl;
+
+            return (
+              <div key={index} className="relative pl-6 pb-3 min-w-0">
+                {index < trackingEvents.length - 1 && (
+                  <div className="absolute top-2 left-[7px] h-full w-0.5 bg-gray-200" />
+                )}
+                <div className="absolute top-1 left-0 rounded-full bg-white">
+                  {ev.icon}
+                </div>
+                <div className="min-w-0 overflow-hidden">
+                  <p className="font-medium text-gray-800 break-words">{ev.title}</p>
+                  <p className="text-xs sm:text-sm text-gray-500 break-words">
+                    {formatDate(ev.date)}
+                  </p>
+                  <p className="text-xs sm:text-sm break-words">{ev.description}</p>
+
+                  {/* Proof-of-delivery photos. Server only sends URLs after the
+                      correct postcode has been verified. */}
+                  {hasPod && (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-1 mb-2">
+                        <Image className="h-4 w-4 text-courier-600" />
+                        <span className="text-sm font-medium text-gray-700">Proof of Delivery:</span>
+                      </div>
+                      {podUrls.length === 0 ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openVerificationDialog(eventType)}
+                          className="flex items-center gap-2"
+                        >
+                          <Lock className="h-4 w-4" />
+                          Verify {eventType} postcode to view images
+                        </Button>
+                      ) : (
                         <div className="flex gap-2 flex-wrap">
-                          {(event as any).podUrls.map((url: string, imgIndex: number) => (
-                            <a 
+                          {podUrls.map((url, imgIndex) => (
+                            <a
                               key={imgIndex}
-                              href={url} 
-                              target="_blank" 
+                              href={url}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                             >
-                              <img 
-                                src={url} 
+                              <img
+                                src={url}
                                 alt={`POD ${imgIndex + 1}`}
                                 className="w-20 h-20 object-cover"
                                 onError={(e) => {
@@ -598,45 +592,35 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                             </a>
                           ))}
                         </div>
-                      );
-                    })()}
-                  </div>
-                )}
-                
-                {/* Display signature if available with postcode protection */}
-                {(event as any).signatureUrl && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-1 mb-2">
-                      <Image className="h-4 w-4 text-courier-600" />
-                      <span className="text-sm font-medium text-gray-700">Signature:</span>
+                      )}
                     </div>
-                    {(() => {
-                      const eventType = (event as any).isPickup ? "collection" : "delivery";
-                      const isVerified = isPostcodeVerified(eventType, index);
-                      
-                      if (!isVerified) {
-                        return (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openVerificationDialog(eventType, index)}
-                            className="flex items-center gap-2"
-                          >
-                            <Lock className="h-4 w-4" />
-                            Verify {eventType} postcode to view signature
-                          </Button>
-                        );
-                      }
-                      
-                      return (
-                        <a 
-                          href={(event as any).signatureUrl} 
-                          target="_blank" 
+                  )}
+
+                  {hasSignature && (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-1 mb-2">
+                        <Image className="h-4 w-4 text-courier-600" />
+                        <span className="text-sm font-medium text-gray-700">Signature:</span>
+                      </div>
+                      {!signatureUrl ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openVerificationDialog(eventType)}
+                          className="flex items-center gap-2"
+                        >
+                          <Lock className="h-4 w-4" />
+                          Verify {eventType} postcode to view signature
+                        </Button>
+                      ) : (
+                        <a
+                          href={signatureUrl}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow w-fit"
                         >
-                          <img 
-                            src={(event as any).signatureUrl} 
+                          <img
+                            src={signatureUrl}
                             alt="Signature"
                             className="w-20 h-20 object-cover"
                             onError={(e) => {
@@ -645,13 +629,13 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                             }}
                           />
                         </a>
-                      );
-                    })()}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex items-center space-x-2 text-gray-500 mt-4">
@@ -659,15 +643,15 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           <p>Waiting for the first update</p>
         </div>
       )}
-      
+
       {/* Postcode Verification Dialog */}
       <PostcodeVerification
         isOpen={verificationDialog.isOpen}
         onClose={closeVerificationDialog}
-        onVerify={handlePostcodeVerification}
+        onSubmit={submitPostcode}
         type={verificationDialog.type}
-        expectedPostcode={getExpectedPostcode(verificationDialog.type)}
       />
+
     </div>
   );
 };
