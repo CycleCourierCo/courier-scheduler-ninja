@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -386,6 +386,11 @@ const JobItem: React.FC<JobItemProps> = ({
                       const collectionBadge = groupedJob.type === 'delivery' 
                         ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at, groupedJob.orderId, job.order, allJobs)
                         : null;
+                      
+                      const isCollectingToday = groupedJob.type === 'delivery'
+                        && groupedJob.orderData?.order_collected !== true
+                        && Array.isArray(groupedJob.orderData?.pickup_date)
+                        && groupedJob.orderData.pickup_date.includes(format(new Date(), 'yyyy-MM-dd'));
                     
                       return (
                         <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="space-y-1 pl-1.5 border-l border-muted">
@@ -411,6 +416,12 @@ const JobItem: React.FC<JobItemProps> = ({
                               <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                                 {collectionBadge.icon}
                                 {collectionBadge.text}
+                              </Badge>
+                            )}
+                            {isCollectingToday && (
+                              <Badge className="text-xs px-1.5 py-0 flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200">
+                                <Truck className="h-3 w-3" />
+                                Collecting Today
                               </Badge>
                             )}
                             {/* Inspection Badge */}
@@ -492,12 +503,25 @@ const JobItem: React.FC<JobItemProps> = ({
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
                         const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
-                        return collectionBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                            {collectionBadge.icon}
-                            {collectionBadge.text}
-                          </Badge>
-                        ) : null;
+                        const isCollectingToday = job.orderData?.order_collected !== true
+                          && Array.isArray(job.orderData?.pickup_date)
+                          && job.orderData.pickup_date.includes(format(new Date(), 'yyyy-MM-dd'));
+                        return (
+                          <>
+                            {collectionBadge && (
+                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                                {collectionBadge.icon}
+                                {collectionBadge.text}
+                              </Badge>
+                            )}
+                            {isCollectingToday && (
+                              <Badge className="text-xs px-1.5 py-0 flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200">
+                                <Truck className="h-3 w-3" />
+                                Collecting Today
+                              </Badge>
+                            )}
+                          </>
+                        );
                       })()}
                       
                       {/* Inspection Status Badge */}
