@@ -957,8 +957,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
-      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
-      if (applyFilters && showInspectedOnly && !isInspected) return;
+      const needsInspection = (order as any).needs_inspection === true;
+      const isInspectionComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      // Inspected-only only affects DELIVERIES of orders that actually need inspection.
+      // Pickups, and deliveries of orders that don't need inspection, are unaffected.
+      const passesInspected = !applyFilters || !showInspectedOnly || !needsInspection || isInspectionComplete;
 
       const allowPickup = !applyFilters || jobTypeFilter !== 'delivery';
       const allowDelivery = !applyFilters || jobTypeFilter !== 'collection';
@@ -979,13 +982,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const pickupMatchesDate = matchesFilterDate(pickupDates);
         const pickupIsExpired = hasAllDatesExpired(pickupDates);
 
-        // Expired toggle is ADDITIVE: when on, show jobs that match the date filter OR are fully expired.
-        // When off, show only jobs that match the date filter.
-        const pickupVisible = !applyFilters
-          ? true
-          : showExpiredDatesOnly
-            ? (pickupMatchesDate || pickupIsExpired)
-            : pickupMatchesDate;
+        // Expired toggle is ADDITIVE: base visibility OR expired visibility.
+        const pickupBaseVisible = !applyFilters || pickupMatchesDate;
+        const pickupExpiredVisible = applyFilters && showExpiredDatesOnly && pickupIsExpired;
+        const pickupVisible = pickupBaseVisible || pickupExpiredVisible;
 
         if (pickupVisible) {
           jobs.push({
@@ -1013,13 +1013,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
         const passesCollectedOnly = !applyFilters || !showCollectedOnly || isCollected;
 
-        const deliveryVisible = !applyFilters
-          ? true
-          : showExpiredDatesOnly
-            ? (deliveryMatchesDate || deliveryIsExpired)
-            : deliveryMatchesDate;
+        const deliveryBaseVisible = !applyFilters || deliveryMatchesDate;
+        const deliveryExpiredVisible = applyFilters && showExpiredDatesOnly && deliveryIsExpired;
+        const deliveryDateVisible = deliveryBaseVisible || deliveryExpiredVisible;
+        const deliveryVisible = deliveryDateVisible && passesCollectedOnly && passesCollectingBefore && passesInspected;
 
-        if (passesCollectedOnly && deliveryVisible && passesCollectingBefore) {
+        if (deliveryVisible) {
           jobs.push({
             orderId: order.id,
             type: 'delivery',
@@ -1033,6 +1032,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         }
       }
     });
+
     
     return jobs;
   };
