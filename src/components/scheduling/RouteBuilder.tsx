@@ -1512,17 +1512,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver')
+      .select('id, sender, receiver, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
-      console.error('Error fetching latest coordinates:', error);
-      toast.error('Failed to fetch latest coordinates, using cached values');
+      console.error('Error fetching latest order data:', error);
+      toast.error('Failed to fetch latest data, using cached values');
       calculateTimeslots();
       return;
     }
 
-    // Update selectedJobs with fresh coordinates
+    // Update selectedJobs with fresh coordinates and order data
     const updatedJobs = selectedJobs.map(job => {
       if (job.type === 'break') return job;
       
@@ -1534,7 +1534,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         ? freshOrder.sender 
         : freshOrder.receiver;
 
-      // Type guard for the contact JSON structure
       const contact = contactJson && typeof contactJson === 'object' && !Array.isArray(contactJson)
         ? contactJson as { address?: { lat?: number; lon?: number } }
         : null;
@@ -1542,7 +1541,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const newLat = contact?.address?.lat;
       const newLon = contact?.address?.lon;
 
-      // Log if coordinates changed
       if (newLat !== job.lat || newLon !== job.lon) {
         console.log(`Updated coordinates for ${job.contactName}: (${job.lat}, ${job.lon}) -> (${newLat}, ${newLon})`);
       }
@@ -1550,7 +1548,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return {
         ...job,
         lat: newLat,
-        lon: newLon
+        lon: newLon,
+        orderData: job.orderData ? {
+          ...job.orderData,
+          scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
+          scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
+          order_collected: freshOrder.order_collected ?? job.orderData.order_collected,
+          order_delivered: freshOrder.order_delivered ?? job.orderData.order_delivered,
+          collection_confirmation_sent_at: freshOrder.collection_confirmation_sent_at ?? job.orderData.collection_confirmation_sent_at,
+          pickup_date: (freshOrder.pickup_date as any) ?? job.orderData.pickup_date,
+          delivery_date: (freshOrder.delivery_date as any) ?? job.orderData.delivery_date,
+          status: (freshOrder.status as any) ?? job.orderData.status,
+        } : job.orderData
       };
     });
 
