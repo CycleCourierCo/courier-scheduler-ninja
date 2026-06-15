@@ -51,6 +51,9 @@ export default function ReceiverAvailability() {
     setDates,
     notes,
     setNotes,
+    postcode,
+    setPostcode,
+
     isLoading,
     isSubmitting,
     order,
