@@ -431,12 +431,6 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {collectionBadge.text}
                               </Badge>
                             )}
-                            {isCollectingToday && (
-                              <Badge className="text-xs px-1.5 py-0 flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200">
-                                <Truck className="h-3 w-3" />
-                                Collecting Today
-                              </Badge>
-                            )}
                             {/* Inspection Badge */}
                             {(() => {
                               const inspectionBadge = getInspectionStatusBadge(groupedJob.orderData?.needs_inspection, groupedJob.orderData?.inspection_status);
