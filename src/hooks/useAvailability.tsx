@@ -12,10 +12,11 @@ type AvailabilityType = 'sender' | 'receiver';
 
 interface UseAvailabilityProps {
   type: AvailabilityType;
-  updateFunction: (id: string, dates: Date[], notes: string) => Promise<Order | null>;
+  updateFunction: (id: string, dates: Date[], notes: string, postcode?: string | null) => Promise<Order | null>;
   getMinDate: () => Date;
   isAlreadyConfirmed: (order: Order | null) => boolean;
 }
+
 
 export const useAvailability = ({
   type,
@@ -27,7 +28,9 @@ export const useAvailability = ({
   const navigate = useNavigate();
   const [dates, setDates] = useState<Date[]>([]);
   const [notes, setNotes] = useState<string>("");
+  const [postcode, setPostcode] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -229,12 +232,17 @@ export const useAvailability = ({
       return;
     }
 
+    if (!postcode || postcode.trim().length === 0) {
+      toast.error(`Please enter the ${type === 'sender' ? 'pickup' : 'delivery'} postcode to confirm your identity.`);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
-      console.log("Selected dates:", validDates.map(d => d.toISOString()));
       
-      const updatedOrder = await updateFunction(id, validDates, notes);
+      const updatedOrder = await updateFunction(id, validDates, notes, postcode);
+
 
       if (updatedOrder) {
         toast.success("Your availability has been updated successfully!");
@@ -271,6 +279,8 @@ export const useAvailability = ({
     setDates,
     notes,
     setNotes,
+    postcode,
+    setPostcode,
     isLoading,
     isSubmitting,
     order,
@@ -286,3 +296,4 @@ export const useAvailability = ({
     hasInspectionBuffer
   };
 };
+
