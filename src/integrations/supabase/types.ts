@@ -3040,10 +3040,12 @@ export type Database = {
         }[]
       }
       get_cron_secret: { Args: never; Returns: string }
+      get_my_pending_availability_orders: { Args: never; Returns: Json }
       get_public_inspection_summary: {
         Args: { order_identifier: string }
         Returns: Json
       }
+      get_public_order: { Args: { p_identifier: string }; Returns: Json }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -3080,6 +3082,15 @@ export type Database = {
           id: string
           name: string
         }[]
+      }
+      set_order_availability: {
+        Args: {
+          p_dates: Json
+          p_notes: string
+          p_order_id: string
+          p_side: string
+        }
+        Returns: Json
       }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
