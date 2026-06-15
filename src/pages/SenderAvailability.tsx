@@ -50,6 +50,8 @@ export default function SenderAvailability() {
     setDates,
     notes,
     setNotes,
+    postcode,
+    setPostcode,
     isLoading,
     isSubmitting,
     order,
@@ -72,6 +74,7 @@ export default function SenderAvailability() {
               Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
     }
   });
+
 
   if (paramError) {
     return (
@@ -124,6 +127,9 @@ export default function SenderAvailability() {
         setDates={setDates}
         notes={notes}
         setNotes={setNotes}
+        postcode={postcode}
+        setPostcode={setPostcode}
+        postcodeLabel="Pickup postcode"
         placeholder="Add any special instructions for pickup (optional)"
         minDate={minDate}
         isSubmitting={isSubmitting}
@@ -132,5 +138,6 @@ export default function SenderAvailability() {
         calendarEndDate={calendarEndDate}
       />
     </Layout>
+
   );
 }

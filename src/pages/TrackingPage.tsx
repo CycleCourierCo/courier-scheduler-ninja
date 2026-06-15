@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPublicOrder } from "@/services/fetchOrderService";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import type { Order } from "@/types/order";
+
 
 const formSchema = z.object({
   orderId: z.string().min(1, "Order ID is required"),
@@ -59,28 +61,26 @@ const TrackingForm = ({ onSearch }: { onSearch: (orderId: string) => void }) => 
 const TrackingPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const queryClient = useQueryClient();
   const [searchId, setSearchId] = useState<string | undefined>(id);
-  // Track whether we've attempted to load the order
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
-  // Set searchId when id param changes
   useEffect(() => {
     if (id) {
       setSearchId(id);
-      setHasAttemptedLoad(false); // Reset when ID changes
+      setHasAttemptedLoad(false);
     }
   }, [id]);
 
   const handleSearch = (orderId: string) => {
     navigate(`/tracking/${orderId}`);
     setSearchId(orderId);
-    setHasAttemptedLoad(false); // Reset when manually searching
+    setHasAttemptedLoad(false);
   };
 
   const { data: order, isLoading, error, isSuccess } = useQuery({
     queryKey: ['publicOrder', searchId],
     queryFn: () => {
-      console.log("Fetching order with ID:", searchId);
       if (searchId) {
         setHasAttemptedLoad(true);
         return getPublicOrder(searchId);
@@ -89,6 +89,14 @@ const TrackingPage = () => {
     },
     enabled: !!searchId,
   });
+
+  // After a successful postcode verification the timeline gets a more
+  // revealing payload — swap it into the react-query cache so re-renders
+  // keep the unlocked POD/signature URLs.
+  const handleOrderUpdated = (next: Order) => {
+    queryClient.setQueryData(['publicOrder', searchId], next);
+  };
+
 
   // Debug logs
   console.log("TrackingPage order data:", order);
@@ -252,9 +260,10 @@ const TrackingPage = () => {
             {/* Tracking Timeline */}
             <Card>
               <CardContent className="pt-6">
-                <TrackingTimeline order={order} />
+                <TrackingTimeline order={order} orderIdentifier={searchId} onOrderUpdated={handleOrderUpdated} />
               </CardContent>
             </Card>
+
           </div>
         )}
 

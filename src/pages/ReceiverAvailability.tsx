@@ -51,6 +51,9 @@ export default function ReceiverAvailability() {
     setDates,
     notes,
     setNotes,
+    postcode,
+    setPostcode,
+
     isLoading,
     isSubmitting,
     order,
@@ -147,8 +150,12 @@ export default function ReceiverAvailability() {
         setDates={setDates}
         notes={notes}
         setNotes={setNotes}
+        postcode={postcode}
+        setPostcode={setPostcode}
+        postcodeLabel="Delivery postcode"
         placeholder="Add any special instructions for delivery (optional)"
         minDate={minDate}
+
         isSubmitting={isSubmitting}
         onSubmit={handleSubmit}
         isDateDisabled={isDateDisabled}

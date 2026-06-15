@@ -61,54 +61,64 @@ export const getPublicOrder = async (id: string): Promise<Order | null> => {
       return null;
     }
 
-    let order: Order | null = null;
+    const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: id });
 
-    // First try to fetch by UUID (id column)
-    if (id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, tracking_events")
-        .eq("id", id)
-        .single();
-
-      if (!error && data) {
-        order = mapDbOrderToOrderType(data);
-      }
-    }
-
-    // Try to fetch by tracking_number
-    if (!order) {
-      const { data: orderByTracking, error: trackingError } = await supabase
-        .from("orders")
-        .select("*, tracking_events")
-        .eq("tracking_number", id)
-        .single();
-
-      if (!trackingError && orderByTracking) {
-        order = mapDbOrderToOrderType(orderByTracking);
-      }
-    }
-
-    // If still nothing, try customer_order_number
-    if (!order) {
-      const { data: orderByCustomId, error: customIdError } = await supabase
-        .from("orders")
-        .select("*, tracking_events")
-        .eq("customer_order_number", id)
-        .single();
-
-      if (!customIdError && orderByCustomId) {
-        order = mapDbOrderToOrderType(orderByCustomId);
-      }
-    }
-
-    if (!order) {
+    if (error || !data) {
       return null;
     }
 
-    // Attach inspection summary for orders that need inspection
-    return attachInspectionSummary(order, id);
+    const order = mapDbOrderToOrderType(data);
+    const summary = (data as any).inspection_summary;
+    if (summary) {
+      (order as any).inspectionSummary = summary;
+    }
+    return order;
   } catch (err) {
     return null;
   }
 };
+
+/**
+ * Public tracking endpoint that unlocks POD photos / signatures for the side
+ * (sender = collection, receiver = delivery) whose postcode matches.
+ *
+ * Returns `{ order, verified, rateLimited, revealedSide }`. When `verified` is
+ * false the order payload still reflects the default sanitised view (no POD URLs).
+ */
+export const verifyPublicOrderPostcode = async (
+  identifier: string,
+  postcode: string,
+): Promise<{
+  order: Order | null;
+  verified: boolean;
+  rateLimited: boolean;
+  revealedSide: 'sender' | 'receiver' | null;
+}> => {
+  if (!identifier || !postcode) {
+    return { order: null, verified: false, rateLimited: false, revealedSide: null };
+  }
+
+  const { data, error } = await supabase.rpc("get_public_order_with_proof" as any, {
+    p_identifier: identifier,
+    p_postcode: postcode,
+  });
+
+  if (error || !data) {
+    return { order: null, verified: false, rateLimited: false, revealedSide: null };
+  }
+
+  const payload = data as any;
+  const order = mapDbOrderToOrderType(payload);
+  const summary = payload.inspection_summary;
+  if (summary) {
+    (order as any).inspectionSummary = summary;
+  }
+
+  return {
+    order,
+    verified: !payload.verification_failed,
+    rateLimited: !!payload.rate_limited,
+    revealedSide: (payload.revealed_side ?? null) as 'sender' | 'receiver' | null,
+  };
+};
+

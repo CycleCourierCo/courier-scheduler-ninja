@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,33 +151,32 @@ const getCollectionStatusBadge = (
   collectionConfirmedAt: string | null | undefined,
   orderId: string,
   deliveryIndex: number | undefined,
-  allJobs: SelectedJob[]
+  allJobs: SelectedJob[],
+  scheduledPickupDate?: string | null,
+  orderCollected?: boolean | null
 ): { text: string; color: string; icon: JSX.Element } => {
   // If already collected, show "Collected"
-  if (collectionConfirmedAt) {
+  if (collectionConfirmedAt || orderCollected === true) {
     return {
       text: 'Collected',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
       icon: <Package className="h-3 w-3" />
     };
   }
-  
+
   // Check if there's a pickup/collection job for the same order on this route
   const matchingCollection = allJobs.find(
     j => j.orderId === orderId && j.type === 'pickup'
   );
   
   if (matchingCollection && matchingCollection.order !== undefined && deliveryIndex !== undefined) {
-    // Same-day collection exists on this route
     if (matchingCollection.order < deliveryIndex) {
-      // Collection is BEFORE delivery in sequence
       return {
         text: 'Collecting on Route',
         color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
         icon: <Package className="h-3 w-3" />
       };
     } else {
-      // Collection is AFTER delivery - this is a problem!
       return {
         text: 'Collection After Delivery!',
         color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
@@ -185,8 +184,20 @@ const getCollectionStatusBadge = (
       };
     }
   }
-  
-  // No matching collection on this route
+
+  // Scheduled to be collected today via another route
+  if (scheduledPickupDate) {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const schedStr = format(new Date(scheduledPickupDate), 'yyyy-MM-dd');
+    if (schedStr === todayStr) {
+      return {
+        text: 'Collecting Today',
+        color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200',
+        icon: <Truck className="h-3 w-3" />
+      };
+    }
+  }
+
   return {
     text: 'Not Collected',
     color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
@@ -384,7 +395,14 @@ const JobItem: React.FC<JobItemProps> = ({
                       );
                       
                       const collectionBadge = groupedJob.type === 'delivery' 
-                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at, groupedJob.orderId, job.order, allJobs)
+                        ? getCollectionStatusBadge(
+                            groupedJob.orderData?.collection_confirmation_sent_at,
+                            groupedJob.orderId,
+                            job.order,
+                            allJobs,
+                            groupedJob.orderData?.scheduled_pickup_date,
+                            groupedJob.orderData?.order_collected
+                          )
                         : null;
                     
                       return (
@@ -491,7 +509,14 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
-                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
+                        const collectionBadge = getCollectionStatusBadge(
+                          job.orderData?.collection_confirmation_sent_at,
+                          job.orderId,
+                          job.order,
+                          allJobs,
+                          job.orderData?.scheduled_pickup_date,
+                          job.orderData?.order_collected
+                        );
                         return collectionBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
@@ -689,6 +714,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
   const [orderList, setOrderList] = useState<OrderData[]>(orders);
+
+  // Keep internal orderList in sync with parent-provided orders (useQuery refreshes, refetches, etc.)
+  React.useEffect(() => {
+    setOrderList(orders);
+  }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
@@ -952,28 +982,37 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     orderList.forEach(order => {
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
-      const isInspected = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
-      if (applyFilters && showInspectedOnly && !isInspected) return;
+      const needsInspection = (order as any).needs_inspection === true;
+      const isInspectionComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      // Inspected-only only affects DELIVERIES of orders that actually need inspection.
+      // Pickups, and deliveries of orders that don't need inspection, are unaffected.
+      const passesInspected = !applyFilters || !showInspectedOnly || !needsInspection || isInspectionComplete;
 
       const allowPickup = !applyFilters || jobTypeFilter !== 'delivery';
       const allowDelivery = !applyFilters || jobTypeFilter !== 'collection';
 
+      // Helper: does this set of dates contain the selected filterDate (or is there no filter to apply)?
+      const matchesFilterDate = (dates: string[] | null | undefined): boolean => {
+        if (!applyFilters) return true;
+        if (!filterDate) return true;
+        if (!dates || dates.length === 0) return true; // jobs with no availability dates always pass date filter
+        const target = format(filterDate, 'yyyy-MM-dd');
+        return dates.some(d => format(new Date(d), 'yyyy-MM-dd') === target);
+      };
+
       // Add pickup job if not scheduled. Pickups always follow the normal date filter,
       // even when "Collecting before delivery date" is on.
       if (allowPickup && !order.scheduled_pickup_date) {
-
-        // Check date filter for pickups
         const pickupDates = order.pickup_date as string[] | null;
-        const pickupAvailable = !applyFilters || !filterDate || 
-          !pickupDates || 
-          pickupDates.length === 0 ||
-          pickupDates.some(date => 
-            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
-          );
-        
-          // Always show pickups that pass the date filter (showCollectedOnly only affects deliveries)
-          const pickupExpiredOk = !applyFilters || !showExpiredDatesOnly || hasAllDatesExpired(pickupDates);
-          if (pickupAvailable && pickupExpiredOk) {
+        const pickupMatchesDate = matchesFilterDate(pickupDates);
+        const pickupIsExpired = hasAllDatesExpired(pickupDates);
+
+        // Expired toggle is ADDITIVE: base visibility OR expired visibility.
+        const pickupBaseVisible = !applyFilters || pickupMatchesDate;
+        const pickupExpiredVisible = applyFilters && showExpiredDatesOnly && pickupIsExpired;
+        const pickupVisible = pickupBaseVisible || pickupExpiredVisible;
+
+        if (pickupVisible) {
           jobs.push({
             orderId: order.id,
             type: 'pickup',
@@ -986,25 +1025,25 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           });
         }
       }
-      
+
       // Add delivery job if not scheduled
       if (allowDelivery && !order.scheduled_delivery_date) {
-        // Check date filter for deliveries
         const deliveryDates = order.delivery_date as string[] | null;
-        const deliveryAvailable = !applyFilters || !filterDate || 
-          !deliveryDates || 
-          deliveryDates.length === 0 ||
-          deliveryDates.some(date => 
-            format(new Date(date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd')
-          );
-        
+        const deliveryMatchesDate = matchesFilterDate(deliveryDates);
+        const deliveryIsExpired = hasAllDatesExpired(deliveryDates);
+
         // If "collected only" is on, only show collected deliveries.
         // If "collecting before delivery date" is on, only show deliveries whose
         // order is already collected or has a pickup strictly before the target date.
         const passesCollectingBefore = !applyFilters || !showCollectionToday || isCollectedBeforeTarget(order);
-        const deliveryExpiredOk = !applyFilters || !showExpiredDatesOnly || hasAllDatesExpired(deliveryDates);
-        if ((!applyFilters || !showCollectedOnly || isCollected) && deliveryAvailable && passesCollectingBefore && deliveryExpiredOk) {
+        const passesCollectedOnly = !applyFilters || !showCollectedOnly || isCollected;
 
+        const deliveryBaseVisible = !applyFilters || deliveryMatchesDate;
+        const deliveryExpiredVisible = applyFilters && showExpiredDatesOnly && deliveryIsExpired;
+        const deliveryDateVisible = deliveryBaseVisible || deliveryExpiredVisible;
+        const deliveryVisible = deliveryDateVisible && passesCollectedOnly && passesCollectingBefore && passesInspected;
+
+        if (deliveryVisible) {
           jobs.push({
             orderId: order.id,
             type: 'delivery',
@@ -1018,6 +1057,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         }
       }
     });
+
     
     return jobs;
   };
@@ -1472,17 +1512,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver')
+      .select('id, sender, receiver, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
-      console.error('Error fetching latest coordinates:', error);
-      toast.error('Failed to fetch latest coordinates, using cached values');
+      console.error('Error fetching latest order data:', error);
+      toast.error('Failed to fetch latest data, using cached values');
       calculateTimeslots();
       return;
     }
 
-    // Update selectedJobs with fresh coordinates
+    // Update selectedJobs with fresh coordinates and order data
     const updatedJobs = selectedJobs.map(job => {
       if (job.type === 'break') return job;
       
@@ -1494,7 +1534,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         ? freshOrder.sender 
         : freshOrder.receiver;
 
-      // Type guard for the contact JSON structure
       const contact = contactJson && typeof contactJson === 'object' && !Array.isArray(contactJson)
         ? contactJson as { address?: { lat?: number; lon?: number } }
         : null;
@@ -1502,7 +1541,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const newLat = contact?.address?.lat;
       const newLon = contact?.address?.lon;
 
-      // Log if coordinates changed
       if (newLat !== job.lat || newLon !== job.lon) {
         console.log(`Updated coordinates for ${job.contactName}: (${job.lat}, ${job.lon}) -> (${newLat}, ${newLon})`);
       }
@@ -1510,7 +1548,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return {
         ...job,
         lat: newLat,
-        lon: newLon
+        lon: newLon,
+        orderData: job.orderData ? {
+          ...job.orderData,
+          scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
+          scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
+          order_collected: freshOrder.order_collected ?? job.orderData.order_collected,
+          order_delivered: freshOrder.order_delivered ?? job.orderData.order_delivered,
+          collection_confirmation_sent_at: freshOrder.collection_confirmation_sent_at ?? job.orderData.collection_confirmation_sent_at,
+          pickup_date: (freshOrder.pickup_date as any) ?? job.orderData.pickup_date,
+          delivery_date: (freshOrder.delivery_date as any) ?? job.orderData.delivery_date,
+          status: (freshOrder.status as any) ?? job.orderData.status,
+        } : job.orderData
       };
     });
 
@@ -2845,6 +2894,20 @@ Route Link: ${routeLink}`;
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
   const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
 
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[RouteBuilder] availableJobs', {
+      filterDate: filterDate ? format(filterDate, 'yyyy-MM-dd') : null,
+      showExpiredDatesOnly,
+      showInspectedOnly,
+      showCollectedOnly,
+      showCollectionToday,
+      total: availableJobs.length,
+      unfiltered: totalUnfilteredJobs,
+    });
+  }
+
+
   // Helper to get Shipday status for a job
   const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
     const shipdayId = jobType === 'pickup' ? order.shipday_pickup_id : order.shipday_delivery_id;
@@ -2869,6 +2932,47 @@ Route Link: ${routeLink}`;
     } finally {
       setSyncingShipdayIds(prev => { const next = new Set(prev); next.delete(key); return next; });
     }
+  };
+
+  const [isLoadingShipday, setIsLoadingShipday] = useState(false);
+
+  const handleLoadFilteredIntoShipday = async () => {
+    const jobs = availableJobs.filter(j => j.type === 'pickup' || j.type === 'delivery') as Array<{ orderId: string; type: 'pickup' | 'delivery'; order: OrderData }>;
+    if (jobs.length === 0) {
+      toast.info('No filtered jobs to load');
+      return;
+    }
+    // Skip jobs already verified in Shipday
+    const toSend = jobs.filter(j => getShipdayStatus(j.order, j.type) !== 'verified');
+    const alreadyIn = jobs.length - toSend.length;
+    if (toSend.length === 0) {
+      toast.info('All filtered jobs are already in Shipday');
+      return;
+    }
+    if (toSend.length > 20 && !window.confirm(`Push ${toSend.length} jobs into Shipday?`)) {
+      return;
+    }
+    setIsLoadingShipday(true);
+    toast.info(`Loading ${toSend.length} jobs into Shipday...`);
+    let success = 0;
+    let failed = 0;
+    for (const job of toSend) {
+      try {
+        await createShipdayOrder(job.orderId, job.type);
+        success++;
+      } catch (err) {
+        console.error('Failed to load job into Shipday', job, err);
+        failed++;
+      }
+    }
+    const parts = [`${success} loaded`];
+    if (alreadyIn > 0) parts.push(`${alreadyIn} already in Shipday`);
+    if (failed > 0) parts.push(`${failed} failed`);
+    const msg = parts.join(', ');
+    if (failed === 0) toast.success(msg);
+    else toast.warning(msg);
+    onReVerifyShipday?.();
+    setIsLoadingShipday(false);
   };
 
   const renderShipdayIcon = (status: 'verified' | 'missing' | 'none', orderId?: string, jobType?: 'pickup' | 'delivery') => {
@@ -3036,6 +3140,17 @@ Route Link: ${routeLink}`;
 
             
             
+            {/* Load filtered jobs into Shipday */}
+            <Button
+              variant="outline"
+              onClick={handleLoadFilteredIntoShipday}
+              disabled={isLoadingShipday || availableJobs.length === 0}
+              className="flex items-center gap-2"
+            >
+              {isLoadingShipday ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Load filtered into Shipday
+            </Button>
+
             {/* CSV Upload Button */}
             <CSVUploadButton 
               onFileSelect={handleCsvFileSelect}

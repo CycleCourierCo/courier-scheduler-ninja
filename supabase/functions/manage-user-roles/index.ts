@@ -47,7 +47,13 @@ Deno.serve(async (req) => {
 
     const { action, userId, role, roles } = await req.json();
 
-    console.log('Managing user role:', { action, userId, role, roles });
+    // Sales users may only assign customer-tier roles. All elevated roles require admin.
+    const SALES_ASSIGNABLE = new Set(['b2b_customer', 'b2c_customer']);
+    const assertAssignable = (rs: string[]): string | null => {
+      if (isAdmin) return null;
+      const bad = rs.find((r) => !SALES_ASSIGNABLE.has(r));
+      return bad ? `Sales users cannot assign role: ${bad}` : null;
+    };
 
     // Priority order for picking a "primary" role to mirror onto profiles.role
     const ROLE_PRIORITY = ['admin','route_planner','loader','mechanic','sales','driver','b2b_customer','b2c_customer'];
@@ -61,7 +67,14 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const uniqueRoles = Array.from(new Set(roles));
+      const uniqueRoles = Array.from(new Set(roles)) as string[];
+      const denied = assertAssignable(uniqueRoles);
+      if (denied) {
+        return new Response(
+          JSON.stringify({ error: denied }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       const { error: deleteError } = await supabaseAdmin
         .from('user_roles')
@@ -88,6 +101,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'set') {
+      const denied = assertAssignable([role]);
+      if (denied) {
+        return new Response(
+          JSON.stringify({ error: denied }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       // Remove existing roles for this user
       const { error: deleteError } = await supabaseAdmin
         .from('user_roles')
