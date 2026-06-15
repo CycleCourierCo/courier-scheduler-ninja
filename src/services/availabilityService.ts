@@ -130,7 +130,7 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
   }
 };
 
-export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string): Promise<Order | null> => {
+export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateSenderAvailability");
@@ -138,9 +138,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     }
     
     console.log(`Updating sender availability for order ${orderId}`);
-    console.log(`Selected dates: ${dates.map(d => d.toISOString())}`);
     
-    // Fetch holidays and filter invalid dates
     const holidayDates = await fetchHolidayDates();
     const allowedFridayDates = await fetchAllowedFridayDates();
     const validDates = filterInvalidDates(dates, holidayDates, allowedFridayDates);
@@ -151,53 +149,41 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       return null;
     }
     
-    // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
-    // Submit availability via secure RPC. The RPC reads needs_inspection server-side
-    // and atomically writes dates, notes, confirmed_at, and the appropriate next status.
     const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "sender",
       p_dates: dateStrings,
       p_notes: notes.trim(),
+      p_postcode: postcode ?? null,
     });
 
     if (error) {
       console.error("Error updating sender availability:", error);
+      if ((error as any).message?.toLowerCase().includes("postcode")) {
+        toast.error("That postcode doesn't match the one on this order. Please check and try again.");
+      } else if ((error as any).message?.toLowerCase().includes("too many")) {
+        toast.error("Too many attempts. Please wait a few minutes and try again.");
+      }
       return null;
     }
 
     const order = mapDbOrderToOrderType(rpcData);
     const needsInspection = order.needsInspection === true;
 
-    console.log("Sender availability confirmed.", needsInspection ? "Inspection required - deferring receiver notification." : "Proceeding to notify receiver.");
-
-
-    
-    // Send confirmation email to sender with their selected dates
     try {
-      const confirmEmailSent = await sendSenderDatesConfirmedEmail(orderId, dateStrings);
-      console.log("Sender dates confirmed email sent:", confirmEmailSent);
+      await sendSenderDatesConfirmedEmail(orderId, dateStrings);
     } catch (confirmError) {
       console.error("Error sending sender dates confirmed email:", confirmError);
     }
     
-    // Send receiver availability email — skip when inspection is required.
-    // It will be triggered after the inspection completes (repairs done or all declined).
     if (!needsInspection) {
       try {
-        const emailSent = await resendReceiverAvailabilityEmail(orderId);
-        console.log("Receiver availability email sent:", emailSent);
-
-        if (!emailSent) {
-          console.error("Failed to send receiver availability email");
-        }
+        await resendReceiverAvailabilityEmail(orderId);
       } catch (emailError) {
         console.error("Error sending receiver availability email:", emailError);
       }
-    } else {
-      console.log("Skipping receiver availability email - order needs inspection. Will send once inspection is complete.");
     }
     
     return order;
@@ -207,52 +193,44 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
   }
 };
 
-export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string): Promise<Order | null> => {
+export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateReceiverAvailability");
       return null;
     }
     
-    console.log(`Updating receiver availability for order ${orderId}`);
-    console.log(`Selected dates: ${dates.map(d => d.toISOString())}`);
-    console.log(`Notes: ${notes}`);
-    console.log(`Auth UID: ${JSON.stringify((await supabase.auth.getUser()).data.user?.id)}`);
-    
-    // Fetch holidays and filter invalid dates
     const holidayDates = await fetchHolidayDates();
     const allowedFridayDates = await fetchAllowedFridayDates();
     const validDates = filterInvalidDates(dates, holidayDates, allowedFridayDates);
     
     if (validDates.length < 7) {
-      console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
       toast.error("Not enough valid dates. Please select at least 7 valid dates.");
       return null;
     }
     
-    // Format dates as YYYY-MM-DD strings (no timezone shift)
     const dateStrings = validDates.map(toDateString);
     
-    // Submit availability via secure RPC (atomic dates + notes + status update)
     const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "receiver",
       p_dates: dateStrings,
       p_notes: notes.trim(),
+      p_postcode: postcode ?? null,
     });
 
     if (error) {
       console.error("Error updating receiver availability:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
+      if ((error as any).message?.toLowerCase().includes("postcode")) {
+        toast.error("That postcode doesn't match the one on this order. Please check and try again.");
+      } else if ((error as any).message?.toLowerCase().includes("too many")) {
+        toast.error("Too many attempts. Please wait a few minutes and try again.");
+      }
       return null;
     }
 
-    console.log("Receiver availability confirmed successfully");
-
-    // Send confirmation email to receiver with their selected dates
     try {
-      const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
-      console.log("Receiver dates confirmed email sent:", confirmEmailSent);
+      await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
     } catch (confirmError) {
       console.error("Error sending receiver dates confirmed email:", confirmError);
     }
@@ -264,6 +242,7 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     return null;
   }
 };
+
 
 const extractDates = (raw: any): Date[] => {
   const dates: Date[] = [];
