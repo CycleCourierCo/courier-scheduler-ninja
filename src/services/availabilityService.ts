@@ -267,35 +267,29 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
 
 export const getSenderAvailability = async (orderId: string) => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("sender_notes, pickup_date")
-      .eq("id", orderId)
-      .single();
+const extractDates = (raw: any): Date[] => {
+  const dates: Date[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === "string") {
+        try { dates.push(new Date(item)); } catch (e) { /* ignore */ }
+      }
+    }
+  }
+  return dates;
+};
 
-    if (error) {
+export const getSenderAvailability = async (orderId: string) => {
+  try {
+    const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+    if (error || !data) {
       console.error("Error fetching sender availability:", error);
       toast.error("Failed to fetch sender availability.");
       return null;
     }
-
-    // Safely convert the JSON array to Date objects with type checking
-    const dates: Date[] = [];
-    if (Array.isArray(data.pickup_date)) {
-      for (const dateItem of data.pickup_date) {
-        if (typeof dateItem === 'string') {
-          try {
-            dates.push(new Date(dateItem));
-          } catch (e) {
-            console.error("Invalid date format in pickup_date:", dateItem);
-          }
-        }
-      }
-    }
-
     return {
-      notes: data.sender_notes || "",
-      dates: dates
+      notes: (data as any).sender_notes || "",
+      dates: extractDates((data as any).pickup_date),
     };
   } catch (error) {
     console.error("Unexpected error fetching sender availability:", error);
@@ -306,35 +300,15 @@ export const getSenderAvailability = async (orderId: string) => {
 
 export const getReceiverAvailability = async (orderId: string) => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("receiver_notes, delivery_date")
-      .eq("id", orderId)
-      .single();
-
-    if (error) {
+    const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+    if (error || !data) {
       console.error("Error fetching receiver availability:", error);
       toast.error("Failed to fetch receiver availability.");
       return null;
     }
-
-    // Safely convert the JSON array to Date objects with type checking
-    const dates: Date[] = [];
-    if (Array.isArray(data.delivery_date)) {
-      for (const dateItem of data.delivery_date) {
-        if (typeof dateItem === 'string') {
-          try {
-            dates.push(new Date(dateItem));
-          } catch (e) {
-            console.error("Invalid date format in delivery_date:", dateItem);
-          }
-        }
-      }
-    }
-
     return {
-      notes: data.receiver_notes || "",
-      dates: dates
+      notes: (data as any).receiver_notes || "",
+      dates: extractDates((data as any).delivery_date),
     };
   } catch (error) {
     console.error("Unexpected error fetching receiver availability:", error);
@@ -342,3 +316,4 @@ export const getReceiverAvailability = async (orderId: string) => {
     return null;
   }
 };
+
