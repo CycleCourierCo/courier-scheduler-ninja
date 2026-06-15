@@ -151,33 +151,32 @@ const getCollectionStatusBadge = (
   collectionConfirmedAt: string | null | undefined,
   orderId: string,
   deliveryIndex: number | undefined,
-  allJobs: SelectedJob[]
+  allJobs: SelectedJob[],
+  scheduledPickupDate?: string | null,
+  orderCollected?: boolean | null
 ): { text: string; color: string; icon: JSX.Element } => {
   // If already collected, show "Collected"
-  if (collectionConfirmedAt) {
+  if (collectionConfirmedAt || orderCollected === true) {
     return {
       text: 'Collected',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
       icon: <Package className="h-3 w-3" />
     };
   }
-  
+
   // Check if there's a pickup/collection job for the same order on this route
   const matchingCollection = allJobs.find(
     j => j.orderId === orderId && j.type === 'pickup'
   );
   
   if (matchingCollection && matchingCollection.order !== undefined && deliveryIndex !== undefined) {
-    // Same-day collection exists on this route
     if (matchingCollection.order < deliveryIndex) {
-      // Collection is BEFORE delivery in sequence
       return {
         text: 'Collecting on Route',
         color: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
         icon: <Package className="h-3 w-3" />
       };
     } else {
-      // Collection is AFTER delivery - this is a problem!
       return {
         text: 'Collection After Delivery!',
         color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
@@ -185,8 +184,20 @@ const getCollectionStatusBadge = (
       };
     }
   }
-  
-  // No matching collection on this route
+
+  // Scheduled to be collected today via another route
+  if (scheduledPickupDate) {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const schedStr = format(new Date(scheduledPickupDate), 'yyyy-MM-dd');
+    if (schedStr === todayStr) {
+      return {
+        text: 'Collecting Today',
+        color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200',
+        icon: <Truck className="h-3 w-3" />
+      };
+    }
+  }
+
   return {
     text: 'Not Collected',
     color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
@@ -384,15 +395,15 @@ const JobItem: React.FC<JobItemProps> = ({
                       );
                       
                       const collectionBadge = groupedJob.type === 'delivery' 
-                        ? getCollectionStatusBadge(groupedJob.orderData?.collection_confirmation_sent_at, groupedJob.orderId, job.order, allJobs)
+                        ? getCollectionStatusBadge(
+                            groupedJob.orderData?.collection_confirmation_sent_at,
+                            groupedJob.orderId,
+                            job.order,
+                            allJobs,
+                            groupedJob.orderData?.scheduled_pickup_date,
+                            groupedJob.orderData?.order_collected
+                          )
                         : null;
-                      
-                      const _todayStr = format(new Date(), 'yyyy-MM-dd');
-                      const _scheduledPickup = groupedJob.orderData?.scheduled_pickup_date;
-                      const _scheduledPickupStr = _scheduledPickup ? format(new Date(_scheduledPickup), 'yyyy-MM-dd') : null;
-                      const isCollectingToday = groupedJob.type === 'delivery'
-                        && groupedJob.orderData?.order_collected !== true
-                        && _scheduledPickupStr === _todayStr;
                     
                       return (
                         <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="space-y-1 pl-1.5 border-l border-muted">
@@ -418,12 +429,6 @@ const JobItem: React.FC<JobItemProps> = ({
                               <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                                 {collectionBadge.icon}
                                 {collectionBadge.text}
-                              </Badge>
-                            )}
-                            {isCollectingToday && (
-                              <Badge className="text-xs px-1.5 py-0 flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200">
-                                <Truck className="h-3 w-3" />
-                                Collecting Today
                               </Badge>
                             )}
                             {/* Inspection Badge */}
@@ -504,28 +509,20 @@ const JobItem: React.FC<JobItemProps> = ({
                       
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
-                        const collectionBadge = getCollectionStatusBadge(job.orderData?.collection_confirmation_sent_at, job.orderId, job.order, allJobs);
-                        const _todayStr = format(new Date(), 'yyyy-MM-dd');
-                        const _scheduledPickup = job.orderData?.scheduled_pickup_date;
-                        const _scheduledPickupStr = _scheduledPickup ? format(new Date(_scheduledPickup), 'yyyy-MM-dd') : null;
-                        const isCollectingToday = job.orderData?.order_collected !== true
-                          && _scheduledPickupStr === _todayStr;
-                        return (
-                          <>
-                            {collectionBadge && (
-                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                                {collectionBadge.icon}
-                                {collectionBadge.text}
-                              </Badge>
-                            )}
-                            {isCollectingToday && (
-                              <Badge className="text-xs px-1.5 py-0 flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200">
-                                <Truck className="h-3 w-3" />
-                                Collecting Today
-                              </Badge>
-                            )}
-                          </>
+                        const collectionBadge = getCollectionStatusBadge(
+                          job.orderData?.collection_confirmation_sent_at,
+                          job.orderId,
+                          job.order,
+                          allJobs,
+                          job.orderData?.scheduled_pickup_date,
+                          job.orderData?.order_collected
                         );
+                        return collectionBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                            {collectionBadge.icon}
+                            {collectionBadge.text}
+                          </Badge>
+                        ) : null;
                       })()}
                       
                       {/* Inspection Status Badge */}
@@ -1515,17 +1512,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver')
+      .select('id, sender, receiver, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
-      console.error('Error fetching latest coordinates:', error);
-      toast.error('Failed to fetch latest coordinates, using cached values');
+      console.error('Error fetching latest order data:', error);
+      toast.error('Failed to fetch latest data, using cached values');
       calculateTimeslots();
       return;
     }
 
-    // Update selectedJobs with fresh coordinates
+    // Update selectedJobs with fresh coordinates and order data
     const updatedJobs = selectedJobs.map(job => {
       if (job.type === 'break') return job;
       
@@ -1537,7 +1534,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         ? freshOrder.sender 
         : freshOrder.receiver;
 
-      // Type guard for the contact JSON structure
       const contact = contactJson && typeof contactJson === 'object' && !Array.isArray(contactJson)
         ? contactJson as { address?: { lat?: number; lon?: number } }
         : null;
@@ -1545,7 +1541,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const newLat = contact?.address?.lat;
       const newLon = contact?.address?.lon;
 
-      // Log if coordinates changed
       if (newLat !== job.lat || newLon !== job.lon) {
         console.log(`Updated coordinates for ${job.contactName}: (${job.lat}, ${job.lon}) -> (${newLat}, ${newLon})`);
       }
@@ -1553,7 +1548,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return {
         ...job,
         lat: newLat,
-        lon: newLon
+        lon: newLon,
+        orderData: job.orderData ? {
+          ...job.orderData,
+          scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
+          scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
+          order_collected: freshOrder.order_collected ?? job.orderData.order_collected,
+          order_delivered: freshOrder.order_delivered ?? job.orderData.order_delivered,
+          collection_confirmation_sent_at: freshOrder.collection_confirmation_sent_at ?? job.orderData.collection_confirmation_sent_at,
+          pickup_date: (freshOrder.pickup_date as any) ?? job.orderData.pickup_date,
+          delivery_date: (freshOrder.delivery_date as any) ?? job.orderData.delivery_date,
+          status: (freshOrder.status as any) ?? job.orderData.status,
+        } : job.orderData
       };
     });
 

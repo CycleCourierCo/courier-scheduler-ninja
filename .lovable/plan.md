@@ -1,35 +1,11 @@
-## Fix "Collecting Today" badge field
+Plan:
 
-The badge in `RouteBuilder.tsx` currently checks `job.orderData.pickup_date` (the customer's availability array). That field is often empty even when the order is actually scheduled — the real route-planned date lives in `scheduled_pickup_date`.
+1. Update the collection-status logic in `RouteBuilder.tsx` so a delivery whose order has `scheduled_pickup_date` equal to today and `order_collected !== true` returns a `Collecting Today` amber badge instead of falling through to `Not Collected`.
 
-### Change
+2. Remove the separate duplicate `Collecting Today` badge rendering and make it part of the main collection status badge, so the UI shows one clear status: `Collected`, `Collecting Today`, `Collecting on Route`, `Collection After Delivery`, or `Not Collected`.
 
-In both badge locations (grouped-jobs branch ~line 386–415, and single-job branch ~line 503–512):
+3. Make the date comparison robust for Supabase timestamp strings by extracting/normalising the date portion rather than relying on potentially stale availability dates.
 
-Replace the condition:
+4. Fix the Recalculate flow in the Route Timeslots popup: it currently refreshes only sender/receiver coordinates, so selected jobs can keep stale `orderData`. I’ll expand that refresh to also pull `scheduled_pickup_date`, `order_collected`, `collection_confirmation_sent_at`, availability dates, and related scheduling fields, then merge them back into `selectedJobs` before recalculating.
 
-```ts
-const isCollectingToday =
-  job.type === 'delivery' &&
-  job.orderData?.order_collected !== true &&
-  Array.isArray(job.orderData?.pickup_date) &&
-  job.orderData.pickup_date.includes(format(new Date(), 'yyyy-MM-dd'));
-```
-
-with:
-
-```ts
-const todayStr = format(new Date(), 'yyyy-MM-dd');
-const scheduled = job.orderData?.scheduled_pickup_date;
-const scheduledStr = scheduled ? format(new Date(scheduled), 'yyyy-MM-dd') : null;
-const isCollectingToday =
-  job.type === 'delivery' &&
-  job.orderData?.order_collected !== true &&
-  scheduledStr === todayStr;
-```
-
-Badge appearance (amber pill with `Truck` icon, text "Collecting today") and placement remain unchanged.
-
-### Out of scope
-
-No other filter, query, or styling changes.
+5. Verify the example logic against `CCC754788119570SALB31`: `scheduled_pickup_date = 2026-06-15`, `order_collected = false`, so on June 15 it should display `Collecting Today` when planning delivery for June 16.
