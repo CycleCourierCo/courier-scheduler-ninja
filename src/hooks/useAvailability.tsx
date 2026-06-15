@@ -28,7 +28,9 @@ export const useAvailability = ({
   const navigate = useNavigate();
   const [dates, setDates] = useState<Date[]>([]);
   const [notes, setNotes] = useState<string>("");
+  const [postcode, setPostcode] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
