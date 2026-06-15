@@ -67,6 +67,10 @@ export type ShipdayUpdate = {
   podUrls?: string[];
   signatureUrl?: string;
   driverName?: string;
+  // Server-sanitised public tracking flags — set even when podUrls/signatureUrl
+  // are withheld behind postcode verification.
+  has_pod?: boolean;
+  has_signature?: boolean;
 };
 
 export type Order = {

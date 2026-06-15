@@ -2425,6 +2425,27 @@ export type Database = {
           },
         ]
       }
+      tracking_postcode_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          ip: string | null
+          order_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          ip?: string | null
+          order_id: string
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          ip?: string | null
+          order_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2954,6 +2975,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _build_public_order_payload: {
+        Args: {
+          p_reveal_side?: string
+          v_order: Database["public"]["Tables"]["orders"]["Row"]
+        }
+        Returns: Json
+      }
+      _normalise_postcode: { Args: { p: string }; Returns: string }
       admin_generate_api_key: {
         Args: { customer_id: string; key_name: string }
         Returns: {
@@ -3046,6 +3075,10 @@ export type Database = {
         Returns: Json
       }
       get_public_order: { Args: { p_identifier: string }; Returns: Json }
+      get_public_order_with_proof: {
+        Args: { p_identifier: string; p_postcode: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
