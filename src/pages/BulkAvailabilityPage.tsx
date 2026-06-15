@@ -34,34 +34,20 @@ const BulkAvailabilityPage = () => {
 
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .neq("status", "delivered")
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false });
+      // Secure RPC: returns [{ role, order }] for orders where the signed-in user's
+      // email matches sender/receiver and that side has not yet been confirmed.
+      const { data, error } = await supabase.rpc("get_my_pending_availability_orders" as any);
 
       if (error) throw error;
 
-      // Map and filter orders, creating separate entries for sender and receiver roles
-      const mappedOrders = data?.map(mapDbOrderToOrderType) || [];
-      const expandedOrders: (Order & { displayRole: 'sender' | 'receiver' })[] = [];
-      
-      mappedOrders.forEach((order: Order) => {
-        const senderEmail = order.sender?.email?.toLowerCase();
-        const receiverEmail = order.receiver?.email?.toLowerCase();
-        const userEmail = user.email?.toLowerCase();
-        
-        // Add as sender if email matches and not confirmed
-        if (senderEmail === userEmail && !order.senderConfirmedAt) {
-          expandedOrders.push({ ...order, displayRole: 'sender' });
-        }
-        
-        // Add as receiver if email matches and not confirmed
-        if (receiverEmail === userEmail && !order.receiverConfirmedAt) {
-          expandedOrders.push({ ...order, displayRole: 'receiver' });
-        }
-      });
+      const entries = Array.isArray(data) ? data : [];
+      const expandedOrders: (Order & { displayRole: 'sender' | 'receiver' })[] = entries
+        .map((entry: any) => {
+          if (!entry?.order) return null;
+          const mapped = mapDbOrderToOrderType(entry.order);
+          return { ...mapped, displayRole: entry.role as 'sender' | 'receiver' };
+        })
+        .filter(Boolean) as (Order & { displayRole: 'sender' | 'receiver' })[];
 
       setOrders(expandedOrders);
     } catch (error: any) {
@@ -71,6 +57,7 @@ const BulkAvailabilityPage = () => {
       setIsLoading(false);
     }
   };
+
 
   const toggleOrderSelection = (orderId: string, role: 'sender' | 'receiver') => {
     const key = `${orderId}-${role}`;
@@ -143,80 +130,37 @@ const BulkAvailabilityPage = () => {
         });
 
         if (isSender) {
-          // If the bike needs inspection, defer the receiver flow: keep status
-          // at sender_availability_confirmed and don't send the receiver email.
-          const blockedByInspection = await isReceiverAvailabilityBlockedByInspection(orderId);
-
-          // Determine status: if receiver already confirmed, move to scheduled_dates_pending
-          const newStatus = order.receiverConfirmedAt
-            ? "scheduled_dates_pending"
-            : blockedByInspection
-              ? "sender_availability_confirmed"
-              : "receiver_availability_pending";
-
-          console.log("About to update sender with:", {
-            pickup_date: dateStrings,
-            sender_notes: notes,
-            status: newStatus,
-            orderId,
-            blockedByInspection,
+          const { error } = await supabase.rpc("set_order_availability" as any, {
+            p_order_id: orderId,
+            p_side: "sender",
+            p_dates: dateStrings,
+            p_notes: notes,
           });
-
-          const { data, error } = await supabase
-            .from("orders")
-            .update({
-              pickup_date: dateStrings,
-              sender_notes: notes,
-              sender_confirmed_at: new Date().toISOString(),
-              status: newStatus,
-            })
-            .eq("id", orderId)
-            .select();
-
-          console.log("Sender update result:", { data, error });
 
           if (error) {
             console.error("Error updating sender availability:", error);
             throw error;
           }
 
-          // Send receiver availability email if status changed to receiver_availability_pending
-          if (newStatus === "receiver_availability_pending") {
+          // Trigger receiver email when the RPC will have moved status to receiver_availability_pending
+          const blockedByInspection = await isReceiverAvailabilityBlockedByInspection(orderId);
+          if (!blockedByInspection && !order.receiverConfirmedAt) {
             try {
-              console.log("Sending receiver availability email for order:", orderId);
               const emailSent = await resendReceiverAvailabilityEmail(orderId);
-              if (emailSent) {
-                console.log("Receiver availability email sent successfully");
-              } else {
+              if (!emailSent) {
                 console.warn("Failed to send receiver availability email for order:", orderId);
               }
             } catch (emailError) {
               console.error("Error sending receiver availability email:", emailError);
-              // Don't throw - continue processing other orders even if email fails
             }
-          } else if (blockedByInspection) {
-            console.log("Receiver email deferred - order awaiting inspection:", orderId);
           }
         } else {
-          // Receiver is always setting to scheduled_dates_pending since sender must confirm first
-          console.log("About to update receiver with:", {
-            delivery_date: dateStrings,
-            receiver_notes: notes,
-            orderId
+          const { error } = await supabase.rpc("set_order_availability" as any, {
+            p_order_id: orderId,
+            p_side: "receiver",
+            p_dates: dateStrings,
+            p_notes: notes,
           });
-
-          const { data, error } = await supabase
-            .from("orders")
-            .update({
-              delivery_date: dateStrings,
-              receiver_notes: notes,
-              receiver_confirmed_at: new Date().toISOString(),
-              status: "scheduled_dates_pending",
-            })
-            .eq("id", orderId)
-            .select();
-
-          console.log("Receiver update result:", { data, error });
 
           if (error) {
             console.error("Error updating receiver availability:", error);
@@ -224,6 +168,7 @@ const BulkAvailabilityPage = () => {
           }
         }
       }
+
 
       toast.success(`Successfully updated ${selectedOrderIds.length} order(s)`);
       setSelectedOrderIds([]);
