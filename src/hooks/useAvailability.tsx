@@ -12,10 +12,11 @@ type AvailabilityType = 'sender' | 'receiver';
 
 interface UseAvailabilityProps {
   type: AvailabilityType;
-  updateFunction: (id: string, dates: Date[], notes: string) => Promise<Order | null>;
+  updateFunction: (id: string, dates: Date[], notes: string, postcode?: string | null) => Promise<Order | null>;
   getMinDate: () => Date;
   isAlreadyConfirmed: (order: Order | null) => boolean;
 }
+
 
 export const useAvailability = ({
   type,
