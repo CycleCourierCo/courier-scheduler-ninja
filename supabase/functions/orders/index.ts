@@ -623,41 +623,50 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      const url = new URL(req.url)
-      const orderId = url.pathname.split('/').pop()
-      
-      if (!orderId) {
+      // Require API key auth for GET, same as POST
+      const apiKey = req.headers.get('X-API-Key')
+      if (!apiKey) {
         return new Response(
-          JSON.stringify({ error: 'Order ID is required', code: 'MISSING_ORDER_ID' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          JSON.stringify({ error: 'API key is required', code: 'MISSING_API_KEY' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      const { data: userId, error: keyError } = await supabase.rpc('verify_api_key', { api_key: apiKey })
+      if (keyError || !userId) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid API key', code: 'INVALID_API_KEY' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
+      const url = new URL(req.url)
+      const orderId = url.pathname.split('/').pop()
+
+      if (!orderId) {
+        return new Response(
+          JSON.stringify({ error: 'Order ID is required', code: 'MISSING_ORDER_ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Scope to caller's own orders and return only API-safe fields
       const { data: order, error } = await supabase
         .from('orders')
-        .select('*')
+        .select('id, tracking_number, customer_order_number, status, created_at, updated_at, bike_brand, bike_model, bike_type, bike_quantity, bikes, is_bike_swap, is_ebay_order, needs_inspection, needs_payment_on_collection, delivery_instructions, pickup_date, delivery_date, scheduled_pickup_date, scheduled_delivery_date, pickup_timeslot, delivery_timeslot, order_collected, order_delivered, sender, receiver')
         .eq('id', orderId)
-        .single()
+        .eq('user_id', userId)
+        .maybeSingle()
 
-      if (error) {
+      if (error || !order) {
         return new Response(
           JSON.stringify({ error: 'Order not found', code: 'ORDER_NOT_FOUND' }),
-          { 
-            status: 404, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
       return new Response(
         JSON.stringify(order),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
