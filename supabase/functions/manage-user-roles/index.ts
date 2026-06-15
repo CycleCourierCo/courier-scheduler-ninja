@@ -67,7 +67,14 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const uniqueRoles = Array.from(new Set(roles));
+      const uniqueRoles = Array.from(new Set(roles)) as string[];
+      const denied = assertAssignable(uniqueRoles);
+      if (denied) {
+        return new Response(
+          JSON.stringify({ error: denied }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       const { error: deleteError } = await supabaseAdmin
         .from('user_roles')
