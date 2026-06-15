@@ -99,25 +99,20 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
       return false;
     }
     
-    const { data, error } = await supabase
-      .from("orders")
-      .update({
-        delivery_date: dateStrings,
-        status: "receiver_availability_confirmed",
-        receiver_confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId)
-      .select()
-      .single();
-    
+    const { error } = await supabase.rpc("set_order_availability" as any, {
+      p_order_id: orderId,
+      p_side: "receiver",
+      p_dates: dateStrings,
+      p_notes: null,
+    });
+
     if (error) {
       console.error("Error confirming receiver availability:", error);
       return false;
     }
-    
+
     console.log("Receiver availability confirmed successfully");
-    
+
     // Send confirmation email to receiver with their selected dates
     try {
       const confirmEmailSent = await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
@@ -125,19 +120,8 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
     } catch (confirmError) {
       console.error("Error sending receiver dates confirmed email:", confirmError);
     }
-    
-    // Automatically update status to scheduled_dates_pending
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "scheduled_dates_pending",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", orderId);
-    
-    if (updateError) {
-      console.error("Error updating to scheduled_dates_pending:", updateError);
-    }
+
+
     
     return true;
   } catch (error) {
