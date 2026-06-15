@@ -42,6 +42,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   setDates,
   notes,
   setNotes,
+  postcode,
+  setPostcode,
+  postcodeLabel,
   placeholder,
   minDate,
   isSubmitting,
@@ -50,6 +53,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   calendarEndDate,
   bufferNotice,
 }) => {
+
   const today = startOfDay(new Date());
   const [validationError, setValidationError] = useState<string | null>(null);
   
