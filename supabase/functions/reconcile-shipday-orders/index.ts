@@ -17,10 +17,23 @@ type ShipdayApiOrder = {
 };
 
 function extractStatus(o: ShipdayApiOrder): string {
-  const s = (o.orderStatus?.orderState ?? o.orderStatus ?? (o as any).order_status ?? "")
-    .toString()
-    .toUpperCase();
-  return s;
+  const os: any = o.orderStatus;
+  const candidates: any[] = [
+    os?.orderState,
+    os?.orderStatus,
+    typeof os === "string" ? os : null,
+    (o as any).order_status,
+    (o as any).status,
+  ];
+  if (os && typeof os === "object" && os.incomplete === true) {
+    candidates.push("INCOMPLETE");
+  }
+  for (const c of candidates) {
+    if (c !== undefined && c !== null && String(c).length > 0) {
+      return String(c).toUpperCase();
+    }
+  }
+  return "";
 }
 
 async function fetchActive(apiKey: string): Promise<ShipdayApiOrder[]> {
