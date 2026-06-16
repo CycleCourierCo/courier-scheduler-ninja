@@ -1,34 +1,43 @@
-## Goal
+## Why orders are failing
 
-When the admin "Reconcile Shipday (24h)" button updates an order to `collected` or `delivered`, it should behave exactly like a real-time Shipday webhook would — including notifying the customer.
+The `orders` INSERT RLS policy ("Consolidated orders INSERT policy") allows an insert only when the caller has one of these roles via `has_role()`:
 
-## What the live `shipday-webhook` does on completion (and what reconcile currently skips)
+```
+admin | b2b_customer | b2c_customer | sales | cs_agent | route_planner
+```
 
-| Side effect | Webhook | Reconcile today |
-|---|---|---|
-| `status` update | yes | yes |
-| `tracking_events.shipday.updates` append | yes | yes |
-| `order_collected` / `order_delivered` flags | yes | yes |
-| **Collection confirmation email** (sender + receiver) via `send-email` action `collection_confirmation` | yes | **no — suppressed** |
-| **Delivery confirmation email** (sender + receiver) via `send-email` action `delivery_confirmation` | yes | **no — suppressed** |
-| On `ORDER_FAILED`: clear the failed leg's `scheduled_*_date`, `*_timeslot`, `shipday_*_id` and re-invoke `create-shipday-order` for that leg | yes | partially — clears fields but does **not** re-create the Shipday job |
+`has_role()` reads `public.user_roles`, **not** `profiles.role`. Postgres logs at 13:52 today show repeated `new row violates row-level security policy for table "orders"` errors — that is exactly the "Failed to create order" toast from the screenshot.
 
-No WhatsApp/SMS or invoice work is triggered directly from the webhook on collection/delivery, so nothing else is missing on that path.
+Querying `user_roles` for the two affected accounts returns **zero rows**:
 
-## Changes (single file: `supabase/functions/reconcile-shipday-orders/index.ts`)
+- Kien Dang / Yellow Jersey (`14285118-…`) — profile role `b2b_customer`, no `user_roles` entry
+- Dan Mitchell / Clive Mitchell Cycles (`10fd76f6-…`) — profile role `b2b_customer`, no `user_roles` entry
 
-1. **Remove the email-suppression stamping.** Drop the two blocks that pre-fill `collection_confirmation_sent_at` / `delivery_confirmation_sent_at` so the downstream send actually fires.
-2. **After a successful row update, fire the same `send-email` invocations the webhook fires**, mirroring its logic exactly:
-   - if `newStatus === "collected"` and event is `ORDER_COMPLETED` or `ORDER_POD_UPLOAD` and `collection_confirmation_sent_at` is still null → invoke `send-email` with `{ meta: { action: "collection_confirmation", orderId } }`.
-   - if `newStatus === "delivered"` and `delivery_confirmation_sent_at` is still null → invoke `send-email` with `{ meta: { action: "delivery_confirmation", orderId } }`.
-   - Wrap in try/catch; on error, push to the `errors[]` array but keep going.
-3. **Mirror the `ORDER_FAILED` re-creation** — after the update, invoke `create-shipday-order` with `{ orderId, jobType: isPickup ? 'pickup' : 'delivery' }` just like the webhook does.
-4. **Add a `suppressEmails` request flag (default `false`)** so the admin can opt-out for very old backfills where day-late emails would confuse customers. UI button stays as-is and sends `suppressEmails: false`; the flag is there only as an escape hatch for future invocations.
-5. **Fix the original `extractStatus` / status-mapping issue** that was already planned, so rows actually transition in the first place (broaden status detection, expanded vocabulary, and one-shot diagnostic logging of a sample order per Shipday endpoint).
-6. **Response payload** gains `emailsTriggered: { collection: number, delivery: number }` so the admin gets confirmation of how many notifications were sent.
+A wider check shows **71 customer profiles** are missing their `user_roles` row. They worked in the past because their last orders pre-date the stricter RLS policy; any new attempt now fails.
 
-## Heads-up to the user
+Root cause: `handle_new_user` writes the role onto `profiles` but never inserts the mirror row into `user_roles`, so every account created after the user_roles migration is broken for order creation.
 
-Re-running reconcile against Lydia Fahy's order (and the other ~55 affected orders from the past 24h) will send collection and/or delivery confirmation emails to the sender and receiver for each one. That's the desired behaviour per your request, but worth flagging because some emails will arrive hours after the actual event.
+## Fix
 
-No DB migrations, no UI changes beyond the existing button, no new secrets.
+### 1. One-off backfill (migration)
+For every `profiles` row whose `role` ∈ {admin, b2b_customer, b2c_customer, sales, cs_agent, route_planner, loader, driver, timeslip_admin, mechanic} and which has no matching `user_roles` row, insert `(user_id, role)`. Idempotent via `ON CONFLICT (user_id, role) DO NOTHING`.
+
+Expected: ~71 inserts. After this, Clive and Kien can submit immediately.
+
+### 2. Stop the regression at source (migration)
+Update `public.handle_new_user()` so that, in the same transaction as the `profiles` insert, it also inserts the appropriate row into `public.user_roles` (`b2b_customer` when `is_business=true`, otherwise `b2c_customer`). Wrap in `ON CONFLICT DO NOTHING` so re-runs are safe.
+
+Trigger itself (`on_auth_user_created`) stays unchanged — only the function body is updated. No edit to `auth.users`.
+
+### 3. Verification
+- Re-run the missing-roles query — must return 0.
+- Have Kien or Clive retry; or use Playwright as a B2B test account to POST the create-order form and confirm a 200.
+
+## Out of scope
+- No change to RLS policies, no change to `profiles.role`, no UI changes.
+- Not touching the `user_roles` table schema or its policies.
+
+## Technical detail (for reviewers)
+- Migration is two statements: backfill `INSERT … SELECT … ON CONFLICT DO NOTHING` + `CREATE OR REPLACE FUNCTION public.handle_new_user()`.
+- `handle_new_user` already runs as `SECURITY DEFINER` with `search_path = public`, so it can write `user_roles` without extra grants.
+- No data loss risk: backfill only inserts where rows are missing; function update only adds an additional insert.
