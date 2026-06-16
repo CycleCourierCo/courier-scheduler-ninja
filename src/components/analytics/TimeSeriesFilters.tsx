@@ -41,7 +41,26 @@ const TimeSeriesFilters = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex flex-wrap gap-1">
+      {/* Mobile: dropdown */}
+      <select
+        className="sm:hidden h-7 rounded-md border bg-background px-2 text-xs"
+        onChange={(e) => {
+          const v = e.target.value as "4w" | "8w" | "12w" | "6m" | "1y" | "all";
+          if (v) onRangeChange(presetRange(v, minDate));
+        }}
+        defaultValue=""
+      >
+        <option value="" disabled>Quick range…</option>
+        <option value="4w">Last 4 weeks</option>
+        <option value="8w">Last 8 weeks</option>
+        <option value="12w">Last 12 weeks</option>
+        <option value="6m">Last 6 months</option>
+        <option value="1y">Last year</option>
+        <option value="all">All time</option>
+      </select>
+
+      {/* Desktop: pill buttons */}
+      <div className="hidden sm:flex flex-wrap gap-1">
         {(["4w", "8w", "12w", "6m", "1y", "all"] as const).map(p => (
           <Button
             key={p}
