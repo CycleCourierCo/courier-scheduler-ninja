@@ -144,6 +144,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const hours = Math.min(Math.max(Number(body?.hours) || 24, 1), 168);
+    const suppressEmails: boolean = body?.suppressEmails === true;
 
     const now = new Date();
     const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
