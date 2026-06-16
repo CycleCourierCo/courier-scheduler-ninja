@@ -348,13 +348,16 @@ serve(async (req) => {
         updateData.order_delivered = true;
       }
 
-      // Suppress retroactive confirmation emails: stamp sent_at so the next
-      // legitimate trigger doesn't re-send a day-late confirmation.
-      if (newStatus === "collected" && !dbOrder.collection_confirmation_sent_at) {
-        updateData.collection_confirmation_sent_at = new Date().toISOString();
-      }
-      if (newStatus === "delivered" && !dbOrder.delivery_confirmation_sent_at) {
-        updateData.delivery_confirmation_sent_at = new Date().toISOString();
+      // If suppressEmails is set, stamp sent_at so downstream triggers won't fire
+      // (escape hatch for very old backfills). Default behaviour mirrors the live
+      // webhook and DOES send notifications.
+      if (suppressEmails) {
+        if (newStatus === "collected" && !dbOrder.collection_confirmation_sent_at) {
+          updateData.collection_confirmation_sent_at = new Date().toISOString();
+        }
+        if (newStatus === "delivered" && !dbOrder.delivery_confirmation_sent_at) {
+          updateData.delivery_confirmation_sent_at = new Date().toISOString();
+        }
       }
 
       if (event === "ORDER_FAILED") {
@@ -387,6 +390,52 @@ serve(async (req) => {
         to: newStatus,
         event,
       });
+
+      // Mirror shipday-webhook side effects: send collection/delivery confirmations
+      // and re-create the Shipday job after a failure.
+      if (!suppressEmails && newStatus === "collected" && event === "ORDER_COMPLETED" && !dbOrder.collection_confirmation_sent_at) {
+        try {
+          const { error: emailErr } = await admin.functions.invoke("send-email", {
+            body: { meta: { action: "collection_confirmation", orderId: dbOrder.id } },
+          });
+          if (emailErr) {
+            errors.push({ shipdayId: sid, error: `collection email: ${emailErr.message}` });
+          } else {
+            emailsTriggered.collection++;
+          }
+        } catch (e) {
+          errors.push({ shipdayId: sid, error: `collection email exception: ${(e as Error).message}` });
+        }
+      }
+
+      if (!suppressEmails && newStatus === "delivered" && !dbOrder.delivery_confirmation_sent_at) {
+        try {
+          const { error: emailErr } = await admin.functions.invoke("send-email", {
+            body: { meta: { action: "delivery_confirmation", orderId: dbOrder.id } },
+          });
+          if (emailErr) {
+            errors.push({ shipdayId: sid, error: `delivery email: ${emailErr.message}` });
+          } else {
+            emailsTriggered.delivery++;
+          }
+        } catch (e) {
+          errors.push({ shipdayId: sid, error: `delivery email exception: ${(e as Error).message}` });
+        }
+      }
+
+      if (event === "ORDER_FAILED") {
+        try {
+          const jobType: "pickup" | "delivery" = isPickup ? "pickup" : "delivery";
+          const { error: recreateErr } = await admin.functions.invoke("create-shipday-order", {
+            body: { orderId: dbOrder.id, jobType },
+          });
+          if (recreateErr) {
+            errors.push({ shipdayId: sid, error: `recreate ${jobType}: ${recreateErr.message}` });
+          }
+        } catch (e) {
+          errors.push({ shipdayId: sid, error: `recreate exception: ${(e as Error).message}` });
+        }
+      }
     }
 
     const summary = {
