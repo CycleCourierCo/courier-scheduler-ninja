@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { 
   fetchOrdersForAnalytics, 
   getOrderStatusAnalytics,
-  getOrderTimeAnalytics,
+  // getOrderTimeAnalytics no longer used here
   getCustomerTypeAnalytics,
   getTopCustomersAnalytics,
   getPartExchangeAnalytics,
@@ -45,7 +45,8 @@ import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsCh
 import VehicleMileageChart from "@/components/analytics/VehicleMileageChart";
 import VehicleLeaderboardCard from "@/components/analytics/VehicleLeaderboardCard";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
-import OrderTimeChart from "@/components/analytics/OrderTimeChart";
+import OrdersCreatedChart from "@/components/analytics/OrdersCreatedChart";
+import OrdersCompletedChart from "@/components/analytics/OrdersCompletedChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
 import TopCustomersChart from "@/components/analytics/TopCustomersChart";
 import B2BLeaderboard from "@/components/analytics/B2BLeaderboard";
@@ -133,7 +134,7 @@ const AnalyticsPage = () => {
   
   // Calculate analytics data
   const orderStatusData = getOrderStatusAnalytics(orders);
-  const orderTimeData = getOrderTimeAnalytics(orders);
+  // orderTimeData removed — Orders Created chart now computes its own series
   const customerTypeData = getCustomerTypeAnalytics(orders);
   const topCustomersData = getTopCustomersAnalytics(orders);
   const partExchangeData = getPartExchangeAnalytics(orders);
@@ -233,9 +234,10 @@ const AnalyticsPage = () => {
               
               <TabsContent value="overview" className="space-y-2 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+                <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <OrderStatusChart data={orderStatusData} />
-                  <OrderTimeChart data={orderTimeData} />
+                  <OrdersCreatedChart orders={orders} />
+                  <OrdersCompletedChart orders={orders} />
                 </div>
               </TabsContent>
               
