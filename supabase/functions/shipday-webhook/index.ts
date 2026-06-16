@@ -4,7 +4,7 @@ import { initSentry, captureException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-token",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-token, token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
