@@ -34,9 +34,12 @@ serve(async (req) => {
         status: 500,
       });
     }
-    const webhookToken = req.headers.get("x-webhook-token");
+    const webhookToken =
+      req.headers.get("token") ??
+      req.headers.get("x-webhook-token") ??
+      null;
     if (!webhookToken || webhookToken !== expectedToken) {
-      console.error("Invalid webhook token");
+      console.error("Invalid webhook token", { hasProvided: !!webhookToken });
       return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
