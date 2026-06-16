@@ -17,10 +17,23 @@ type ShipdayApiOrder = {
 };
 
 function extractStatus(o: ShipdayApiOrder): string {
-  const s = (o.orderStatus?.orderState ?? o.orderStatus ?? (o as any).order_status ?? "")
-    .toString()
-    .toUpperCase();
-  return s;
+  const os: any = o.orderStatus;
+  const candidates: any[] = [
+    os?.orderState,
+    os?.orderStatus,
+    typeof os === "string" ? os : null,
+    (o as any).order_status,
+    (o as any).status,
+  ];
+  if (os && typeof os === "object" && os.incomplete === true) {
+    candidates.push("INCOMPLETE");
+  }
+  for (const c of candidates) {
+    if (c !== undefined && c !== null && String(c).length > 0) {
+      return String(c).toUpperCase();
+    }
+  }
+  return "";
 }
 
 async function fetchActive(apiKey: string): Promise<ShipdayApiOrder[]> {
@@ -131,6 +144,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const hours = Math.min(Math.max(Number(body?.hours) || 24, 1), 168);
+    const suppressEmails: boolean = body?.suppressEmails === true;
 
     const now = new Date();
     const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
@@ -144,6 +158,11 @@ serve(async (req) => {
       fetchByStatus(SHIPDAY_API_KEY, "ALREADY_DELIVERED", startTime, endTime),
       fetchByStatus(SHIPDAY_API_KEY, "INCOMPLETE", startTime, endTime),
     ]);
+
+    // Diagnostic: log one sample order per endpoint so we can see actual payload shape
+    if (active[0]) console.log("Sample active order:", JSON.stringify(active[0]));
+    if (completed[0]) console.log("Sample completed order:", JSON.stringify(completed[0]));
+    if (incomplete[0]) console.log("Sample incomplete order:", JSON.stringify(incomplete[0]));
 
     // Dedupe by orderId, preferring most recent (completed/incomplete > active for same id)
     const merged = new Map<string, ShipdayApiOrder>();
@@ -202,6 +221,8 @@ serve(async (req) => {
     let skippedUnknownStatus = 0;
     const errors: Array<{ shipdayId: string; error: string }> = [];
     const changes: Array<{ shipdayId: string; orderId: string; leg: string; from: string; to: string; event: string }> = [];
+    const emailsTriggered = { collection: 0, delivery: 0 };
+    let extractDebugLogged = 0;
 
     for (const [sid, sOrder] of merged) {
       scanned++;
@@ -214,23 +235,42 @@ serve(async (req) => {
       if (!isPickup) isPickup = false; // it's delivery
 
       const sStatus = extractStatus(sOrder);
+      if (extractDebugLogged < 5) {
+        console.log(`extractStatus sample: shipdayId=${sid} status="${sStatus}"`);
+        extractDebugLogged++;
+      }
 
       // Map Shipday canonical status to (event, newStatus)
       let event: string | null = null;
       let newStatus: string = dbOrder.status;
       let description = "";
 
-      if (sStatus === "ALREADY_DELIVERED" || sStatus === "COMPLETED") {
+      if (
+        sStatus === "ALREADY_DELIVERED" ||
+        sStatus === "COMPLETED" ||
+        sStatus === "DELIVERED" ||
+        sStatus === "PICKED_UP"
+      ) {
         event = "ORDER_COMPLETED";
         newStatus = isPickup ? "collected" : "delivered";
         description = isPickup ? "Driver has collected the bike" : "Driver has delivered the bike";
-      } else if (sStatus === "STARTED" || sStatus === "ON_THE_WAY") {
+      } else if (
+        sStatus === "STARTED" ||
+        sStatus === "ON_THE_WAY" ||
+        sStatus === "DISPATCHED" ||
+        sStatus === "ACCEPTED_AND_STARTED"
+      ) {
         event = "ORDER_ONTHEWAY";
         newStatus = isPickup ? "driver_to_collection" : "driver_to_delivery";
         description = isPickup
           ? "Driver is on the way to collect the bike"
           : "Driver is on the way to deliver the bike";
-      } else if (sStatus === "INCOMPLETE" || sStatus === "FAILED_DELIVERY" || sStatus === "FAILED") {
+      } else if (
+        sStatus === "INCOMPLETE" ||
+        sStatus === "FAILED_DELIVERY" ||
+        sStatus === "FAILED" ||
+        sStatus === "CANCELLED"
+      ) {
         event = "ORDER_FAILED";
         const pickupDates = dbOrder.pickup_date;
         const deliveryDates = dbOrder.delivery_date;
@@ -247,10 +287,17 @@ serve(async (req) => {
         description = isPickup
           ? "Collection attempt failed - rescheduling required"
           : "Delivery attempt failed - rescheduling required";
-      } else if (sStatus === "ACTIVE" || sStatus === "ASSIGNED" || sStatus === "NOT_ASSIGNED" || sStatus === "NOT_STARTED_YET") {
+      } else if (
+        sStatus === "ACTIVE" ||
+        sStatus === "ASSIGNED" ||
+        sStatus === "NOT_ASSIGNED" ||
+        sStatus === "NOT_STARTED_YET" ||
+        sStatus === ""
+      ) {
         skippedUnknownStatus++;
         continue;
       } else {
+        console.log(`Unmapped Shipday status "${sStatus}" for shipdayId=${sid} — skipping`);
         skippedUnknownStatus++;
         continue;
       }
@@ -301,13 +348,16 @@ serve(async (req) => {
         updateData.order_delivered = true;
       }
 
-      // Suppress retroactive confirmation emails: stamp sent_at so the next
-      // legitimate trigger doesn't re-send a day-late confirmation.
-      if (newStatus === "collected" && !dbOrder.collection_confirmation_sent_at) {
-        updateData.collection_confirmation_sent_at = new Date().toISOString();
-      }
-      if (newStatus === "delivered" && !dbOrder.delivery_confirmation_sent_at) {
-        updateData.delivery_confirmation_sent_at = new Date().toISOString();
+      // If suppressEmails is set, stamp sent_at so downstream triggers won't fire
+      // (escape hatch for very old backfills). Default behaviour mirrors the live
+      // webhook and DOES send notifications.
+      if (suppressEmails) {
+        if (newStatus === "collected" && !dbOrder.collection_confirmation_sent_at) {
+          updateData.collection_confirmation_sent_at = new Date().toISOString();
+        }
+        if (newStatus === "delivered" && !dbOrder.delivery_confirmation_sent_at) {
+          updateData.delivery_confirmation_sent_at = new Date().toISOString();
+        }
       }
 
       if (event === "ORDER_FAILED") {
@@ -340,6 +390,52 @@ serve(async (req) => {
         to: newStatus,
         event,
       });
+
+      // Mirror shipday-webhook side effects: send collection/delivery confirmations
+      // and re-create the Shipday job after a failure.
+      if (!suppressEmails && newStatus === "collected" && event === "ORDER_COMPLETED" && !dbOrder.collection_confirmation_sent_at) {
+        try {
+          const { error: emailErr } = await admin.functions.invoke("send-email", {
+            body: { meta: { action: "collection_confirmation", orderId: dbOrder.id } },
+          });
+          if (emailErr) {
+            errors.push({ shipdayId: sid, error: `collection email: ${emailErr.message}` });
+          } else {
+            emailsTriggered.collection++;
+          }
+        } catch (e) {
+          errors.push({ shipdayId: sid, error: `collection email exception: ${(e as Error).message}` });
+        }
+      }
+
+      if (!suppressEmails && newStatus === "delivered" && !dbOrder.delivery_confirmation_sent_at) {
+        try {
+          const { error: emailErr } = await admin.functions.invoke("send-email", {
+            body: { meta: { action: "delivery_confirmation", orderId: dbOrder.id } },
+          });
+          if (emailErr) {
+            errors.push({ shipdayId: sid, error: `delivery email: ${emailErr.message}` });
+          } else {
+            emailsTriggered.delivery++;
+          }
+        } catch (e) {
+          errors.push({ shipdayId: sid, error: `delivery email exception: ${(e as Error).message}` });
+        }
+      }
+
+      if (event === "ORDER_FAILED") {
+        try {
+          const jobType: "pickup" | "delivery" = isPickup ? "pickup" : "delivery";
+          const { error: recreateErr } = await admin.functions.invoke("create-shipday-order", {
+            body: { orderId: dbOrder.id, jobType },
+          });
+          if (recreateErr) {
+            errors.push({ shipdayId: sid, error: `recreate ${jobType}: ${recreateErr.message}` });
+          }
+        } catch (e) {
+          errors.push({ shipdayId: sid, error: `recreate exception: ${(e as Error).message}` });
+        }
+      }
     }
 
     const summary = {
@@ -350,6 +446,8 @@ serve(async (req) => {
       skipped_already_synced: skippedAlreadySynced,
       skipped_no_local_match: skippedNoMatch,
       skipped_unknown_status: skippedUnknownStatus,
+      emailsTriggered,
+      suppressEmails,
       errors,
       changes,
     };
