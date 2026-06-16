@@ -51,6 +51,7 @@ const JobScheduling = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
   const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
@@ -256,6 +257,32 @@ const JobScheduling = () => {
                   <ToggleGroupItem value="delivery">Deliveries</ToggleGroupItem>
                 </ToggleGroup>
               </div>
+              <button
+                type="button"
+                disabled={isReconciling}
+                onClick={async () => {
+                  setIsReconciling(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke('reconcile-shipday-orders', {
+                      body: { hours: 24 },
+                    });
+                    if (error) throw error;
+                    const updated = data?.updated ?? 0;
+                    const scanned = data?.scanned ?? 0;
+                    const synced = data?.skipped_already_synced ?? 0;
+                    toast.success(`Reconciled Shipday: ${updated} updated / ${scanned} scanned (${synced} already in sync)`);
+                    if (orders) verifyShipdayOrders(orders);
+                  } catch (err: any) {
+                    console.error('Reconcile failed:', err);
+                    toast.error(`Reconcile failed: ${err?.message ?? 'unknown error'}`);
+                  } finally {
+                    setIsReconciling(false);
+                  }
+                }}
+                className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+              >
+                {isReconciling ? 'Reconciling Shipday…' : 'Reconcile Shipday (24h)'}
+              </button>
             </div>
             
             <div className="mb-8">
