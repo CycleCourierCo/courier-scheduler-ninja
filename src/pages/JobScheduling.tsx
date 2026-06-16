@@ -51,6 +51,7 @@ const JobScheduling = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
   const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   
   // Lifted filter state from RouteBuilder
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
