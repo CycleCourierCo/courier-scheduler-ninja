@@ -234,7 +234,7 @@ const AnalyticsPage = () => {
               
               <TabsContent value="overview" className="space-y-2 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                <div className="grid grid-cols-1 gap-6">
                   <OrderStatusChart data={orderStatusData} />
                   <OrdersCreatedChart orders={orders} />
                   <OrdersCompletedChart orders={orders} />
