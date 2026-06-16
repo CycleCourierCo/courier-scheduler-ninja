@@ -1,82 +1,51 @@
-## The problem (confirmed)
+## Root cause
 
-The public tracking page is built on a "trust the client" model:
+Shipday's webhook posts authenticate via a header literally named `token` (visible in every log entry as `token: "sbp_88b692edc00a0bd81280a023613d"`). The recent security fix in `supabase/functions/shipday-webhook/index.ts` tightened auth to require `x-webhook-token` only, so every real Shipday call now returns **401 "Invalid webhook token"**.
 
-- `get_public_order` returns the **full** `tracking_events` JSONB to anon. That includes POD photo URLs, signature URLs, driver names embedded in events, GPS coordinates per event, etc.
-- The "Verify postcode to view images" gate in `TrackingTimeline.tsx` is purely a React `useState` flag — the image URLs are already in the network response. Anyone with DevTools open sees them without entering the postcode.
-- Worse: the postcode the dialog compares against (`order.sender.address.zipCode`) is *also* in the response — so the gate validates user input against a value that's already public. After the recent RPC sanitisation that field is now `""`, which means the gate is currently **completely broken** (it accepts an empty string as "correct"). That's a regression we need to fix anyway.
-- A few other public-facing pages still go directly to tables (`SenderAvailability`, `ReceiverAvailability` via `getPublicOrder` is fine now, but I want to confirm no edge function reflects the full row back).
+Effect: since the fix, no `ORDER_ASSIGNED`, `ORDER_ACCEPTED_AND_STARTED`, `ORDER_ONTHEWAY`, `ORDER_COMPLETED`, `ORDER_FAILED`, or `ORDER_POD_UPLOAD` events have been processed. That means:
+- Driver name not written to `collection_driver_name` / `delivery_driver_name`
+- Status not advancing past `collection_scheduled` / `delivery_scheduled`
+- `order_collected` / `order_delivered` flags not flipping — so loading/storage views still show bikes as on the van or not yet collected
+- POD URLs and signatures not stored on the order
 
-So the architecture needs to flip: **the server decides what to send based on what the caller has proven**, and the client only renders what it received.
+## Fix
 
-## Plan
+In `supabase/functions/shipday-webhook/index.ts`, accept the token from either header Shipday might use, then constant-time compare to `SHIPDAY_WEBHOOK_TOKEN`:
 
-### 1. Split the public tracking RPC into "default" and "verified" payloads
+```ts
+const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
+const provided =
+  req.headers.get("token") ??               // Shipday's actual header
+  req.headers.get("x-webhook-token") ??     // legacy / manual tests
+  null;
 
-Replace today's `public.get_public_order(p_identifier)` with two RPCs (or one RPC with a second `p_proof` argument):
+if (!expectedToken || !provided || provided !== expectedToken) {
+  console.error("Invalid webhook token", { hasExpected: !!expectedToken, hasProvided: !!provided });
+  return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
+    status: 401,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+```
 
-**`get_public_order(p_identifier text)` — default, anonymous**
-Returns only what's safe for anyone with the order id/tracking number:
-- `id`, `tracking_number`, `customer_order_number`
-- `status`, `created_at`, `updated_at`, scheduled/pickup/delivery dates + timeslots, confirmation timestamps
-- `bike_brand`/`bike_model`/`bike_type`/`bike_quantity` and the sanitised `bikes` array
-- Sender/receiver: `name` + `city` + `country` only — **drop postcode** from the default payload
-- A **sanitised** `tracking_events`: keep `type`, `status`, `timestamp`, `description`. **Strip** `podUrls`, `signatureUrl`, `driverName`, `latitude`/`longitude`, raw Shipday payload fields
-- A boolean per event: `has_pod`, `has_signature` — so the UI can render "Verify postcode to view proof" only when there *is* something to reveal
-- `inspection_summary` as today (already sanitised)
+Also add `token` to `Access-Control-Allow-Headers` so preflight allows it:
 
-**`get_public_order_with_proof(p_identifier text, p_postcode text)` — gated**
-Server-side compares the trimmed/lower-cased `p_postcode` against `sender.postcode` and `receiver.postcode`. If it matches one side:
-- Returns the same payload as above, plus
-- `tracking_events` enriched with `podUrls` / `signatureUrl` **only for that side** (collection events if sender postcode matched; delivery events if receiver postcode matched)
-- Still **never** returns address line 1/2, phone, email, GPS, or financials
+```ts
+"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-token, token",
+```
 
-If no match: returns the default payload unchanged + an `verification_failed: true` flag the UI can use to show "Incorrect postcode".
+## Verify SHIPDAY_WEBHOOK_TOKEN matches what Shipday sends
 
-Both functions remain `SECURITY DEFINER`, `STABLE`, `search_path = public`, with `EXECUTE` granted to `anon` / `authenticated`.
+The logs show Shipday is sending `sbp_88b692edc00a0bd81280a023613d`. That must equal the value stored in the `SHIPDAY_WEBHOOK_TOKEN` secret. If it doesn't (it looks like a Supabase project token, not a webhook secret you configured), the fix above still 401s. After deploying I'll ask you to confirm in Shipday's dashboard which token they're sending and that it matches the `SHIPDAY_WEBHOOK_TOKEN` secret — if not, we'll either rotate the secret to that value or update Shipday to send the value you have stored.
 
-### 2. Rewrite the UI gate as a real server call
+## Replay missed events (optional)
 
-In `TrackingTimeline.tsx` / `PostcodeVerification.tsx`:
-- Remove `getExpectedPostcode` and the client-side string compare entirely.
-- When the user submits a postcode, call `supabase.rpc('get_public_order_with_proof', { p_identifier, p_postcode })` and replace the order in the query cache with the response.
-- Show the POD / signature blocks only for events that actually have `podUrls` / `signatureUrl` in the returned payload (i.e. the side the user proved).
-- Show the "Verify postcode" button only when the event has `has_pod` / `has_signature` true. Hide it otherwise (no point teasing a non-existent image).
+Once auth is fixed, recent stuck orders (driver name missing, stuck in `*_scheduled`) won't auto-heal because Shipday doesn't replay webhooks. Options:
+- Manually re-trigger from Shipday for the affected jobs, OR
+- I can add a one-off admin button on the order detail page that re-syncs from `GET https://api.shipday.com/orders/<id>` and applies the same status mapping.
 
-### 3. Lock down the storage that hosts the POD images
+Tell me if you want the replay tool included.
 
-Server-side gating is moot if the URLs themselves are guessable / public:
-- Check whether POD URLs are public Shipday URLs or stored in a Supabase bucket. If they're in a Supabase bucket, make the bucket private and return **short-lived signed URLs** from the `_with_proof` RPC instead of the raw paths. If they're remote Shipday URLs, accept that they're externally accessible and at minimum proxy them through an edge function that re-checks the postcode before redirecting.
-- Document the choice in the security memory.
+## Files changed
 
-### 4. Audit the remaining anon-reachable surfaces
-
-Quick pass with concrete fixes per finding (not a generic "review everything"):
-
-- **`SenderAvailability` / `ReceiverAvailability`** — already route through `getPublicOrder` (the new RPC). Confirm they don't need any extra fields and that the page renders correctly with the trimmed payload. If they do need e.g. `bikes` count, it's already in the payload.
-- **`BulkAvailabilityPage`** — already on `get_my_pending_availability_orders`. Confirm.
-- **`get_public_inspection_summary`** — re-read; confirm it only returns counts/timestamps, no part numbers, no internal notes, no photos, no prices.
-- **Edge functions that reflect order data to the client** — grep `supabase/functions/**` for responses that include order rows or `sender`/`receiver` JSONB. Anything callable without a JWT (`verify_jwt = false` and no in-function auth check) gets the same sanitisation treatment, or moves behind an auth check.
-- **`orders` table RLS** — confirm `anon` no longer has any direct `SELECT`. The two RPCs are the only public read path.
-
-### 5. Tests & verification
-
-- Drive Playwright as an anonymous user:
-  1. `/tracking/<tracking_number>` → assert response body contains no `podUrls`, `signatureUrl`, `email`, `phone`, address lines, lat/lng. Screenshot the timeline.
-  2. Click "Verify collection postcode", enter the wrong one → assert error, no POD URLs in any response.
-  3. Enter the correct sender postcode → assert collection events now carry `podUrls`, delivery events do not.
-  4. Repeat with receiver postcode for delivery-side proof.
-- Run `supabase--linter` after the migration.
-
-## Technical notes
-
-- The "verified" RPC should not return *anything* extra unless the postcode matched. Returning a `verification_failed` flag is fine; returning the postcode itself, the address, or the other side's POD is not.
-- Rate-limit `get_public_order_with_proof` to prevent brute-forcing the postcode. Easiest path: a small `public.tracking_verification_attempts(ip text, order_id uuid, attempted_at timestamptz)` table written from inside the RPC and rejecting more than N attempts per (ip, order) per 10 minutes. If we can't get the caller IP into the RPC reliably, do the throttle in an edge function wrapper instead and have the wrapper call the RPC.
-- Keep the bikes JSONB sanitiser (brand/model/type/quantity only). Keep `inspection_summary` as already implemented.
-- Postcodes for sender/receiver are pulled from the JSONB snapshot fields (`postcode` / `zipCode` / `postal_code`) — normalise to one canonical key inside the RPC.
-
-## Questions before I implement
-
-1. **POD storage**: are the POD images hosted by Shipday (public URLs) or stored in our Supabase storage? This decides whether step 3 needs a bucket migration or a proxy edge function.
-2. **Rate limiting**: OK to add a `tracking_verification_attempts` table and a 10/10-minute cap per order? Or do you want the gate to be untimed?
-3. **Single vs. two RPCs**: prefer one `get_public_order(identifier, postcode?)` overload, or two distinct functions? Two is clearer in logs/permissions; one is a smaller blast radius for the frontend change.
+- `supabase/functions/shipday-webhook/index.ts` — accept `token` header, expand CORS allow-headers.
