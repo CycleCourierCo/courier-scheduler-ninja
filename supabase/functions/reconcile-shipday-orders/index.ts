@@ -446,6 +446,8 @@ serve(async (req) => {
       skipped_already_synced: skippedAlreadySynced,
       skipped_no_local_match: skippedNoMatch,
       skipped_unknown_status: skippedUnknownStatus,
+      emailsTriggered,
+      suppressEmails,
       errors,
       changes,
     };
