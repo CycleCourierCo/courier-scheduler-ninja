@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { 
   fetchOrdersForAnalytics, 
   getOrderStatusAnalytics,
-  getOrderTimeAnalytics,
+  // getOrderTimeAnalytics no longer used here
   getCustomerTypeAnalytics,
   getTopCustomersAnalytics,
   getPartExchangeAnalytics,
@@ -134,7 +134,7 @@ const AnalyticsPage = () => {
   
   // Calculate analytics data
   const orderStatusData = getOrderStatusAnalytics(orders);
-  const orderTimeData = getOrderTimeAnalytics(orders);
+  // orderTimeData removed — Orders Created chart now computes its own series
   const customerTypeData = getCustomerTypeAnalytics(orders);
   const topCustomersData = getTopCustomersAnalytics(orders);
   const partExchangeData = getPartExchangeAnalytics(orders);
