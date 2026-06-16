@@ -221,6 +221,8 @@ serve(async (req) => {
     let skippedUnknownStatus = 0;
     const errors: Array<{ shipdayId: string; error: string }> = [];
     const changes: Array<{ shipdayId: string; orderId: string; leg: string; from: string; to: string; event: string }> = [];
+    const emailsTriggered = { collection: 0, delivery: 0 };
+    let extractDebugLogged = 0;
 
     for (const [sid, sOrder] of merged) {
       scanned++;
@@ -233,23 +235,42 @@ serve(async (req) => {
       if (!isPickup) isPickup = false; // it's delivery
 
       const sStatus = extractStatus(sOrder);
+      if (extractDebugLogged < 5) {
+        console.log(`extractStatus sample: shipdayId=${sid} status="${sStatus}"`);
+        extractDebugLogged++;
+      }
 
       // Map Shipday canonical status to (event, newStatus)
       let event: string | null = null;
       let newStatus: string = dbOrder.status;
       let description = "";
 
-      if (sStatus === "ALREADY_DELIVERED" || sStatus === "COMPLETED") {
+      if (
+        sStatus === "ALREADY_DELIVERED" ||
+        sStatus === "COMPLETED" ||
+        sStatus === "DELIVERED" ||
+        sStatus === "PICKED_UP"
+      ) {
         event = "ORDER_COMPLETED";
         newStatus = isPickup ? "collected" : "delivered";
         description = isPickup ? "Driver has collected the bike" : "Driver has delivered the bike";
-      } else if (sStatus === "STARTED" || sStatus === "ON_THE_WAY") {
+      } else if (
+        sStatus === "STARTED" ||
+        sStatus === "ON_THE_WAY" ||
+        sStatus === "DISPATCHED" ||
+        sStatus === "ACCEPTED_AND_STARTED"
+      ) {
         event = "ORDER_ONTHEWAY";
         newStatus = isPickup ? "driver_to_collection" : "driver_to_delivery";
         description = isPickup
           ? "Driver is on the way to collect the bike"
           : "Driver is on the way to deliver the bike";
-      } else if (sStatus === "INCOMPLETE" || sStatus === "FAILED_DELIVERY" || sStatus === "FAILED") {
+      } else if (
+        sStatus === "INCOMPLETE" ||
+        sStatus === "FAILED_DELIVERY" ||
+        sStatus === "FAILED" ||
+        sStatus === "CANCELLED"
+      ) {
         event = "ORDER_FAILED";
         const pickupDates = dbOrder.pickup_date;
         const deliveryDates = dbOrder.delivery_date;
@@ -266,10 +287,17 @@ serve(async (req) => {
         description = isPickup
           ? "Collection attempt failed - rescheduling required"
           : "Delivery attempt failed - rescheduling required";
-      } else if (sStatus === "ACTIVE" || sStatus === "ASSIGNED" || sStatus === "NOT_ASSIGNED" || sStatus === "NOT_STARTED_YET") {
+      } else if (
+        sStatus === "ACTIVE" ||
+        sStatus === "ASSIGNED" ||
+        sStatus === "NOT_ASSIGNED" ||
+        sStatus === "NOT_STARTED_YET" ||
+        sStatus === ""
+      ) {
         skippedUnknownStatus++;
         continue;
       } else {
+        console.log(`Unmapped Shipday status "${sStatus}" for shipdayId=${sid} — skipping`);
         skippedUnknownStatus++;
         continue;
       }
