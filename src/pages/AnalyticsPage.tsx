@@ -45,7 +45,8 @@ import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsCh
 import VehicleMileageChart from "@/components/analytics/VehicleMileageChart";
 import VehicleLeaderboardCard from "@/components/analytics/VehicleLeaderboardCard";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
-import OrderTimeChart from "@/components/analytics/OrderTimeChart";
+import OrdersCreatedChart from "@/components/analytics/OrdersCreatedChart";
+import OrdersCompletedChart from "@/components/analytics/OrdersCompletedChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
 import TopCustomersChart from "@/components/analytics/TopCustomersChart";
 import B2BLeaderboard from "@/components/analytics/B2BLeaderboard";
@@ -233,9 +234,10 @@ const AnalyticsPage = () => {
               
               <TabsContent value="overview" className="space-y-2 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+                <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <OrderStatusChart data={orderStatusData} />
-                  <OrderTimeChart data={orderTimeData} />
+                  <OrdersCreatedChart orders={orders} />
+                  <OrdersCompletedChart orders={orders} />
                 </div>
               </TabsContent>
               
