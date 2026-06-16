@@ -159,6 +159,11 @@ serve(async (req) => {
       fetchByStatus(SHIPDAY_API_KEY, "INCOMPLETE", startTime, endTime),
     ]);
 
+    // Diagnostic: log one sample order per endpoint so we can see actual payload shape
+    if (active[0]) console.log("Sample active order:", JSON.stringify(active[0]));
+    if (completed[0]) console.log("Sample completed order:", JSON.stringify(completed[0]));
+    if (incomplete[0]) console.log("Sample incomplete order:", JSON.stringify(incomplete[0]));
+
     // Dedupe by orderId, preferring most recent (completed/incomplete > active for same id)
     const merged = new Map<string, ShipdayApiOrder>();
     for (const o of active) merged.set(String(o.orderId), o);
