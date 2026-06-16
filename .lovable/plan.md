@@ -1,58 +1,34 @@
 ## Goal
 
-Recover from the ~24h gap of 401-rejected Shipday webhooks by pulling the current state of every order Shipday touched in the last 24h and applying the same status mapping the webhook would have, so DB state catches up without waiting for new events.
+When the admin "Reconcile Shipday (24h)" button updates an order to `collected` or `delivered`, it should behave exactly like a real-time Shipday webhook would — including notifying the customer.
 
-## Why not just re-read logs
+## What the live `shipday-webhook` does on completion (and what reconcile currently skips)
 
-Supabase edge logs only record `POST | 401 | <url>` — the Shipday payload (orderId, event) is not captured. We can't extract which orders failed from logs alone, so we reconcile by polling Shipday instead.
+| Side effect | Webhook | Reconcile today |
+|---|---|---|
+| `status` update | yes | yes |
+| `tracking_events.shipday.updates` append | yes | yes |
+| `order_collected` / `order_delivered` flags | yes | yes |
+| **Collection confirmation email** (sender + receiver) via `send-email` action `collection_confirmation` | yes | **no — suppressed** |
+| **Delivery confirmation email** (sender + receiver) via `send-email` action `delivery_confirmation` | yes | **no — suppressed** |
+| On `ORDER_FAILED`: clear the failed leg's `scheduled_*_date`, `*_timeslot`, `shipday_*_id` and re-invoke `create-shipday-order` for that leg | yes | partially — clears fields but does **not** re-create the Shipday job |
 
-## New edge function: `reconcile-shipday-orders`
+No WhatsApp/SMS or invoice work is triggered directly from the webhook on collection/delivery, so nothing else is missing on that path.
 
-Admin-only one-off (kept for future use). Triggered from an admin button or via curl. JWT-checked + role = `admin`.
+## Changes (single file: `supabase/functions/reconcile-shipday-orders/index.ts`)
 
-### Input
-```json
-{ "hours": 24 }      // optional, default 24
-```
+1. **Remove the email-suppression stamping.** Drop the two blocks that pre-fill `collection_confirmation_sent_at` / `delivery_confirmation_sent_at` so the downstream send actually fires.
+2. **After a successful row update, fire the same `send-email` invocations the webhook fires**, mirroring its logic exactly:
+   - if `newStatus === "collected"` and event is `ORDER_COMPLETED` or `ORDER_POD_UPLOAD` and `collection_confirmation_sent_at` is still null → invoke `send-email` with `{ meta: { action: "collection_confirmation", orderId } }`.
+   - if `newStatus === "delivered"` and `delivery_confirmation_sent_at` is still null → invoke `send-email` with `{ meta: { action: "delivery_confirmation", orderId } }`.
+   - Wrap in try/catch; on error, push to the `errors[]` array but keep going.
+3. **Mirror the `ORDER_FAILED` re-creation** — after the update, invoke `create-shipday-order` with `{ orderId, jobType: isPickup ? 'pickup' : 'delivery' }` just like the webhook does.
+4. **Add a `suppressEmails` request flag (default `false`)** so the admin can opt-out for very old backfills where day-late emails would confuse customers. UI button stays as-is and sends `suppressEmails: false`; the flag is there only as an escape hatch for future invocations.
+5. **Fix the original `extractStatus` / status-mapping issue** that was already planned, so rows actually transition in the first place (broaden status detection, expanded vocabulary, and one-shot diagnostic logging of a sample order per Shipday endpoint).
+6. **Response payload** gains `emailsTriggered: { collection: number, delivery: number }` so the admin gets confirmation of how many notifications were sent.
 
-### Flow
+## Heads-up to the user
 
-1. **Auth**: verify caller JWT and `has_role(uid, 'admin')`. Reject otherwise.
-2. **Pull active orders from Shipday**: `GET https://api.shipday.com/orders` (Basic `SHIPDAY_API_KEY`). This returns currently active orders — same call `verify-shipday-orders` uses.
-3. **Pull recently completed orders from Shipday**: paginated `POST https://api.shipday.com/orders/query` with `orderStatus: ALREADY_DELIVERED`, `startTime = now-24h`, `endTime = now` (same shape as `query-shipday-completed-orders`). Also query `INCOMPLETE` (failed) in the same window.
-4. **Build a working set** of `{ shipdayOrderId, status, podUrls?, signatureUrl?, driverName?, activityLog? }` keyed by `orderId`.
-5. **Match to local orders**: for each Shipday `orderId`, find the local order via `shipday_pickup_id = id` (pickup leg) OR `shipday_delivery_id = id` (delivery leg). Skip if no match.
-6. **Derive event + leg** from the Shipday status using the same mapping the webhook uses:
-   - `ACTIVE` / `ASSIGNED` → ASSIGNED (no status change, record driver)
-   - `STARTED` → ORDER_ONTHEWAY → `driver_to_collection` or `driver_to_delivery`
-   - `ALREADY_DELIVERED` → ORDER_COMPLETED → `collected` (pickup) or `delivered` (delivery), set `order_collected` / `order_delivered`
-   - `FAILED_DELIVERY` → ORDER_FAILED → revert to scheduling status, clear shipday id + scheduled date for that leg (reuses webhook's `computeRevert` logic — copy/factor into `_shared/shipdayStatusMap.ts` so both call sites stay in sync)
-7. **Dedupe against existing tracking_events**: skip if `tracking_events.shipday.updates[]` already contains an entry for `{ orderId, event }` (so re-running is idempotent and we don't double-fire emails).
-8. **Apply update** with a single `UPDATE orders SET status=…, order_collected=…, order_delivered=…, tracking_events = jsonb_set(...)` per order, exactly mirroring the webhook's write path. Skip post-update side effects that the webhook normally triggers (collection/delivery confirmation emails) by default — see "Emails" below.
-9. **Return summary**: `{ scanned, matched, updated, skipped_already_synced, skipped_no_local_match, errors[] }` so the admin sees exactly what was healed.
+Re-running reconcile against Lydia Fahy's order (and the other ~55 affected orders from the past 24h) will send collection and/or delivery confirmation emails to the sender and receiver for each one. That's the desired behaviour per your request, but worth flagging because some emails will arrive hours after the actual event.
 
-### Emails
-
-Confirmation emails (`collection_confirmation_sent_at` / `delivery_confirmation_sent_at`) are normally sent inside the webhook on transition to `collected` / `delivered`. To avoid spamming customers a day late, the reconcile function will:
-
-- Set `order_collected` / `order_delivered` and status.
-- **Not** call the email senders.
-- Set `collection_confirmation_sent_at` / `delivery_confirmation_sent_at` to `now()` so the next legitimate trigger doesn't re-send.
-
-(If you'd rather have the emails go out, we can flip a `{ sendEmails: true }` flag at invocation time.)
-
-### Trigger UI
-
-Add a small "Reconcile Shipday (last 24h)" admin button on the existing Shipday/admin diagnostics page (or wherever feels right — happy to put it on the order list header for admins only). Invokes the function via `supabase.functions.invoke('reconcile-shipday-orders', { body: { hours: 24 } })` and toasts the summary.
-
-### Files
-
-- `supabase/functions/reconcile-shipday-orders/index.ts` — new
-- `supabase/functions/_shared/shipdayStatusMap.ts` — extracted mapping shared with `shipday-webhook` (small refactor of the existing function to import from here, no behaviour change)
-- One UI button + handler (location TBD — confirm in the next step)
-
-### Out of scope
-
-- No DB migration.
-- No change to the webhook auth fix (already deployed).
-- No cron — one-off invocation only, per your choice.
+No DB migrations, no UI changes beyond the existing button, no new secrets.
