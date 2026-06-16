@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { 
   fetchOrdersForAnalytics, 
@@ -232,13 +233,22 @@ const AnalyticsPage = () => {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="overview" className="space-y-2 sm:space-y-4">
+              <TabsContent value="overview" className="space-y-8">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
-                <div className="grid grid-cols-1 gap-6">
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Order Status</h3>
                   <OrderStatusChart data={orderStatusData} />
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Orders Created</h3>
                   <OrdersCreatedChart orders={orders} />
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Orders Completed</h3>
                   <OrdersCompletedChart orders={orders} />
-                </div>
+                </section>
               </TabsContent>
               
               <TabsContent value="customers" className="space-y-2 sm:space-y-4">

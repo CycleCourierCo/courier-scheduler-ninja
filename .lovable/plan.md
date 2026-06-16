@@ -1,28 +1,38 @@
 ## Problem
+The two chart cards are still visually colliding on mobile. The earlier `gap-6` wasn't enough because both cards live inside one grid container with no visual break between them.
 
-Your screenshot shows two issues on mobile (360 px):
+## Fix
+Split the Overview tab into three clearly separated sections, each in its own `<section>` with a heading and its own card. The browser will render them as fully distinct blocks with generous vertical spacing and a subtle divider.
 
-1. **Visual overlap** — the two chart cards appear to sit too close together because `space-y-2` (8 px) is too tight when the card headers wrap. The `TimeSeriesFilters` preset buttons + date picker + granularity toggle wrap into many lines on a narrow screen, making each card very tall and pushing the next card up against it.
-2. **X-axis label crowding** — weekly labels like `"23 Mar – 29 Mar"` are angled at –45° but still overlap when 12+ weeks are crammed into a 360 px width.
+### `src/pages/AnalyticsPage.tsx`
+Replace the single grid containing all three Overview cards with three stacked `<section>` blocks:
 
-The Monday → Sunday week bucketing is already correct (`_startOfISOWeek` uses Monday as the anchor). No logic change needed there.
+```tsx
+<TabsContent value="overview" className="space-y-8">
+  <section>
+    <h3 className="text-base font-semibold mb-3">Order Status</h3>
+    <OrderStatusChart data={orderStatusData} />
+  </section>
 
-## Changes
+  <Separator />
 
-### 1. `src/components/analytics/TimeSeriesFilters.tsx`
-Collapse the six preset buttons into a `<select>` dropdown on screens < 640 px. Keep the current horizontal pill buttons on desktop. This stops the header from growing to 4–5 lines tall on mobile and removes the main cause of the cards touching/overlapping.
+  <section>
+    <h3 className="text-base font-semibold mb-3">Orders Created</h3>
+    <OrdersCreatedChart orders={orders} />
+  </section>
 
-### 2. `src/components/analytics/OrdersCreatedChart.tsx` & `OrdersCompletedChart.tsx`
-- Replace fixed `interval="preserveStartEnd"` with a computed interval: `Math.max(0, Math.floor(data.length / 6) - 1)` so Recharts skips enough labels to prevent overlap on mobile.
-- Add `minTickGap={12}` to the XAxis for extra safety.
+  <Separator />
 
-### 3. `src/pages/AnalyticsPage.tsx`
-Change the chart wrapper from `space-y-2 sm:space-y-4` to `space-y-6` (gap-6) so there is always comfortable breathing room between the two tall cards, even when the headers wrap.
+  <section>
+    <h3 className="text-base font-semibold mb-3">Orders Completed</h3>
+    <OrdersCompletedChart orders={orders} />
+  </section>
+</TabsContent>
+```
 
-### 4. `src/services/analyticsService.ts`
-No functional change — confirm the existing `_startOfISOWeek` already snaps to Monday and the label format `Mon – Sun` is preserved.
+- Adds `<Separator />` (existing shadcn component) between sections.
+- `space-y-8` ensures 32 px gap on all viewports.
+- Each chart keeps its existing Card; the wrapping `<section>` plus separator removes any perception of overlap.
 
 ## Out of scope
-- No backend or database changes.
-- No new queries or migrations.
-- No changes to other analytics tabs.
+No changes to the charts themselves, the filter component, the service layer, or other tabs.
