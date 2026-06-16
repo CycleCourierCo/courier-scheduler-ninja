@@ -605,3 +605,35 @@ export const getStorageAnalytics = (orders: Order[]): StorageAnalytics => {
     storageDistribution: Object.entries(storageDistribution).map(([range, count]) => ({ range, count }))
   };
 };
+
+export const getOrdersCompletedSeries = (
+  orders: Order[],
+  range: TimeRange,
+  g: Granularity,
+): CompletedSeriesPoint[] => {
+  const buckets = enumerateBuckets(range, g);
+  const data: Record<string, { orders: number; collections: number; deliveries: number }> = {};
+  for (const b of buckets) data[bucketKey(b, g)] = { orders: 0, collections: 0, deliveries: 0 };
+
+  for (const order of orders) {
+    const coll = getCollectionTimestamp(order);
+    const del = getDeliveryTimestamp(order);
+
+    if (coll && inRange(coll, range)) {
+      const k = bucketKey(coll, g);
+      if (k in data) data[k].collections += 1;
+    }
+    if (del && inRange(del, range)) {
+      const k = bucketKey(del, g);
+      if (k in data) {
+        data[k].deliveries += 1;
+        if (coll) data[k].orders += 1;
+      }
+    }
+  }
+
+  return buckets.map(b => {
+    const k = bucketKey(b, g);
+    return { bucket: k, label: bucketLabel(b, g), ...data[k] };
+  });
+};
