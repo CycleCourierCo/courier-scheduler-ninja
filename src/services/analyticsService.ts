@@ -84,22 +84,138 @@ export const getOrderStatusAnalytics = (orders: Order[]): OrderCountByStatus[] =
   }));
 };
 
+const _formatISODate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const _startOfDay = (d: Date): Date => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+
+const _startOfISOWeek = (d: Date): Date => {
+  const x = _startOfDay(d);
+  const day = x.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+};
+
+const _startOfMonth = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), 1);
+
 export const getOrderTimeAnalytics = (orders: Order[]): OrderCountByTime[] => {
   const weekCountMap: Record<string, number> = {};
-  
+
   orders.forEach(order => {
-    // Get the start of the week (Monday) for each order
     const orderDate = new Date(order.createdAt);
-    const dayOfWeek = orderDate.getDay();
-    const diff = orderDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
-    const weekStart = new Date(orderDate.setDate(diff));
-    const weekKey = weekStart.toISOString().split('T')[0];
+    if (isNaN(orderDate.getTime())) return;
+    const weekKey = _formatISODate(_startOfISOWeek(orderDate));
     weekCountMap[weekKey] = (weekCountMap[weekKey] || 0) + 1;
   });
-  
+
   return Object.entries(weekCountMap)
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
+};
+
+// =========================================================
+// Time-series analytics with date-range + granularity filters
+// =========================================================
+
+export type Granularity = "day" | "week" | "month";
+
+export interface TimeRange {
+  start: Date;
+  end: Date;
+}
+
+export interface CreatedSeriesPoint {
+  bucket: string;
+  label: string;
+  count: number;
+}
+
+export interface CompletedSeriesPoint {
+  bucket: string;
+  label: string;
+  orders: number;
+  collections: number;
+  deliveries: number;
+}
+
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const bucketStart = (d: Date, g: Granularity): Date => {
+  if (g === "day") return _startOfDay(d);
+  if (g === "week") return _startOfISOWeek(d);
+  return _startOfMonth(d);
+};
+
+const bucketKey = (d: Date, g: Granularity): string => {
+  const s = bucketStart(d, g);
+  if (g === "month") return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, "0")}`;
+  return _formatISODate(s);
+};
+
+const bucketLabel = (d: Date, g: Granularity): string => {
+  const s = bucketStart(d, g);
+  if (g === "day") return `${s.getDate()} ${MONTH_SHORT[s.getMonth()]}`;
+  if (g === "week") {
+    const end = new Date(s);
+    end.setDate(end.getDate() + 6);
+    return `${s.getDate()} ${MONTH_SHORT[s.getMonth()]} – ${end.getDate()} ${MONTH_SHORT[end.getMonth()]}`;
+  }
+  return `${MONTH_SHORT[s.getMonth()]} ${String(s.getFullYear()).slice(-2)}`;
+};
+
+const enumerateBuckets = (range: TimeRange, g: Granularity): Date[] => {
+  const out: Date[] = [];
+  const cursor = bucketStart(range.start, g);
+  const endBucket = bucketStart(range.end, g);
+  let guard = 0;
+  while (cursor.getTime() <= endBucket.getTime() && guard < 5000) {
+    out.push(new Date(cursor));
+    if (g === "day") cursor.setDate(cursor.getDate() + 1);
+    else if (g === "week") cursor.setDate(cursor.getDate() + 7);
+    else cursor.setMonth(cursor.getMonth() + 1);
+    guard++;
+  }
+  return out;
+};
+
+const inRange = (d: Date, range: TimeRange): boolean => {
+  const t = d.getTime();
+  const startT = _startOfDay(range.start).getTime();
+  const endT = new Date(range.end).setHours(23, 59, 59, 999);
+  return t >= startT && t <= endT;
+};
+
+export const getOrdersCreatedSeries = (
+  orders: Order[],
+  range: TimeRange,
+  g: Granularity,
+): CreatedSeriesPoint[] => {
+  const buckets = enumerateBuckets(range, g);
+  const counts: Record<string, number> = {};
+  for (const b of buckets) counts[bucketKey(b, g)] = 0;
+
+  for (const order of orders) {
+    const d = new Date(order.createdAt);
+    if (isNaN(d.getTime())) continue;
+    if (!inRange(d, range)) continue;
+    const key = bucketKey(d, g);
+    if (key in counts) counts[key] += 1;
+  }
+
+  return buckets.map(b => ({
+    bucket: bucketKey(b, g),
+    label: bucketLabel(b, g),
+    count: counts[bucketKey(b, g)] || 0,
+  }));
 };
 
 export const getCustomerTypeAnalytics = (orders: Order[]) => {
