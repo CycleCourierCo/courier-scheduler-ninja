@@ -1,38 +1,42 @@
-## Problem
-The two chart cards are still visually colliding on mobile. The earlier `gap-6` wasn't enough because both cards live inside one grid container with no visual break between them.
+## Root cause
 
-## Fix
-Split the Overview tab into three clearly separated sections, each in its own `<section>` with a heading and its own card. The browser will render them as fully distinct blocks with generous vertical spacing and a subtle divider.
+Sami has the `mechanic` role correctly assigned, and the `BicycleInspections` page does call `getPendingInspections()` for mechanics. That helper reads from `public.orders` filtered by `needs_inspection = true`.
 
-### `src/pages/AnalyticsPage.tsx`
-Replace the single grid containing all three Overview cards with three stacked `<section>` blocks:
+The `bicycle_inspections` / `inspection_issues` RLS policies already include `mechanic`, but the **`orders` SELECT policy does not**:
 
-```tsx
-<TabsContent value="overview" className="space-y-8">
-  <section>
-    <h3 className="text-base font-semibold mb-3">Order Status</h3>
-    <OrderStatusChart data={orderStatusData} />
-  </section>
-
-  <Separator />
-
-  <section>
-    <h3 className="text-base font-semibold mb-3">Orders Created</h3>
-    <OrdersCreatedChart orders={orders} />
-  </section>
-
-  <Separator />
-
-  <section>
-    <h3 className="text-base font-semibold mb-3">Orders Completed</h3>
-    <OrdersCompletedChart orders={orders} />
-  </section>
-</TabsContent>
+```
+orders_authenticated_select_policy:
+  has_role(uid,'admin') OR has_role(uid,'route_planner') OR has_role(uid,'loader') OR orders.user_id = uid
 ```
 
-- Adds `<Separator />` (existing shadcn component) between sections.
-- `space-y-8` ensures 32 px gap on all viewports.
-- Each chart keeps its existing Card; the wrapping `<section>` plus separator removes any perception of overlap.
+With no `mechanic` branch, RLS returns zero order rows for Sami, so the inspections list is always empty → "No bikes requiring inspection".
+
+## Fix
+
+Single migration to extend the existing `orders` SELECT policy to include the mechanic role. Same standardized `EXISTS (SELECT auth.uid() AS uid)` performance pattern already used on the table:
+
+```sql
+DROP POLICY IF EXISTS orders_authenticated_select_policy ON public.orders;
+
+CREATE POLICY orders_authenticated_select_policy
+ON public.orders
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM (SELECT auth.uid() AS uid) s
+    WHERE has_role(s.uid, 'admin'::user_role)
+       OR has_role(s.uid, 'route_planner'::user_role)
+       OR has_role(s.uid, 'loader'::user_role)
+       OR has_role(s.uid, 'mechanic'::user_role)
+       OR orders.user_id = s.uid
+  )
+);
+```
+
+Scope of access stays minimal: mechanics get SELECT only (no INSERT/UPDATE/DELETE), matching their existing inspection workflow which only needs to read order context (tracking #, bike, sender/receiver name) for inspections they already work on.
 
 ## Out of scope
-No changes to the charts themselves, the filter component, the service layer, or other tabs.
+
+- No UI/copy changes. The "My Inspections" header for non-admin will be revisited separately if you want it to read "Bicycle Inspections" for mechanics too.
+- No other RLS tables touched.
