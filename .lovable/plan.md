@@ -1,42 +1,27 @@
-## Root cause
+## Why drivers don't show up for Sulayman
 
-Sami has the `mechanic` role correctly assigned, and the `BicycleInspections` page does call `getPendingInspections()` for mechanics. That helper reads from `public.orders` filtered by `needs_inspection = true`.
+The Loading & Unloading page loads drivers and loaders with:
 
-The `bicycle_inspections` / `inspection_issues` RLS policies already include `mechanic`, but the **`orders` SELECT policy does not**:
-
-```
-orders_authenticated_select_policy:
-  has_role(uid,'admin') OR has_role(uid,'route_planner') OR has_role(uid,'loader') OR orders.user_id = uid
+```ts
+supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').eq('is_active', true)
 ```
 
-With no `mechanic` branch, RLS returns zero order rows for Sami, so the inspections list is always empty → "No bikes requiring inspection".
+The `profiles` SELECT policy currently allows: own row, or admin/sales only. A loader like Sulayman is neither admin nor sales, so this query returns just his own profile — so the driver list is empty and the loader list shows only himself. That is why the driver picker is blank.
 
 ## Fix
 
-Single migration to extend the existing `orders` SELECT policy to include the mechanic role. Same standardized `EXISTS (SELECT auth.uid() AS uid)` performance pattern already used on the table:
+### 1. Database: let internal staff read driver/loader profiles
 
-```sql
-DROP POLICY IF EXISTS orders_authenticated_select_policy ON public.orders;
+Add a new RLS SELECT policy on `public.profiles` that allows any internal staff user (admin, cs_agent, route_planner, loader, driver, sales, timeslip_admin, mechanic — i.e. the existing `is_internal_staff(auth.uid())` helper) to read profile rows that belong to drivers or loaders.
 
-CREATE POLICY orders_authenticated_select_policy
-ON public.orders
-FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM (SELECT auth.uid() AS uid) s
-    WHERE has_role(s.uid, 'admin'::user_role)
-       OR has_role(s.uid, 'route_planner'::user_role)
-       OR has_role(s.uid, 'loader'::user_role)
-       OR has_role(s.uid, 'mechanic'::user_role)
-       OR orders.user_id = s.uid
-  )
-);
-```
+- Keeps existing self-read and admin/sales policies untouched.
+- Does NOT expose customer profiles.
+- Only exposes `driver` and `loader` operational profiles needed to send loading lists.
 
-Scope of access stays minimal: mechanics get SELECT only (no INSERT/UPDATE/DELETE), matching their existing inspection workflow which only needs to read order context (tracking #, bike, sender/receiver name) for inspections they already work on.
+### 2. No frontend change required
 
-## Out of scope
+After the policy is added, the existing `LoadingUnloadingPage` driver and loader selectors will populate for loaders like Sulayman with no code change.
 
-- No UI/copy changes. The "My Inspections" header for non-admin will be revisited separately if you want it to read "Bicycle Inspections" for mechanics too.
-- No other RLS tables touched.
+### 3. Verify
+
+After approving the migration, Sulayman reopens the loading list dialog — drivers and loaders appear and loading lists can be sent normally.
