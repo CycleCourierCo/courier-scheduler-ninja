@@ -780,6 +780,42 @@ export type Database = {
         }
         Relationships: []
       }
+      email_delivery_events: {
+        Row: {
+          created_at: string
+          email_type: string | null
+          event_type: string
+          id: string
+          order_id: string | null
+          payload: Json | null
+          recipient: string | null
+          resend_email_id: string | null
+          side: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_type?: string | null
+          event_type: string
+          id?: string
+          order_id?: string | null
+          payload?: Json | null
+          recipient?: string | null
+          resend_email_id?: string | null
+          side?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_type?: string | null
+          event_type?: string
+          id?: string
+          order_id?: string | null
+          payload?: Json | null
+          recipient?: string | null
+          resend_email_id?: string | null
+          side?: string | null
+        }
+        Relationships: []
+      }
       fuel_card_settings: {
         Row: {
           id: string
