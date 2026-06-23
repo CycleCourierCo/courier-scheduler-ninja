@@ -5,6 +5,7 @@ import { ContactInfo, Address } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import EmailDeliveryStatus from "./EmailDeliveryStatus";
 
 interface ContactDetailsProps {
   type: "sender" | "receiver";
