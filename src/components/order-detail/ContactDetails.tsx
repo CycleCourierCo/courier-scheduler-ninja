@@ -5,6 +5,7 @@ import { ContactInfo, Address } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import EmailDeliveryStatus from "./EmailDeliveryStatus";
 
 interface ContactDetailsProps {
   type: "sender" | "receiver";
@@ -71,7 +72,10 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
         <div className="space-y-2">
           <div className="flex items-start space-x-2">
             <Mail className="h-4 w-4 mt-1 text-gray-500" />
-            <p>{contact.email}</p>
+            <div className="flex-1 flex items-center justify-between gap-2 flex-wrap">
+              <p className="break-all">{contact.email}</p>
+              <EmailDeliveryStatus orderId={orderId} side={type} />
+            </div>
           </div>
           <div className="flex items-start space-x-2">
             <Phone className="h-4 w-4 mt-1 text-gray-500" />
