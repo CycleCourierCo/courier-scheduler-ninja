@@ -479,8 +479,12 @@ const getDeliveryTimestamp = (order: Order): Date | null => {
 };
 
 // Calculate time to collection (order creation to collection)
-export const getCollectionTimeAnalytics = (orders: Order[]): CollectionTimeAnalytics => {
-  const collectedOrders = orders.filter(order => {
+export const getCollectionTimeAnalytics = (orders: Order[], range?: TimeRange): CollectionTimeAnalytics => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+  const collectedOrders = scoped.filter(order => {
+    const collectionTime = getCollectionTimestamp(order);
+    return collectionTime !== null;
+  });
     const collectionTime = getCollectionTimestamp(order);
     return collectionTime !== null;
   });
@@ -532,8 +536,9 @@ export const getCollectionTimeAnalytics = (orders: Order[]): CollectionTimeAnaly
 };
 
 // Calculate delivery timing (collection to delivery, and total duration)
-export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics => {
-  const deliveredOrders = orders.filter(order => {
+export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): DeliveryTimeAnalytics => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+  const deliveredOrders = scoped.filter(order => {
     const deliveryTime = getDeliveryTimestamp(order);
     const collectionTime = getCollectionTimestamp(order);
     return deliveryTime !== null && collectionTime !== null;
@@ -594,8 +599,9 @@ export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics
 };
 
 // Calculate storage analytics
-export const getStorageAnalytics = (orders: Order[]): StorageAnalytics => {
-  const storedOrders = orders.filter(order => {
+export const getStorageAnalytics = (orders: Order[], range?: TimeRange): StorageAnalytics => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+  const storedOrders = scoped.filter(order => {
     return order.storage_locations && Array.isArray(order.storage_locations) && order.storage_locations.length > 0;
   });
 
