@@ -601,10 +601,47 @@ Cycle Courier Co.`;
         subject: emailSubject,
         html: emailHtml,
         reply_to: "Info@cyclecourierco.com",
+        tags: [
+          { name: "email_type", value: "timeslot" },
+          { name: "side", value: recipientType },
+          { name: "order_id", value: String(orderId) },
+        ],
       });
 
       emailResult = { success: true, data: emailData };
       console.log("Email sent successfully:", emailData);
+
+      // Log initial "sent" event so the UI badge appears immediately,
+      // before Resend's webhook fires.
+      const sentEmailId = (emailData as any)?.data?.id ?? (emailData as any)?.id ?? null;
+      if (sentEmailId) {
+        try {
+          const supaUrl = Deno.env.get("SUPABASE_URL");
+          const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+          if (supaUrl && svcKey) {
+            await fetch(`${supaUrl}/rest/v1/email_delivery_events`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: svcKey,
+                Authorization: `Bearer ${svcKey}`,
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({
+                resend_email_id: sentEmailId,
+                recipient: contact.email,
+                event_type: "sent",
+                order_id: orderId,
+                side: recipientType,
+                email_type: "timeslot",
+                payload: { source: "send-timeslot-whatsapp" },
+              }),
+            });
+          }
+        } catch (logErr) {
+          console.error("Failed to log timeslot sent event:", logErr);
+        }
+      }
     } catch (emailError: any) {
       emailResult = { success: false, error: emailError?.message || "Failed to send email" };
       console.error("Email operation error:", emailError);

@@ -1370,7 +1370,7 @@ const OrderDetail = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <h3 className="text-lg font-semibold">Sender Availability</h3>
-                    <EmailDeliveryStatus orderId={id} side="sender" />
+                    <EmailDeliveryStatus orderId={id} side="sender" emailType="sender_availability" />
                   </div>
                   {order.pickupDate && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
                     <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800">
@@ -1422,7 +1422,7 @@ const OrderDetail = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <h3 className="text-lg font-semibold">Receiver Availability</h3>
-                    <EmailDeliveryStatus orderId={id} side="receiver" />
+                    <EmailDeliveryStatus orderId={id} side="receiver" emailType="receiver_availability" />
                   </div>
                   {order.deliveryDate && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
                     <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-md border border-green-200 dark:border-green-800">
