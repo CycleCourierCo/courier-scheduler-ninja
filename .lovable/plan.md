@@ -1,18 +1,12 @@
-## Add timeslot email badges to the top dates section
+## Show event date/time on the badge
 
-In `src/pages/OrderDetail.tsx` around the "Collection Date" / "Delivery Date" headings (lines ~1300 and ~1320), render the `EmailDeliveryStatus` badge next to each heading so the timeslot email status is visible at the top of the order page.
+Update `src/components/order-detail/EmailDeliveryStatus.tsx` so the badge displays when the top event happened, in addition to the status label.
 
-### Changes (single file: `src/pages/OrderDetail.tsx`)
-
-1. Wrap the **Collection Date** `<h3>` in a flex container and render:
-   ```tsx
-   <EmailDeliveryStatus orderId={id} side="sender" emailType="timeslot" />
-   ```
-   next to it.
-2. Do the same for the **Delivery Date** `<h3>` with `side="receiver"` and `emailType="timeslot"`.
-
-The badge already renders "No email sent" when nothing exists, so it stays unobtrusive before any timeslot send. No other files change.
+### Change
+- After computing `top`, format `top.created_at` in `Europe/London` as a compact string (e.g. `24 Jun, 14:32`) using `toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })`.
+- Render it inside the badge after the status label, in a muted/smaller span so the status itself remains the primary signal. Example:
+  `Email Clicked · 24 Jun, 14:32`
+- Tooltip history stays as-is (full date + time per event).
 
 ### Out of scope
-- No changes to `TimeslotSelection` (badge still shown there too).
-- No styling or layout changes beyond the heading row.
+- No other components, no styling system changes, no logic changes to ranking or scoping.
