@@ -27,6 +27,7 @@ import Layout from "@/components/Layout";
 import { toast } from "sonner";
 import OrderHeader from "@/components/order-detail/OrderHeader";
 import DateSelection from "@/components/order-detail/DateSelection";
+import EmailDeliveryStatus from "@/components/order-detail/EmailDeliveryStatus";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
@@ -1367,7 +1368,10 @@ const OrderDetail = () => {
               {/* Sender and Receiver Selected Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Sender Availability</h3>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="text-lg font-semibold">Sender Availability</h3>
+                    <EmailDeliveryStatus orderId={id} side="sender" />
+                  </div>
                   {order.pickupDate && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
                     <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800">
                       <p className="font-medium text-blue-900 dark:text-blue-100">
@@ -1416,7 +1420,10 @@ const OrderDetail = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Receiver Availability</h3>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="text-lg font-semibold">Receiver Availability</h3>
+                    <EmailDeliveryStatus orderId={id} side="receiver" />
+                  </div>
                   {order.deliveryDate && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
                     <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-md border border-green-200 dark:border-green-800">
                       <p className="font-medium text-green-900 dark:text-green-100">
