@@ -22,7 +22,9 @@ import {
   getCollectionTimeAnalytics,
   getDeliveryTimeAnalytics,
   getStorageAnalytics,
-  getAllCustomersAnalytics
+  getAllCustomersAnalytics,
+  type TimeRange,
+  type Granularity,
 } from "@/services/analyticsService";
 import {
   fetchInspectionsForAnalytics,
@@ -55,6 +57,9 @@ import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
+import PerformanceTrendChart from "@/components/analytics/PerformanceTrendChart";
+import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboard";
+import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
