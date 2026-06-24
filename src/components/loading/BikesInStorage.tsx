@@ -404,7 +404,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                         
                         <div className="flex gap-3 items-end">
                           <div className="flex-1">
-                            <Label htmlFor={`new-bay-${index}`} className="text-sm">Bay (A-D)</Label>
+                            <Label htmlFor={`new-bay-${index}`} className="text-sm">Bay ({bayHelp})</Label>
                             <Input
                               id={`new-bay-${index}`}
                               value={newBays[index] || ''}
@@ -419,7 +419,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                             />
                           </div>
                           <div className="flex-1">
-                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position (1-20)</Label>
+                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position</Label>
                             <Input
                               id={`new-position-${index}`}
                               value={newPositions[index] || ''}
@@ -431,7 +431,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                               placeholder="1"
                               type="number"
                               min="1"
-                              max="20"
+                              
                               className="text-center"
                             />
                           </div>
@@ -444,7 +444,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     <div className="text-sm font-medium">New location:</div>
                     <div className="flex gap-3 items-end">
                       <div className="flex-1">
-                        <Label htmlFor="new-bay" className="text-sm">Bay (A-D)</Label>
+                        <Label htmlFor="new-bay" className="text-sm">Bay ({bayHelp})</Label>
                         <Input
                           id="new-bay"
                           value={newBays[0] || ''}
@@ -455,7 +455,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                         />
                       </div>
                       <div className="flex-1">
-                        <Label htmlFor="new-position" className="text-sm">Position (1-20)</Label>
+                        <Label htmlFor="new-position" className="text-sm">Position</Label>
                         <Input
                           id="new-position"
                           value={newPositions[0] || ''}
@@ -463,7 +463,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                           placeholder="1"
                           type="number"
                           min="1"
-                          max="20"
+                          
                           className="text-center"
                         />
                       </div>
