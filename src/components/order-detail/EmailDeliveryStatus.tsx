@@ -112,7 +112,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
         <TooltipTrigger asChild>
           <Badge variant="outline" className={`text-xs gap-1 cursor-help ${style.className}`}>
             <Icon className="h-3 w-3" />
-            Email {style.label}
+            {label ?? "Email"} {style.label}
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
