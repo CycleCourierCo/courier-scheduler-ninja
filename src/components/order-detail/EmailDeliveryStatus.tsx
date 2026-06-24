@@ -139,6 +139,9 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
           <Badge variant="outline" className={`text-xs gap-1 cursor-help ${style.className}`}>
             <Icon className="h-3 w-3" />
             {label ?? "Email"} {style.label}
+            <span className="opacity-70 ml-1">
+              · {new Date(top.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}
+            </span>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
