@@ -157,10 +157,10 @@ const AnalyticsPage = () => {
   const paymentRequiredData = getPaymentRequiredAnalytics(orders);
   const bikeBrandData = getBikeBrandAnalytics(orders);
   
-  // Calculate timing analytics
-  const collectionTimeData = getCollectionTimeAnalytics(orders);
-  const deliveryTimeData = getDeliveryTimeAnalytics(orders);
-  const storageData = getStorageAnalytics(orders);
+  // Calculate timing analytics (scoped to selected performance range)
+  const collectionTimeData = useMemo(() => getCollectionTimeAnalytics(orders, perfRange), [orders, perfRange]);
+  const deliveryTimeData = useMemo(() => getDeliveryTimeAnalytics(orders, perfRange), [orders, perfRange]);
+  const storageData = useMemo(() => getStorageAnalytics(orders, perfRange), [orders, perfRange]);
 
   // Get only B2B customers for business tab
   const b2bCustomers = getAllCustomersAnalytics(orders).filter(customer => customer.isB2B);
