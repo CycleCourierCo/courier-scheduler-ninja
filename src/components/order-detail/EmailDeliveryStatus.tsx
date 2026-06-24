@@ -7,6 +7,8 @@ import { Mail, MailCheck, MailOpen, MailX, MousePointerClick, Clock, AlertTriang
 interface EmailDeliveryStatusProps {
   orderId?: string;
   side: "sender" | "receiver";
+  emailType?: string;
+  label?: string;
 }
 
 type EventRow = {
