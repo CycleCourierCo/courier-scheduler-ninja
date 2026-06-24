@@ -22,9 +22,7 @@ import {
 } from "@/services/warehouseStockService";
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
 import { format } from "date-fns";
-
-const BAYS = ["A", "B", "C", "D"];
-const POSITIONS = Array.from({ length: 20 }, (_, i) => i + 1);
+import { useStorageBays } from "@/hooks/useStorageBays";
 
 const statusColors: Record<string, string> = {
   stored: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -40,12 +38,13 @@ const emptyForm: WarehouseStockFormData = {
   bike_type: "",
   bike_value: "",
   item_notes: "",
-  bay: "A",
+  bay: "",
   position: 1,
 };
 
 const WarehouseStockPage: React.FC = () => {
   const { user } = useAuth();
+  const { bays } = useStorageBays();
   const [stock, setStock] = useState<WarehouseStock[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -350,13 +349,13 @@ const WarehouseStockPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Bay *</Label>
-                <Select value={formData.bay} onValueChange={(v) => setFormData({ ...formData, bay: v })}>
+                <Select value={formData.bay} onValueChange={(v) => setFormData({ ...formData, bay: v, position: 1 })}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select bay" />
                   </SelectTrigger>
                   <SelectContent>
-                    {BAYS.map((b) => (
-                      <SelectItem key={b} value={b}>Bay {b}</SelectItem>
+                    {bays.map((b) => (
+                      <SelectItem key={b.id} value={b.label}>Bay {b.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -366,14 +365,19 @@ const WarehouseStockPage: React.FC = () => {
                 <Select
                   value={String(formData.position)}
                   onValueChange={(v) => setFormData({ ...formData, position: parseInt(v) })}
+                  disabled={!formData.bay}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {POSITIONS.map((p) => (
-                      <SelectItem key={p} value={String(p)}>Position {p}</SelectItem>
-                    ))}
+                    {(() => {
+                      const selected = bays.find((b) => b.label === formData.bay);
+                      const count = selected?.position_count ?? 0;
+                      return Array.from({ length: count }, (_, i) => i + 1).map((p) => (
+                        <SelectItem key={p} value={String(p)}>Position {p}</SelectItem>
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>

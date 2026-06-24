@@ -43,6 +43,7 @@ import AnnouncementEmailsPage from "./pages/AnnouncementEmailsPage";
 import AIRouting from "./pages/AIRouting";
 import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
+import StorageBaysPage from "./pages/StorageBaysPage";
 import MyStockPage from "./pages/MyStockPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
 import VehicleManagement from "./pages/VehicleManagement";
@@ -214,6 +215,11 @@ function App() {
               <Route path="/warehouse-stock" element={
                 <ProtectedRoute adminOnly={true}>
                   <WarehouseStockPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/storage-bays" element={
+                <ProtectedRoute adminOnly={true}>
+                  <StorageBaysPage />
                 </ProtectedRoute>
               } />
               <Route path="/my-stock" element={
