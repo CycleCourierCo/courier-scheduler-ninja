@@ -2198,6 +2198,36 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_bays: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          label: string
+          position_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          position_count: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          position_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       task_comments: {
         Row: {
           author_id: string | null
