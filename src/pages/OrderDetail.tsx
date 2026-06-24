@@ -1423,6 +1423,20 @@ const OrderDetail = () => {
                       {isResendingEmail.sender ? "Sending..." : "Resend Sender Availability Email"}
                     </Button>
                   )}
+                  {isAdminOrRoutePlanner && (
+                    <Button
+                      onClick={() => {
+                        const link = `${window.location.origin}/sender-availability/${id}`;
+                        navigator.clipboard.writeText(link);
+                        toast.success("Sender availability link copied");
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      Copy Sender Availability Link
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
