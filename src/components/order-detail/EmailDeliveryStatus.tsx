@@ -38,7 +38,7 @@ const STYLES: Record<string, { label: string; className: string; Icon: React.Com
   complained: { label: "Complained", className: "bg-red-100 text-red-800 border-red-200", Icon: AlertTriangle },
 };
 
-const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side }) => {
+const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side, emailType, label }) => {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -48,11 +48,13 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
 
     const fetchEvents = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      let q = supabase
         .from("email_delivery_events")
-        .select("event_type, created_at, recipient")
+        .select("event_type, created_at, recipient, email_type")
         .eq("order_id", orderId)
-        .eq("side", side)
+        .eq("side", side);
+      if (emailType) q = q.eq("email_type", emailType);
+      const { data, error } = await q
         .order("created_at", { ascending: false })
         .limit(25);
       if (!cancelled) {
@@ -64,13 +66,13 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
     fetchEvents();
 
     const channel = supabase
-      .channel(`email-events-${orderId}-${side}`)
+      .channel(`email-events-${orderId}-${side}-${emailType ?? "any"}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "email_delivery_events", filter: `order_id=eq.${orderId}` },
         (payload) => {
           const row = payload.new as any;
-          if (row.side === side) {
+          if (row.side === side && (!emailType || row.email_type === emailType)) {
             setEvents((prev) => [{ event_type: row.event_type, created_at: row.created_at, recipient: row.recipient }, ...prev]);
           }
         },
@@ -81,7 +83,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [orderId, side]);
+  }, [orderId, side, emailType]);
 
   if (!orderId) return null;
   if (loading && events.length === 0) return null;
