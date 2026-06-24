@@ -428,11 +428,16 @@ const isDeliveryDescription = (desc?: string): boolean => {
 };
 
 const getCollectionTimestamp = (order: Order): Date | null => {
+  // Source of truth: backend-recorded confirmation timestamp.
+  if (order.collectionConfirmationSentAt) {
+    const d = new Date(order.collectionConfirmationSentAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   const updates = order.trackingEvents?.shipday?.updates;
   if (!updates || updates.length === 0) return null;
 
-  const pickupId = (order as any).shipdayPickupId;
-  // Earliest matching event wins (the moment of collection)
+  const pickupId = order.trackingEvents?.shipday?.pickup_id;
   const matches = updates
     .filter((u: any) =>
       COLLECTION_EVENTS.has(u.event) &&
@@ -449,10 +454,15 @@ const getCollectionTimestamp = (order: Order): Date | null => {
 };
 
 const getDeliveryTimestamp = (order: Order): Date | null => {
+  if (order.deliveryConfirmationSentAt) {
+    const d = new Date(order.deliveryConfirmationSentAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   const updates = order.trackingEvents?.shipday?.updates;
   if (!updates || updates.length === 0) return null;
 
-  const deliveryId = (order as any).shipdayDeliveryId;
+  const deliveryId = order.trackingEvents?.shipday?.delivery_id;
   const matches = updates
     .filter((u: any) =>
       DELIVERY_EVENTS.has(u.event) &&
@@ -465,7 +475,6 @@ const getDeliveryTimestamp = (order: Order): Date | null => {
     .filter((t: number) => !isNaN(t));
 
   if (matches.length === 0) return null;
-  // Use the latest delivery event (final delivery for multi-stop)
   return new Date(Math.max(...matches));
 };
 
