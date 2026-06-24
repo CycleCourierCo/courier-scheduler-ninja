@@ -1,26 +1,18 @@
-## Scope badge to the latest resend
+## Track timeslot emails sent via SendZen
 
-Update `src/components/order-detail/EmailDeliveryStatus.tsx` so the badge reflects only the most recent send (per `resend_email_id`) instead of the cumulative max across all sends.
+The "Send Timeslot" button already tags its email (`email_type=timeslot`) and writes an immediate `sent` row into `email_delivery_events`, so the badge appears on the Timeslot card. The **"Send via SendZen"** button also sends an email through Resend, but it does **not** attach tags and does **not** insert a tracking row. That is why no email status shows on the timeslot section after a SendZen send (and any follow-up Resend webhooks land with `email_type=NULL` so the timeslot-scoped badge ignores them).
 
-### Changes
+### Change
 
-**`src/components/order-detail/EmailDeliveryStatus.tsx`**
-1. Extend the query to also select `resend_email_id` (already a column on `email_delivery_events`).
-2. After fetching, find the most recent `sent` row for this `order_id` + `side` (+ `email_type` when provided) and capture its `resend_email_id` as `latestSendId`.
-   - Fallback: if no `sent` row exists (older data), use the `resend_email_id` of the newest row overall.
-3. Filter the events used for ranking/history to only those whose `resend_email_id === latestSendId` (rows without a `resend_email_id` are excluded when a latest id is known).
-4. Update the realtime INSERT handler:
-   - If the incoming row's `event_type === 'sent'`, treat its `resend_email_id` as the new `latestSendId` and reset `events` to just that row.
-   - Otherwise, only append the row if its `resend_email_id === latestSendId`.
-5. Keep the tooltip history scoped to the latest send too (so "Sent → Delivered → Opened → Clicked" reflects this resend only).
-6. No prop changes; existing usages (`ContactDetails`, `TimeslotSelection`, `OrderDetail`) keep working.
+**`supabase/functions/send-sendzen-whatsapp/index.ts`** — in the email send block (around line 418):
 
-### Behavior after change
-- First send: badge progresses Sent → Delivered → Opened → Clicked as before.
-- User clicks "Resend": `send-email` / `send-timeslot-whatsapp` inserts a new `sent` row with a new `resend_email_id`. Badge immediately resets to "Sent" and then progresses again as Resend webhooks arrive for the new email id.
-- Bounced/complained still surface, but only for the latest send (previous bounces no longer mask a successful resend).
+1. Add `tags` to the `resend.emails.send` call:
+   - `email_type` = `"timeslot"`
+   - `side` = `recipientType` (`"sender"` or `"receiver"`)
+   - `order_id` = `String(orderId)`
+2. After a successful send, insert a `sent` row into `email_delivery_events` using the service-role key — mirroring the existing logic in `send-timeslot-whatsapp` (`resend_email_id`, `recipient`, `event_type: 'sent'`, `order_id`, `side: recipientType`, `email_type: 'timeslot'`, `payload: { source: 'send-sendzen-whatsapp' }`).
+3. Wrap the insert in `try/catch` so a logging failure never blocks the user flow.
 
 ### Out of scope
-- No schema changes (`resend_email_id` already exists).
-- No edge function changes.
-- No UI/visual changes beyond the badge state it shows.
+- No changes to `EmailDeliveryStatus.tsx`, the Resend webhook, or any UI.
+- No backfill for previously sent SendZen emails — those rows have no tags and will remain untracked. Any new SendZen send will show the badge progressing Sent → Delivered → Opened → Clicked, and resends will reset it (existing latest-send scoping already handles that).
