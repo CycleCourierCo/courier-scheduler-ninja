@@ -485,9 +485,6 @@ export const getCollectionTimeAnalytics = (orders: Order[], range?: TimeRange): 
     const collectionTime = getCollectionTimestamp(order);
     return collectionTime !== null;
   });
-    const collectionTime = getCollectionTimestamp(order);
-    return collectionTime !== null;
-  });
 
   if (collectedOrders.length === 0) {
     return {
