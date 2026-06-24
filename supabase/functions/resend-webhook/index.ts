@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
   try {
     const secret = Deno.env.get("RESEND_WEBHOOK_SECRET");
     if (!secret) {
+      console.error("RESEND_WEBHOOK_SECRET is not set");
       return new Response(JSON.stringify({ error: "missing secret" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -23,23 +24,40 @@ Deno.serve(async (req) => {
     }
 
     const payload = await req.text();
+    const svixId = req.headers.get("svix-id") ?? "";
+    const svixTs = req.headers.get("svix-timestamp") ?? "";
+    const svixSig = req.headers.get("svix-signature") ?? "";
+
+    console.log("Incoming Resend webhook:", JSON.stringify({
+      svix_id: svixId,
+      svix_timestamp: svixTs,
+      svix_signature_length: svixSig.length,
+      svix_signature_prefix: svixSig.slice(0, 12),
+      payload_bytes: payload.length,
+      secret_set: true,
+      secret_length: secret.length,
+      secret_prefix: secret.slice(0, 6),
+    }));
+
     const headers = {
-      "svix-id": req.headers.get("svix-id") ?? "",
-      "svix-timestamp": req.headers.get("svix-timestamp") ?? "",
-      "svix-signature": req.headers.get("svix-signature") ?? "",
+      "svix-id": svixId,
+      "svix-timestamp": svixTs,
+      "svix-signature": svixSig,
     };
 
     let evt: any;
     try {
       const wh = new Webhook(secret);
       evt = wh.verify(payload, headers);
+      console.log("Signature verification PASSED, event type:", evt?.type ?? "unknown");
     } catch (err) {
-      console.error("Signature verification failed");
+      console.error("Signature verification FAILED:", (err as Error).message);
       return new Response(JSON.stringify({ error: "invalid signature" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

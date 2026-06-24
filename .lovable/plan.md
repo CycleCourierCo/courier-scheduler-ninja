@@ -1,14 +1,26 @@
-No — I need the **Webhook Signing Secret**, not the Resend API key.
+## Goal
+Add non-sensitive diagnostic logging to the `resend-webhook` edge function so we can see why Resend signatures aren't verifying — without ever printing the signing secret in full.
 
-## Where to find it
+## Changes (single file: `supabase/functions/resend-webhook/index.ts`)
 
-1. Go to Resend → **Webhooks** (not API Keys).
-2. Click the webhook endpoint that points at `…/functions/v1/resend-webhook`.
-3. Look for **Signing Secret**. It starts with `whsec_…`.
-4. Copy that value and paste it into `RESEND_WEBHOOK_SECRET`.
+On every incoming request, log:
+- `svix-id` (full — not secret)
+- `svix-timestamp` (full)
+- `svix-signature` header **length** and **first 12 chars** only (the header itself is a signature, not a secret, but keeping it partial is safer)
+- Payload **byte length**
+- Whether `RESEND_WEBHOOK_SECRET` is set, its **length**, and its **first 6 chars** (e.g. `whsec_…`) — enough to confirm it starts with `whsec_` and isn't truncated, without exposing the secret
+- Whether `verify()` passed or failed, plus the Svix error message on failure (Svix errors are descriptive: "no matching signature found", "timestamp too old", "secret not in correct format", etc.)
+- On success: the event `type` (e.g. `email.delivered`)
 
-## Why this one
+## What we will NOT log
+- Full signing secret
+- Full svix-signature value
+- Full payload body
+- Recipient emails or message content
 
-The `resend-webhook` edge function uses Svix to verify the `svix-signature` header on each incoming event. That verification only works against the endpoint's signing secret. The Resend API key (starts with `re_…`) is for *sending* email from our side — it can't verify inbound webhook signatures, so using it will keep every event failing with `invalid signature` and no `delivered`/`opened`/`clicked` rows will be recorded.
+## After deploy
+1. Trigger a test event from Resend (or wait for the next real one).
+2. Read the `resend-webhook` logs — the Svix error message will tell us precisely whether it's a wrong secret, a different endpoint's secret, a clock skew, or malformed header.
+3. Based on what we see, either fix the secret value or adjust the verification path.
 
-Once you confirm, I'll trigger the secret update prompt so you can paste the `whsec_…` value.
+No database or other functions touched.
