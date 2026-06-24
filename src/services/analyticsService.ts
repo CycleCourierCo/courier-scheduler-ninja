@@ -398,7 +398,8 @@ export type CollectionTimeAnalytics = {
 export type DeliveryTimeAnalytics = {
   averageCollectionToDelivery: number; // hours
   averageTotalDuration: number; // hours from creation to delivery
-  deliverySLA: number; // percentage within target
+  deliverySLA: number; // % collection→delivery within 48h
+  totalDurationSLA: number; // % creation→delivery within 72h
   byCustomer: Array<{ customer: string; avgCollectionToDelivery: number; avgTotal: number }>;
 };
 
@@ -428,11 +429,16 @@ const isDeliveryDescription = (desc?: string): boolean => {
 };
 
 const getCollectionTimestamp = (order: Order): Date | null => {
+  // Source of truth: backend-recorded confirmation timestamp.
+  if (order.collectionConfirmationSentAt) {
+    const d = new Date(order.collectionConfirmationSentAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   const updates = order.trackingEvents?.shipday?.updates;
   if (!updates || updates.length === 0) return null;
 
-  const pickupId = (order as any).shipdayPickupId;
-  // Earliest matching event wins (the moment of collection)
+  const pickupId = order.trackingEvents?.shipday?.pickup_id;
   const matches = updates
     .filter((u: any) =>
       COLLECTION_EVENTS.has(u.event) &&
@@ -449,10 +455,15 @@ const getCollectionTimestamp = (order: Order): Date | null => {
 };
 
 const getDeliveryTimestamp = (order: Order): Date | null => {
+  if (order.deliveryConfirmationSentAt) {
+    const d = new Date(order.deliveryConfirmationSentAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   const updates = order.trackingEvents?.shipday?.updates;
   if (!updates || updates.length === 0) return null;
 
-  const deliveryId = (order as any).shipdayDeliveryId;
+  const deliveryId = order.trackingEvents?.shipday?.delivery_id;
   const matches = updates
     .filter((u: any) =>
       DELIVERY_EVENTS.has(u.event) &&
@@ -465,13 +476,13 @@ const getDeliveryTimestamp = (order: Order): Date | null => {
     .filter((t: number) => !isNaN(t));
 
   if (matches.length === 0) return null;
-  // Use the latest delivery event (final delivery for multi-stop)
   return new Date(Math.max(...matches));
 };
 
 // Calculate time to collection (order creation to collection)
-export const getCollectionTimeAnalytics = (orders: Order[]): CollectionTimeAnalytics => {
-  const collectedOrders = orders.filter(order => {
+export const getCollectionTimeAnalytics = (orders: Order[], range?: TimeRange): CollectionTimeAnalytics => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+  const collectedOrders = scoped.filter(order => {
     const collectionTime = getCollectionTimestamp(order);
     return collectionTime !== null;
   });
@@ -523,8 +534,9 @@ export const getCollectionTimeAnalytics = (orders: Order[]): CollectionTimeAnaly
 };
 
 // Calculate delivery timing (collection to delivery, and total duration)
-export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics => {
-  const deliveredOrders = orders.filter(order => {
+export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): DeliveryTimeAnalytics => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+  const deliveredOrders = scoped.filter(order => {
     const deliveryTime = getDeliveryTimestamp(order);
     const collectionTime = getCollectionTimestamp(order);
     return deliveryTime !== null && collectionTime !== null;
@@ -535,6 +547,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics
       averageCollectionToDelivery: 0,
       averageTotalDuration: 0,
       deliverySLA: 0,
+      totalDurationSLA: 0,
       byCustomer: []
     };
   }
@@ -542,6 +555,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics
   let totalCollectionToDeliveryHours = 0;
   let totalDurationHours = 0;
   let within48h = 0;
+  let within72hTotal = 0;
   const customerData: Record<string, { collectionToDelivery: number; totalDuration: number; count: number }> = {};
 
   deliveredOrders.forEach(order => {
@@ -556,6 +570,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics
     totalCollectionToDeliveryHours += collectionToDeliveryHours;
     totalDurationHours += totalHours;
     if (collectionToDeliveryHours <= 48) within48h++;
+    if (totalHours <= 72) within72hTotal++;
 
     // @ts-ignore - Added in fetchOrdersForAnalytics
     const customerName = order.companyName || order.sender.name;
@@ -580,13 +595,15 @@ export const getDeliveryTimeAnalytics = (orders: Order[]): DeliveryTimeAnalytics
     averageCollectionToDelivery: totalCollectionToDeliveryHours / deliveredOrders.length,
     averageTotalDuration: totalDurationHours / deliveredOrders.length,
     deliverySLA: (within48h / deliveredOrders.length) * 100,
+    totalDurationSLA: (within72hTotal / deliveredOrders.length) * 100,
     byCustomer
   };
 };
 
 // Calculate storage analytics
-export const getStorageAnalytics = (orders: Order[]): StorageAnalytics => {
-  const storedOrders = orders.filter(order => {
+export const getStorageAnalytics = (orders: Order[], range?: TimeRange): StorageAnalytics => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+  const storedOrders = scoped.filter(order => {
     return order.storage_locations && Array.isArray(order.storage_locations) && order.storage_locations.length > 0;
   });
 
@@ -681,3 +698,149 @@ export const getOrdersCompletedSeries = (
     return { bucket: k, label: bucketLabel(b, g), ...data[k] };
   });
 };
+
+// =========================================================
+// Performance trend + leaderboard
+// =========================================================
+
+export interface PerformanceTrendPoint {
+  bucket: string;
+  label: string;
+  creationToCollection: number | null;
+  collectionToDelivery: number | null;
+  creationToDelivery: number | null;
+  sampleSize: number;
+}
+
+const avg = (xs: number[]): number | null =>
+  xs.length === 0 ? null : xs.reduce((a, b) => a + b, 0) / xs.length;
+
+export const getPerformanceTrendSeries = (
+  orders: Order[],
+  range: TimeRange,
+  g: Granularity,
+): PerformanceTrendPoint[] => {
+  const buckets = enumerateBuckets(range, g);
+  const data: Record<string, { c2c: number[]; c2d: number[]; cr2d: number[] }> = {};
+  for (const b of buckets) data[bucketKey(b, g)] = { c2c: [], c2d: [], cr2d: [] };
+
+  for (const order of orders) {
+    const created = new Date(order.createdAt);
+    if (isNaN(created.getTime()) || !inRange(created, range)) continue;
+    const key = bucketKey(created, g);
+    if (!(key in data)) continue;
+
+    const coll = getCollectionTimestamp(order);
+    const del = getDeliveryTimestamp(order);
+    const hours = (a: Date, b: Date) => (b.getTime() - a.getTime()) / 3_600_000;
+
+    if (coll) data[key].c2c.push(hours(created, coll));
+    if (coll && del) data[key].c2d.push(hours(coll, del));
+    if (del) data[key].cr2d.push(hours(created, del));
+  }
+
+  return buckets.map(b => {
+    const k = bucketKey(b, g);
+    const d = data[k];
+    const sampleSize = Math.max(d.c2c.length, d.c2d.length, d.cr2d.length);
+    return {
+      bucket: k,
+      label: bucketLabel(b, g),
+      creationToCollection: avg(d.c2c),
+      collectionToDelivery: avg(d.c2d),
+      creationToDelivery: avg(d.cr2d),
+      sampleSize,
+    };
+  });
+};
+
+export interface PerformanceLeaderboardRow {
+  customerName: string;
+  isB2B: boolean;
+  orders: number;
+  avgCreationToCollection: number | null;
+  avgCollectionToDelivery: number | null;
+  avgCreationToDelivery: number | null;
+  collectionSlaRate: number | null;   // % within 24h
+  deliverySlaRate: number | null;     // creation→delivery within 72h
+}
+
+export const getPerformanceLeaderboard = (
+  orders: Order[],
+  range?: TimeRange,
+  minSampleSize = 3,
+): PerformanceLeaderboardRow[] => {
+  const scoped = range ? orders.filter(o => inRange(new Date(o.createdAt), range)) : orders;
+
+  const agg: Record<string, {
+    isB2B: boolean;
+    c2c: number[];
+    c2d: number[];
+    cr2d: number[];
+    collectionWithin24h: number;
+    collectionTotal: number;
+    deliveryWithin72h: number;
+    deliveryTotal: number;
+  }> = {};
+
+  for (const order of scoped) {
+    // @ts-ignore - added in fetchOrdersForAnalytics
+    const customerName: string = order.companyName || order.sender?.name || "Unknown";
+    // @ts-ignore
+    const isB2B: boolean = order.isBusiness || order.userRole === "b2b_customer";
+
+    const coll = getCollectionTimestamp(order);
+    const del = getDeliveryTimestamp(order);
+    if (!coll && !del) continue;
+
+    if (!agg[customerName]) {
+      agg[customerName] = {
+        isB2B,
+        c2c: [], c2d: [], cr2d: [],
+        collectionWithin24h: 0, collectionTotal: 0,
+        deliveryWithin72h: 0, deliveryTotal: 0,
+      };
+    }
+    const a = agg[customerName];
+    const created = new Date(order.createdAt);
+    const hours = (x: Date, y: Date) => (y.getTime() - x.getTime()) / 3_600_000;
+
+    if (coll) {
+      const h = hours(created, coll);
+      a.c2c.push(h);
+      a.collectionTotal++;
+      if (h <= 24) a.collectionWithin24h++;
+    }
+    if (coll && del) a.c2d.push(hours(coll, del));
+    if (del) {
+      const h = hours(created, del);
+      a.cr2d.push(h);
+      a.deliveryTotal++;
+      if (h <= 72) a.deliveryWithin72h++;
+    }
+  }
+
+  const rows: PerformanceLeaderboardRow[] = Object.entries(agg)
+    .map(([customerName, a]) => ({
+      customerName,
+      isB2B: a.isB2B,
+      orders: Math.max(a.collectionTotal, a.deliveryTotal),
+      avgCreationToCollection: avg(a.c2c),
+      avgCollectionToDelivery: avg(a.c2d),
+      avgCreationToDelivery: avg(a.cr2d),
+      collectionSlaRate: a.collectionTotal > 0 ? (a.collectionWithin24h / a.collectionTotal) * 100 : null,
+      deliverySlaRate: a.deliveryTotal > 0 ? (a.deliveryWithin72h / a.deliveryTotal) * 100 : null,
+    }))
+    .filter(r => r.orders >= minSampleSize);
+
+  return rows;
+};
+
+export const getPreviousPeriodRange = (range: TimeRange): TimeRange => {
+  const span = range.end.getTime() - range.start.getTime();
+  return {
+    start: new Date(range.start.getTime() - span),
+    end: new Date(range.start.getTime()),
+  };
+};
+

@@ -95,6 +95,14 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     result.scheduledAt = parseDate(dbOrder.scheduled_at);
   }
 
+  if (dbOrder.collection_confirmation_sent_at) {
+    result.collectionConfirmationSentAt = parseDate(dbOrder.collection_confirmation_sent_at);
+  }
+
+  if (dbOrder.delivery_confirmation_sent_at) {
+    result.deliveryConfirmationSentAt = parseDate(dbOrder.delivery_confirmation_sent_at);
+  }
+
   return result;
 };
 
