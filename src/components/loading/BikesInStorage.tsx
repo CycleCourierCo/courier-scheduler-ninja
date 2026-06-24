@@ -13,6 +13,7 @@ import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
+import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
 // Helper to extract collection images from tracking events
 const getCollectionImages = (order: Order | undefined): string[] => {
@@ -39,6 +40,9 @@ interface BikesInStorageProps {
 }
 
 export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation }: BikesInStorageProps) => {
+  const { bays } = useStorageBays();
+  const validBayLabels = bays.map((b) => b.label.toUpperCase());
+  const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "—";
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [newBays, setNewBays] = useState<string[]>([]);
@@ -65,20 +69,21 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
         const bayUpper = newBays[i].toUpperCase();
         const positionNum = parseInt(newPositions[i]);
 
-        // Validate bay (A-D)
-        if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
-          toast.error(`Bike ${i + 1}: Bay must be A, B, C, or D`);
+        // Validate bay
+        if (!validBayLabels.includes(bayUpper)) {
+          toast.error(`Bike ${i + 1}: Bay must be one of ${bayHelp}`);
           return;
         }
 
-        // Validate position (1-20)
-        if (isNaN(positionNum) || positionNum < 1 || positionNum > 20) {
-          toast.error(`Bike ${i + 1}: Position must be between 1 and 20`);
+        // Validate position against this bay's slot count
+        const maxPos = getBayMaxPosition(bays, bayUpper) ?? 0;
+        if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
+          toast.error(`Bike ${i + 1}: Position must be between 1 and ${maxPos} for Bay ${bayUpper}`);
           return;
         }
 
         const bayPositionKey = `${bayUpper}${positionNum}`;
-        
+
         // Check for duplicates within this order
         if (bayPositionSet.has(bayPositionKey)) {
           toast.error(`Duplicate position: Bay ${bayUpper}${positionNum}`);
@@ -105,15 +110,14 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
       const bayUpper = newBays[0].toUpperCase();
       const positionNum = parseInt(newPositions[0]);
 
-      // Validate bay (A-D)
-      if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
-        toast.error("Bay must be A, B, C, or D");
+      if (!validBayLabels.includes(bayUpper)) {
+        toast.error(`Bay must be one of ${bayHelp}`);
         return;
       }
 
-      // Validate position (1-20)
-      if (isNaN(positionNum) || positionNum < 1 || positionNum > 20) {
-        toast.error("Position must be between 1 and 20");
+      const maxPos = getBayMaxPosition(bays, bayUpper) ?? 0;
+      if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
+        toast.error(`Position must be between 1 and ${maxPos} for Bay ${bayUpper}`);
         return;
       }
 
