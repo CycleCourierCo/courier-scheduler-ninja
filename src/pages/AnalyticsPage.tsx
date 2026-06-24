@@ -78,6 +78,16 @@ const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [vehicleRange, setVehicleRange] = useState<DateRange | undefined>(() => weeksAgoRange(8));
 
+  // Performance tab filters
+  const [perfRange, setPerfRange] = useState<TimeRange>(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 56);
+    return { start, end };
+  });
+  const [perfGranularity, setPerfGranularity] = useState<Granularity>("week");
+
+
   // Fetch orders for analytics
   const { data: orders = [], isLoading, error } = useQuery({
     queryKey: ["ordersAnalytics"],
