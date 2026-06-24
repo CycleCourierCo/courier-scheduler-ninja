@@ -350,7 +350,18 @@ The Cycle Courier Co. Team
 
     // Attempt to send the email
     try {
-      const { data, error } = await resend.emails.send({ ...emailOptions, reply_to: "Info@cyclecourierco.com" });
+      // Tag availability emails so the Resend webhook can correlate delivery events.
+      const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      const isAvailability = reqData.emailType === 'sender' || reqData.emailType === 'receiver';
+      if (isAvailability && reqData.orderId) {
+        sendPayload.tags = [
+          { name: 'email_type', value: `${reqData.emailType}_availability` },
+          { name: 'side', value: reqData.emailType },
+          { name: 'order_id', value: String(reqData.orderId) },
+        ];
+      }
+
+      const { data, error } = await resend.emails.send(sendPayload);
 
       if (error) {
         console.error('Resend error:', error);
@@ -358,10 +369,41 @@ The Cycle Courier Co. Team
       }
 
       console.log('Email sent successfully:', data);
-      
+
+      // Log initial "sent" event so the UI shows a status immediately, even
+      // before Resend's webhook fires.
+      if (isAvailability && reqData.orderId && data?.id) {
+        try {
+          const supaUrl = Deno.env.get('SUPABASE_URL');
+          const svcKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+          if (supaUrl && svcKey) {
+            await fetch(`${supaUrl}/rest/v1/email_delivery_events`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: svcKey,
+                Authorization: `Bearer ${svcKey}`,
+                Prefer: 'return=minimal',
+              },
+              body: JSON.stringify({
+                resend_email_id: data.id,
+                recipient: reqData.to,
+                event_type: 'sent',
+                order_id: reqData.orderId,
+                side: reqData.emailType,
+                email_type: `${reqData.emailType}_availability`,
+                payload: { source: 'send-email' },
+              }),
+            });
+          }
+        } catch (logErr) {
+          console.error('Failed to log sent event:', logErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({ data, success: true }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200
         }

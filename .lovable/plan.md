@@ -1,43 +1,40 @@
-## Why orders are failing
+## Goal
+Let admins define the storage bays (letter + slot count) instead of hardcoded A–D × 20. The Loading page grid, Warehouse Stock page, and bike allocation flows then render whatever bays admins have configured.
 
-The `orders` INSERT RLS policy ("Consolidated orders INSERT policy") allows an insert only when the caller has one of these roles via `has_role()`:
+## What admins get
+A new **Storage Bays** admin page (linked from User Management / admin nav) where they can:
+- Add a bay: letter/label (e.g. `K`) + number of positions (e.g. `10`)
+- Edit a bay's position count
+- Reorder bays (display order)
+- Deactivate/delete a bay (blocked if any active allocations/stock exist there)
 
-```
-admin | b2b_customer | b2c_customer | sales | cs_agent | route_planner
-```
+## Database
+New table `storage_bays`:
+- `label` (text, unique, uppercase)
+- `position_count` (int, 1–100)
+- `display_order` (int)
+- `is_active` (bool)
+- standard timestamps
 
-`has_role()` reads `public.user_roles`, **not** `profiles.role`. Postgres logs at 13:52 today show repeated `new row violates row-level security policy for table "orders"` errors — that is exactly the "Failed to create order" toast from the screenshot.
+RLS: admins manage; internal staff (loader, route_planner, cs_agent, driver, mechanic) can read. Seeded with existing A/B/C/D × 20 so nothing breaks on day one.
 
-Querying `user_roles` for the two affected accounts returns **zero rows**:
-
-- Kien Dang / Yellow Jersey (`14285118-…`) — profile role `b2b_customer`, no `user_roles` entry
-- Dan Mitchell / Clive Mitchell Cycles (`10fd76f6-…`) — profile role `b2b_customer`, no `user_roles` entry
-
-A wider check shows **71 customer profiles** are missing their `user_roles` row. They worked in the past because their last orders pre-date the stricter RLS policy; any new attempt now fails.
-
-Root cause: `handle_new_user` writes the role onto `profiles` but never inserts the mirror row into `user_roles`, so every account created after the user_roles migration is broken for order creation.
-
-## Fix
-
-### 1. One-off backfill (migration)
-For every `profiles` row whose `role` ∈ {admin, b2b_customer, b2c_customer, sales, cs_agent, route_planner, loader, driver, timeslip_admin, mechanic} and which has no matching `user_roles` row, insert `(user_id, role)`. Idempotent via `ON CONFLICT (user_id, role) DO NOTHING`.
-
-Expected: ~71 inserts. After this, Clive and Kien can submit immediately.
-
-### 2. Stop the regression at source (migration)
-Update `public.handle_new_user()` so that, in the same transaction as the `profiles` insert, it also inserts the appropriate row into `public.user_roles` (`b2b_customer` when `is_business=true`, otherwise `b2c_customer`). Wrap in `ON CONFLICT DO NOTHING` so re-runs are safe.
-
-Trigger itself (`on_auth_user_created`) stays unchanged — only the function body is updated. No edit to `auth.users`.
-
-### 3. Verification
-- Re-run the missing-roles query — must return 0.
-- Have Kien or Clive retry; or use Playwright as a B2B test account to POST the create-order form and confirm a 200.
+## Frontend changes
+- New hook `useStorageBays()` fetching active bays ordered by `display_order`.
+- `StorageUnitLayout` (loading page grid): replace hardcoded `bays`/`positions` with data from the hook; each bay renders its own `position_count` slots.
+- `WarehouseStockPage`: replace `BAYS` and `POSITIONS` constants; the position dropdown becomes dependent on the selected bay.
+- `BikesInStorage` and `PendingStorageAllocation`: replace the `['A','B','C','D']` validation with a dynamic set + per-bay max position check.
+- New admin page `src/pages/StorageBaysPage.tsx` with add/edit/delete UI, plus a route + nav entry visible to admins only.
 
 ## Out of scope
-- No change to RLS policies, no change to `profiles.role`, no UI changes.
-- Not touching the `user_roles` table schema or its policies.
+- No changes to existing allocation data.
+- No multi-warehouse concept — single shared bay list.
 
-## Technical detail (for reviewers)
-- Migration is two statements: backfill `INSERT … SELECT … ON CONFLICT DO NOTHING` + `CREATE OR REPLACE FUNCTION public.handle_new_user()`.
-- `handle_new_user` already runs as `SECURITY DEFINER` with `search_path = public`, so it can write `user_roles` without extra grants.
-- No data loss risk: backfill only inserts where rows are missing; function update only adds an additional insert.
+```text
+Admin Settings → Storage Bays
+ ┌──────────────────────────┐
+ │ A   20 slots   [edit][x] │
+ │ B   20 slots   [edit][x] │
+ │ K   10 slots   [edit][x] │
+ │ [+ Add bay]              │
+ └──────────────────────────┘
+```

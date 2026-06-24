@@ -8,11 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { 
   fetchOrdersForAnalytics, 
   getOrderStatusAnalytics,
-  getOrderTimeAnalytics,
+  // getOrderTimeAnalytics no longer used here
   getCustomerTypeAnalytics,
   getTopCustomersAnalytics,
   getPartExchangeAnalytics,
@@ -45,7 +46,8 @@ import WeeklyVehicleStatsChart from "@/components/analytics/WeeklyVehicleStatsCh
 import VehicleMileageChart from "@/components/analytics/VehicleMileageChart";
 import VehicleLeaderboardCard from "@/components/analytics/VehicleLeaderboardCard";
 import OrderStatusChart from "@/components/analytics/OrderStatusChart";
-import OrderTimeChart from "@/components/analytics/OrderTimeChart";
+import OrdersCreatedChart from "@/components/analytics/OrdersCreatedChart";
+import OrdersCompletedChart from "@/components/analytics/OrdersCompletedChart";
 import CustomerTypeChart from "@/components/analytics/CustomerTypeChart";
 import TopCustomersChart from "@/components/analytics/TopCustomersChart";
 import B2BLeaderboard from "@/components/analytics/B2BLeaderboard";
@@ -133,7 +135,7 @@ const AnalyticsPage = () => {
   
   // Calculate analytics data
   const orderStatusData = getOrderStatusAnalytics(orders);
-  const orderTimeData = getOrderTimeAnalytics(orders);
+  // orderTimeData removed — Orders Created chart now computes its own series
   const customerTypeData = getCustomerTypeAnalytics(orders);
   const topCustomersData = getTopCustomersAnalytics(orders);
   const partExchangeData = getPartExchangeAnalytics(orders);
@@ -231,12 +233,22 @@ const AnalyticsPage = () => {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="overview" className="space-y-2 sm:space-y-4">
+              <TabsContent value="overview" className="space-y-8">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Order Status</h3>
                   <OrderStatusChart data={orderStatusData} />
-                  <OrderTimeChart data={orderTimeData} />
-                </div>
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Orders Created</h3>
+                  <OrdersCreatedChart orders={orders} />
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Orders Completed</h3>
+                  <OrdersCompletedChart orders={orders} />
+                </section>
               </TabsContent>
               
               <TabsContent value="customers" className="space-y-2 sm:space-y-4">

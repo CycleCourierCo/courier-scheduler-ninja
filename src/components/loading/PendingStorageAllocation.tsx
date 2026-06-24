@@ -12,6 +12,7 @@ import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench, ChevronDo
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
+import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
 // Helper to extract collection images from tracking events
 const getCollectionImages = (order: Order | undefined): string[] => {
@@ -47,6 +48,9 @@ export const PendingStorageAllocation = ({
   onUnloadFromVan,
   onLoadOntoVan
 }: PendingStorageAllocationProps) => {
+  const { bays } = useStorageBays();
+  const validBayLabels = bays.map((b) => b.label.toUpperCase());
+  const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "—";
   const [allocations, setAllocations] = useState<{ [key: string]: { bay: string; position: string } }>({});
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
 
@@ -82,15 +86,16 @@ export const PendingStorageAllocation = ({
       const bay = allocation.bay.toUpperCase();
       const position = parseInt(allocation.position);
 
-      // Validate bay (A-D)
-      if (!['A', 'B', 'C', 'D'].includes(bay)) {
-        toast.error(`Bay must be A, B, C, or D (bike ${bikeIndex + 1})`);
+      // Validate bay
+      if (!validBayLabels.includes(bay)) {
+        toast.error(`Bay must be one of ${bayHelp} (bike ${bikeIndex + 1})`);
         return;
       }
 
-      // Validate position (1-20)
-      if (isNaN(position) || position < 1 || position > 20) {
-        toast.error(`Position must be between 1 and 20 (bike ${bikeIndex + 1})`);
+      // Validate position against this bay's slot count
+      const maxPos = getBayMaxPosition(bays, bay) ?? 0;
+      if (isNaN(position) || position < 1 || position > maxPos) {
+        toast.error(`Position must be between 1 and ${maxPos} for Bay ${bay} (bike ${bikeIndex + 1})`);
         return;
       }
 
