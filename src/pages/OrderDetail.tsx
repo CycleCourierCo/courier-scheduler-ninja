@@ -1489,6 +1489,20 @@ const OrderDetail = () => {
                       {isResendingEmail.receiver ? "Sending..." : "Resend Receiver Availability Email"}
                     </Button>
                   )}
+                  {isAdminOrRoutePlanner && (
+                    <Button
+                      onClick={() => {
+                        const link = `${window.location.origin}/receiver-availability/${id}`;
+                        navigator.clipboard.writeText(link);
+                        toast.success("Receiver availability link copied");
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      Copy Receiver Availability Link
+                    </Button>
+                  )}
                 </div>
               </div>
 
