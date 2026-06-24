@@ -547,6 +547,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
       averageCollectionToDelivery: 0,
       averageTotalDuration: 0,
       deliverySLA: 0,
+      totalDurationSLA: 0,
       byCustomer: []
     };
   }
@@ -554,6 +555,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
   let totalCollectionToDeliveryHours = 0;
   let totalDurationHours = 0;
   let within48h = 0;
+  let within72hTotal = 0;
   const customerData: Record<string, { collectionToDelivery: number; totalDuration: number; count: number }> = {};
 
   deliveredOrders.forEach(order => {
@@ -568,6 +570,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
     totalCollectionToDeliveryHours += collectionToDeliveryHours;
     totalDurationHours += totalHours;
     if (collectionToDeliveryHours <= 48) within48h++;
+    if (totalHours <= 72) within72hTotal++;
 
     // @ts-ignore - Added in fetchOrdersForAnalytics
     const customerName = order.companyName || order.sender.name;
@@ -592,6 +595,7 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
     averageCollectionToDelivery: totalCollectionToDeliveryHours / deliveredOrders.length,
     averageTotalDuration: totalDurationHours / deliveredOrders.length,
     deliverySLA: (within48h / deliveredOrders.length) * 100,
+    totalDurationSLA: (within72hTotal / deliveredOrders.length) * 100,
     byCustomer
   };
 };
