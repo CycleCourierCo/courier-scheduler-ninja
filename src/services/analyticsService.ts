@@ -398,7 +398,8 @@ export type CollectionTimeAnalytics = {
 export type DeliveryTimeAnalytics = {
   averageCollectionToDelivery: number; // hours
   averageTotalDuration: number; // hours from creation to delivery
-  deliverySLA: number; // percentage within target
+  deliverySLA: number; // % collection→delivery within 48h
+  totalDurationSLA: number; // % creation→delivery within 72h
   byCustomer: Array<{ customer: string; avgCollectionToDelivery: number; avgTotal: number }>;
 };
 
