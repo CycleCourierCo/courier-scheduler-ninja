@@ -300,13 +300,21 @@ const AnalyticsPage = () => {
               </TabsContent>
               
               <TabsContent value="performance" className="space-y-2 sm:space-y-4">
-                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Performance & Timing Analytics</h2>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
+                  <h2 className="text-lg sm:text-xl font-semibold">Performance & Timing Analytics</h2>
+                  <TimeSeriesFilters
+                    range={perfRange}
+                    granularity={perfGranularity}
+                    onRangeChange={setPerfRange}
+                    onGranularityChange={setPerfGranularity}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <StatsCard
-                    title="Avg Collection Time"
+                    title="Avg Order → Collection"
                     value={`${collectionTimeData.averageTimeToCollect.toFixed(1)}h`}
-                    description="From order creation to collection"
+                    description="Creation to collection"
                     icon={Clock}
                   />
                   <StatsCard
@@ -316,15 +324,27 @@ const AnalyticsPage = () => {
                     icon={CheckCircle2}
                   />
                   <StatsCard
-                    title="Avg Delivery Time"
+                    title="Avg Collection → Delivery"
                     value={`${deliveryTimeData.averageCollectionToDelivery.toFixed(1)}h`}
-                    description="From collection to delivery"
+                    description="Collection to delivery"
                     icon={Truck}
                   />
                   <StatsCard
                     title="Delivery SLA"
                     value={`${deliveryTimeData.deliverySLA.toFixed(0)}%`}
                     description="Within 48 hours"
+                    icon={Target}
+                  />
+                  <StatsCard
+                    title="Avg Order → Delivery"
+                    value={`${deliveryTimeData.averageTotalDuration.toFixed(1)}h`}
+                    description="Creation to delivery"
+                    icon={Clock}
+                  />
+                  <StatsCard
+                    title="Order → Delivery SLA"
+                    value={`${deliveryTimeData.totalDurationSLA.toFixed(0)}%`}
+                    description="Within 72 hours"
                     icon={Target}
                   />
                   <StatsCard
@@ -340,12 +360,11 @@ const AnalyticsPage = () => {
                     icon={Timer}
                   />
                 </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4 mb-2 sm:mb-4">
-                  <CollectionTimeChart data={collectionTimeData} />
-                  <DeliveryTimeChart data={deliveryTimeData} />
-                </div>
-                
+
+                <PerformanceTrendChart orders={orders} range={perfRange} granularity={perfGranularity} />
+
+                <PerformanceLeaderboard orders={orders} range={perfRange} />
+
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <StorageAnalyticsChart data={storageData} />
                 </div>
