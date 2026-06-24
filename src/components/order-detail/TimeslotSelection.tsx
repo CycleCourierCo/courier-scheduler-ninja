@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
+import EmailDeliveryStatus from "./EmailDeliveryStatus";
 
 interface TimeslotSelectionProps {
   type: "sender" | "receiver";
