@@ -1,18 +1,18 @@
-## Track timeslot emails sent via SendZen
+## Add timeslot email badges to the top dates section
 
-The "Send Timeslot" button already tags its email (`email_type=timeslot`) and writes an immediate `sent` row into `email_delivery_events`, so the badge appears on the Timeslot card. The **"Send via SendZen"** button also sends an email through Resend, but it does **not** attach tags and does **not** insert a tracking row. That is why no email status shows on the timeslot section after a SendZen send (and any follow-up Resend webhooks land with `email_type=NULL` so the timeslot-scoped badge ignores them).
+In `src/pages/OrderDetail.tsx` around the "Collection Date" / "Delivery Date" headings (lines ~1300 and ~1320), render the `EmailDeliveryStatus` badge next to each heading so the timeslot email status is visible at the top of the order page.
 
-### Change
+### Changes (single file: `src/pages/OrderDetail.tsx`)
 
-**`supabase/functions/send-sendzen-whatsapp/index.ts`** — in the email send block (around line 418):
+1. Wrap the **Collection Date** `<h3>` in a flex container and render:
+   ```tsx
+   <EmailDeliveryStatus orderId={id} side="sender" emailType="timeslot" />
+   ```
+   next to it.
+2. Do the same for the **Delivery Date** `<h3>` with `side="receiver"` and `emailType="timeslot"`.
 
-1. Add `tags` to the `resend.emails.send` call:
-   - `email_type` = `"timeslot"`
-   - `side` = `recipientType` (`"sender"` or `"receiver"`)
-   - `order_id` = `String(orderId)`
-2. After a successful send, insert a `sent` row into `email_delivery_events` using the service-role key — mirroring the existing logic in `send-timeslot-whatsapp` (`resend_email_id`, `recipient`, `event_type: 'sent'`, `order_id`, `side: recipientType`, `email_type: 'timeslot'`, `payload: { source: 'send-sendzen-whatsapp' }`).
-3. Wrap the insert in `try/catch` so a logging failure never blocks the user flow.
+The badge already renders "No email sent" when nothing exists, so it stays unobtrusive before any timeslot send. No other files change.
 
 ### Out of scope
-- No changes to `EmailDeliveryStatus.tsx`, the Resend webhook, or any UI.
-- No backfill for previously sent SendZen emails — those rows have no tags and will remain untracked. Any new SendZen send will show the badge progressing Sent → Delivered → Opened → Clicked, and resends will reset it (existing latest-send scoping already handles that).
+- No changes to `TimeslotSelection` (badge still shown there too).
+- No styling or layout changes beyond the heading row.

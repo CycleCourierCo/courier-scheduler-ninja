@@ -1297,7 +1297,10 @@ const OrderDetail = () => {
               {/* Scheduled Dates Display */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Collection Date</h3>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="text-lg font-semibold">Collection Date</h3>
+                    <EmailDeliveryStatus orderId={id} side="sender" emailType="timeslot" />
+                  </div>
                   {order.scheduledPickupDate ? (
                     <div className="bg-muted p-3 rounded-md">
                       <p className="font-medium">
@@ -1317,7 +1320,10 @@ const OrderDetail = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Delivery Date</h3>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="text-lg font-semibold">Delivery Date</h3>
+                    <EmailDeliveryStatus orderId={id} side="receiver" emailType="timeslot" />
+                  </div>
                   {order.scheduledDeliveryDate ? (
                     <div className="bg-muted p-3 rounded-md">
                       <p className="font-medium">
