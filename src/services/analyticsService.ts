@@ -303,6 +303,50 @@ export const getCustomerOrdersOverTime = (
     .sort((a, b) => a.month.localeCompare(b.month));
 };
 
+export const getCustomerOrdersOverTimeRanged = (
+  orders: Order[],
+  customerName: string,
+  range: TimeRange,
+  g: Granularity,
+): CreatedSeriesPoint[] => {
+  const buckets = enumerateBuckets(range, g);
+  const counts: Record<string, number> = {};
+  for (const b of buckets) counts[bucketKey(b, g)] = 0;
+
+  for (const order of orders) {
+    // @ts-ignore
+    const name = order.companyName || order.sender?.name;
+    if (name !== customerName) continue;
+    const d = new Date(order.createdAt);
+    if (isNaN(d.getTime())) continue;
+    if (!inRange(d, range)) continue;
+    const key = bucketKey(d, g);
+    if (key in counts) counts[key] += 1;
+  }
+
+  return buckets.map(b => ({
+    bucket: bucketKey(b, g),
+    label: bucketLabel(b, g),
+    count: counts[bucketKey(b, g)] || 0,
+  }));
+};
+
+export const getCustomerEarliestOrderDate = (
+  orders: Order[],
+  customerName: string,
+): Date | null => {
+  let earliest: number | null = null;
+  for (const order of orders) {
+    // @ts-ignore
+    const name = order.companyName || order.sender?.name;
+    if (name !== customerName) continue;
+    const t = new Date(order.createdAt).getTime();
+    if (isNaN(t)) continue;
+    if (earliest === null || t < earliest) earliest = t;
+  }
+  return earliest === null ? null : new Date(earliest);
+};
+
 export const getPartExchangeAnalytics = (orders: Order[]) => {
   const partExchangeCount = orders.filter(order => order.isBikeSwap).length;
   const normalCount = orders.length - partExchangeCount;
