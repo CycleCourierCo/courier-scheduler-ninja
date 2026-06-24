@@ -229,6 +229,24 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Idempotency: if customer_order_number provided, return existing order on retry
+      const customerOrderNumber = body.customerOrderNumber || body.customer_order_number || null
+      if (customerOrderNumber) {
+        const { data: existing } = await supabase
+          .from('orders')
+          .select('id, tracking_number, status, created_at, sender, receiver, bike_brand, bike_model, bike_type, bike_value, bikes, bike_quantity, is_bike_swap, is_ebay_order, collection_code, needs_payment_on_collection, needs_inspection, delivery_instructions')
+          .eq('user_id', userId)
+          .eq('customer_order_number', customerOrderNumber)
+          .maybeSingle()
+        if (existing) {
+          console.log('Idempotent hit for customer_order_number:', customerOrderNumber, '-> order', existing.id)
+          return new Response(
+            JSON.stringify({ ...existing, idempotent: true }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+
       // Generate tracking number using the existing function
       const { data: trackingData, error: trackingError } = await supabase.functions.invoke('generate-tracking-numbers', {
         body: {
@@ -254,43 +272,7 @@ Deno.serve(async (req) => {
 
       const trackingNumber = trackingData.trackingNumber
 
-      // Geocode addresses to add ONLY lat/lon (does not modify any other address fields)
-      const senderAddress = body.sender.address;
-      const receiverAddress = body.receiver.address;
-
-      const senderAddressString = [
-        senderAddress?.street,
-        senderAddress?.city,
-        senderAddress?.zipCode || senderAddress?.postal_code || senderAddress?.postcode,
-        'UK'
-      ].filter(Boolean).join(', ');
-
-      const receiverAddressString = [
-        receiverAddress?.street,
-        receiverAddress?.city,
-        receiverAddress?.zipCode || receiverAddress?.postal_code || receiverAddress?.postcode,
-        'UK'
-      ].filter(Boolean).join(', ');
-
-      console.log('Geocoding addresses - Sender:', senderAddressString, 'Receiver:', receiverAddressString);
-
-      // Geocode in parallel
-      const [senderCoords, receiverCoords] = await Promise.all([
-        getCoordinates(senderAddressString),
-        getCoordinates(receiverAddressString)
-      ]);
-
-      // Add ONLY lat/lon to existing address objects (non-destructive - all other fields remain unchanged)
-      if (senderCoords) {
-        body.sender.address = { ...body.sender.address, lat: senderCoords.lat, lon: senderCoords.lon };
-      }
-      if (receiverCoords) {
-        body.receiver.address = { ...body.receiver.address, lat: receiverCoords.lat, lon: receiverCoords.lon };
-      }
-
-      console.log('Geocoding complete - Sender coords:', senderCoords, 'Receiver coords:', receiverCoords);
-
-      // Create order with user_id from API key
+      // Create order WITHOUT waiting for geocoding/emails/Shipday — those run in the background.
       const orderData = {
         user_id: userId,
         sender: body.sender,
@@ -309,7 +291,7 @@ Deno.serve(async (req) => {
         delivery_instructions: body.deliveryInstructions || body.delivery_instructions || '',
         sender_notes: body.senderNotes || body.sender_notes || '',
         receiver_notes: body.receiverNotes || body.receiver_notes || '',
-        customer_order_number: body.customerOrderNumber || body.customer_order_number || null,
+        customer_order_number: customerOrderNumber,
         shopify_order_id: body.shopifyOrderId || body.shopify_order_id || null,
         needs_inspection: body.needsInspection || body.needs_inspection || false,
         is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
@@ -344,255 +326,222 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Upsert sender and receiver contacts, then link to order
-      console.log('===== UPSERTING CONTACTS =====')
-      try {
-        let senderContactId: string | null = null
-        let receiverContactId: string | null = null
+      // ===== Background: geocoding, contacts, emails, Shipday =====
+      const backgroundWork = (async () => {
+        // Geocode addresses and update the order row
+        try {
+          const senderAddress = body.sender.address
+          const receiverAddress = body.receiver.address
+          const senderAddressString = [
+            senderAddress?.street,
+            senderAddress?.city,
+            senderAddress?.zipCode || senderAddress?.postal_code || senderAddress?.postcode,
+            'UK'
+          ].filter(Boolean).join(', ')
+          const receiverAddressString = [
+            receiverAddress?.street,
+            receiverAddress?.city,
+            receiverAddress?.zipCode || receiverAddress?.postal_code || receiverAddress?.postcode,
+            'UK'
+          ].filter(Boolean).join(', ')
 
-        // Upsert sender contact if email exists (now using proper constraint)
-        if (body.sender?.email?.trim()) {
-          const senderEmail = body.sender.email.trim().toLowerCase()
-          console.log('Upserting sender contact with email:', senderEmail)
-          
-          const { data: senderContact, error: senderUpsertError } = await supabase
-            .from('contacts')
-            .upsert({
-              user_id: userId,
-              name: body.sender.name,
-              email: senderEmail,
-              phone: body.sender.phone || null,
-              street: body.sender.address?.street || null,
-              city: body.sender.address?.city || null,
-              state: body.sender.address?.state || null,
-              postal_code: body.sender.address?.zipCode || body.sender.address?.postal_code || body.sender.address?.postcode || null,
-              country: body.sender.address?.country || null,
-              lat: body.sender.address?.lat || null,
-              lon: body.sender.address?.lon || null,
-              updated_at: new Date().toISOString(),
-            }, { 
-              onConflict: 'user_id,email',
-              ignoreDuplicates: false 
-            })
-            .select('id')
+          const [senderCoords, receiverCoords] = await Promise.all([
+            getCoordinates(senderAddressString),
+            getCoordinates(receiverAddressString)
+          ])
+
+          const updatedSender = senderCoords
+            ? { ...body.sender, address: { ...body.sender.address, lat: senderCoords.lat, lon: senderCoords.lon } }
+            : body.sender
+          const updatedReceiver = receiverCoords
+            ? { ...body.receiver, address: { ...body.receiver.address, lat: receiverCoords.lat, lon: receiverCoords.lon } }
+            : body.receiver
+
+          if (senderCoords || receiverCoords) {
+            await supabase
+              .from('orders')
+              .update({ sender: updatedSender, receiver: updatedReceiver })
+              .eq('id', order.id)
+            // keep local body in sync for downstream contact upserts
+            body.sender = updatedSender
+            body.receiver = updatedReceiver
+          }
+        } catch (geoErr) {
+          console.error('Background geocoding failed:', geoErr)
+          captureException(geoErr)
+        }
+
+        // Upsert sender and receiver contacts, then link to order
+        try {
+          let senderContactId: string | null = null
+          let receiverContactId: string | null = null
+
+          if (body.sender?.email?.trim()) {
+            const senderEmail = body.sender.email.trim().toLowerCase()
+            const { data: senderContact, error: senderUpsertError } = await supabase
+              .from('contacts')
+              .upsert({
+                user_id: userId,
+                name: body.sender.name,
+                email: senderEmail,
+                phone: body.sender.phone || null,
+                street: body.sender.address?.street || null,
+                city: body.sender.address?.city || null,
+                state: body.sender.address?.state || null,
+                postal_code: body.sender.address?.zipCode || body.sender.address?.postal_code || body.sender.address?.postcode || null,
+                country: body.sender.address?.country || null,
+                lat: body.sender.address?.lat || null,
+                lon: body.sender.address?.lon || null,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id,email', ignoreDuplicates: false })
+              .select('id')
+              .single()
+            if (senderUpsertError) console.error('Failed to upsert sender contact:', senderUpsertError)
+            else senderContactId = senderContact?.id || null
+          }
+
+          if (body.receiver?.email?.trim()) {
+            const receiverEmail = body.receiver.email.trim().toLowerCase()
+            const { data: receiverContact, error: receiverUpsertError } = await supabase
+              .from('contacts')
+              .upsert({
+                user_id: userId,
+                name: body.receiver.name,
+                email: receiverEmail,
+                phone: body.receiver.phone || null,
+                street: body.receiver.address?.street || null,
+                city: body.receiver.address?.city || null,
+                state: body.receiver.address?.state || null,
+                postal_code: body.receiver.address?.zipCode || body.receiver.address?.postal_code || body.receiver.address?.postcode || null,
+                country: body.receiver.address?.country || null,
+                lat: body.receiver.address?.lat || null,
+                lon: body.receiver.address?.lon || null,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id,email', ignoreDuplicates: false })
+              .select('id')
+              .single()
+            if (receiverUpsertError) console.error('Failed to upsert receiver contact:', receiverUpsertError)
+            else receiverContactId = receiverContact?.id || null
+          }
+
+          if (senderContactId || receiverContactId) {
+            await supabase
+              .from('orders')
+              .update({ sender_contact_id: senderContactId, receiver_contact_id: receiverContactId })
+              .eq('id', order.id)
+          }
+        } catch (contactError) {
+          console.error('Error upserting contacts:', contactError)
+          captureException(contactError)
+        }
+
+        // Emails
+        try {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('name, email')
+            .eq('id', userId)
             .single()
-          
-          if (senderUpsertError) {
-            console.error('Failed to upsert sender contact:', senderUpsertError)
-          } else {
-            senderContactId = senderContact?.id || null
-            console.log('Sender contact upserted successfully:', senderContactId)
-          }
-        }
+          const userName = userProfile?.name || userProfile?.email || 'Customer'
+          const userEmail = userProfile?.email
 
-        // Upsert receiver contact if email exists (now using proper constraint)
-        if (body.receiver?.email?.trim()) {
-          const receiverEmail = body.receiver.email.trim().toLowerCase()
-          console.log('Upserting receiver contact with email:', receiverEmail)
-          
-          const { data: receiverContact, error: receiverUpsertError } = await supabase
-            .from('contacts')
-            .upsert({
-              user_id: userId,
-              name: body.receiver.name,
-              email: receiverEmail,
-              phone: body.receiver.phone || null,
-              street: body.receiver.address?.street || null,
-              city: body.receiver.address?.city || null,
-              state: body.receiver.address?.state || null,
-              postal_code: body.receiver.address?.zipCode || body.receiver.address?.postal_code || body.receiver.address?.postcode || null,
-              country: body.receiver.address?.country || null,
-              lat: body.receiver.address?.lat || null,
-              lon: body.receiver.address?.lon || null,
-              updated_at: new Date().toISOString(),
-            }, { 
-              onConflict: 'user_id,email',
-              ignoreDuplicates: false 
+          if (userEmail) {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmail,
+                subject: 'Your Order Has Been Created - The Cycle Courier Co.',
+                html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Hello ${userName},</h2>
+              <p>Thank you for creating your order with The Cycle Courier Co.</p>
+              <p>Your order has been successfully created. Here are the details:</p>
+              <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Bicycle:</strong> ${`${bikeBrand} ${bikeModel}`.trim()}</p>
+                <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
+              </div>
+              <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track Your Order</a>
+              </div>
+              <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+              <p>The Cycle Courier Co. Team</p>
+            </div>
+          `,
+                from: 'Ccc@notification.cyclecourierco.com'
+              }
             })
-            .select('id')
-            .single()
-          
-          if (receiverUpsertError) {
-            console.error('Failed to upsert receiver contact:', receiverUpsertError)
-          } else {
-            receiverContactId = receiverContact?.id || null
-            console.log('Receiver contact upserted successfully:', receiverContactId)
           }
-        }
 
-        // Link contacts to order
-        if (senderContactId || receiverContactId) {
-          console.log('Linking contacts to order:', order.id, { senderContactId, receiverContactId })
-          const { error: linkError } = await supabase
-            .from('orders')
-            .update({
-              sender_contact_id: senderContactId,
-              receiver_contact_id: receiverContactId,
+          if (body.sender?.email) {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: body.sender.email,
+                emailType: 'sender',
+                orderId: order.id,
+                name: body.sender.name,
+                item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || body.bike_quantity || 1 },
+                baseUrl: 'https://booking.cyclecourierco.com'
+              }
             })
-            .eq('id', order.id)
-          
-          if (linkError) {
-            console.error('Failed to link contacts to order:', linkError)
-          } else {
-            console.log('Order linked to contacts successfully:', { senderContactId, receiverContactId })
           }
-        } else {
-          console.log('No contacts to link - sender or receiver email missing')
+
+          if (body.receiver?.email) {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: body.receiver.email,
+                subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
+                html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Hello ${body.receiver.name},</h2>
+              <p>A bicycle is being sent to you via The Cycle Courier Co.</p>
+              <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Bicycle:</strong> ${`${bikeBrand} ${bikeModel}`.trim()}</p>
+                <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
+              </div>
+              <p><strong>Next Steps:</strong></p>
+              <ol>
+                <li>We have contacted the sender to arrange a collection date.</li>
+                <li>Once the sender confirms their availability, <strong>you will receive an email with a link to confirm your availability for delivery</strong>.</li>
+                <li>After both confirmations, we will schedule the pickup and delivery.</li>
+              </ol>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
+              </div>
+              <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+              <p>The Cycle Courier Co. Team</p>
+            </div>
+          `,
+                from: 'Ccc@notification.cyclecourierco.com'
+              }
+            })
+          }
+        } catch (emailError) {
+          console.error('Background email sending failed:', emailError)
+          captureException(emailError)
         }
-      } catch (contactError) {
-        console.error('Error upserting contacts:', contactError)
-        // Don't fail order creation if contact upsert fails
-      }
-      console.log('===== CONTACT UPSERT COMPLETED =====')
 
-      // Get user profile for confirmation email
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('id', userId)
-        .single()
-
-      const userName = userProfile?.name || userProfile?.email || 'Customer'
-      const userEmail = userProfile?.email
-
-      // Send emails following the exact same flow as normal order creation
-      console.log('===== STARTING EMAIL SENDING PROCESS (API ORDER) =====')
-      console.log('Order ID:', order.id)
-      console.log('User email:', userEmail)
-      console.log('Sender email:', body.sender.email)
-      console.log('Receiver email:', body.receiver.email)
-      
-      try {
-        // 1. Order creation confirmation to the user who created the order (API key owner)
-        if (userEmail) {
-          console.log('STEP 1: Sending confirmation email to user...')
-          const userConfirmationResponse = await supabase.functions.invoke('send-email', {
-            body: {
-              to: userEmail,
-              subject: 'Your Order Has Been Created - The Cycle Courier Co.',
-              html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Hello ${userName},</h2>
-            <p>Thank you for creating your order with The Cycle Courier Co.</p>
-            <p>Your order has been successfully created. Here are the details:</p>
-            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p><strong>Bicycle:</strong> ${`${bikeBrand} ${bikeModel}`.trim()}</p>
-              <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
-            </div>
-            <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
-            <p>You can track your order's progress by visiting:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Track Your Order
-              </a>
-            </div>
-            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
-            <p>Thank you for using our service.</p>
-            <p>The Cycle Courier Co. Team</p>
-          </div>
-        `,
-              from: 'Ccc@notification.cyclecourierco.com'
-            }
+        // Shipday
+        try {
+          const shipdayResponse = await supabase.functions.invoke('create-shipday-order', {
+            body: { orderId: order.id }
           })
-          
-          if (userConfirmationResponse.error) {
-            console.error('Failed to send user confirmation email:', userConfirmationResponse.error)
-          } else {
-            console.log('User confirmation email sent successfully')
+          if (shipdayResponse.error) {
+            console.error('Failed to create Shipday jobs:', shipdayResponse.error)
           }
+        } catch (shipdayError) {
+          console.error('Error creating Shipday jobs:', shipdayError)
+          captureException(shipdayError)
         }
+      })()
 
-        // 2. Sender availability email 
-        if (body.sender && body.sender.email) {
-          console.log('STEP 2: Sending availability email to sender...')
-          const senderEmailResponse = await supabase.functions.invoke('send-email', {
-            body: {
-              to: body.sender.email,
-              emailType: 'sender',
-              orderId: order.id,
-              name: body.sender.name,
-              item: { name: `${bikeBrand} ${bikeModel}`.trim(), quantity: body.bikeQuantity || body.bike_quantity || 1 },
-              baseUrl: 'https://booking.cyclecourierco.com'
-            }
-          })
-          
-          if (senderEmailResponse.error) {
-            console.error('Failed to send sender availability email:', senderEmailResponse.error)
-          } else {
-            console.log('Sender availability email sent successfully')
-          }
-        }
-        
-        // 3. Receiver notification email (using proper email service)
-        if (body.receiver && body.receiver.email) {
-          console.log('STEP 3: Sending notification email to receiver...')
-          const receiverEmailResponse = await supabase.functions.invoke('send-email', {
-            body: {
-              to: body.receiver.email,
-              subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
-              html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Hello ${body.receiver.name},</h2>
-            <p>A bicycle is being sent to you via The Cycle Courier Co.</p>
-            <p>Here are the details:</p>
-            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p><strong>Bicycle:</strong> ${`${bikeBrand} ${bikeModel}`.trim()}</p>
-              <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
-            </div>
-            <p><strong>Next Steps:</strong></p>
-            <ol style="margin-bottom: 20px;">
-              <li>We have contacted the sender to arrange a collection date.</li>
-              <li>Once the sender confirms their availability, <strong>you will receive an email with a link to confirm your availability for delivery</strong>.</li>
-              <li>After both confirmations, we will schedule the pickup and delivery.</li>
-            </ol>
-            <p>You can track the order's progress by visiting:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Track This Order
-              </a>
-            </div>
-            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
-            <p>Thank you for using our service.</p>
-            <p>The Cycle Courier Co. Team</p>
-          </div>
-        `,
-              from: 'Ccc@notification.cyclecourierco.com'
-            }
-          })
-          
-          if (receiverEmailResponse.error) {
-            console.error('Failed to send receiver notification email:', receiverEmailResponse.error)
-          } else {
-            console.log('Receiver notification email sent successfully')
-          }
-        }
-        
-      console.log('===== EMAIL SENDING PROCESS COMPLETED =====')
-      } catch (emailError) {
-        console.error('===== EMAIL SENDING PROCESS FAILED =====')
-        console.error('Error sending emails:', emailError)
-        // Don't fail the order creation if emails fail
+      // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime
+      if (typeof EdgeRuntime !== 'undefined' && (EdgeRuntime as any).waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(backgroundWork)
+      } else {
+        // Fallback: don't block response but log
+        backgroundWork.catch((e) => console.error('Background work error:', e))
       }
-
-      // Create Shipday jobs in the background
-      console.log('===== STARTING SHIPDAY JOB CREATION =====')
-      try {
-        const shipdayResponse = await supabase.functions.invoke('create-shipday-order', {
-          body: { orderId: order.id }
-        })
-        
-        if (shipdayResponse.error) {
-          console.error('Failed to create Shipday jobs:', shipdayResponse.error)
-        } else {
-          console.log('Shipday jobs created successfully:', shipdayResponse.data)
-        }
-      } catch (shipdayError) {
-        console.error('Error creating Shipday jobs:', shipdayError)
-        // Don't fail the order creation if Shipday fails
-      }
-      console.log('===== SHIPDAY JOB CREATION COMPLETED =====')
 
       return new Response(
         JSON.stringify({
@@ -621,6 +570,7 @@ Deno.serve(async (req) => {
         }
       )
     }
+
 
     if (req.method === 'GET') {
       // Require API key auth for GET, same as POST

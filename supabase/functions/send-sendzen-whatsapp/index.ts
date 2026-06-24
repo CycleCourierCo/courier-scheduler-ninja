@@ -421,8 +421,45 @@ async function sendEmail(
       subject: emailSubject,
       html: emailHtml,
       reply_to: "Info@cyclecourierco.com",
+      tags: [
+        { name: "email_type", value: "timeslot" },
+        { name: "side", value: recipientType },
+        { name: "order_id", value: String(order?.id ?? "") },
+      ],
     });
     console.log("Email sent successfully:", JSON.stringify(emailData));
+
+    // Log initial "sent" event so the UI badge appears immediately,
+    // before Resend's webhook fires.
+    const sentEmailId = (emailData as any)?.data?.id ?? (emailData as any)?.id ?? null;
+    if (sentEmailId && order?.id) {
+      try {
+        const supaUrl = Deno.env.get("SUPABASE_URL");
+        const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (supaUrl && svcKey) {
+          await fetch(`${supaUrl}/rest/v1/email_delivery_events`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: svcKey,
+              Authorization: `Bearer ${svcKey}`,
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({
+              resend_email_id: sentEmailId,
+              recipient: contact.email,
+              event_type: "sent",
+              order_id: order.id,
+              side: recipientType,
+              email_type: "timeslot",
+              payload: { source: "send-sendzen-whatsapp" },
+            }),
+          });
+        }
+      } catch (logErr) {
+        console.error("Failed to log sendzen timeslot sent event:", logErr);
+      }
+    }
   } catch (e: any) {
     console.error("Email send error:", e?.message);
   }

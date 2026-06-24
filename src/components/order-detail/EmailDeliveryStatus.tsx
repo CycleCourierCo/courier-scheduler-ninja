@@ -7,12 +7,15 @@ import { Mail, MailCheck, MailOpen, MailX, MousePointerClick, Clock, AlertTriang
 interface EmailDeliveryStatusProps {
   orderId?: string;
   side: "sender" | "receiver";
+  emailType?: string;
+  label?: string;
 }
 
 type EventRow = {
   event_type: string;
   created_at: string;
   recipient: string | null;
+  resend_email_id: string | null;
 };
 
 // Rank events by lifecycle progress so we surface the most meaningful status.
@@ -36,8 +39,9 @@ const STYLES: Record<string, { label: string; className: string; Icon: React.Com
   complained: { label: "Complained", className: "bg-red-100 text-red-800 border-red-200", Icon: AlertTriangle },
 };
 
-const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side }) => {
+const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side, emailType, label }) => {
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [latestSendId, setLatestSendId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -46,15 +50,23 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
 
     const fetchEvents = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      let q = supabase
         .from("email_delivery_events")
-        .select("event_type, created_at, recipient")
+        .select("event_type, created_at, recipient, email_type, resend_email_id")
         .eq("order_id", orderId)
-        .eq("side", side)
+        .eq("side", side);
+      if (emailType) q = q.eq("email_type", emailType);
+      const { data, error } = await q
         .order("created_at", { ascending: false })
-        .limit(25);
+        .limit(50);
       if (!cancelled) {
-        if (!error && data) setEvents(data as EventRow[]);
+        if (!error && data) {
+          const rows = data as EventRow[];
+          const latestSent = rows.find((r) => r.event_type === "sent");
+          const sendId = latestSent?.resend_email_id ?? rows[0]?.resend_email_id ?? null;
+          setLatestSendId(sendId);
+          setEvents(rows);
+        }
         setLoading(false);
       }
     };
@@ -62,14 +74,25 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
     fetchEvents();
 
     const channel = supabase
-      .channel(`email-events-${orderId}-${side}`)
+      .channel(`email-events-${orderId}-${side}-${emailType ?? "any"}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "email_delivery_events", filter: `order_id=eq.${orderId}` },
         (payload) => {
           const row = payload.new as any;
-          if (row.side === side) {
-            setEvents((prev) => [{ event_type: row.event_type, created_at: row.created_at, recipient: row.recipient }, ...prev]);
+          if (row.side !== side) return;
+          if (emailType && row.email_type !== emailType) return;
+          const newRow: EventRow = {
+            event_type: row.event_type,
+            created_at: row.created_at,
+            recipient: row.recipient,
+            resend_email_id: row.resend_email_id ?? null,
+          };
+          if (row.event_type === "sent") {
+            setLatestSendId(newRow.resend_email_id);
+            setEvents([newRow]);
+          } else {
+            setEvents((prev) => [newRow, ...prev]);
           }
         },
       )
@@ -79,11 +102,17 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [orderId, side]);
+  }, [orderId, side, emailType]);
 
   if (!orderId) return null;
   if (loading && events.length === 0) return null;
-  if (events.length === 0) {
+
+  // Scope events to the latest send so resends reset the badge.
+  const scopedEvents = latestSendId
+    ? events.filter((e) => e.resend_email_id === latestSendId)
+    : events;
+
+  if (scopedEvents.length === 0) {
     return (
       <Badge variant="outline" className="text-xs text-gray-500">
         No email sent
@@ -92,15 +121,16 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
   }
 
   // Latest event becomes the primary status, but rank bounced/complained above engagement.
-  const top = [...events].sort((a, b) => (RANK[b.event_type] ?? 0) - (RANK[a.event_type] ?? 0))[0];
+  const top = [...scopedEvents].sort((a, b) => (RANK[b.event_type] ?? 0) - (RANK[a.event_type] ?? 0))[0];
   const style = STYLES[top.event_type] ?? STYLES.sent;
   const Icon = style.Icon;
   const seen = new Set<string>();
-  const history = events.filter((e) => {
+  const history = scopedEvents.filter((e) => {
     if (seen.has(e.event_type)) return false;
     seen.add(e.event_type);
     return true;
   });
+
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -108,7 +138,10 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
         <TooltipTrigger asChild>
           <Badge variant="outline" className={`text-xs gap-1 cursor-help ${style.className}`}>
             <Icon className="h-3 w-3" />
-            Email {style.label}
+            {label ?? "Email"} {style.label}
+            <span className="opacity-70 ml-1">
+              · {new Date(top.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}
+            </span>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
