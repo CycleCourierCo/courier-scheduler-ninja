@@ -1,51 +1,20 @@
-## Goal
+## Problem
 
-Make the `orders` POST return in well under a second and eliminate timeout-retry duplicates.
+Several places in the loader UI still hardcode the allowed bays as `A, B, C, D`, so assigning to bay `E` (configured in Storage Bays) is rejected with "Bay must be A, B, C, or D". The dynamic bay list from `storage_bays` is already used in some components but not consistently.
 
-## Current sequential cost (worst case)
+Hardcoded spots found:
+- `src/components/order-detail/StorageLocation.tsx` (line 81–82): `['A','B','C','D'].includes(...)` + toast.
+- `src/components/loading/BikeSearchSection.tsx` (lines 118, 144): same hardcoded check in two places.
+- `src/pages/LoadingUnloadingPage.tsx` (line 1242–1244): sort order for grouping uses fixed `['Bay A','Bay B','Bay C','Bay D']`, so a new bay `E` would sort under "other locations".
 
-1. Verify API key — ~100ms
-2. Generate tracking number (invoke edge fn) — 300–800ms
-3. Geocode sender + receiver (2 Geoapify calls) — 500–2000ms
-4. Insert order row — 100ms
-5. Upsert sender + receiver contacts — 200–400ms
-6. Send 3 emails (3 × invoke `send-email` → Resend) — 1500–4500ms
-7. Invoke `create-shipday-order` (calls Shipday) — 1000–5000ms
+No DB CHECK constraint restricts the bay value — confirmed via `pg_constraint` on `warehouse_stock`, `orders`, `storage_bays`. The error is purely client-side validation.
 
-Total: easily 5–13s, which exceeds many client/proxy timeouts. Caller retries → duplicate order (confirmed in DB for orders 5691 and 5553).
+## Fix
 
-## Fix — two changes to `supabase/functions/orders/index.ts`
+1. **`src/components/order-detail/StorageLocation.tsx`** — Load bays via `useStorageBays()` (already used elsewhere) and validate `bayUpper` against `bays.map(b => b.label.toUpperCase())`. Update the toast to list the valid labels dynamically (same pattern as `BikesInStorage.tsx`). Also validate `position` against the matched bay's `position_count` instead of any hardcoded max.
 
-### 1. Idempotency guard (prevents duplicates even if retried)
+2. **`src/components/loading/BikeSearchSection.tsx`** — Replace both hardcoded `["A","B","C","D"]` checks with the dynamic `validBayLabels` from `useStorageBays()`. Update toast text to reflect the configured bays.
 
-Right after API key verification, if `customer_order_number` is present, look up `(user_id, customer_order_number)`. If found, return that existing order (200) instead of inserting a new one. Retries become safe no matter what.
+3. **`src/pages/LoadingUnloadingPage.tsx`** (group sort, line ~1242) — Replace the fixed `bayOrder` array with the dynamic order derived from `useStorageBays()` (`display_order` ascending, mapped to `Bay <label>`). Falls back to alphabetic for any non-bay group as today.
 
-### 2. Respond fast, do everything else in the background
-
-Keep in the request path (must happen before response so we can return a real order):
-
-- API key verification
-- Idempotency lookup
-- Tracking number generation
-- Order insert (with `status: 'created'`, no coords yet)
-
-Move to `EdgeRuntime.waitUntil(...)` background task (runs after the 201 is sent):
-
-- Geocoding sender + receiver, then `UPDATE orders` with lat/lon
-- Contact upsert + linking
-- All 3 `send-email` invocations
-- `create-shipday-order` invocation
-
-Expected response time after change: ~400–900ms instead of 5–13s.
-
-### Why this is safe
-
-- The order row exists immediately, so the caller gets a valid `id` and `tracking_number` they can use right away.
-- Background failures are logged (Sentry + console) but don't affect the caller. Emails and Shipday are already wrapped in try/catch today and treated as non-fatal — moving them to a background task keeps that semantics.
-- Geocoding being deferred means lat/lon may be missing for a few seconds after creation; routing/scheduling already tolerates this (orders get geocoded by other flows too).
-
-## Scope
-
-- Only `supabase/functions/orders/index.ts`.
-- No schema changes, no other edge functions, no frontend.
-- Existing duplicate rows are not cleaned up in this change.
+No DB changes, no schema changes, no backend changes. Pure client-side validation/sorting cleanup so any bay configured on the Storage Bays page is accepted.

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Order } from "@/types/order";
-import { getCustomerOrdersOverTime } from "@/services/analyticsService";
+import {
+  getCustomerOrdersOverTimeRanged,
+  getCustomerEarliestOrderDate,
+  type Granularity,
+  type TimeRange,
+} from "@/services/analyticsService";
+import TimeSeriesFilters from "./TimeSeriesFilters";
 
 interface CustomerOrdersDialogProps {
   open: boolean;
@@ -25,10 +31,11 @@ interface CustomerOrdersDialogProps {
   orders: Order[];
 }
 
-const formatMonthLabel = (key: string) => {
-  const [y, m] = key.split("-");
-  const d = new Date(Number(y), Number(m) - 1, 1);
-  return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+const defaultRange = (): TimeRange => {
+  const end = new Date();
+  const start = new Date();
+  start.setMonth(end.getMonth() - 6);
+  return { start, end };
 };
 
 const CustomerOrdersDialog = ({
@@ -37,29 +44,53 @@ const CustomerOrdersDialog = ({
   customerName,
   orders,
 }: CustomerOrdersDialogProps) => {
+  const [range, setRange] = useState<TimeRange>(defaultRange());
+  const [granularity, setGranularity] = useState<Granularity>("month");
+
+  // Reset filters when switching to a different customer
+  useEffect(() => {
+    if (customerName) {
+      setRange(defaultRange());
+      setGranularity("month");
+    }
+  }, [customerName]);
+
+  const earliestDate = useMemo(
+    () => (customerName ? getCustomerEarliestOrderDate(orders, customerName) ?? undefined : undefined),
+    [orders, customerName],
+  );
+
   const data = useMemo(() => {
     if (!customerName) return [];
-    return getCustomerOrdersOverTime(orders, customerName).map((d) => ({
-      ...d,
-      label: formatMonthLabel(d.month),
-    }));
-  }, [orders, customerName]);
+    return getCustomerOrdersOverTimeRanged(orders, customerName, range, granularity);
+  }, [orders, customerName, range, granularity]);
 
   const total = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{customerName ?? "Customer"}</DialogTitle>
           <DialogDescription>
-            {total} order{total === 1 ? "" : "s"} over time
+            {total} order{total === 1 ? "" : "s"} in selected range
           </DialogDescription>
         </DialogHeader>
+
+        <div className="pb-2">
+          <TimeSeriesFilters
+            range={range}
+            granularity={granularity}
+            onRangeChange={setRange}
+            onGranularityChange={setGranularity}
+            minDate={earliestDate}
+          />
+        </div>
+
         <div className="h-80 w-full">
-          {data.length === 0 ? (
+          {data.length === 0 || total === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              No order history available.
+              No orders in this range.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

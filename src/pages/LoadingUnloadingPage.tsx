@@ -28,6 +28,7 @@ import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } from "@/constants/depot";
 import { calculateDistanceInMeters } from "@/utils/locationUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useStorageBays } from "@/hooks/useStorageBays";
 
 // Storage allocation type
 export type StorageAllocation = {
@@ -46,6 +47,7 @@ const LoadingUnloadingPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [storageAllocations, setStorageAllocations] = useState<StorageAllocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { bays: configuredBays } = useStorageBays();
   
   // Print labels state
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -1239,17 +1241,17 @@ const LoadingUnloadingPage = () => {
                                      }
                                    });
                                    
-                                   // Sort groups: Bays first (A, B, C, D), then other locations
-                                   const sortedGroups = Object.entries(locationGroups).sort(([a], [b]) => {
-                                     const bayOrder = ['Bay A', 'Bay B', 'Bay C', 'Bay D'];
-                                     const aIndex = bayOrder.indexOf(a);
-                                     const bIndex = bayOrder.indexOf(b);
-                                     
-                                     if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                                     if (aIndex !== -1) return -1;
-                                     if (bIndex !== -1) return 1;
-                                     return a.localeCompare(b);
-                                   });
+                                    // Sort groups: configured bays first (in display_order), then other locations
+                                    const sortedGroups = Object.entries(locationGroups).sort(([a], [b]) => {
+                                      const bayOrder = configuredBays.map((bay) => `Bay ${bay.label}`);
+                                      const aIndex = bayOrder.indexOf(a);
+                                      const bIndex = bayOrder.indexOf(b);
+                                      
+                                      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                                      if (aIndex !== -1) return -1;
+                                      if (bIndex !== -1) return 1;
+                                      return a.localeCompare(b);
+                                    });
                                    
                                    // Render groups
                                    return sortedGroups
