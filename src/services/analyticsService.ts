@@ -844,3 +844,95 @@ export const getPreviousPeriodRange = (range: TimeRange): TimeRange => {
   };
 };
 
+// =========================================================
+// Storage bays level over time
+// =========================================================
+
+export interface StorageLevelPoint {
+  bucket: string;
+  label: string;
+  inStorage: number;
+  in: number;
+  out: number;
+}
+
+export interface StorageLevelsSeries {
+  points: StorageLevelPoint[];
+  currentInStorage: number;
+  peak: number;
+  peakLabel: string | null;
+  avg: number;
+  netChange: number;
+}
+
+export const getStorageLevelsOverTime = (
+  orders: Order[],
+  range: TimeRange,
+  g: Granularity,
+): StorageLevelsSeries => {
+  // Only orders that ever entered the bays
+  const stored = orders.filter(
+    (o: any) => o.storage_locations && Array.isArray(o.storage_locations) && o.storage_locations.length > 0,
+  );
+
+  const intervals: Array<{ start: Date; end: Date | null }> = [];
+  for (const o of stored) {
+    const c = getCollectionTimestamp(o);
+    if (!c) continue;
+    let d = getDeliveryTimestamp(o);
+    if (d && d.getTime() < c.getTime()) d = null;
+    intervals.push({ start: c, end: d });
+  }
+
+  const buckets = enumerateBuckets(range, g);
+  const points: StorageLevelPoint[] = buckets.map((b) => {
+    // Boundary at end of bucket
+    const bEnd = new Date(b);
+    if (g === "day") bEnd.setDate(bEnd.getDate() + 1);
+    else if (g === "week") bEnd.setDate(bEnd.getDate() + 7);
+    else bEnd.setMonth(bEnd.getMonth() + 1);
+    const boundary = new Date(bEnd.getTime() - 1);
+
+    let level = 0;
+    let inCount = 0;
+    let outCount = 0;
+    for (const iv of intervals) {
+      if (iv.start.getTime() <= boundary.getTime() && (!iv.end || iv.end.getTime() > boundary.getTime())) {
+        level++;
+      }
+      if (iv.start.getTime() >= b.getTime() && iv.start.getTime() < bEnd.getTime()) inCount++;
+      if (iv.end && iv.end.getTime() >= b.getTime() && iv.end.getTime() < bEnd.getTime()) outCount++;
+    }
+
+    return {
+      bucket: bucketKey(b, g),
+      label: bucketLabel(b, g),
+      inStorage: level,
+      in: inCount,
+      out: outCount,
+    };
+  });
+
+  const now = new Date();
+  let currentInStorage = 0;
+  for (const iv of intervals) {
+    if (iv.start.getTime() <= now.getTime() && !iv.end) currentInStorage++;
+  }
+
+  let peak = 0;
+  let peakLabel: string | null = null;
+  let sum = 0;
+  for (const p of points) {
+    if (p.inStorage > peak) {
+      peak = p.inStorage;
+      peakLabel = p.label;
+    }
+    sum += p.inStorage;
+  }
+  const avg = points.length > 0 ? sum / points.length : 0;
+  const netChange = points.length > 0 ? points[points.length - 1].inStorage - points[0].inStorage : 0;
+
+  return { points, currentInStorage, peak, peakLabel, avg, netChange };
+};
+
+

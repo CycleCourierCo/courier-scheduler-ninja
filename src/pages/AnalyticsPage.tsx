@@ -57,6 +57,7 @@ import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
+import StorageLevelsChart from "@/components/analytics/StorageLevelsChart";
 import PerformanceTrendChart from "@/components/analytics/PerformanceTrendChart";
 import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboard";
 import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
@@ -366,6 +367,7 @@ const AnalyticsPage = () => {
                 <PerformanceLeaderboard orders={orders} range={perfRange} />
 
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                  <StorageLevelsChart orders={orders} range={perfRange} granularity={perfGranularity} />
                   <StorageAnalyticsChart data={storageData} />
                 </div>
               </TabsContent>
