@@ -1,35 +1,20 @@
-# Bikes In Storage Bays – Trend Over Time
+## Problem
 
-Add a historical chart showing how many bikes were sitting in the storage bays (between collection and delivery) on each day/week/month, alongside the existing Storage Analytics card.
+Several places in the loader UI still hardcode the allowed bays as `A, B, C, D`, so assigning to bay `E` (configured in Storage Bays) is rejected with "Bay must be A, B, C, or D". The dynamic bay list from `storage_bays` is already used in some components but not consistently.
 
-## Definition (matches existing logic)
+Hardcoded spots found:
+- `src/components/order-detail/StorageLocation.tsx` (line 81–82): `['A','B','C','D'].includes(...)` + toast.
+- `src/components/loading/BikeSearchSection.tsx` (lines 118, 144): same hardcoded check in two places.
+- `src/pages/LoadingUnloadingPage.tsx` (line 1242–1244): sort order for grouping uses fixed `['Bay A','Bay B','Bay C','Bay D']`, so a new bay `E` would sort under "other locations".
 
-A bike is "in storage" from its **collection timestamp** until its **delivery timestamp** (or now, if not yet delivered), but only for orders that have at least one entry in `storage_locations` — same criteria the current Storage Analytics card uses (`analyticsService.ts` `getStorageAnalytics`).
+No DB CHECK constraint restricts the bay value — confirmed via `pg_constraint` on `warehouse_stock`, `orders`, `storage_bays`. The error is purely client-side validation.
 
-For each bucket boundary `t`:
-`inStorage(t) = count of orders where collectionTime <= t AND (deliveryTime IS NULL OR deliveryTime > t) AND storage_locations is non-empty`
+## Fix
 
-Per bucket we also compute:
-- **In** = bikes whose collectionTime falls inside the bucket
-- **Out** = bikes whose deliveryTime falls inside the bucket
-- **Peak intra-bucket level** (helpful when granularity is weekly/monthly)
+1. **`src/components/order-detail/StorageLocation.tsx`** — Load bays via `useStorageBays()` (already used elsewhere) and validate `bayUpper` against `bays.map(b => b.label.toUpperCase())`. Update the toast to list the valid labels dynamically (same pattern as `BikesInStorage.tsx`). Also validate `position` against the matched bay's `position_count` instead of any hardcoded max.
 
-Timestamps reuse the existing `getCollectionTimestamp` / `getDeliveryTimestamp` resolvers (collection/delivery confirmation timestamps first, Shipday fallback) — so the trend is consistent with the rest of Performance analytics.
+2. **`src/components/loading/BikeSearchSection.tsx`** — Replace both hardcoded `["A","B","C","D"]` checks with the dynamic `validBayLabels` from `useStorageBays()`. Update toast text to reflect the configured bays.
 
-## UI
+3. **`src/pages/LoadingUnloadingPage.tsx`** (group sort, line ~1242) — Replace the fixed `bayOrder` array with the dynamic order derived from `useStorageBays()` (`display_order` ascending, mapped to `Bay <label>`). Falls back to alphabetic for any non-bay group as today.
 
-In `AnalyticsPage.tsx`, directly under the existing `StorageAnalyticsChart`:
-
-- **`TimeSeriesFilters`** (date range + Daily/Weekly/Monthly toggle) — reuses the existing component.
-- **`StorageLevelsChart`** (new) — composed chart:
-  - Area line: bikes currently in bays at each bucket end.
-  - Bars: In (green) vs Out (muted) per bucket.
-- Summary row above the chart: **Currently in bays**, **Peak in range** (with date), **Avg level**, **Net change** (▲/▼ vs start of range).
-
-## Files
-
-- `src/services/analyticsService.ts` — add `getStorageLevelsOverTime(orders, range, granularity)` returning `{ buckets: [{ date, inStorage, in, out }], peak, peakAt, avg, currentInStorage, netChange }`. Pure client-side over already-loaded `orders`.
-- `src/components/analytics/StorageLevelsChart.tsx` — new recharts ComposedChart + summary badges.
-- `src/pages/AnalyticsPage.tsx` — add `storageRange` / `storageGranularity` state, render filters + new chart under `StorageAnalyticsChart`.
-
-No backend, schema, RLS, or migration changes.
+No DB changes, no schema changes, no backend changes. Pure client-side validation/sorting cleanup so any bay configured on the Storage Bays page is accepted.
