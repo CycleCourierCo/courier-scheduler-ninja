@@ -1,20 +1,20 @@
-## Problem
+## Why loaders hit "Bay must be A, B, C, or D" while admins don't
 
-Several places in the loader UI still hardcode the allowed bays as `A, B, C, D`, so assigning to bay `E` (configured in Storage Bays) is rejected with "Bay must be A, B, C, or D". The dynamic bay list from `storage_bays` is already used in some components but not consistently.
+Verified the permission model — it is **not** an RLS issue:
 
-Hardcoded spots found:
-- `src/components/order-detail/StorageLocation.tsx` (line 81–82): `['A','B','C','D'].includes(...)` + toast.
-- `src/components/loading/BikeSearchSection.tsx` (lines 118, 144): same hardcoded check in two places.
-- `src/pages/LoadingUnloadingPage.tsx` (line 1242–1244): sort order for grouping uses fixed `['Bay A','Bay B','Bay C','Bay D']`, so a new bay `E` would sort under "other locations".
+- `storage_bays` SELECT policy: `is_internal_staff(auth.uid())`, which already includes `loader` (alongside admin, cs_agent, route_planner, driver, sales, timeslip_admin, mechanic).
+- `has_table_privilege('authenticated', 'public.storage_bays', 'SELECT')` returns `true`.
 
-No DB CHECK constraint restricts the bay value — confirmed via `pg_constraint` on `warehouse_stock`, `orders`, `storage_bays`. The error is purely client-side validation.
+So the `useStorageBays()` hook returns Bay E for loaders just like it does for admins.
 
-## Fix
+The real cause is that two of the loader-facing components still hardcode `["A","B","C","D"]` in their client-side validation, while the admin-facing `PendingStorageAllocation.tsx` and `BikesInStorage.tsx` were already migrated to the dynamic list. So admins assigning via the pending-allocation panel succeed, but loaders going through the bike-search or order-detail flows get blocked client-side before the request hits the DB.
 
-1. **`src/components/order-detail/StorageLocation.tsx`** — Load bays via `useStorageBays()` (already used elsewhere) and validate `bayUpper` against `bays.map(b => b.label.toUpperCase())`. Update the toast to list the valid labels dynamically (same pattern as `BikesInStorage.tsx`). Also validate `position` against the matched bay's `position_count` instead of any hardcoded max.
+## Fix (frontend only)
 
-2. **`src/components/loading/BikeSearchSection.tsx`** — Replace both hardcoded `["A","B","C","D"]` checks with the dynamic `validBayLabels` from `useStorageBays()`. Update toast text to reflect the configured bays.
+1. **`src/components/order-detail/StorageLocation.tsx`** — use `useStorageBays()` and validate against `bays.map(b => b.label.toUpperCase())`; surface the configured labels in the toast and bay-input label; cap position by the matched bay's `position_count` (fallback to 20 if not loaded yet).
 
-3. **`src/pages/LoadingUnloadingPage.tsx`** (group sort, line ~1242) — Replace the fixed `bayOrder` array with the dynamic order derived from `useStorageBays()` (`display_order` ascending, mapped to `Bay <label>`). Falls back to alphabetic for any non-bay group as today.
+2. **`src/components/loading/BikeSearchSection.tsx`** — same: replace both hardcoded `["A","B","C","D"]` checks (allocate flow + move flow) with the dynamic `validBayLabels`, and use each bay's `position_count` for the position cap.
 
-No DB changes, no schema changes, no backend changes. Pure client-side validation/sorting cleanup so any bay configured on the Storage Bays page is accepted.
+3. **`src/pages/LoadingUnloadingPage.tsx`** (sorting only, ~line 1244) — replace the fixed `['Bay A','Bay B','Bay C','Bay D']` sort order with `configuredBays.map(b => 'Bay ' + b.label)` (display_order) so new bays group correctly instead of falling into the alphabetical tail.
+
+No DB, RLS, or grant changes. Pure client-side validation/sorting cleanup so loaders accept any configured bay.
