@@ -367,6 +367,7 @@ const AnalyticsPage = () => {
                 <PerformanceLeaderboard orders={orders} range={perfRange} />
 
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                  <StorageLevelsChart orders={orders} range={perfRange} granularity={perfGranularity} />
                   <StorageAnalyticsChart data={storageData} />
                 </div>
               </TabsContent>
