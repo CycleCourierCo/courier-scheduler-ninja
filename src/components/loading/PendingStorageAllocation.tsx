@@ -408,7 +408,7 @@ export const PendingStorageAllocation = ({
                             
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <Label htmlFor={`bay-${key}`} className="text-xs">Bay (A-D)</Label>
+                                <Label htmlFor={`bay-${key}`} className="text-xs">Bay ({bayHelp})</Label>
                                 <Input
                                   id={`bay-${key}`}
                                   value={allocations[key]?.bay || ''}
