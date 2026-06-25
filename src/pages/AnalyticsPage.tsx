@@ -57,6 +57,7 @@ import BikeBrandsChart from "@/components/analytics/BikeBrandsChart";
 import CollectionTimeChart from "@/components/analytics/CollectionTimeChart";
 import DeliveryTimeChart from "@/components/analytics/DeliveryTimeChart";
 import StorageAnalyticsChart from "@/components/analytics/StorageAnalyticsChart";
+import StorageLevelsChart from "@/components/analytics/StorageLevelsChart";
 import PerformanceTrendChart from "@/components/analytics/PerformanceTrendChart";
 import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboard";
 import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
