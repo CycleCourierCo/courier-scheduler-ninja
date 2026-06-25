@@ -9,6 +9,7 @@ import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
 import { MapPin, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
 interface StorageLocationProps {
   order: Order;
@@ -18,6 +19,9 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
   const [bays, setBays] = useState<string[]>([]);
   const [positions, setPositions] = useState<string[]>([]);
   const [allAllocations, setAllAllocations] = useState<StorageAllocation[]>([]);
+  const { bays: configuredBays } = useStorageBays();
+  const validBayLabels = configuredBays.map((b) => b.label.toUpperCase());
+  const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "A, B, C, D";
 
   useEffect(() => {
     const loadStorageAllocations = () => {
@@ -77,15 +81,16 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
       const bayUpper = bays[i].toUpperCase();
       const positionNum = parseInt(positions[i]);
 
-      // Validate bay (A-D)
-      if (!['A', 'B', 'C', 'D'].includes(bayUpper)) {
-        toast.error(`Bike ${i + 1}: Bay must be A, B, C, or D`);
+      // Validate bay against configured bays
+      if (validBayLabels.length && !validBayLabels.includes(bayUpper)) {
+        toast.error(`Bike ${i + 1}: Bay must be one of ${bayHelp}`);
         return;
       }
 
-      // Validate position (1-20)
-      if (isNaN(positionNum) || positionNum < 1 || positionNum > 20) {
-        toast.error(`Bike ${i + 1}: Position must be between 1 and 20`);
+      // Validate position against the bay's configured size
+      const maxPos = getBayMaxPosition(configuredBays, bayUpper) ?? 20;
+      if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
+        toast.error(`Bike ${i + 1}: Position must be between 1 and ${maxPos}`);
         return;
       }
 
@@ -301,7 +306,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                     
                     <div className="flex gap-3 items-end">
                       <div className="flex-1">
-                        <Label htmlFor={`bay-${index}`} className="text-sm">Bay (A-D)</Label>
+                        <Label htmlFor={`bay-${index}`} className="text-sm">Bay ({bayHelp})</Label>
                         <Input
                           id={`bay-${index}`}
                           value={bays[index] || ''}
@@ -347,7 +352,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
             ) : (
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
-                  <Label htmlFor="bay" className="text-sm">Bay (A-D)</Label>
+                  <Label htmlFor="bay" className="text-sm">Bay ({bayHelp})</Label>
                   <Input
                     id="bay"
                     value={bays[0] || ''}

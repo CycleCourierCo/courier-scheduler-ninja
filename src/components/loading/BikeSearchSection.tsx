@@ -8,6 +8,7 @@ import { Search, X, MapPin, Truck, Package, PackageMinus, ArrowRight } from "luc
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
+import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
 interface BikeSearchSectionProps {
   orders: Order[];
@@ -51,6 +52,9 @@ export const BikeSearchSection = ({
 }: BikeSearchSectionProps) => {
   const [query, setQuery] = useState("");
   const [allocInputs, setAllocInputs] = useState<Record<string, { bay: string; position: string }>>({});
+  const { bays: configuredBays } = useStorageBays();
+  const validBayLabels = configuredBays.map((b) => b.label.toUpperCase());
+  const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "A, B, C, D";
 
   const candidateOrders = useMemo(() => {
     return orders.filter((o) => {
@@ -115,12 +119,13 @@ export const BikeSearchSection = ({
       }
       const bay = a.bay.toUpperCase();
       const pos = parseInt(a.position, 10);
-      if (!["A", "B", "C", "D"].includes(bay)) {
-        toast.error(`Bay must be A, B, C, or D (bike ${bikeIndex + 1})`);
+      if (validBayLabels.length && !validBayLabels.includes(bay)) {
+        toast.error(`Bay must be one of ${bayHelp} (bike ${bikeIndex + 1})`);
         return;
       }
-      if (isNaN(pos) || pos < 1 || pos > 20) {
-        toast.error(`Position must be 1–20 (bike ${bikeIndex + 1})`);
+      const maxPos = getBayMaxPosition(configuredBays, bay) ?? 20;
+      if (isNaN(pos) || pos < 1 || pos > maxPos) {
+        toast.error(`Position must be 1–${maxPos} (bike ${bikeIndex + 1})`);
         return;
       }
       allocationsToMake.push({ bay, position: pos, bikeIndex });
@@ -141,12 +146,13 @@ export const BikeSearchSection = ({
     }
     const bay = a.bay.toUpperCase();
     const pos = parseInt(a.position, 10);
-    if (!["A", "B", "C", "D"].includes(bay)) {
-      toast.error("Bay must be A, B, C, or D");
+    if (validBayLabels.length && !validBayLabels.includes(bay)) {
+      toast.error(`Bay must be one of ${bayHelp}`);
       return;
     }
-    if (isNaN(pos) || pos < 1 || pos > 20) {
-      toast.error("Position must be 1–20");
+    const maxPos = getBayMaxPosition(configuredBays, bay) ?? 20;
+    if (isNaN(pos) || pos < 1 || pos > maxPos) {
+      toast.error(`Position must be 1–${maxPos}`);
       return;
     }
     onChangeLocation(allocationId, bay, pos);
