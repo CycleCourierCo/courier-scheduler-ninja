@@ -92,11 +92,12 @@ export const timeslipService = {
     custom_addons: CustomAddon[];
     custom_addon_hours: number;
     admin_notes: string | null;
+    route_links?: string[];
   }) {
     const { data: { user } } = await supabase.auth.getUser();
     const payload: any = {
       ...input,
-      route_links: [],
+      route_links: input.route_links ?? [],
       job_locations: [],
     };
     if (input.status === 'approved') {
