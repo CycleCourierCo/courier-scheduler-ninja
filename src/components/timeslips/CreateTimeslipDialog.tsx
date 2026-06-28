@@ -48,6 +48,7 @@ export interface CreateTimeslipInput {
   custom_addons: CustomAddon[];
   custom_addon_hours: number;
   admin_notes: string | null;
+  route_links: string[];
 }
 
 interface Props {
@@ -70,16 +71,19 @@ const defaultForm = () => ({
   vehicle_id: null as string | null,
   admin_notes: '',
   custom_addons: [] as CustomAddon[],
+  route_links: [] as string[],
 });
 
 const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, submitting }) => {
   const [form, setForm] = useState(defaultForm());
   const [newAddon, setNewAddon] = useState({ title: '', hours: 0 });
+  const [newRouteLink, setNewRouteLink] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setForm(defaultForm());
       setNewAddon({ title: '', hours: 0 });
+      setNewRouteLink('');
     }
   }, [isOpen]);
 
@@ -132,6 +136,21 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
     setForm({ ...form, custom_addons: form.custom_addons.filter((_, i) => i !== index) });
   };
 
+  const handleAddRouteLink = () => {
+    const url = newRouteLink.trim();
+    if (!url) return;
+    if (form.route_links.includes(url)) {
+      setNewRouteLink('');
+      return;
+    }
+    setForm({ ...form, route_links: [...form.route_links, url] });
+    setNewRouteLink('');
+  };
+
+  const handleRemoveRouteLink = (index: number) => {
+    setForm({ ...form, route_links: form.route_links.filter((_, i) => i !== index) });
+  };
+
   const handleSubmit = () => {
     if (!canSubmit) return;
     onCreate({
@@ -149,6 +168,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
       custom_addons: form.custom_addons,
       custom_addon_hours: customAddonHours,
       admin_notes: form.admin_notes?.trim() ? form.admin_notes.trim() : null,
+      route_links: form.route_links,
     });
   };
 
@@ -398,6 +418,63 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
               </div>
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label>Route Links</Label>
+            <div className="space-y-2 p-3 bg-muted rounded-lg">
+              {form.route_links.length > 0 ? (
+                <div className="space-y-1">
+                  {form.route_links.map((link, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between text-sm gap-2"
+                    >
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate text-primary hover:underline"
+                      >
+                        {link}
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveRouteLink(index)}
+                        className="h-6 w-6 p-0 shrink-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No route links</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://maps.google.com/..."
+                value={newRouteLink}
+                onChange={(e) => setNewRouteLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddRouteLink();
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddRouteLink}
+                disabled={!newRouteLink.trim()}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
 
           <div className="space-y-2">
             <Label>Admin Notes</Label>
