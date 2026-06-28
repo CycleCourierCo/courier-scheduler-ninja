@@ -273,6 +273,10 @@ const DriverTimeslips = () => {
               <Calendar className="h-4 w-4 mr-2" />
               Generate Timeslips
             </Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Timeslip
+            </Button>
             <Button variant="outline" onClick={() => setShowBulkVehicleDialog(true)}>
               <Truck className="h-4 w-4 mr-2" />
               Bulk Assign Vehicle
