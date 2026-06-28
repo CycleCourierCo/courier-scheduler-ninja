@@ -48,6 +48,7 @@ export interface CreateTimeslipInput {
   custom_addons: CustomAddon[];
   custom_addon_hours: number;
   admin_notes: string | null;
+  route_links: string[];
 }
 
 interface Props {
