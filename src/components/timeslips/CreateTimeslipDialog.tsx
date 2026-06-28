@@ -71,16 +71,19 @@ const defaultForm = () => ({
   vehicle_id: null as string | null,
   admin_notes: '',
   custom_addons: [] as CustomAddon[],
+  route_links: [] as string[],
 });
 
 const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, submitting }) => {
   const [form, setForm] = useState(defaultForm());
   const [newAddon, setNewAddon] = useState({ title: '', hours: 0 });
+  const [newRouteLink, setNewRouteLink] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setForm(defaultForm());
       setNewAddon({ title: '', hours: 0 });
+      setNewRouteLink('');
     }
   }, [isOpen]);
 
@@ -133,6 +136,21 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
     setForm({ ...form, custom_addons: form.custom_addons.filter((_, i) => i !== index) });
   };
 
+  const handleAddRouteLink = () => {
+    const url = newRouteLink.trim();
+    if (!url) return;
+    if (form.route_links.includes(url)) {
+      setNewRouteLink('');
+      return;
+    }
+    setForm({ ...form, route_links: [...form.route_links, url] });
+    setNewRouteLink('');
+  };
+
+  const handleRemoveRouteLink = (index: number) => {
+    setForm({ ...form, route_links: form.route_links.filter((_, i) => i !== index) });
+  };
+
   const handleSubmit = () => {
     if (!canSubmit) return;
     onCreate({
@@ -150,6 +168,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
       custom_addons: form.custom_addons,
       custom_addon_hours: customAddonHours,
       admin_notes: form.admin_notes?.trim() ? form.admin_notes.trim() : null,
+      route_links: form.route_links,
     });
   };
 
