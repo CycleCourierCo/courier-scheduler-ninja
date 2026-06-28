@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Package, Truck, Clock, ExternalLink } from "lucide-react";
+import { Package, Truck, Clock, ExternalLink, ShoppingBag } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMyWarehouseStock, requestDeliveryFromStock } from "@/services/warehouseStockService";
@@ -71,7 +71,15 @@ const MyStockPage = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">My Stock</h1>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+          <h1 className="text-2xl font-bold">My Stock</h1>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/shopify-integration">
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              Shopify Integration
+            </Link>
+          </Button>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -125,6 +133,9 @@ const MyStockPage = () => {
                   )}
                   {item.bike_value && (
                     <p className="text-sm text-muted-foreground">Value: £{item.bike_value}</p>
+                  )}
+                  {item.sku && (
+                    <p className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></p>
                   )}
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />

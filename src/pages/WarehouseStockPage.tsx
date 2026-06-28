@@ -242,6 +242,9 @@ const WarehouseStockPage: React.FC = () => {
                       {item.bike_type && (
                         <div className="text-xs text-muted-foreground">{item.bike_type}</div>
                       )}
+                      {item.sku && (
+                        <div className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
