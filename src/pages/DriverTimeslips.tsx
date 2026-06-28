@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Calendar, FileText, Truck } from 'lucide-react';
+import { Users, Calendar, FileText, Truck, Plus } from 'lucide-react';
 import { timeslipService } from '@/services/timeslipService';
 import { Timeslip } from '@/types/timeslip';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ import TimeslipCard from '@/components/timeslips/TimeslipCard';
 import TimeslipEditDialog from '@/components/timeslips/TimeslipEditDialog';
 import GenerateTimeslipsDialog from '@/components/timeslips/GenerateTimeslipsDialog';
 import BulkAssignVehicleDialog from '@/components/timeslips/BulkAssignVehicleDialog';
+import CreateTimeslipDialog, { CreateTimeslipInput } from '@/components/timeslips/CreateTimeslipDialog';
 import TimeslipFilters from '@/components/timeslips/TimeslipFilters';
 import { format } from 'date-fns';
 import {
