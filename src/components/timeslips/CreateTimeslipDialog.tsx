@@ -420,6 +420,63 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
           </div>
 
           <div className="space-y-2">
+            <Label>Route Links</Label>
+            <div className="space-y-2 p-3 bg-muted rounded-lg">
+              {form.route_links.length > 0 ? (
+                <div className="space-y-1">
+                  {form.route_links.map((link, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between text-sm gap-2"
+                    >
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate text-primary hover:underline"
+                      >
+                        {link}
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveRouteLink(index)}
+                        className="h-6 w-6 p-0 shrink-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No route links</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://maps.google.com/..."
+                value={newRouteLink}
+                onChange={(e) => setNewRouteLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddRouteLink();
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddRouteLink}
+                disabled={!newRouteLink.trim()}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+
+          <div className="space-y-2">
             <Label>Admin Notes</Label>
             <Textarea
               value={form.admin_notes}
