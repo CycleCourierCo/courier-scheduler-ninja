@@ -1,28 +1,26 @@
-## Root cause
+## Goal
+Allow admins (admin / timeslip_admin) to manually create a timeslip from the Driver Timeslips page, filling in all fields rather than only generating from Shipday.
 
-When a sender confirms availability, the `set_order_availability` SQL function already dispatches the receiver email server-side via `pg_net.http_post` to the `send-email` edge function (this is the existing server-side path — not new). For order `CCC754873966117SAMPR8` that POST returned **401 Unauthorized** and no receiver email was sent.
+## UI changes
+- `src/pages/DriverTimeslips.tsx`: add a third button in the admin action row, "Create Timeslip" (Plus icon). Opens a new dialog.
+- New component `src/components/timeslips/CreateTimeslipDialog.tsx`, modelled on `TimeslipEditDialog`, with these fields:
+  - Driver (Select, loaded from active drivers — same source the existing filters/bulk assign dialog use)
+  - Date (date picker, defaults to today)
+  - Driving hours, Number of stops (stop hours auto = stops × 10 / 60), Lunch hours
+  - Hourly rate (default 11), Van allowance (default 0), Mileage (auto-fill 160 when van allowance > 0, same rule as edit dialog)
+  - Vehicle (Select, optional — same list as edit dialog via `listVehicles`)
+  - Status (draft / approved / rejected, default draft)
+  - Custom add-ons (title + hours, add/remove rows — same UI as edit dialog)
+  - Admin notes (textarea)
+  - Live summary card showing total hours and total pay
+- Validation: driver and date required; numeric fields ≥ 0.
 
-Why: the RPC posts `emailType: 'receiver_availability'`, but `supabase/functions/send-email/index.ts` only treats these strings as public (no-auth):
+## Service / data
+- Add `createTimeslip(input)` to `src/services/timeslipService.ts` that inserts into `timeslips` with: `driver_id`, `date`, `status`, `driving_hours`, `total_stops`, `stop_hours`, `lunch_hours`, `hourly_rate`, `van_allowance`, `mileage`, `vehicle_id`, `custom_addons`, `custom_addon_hours`, `admin_notes`, plus empty `route_links: []` and `job_locations: []`. `total_hours` and `total_pay` are computed columns in the DB, so we don't set them. Returns the inserted row mapped the same way as the other service methods.
+- No DB schema changes; existing RLS on `timeslips` already permits timeslip admins to insert.
 
-```
-const publicEmailTypes = ['sender', 'receiver', 'sender_dates_confirmed', 'receiver_dates_confirmed'];
-```
+## Wire-up
+- In `DriverTimeslips.tsx` add a `createMutation` using the new service method, invalidate the `timeslips` query on success, toast success/error, and close the dialog.
 
-`'receiver_availability'` is not in that list, so the request falls through to `requireAuth(req)`. The `pg_net` call only carries the anon key (no user JWT, not the service-role key), so auth fails with 401. On top of that, the template router only knows `'sender' | 'receiver' | ...'_dates_confirmed'` — there's no branch for `'receiver_availability'`, so even with auth it would render nothing useful.
-
-This has been silently broken since the server-side dispatch was added — receivers only got the email when the sender's browser tab stayed open long enough for the client-side `resendReceiverAvailabilityEmail` fallback to also run.
-
-## Fix
-
-One-line change inside `set_order_availability`: change the `pg_net.http_post` body from `'emailType': 'receiver_availability'` to `'emailType': 'receiver'`, matching:
-- the existing `publicEmailTypes` allow-list (so no 401),
-- the existing template branch already used by the client-side path (so the email is identical to what users get today when their tab stays open).
-
-No edge function code, RLS, or grants change. Client-side `resendReceiverAvailabilityEmail` stays as a redundant backup.
-
-## Verification
-
-1. On a test order, confirm sender availability while immediately closing the tab.
-2. Check `net._http_response` — most recent call to `/functions/v1/send-email` should be `200`, not `401`.
-3. Check `email_delivery_events` for the order — a new row with `side='receiver'`, `email_type='receiver_availability'`, `event_type='sent'` (followed by `delivered`, etc.) should appear within seconds.
-4. For the stuck order `CCC754873966117SAMPR8`, manually click "Resend Receiver Email" from the order detail page so the receiver finally gets it.
+## Out of scope
+- No changes to generation flow, edit dialog, QuickBooks bill creation, or driver-side views.
