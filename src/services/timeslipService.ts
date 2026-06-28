@@ -76,6 +76,46 @@ export const timeslipService = {
     return data;
   },
 
+  // Manually create a timeslip
+  async createTimeslip(input: {
+    driver_id: string;
+    date: string;
+    status: 'draft' | 'approved' | 'rejected';
+    driving_hours: number;
+    total_stops: number;
+    stop_hours: number;
+    lunch_hours: number;
+    hourly_rate: number;
+    van_allowance: number;
+    mileage: number | null;
+    vehicle_id: string | null;
+    custom_addons: CustomAddon[];
+    custom_addon_hours: number;
+    admin_notes: string | null;
+  }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload: any = {
+      ...input,
+      route_links: [],
+      job_locations: [],
+    };
+    if (input.status === 'approved') {
+      payload.approved_at = new Date().toISOString();
+      payload.approved_by = user?.id ?? null;
+    }
+    const { data, error } = await supabase
+      .from('timeslips')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      ...data,
+      job_locations: (data.job_locations as any as JobLocation[]) || [],
+      custom_addons: (data.custom_addons as any as CustomAddon[]) || [],
+    } as Timeslip;
+  },
+
   // Update timeslip
   async updateTimeslip(id: string, updates: Partial<Timeslip>) {
     const updateData: any = { ...updates };
