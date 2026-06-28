@@ -189,6 +189,19 @@ const DriverTimeslips = () => {
     },
   });
 
+  // Create timeslip mutation
+  const createMutation = useMutation({
+    mutationFn: (input: CreateTimeslipInput) => timeslipService.createTimeslip(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeslips'] });
+      toast.success('Timeslip created');
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to create timeslip: ${error.message}`);
+    },
+  });
+
   const handleGenerate = (date: Date) => {
     generateMutation.mutate(date);
   };
