@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Calendar, FileText, Truck } from 'lucide-react';
+import { Users, Calendar, FileText, Truck, Plus } from 'lucide-react';
 import { timeslipService } from '@/services/timeslipService';
 import { Timeslip } from '@/types/timeslip';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ import TimeslipCard from '@/components/timeslips/TimeslipCard';
 import TimeslipEditDialog from '@/components/timeslips/TimeslipEditDialog';
 import GenerateTimeslipsDialog from '@/components/timeslips/GenerateTimeslipsDialog';
 import BulkAssignVehicleDialog from '@/components/timeslips/BulkAssignVehicleDialog';
+import CreateTimeslipDialog, { CreateTimeslipInput } from '@/components/timeslips/CreateTimeslipDialog';
 import TimeslipFilters from '@/components/timeslips/TimeslipFilters';
 import { format } from 'date-fns';
 import {
@@ -34,6 +35,7 @@ const DriverTimeslips = () => {
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showBulkVehicleDialog, setShowBulkVehicleDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [deletingTimeslipId, setDeletingTimeslipId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('draft');
   const [filters, setFilters] = useState<{
@@ -187,6 +189,19 @@ const DriverTimeslips = () => {
     },
   });
 
+  // Create timeslip mutation
+  const createMutation = useMutation({
+    mutationFn: (input: CreateTimeslipInput) => timeslipService.createTimeslip(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeslips'] });
+      toast.success('Timeslip created');
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to create timeslip: ${error.message}`);
+    },
+  });
+
   const handleGenerate = (date: Date) => {
     generateMutation.mutate(date);
   };
@@ -257,6 +272,10 @@ const DriverTimeslips = () => {
             <Button onClick={() => setShowGenerateDialog(true)}>
               <Calendar className="h-4 w-4 mr-2" />
               Generate Timeslips
+            </Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Timeslip
             </Button>
             <Button variant="outline" onClick={() => setShowBulkVehicleDialog(true)}>
               <Truck className="h-4 w-4 mr-2" />
@@ -381,6 +400,13 @@ const DriverTimeslips = () => {
         isOpen={showBulkVehicleDialog}
         onClose={() => setShowBulkVehicleDialog(false)}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['timeslips'] })}
+      />
+
+      <CreateTimeslipDialog
+        isOpen={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onCreate={(input) => createMutation.mutate(input)}
+        submitting={createMutation.isPending}
       />
 
       <AlertDialog open={!!deletingTimeslipId} onOpenChange={(open) => !open && setDeletingTimeslipId(null)}>
