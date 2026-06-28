@@ -35,6 +35,7 @@ const DriverTimeslips = () => {
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showBulkVehicleDialog, setShowBulkVehicleDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [deletingTimeslipId, setDeletingTimeslipId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('draft');
   const [filters, setFilters] = useState<{
