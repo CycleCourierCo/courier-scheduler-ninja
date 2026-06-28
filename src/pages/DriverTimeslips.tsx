@@ -402,6 +402,13 @@ const DriverTimeslips = () => {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['timeslips'] })}
       />
 
+      <CreateTimeslipDialog
+        isOpen={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onCreate={(input) => createMutation.mutate(input)}
+        submitting={createMutation.isPending}
+      />
+
       <AlertDialog open={!!deletingTimeslipId} onOpenChange={(open) => !open && setDeletingTimeslipId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
