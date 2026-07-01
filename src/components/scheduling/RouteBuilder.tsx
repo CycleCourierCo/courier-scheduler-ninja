@@ -3416,10 +3416,28 @@ Route Link: ${routeLink}`;
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
                     <span className="text-xs font-medium truncate flex-1">End: Lawden Rd, B10 0AD</span>
+                    {routeStats && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 whitespace-nowrap">
+                        ETA {routeStats.endTime}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
                       🚲 {calculateFinalBikeCount()}
                     </Badge>
                   </div>
+
+                  {routeStats && (
+                    <div className="p-2 border rounded-lg bg-muted/40">
+                      <p className="text-xs font-semibold mb-1">Route Summary</p>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div><span className="text-muted-foreground">Stops:</span> <span className="font-medium">{selectedJobs.filter(j => j.type !== 'break').length}</span></div>
+                        <div><span className="text-muted-foreground">Orders:</span> <span className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</span></div>
+                        <div><span className="text-muted-foreground">Distance:</span> <span className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</span></div>
+                        <div><span className="text-muted-foreground">Length:</span> <span className="font-medium">{Math.floor(routeStats.durationMinutes / 60)}h {routeStats.durationMinutes % 60}m</span></div>
+                      </div>
+                    </div>
+                  )}
+                  
                   
                   <div className="flex gap-2 mb-2">
                     <Button
