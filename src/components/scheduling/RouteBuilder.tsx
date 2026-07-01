@@ -2813,13 +2813,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           
           for (const location of uniqueLocations) {
             const travelTime = await calculateTravelTime(currentCoords, { lat: location.lat, lon: location.lon });
-            drivingMinutes += travelTime;
+            drivingMinutes += travelTime.minutes;
             currentCoords = { lat: location.lat, lon: location.lon };
           }
           
           // Add return leg to Lawden Road
           const returnTime = await calculateTravelTime(currentCoords, baseCoords);
-          drivingMinutes += returnTime;
+          drivingMinutes += returnTime.minutes;
           
         } catch (error) {
           console.error('Error calculating driving time:', error);
