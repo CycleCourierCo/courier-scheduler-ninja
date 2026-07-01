@@ -51,7 +51,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
-  const [routeMeta, setRouteMeta] = useState<{ endArrivalTime?: string; totalDurationMinutes: number; distanceMiles: number } | null>(null);
 
   const getAvailabilityBadge = (
     jobType: 'collection' | 'delivery',
