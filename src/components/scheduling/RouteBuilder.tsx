@@ -720,6 +720,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setOrderList(orders);
   }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
+  const [routeStats, setRouteStats] = useState<{ endTime: string; distanceMiles: number; durationMinutes: number } | null>(null);
   const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
   const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
