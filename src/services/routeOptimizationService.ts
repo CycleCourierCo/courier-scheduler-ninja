@@ -348,5 +348,5 @@ export const optimizeRouteWithGeoapify = async (
     }
   });
 
-  return { jobs: optimizedJobs, distanceMiles };
+  return { jobs: optimizedJobs, distanceMiles, totalDurationMinutes, endArrivalTime };
 };
