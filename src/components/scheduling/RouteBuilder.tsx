@@ -720,6 +720,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setOrderList(orders);
   }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
+  const [routeStats, setRouteStats] = useState<{ endTime: string; distanceMiles: number; durationMinutes: number } | null>(null);
   const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
   const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
@@ -1594,8 +1595,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     try {
       const updatedJobs = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
+      const startClock = new Date(currentTime.getTime());
       let lastLocationCoords = baseCoords;
       let processedLocationGroups = new Set<string>();
+      let totalMeters = 0;
       
       for (let i = 0; i < groupedJobs.length; i++) {
         const job = groupedJobs[i];
@@ -1615,8 +1618,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
-            const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
-            currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+            currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
+            totalMeters += leg.meters;
             
             // Round to next 5-minute increment for arrival time
             const roundedJobTime = roundTimeToNext5Minutes(currentTime);
@@ -1651,11 +1655,25 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         }
       }
 
+      // Return leg to depot
+      const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+      currentTime = new Date(currentTime.getTime() + returnLeg.minutes * 60000);
+      totalMeters += returnLeg.meters;
+      const endTimeRounded = roundTimeToNext5Minutes(currentTime);
+      const durationMinutes = Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000);
+
+      setRouteStats({
+        endTime: endTimeRounded.toTimeString().slice(0, 5),
+        distanceMiles: totalMeters / 1609.34,
+        durationMinutes,
+      });
+
       setSelectedJobs(updatedJobs);
       setShowTimeslotDialog(true);
     } catch (error) {
       console.error('Error calculating timeslots:', error);
       toast.error('Failed to calculate timeslots. Please try again.');
+      setRouteStats(null);
       
       // Fallback to mock calculation
       const updatedJobs = selectedJobs.map((job, index) => {
@@ -1674,12 +1692,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
-  const calculateTravelTime = async (fromCoords: { lat: number; lon: number }, toCoords: { lat: number; lon: number }): Promise<number> => {
+  const calculateTravelTime = async (fromCoords: { lat: number; lon: number }, toCoords: { lat: number; lon: number }): Promise<{ minutes: number; meters: number }> => {
     try {
       const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
       if (!apiKey) {
         console.warn('Geoapify API key not found, using default travel time');
-        return 15; // Default 15 minutes
+        return { minutes: 15, meters: 0 };
       }
 
       // Format waypoints as lat,lon pairs separated by pipe
@@ -1696,18 +1714,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const data = await response.json();
       
       if (data.results && data.results.length > 0) {
-        // Return travel time in minutes
-        const travelTimeSeconds = data.results[0].time || 900; // Default 15 minutes if not found
-        return Math.ceil(travelTimeSeconds / 60);
+        const travelTimeSeconds = data.results[0].time || 900;
+        const distanceMeters = data.results[0].distance || 0;
+        return { minutes: Math.ceil(travelTimeSeconds / 60), meters: distanceMeters };
       } else {
         console.warn('No route found, using default travel time');
-        return 15; // Default 15 minutes
+        return { minutes: 15, meters: 0 };
       }
     } catch (error) {
       console.error('Error calculating travel time:', error);
-      return 15; // Default 15 minutes on error
+      return { minutes: 15, meters: 0 };
     }
   };
+
 
   const openTimeslotEditDialog = (job: SelectedJob) => {
     if (!job.estimatedTime) return;
@@ -2812,13 +2831,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           
           for (const location of uniqueLocations) {
             const travelTime = await calculateTravelTime(currentCoords, { lat: location.lat, lon: location.lon });
-            drivingMinutes += travelTime;
+            drivingMinutes += travelTime.minutes;
             currentCoords = { lat: location.lat, lon: location.lon };
           }
           
           // Add return leg to Lawden Road
           const returnTime = await calculateTravelTime(currentCoords, baseCoords);
-          drivingMinutes += returnTime;
+          drivingMinutes += returnTime.minutes;
           
         } catch (error) {
           console.error('Error calculating driving time:', error);
@@ -3397,10 +3416,28 @@ Route Link: ${routeLink}`;
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
                     <span className="text-xs font-medium truncate flex-1">End: Lawden Rd, B10 0AD</span>
+                    {routeStats && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 whitespace-nowrap">
+                        ETA {routeStats.endTime}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
                       🚲 {calculateFinalBikeCount()}
                     </Badge>
                   </div>
+
+                  {routeStats && (
+                    <div className="p-2 border rounded-lg bg-muted/40">
+                      <p className="text-xs font-semibold mb-1">Route Summary</p>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div><span className="text-muted-foreground">Stops:</span> <span className="font-medium">{selectedJobs.filter(j => j.type !== 'break').length}</span></div>
+                        <div><span className="text-muted-foreground">Orders:</span> <span className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</span></div>
+                        <div><span className="text-muted-foreground">Distance:</span> <span className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</span></div>
+                        <div><span className="text-muted-foreground">Length:</span> <span className="font-medium">{Math.floor(routeStats.durationMinutes / 60)}h {routeStats.durationMinutes % 60}m</span></div>
+                      </div>
+                    </div>
+                  )}
+                  
                   
                   <div className="flex gap-2 mb-2">
                     <Button
@@ -3526,11 +3563,26 @@ Route Link: ${routeLink}`;
 
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-sm font-medium">End: Lawden Road, Birmingham, B10 0AD</span>
+                  <span className="text-sm font-medium flex-1">End: Lawden Road, Birmingham, B10 0AD</span>
+                  {routeStats && (
+                    <Badge variant="outline">ETA {routeStats.endTime}</Badge>
+                  )}
                   <Badge variant="outline" className="bg-green-100 text-green-800">
                     🚲 {calculateFinalBikeCount()} bikes
                   </Badge>
                 </div>
+
+                {routeStats && (
+                  <div className="p-3 border rounded-lg bg-muted/40">
+                    <p className="text-sm font-semibold mb-2">Route Summary</p>
+                    <div className="grid grid-cols-4 gap-3 text-sm">
+                      <div><p className="text-muted-foreground text-xs">Stops</p><p className="font-medium">{selectedJobs.filter(j => j.type !== 'break').length}</p></div>
+                      <div><p className="text-muted-foreground text-xs">Orders</p><p className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</p></div>
+                      <div><p className="text-muted-foreground text-xs">Total Distance</p><p className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</p></div>
+                      <div><p className="text-muted-foreground text-xs">Route Length</p><p className="font-medium">{Math.floor(routeStats.durationMinutes / 60)}h {routeStats.durationMinutes % 60}m</p></div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex gap-2 mt-4">
                   <Button

@@ -14,8 +14,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { optimizeRouteWithGeoapify } from "@/services/routeOptimizationService";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { DEPOT_LOCATION } from "@/constants/depot";
-import { MapPin } from "lucide-react";
 
 interface Job {
   orderId: string;
@@ -53,7 +51,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
-  const [routeMeta, setRouteMeta] = useState<{ endArrivalTime?: string; totalDurationMinutes: number; distanceMiles: number } | null>(null);
 
   const getAvailabilityBadge = (
     jobType: 'collection' | 'delivery',
@@ -168,11 +165,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       );
 
       setOptimizedJobs(optimized.jobs);
-      setRouteMeta({
-        endArrivalTime: optimized.endArrivalTime,
-        totalDurationMinutes: optimized.totalDurationMinutes,
-        distanceMiles: optimized.distanceMiles,
-      });
+      
       
       
       // Auto-populate times from optimized route
@@ -462,51 +455,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
               </Card>
             ))}
           </div>
-        )}
-
-        {/* Return to Depot */}
-        {routeMeta?.endArrivalTime && (
-          <Card className="p-3 bg-muted/40 border-dashed">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-start gap-2 min-w-0">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="font-medium text-xs">Return to Depot</p>
-                  <p className="text-xs text-muted-foreground truncate">{DEPOT_LOCATION.address}</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="text-xs whitespace-nowrap flex-shrink-0">
-                ETA {routeMeta.endArrivalTime}
-              </Badge>
-            </div>
-          </Card>
-        )}
-
-        {/* Route Summary */}
-        {routeMeta && displayJobs.length > 0 && (
-          <Card className="p-3">
-            <p className="font-semibold text-sm mb-2">Route Summary</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-muted-foreground">Stops</p>
-                <p className="font-medium">{displayJobs.length}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Orders</p>
-                <p className="font-medium">{new Set(displayJobs.map((j: any) => j.orderId)).size}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total Distance</p>
-                <p className="font-medium">{routeMeta.distanceMiles.toFixed(1)} mi</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Route Length</p>
-                <p className="font-medium">
-                  {Math.floor(routeMeta.totalDurationMinutes / 60)}h {Math.round(routeMeta.totalDurationMinutes % 60)}m
-                </p>
-              </div>
-            </div>
-          </Card>
         )}
       </div>
     </>

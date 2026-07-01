@@ -190,7 +190,7 @@ export const optimizeRouteWithGeoapify = async (
   jobs: Job[],
   startDate: Date,
   startTime: string = "09:00"
-): Promise<{ jobs: OptimizedJob[], distanceMiles: number, totalDurationMinutes: number, endArrivalTime?: string }> => {
+): Promise<{ jobs: OptimizedJob[], distanceMiles: number }> => {
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
   
   if (!apiKey) {
@@ -304,14 +304,6 @@ export const optimizeRouteWithGeoapify = async (
   const steps = route.properties.steps;
   const distanceMeters = route.properties.distance || 0;
   const distanceMiles = distanceMeters / 1609.34;
-  const totalDurationMinutes = (route.properties.time || 0) / 60;
-
-  // End step arrival = return to depot
-  const endStep = steps.find((s: any) => s.type === 'end');
-  let endArrivalTime: string | undefined;
-  if (endStep?.arrival_time) {
-    endArrivalTime = new Date(endStep.arrival_time).toTimeString().slice(0, 5);
-  }
 
   let sequenceCounter = 1; // Start from 1
 
@@ -348,5 +340,5 @@ export const optimizeRouteWithGeoapify = async (
     }
   });
 
-  return { jobs: optimizedJobs, distanceMiles, totalDurationMinutes, endArrivalTime };
+  return { jobs: optimizedJobs, distanceMiles };
 };
