@@ -1594,8 +1594,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     try {
       const updatedJobs = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
+      const startClock = new Date(currentTime.getTime());
       let lastLocationCoords = baseCoords;
       let processedLocationGroups = new Set<string>();
+      let totalMeters = 0;
       
       for (let i = 0; i < groupedJobs.length; i++) {
         const job = groupedJobs[i];
@@ -1615,8 +1617,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
-            const travelTime = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
-            currentTime = new Date(currentTime.getTime() + travelTime * 60000);
+            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+            currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
+            totalMeters += leg.meters;
             
             // Round to next 5-minute increment for arrival time
             const roundedJobTime = roundTimeToNext5Minutes(currentTime);
@@ -1651,11 +1654,25 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         }
       }
 
+      // Return leg to depot
+      const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+      currentTime = new Date(currentTime.getTime() + returnLeg.minutes * 60000);
+      totalMeters += returnLeg.meters;
+      const endTimeRounded = roundTimeToNext5Minutes(currentTime);
+      const durationMinutes = Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000);
+
+      setRouteStats({
+        endTime: endTimeRounded.toTimeString().slice(0, 5),
+        distanceMiles: totalMeters / 1609.34,
+        durationMinutes,
+      });
+
       setSelectedJobs(updatedJobs);
       setShowTimeslotDialog(true);
     } catch (error) {
       console.error('Error calculating timeslots:', error);
       toast.error('Failed to calculate timeslots. Please try again.');
+      setRouteStats(null);
       
       // Fallback to mock calculation
       const updatedJobs = selectedJobs.map((job, index) => {
