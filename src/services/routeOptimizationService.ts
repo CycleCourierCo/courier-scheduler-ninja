@@ -304,6 +304,14 @@ export const optimizeRouteWithGeoapify = async (
   const steps = route.properties.steps;
   const distanceMeters = route.properties.distance || 0;
   const distanceMiles = distanceMeters / 1609.34;
+  const totalDurationMinutes = (route.properties.time || 0) / 60;
+
+  // End step arrival = return to depot
+  const endStep = steps.find((s: any) => s.type === 'end');
+  let endArrivalTime: string | undefined;
+  if (endStep?.arrival_time) {
+    endArrivalTime = new Date(endStep.arrival_time).toTimeString().slice(0, 5);
+  }
 
   let sequenceCounter = 1; // Start from 1
 
