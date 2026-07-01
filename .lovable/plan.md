@@ -1,26 +1,38 @@
-## Goal
-On the scheduling page's "Get Timeslot" dialog (after route optimization), show the driver's return-to-depot time and a route summary underneath the stops.
+## Correction
+Previously I updated the wrong dialog (`MultiJobTimeslotDialog`). The popup in the screenshot ("Route Timeslots" with Start/End Lawden Rd rows and "Send All (SendZen)") is actually rendered by `src/components/scheduling/RouteBuilder.tsx`. That's where the end depot time + summary need to live.
 
-## Changes
+## Changes — `src/components/scheduling/RouteBuilder.tsx`
 
-### 1. `src/services/routeOptimizationService.ts`
-Extend `optimizeRouteWithGeoapify` return value with route-level metadata pulled from the Geoapify response:
-- `endArrivalTime` — parsed from the `end` step's `arrival_time` (formatted `HH:mm`).
-- `totalDurationMinutes` — from `route.properties.time` (seconds → minutes).
-- `distanceMiles` — already present, keep as-is.
-- (Also mirror the same additions on `optimizeMultiDriverRoute` for consistency, since it uses the same shape.)
+### 1. Capture per-leg distance in `calculateTravelTime`
+Change the helper to return `{ minutes: number; meters: number }` instead of just minutes:
+- Pull `data.results[0].distance` alongside `time`.
+- Update the 3 call sites (`calculateTimeslots` at ~1618, `sendAllTimeslots`-map at ~2814, and the return-leg call at ~2820) to read `.minutes`.
 
-### 2. `src/components/scheduling/MultiJobTimeslotDialog.tsx`
-- Store the new fields alongside `optimizedJobs` (add `routeMeta` state: `{ endArrivalTime, totalDurationMinutes, distanceMiles }`).
-- After the Deliveries list, render:
-  - **End of route card**: "Return to Depot — Lawden Road, B10 0AD" with the `endArrivalTime` badge (styled like the stop cards but neutral/muted).
-  - **Route Summary card** with four stats:
-    - Stops: `displayJobs.length`
-    - Orders: unique `orderId` count across `displayJobs`
-    - Total Distance: `distanceMiles.toFixed(1)` mi
-    - Route Length: hours + minutes from `totalDurationMinutes`
-- No change to send/save logic.
+### 2. Track route totals + end time in `calculateTimeslots`
+Inside the loop:
+- Accumulate `totalMeters` from every travel leg.
+- Accumulate service time (15 min per non-break stop) and break durations into `totalMinutes`.
+- Sum travel minutes into `totalMinutes`.
 
-### Notes
-- Depot address pulled from existing `@/constants/depot` (`DEPOT_LOCATION.address`).
-- Purely presentational; no DB or edge-function changes.
+After the loop:
+- Compute one final `calculateTravelTime(lastLocationCoords, baseCoords)` for the return-to-depot leg.
+- Add its minutes/meters to the totals.
+- Derive `endTime` = start time + total minutes (formatted `HH:mm`, rounded to next 5-min).
+- Save into new state `routeStats: { endTime, distanceMiles, durationMinutes } | null`.
+
+Reset `routeStats` to `null` when the jobs list is emptied / on error.
+
+### 3. Render end ETA + summary (mobile + desktop blocks)
+Both the mobile block (lines 3397-3403) and desktop block (lines 3527-3533) currently show only bike count on the "End: Lawden Rd" row.
+
+- Add a `<Badge variant="outline">{routeStats?.endTime}</Badge>` next to the End row (only when `routeStats` exists), mirroring the Start row's time badge.
+- Immediately below the End row, add a new muted `Card` "Route Summary" with 4 stats:
+  - **Stops** — `selectedJobs.filter(j => j.type !== 'break').length`
+  - **Orders** — `new Set(selectedJobs.filter(j => j.type !== 'break').map(j => j.orderId)).size`
+  - **Total Distance** — `routeStats.distanceMiles.toFixed(1)` mi
+  - **Route Length** — `Xh Ym` from `routeStats.durationMinutes`
+
+Rendered only when `routeStats` is set. Same component reused in both mobile and desktop branches.
+
+## Revert
+Undo the earlier additions in `src/components/scheduling/MultiJobTimeslotDialog.tsx` and `src/services/routeOptimizationService.ts` (the depot card, summary card, and `endArrivalTime` / `totalDurationMinutes` return fields) since that popup is not the one the user sees. Restore both files to their prior shape.
