@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { optimizeRouteWithGeoapify } from "@/services/routeOptimizationService";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { DEPOT_LOCATION } from "@/constants/depot";
+import { MapPin } from "lucide-react";
 
 interface Job {
   orderId: string;
