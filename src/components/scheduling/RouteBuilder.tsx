@@ -1674,12 +1674,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
-  const calculateTravelTime = async (fromCoords: { lat: number; lon: number }, toCoords: { lat: number; lon: number }): Promise<number> => {
+  const calculateTravelTime = async (fromCoords: { lat: number; lon: number }, toCoords: { lat: number; lon: number }): Promise<{ minutes: number; meters: number }> => {
     try {
       const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
       if (!apiKey) {
         console.warn('Geoapify API key not found, using default travel time');
-        return 15; // Default 15 minutes
+        return { minutes: 15, meters: 0 };
       }
 
       // Format waypoints as lat,lon pairs separated by pipe
@@ -1696,18 +1696,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const data = await response.json();
       
       if (data.results && data.results.length > 0) {
-        // Return travel time in minutes
-        const travelTimeSeconds = data.results[0].time || 900; // Default 15 minutes if not found
-        return Math.ceil(travelTimeSeconds / 60);
+        const travelTimeSeconds = data.results[0].time || 900;
+        const distanceMeters = data.results[0].distance || 0;
+        return { minutes: Math.ceil(travelTimeSeconds / 60), meters: distanceMeters };
       } else {
         console.warn('No route found, using default travel time');
-        return 15; // Default 15 minutes
+        return { minutes: 15, meters: 0 };
       }
     } catch (error) {
       console.error('Error calculating travel time:', error);
-      return 15; // Default 15 minutes on error
+      return { minutes: 15, meters: 0 };
     }
   };
+
 
   const openTimeslotEditDialog = (job: SelectedJob) => {
     if (!job.estimatedTime) return;
