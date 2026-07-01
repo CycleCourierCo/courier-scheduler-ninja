@@ -166,6 +166,8 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
 
       setOptimizedJobs(optimized.jobs);
       
+      
+      
       // Auto-populate times from optimized route
       const newJobTimes: Record<string, string> = {};
       optimized.jobs.forEach(job => {

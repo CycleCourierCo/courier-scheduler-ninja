@@ -673,6 +673,98 @@ export type Database = {
           },
         ]
       }
+      customer_shopify_order_log: {
+        Row: {
+          created_at: string
+          id: string
+          line_item_sku: string | null
+          linked_order_id: string | null
+          message: string | null
+          raw_payload: Json | null
+          shop_domain: string | null
+          shopify_order_id: string | null
+          shopify_order_number: string | null
+          status: string
+          store_id: string | null
+          user_id: string
+          warehouse_stock_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_item_sku?: string | null
+          linked_order_id?: string | null
+          message?: string | null
+          raw_payload?: Json | null
+          shop_domain?: string | null
+          shopify_order_id?: string | null
+          shopify_order_number?: string | null
+          status: string
+          store_id?: string | null
+          user_id: string
+          warehouse_stock_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_item_sku?: string | null
+          linked_order_id?: string | null
+          message?: string | null
+          raw_payload?: Json | null
+          shop_domain?: string | null
+          shopify_order_id?: string | null
+          shopify_order_number?: string | null
+          status?: string
+          store_id?: string | null
+          user_id?: string
+          warehouse_stock_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_shopify_order_log_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "customer_shopify_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_shopify_stores: {
+        Row: {
+          access_token_vault_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_synced_at: string | null
+          shop_domain: string
+          updated_at: string
+          user_id: string
+          webhook_secret_vault_key: string
+        }
+        Insert: {
+          access_token_vault_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          shop_domain: string
+          updated_at?: string
+          user_id: string
+          webhook_secret_vault_key: string
+        }
+        Update: {
+          access_token_vault_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          shop_domain?: string
+          updated_at?: string
+          user_id?: string
+          webhook_secret_vault_key?: string
+        }
+        Relationships: []
+      }
       dispatch_route_stops: {
         Row: {
           address: string | null
@@ -2842,6 +2934,7 @@ export type Database = {
           item_notes: string | null
           linked_order_id: string | null
           position: number
+          sku: string | null
           status: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at: string
           user_id: string
@@ -2860,6 +2953,7 @@ export type Database = {
           item_notes?: string | null
           linked_order_id?: string | null
           position: number
+          sku?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
           user_id: string
@@ -2878,6 +2972,7 @@ export type Database = {
           item_notes?: string | null
           linked_order_id?: string | null
           position?: number
+          sku?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
           user_id?: string

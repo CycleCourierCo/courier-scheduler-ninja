@@ -37,6 +37,7 @@ const emptyForm: WarehouseStockFormData = {
   bike_model: "",
   bike_type: "",
   bike_value: "",
+  sku: "",
   item_notes: "",
   bay: "",
   position: 1,
@@ -241,6 +242,9 @@ const WarehouseStockPage: React.FC = () => {
                       {item.bike_type && (
                         <div className="text-xs text-muted-foreground">{item.bike_type}</div>
                       )}
+                      {item.sku && (
+                        <div className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
@@ -344,6 +348,18 @@ const WarehouseStockPage: React.FC = () => {
                   placeholder="0.00"
                 />
               </div>
+            </div>
+
+            <div>
+              <Label>SKU</Label>
+              <Input
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                placeholder="Match this exactly to your Shopify variant SKU"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Required for Shopify auto-dispatch
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

@@ -8,6 +8,7 @@ export type WarehouseStock = {
   bike_model: string | null;
   bike_type: string | null;
   bike_value: number | null;
+  sku: string | null;
   item_notes: string | null;
   bay: string;
   position: number;
@@ -28,6 +29,7 @@ export type WarehouseStockFormData = {
   bike_model: string;
   bike_type: string;
   bike_value: string;
+  sku: string;
   item_notes: string;
   bay: string;
   position: number;

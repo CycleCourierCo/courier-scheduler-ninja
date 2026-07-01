@@ -45,6 +45,7 @@ import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import StorageBaysPage from "./pages/StorageBaysPage";
 import MyStockPage from "./pages/MyStockPage";
+import ShopifyIntegrationPage from "./pages/ShopifyIntegrationPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
 import VehicleManagement from "./pages/VehicleManagement";
 import ClaimsList from "./pages/ClaimsList";
@@ -225,6 +226,11 @@ function App() {
               <Route path="/my-stock" element={
                 <ProtectedRoute>
                   <MyStockPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/shopify-integration" element={
+                <ProtectedRoute>
+                  <ShopifyIntegrationPage />
                 </ProtectedRoute>
               } />
               <Route path="/fuel-finder" element={

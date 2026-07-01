@@ -49,10 +49,13 @@ export const addWarehouseStock = async (
       bike_model: data.bike_model || null,
       bike_type: data.bike_type || null,
       bike_value: data.bike_value ? parseFloat(data.bike_value) : null,
+      sku: data.sku || null,
       item_notes: data.item_notes || null,
       bay: data.bay,
       position: data.position,
     } as any);
+
+
 
   if (error) throw error;
 };
