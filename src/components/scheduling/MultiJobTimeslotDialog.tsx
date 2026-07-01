@@ -165,11 +165,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       );
 
       setOptimizedJobs(optimized.jobs);
-      setRouteMeta({
-        endArrivalTime: optimized.endArrivalTime,
-        totalDurationMinutes: optimized.totalDurationMinutes,
-        distanceMiles: optimized.distanceMiles,
-      });
+      
       
       
       // Auto-populate times from optimized route
