@@ -283,6 +283,26 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
 
 export const updateAdminOrderStatus = updateOrderStatus;
 
+export const updateOrderBikes = async (
+  id: string,
+  bikes: Array<{ brand: string; model: string; type: string; value?: string }>
+): Promise<boolean> => {
+  const first = bikes[0] || { brand: "", model: "" };
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      bikes: bikes as any,
+      bike_brand: first.brand || null,
+      bike_model: first.model || null,
+    })
+    .eq("id", id);
+  if (error) {
+    console.error("updateOrderBikes error", error);
+    return false;
+  }
+  return true;
+};
+
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
     const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike } = data;
