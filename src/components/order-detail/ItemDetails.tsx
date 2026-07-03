@@ -1,8 +1,18 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench, Receipt } from "lucide-react";
+import { Package, FileText, Wrench, Receipt, Pencil } from "lucide-react";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
+import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
@@ -12,6 +22,7 @@ interface ItemDetailsProps {
   order: Order;
   onRefresh?: () => Promise<void>;
 }
+
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
