@@ -236,4 +236,3 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
 
 export default ItemDetails;
 
-export default ItemDetails;
