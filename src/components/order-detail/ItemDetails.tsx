@@ -31,7 +31,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [savingBikes, setSavingBikes] = useState(false);
-  const initialBikes = React.useMemo(() => {
+  const computeBikesFromOrder = React.useCallback(() => {
     if (order.bikes && order.bikes.length) {
       return order.bikes.map((b) => ({
         brand: b.brand || "",
@@ -46,11 +46,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
       type: order.bikeType || "",
     }];
   }, [order]);
-  const [editBikes, setEditBikes] = useState(initialBikes);
+  const [editBikes, setEditBikes] = useState(computeBikesFromOrder);
 
-  React.useEffect(() => {
-    setEditBikes(initialBikes);
-  }, [initialBikes]);
+  const openEdit = () => {
+    setEditBikes(computeBikesFromOrder());
+    setEditOpen(true);
+  };
 
   const handleSaveBikes = async () => {
     if (!order.id) return;
@@ -65,6 +66,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
     setEditOpen(false);
     if (onRefresh) await onRefresh();
   };
+
 
   const quantity = order.bikeQuantity || 1;
   const groupedBikes = getGroupedBikes(order);

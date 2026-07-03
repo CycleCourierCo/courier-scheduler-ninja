@@ -1,16 +1,15 @@
-## Goal
-Let admins edit each bike's brand and model on the Order Details page.
+## Problem
 
-## Changes
+While editing bike Brand/Model in the "Edit Bikes" dialog, characters you type get reverted after ~a second. Root cause: `ItemDetails.tsx` recomputes `initialBikes` via `useMemo([order])` and a `useEffect` that resets `editBikes` whenever `initialBikes` changes. The order page polls / re-fetches, producing a new `order` object reference every cycle, which overwrites the in-progress edits.
 
-**1. `src/components/order-detail/ItemDetails.tsx`**
-- For admins, add an "Edit Bikes" button next to the item list.
-- Clicking opens a dialog listing each bike row (based on `order.bikes` JSONB, source of truth) with editable Brand and Model text inputs. Type/value stay read-only (out of scope).
-- Save writes back the updated `bikes` array to `orders.bikes` via a small service call, and also refreshes the legacy flat `bike_brand`/`bike_model` fields from the first bike so existing UI (labels, item name) stays consistent.
-- On success, toast + call existing `onRefresh()`.
+## Fix
 
-**2. `src/services/orderService.ts`**
-- Add `updateOrderBikes(orderId, bikes)` that updates `orders.bikes`, `bike_brand`, `bike_model` in one call.
+Stop resetting `editBikes` from `order` while the dialog is open.
 
-## Out of scope
-Bike type, value, quantity, add/remove rows — brand & model only, as requested.
+In `src/components/order-detail/ItemDetails.tsx`:
+- Remove the `useEffect` that syncs `editBikes` from `initialBikes` on every order change.
+- Instead, seed `editBikes` from the current order only when the dialog opens: when `setEditOpen(true)` is called (via the Edit Bikes button), compute the bikes array from `order` and `setEditBikes(...)` at that moment.
+- Keep `useState` initial value as the current `initialBikes` for first render safety.
+- Leave save logic, dialog markup, and admin gating unchanged.
+
+Result: typing is preserved because background order refreshes no longer clobber the edit state; opening the dialog still starts from the latest saved data.
