@@ -29,9 +29,46 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const isAdmin = hasRole(userProfile, 'admin');
   const [isEnablingInspection, setIsEnablingInspection] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingBikes, setSavingBikes] = useState(false);
+  const initialBikes = React.useMemo(() => {
+    if (order.bikes && order.bikes.length) {
+      return order.bikes.map((b) => ({
+        brand: b.brand || "",
+        model: b.model || "",
+        type: b.type || "",
+        value: (b as any).value,
+      }));
+    }
+    return [{
+      brand: order.bikeBrand || "",
+      model: order.bikeModel || "",
+      type: order.bikeType || "",
+    }];
+  }, [order]);
+  const [editBikes, setEditBikes] = useState(initialBikes);
+
+  React.useEffect(() => {
+    setEditBikes(initialBikes);
+  }, [initialBikes]);
+
+  const handleSaveBikes = async () => {
+    if (!order.id) return;
+    setSavingBikes(true);
+    const ok = await updateOrderBikes(order.id, editBikes);
+    setSavingBikes(false);
+    if (!ok) {
+      toast.error("Failed to update bikes");
+      return;
+    }
+    toast.success("Bikes updated");
+    setEditOpen(false);
+    if (onRefresh) await onRefresh();
+  };
 
   const quantity = order.bikeQuantity || 1;
   const groupedBikes = getGroupedBikes(order);
+
 
   const handleEnableInspection = async () => {
     if (!order.id) return;
