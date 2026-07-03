@@ -90,10 +90,18 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <Package className="text-courier-600" />
-        <h3 className="font-semibold">Item Details</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Package className="text-courier-600" />
+          <h3 className="font-semibold">Item Details</h3>
+        </div>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
+            <Pencil className="h-3.5 w-3.5" /> Edit Bikes
+          </Button>
+        )}
       </div>
+
       <div className="bg-muted p-3 rounded-md">
         <p><span className="font-medium">Total Quantity:</span> {quantity}</p>
         
