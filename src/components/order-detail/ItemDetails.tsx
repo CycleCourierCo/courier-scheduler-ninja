@@ -181,8 +181,59 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           </div>
         </div>
       )}
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Bikes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {editBikes.map((b, idx) => (
+              <div key={idx} className="border rounded-md p-3 space-y-2">
+                <div className="text-sm font-medium">Bike {idx + 1}{b.type ? ` — ${b.type}` : ""}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor={`brand-${idx}`}>Brand</Label>
+                    <Input
+                      id={`brand-${idx}`}
+                      value={b.brand}
+                      onChange={(e) => {
+                        const next = [...editBikes];
+                        next[idx] = { ...next[idx], brand: e.target.value };
+                        setEditBikes(next);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`model-${idx}`}>Model</Label>
+                    <Input
+                      id={`model-${idx}`}
+                      value={b.model}
+                      onChange={(e) => {
+                        const next = [...editBikes];
+                        next[idx] = { ...next[idx], model: e.target.value };
+                        setEditBikes(next);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingBikes}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveBikes} disabled={savingBikes}>
+              {savingBikes ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
+export default ItemDetails;
 
 export default ItemDetails;
