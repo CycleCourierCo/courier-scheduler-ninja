@@ -1,8 +1,18 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench, Receipt } from "lucide-react";
+import { Package, FileText, Wrench, Receipt, Pencil } from "lucide-react";
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
+import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
@@ -13,14 +23,54 @@ interface ItemDetailsProps {
   onRefresh?: () => Promise<void>;
 }
 
+
 const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, 'admin');
   const [isEnablingInspection, setIsEnablingInspection] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingBikes, setSavingBikes] = useState(false);
+  const computeBikesFromOrder = React.useCallback(() => {
+    if (order.bikes && order.bikes.length) {
+      return order.bikes.map((b) => ({
+        brand: b.brand || "",
+        model: b.model || "",
+        type: b.type || "",
+        value: (b as any).value,
+      }));
+    }
+    return [{
+      brand: order.bikeBrand || "",
+      model: order.bikeModel || "",
+      type: order.bikeType || "",
+    }];
+  }, [order]);
+  const [editBikes, setEditBikes] = useState(computeBikesFromOrder);
+
+  const openEdit = () => {
+    setEditBikes(computeBikesFromOrder());
+    setEditOpen(true);
+  };
+
+  const handleSaveBikes = async () => {
+    if (!order.id) return;
+    setSavingBikes(true);
+    const ok = await updateOrderBikes(order.id, editBikes);
+    setSavingBikes(false);
+    if (!ok) {
+      toast.error("Failed to update bikes");
+      return;
+    }
+    toast.success("Bikes updated");
+    setEditOpen(false);
+    if (onRefresh) await onRefresh();
+  };
+
 
   const quantity = order.bikeQuantity || 1;
   const groupedBikes = getGroupedBikes(order);
+
 
   const handleEnableInspection = async () => {
     if (!order.id) return;
@@ -42,10 +92,19 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <Package className="text-courier-600" />
-        <h3 className="font-semibold">Item Details</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Package className="text-courier-600" />
+          <h3 className="font-semibold">Item Details</h3>
+        </div>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={openEdit} className="gap-1">
+            <Pencil className="h-3.5 w-3.5" /> Edit Bikes
+          </Button>
+
+        )}
       </div>
+
       <div className="bg-muted p-3 rounded-md">
         <p><span className="font-medium">Total Quantity:</span> {quantity}</p>
         
@@ -125,8 +184,58 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           </div>
         </div>
       )}
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Bikes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {editBikes.map((b, idx) => (
+              <div key={idx} className="border rounded-md p-3 space-y-2">
+                <div className="text-sm font-medium">Bike {idx + 1}{b.type ? ` — ${b.type}` : ""}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor={`brand-${idx}`}>Brand</Label>
+                    <Input
+                      id={`brand-${idx}`}
+                      value={b.brand}
+                      onChange={(e) => {
+                        const next = [...editBikes];
+                        next[idx] = { ...next[idx], brand: e.target.value };
+                        setEditBikes(next);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`model-${idx}`}>Model</Label>
+                    <Input
+                      id={`model-${idx}`}
+                      value={b.model}
+                      onChange={(e) => {
+                        const next = [...editBikes];
+                        next[idx] = { ...next[idx], model: e.target.value };
+                        setEditBikes(next);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingBikes}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveBikes} disabled={savingBikes}>
+              {savingBikes ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default ItemDetails;
+
