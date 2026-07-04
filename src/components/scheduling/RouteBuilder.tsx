@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,15 @@ import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
+import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
+
+// Profitability constants
+const COST_PER_MILE = 0.45;
+const DRIVER_HOURLY_RATE = 11;
+const formatGBP = (n: number) =>
+  n.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
@@ -721,6 +730,49 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [routeStats, setRouteStats] = useState<{ endTime: string; distanceMiles: number; durationMinutes: number } | null>(null);
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, 'admin');
+  const [profitability, setProfitability] = useState<{
+    revenue: number;
+    mileageCost: number;
+    driverPay: number;
+    totalCost: number;
+    profit: number;
+    stopCount: number;
+    orderCount: number;
+  } | null>(null);
+
+  // Recalculate route profitability whenever the route or its stats change (admin only)
+  useEffect(() => {
+    if (!isAdmin) {
+      setProfitability(null);
+      return;
+    }
+    const stops = selectedJobs
+      .filter(j => j.type !== 'break')
+      .map(j => ({ orderId: j.orderId, type: j.type }));
+    if (stops.length === 0 || !routeStats) {
+      setProfitability(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        clearSpecialRatePriceCache();
+        const { revenue, stopCount, orderCount } = await getRevenueForRouteStops(stops);
+        const mileageCost = routeStats.distanceMiles * COST_PER_MILE;
+        const driverPay = (routeStats.durationMinutes / 60) * DRIVER_HOURLY_RATE;
+        const totalCost = mileageCost + driverPay;
+        const profit = revenue - totalCost;
+        if (!cancelled) {
+          setProfitability({ revenue, mileageCost, driverPay, totalCost, profit, stopCount, orderCount });
+        }
+      } catch (e) {
+        if (!cancelled) setProfitability(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJobs, routeStats, isAdmin]);
   const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
   const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
@@ -3437,6 +3489,35 @@ Route Link: ${routeLink}`;
                       </div>
                     </div>
                   )}
+
+                  {isAdmin && profitability && (
+                    <div className="p-2 border rounded-lg bg-muted/40">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold">Route Profitability</p>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Admin</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatGBP(profitability.revenue)}</span></div>
+                        <div><span className="text-muted-foreground">Mileage:</span> <span className="font-medium">{formatGBP(profitability.mileageCost)}</span></div>
+                        <div><span className="text-muted-foreground">Driver pay:</span> <span className="font-medium">{formatGBP(profitability.driverPay)}</span></div>
+                        <div><span className="text-muted-foreground">Total cost:</span> <span className="font-medium">{formatGBP(profitability.totalCost)}</span></div>
+                        <div className="col-span-2 pt-1 border-t mt-1">
+                          <span className="text-muted-foreground">Profit:</span>{' '}
+                          <span className={cn("font-semibold", profitability.profit >= 0 ? "text-green-600" : "text-red-600")}>
+                            {formatGBP(profitability.profit)}
+                          </span>
+                          {profitability.revenue > 0 && (
+                            <span className="text-muted-foreground ml-1">
+                              ({((profitability.profit / profitability.revenue) * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                        <div><span className="text-muted-foreground">£/stop:</span> <span className="font-medium">{formatGBP(profitability.stopCount ? profitability.revenue / profitability.stopCount : 0)}</span></div>
+                        <div><span className="text-muted-foreground">Profit/stop:</span> <span className="font-medium">{formatGBP(profitability.stopCount ? profitability.profit / profitability.stopCount : 0)}</span></div>
+                      </div>
+                    </div>
+                  )}
+
                   
                   
                   <div className="flex gap-2 mb-2">
@@ -3580,6 +3661,49 @@ Route Link: ${routeLink}`;
                       <div><p className="text-muted-foreground text-xs">Orders</p><p className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</p></div>
                       <div><p className="text-muted-foreground text-xs">Total Distance</p><p className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</p></div>
                       <div><p className="text-muted-foreground text-xs">Route Length</p><p className="font-medium">{Math.floor(routeStats.durationMinutes / 60)}h {routeStats.durationMinutes % 60}m</p></div>
+                    </div>
+                  </div>
+                )}
+
+                {isAdmin && profitability && (
+                  <div className="p-3 border rounded-lg bg-muted/40">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold">Route Profitability</p>
+                      <Badge variant="outline" className="text-xs">Admin</Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3 text-sm">
+                      <div><p className="text-muted-foreground text-xs">Revenue</p><p className="font-medium">{formatGBP(profitability.revenue)}</p></div>
+                      <div><p className="text-muted-foreground text-xs">Mileage Cost</p><p className="font-medium">{formatGBP(profitability.mileageCost)}</p></div>
+                      <div><p className="text-muted-foreground text-xs">Driver Pay</p><p className="font-medium">{formatGBP(profitability.driverPay)}</p></div>
+                      <div><p className="text-muted-foreground text-xs">Total Cost</p><p className="font-medium">{formatGBP(profitability.totalCost)}</p></div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Profit</p>
+                        <p className={cn("font-semibold", profitability.profit >= 0 ? "text-green-600" : "text-red-600")}>
+                          {formatGBP(profitability.profit)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Margin</p>
+                        <p className="font-medium">
+                          {profitability.revenue > 0 ? `${((profitability.profit / profitability.revenue) * 100).toFixed(1)}%` : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Revenue / Stop</p>
+                        <p className="font-medium">{formatGBP(profitability.stopCount ? profitability.revenue / profitability.stopCount : 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Profit / Stop</p>
+                        <p className="font-medium">{formatGBP(profitability.stopCount ? profitability.profit / profitability.stopCount : 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Cost / Stop</p>
+                        <p className="font-medium">{formatGBP(profitability.stopCount ? profitability.totalCost / profitability.stopCount : 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Profit / Order</p>
+                        <p className="font-medium">{formatGBP(profitability.orderCount ? profitability.profit / profitability.orderCount : 0)}</p>
+                      </div>
                     </div>
                   </div>
                 )}
