@@ -3489,6 +3489,35 @@ Route Link: ${routeLink}`;
                       </div>
                     </div>
                   )}
+
+                  {isAdmin && profitability && (
+                    <div className="p-2 border rounded-lg bg-muted/40">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold">Route Profitability</p>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Admin</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatGBP(profitability.revenue)}</span></div>
+                        <div><span className="text-muted-foreground">Mileage:</span> <span className="font-medium">{formatGBP(profitability.mileageCost)}</span></div>
+                        <div><span className="text-muted-foreground">Driver pay:</span> <span className="font-medium">{formatGBP(profitability.driverPay)}</span></div>
+                        <div><span className="text-muted-foreground">Total cost:</span> <span className="font-medium">{formatGBP(profitability.totalCost)}</span></div>
+                        <div className="col-span-2 pt-1 border-t mt-1">
+                          <span className="text-muted-foreground">Profit:</span>{' '}
+                          <span className={cn("font-semibold", profitability.profit >= 0 ? "text-green-600" : "text-red-600")}>
+                            {formatGBP(profitability.profit)}
+                          </span>
+                          {profitability.revenue > 0 && (
+                            <span className="text-muted-foreground ml-1">
+                              ({((profitability.profit / profitability.revenue) * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                        <div><span className="text-muted-foreground">£/stop:</span> <span className="font-medium">{formatGBP(profitability.stopCount ? profitability.revenue / profitability.stopCount : 0)}</span></div>
+                        <div><span className="text-muted-foreground">Profit/stop:</span> <span className="font-medium">{formatGBP(profitability.stopCount ? profitability.profit / profitability.stopCount : 0)}</span></div>
+                      </div>
+                    </div>
+                  )}
+
                   
                   
                   <div className="flex gap-2 mb-2">
