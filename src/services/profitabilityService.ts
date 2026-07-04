@@ -285,6 +285,61 @@ export const clearSpecialRatePriceCache = () => {
   specialRatePriceCache.clear();
 };
 
+// Calculate route revenue from the stops selected in RouteBuilder.
+// Each entry is a stop in the route: {orderId, type: 'pickup'|'delivery'}.
+// Revenue per stop = (special_rate_price / 2) OR sum of bike-type per-stop prices.
+export const getRevenueForRouteStops = async (
+  stops: Array<{ orderId: string; type: string }>
+): Promise<{ revenue: number; orderCount: number; stopCount: number }> => {
+  const relevant = stops.filter(s => s.type === 'pickup' || s.type === 'delivery');
+  if (relevant.length === 0) return { revenue: 0, orderCount: 0, stopCount: 0 };
+
+  // Group stops per order to count how many stops of the order are in this route
+  const stopsByOrder = new Map<string, number>();
+  for (const s of relevant) {
+    stopsByOrder.set(s.orderId, (stopsByOrder.get(s.orderId) || 0) + 1);
+  }
+  const orderIds = Array.from(stopsByOrder.keys());
+
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select('id, user_id, bikes, bike_type, bike_quantity')
+    .in('id', orderIds);
+  if (error || !orders) {
+    return { revenue: 0, orderCount: orderIds.length, stopCount: relevant.length };
+  }
+
+  let totalRevenue = 0;
+
+  for (const order of orders) {
+    const stopsPresent = stopsByOrder.get(order.id) || 0;
+    if (stopsPresent === 0) continue;
+
+    const specialRate = await getSpecialRatePrice(order.user_id);
+
+    let perStopValue = 0;
+    if (specialRate !== null) {
+      const qty = order.bike_quantity || 1;
+      perStopValue = (specialRate / 2) * qty;
+    } else {
+      const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
+      if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
+        for (const bike of bikesArray) {
+          const qty = bike.quantity || 1;
+          perStopValue += getRevenuePerStopForBikeType(bike.bike_type || order.bike_type) * qty;
+        }
+      } else {
+        const qty = order.bike_quantity || 1;
+        perStopValue = getRevenuePerStopForBikeType(order.bike_type) * qty;
+      }
+    }
+
+    totalRevenue += perStopValue * stopsPresent;
+  }
+
+  return { revenue: totalRevenue, orderCount: orderIds.length, stopCount: relevant.length };
+};
+
 // Fetch orders for a timeslip and calculate revenue based on bike types (halved per stop)
 // If a customer has a special_rate_price, use that instead of standard bike-type pricing
 export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
