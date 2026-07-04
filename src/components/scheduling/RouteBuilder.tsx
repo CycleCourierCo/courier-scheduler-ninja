@@ -730,8 +730,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [routeStats, setRouteStats] = useState<{ endTime: string; distanceMiles: number; durationMinutes: number } | null>(null);
-  const { profile } = useAuth();
-  const isAdmin = hasRole(profile, 'admin');
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, 'admin');
   const [profitability, setProfitability] = useState<{
     revenue: number;
     mileageCost: number;
