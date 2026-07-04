@@ -741,6 +741,38 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     stopCount: number;
     orderCount: number;
   } | null>(null);
+
+  // Recalculate route profitability whenever the route or its stats change (admin only)
+  useEffect(() => {
+    if (!isAdmin) {
+      setProfitability(null);
+      return;
+    }
+    const stops = selectedJobs
+      .filter(j => j.type !== 'break')
+      .map(j => ({ orderId: j.orderId, type: j.type }));
+    if (stops.length === 0 || !routeStats) {
+      setProfitability(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        clearSpecialRatePriceCache();
+        const { revenue, stopCount, orderCount } = await getRevenueForRouteStops(stops);
+        const mileageCost = routeStats.distanceMiles * COST_PER_MILE;
+        const driverPay = (routeStats.durationMinutes / 60) * DRIVER_HOURLY_RATE;
+        const totalCost = mileageCost + driverPay;
+        const profit = revenue - totalCost;
+        if (!cancelled) {
+          setProfitability({ revenue, mileageCost, driverPay, totalCost, profit, stopCount, orderCount });
+        }
+      } catch (e) {
+        if (!cancelled) setProfitability(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJobs, routeStats, isAdmin]);
   const [showCoordinateDialog, setShowCoordinateDialog] = useState(false);
   const [coordinateJobToUpdate, setCoordinateJobToUpdate] = useState<{orderId: string, type: 'pickup' | 'delivery', contactName: string, address: string} | null>(null);
   const [coordinateInputs, setCoordinateInputs] = useState({ lat: '', lon: '' });
