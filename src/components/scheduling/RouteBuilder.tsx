@@ -28,6 +28,15 @@ import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
+import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
+
+// Profitability constants
+const COST_PER_MILE = 0.45;
+const DRIVER_HOURLY_RATE = 11;
+const formatGBP = (n: number) =>
+  n.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
