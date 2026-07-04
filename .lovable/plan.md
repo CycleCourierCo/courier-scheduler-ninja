@@ -1,63 +1,51 @@
-## Route Profitability panel (admin only)
+## Mechanic Timeslips + Mechanic Profitability
 
-Add a new section inside the Route Summary block in `src/components/scheduling/RouteBuilder.tsx`, rendered in both the compact and full summary variants, visible only to admins.
+### 1. Mechanic clock in / clock out
 
-### Where it goes
-Directly beneath the existing "Route Summary" card at lines ~3429–3439 and ~3575–3585. Same muted card style, with a "Route Profitability (Admin)" heading.
+**New table `mechanic_timeslips`** (schema, RLS, GRANTs):
+- `driver_id` → mechanic user id (reused naming for consistency)
+- `date` (Europe/London), `clock_in_at`, `clock_out_at` timestamps
+- `clock_in_photo_url`, `clock_out_photo_url` (Supabase Storage, private bucket `mechanic-clock-photos`)
+- `clock_in_lat/lng`, `clock_out_lat/lng`
+- `hourly_rate` (snapshot from profile), `lunch_hours` (default 0.5), `total_hours` and `total_pay` generated columns
+- `status` (`open` | `closed` | `approved` | `rejected`), `admin_notes`, `approved_by`, `approved_at`
+- RLS: mechanic can insert/read/update their own open slip; admins/`timeslip_admin` can read/update all; storage policy scoped to `driver_id/` prefix
 
-### What it shows
-Four blocks:
+**New Storage bucket** `mechanic-clock-photos` (private, RLS scoped by folder = user id).
 
-1. **Revenue**
-   - Total route revenue
-   - Per-stop breakdown count and average per stop
-2. **Costs**
-   - Mileage cost: `routeStats.distanceMiles × £0.45`
-   - Driver pay: `(routeStats.durationMinutes / 60) × £11`
-   - Total cost
-3. **Profit** = revenue − total cost, with margin %
-4. **Unit economics**
-   - Revenue / stop
-   - Cost / stop
-   - Profit / stop
-   - Profit / order
+**New page `/mechanic-clock`** (mechanic role, added to sidebar under Timeslips):
+- Big **Clock In** button when no open slip today → opens camera (`<input type="file" accept="image/*" capture="environment">`), requests `navigator.geolocation.getCurrentPosition`, uploads photo, inserts row with server `now()`.
+- If open slip exists → shows live elapsed time + **Clock Out** button (same photo + GPS flow), closes the slip.
+- History list of the mechanic's own past slips with status.
 
-### Revenue calculation
+**Admin section in existing Timeslips page**:
+- New tab **"Mechanic Timeslips"** listing all `mechanic_timeslips` with filters (driver, status, date range). Row shows both photos (thumbnails → lightbox), GPS pins on a small map link, hours, pay. Approve / reject actions and edit dialog (rate, lunch, notes).
 
-For every unique `orderId` in `selectedJobs` (excluding `type === 'break'`):
+### 2. Mechanic Profitability panel (bottom of Route Profitability page)
 
-1. Look up `special_rate_price` for the order's `user_id` (from `profiles`).
-2. If a special rate exists → revenue for that order = `special_rate_price` (full order price). Each of the two stops (collection + delivery) is worth `special_rate_price / 2`.
-3. Otherwise → use `getRevenuePerStopForBikeType(bike_type)` from `src/constants/bikePricing.ts`. That helper already returns the per-stop value (full price / 2). Sum across the bikes JSONB array with quantities, matching the existing `getRevenueForTimeslip` logic.
-4. For each order, only count the stops that actually appear in this route (collection, delivery, or both). Per-stop value × number of that order's stops present = order's contribution.
+New section rendered under existing route profitability, admin-only, with the same date-range filter.
 
-Example: Non-electric road bike, both stops in route → 2 × £36 = £72 revenue. Matthew Coulthard special rate £65, only delivery in route → 1 × £32.50.
+**Revenue per mechanic**, aggregated in one service (`mechanicProfitabilityService.ts`):
 
-### Reuse and refactor
+- **Inspection revenue (£60 each)** — for every `bicycle_inspections` row where `status` transitioned from `awaiting_inspection` to either `awaiting_pricing` (issues found) or straight to `no_issues`/`released_to_customer_at` with no open issues, within the date range. Attribute £60 to `inspected_by_id` on the transition date. Source of transition date = `inspected_at` (fallback `updated_at`).
+- **Repair revenue (labour = price − part cost)** — for every `inspection_issues` row where `status IN ('resolved','repaired')` and `resolved_at` is in the range. Amount = `COALESCE(price,0) − COALESCE(part_cost,0)` (never below 0). Attribute to `resolved_by_id`.
 
-- Extract a small `getRevenueForRouteStops(selectedJobs)` helper. Prefer placing it in `src/services/profitabilityService.ts` next to the existing `getSpecialRatePrice` / `getRevenuePerStopForBikeType` logic so the two revenue paths stay in sync. Export it and call it from RouteBuilder.
-- Use the existing `specialRatePriceCache` and `clearSpecialRatePriceCache` from that service.
-- Bike data source: prefer `job.orderData.bikes` (JSONB) already loaded on selected jobs; fall back to `orderData.bike_type` then `getRevenuePerStopForBikeType` default (£30/stop) for unknowns.
+**Cost per mechanic** — sum of `total_pay` from `mechanic_timeslips` where `date` is in the range and status ∈ (`closed`,`approved`).
 
-### Admin gating
+**Table columns**: Mechanic · Inspections done · Inspection revenue · Repairs done · Repair revenue · **Total revenue** · Hours worked · Wage cost · **Profit** · Profit margin %.
 
-Use the existing auth context + `hasRole(profile, 'admin')` from `src/lib/roles.ts` (pattern already used elsewhere in the app). Only render the profitability card when true. No route/policy changes required — data used is already in memory or read via existing profiles RLS.
+Grand total row at the bottom.
 
-### State + wiring in RouteBuilder
+### Technical details
 
-- Add `const [profitability, setProfitability] = useState<{ revenue: number; mileageCost: number; driverPay: number; totalCost: number; profit: number; stopCount: number; orderCount: number } | null>(null);`
-- Add a `useEffect` that recomputes whenever `selectedJobs` or `routeStats` change: builds the unique orders list, awaits `getRevenueForRouteStops`, then combines with `routeStats.distanceMiles` and `routeStats.durationMinutes` for costs. Skip when `routeStats` is null or there are no non-break stops.
-- Constants defined locally at the top of the file: `const COST_PER_MILE = 0.45;` `const DRIVER_HOURLY_RATE = 11;`.
-
-### UI details
-
-- Same `p-2/p-3 border rounded-lg bg-muted/40` container styling as the existing summary.
-- Small heading: "Route Profitability" with an admin-only badge.
-- 2-column grid on the compact variant, 4-column on the full variant, mirroring the neighbour card.
-- Format currency as `£X.XX` via `toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })`.
-- Colour profit green when positive, red when negative (semantic tokens, no hard-coded hex).
+- **Files added**: `supabase/migrations/*` (table + bucket policies), `src/services/mechanicTimeslipService.ts`, `src/services/mechanicProfitabilityService.ts`, `src/pages/MechanicClock.tsx`, `src/components/timeslips/MechanicTimeslipList.tsx`, `src/components/timeslips/MechanicTimeslipEditDialog.tsx`, `src/components/analytics/MechanicProfitabilityPanel.tsx`.
+- **Files edited**: `src/App.tsx` (route), `src/components/Layout.tsx` (sidebar link for mechanic + admin tab), `src/pages/DriverTimeslips.tsx` (add "Mechanic" tab), `src/pages/RouteProfitabilityPage.tsx` (mount the new panel at the bottom).
+- Photo upload = `supabase.storage.from('mechanic-clock-photos').upload(\`${uid}/${slipId}-in.jpg\`, blob)`.
+- GPS captured with `navigator.geolocation`; if user denies, we still allow submit but flag the row `location_missing = true` for admin visibility.
+- Timezone: `date` computed with `Europe/London` (matches existing driver timeslip convention).
+- No changes to driver timeslip logic or route profitability numbers above.
 
 ### Out of scope
-
-- No changes to timeslip-based profitability page, database schema, or edge functions.
-- No persistence of the calculated numbers — display only.
+- Enforcing a geo-fence radius (photo + GPS captured, not validated against a workshop location).
+- QuickBooks bill creation for mechanic timeslips (can be added later, matching driver flow).
+- Historical backfill of inspection/repair revenue before this ships (calculations are date-range based and will just work from existing timestamps).
