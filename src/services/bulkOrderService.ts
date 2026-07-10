@@ -273,6 +273,8 @@ export function groupRowsByOrderNumber(rows: Record<string, string>[]): GroupedO
   return grouped;
 }
 
+export const MAX_BIKES_PER_ORDER = 20;
+
 function validateGroupedOrder(
   receiver: Record<string, string>,
   bikes: Array<{ brand: string; model: string; type: string; value?: string }>,
@@ -287,6 +289,13 @@ function validateGroupedOrder(
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (receiver.receiver_email && !emailRegex.test(receiver.receiver_email)) {
     errors.push({ field: "receiver_email", message: "Invalid email format" });
+  }
+
+  if (bikes.length > MAX_BIKES_PER_ORDER) {
+    errors.push({
+      field: "bike_quantity",
+      message: `Order has ${bikes.length} bikes; max ${MAX_BIKES_PER_ORDER} per order. Split into multiple orders (use different order numbers).`,
+    });
   }
 
   bikes.forEach((bike, i) => {
