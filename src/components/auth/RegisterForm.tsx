@@ -10,28 +10,28 @@ import { User, Building } from "lucide-react";
 import { toast } from "sonner";
 
 const addressSchema = z.object({
-  address_line_1: z.string().min(1, "Address line 1 is required"),
+  address_line_1: z.string().min(1, "Enter the first line of your address (e.g. 12 High Street)"),
   address_line_2: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  postal_code: z.string().min(1, "Postal code is required"),
+  city: z.string().min(1, "Which city or town is this address in?"),
+  postal_code: z.string().min(1, "Enter your postcode (e.g. SW1A 1AA)"),
 });
 
 const registerSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(3, "+44 followed by at least 10 digits").default("+44"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Confirm password is required"),
+  name: z.string().min(2, "Enter your full name (2+ characters)"),
+  email: z.string().email("Enter an email like name@example.com"),
+  phone: z.string().min(3, "Enter a UK mobile like +447700900123").default("+44"),
+  password: z.string().min(6, "Use at least 6 characters — mix letters and numbers for a stronger password"),
+  confirmPassword: z.string().min(6, "Re-type the password above to confirm"),
   is_business: z.boolean().default(false),
   company_name: z.string().optional(),
   website: z.string().optional(),
   address: addressSchema,
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
+  message: "Passwords don't match — re-type the same password in both fields",
   path: ["confirmPassword"],
 }).refine(
   (data) => !data.is_business || data.company_name, {
-    message: "Company name is required for business accounts",
+    message: "Add your company name (business accounts need one)",
     path: ["company_name"],
   }
 );
@@ -89,7 +89,7 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
       onSuccessfulRegistration(data.is_business);
       form.reset();
     } catch (error: any) {
-      toast.error(error.message || "Failed to register. Please try again.");
+      toast.error(error.message || "We couldn't create your account. Check your details and try again — or contact info@cyclecourierco.com if this keeps happening.");
     } finally {
       setLocalLoading(false);
     }

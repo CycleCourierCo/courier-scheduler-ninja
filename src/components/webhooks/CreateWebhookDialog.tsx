@@ -63,7 +63,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      toast.error('Failed to fetch customers');
+      toast.error("Couldn't load your customer list. Refresh the page to try again.");
     }
   };
 
@@ -85,12 +85,12 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
 
   const handleSubmit = async () => {
     if (!name || !endpointUrl || selectedEvents.length === 0) {
-      toast.error("Please fill in all fields and select at least one event");
+      toast.error("Add a name, an endpoint URL and tick at least one event to listen for.");
       return;
     }
 
     if (!userId) {
-      toast.error("Please select a customer");
+      toast.error("Pick which customer this webhook belongs to.");
       return;
     }
 
@@ -98,11 +98,11 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
     try {
       const url = new URL(endpointUrl);
       if (url.protocol !== 'https:') {
-        toast.error("Endpoint URL must use HTTPS");
+        toast.error("Endpoint URL must start with https:// — http endpoints aren't accepted for security.");
         return;
       }
     } catch {
-      toast.error("Please enter a valid URL");
+      toast.error("That doesn't look like a URL. Use the full address, e.g. https://api.example.com/webhooks/orders");
       return;
     }
 
@@ -119,7 +119,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
       });
 
       if (error) {
-        toast.error("Failed to create webhook");
+        toast.error("Couldn't save the webhook. Check the URL is reachable and try again.");
         console.error(error);
       } else if (data?.webhook_secret) {
         setGeneratedSecret(data.webhook_secret);
@@ -127,7 +127,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
         toast.success("Webhook created successfully");
       }
     } catch (error) {
-      toast.error("Failed to create webhook");
+      toast.error("Couldn't save the webhook. Check the URL is reachable and try again.");
       console.error(error);
     }
 

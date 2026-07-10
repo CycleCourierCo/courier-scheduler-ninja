@@ -10,8 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Enter an email like name@example.com"),
+  password: z.string().min(6, "Use at least 6 characters — mix letters and numbers for a stronger password"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -47,7 +47,7 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       timeout = setTimeout(() => {
         if (localLoading) {
           setLocalLoading(false);
-          toast.error("Sign in is taking too long. Please try again.");
+          toast.error("Sign-in is taking longer than usual. Check your connection and try again.");
         }
       }, 5000);
     }
@@ -71,7 +71,7 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     const email = form.getValues("email");
     
     if (!email) {
-      toast.error("Please enter your email address first");
+      toast.error("Type your email in the field above so we know where to send the reset link.");
       return;
     }
     

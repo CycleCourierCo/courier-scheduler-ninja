@@ -261,7 +261,7 @@ export const getSenderAvailability = async (orderId: string) => {
     const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
     if (error || !data) {
       console.error("Error fetching sender availability:", error);
-      toast.error("Failed to fetch sender availability.");
+      toast.error("Couldn't load the sender's available dates. Refresh the page to try again.");
       return null;
     }
     return {
@@ -270,7 +270,7 @@ export const getSenderAvailability = async (orderId: string) => {
     };
   } catch (error) {
     console.error("Unexpected error fetching sender availability:", error);
-    toast.error("Unexpected error fetching sender availability.");
+    toast.error("Something got in the way of loading sender availability. Refresh to retry.");
     return null;
   }
 };
@@ -280,7 +280,7 @@ export const getReceiverAvailability = async (orderId: string) => {
     const { data, error } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
     if (error || !data) {
       console.error("Error fetching receiver availability:", error);
-      toast.error("Failed to fetch receiver availability.");
+      toast.error("Couldn't load the receiver's available dates. Refresh the page to try again.");
       return null;
     }
     return {
@@ -289,7 +289,7 @@ export const getReceiverAvailability = async (orderId: string) => {
     };
   } catch (error) {
     console.error("Unexpected error fetching receiver availability:", error);
-    toast.error("Unexpected error fetching receiver availability.");
+    toast.error("Something got in the way of loading receiver availability. Refresh to retry.");
     return null;
   }
 };

@@ -148,9 +148,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profile.account_status === 'pending') {
             toast.info("Your business account is pending approval. We'll contact you soon.");
           } else if (profile.account_status === 'rejected') {
-            toast.error("Your business account application has been rejected. Please contact support for more information.");
+            toast.error("Your business account application wasn't approved. Email info@cyclecourierco.com if you'd like to discuss it.");
           } else if (profile.account_status === 'suspended') {
-            toast.error("Your account has been suspended. Please contact support for assistance.");
+            toast.error("Your account is suspended. Email info@cyclecourierco.com to get it reinstated.");
           } else {
             toast.info("Your business account requires approval before you can sign in.");
           }
@@ -161,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigate("/dashboard");
       }
     } catch (error: any) {
-      toast.error(error.message || "Error signing in");
+      toast.error(error.message || "Sign-in failed. Double-check your email and password, then try again.");
       throw error;
     } finally {
       setIsLoading(false);
@@ -189,16 +189,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           
           if (response.error) {
-            throw new Error(response.error.message || "Failed to create business account");
+            throw new Error(response.error.message || "We couldn't create your business account. Please try again in a moment.");
           }
           
           if (!response.data) {
-            throw new Error("Failed to create business account - no data returned");
+            throw new Error("Your business account didn't save. Please try again — if this keeps happening, email info@cyclecourierco.com.");
           }
           
           return { data: response.data, isBusinessAccount: true };
         } catch (err: any) {
-          toast.error(err.message || "Failed to create business account");
+          toast.error(err.message || "We couldn't finish creating your business account. Please try again in a moment.");
           throw err;
         }
       } else {
@@ -219,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return data;
       }
     } catch (error: any) {
-      toast.error(error.message || "Error signing up");
+      toast.error(error.message || "We couldn't finish creating your account. Please try again in a moment.");
       throw error;
     } finally {
       setIsLoading(false);
@@ -242,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       navigate("/auth");
       toast.success("Signed out successfully");
     } catch (error: any) {
-      toast.error(error.message || "Error signing out");
+      toast.error(error.message || "Sign-out didn't complete. Refresh the page and try again.");
     } finally {
       setIsLoading(false);
     }

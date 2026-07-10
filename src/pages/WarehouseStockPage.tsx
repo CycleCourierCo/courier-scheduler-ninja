@@ -67,7 +67,7 @@ const WarehouseStockPage: React.FC = () => {
       setCustomers(customerData);
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Failed to load warehouse stock");
+      toast.error("Couldn't load warehouse stock right now. Refresh the page to try again.");
     } finally {
       setLoading(false);
     }
@@ -79,11 +79,11 @@ const WarehouseStockPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.user_id) {
-      toast.error("Please select a customer");
+      toast.error("Pick which customer this bike belongs to before saving.");
       return;
     }
     if (!formData.bay || !formData.position) {
-      toast.error("Please select a storage location");
+      toast.error("Choose a bay and position so warehouse staff can find it.");
       return;
     }
 
@@ -103,7 +103,7 @@ const WarehouseStockPage: React.FC = () => {
       fetchData();
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Failed to add stock");
+      toast.error("Couldn't add the bike to stock. Check the details and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -121,7 +121,7 @@ const WarehouseStockPage: React.FC = () => {
           fetchData();
         } catch (err) {
           Sentry.captureException(err);
-          toast.error("Failed to remove stock");
+          toast.error("Couldn't remove this bike. Refresh and try again.");
         }
       },
     });
