@@ -270,7 +270,7 @@ export default function DispatchRoutesPage() {
       }).eq("id", reoptimiseTarget.id);
 
       delete routePathCacheRef.current[reoptimiseTarget.id];
-      toast({ title: "Route reoptimised", description: `${seq.length} stops · ${Number(data.total_distance_km ?? 0).toFixed(1)} km` });
+      notify.success("Route reoptimised", { description: `${seq.length} stops · ${Number(data.total_distance_km ?? 0).toFixed(1)} km` });
       setReoptimiseTarget(null);
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
@@ -646,7 +646,7 @@ export default function DispatchRoutesPage() {
       const seq: { stop_id: string; sequence: number }[] = data.sequence ?? [];
       setSequence(seq.map((s) => s.stop_id));
       setTotals({ km: data.total_distance_km, min: data.total_duration_min });
-      toast({ title: "Route optimised", description: `${seq.length} stops · ${data.total_distance_km?.toFixed(1)} km · ${Math.round(data.total_duration_min)} min` });
+      notify.success("Route optimised", { description: `${seq.length} stops · ${data.total_distance_km?.toFixed(1)} km · ${Math.round(data.total_duration_min)} min` });
     } catch (e: any) {
       notify.error("Optimise failed", { description: e?.message ?? String(e) });
     } finally { setOptimising(false); }
@@ -692,7 +692,7 @@ export default function DispatchRoutesPage() {
       });
       const { error: sErr } = await supabase.from("dispatch_route_stops" as any).insert(stopsPayload);
       if (sErr) throw sErr;
-      toast({ title: "Route saved", description: `${seq.length} stops` });
+      notify.success("Route saved", { description: `${seq.length} stops` });
       setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
@@ -770,7 +770,7 @@ export default function DispatchRoutesPage() {
         optimised_at: optKm != null ? new Date().toISOString() : null,
       }).eq("id", targetRouteId);
 
-      toast({ title: "Route re-optimised", description: `${payload.length} stops · ${optKm != null ? optKm.toFixed(1) + " km" : "—"}` });
+      notify.success("Route re-optimised", { description: `${payload.length} stops · ${optKm != null ? optKm.toFixed(1) + " km" : "—"}` });
       setSelected({}); setSequence(null); setTotals(null);
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
