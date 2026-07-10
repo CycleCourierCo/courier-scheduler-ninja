@@ -35,6 +35,7 @@ import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabili
 import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
 import UnitEconomicsCard from "@/components/analytics/UnitEconomicsCard";
 import InvoiceVsCostComparison from "@/components/analytics/InvoiceVsCostComparison";
+import MechanicProfitabilityPanel from "@/components/analytics/MechanicProfitabilityPanel";
 
 const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -336,6 +337,10 @@ const RouteProfitabilityPage = () => {
           revenuePerStop={revenuePerStop}
           useBikeTypePricing={useBikeTypePricing}
         />
+
+        {/* Mechanic Profitability */}
+        <MechanicProfitabilityPanel />
+
 
         {/* Settings Section */}
         <Card>

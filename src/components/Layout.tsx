@@ -68,6 +68,9 @@ const Layout: React.FC<LayoutProps> = ({
       <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Bicycle Inspections
       </Link>
+      <Link to="/mechanic-clock" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Clock In/Out
+      </Link>
     </> : null;
 
   const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>

@@ -155,12 +155,22 @@ const BulkOrderUpload: React.FC = () => {
           });
 
           const successCount = allResults.filter((r) => r.success).length;
-          const failCount = allResults.filter((r) => !r.success).length;
+          const failures = allResults.filter((r) => !r.success);
+          const failCount = failures.length;
           span.setAttribute("success_count", successCount);
           span.setAttribute("fail_count", failCount);
 
-          if (failCount === 0) toast.success(`All ${successCount} orders created successfully!`);
-          else toast.warning(`${successCount} orders created, ${failCount} failed`);
+          if (failCount === 0) {
+            toast.success(`All ${successCount} orders created successfully!`);
+          } else {
+            const failedRefs = failures
+              .map((f) => f.orderNumber || `row ${f.rowIndex}`)
+              .join(", ");
+            toast.error(
+              `${successCount} created, ${failCount} failed: ${failedRefs}`,
+              { duration: 15000 }
+            );
+          }
         } catch (error) {
           Sentry.captureException(error);
           toast.error("Bulk upload failed");
@@ -308,6 +318,31 @@ const BulkOrderUpload: React.FC = () => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Failed orders panel — persistent, per-row error detail */}
+            {results.filter((r) => !r.success).length > 0 && !isSubmitting && (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="font-semibold mb-2">
+                    {results.filter((r) => !r.success).length} order(s) failed to create:
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {results
+                      .filter((r) => !r.success)
+                      .map((r, i) => (
+                        <li key={i} className="font-mono">
+                          <span className="font-semibold">
+                            {r.orderNumber || `Row ${r.rowIndex}`}
+                          </span>{" "}
+                          — {r.error || "Unknown error"}
+                        </li>
+                      ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
 
             {/* Data table */}
             <Card>
