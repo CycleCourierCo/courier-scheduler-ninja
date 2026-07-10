@@ -47,9 +47,9 @@ const StorageBaysPage: React.FC = () => {
   const handleSave = async () => {
     const cleanLabel = label.trim().toUpperCase();
     const count = parseInt(positionCount, 10);
-    if (!cleanLabel) return toast.error("Label is required");
+    if (!cleanLabel) return toast.error("Give this bay a short label so staff can find it (e.g. A1 or Rack-3).");
     if (!Number.isFinite(count) || count < 1 || count > 100)
-      return toast.error("Positions must be 1–100");
+      return toast.error("Enter a bay size between 1 and 100 positions.");
 
     setSaving(true);
     try {
@@ -74,7 +74,7 @@ const StorageBaysPage: React.FC = () => {
       refresh();
     } catch (err: any) {
       Sentry.captureException(err);
-      toast.error(err?.message || "Failed to save bay");
+      toast.error(err?.message || "Couldn't save this bay. Try again in a moment.");
     } finally {
       setSaving(false);
     }
@@ -96,7 +96,7 @@ const StorageBaysPage: React.FC = () => {
           refresh();
         } catch (err: any) {
           Sentry.captureException(err);
-          toast.error(err?.message || "Failed to delete bay (it may still be in use)");
+          toast.error(err?.message || "Couldn't delete this bay — it may still have bikes stored in it.");
         }
       },
     });
@@ -120,7 +120,7 @@ const StorageBaysPage: React.FC = () => {
       refresh();
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Failed to reorder");
+      toast.error("Couldn't reorder the bays. Refresh and try again.");
     }
   };
 
