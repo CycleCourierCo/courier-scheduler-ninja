@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/useGoogleMaps";
 import { getOrders } from "@/services/fetchOrderService";
@@ -191,17 +191,17 @@ export default function DispatchRoutesPage() {
   const handleRenameRoute = async () => {
     if (!renameTarget) return;
     const name = renameValue.trim();
-    if (!name) { toast({ title: "Name required", variant: "destructive" }); return; }
+    if (!name) { notify.error("Name required"); return; }
     setRouteMutating(true);
     try {
       const { error } = await (supabase as any).from("dispatch_routes")
         .update({ name }).eq("id", renameTarget.id);
       if (error) throw error;
-      toast({ title: "Route renamed" });
+      notify.success("Route renamed");
       setRenameTarget(null);
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
-      toast({ title: "Rename failed", description: e?.message ?? String(e), variant: "destructive" });
+      notify.error("Rename failed", { description: e?.message ?? String(e) });
     } finally { setRouteMutating(false); }
   };
 
@@ -215,12 +215,12 @@ export default function DispatchRoutesPage() {
       const { error: rErr } = await sb.from("dispatch_routes").delete().eq("id", deleteTarget.id);
       if (rErr) throw rErr;
       cleanupRouteFromMap(deleteTarget.id);
-      toast({ title: "Route deleted" });
+      notify.success("Route deleted");
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
     } catch (e: any) {
-      toast({ title: "Delete failed", description: e?.message ?? String(e), variant: "destructive" });
+      notify.error("Delete failed", { description: e?.message ?? String(e) });
     } finally { setRouteMutating(false); }
   };
 
@@ -232,7 +232,7 @@ export default function DispatchRoutesPage() {
       .filter((s: any) => Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lon)))
       .map((s: any) => ({ id: s.id, lat: Number(s.lat), lon: Number(s.lon) }));
     if (stops.length < 2) {
-      toast({ title: "Need at least 2 stops with coordinates", variant: "destructive" });
+      notify.error("Need at least 2 stops with coordinates");
       setReoptimiseTarget(null);
       return;
     }
@@ -274,7 +274,7 @@ export default function DispatchRoutesPage() {
       setReoptimiseTarget(null);
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
-      toast({ title: "Reoptimise failed", description: e?.message ?? String(e), variant: "destructive" });
+      notify.error("Reoptimise failed", { description: e?.message ?? String(e) });
     } finally { setRouteMutating(false); }
   };
 
@@ -633,7 +633,7 @@ export default function DispatchRoutesPage() {
   const selectedPins = pins.filter((p) => selected[p.key]);
 
   const handleOptimise = async () => {
-    if (selectedPins.length < 2) { toast({ title: "Select at least 2 stops", variant: "destructive" }); return; }
+    if (selectedPins.length < 2) { notify.error("Select at least 2 stops"); return; }
     setOptimising(true);
     try {
       const { data, error } = await supabase.functions.invoke("optimise-route", {
@@ -648,12 +648,12 @@ export default function DispatchRoutesPage() {
       setTotals({ km: data.total_distance_km, min: data.total_duration_min });
       toast({ title: "Route optimised", description: `${seq.length} stops · ${data.total_distance_km?.toFixed(1)} km · ${Math.round(data.total_duration_min)} min` });
     } catch (e: any) {
-      toast({ title: "Optimise failed", description: e?.message ?? String(e), variant: "destructive" });
+      notify.error("Optimise failed", { description: e?.message ?? String(e) });
     } finally { setOptimising(false); }
   };
 
   const handleSave = async () => {
-    if (selectedPins.length < 1) { toast({ title: "Select at least 1 stop", variant: "destructive" }); return; }
+    if (selectedPins.length < 1) { notify.error("Select at least 1 stop"); return; }
     setSaving(true);
     try {
       const { data: user } = await supabase.auth.getUser();
@@ -697,13 +697,13 @@ export default function DispatchRoutesPage() {
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
-      toast({ title: "Save failed", description: e?.message ?? String(e), variant: "destructive" });
+      notify.error("Save failed", { description: e?.message ?? String(e) });
     } finally { setSaving(false); }
   };
 
   const handleAddToExisting = async () => {
-    if (!targetRouteId) { toast({ title: "Pick a route to add to", variant: "destructive" }); return; }
-    if (selectedPins.length < 1) { toast({ title: "Select at least 1 stop", variant: "destructive" }); return; }
+    if (!targetRouteId) { notify.error("Pick a route to add to"); return; }
+    if (selectedPins.length < 1) { notify.error("Select at least 1 stop"); return; }
     setSaving(true);
     try {
       const sb = supabase as any;
@@ -775,7 +775,7 @@ export default function DispatchRoutesPage() {
       qc.invalidateQueries({ queryKey: ["dispatch-existing-stops", routeDate] });
       qc.invalidateQueries({ queryKey: ["dispatch-routes-for-date", routeDate] });
     } catch (e: any) {
-      toast({ title: "Add failed", description: e?.message ?? String(e), variant: "destructive" });
+      notify.error("Add failed", { description: e?.message ?? String(e) });
     } finally { setSaving(false); }
   };
 
