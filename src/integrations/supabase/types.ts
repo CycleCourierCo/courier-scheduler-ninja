@@ -1310,6 +1310,96 @@ export type Database = {
         }
         Relationships: []
       }
+      mechanic_timeslips: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          clock_in_at: string
+          clock_in_lat: number | null
+          clock_in_lng: number | null
+          clock_in_photo_url: string | null
+          clock_out_at: string | null
+          clock_out_lat: number | null
+          clock_out_lng: number | null
+          clock_out_photo_url: string | null
+          created_at: string
+          date: string
+          driver_id: string
+          hourly_rate: number
+          id: string
+          location_missing: boolean
+          lunch_hours: number
+          status: string
+          total_hours: number | null
+          total_pay: number | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          clock_in_at?: string
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
+          clock_in_photo_url?: string | null
+          clock_out_at?: string | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
+          clock_out_photo_url?: string | null
+          created_at?: string
+          date?: string
+          driver_id: string
+          hourly_rate?: number
+          id?: string
+          location_missing?: boolean
+          lunch_hours?: number
+          status?: string
+          total_hours?: number | null
+          total_pay?: number | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          clock_in_at?: string
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
+          clock_in_photo_url?: string | null
+          clock_out_at?: string | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
+          clock_out_photo_url?: string | null
+          created_at?: string
+          date?: string
+          driver_id?: string
+          hourly_rate?: number
+          id?: string
+          location_missing?: boolean
+          lunch_hours?: number
+          status?: string
+          total_hours?: number | null
+          total_pay?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mechanic_timeslips_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mechanic_timeslips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notice_bars: {
         Row: {
           created_at: string
