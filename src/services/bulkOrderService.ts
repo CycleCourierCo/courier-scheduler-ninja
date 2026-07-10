@@ -399,7 +399,14 @@ export async function createBulkOrders(
 
       await new Promise((resolve) => setTimeout(resolve, 300));
     } catch (error) {
-      Sentry.captureException(error);
+      Sentry.captureException(error, {
+        tags: { feature: "bulk_upload" },
+        extra: {
+          orderNumber: order.orderNumber,
+          bikeCount: order.bikes.length,
+          sourceRowIndices: order.sourceRowIndices,
+        },
+      });
       const result: BulkCreateResult = {
         orderNumber: order.orderNumber,
         rowIndex: order.sourceRowIndices[0],
