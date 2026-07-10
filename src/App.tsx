@@ -34,6 +34,7 @@ import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
 import UserManagement from "./pages/UserManagement";
 import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
 import DriverTimeslips from "./pages/DriverTimeslips";
+import MechanicClock from "./pages/MechanicClock";
 import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
 import BicycleInspections from "./pages/BicycleInspections";
 import HolidaysPage from "./pages/HolidaysPage";
