@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Plus, Trash2, Edit, Warehouse, Package } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -108,16 +109,22 @@ const WarehouseStockPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remove this stock item?")) return;
-    try {
-      await removeWarehouseStock(id);
-      toast.success("Stock removed");
-      fetchData();
-    } catch (err) {
-      Sentry.captureException(err);
-      toast.error("Failed to remove stock");
-    }
+  const handleDelete = (id: string) => {
+    notify.confirm({
+      title: "Remove this stock item?",
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removeWarehouseStock(id);
+          toast.success("Stock removed");
+          fetchData();
+        } catch (err) {
+          Sentry.captureException(err);
+          toast.error("Failed to remove stock");
+        }
+      },
+    });
   };
 
   const filtered = stock.filter((item) => {

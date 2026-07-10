@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -756,9 +757,12 @@ const BicycleInspections = () => {
                   value={inspection.status}
                   onValueChange={(value) => {
                     if (value === inspection.status) return;
-                    if (window.confirm(`Change inspection status to "${value}"? This is a manual override and will not send emails or update related flags.`)) {
-                      adminSetStatusMutation.mutate({ inspectionId: inspection.id, status: value as InspectionStatus });
-                    }
+                    notify.confirm({
+                      title: `Change inspection status to "${value}"?`,
+                      description: "Manual override — will not send emails or update related flags.",
+                      confirmLabel: "Change status",
+                      onConfirm: () => adminSetStatusMutation.mutate({ inspectionId: inspection.id, status: value as InspectionStatus }),
+                    });
                   }}
                 >
                   <SelectTrigger className="h-8 w-[180px] text-xs">

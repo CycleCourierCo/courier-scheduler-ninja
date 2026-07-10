@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown, Database, Plus, Trash2, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { geocodeAddress } from "@/utils/geocoding";
 import { format, formatDistanceToNow } from "date-fns";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -444,9 +445,12 @@ const FuelFinderPage: React.FC = () => {
                             variant="ghost"
                             className="h-8 w-8 text-destructive"
                             onClick={() => {
-                              if (confirm(`Delete "${card.card_name}"?`)) {
-                                deleteFuelCard.mutate(card.id);
-                              }
+                              notify.confirm({
+                                title: `Delete "${card.card_name}"?`,
+                                confirmLabel: "Delete",
+                                destructive: true,
+                                onConfirm: () => deleteFuelCard.mutate(card.id),
+                              });
                             }}
                           >
                             <Trash2 className="h-4 w-4" />

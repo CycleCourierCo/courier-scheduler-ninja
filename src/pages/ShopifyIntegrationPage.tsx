@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Copy, ExternalLink, ShoppingBag, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -98,19 +99,26 @@ const ShopifyIntegrationPage = () => {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!confirm("Disconnect your Shopify store? Auto-dispatch will stop.")) return;
-    const { error } = await supabase.functions.invoke("customer-shopify-connect", {
-      body: { action: "disconnect" },
+  const handleDisconnect = () => {
+    notify.confirm({
+      title: "Disconnect your Shopify store?",
+      description: "Auto-dispatch will stop.",
+      confirmLabel: "Disconnect",
+      destructive: true,
+      onConfirm: async () => {
+        const { error } = await supabase.functions.invoke("customer-shopify-connect", {
+          body: { action: "disconnect" },
+        });
+        if (error) {
+          toast.error("Failed to disconnect");
+          return;
+        }
+        toast.success("Disconnected");
+        setStore(null);
+        setShopDomain("");
+        await loadStore();
+      },
     });
-    if (error) {
-      toast.error("Failed to disconnect");
-      return;
-    }
-    toast.success("Disconnected");
-    setStore(null);
-    setShopDomain("");
-    await loadStore();
   };
 
   const copy = (txt: string) => {

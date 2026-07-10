@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Plus, Trash2, Edit, Warehouse, ArrowUp, ArrowDown } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -79,19 +80,26 @@ const StorageBaysPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (bay: StorageBay) => {
-    if (!confirm(`Delete bay ${bay.label}? This cannot be undone.`)) return;
-    try {
-      const { error } = await (supabase.from("storage_bays" as any) as any)
-        .delete()
-        .eq("id", bay.id);
-      if (error) throw error;
-      toast.success("Bay deleted");
-      refresh();
-    } catch (err: any) {
-      Sentry.captureException(err);
-      toast.error(err?.message || "Failed to delete bay (it may still be in use)");
-    }
+  const handleDelete = (bay: StorageBay) => {
+    notify.confirm({
+      title: `Delete bay ${bay.label}?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const { error } = await (supabase.from("storage_bays" as any) as any)
+            .delete()
+            .eq("id", bay.id);
+          if (error) throw error;
+          toast.success("Bay deleted");
+          refresh();
+        } catch (err: any) {
+          Sentry.captureException(err);
+          toast.error(err?.message || "Failed to delete bay (it may still be in use)");
+        }
+      },
+    });
   };
 
   const move = async (bay: StorageBay, direction: -1 | 1) => {
