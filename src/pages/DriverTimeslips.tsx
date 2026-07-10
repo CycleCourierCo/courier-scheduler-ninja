@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Calendar, FileText, Truck, Plus } from 'lucide-react';
+import { Users, Calendar, FileText, Truck, Plus, Wrench } from 'lucide-react';
+import MechanicTimeslipsTab from '@/components/timeslips/MechanicTimeslipsTab';
 import { timeslipService } from '@/services/timeslipService';
 import { Timeslip } from '@/types/timeslip';
 import { toast } from 'sonner';
@@ -316,40 +317,50 @@ const DriverTimeslips = () => {
                 Approved ({approvedCount})
               </TabsTrigger>
               <TabsTrigger value="all">All ({allCount})</TabsTrigger>
+              <TabsTrigger value="mechanic">
+                <Wrench className="h-4 w-4 mr-2" />
+                Mechanic Timeslips
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value={activeTab} className="space-y-4">
-              {isLoading ? (
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-center text-muted-foreground">Loading timeslips...</p>
-                  </CardContent>
-                </Card>
-              ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {sortedTimeslips.map((timeslip) => (
-                    <TimeslipCard
-                      key={timeslip.id}
-                      timeslip={timeslip}
-                      isAdmin={isAdmin}
-                      onEdit={handleEdit}
-                      onApprove={handleApprove}
-                      onReject={handleReject}
-                      onCreateBill={isTrueAdmin ? handleCreateBill : undefined}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-center text-muted-foreground">
-                      No timeslips found. Generate timeslips for a specific date to get started.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+            {activeTab === 'mechanic' ? (
+              <TabsContent value="mechanic" className="space-y-4">
+                <MechanicTimeslipsTab />
+              </TabsContent>
+            ) : (
+              <TabsContent value={activeTab} className="space-y-4">
+                {isLoading ? (
+                  <Card>
+                    <CardContent className="p-6">
+                      <p className="text-center text-muted-foreground">Loading timeslips...</p>
+                    </CardContent>
+                  </Card>
+                ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {sortedTimeslips.map((timeslip) => (
+                      <TimeslipCard
+                        key={timeslip.id}
+                        timeslip={timeslip}
+                        isAdmin={isAdmin}
+                        onEdit={handleEdit}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
+                        onCreateBill={isTrueAdmin ? handleCreateBill : undefined}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="p-6">
+                      <p className="text-center text-muted-foreground">
+                        No timeslips found. Generate timeslips for a specific date to get started.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           <div>

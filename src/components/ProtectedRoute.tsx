@@ -107,6 +107,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isUsersPage = location.pathname === '/users';
   const isEmailsPage = location.pathname === '/emails';
   const isBoxMyBikePage = location.pathname === '/box-my-bike';
+  const isMechanicClockPage = location.pathname === '/mechanic-clock';
   const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
   const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
 
@@ -119,7 +120,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     for (const r of userRestricted) {
       if (r === 'loader' && (isLoadingPg || isTasksPage)) anyAllowed = true;
-      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage)) anyAllowed = true;
+      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage || isMechanicClockPage || isProfilePage)) anyAllowed = true;
       if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage || isTasksPage)) anyAllowed = true;
       if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage || isTasksPage)) anyAllowed = true;
       if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage || isTasksPage)) anyAllowed = true;
