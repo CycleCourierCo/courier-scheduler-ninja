@@ -53,7 +53,7 @@ const NoticeBanner = () => {
         const config = typeConfig[notice.type] || typeConfig.info;
         const Icon = config.icon;
         return (
-          <div key={notice.id} className={`${config.bg} px-4 py-2 flex items-center justify-center gap-2 text-small`}>
+          <div key={notice.id} className={`${config.bg} px-4 py-2 flex items-center justify-center gap-2 text-sm`}>
             <Icon className="h-4 w-4 shrink-0" />
             <span className="text-center flex-1">{notice.message}</span>
             <button

@@ -14,10 +14,10 @@ interface Props {
 
 const ConversationList: React.FC<Props> = ({ conversations, selectedId, onSelect, isLoading }) => {
   if (isLoading) {
-    return <div className="p-4 text-small text-muted-foreground">Loading conversations…</div>;
+    return <div className="p-4 text-sm text-muted-foreground">Loading conversations…</div>;
   }
   if (!conversations.length) {
-    return <div className="p-4 text-small text-muted-foreground">No conversations match your filters.</div>;
+    return <div className="p-4 text-sm text-muted-foreground">No conversations match your filters.</div>;
   }
 
   return (
@@ -39,31 +39,31 @@ const ConversationList: React.FC<Props> = ({ conversations, selectedId, onSelect
                 c.channel === 'email' ? "text-blue-600" : "text-green-600")} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="font-medium truncate text-small">
+                  <div className="font-medium truncate text-sm">
                     {c.contact?.display_name || c.contact?.handle || 'Unknown'}
                   </div>
-                  <div className="text-caption text-muted-foreground shrink-0">
+                  <div className="text-xs text-muted-foreground shrink-0">
                     {formatDistanceToNow(new Date(c.last_message_at), { addSuffix: false })}
                   </div>
                 </div>
                 {c.subject && (
-                  <div className="text-caption text-foreground truncate">{c.subject}</div>
+                  <div className="text-xs text-foreground truncate">{c.subject}</div>
                 )}
-                <div className="text-caption text-muted-foreground truncate">
+                <div className="text-xs text-muted-foreground truncate">
                   {c.last_message_preview || '—'}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {c.unread_count > 0 && (
-                    <Badge variant="default" className="h-4 px-1.5 text-caption">
+                    <Badge variant="default" className="h-4 px-1.5 text-[10px]">
                       {c.unread_count} new
                     </Badge>
                   )}
                   {c.linked_order_id && (
-                    <Badge variant="secondary" className="h-4 px-1.5 text-caption gap-0.5">
+                    <Badge variant="secondary" className="h-4 px-1.5 text-[10px] gap-0.5">
                       <Package className="h-3 w-3" /> order
                     </Badge>
                   )}
-                  <Badge variant="outline" className="h-4 px-1.5 text-caption capitalize">
+                  <Badge variant="outline" className="h-4 px-1.5 text-[10px] capitalize">
                     {c.status}
                   </Badge>
                 </div>

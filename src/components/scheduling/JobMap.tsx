@@ -155,10 +155,10 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
                 <p className="font-semibold">
                   {loc.type === 'collection' ? 'Collection Point' : 'Delivery Point'}
                 </p>
-                <p className="text-small text-muted-foreground">{loc.address}</p>
-                <p className="text-caption text-muted-foreground mt-1">Order: {loc.orderNumber}</p>
+                <p className="text-sm text-muted-foreground">{loc.address}</p>
+                <p className="text-xs text-muted-foreground mt-1">Order: {loc.orderNumber}</p>
                 {loc.date && (
-                  <p className="text-caption text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {format(loc.date, 'PPP')}
                   </p>
                 )}

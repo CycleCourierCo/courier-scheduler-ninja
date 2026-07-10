@@ -99,11 +99,11 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
-          <h3 className="text-body-lg font-medium text-center">Business Registration</h3>
+          <h3 className="text-lg font-medium text-center">Business Registration</h3>
           <div className="flex flex-col items-center space-y-3">
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <Building size={16} />
-              <span className="text-small">Business Account</span>
+              <span className="text-sm">Business Account</span>
             </div>
           </div>
         </div>

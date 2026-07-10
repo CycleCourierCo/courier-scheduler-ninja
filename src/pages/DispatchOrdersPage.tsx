@@ -130,7 +130,7 @@ const DispatchOrdersPage: React.FC = () => {
     <Layout>
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h1 className="text-h3 font-semibold">Orders</h1>
+          <h1 className="text-2xl font-semibold">Orders</h1>
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -180,7 +180,7 @@ const DispatchOrdersPage: React.FC = () => {
 
           <TabsContent value={tab} className="mt-4">
             {selected.size > 0 && (
-              <div className="mb-2 flex items-center gap-2 text-small">
+              <div className="mb-2 flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">{selected.size} selected</span>
                 <Button size="sm" variant="outline" disabled>
                   Bulk assign (coming soon)
@@ -233,18 +233,18 @@ const DispatchOrdersPage: React.FC = () => {
                             onCheckedChange={() => toggleOne(o.id)}
                           />
                         </TableCell>
-                        <TableCell className="font-mono text-caption">
+                        <TableCell className="font-mono text-xs">
                           {o.trackingNumber || o.id.slice(0, 8)}
                         </TableCell>
                         <TableCell className="font-medium">
                           {o.receiver?.name || "—"}
                           {o.sender?.name && (
-                            <div className="text-caption text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                               from {o.sender.name}
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-small">
+                        <TableCell className="text-sm">
                           {o.sender?.address?.city || "—"}
                           {o.sender?.address?.zipCode && (
                             <span className="text-muted-foreground">
@@ -253,7 +253,7 @@ const DispatchOrdersPage: React.FC = () => {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-small">
+                        <TableCell className="text-sm">
                           {o.receiver?.address?.city || "—"}
                           {o.receiver?.address?.zipCode && (
                             <span className="text-muted-foreground">
@@ -262,7 +262,7 @@ const DispatchOrdersPage: React.FC = () => {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-small">
+                        <TableCell className="text-sm">
                           {fmtDateTime(o.scheduledDeliveryDate)}
                           {o.deliveryTimeslot && (
                             <span className="text-muted-foreground">
@@ -271,7 +271,7 @@ const DispatchOrdersPage: React.FC = () => {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-small">
+                        <TableCell className="text-sm">
                           {o.delivery_driver_name ||
                             o.collection_driver_name ||
                             "Unassigned"}

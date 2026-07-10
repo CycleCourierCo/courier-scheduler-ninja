@@ -148,11 +148,11 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
               <Label>Opening Hours ({format(selectedDate, "EEEE")})</Label>
               {selectedDayHours ? (
                 selectedDayHours.open ? (
-                  <div className="text-small bg-muted p-2 rounded-md">
+                  <div className="text-sm bg-muted p-2 rounded-md">
                     {selectedDayHours.is24h ? '🕐 Open 24 hours' : `🕐 ${selectedDayHours.start} - ${selectedDayHours.end}`}
                   </div>
                 ) : (
-                  <div className="text-small bg-destructive/10 text-destructive p-2 rounded-md">
+                  <div className="text-sm bg-destructive/10 text-destructive p-2 rounded-md">
                     ⚠️ Closed on {format(selectedDate, "EEEE")}
                   </div>
                 )
@@ -164,7 +164,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           {!selectedDate && effectiveOpeningHours && (
             <div className="space-y-1">
               <Label>Opening Hours</Label>
-              <div className="text-caption bg-muted p-2 rounded-md space-y-0.5">
+              <div className="text-xs bg-muted p-2 rounded-md space-y-0.5">
                 {DAY_NAMES.filter(day => day !== 'friday').map(day => {
                   const d = effectiveOpeningHours[day];
                   return (
@@ -196,21 +196,21 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
           {deliveryInstructions && (
             <div className="space-y-1">
               <Label>Delivery Instructions</Label>
-              <div className="text-small bg-muted p-2 rounded-md whitespace-pre-wrap">{deliveryInstructions}</div>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{deliveryInstructions}</div>
             </div>
           )}
 
           {job.type === 'pickup' && senderNotes && (
             <div className="space-y-1">
               <Label>Sender Notes</Label>
-              <div className="text-small bg-muted p-2 rounded-md whitespace-pre-wrap">{senderNotes}</div>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{senderNotes}</div>
             </div>
           )}
 
           {job.type === 'delivery' && receiverNotes && (
             <div className="space-y-1">
               <Label>Receiver Notes</Label>
-              <div className="text-small bg-muted p-2 rounded-md whitespace-pre-wrap">{receiverNotes}</div>
+              <div className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">{receiverNotes}</div>
             </div>
           )}
 
@@ -219,7 +219,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
               <Label>Admin Notes</Label>
               <div className="space-y-1">
                 {adminComments.map((c, i) => (
-                  <div key={i} className="text-small bg-muted p-2 rounded-md whitespace-pre-wrap">
+                  <div key={i} className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap">
                     <span className="font-medium">{c.admin_name}:</span> {c.comment}
                   </div>
                 ))}
@@ -227,7 +227,7 @@ const TimeslotEditDialog: React.FC<TimeslotEditDialogProps> = ({
             </div>
           )}
 
-          <div className="text-small text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             Original calculated time: {job.estimatedTime}
           </div>
         </div>

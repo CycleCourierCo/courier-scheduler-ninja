@@ -56,7 +56,7 @@ function ElapsedTimer({ startISO }: { startISO: string }) {
   const m = Math.floor((ms % 3600000) / 60000);
   const s = Math.floor((ms % 60000) / 1000);
   return (
-    <div className="text-h1 font-mono font-bold tabular-nums text-primary text-center py-4">
+    <div className="text-5xl font-mono font-bold tabular-nums text-primary text-center py-4">
       {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
     </div>
   );
@@ -145,7 +145,7 @@ const MechanicClock: React.FC = () => {
       <div className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
         <DashboardHeader>
           <div>
-            <h1 className="text-h2 font-bold tracking-tight">Mechanic Clock</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Mechanic Clock</h1>
             <p className="text-muted-foreground">Clock in and out with a photo. Your time and pay are tracked automatically.</p>
           </div>
         </DashboardHeader>
@@ -162,7 +162,7 @@ const MechanicClock: React.FC = () => {
               <p className="text-muted-foreground text-center">Loading…</p>
             ) : openSlip ? (
               <>
-                <p className="text-small text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center">
                   Clocked in at {format(new Date(openSlip.clock_in_at), 'HH:mm')} on{' '}
                   {format(new Date(openSlip.clock_in_at), 'EEE d MMM')}
                 </p>
@@ -174,7 +174,7 @@ const MechanicClock: React.FC = () => {
               </>
             ) : (
               <>
-                <p className="text-small text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center">
                   Take a photo to start your shift. Your rate: £{Number(userProfile?.hourly_rate ?? 11).toFixed(2)}/hr.
                 </p>
                 <Button size="lg" className="w-full" onClick={handleClockIn} disabled={busy}>
@@ -183,7 +183,7 @@ const MechanicClock: React.FC = () => {
                 </Button>
               </>
             )}
-            <p className="text-caption text-muted-foreground flex items-center gap-1 justify-center">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 justify-center">
               <Camera className="h-3 w-3" /> Photo <MapPin className="h-3 w-3 ml-2" /> Location captured
             </p>
           </CardContent>
@@ -201,16 +201,16 @@ const MechanicClock: React.FC = () => {
                     <PhotoThumb path={s.clock_in_photo_url} />
                     <PhotoThumb path={s.clock_out_photo_url} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-small font-medium">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
-                      <div className="text-caption text-muted-foreground">
+                      <div className="text-sm font-medium">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
+                      <div className="text-xs text-muted-foreground">
                         {format(new Date(s.clock_in_at), 'HH:mm')} –{' '}
                         {s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : 'open'}
                         {s.clock_out_at && ` · ${Number(s.total_hours).toFixed(2)}h`}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-small font-semibold">£{Number(s.total_pay || 0).toFixed(2)}</div>
-                      <div className="text-caption text-muted-foreground capitalize">{s.status}</div>
+                      <div className="text-sm font-semibold">£{Number(s.total_pay || 0).toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
                     </div>
                   </div>
                 ))}

@@ -133,7 +133,7 @@ export function Sidebar({
                   className="h-8 w-8"
                 />
                 {isSidebarOpen && (
-                  <span className="ml-3 text-body-lg font-bold">Cycle Courier</span>
+                  <span className="ml-3 text-lg font-bold">Cycle Courier</span>
                 )}
               </div>
             </Link>
@@ -147,7 +147,7 @@ export function Sidebar({
                   to={link.href}
                   onClick={isMobile ? onCloseSidebar : undefined}
                   className={cn(
-                    "group flex items-center rounded-md px-3 py-2 text-small font-medium transition-colors",
+                    "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     pathname === link.href
                       ? "bg-courier-500 text-white"
                       : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"

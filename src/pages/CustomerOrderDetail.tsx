@@ -126,7 +126,7 @@ const CustomerOrderDetail = () => {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-          <h2 className="text-h4 font-semibold text-red-600">{error || "Order not found"}</h2>
+          <h2 className="text-xl font-semibold text-red-600">{error || "Order not found"}</h2>
           <Button asChild>
             <Link to="/dashboard">
               <ArrowLeft className="mr-2" />
@@ -222,7 +222,7 @@ const CustomerOrderDetail = () => {
                 <span className="sm:hidden">Back</span>
               </Link>
             </Button>
-            <h1 className="text-h4 sm:text-h3 font-bold">Order Details</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Order Details</h1>
           </div>
            <div className="flex items-center gap-2 flex-wrap">
             <div className="flex-1 sm:flex-none">
@@ -289,7 +289,7 @@ const CustomerOrderDetail = () => {
                       </p>
                     </div>
                     {order.pickupTimeslot && (
-                      <p className="text-small text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         Time: {formatTimeslotWindow(order.pickupTimeslot)}
                       </p>
                     )}
@@ -311,7 +311,7 @@ const CustomerOrderDetail = () => {
                       </p>
                     </div>
                     {order.deliveryTimeslot && (
-                      <p className="text-small text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         Time: {formatTimeslotWindow(order.deliveryTimeslot)}
                       </p>
                     )}
@@ -333,7 +333,7 @@ const CustomerOrderDetail = () => {
                     
                     <div className="mt-2 space-y-1">
                       {getGroupedBikes(order).map((group, idx) => (
-                        <div key={idx} className="text-small">
+                        <div key={idx} className="text-sm">
                           <span className="font-medium">{group.quantity}×</span> {group.label}
                           {group.value && <> — £{group.value}</>}
                         </div>
@@ -377,7 +377,7 @@ const CustomerOrderDetail = () => {
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <User className="text-courier-600" />
-                  <h3 className="font-semibold text-body-lg">Sender Information</h3>
+                  <h3 className="font-semibold text-lg">Sender Information</h3>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-md space-y-3">
                   <p className="font-medium text-gray-800">{order.sender.name}</p>
@@ -405,7 +405,7 @@ const CustomerOrderDetail = () => {
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <User className="text-courier-600" />
-                  <h3 className="font-semibold text-body-lg">Receiver Information</h3>
+                  <h3 className="font-semibold text-lg">Receiver Information</h3>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-md space-y-3">
                   <p className="font-medium text-gray-800">{order.receiver.name}</p>

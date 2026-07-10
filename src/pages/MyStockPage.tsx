@@ -72,7 +72,7 @@ const MyStockPage = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-          <h1 className="text-h3 font-bold">My Stock</h1>
+          <h1 className="text-2xl font-bold">My Stock</h1>
           <Button variant="outline" size="sm" asChild>
             <Link to="/shopify-integration">
               <ShoppingBag className="mr-2 h-4 w-4" />
@@ -87,8 +87,8 @@ const MyStockPage = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <Package className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-h3 font-bold">{storedItems.length}</p>
-                <p className="text-small text-muted-foreground">Stored</p>
+                <p className="text-2xl font-bold">{storedItems.length}</p>
+                <p className="text-sm text-muted-foreground">Stored</p>
               </div>
             </CardContent>
           </Card>
@@ -96,8 +96,8 @@ const MyStockPage = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <Truck className="h-8 w-8 text-muted-foreground" />
               <div>
-                <p className="text-h3 font-bold">{reservedItems.length}</p>
-                <p className="text-small text-muted-foreground">Reserved for Delivery</p>
+                <p className="text-2xl font-bold">{reservedItems.length}</p>
+                <p className="text-sm text-muted-foreground">Reserved for Delivery</p>
               </div>
             </CardContent>
           </Card>
@@ -109,8 +109,8 @@ const MyStockPage = () => {
           <Card>
             <CardContent className="p-8 text-center">
               <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-body-lg font-medium">No stock stored</p>
-              <p className="text-small text-muted-foreground">Items deposited at the warehouse will appear here.</p>
+              <p className="text-lg font-medium">No stock stored</p>
+              <p className="text-sm text-muted-foreground">Items deposited at the warehouse will appear here.</p>
             </CardContent>
           </Card>
         ) : (
@@ -119,7 +119,7 @@ const MyStockPage = () => {
               <Card key={item.id} className="relative">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-body">
+                    <CardTitle className="text-base">
                       {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || "Item"}
                     </CardTitle>
                     <Badge variant={item.status === "stored" ? "default" : "secondary"}>
@@ -129,20 +129,20 @@ const MyStockPage = () => {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {item.bike_type && (
-                    <p className="text-small text-muted-foreground">Type: {item.bike_type}</p>
+                    <p className="text-sm text-muted-foreground">Type: {item.bike_type}</p>
                   )}
                   {item.bike_value && (
-                    <p className="text-small text-muted-foreground">Value: £{item.bike_value}</p>
+                    <p className="text-sm text-muted-foreground">Value: £{item.bike_value}</p>
                   )}
                   {item.sku && (
-                    <p className="text-caption text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></p>
+                    <p className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></p>
                   )}
-                  <p className="text-small text-muted-foreground flex items-center gap-1">
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     Stored {formatDistanceToNow(new Date(item.deposited_at), { addSuffix: true })}
                   </p>
                   {item.item_notes && (
-                    <p className="text-small text-muted-foreground italic">{item.item_notes}</p>
+                    <p className="text-sm text-muted-foreground italic">{item.item_notes}</p>
                   )}
 
                   {item.status === "stored" && (

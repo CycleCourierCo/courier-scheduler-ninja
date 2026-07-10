@@ -9,7 +9,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface InspectionsOverTimeChartProps {
   data: { month: string; label: string; count: number }[];
@@ -25,7 +24,7 @@ const InspectionsOverTimeChart = ({ data }: InspectionsOverTimeChartProps) => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" angle={-45} textAnchor="end" height={60} tick={{ fontSize: CHART_TICK_FONT_SIZE }} />
+            <XAxis dataKey="label" angle={-45} textAnchor="end" height={60} tick={{ fontSize: 12 }} />
             <YAxis allowDecimals={false} />
             <Tooltip formatter={(v) => [`${v} inspections`, "Count"]} />
             <Legend />

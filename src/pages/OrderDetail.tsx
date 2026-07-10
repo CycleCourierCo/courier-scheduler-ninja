@@ -151,7 +151,7 @@ const EditableNotesSection = ({ order, onUpdate }: { order: Order; onUpdate: () 
   const renderField = (label: string, fieldKey: string, value: string, setValue: (v: string) => void) => (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <h4 className="text-small font-medium">{label}</h4>
+        <h4 className="text-sm font-medium">{label}</h4>
         {editingField !== fieldKey ? (
           <Button variant="ghost" size="sm" onClick={() => setEditingField(fieldKey)}>
             <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
@@ -166,7 +166,7 @@ const EditableNotesSection = ({ order, onUpdate }: { order: Order; onUpdate: () 
         <Textarea value={value} onChange={(e) => setValue(e.target.value)} rows={3} />
       ) : (
         <div className="bg-muted p-3 rounded-md min-h-[40px]">
-          <p className={value ? "text-small whitespace-pre-wrap" : "text-small text-muted-foreground"}>
+          <p className={value ? "text-sm whitespace-pre-wrap" : "text-sm text-muted-foreground"}>
             {value || 'No notes'}
           </p>
         </div>
@@ -176,7 +176,7 @@ const EditableNotesSection = ({ order, onUpdate }: { order: Order; onUpdate: () 
 
   return (
     <div className="space-y-4">
-      <h3 className="text-body-lg font-semibold">Notes & Instructions</h3>
+      <h3 className="text-lg font-semibold">Notes & Instructions</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {renderField('Delivery Instructions', 'deliveryInstructions', deliveryInstructions, setDeliveryInstructions)}
         {renderField('Sender Notes', 'senderNotes', senderNotes, setSenderNotes)}
@@ -1140,7 +1140,7 @@ const OrderDetail = () => {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-          <h2 className="text-h4 font-semibold text-red-600">{error || "Order not found"}</h2>
+          <h2 className="text-xl font-semibold text-red-600">{error || "Order not found"}</h2>
           <Button asChild>
             <Link to="/dashboard">
               <ArrowLeft className="mr-2" />
@@ -1298,7 +1298,7 @@ const OrderDetail = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-body-lg font-semibold">Collection Date</h3>
+                    <h3 className="text-lg font-semibold">Collection Date</h3>
                     <EmailDeliveryStatus orderId={id} side="sender" emailType="timeslot" />
                   </div>
                   {order.scheduledPickupDate ? (
@@ -1307,7 +1307,7 @@ const OrderDetail = () => {
                         Scheduled: {safeFormat(new Date(order.scheduledPickupDate), "PPP")}
                       </p>
                       {order.pickupTimeslot && (
-                        <p className="text-small text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           Time: {formatTimeslotWindow(order.pickupTimeslot)}
                         </p>
                       )}
@@ -1321,7 +1321,7 @@ const OrderDetail = () => {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-body-lg font-semibold">Delivery Date</h3>
+                    <h3 className="text-lg font-semibold">Delivery Date</h3>
                     <EmailDeliveryStatus orderId={id} side="receiver" emailType="timeslot" />
                   </div>
                   {order.scheduledDeliveryDate ? (
@@ -1330,7 +1330,7 @@ const OrderDetail = () => {
                         Scheduled: {safeFormat(new Date(order.scheduledDeliveryDate), "PPP")}
                       </p>
                       {order.deliveryTimeslot && (
-                        <p className="text-small text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           Time: {formatTimeslotWindow(order.deliveryTimeslot)}
                         </p>
                       )}
@@ -1347,7 +1347,7 @@ const OrderDetail = () => {
               {isAdminOrRoutePlanner && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1">
-                    <h3 className="text-small font-medium flex items-center gap-1.5">
+                    <h3 className="text-sm font-medium flex items-center gap-1.5">
                       <Truck className="h-4 w-4" />
                       Collection Driver
                     </h3>
@@ -1358,7 +1358,7 @@ const OrderDetail = () => {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-small font-medium flex items-center gap-1.5">
+                    <h3 className="text-sm font-medium flex items-center gap-1.5">
                       <Truck className="h-4 w-4" />
                       Delivery Driver
                     </h3>
@@ -1375,7 +1375,7 @@ const OrderDetail = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-body-lg font-semibold">Sender Availability</h3>
+                    <h3 className="text-lg font-semibold">Sender Availability</h3>
                     <EmailDeliveryStatus orderId={id} side="sender" emailType="sender_availability" />
                   </div>
                   {order.pickupDate && Array.isArray(order.pickupDate) && order.pickupDate.length > 0 ? (
@@ -1383,7 +1383,7 @@ const OrderDetail = () => {
                       <p className="font-medium text-blue-900 dark:text-blue-100">
                         {order.senderConfirmedAt ? 'Confirmed' : 'Selected'} Dates:
                       </p>
-                      <div className="text-small text-blue-800 dark:text-blue-200 space-y-1">
+                      <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                         {order.pickupDate.map((date, index) => (
                           <div key={index}>
                             {safeFormat(new Date(date), "PPP")}
@@ -1391,7 +1391,7 @@ const OrderDetail = () => {
                         ))}
                       </div>
                       {order.senderConfirmedAt && (
-                        <p className="text-caption text-blue-600 dark:text-blue-300 mt-2">
+                        <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
                           Confirmed on {safeFormat(order.senderConfirmedAt, "PPP 'at' p")}
                         </p>
                       )}
@@ -1441,7 +1441,7 @@ const OrderDetail = () => {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-body-lg font-semibold">Receiver Availability</h3>
+                    <h3 className="text-lg font-semibold">Receiver Availability</h3>
                     <EmailDeliveryStatus orderId={id} side="receiver" emailType="receiver_availability" />
                   </div>
                   {order.deliveryDate && Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0 ? (
@@ -1449,7 +1449,7 @@ const OrderDetail = () => {
                       <p className="font-medium text-green-900 dark:text-green-100">
                         {order.receiverConfirmedAt ? 'Confirmed' : 'Selected'} Dates:
                       </p>
-                      <div className="text-small text-green-800 dark:text-green-200 space-y-1">
+                      <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
                         {order.deliveryDate.map((date, index) => (
                           <div key={index}>
                             {safeFormat(new Date(date), "PPP")}
@@ -1457,7 +1457,7 @@ const OrderDetail = () => {
                         ))}
                       </div>
                       {order.receiverConfirmedAt && (
-                        <p className="text-caption text-green-600 dark:text-green-300 mt-2">
+                        <p className="text-xs text-green-600 dark:text-green-300 mt-2">
                           Confirmed on {safeFormat(order.receiverConfirmedAt, "PPP 'at' p")}
                         </p>
                       )}

@@ -51,7 +51,7 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <User className="text-courier-600" />
-          <h3 className="font-semibold text-body-lg">
+          <h3 className="font-semibold text-lg">
             {type === "sender" ? "Sender" : "Receiver"} Information
           </h3>
         </div>
@@ -91,7 +91,7 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
               <FileText className="h-4 w-4 mt-1 text-gray-500" />
               <div>
                 <p className="font-medium mb-1">{type === "sender" ? "Sender" : "Receiver"} Notes:</p>
-                <p className="text-small whitespace-pre-line">{notes}</p>
+                <p className="text-sm whitespace-pre-line">{notes}</p>
               </div>
             </div>
           )}

@@ -129,11 +129,11 @@ const StorageBaysPage: React.FC = () => {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-h3 font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Warehouse className="h-6 w-6" />
               Storage Bays
             </h1>
-            <p className="text-muted-foreground text-small mt-1">
+            <p className="text-muted-foreground text-sm mt-1">
               Configure the bays and slot counts used on the Loading &amp; Warehouse Stock pages.
             </p>
           </div>
@@ -177,7 +177,7 @@ const StorageBaysPage: React.FC = () => {
                         </Button>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono font-bold text-body-lg">{bay.label}</TableCell>
+                    <TableCell className="font-mono font-bold text-lg">{bay.label}</TableCell>
                     <TableCell>{bay.position_count}</TableCell>
                     <TableCell>
                       {bay.is_active ? (
@@ -222,7 +222,7 @@ const StorageBaysPage: React.FC = () => {
                 maxLength={4}
                 className="uppercase font-mono"
               />
-              <p className="text-caption text-muted-foreground mt-1">Short letter/code. Must be unique.</p>
+              <p className="text-xs text-muted-foreground mt-1">Short letter/code. Must be unique.</p>
             </div>
             <div>
               <Label>Number of Slots *</Label>
@@ -237,7 +237,7 @@ const StorageBaysPage: React.FC = () => {
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <Label>Active</Label>
-                <p className="text-caption text-muted-foreground">Inactive bays are hidden from loaders.</p>
+                <p className="text-xs text-muted-foreground">Inactive bays are hidden from loaders.</p>
               </div>
               <Switch checked={isActive} onCheckedChange={setIsActive} />
             </div>

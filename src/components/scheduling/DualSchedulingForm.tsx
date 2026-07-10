@@ -91,7 +91,7 @@ const DualSchedulingForm: React.FC<DualSchedulingFormProps> = ({
     <div className="space-y-4">
       <div className="space-y-4">
         <div className="space-y-2">
-          <label className="text-small font-medium">Select pickup date:</label>
+          <label className="text-sm font-medium">Select pickup date:</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -117,7 +117,7 @@ const DualSchedulingForm: React.FC<DualSchedulingFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <label className="text-small font-medium">Select pickup time:</label>
+          <label className="text-sm font-medium">Select pickup time:</label>
           <Input
             type="time"
             value={pickupTime}
@@ -127,7 +127,7 @@ const DualSchedulingForm: React.FC<DualSchedulingFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <label className="text-small font-medium">Select delivery date:</label>
+          <label className="text-sm font-medium">Select delivery date:</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -153,7 +153,7 @@ const DualSchedulingForm: React.FC<DualSchedulingFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <label className="text-small font-medium">Select delivery time:</label>
+          <label className="text-sm font-medium">Select delivery time:</label>
           <Input
             type="time"
             value={deliveryTime}

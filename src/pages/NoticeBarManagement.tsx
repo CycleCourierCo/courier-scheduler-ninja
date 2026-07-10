@@ -124,11 +124,11 @@ const NoticeBarManagement = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-h2 font-bold mb-6">Notice Bar Management</h1>
+        <h1 className="text-3xl font-bold mb-6">Notice Bar Management</h1>
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-body-lg">Create New Notice</CardTitle>
+            <CardTitle className="text-lg">Create New Notice</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -167,7 +167,7 @@ const NoticeBarManagement = () => {
             </div>
             <div>
               <Label className="mb-2 block">Restrict to Roles (optional)</Label>
-              <p className="text-small text-muted-foreground mb-3">
+              <p className="text-sm text-muted-foreground mb-3">
                 Leave all unchecked to show to everyone.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -180,7 +180,7 @@ const NoticeBarManagement = () => {
                       checked={selectedRoles.includes(role.value)}
                       onCheckedChange={() => toggleRole(role.value)}
                     />
-                    <span className="text-small">{role.label}</span>
+                    <span className="text-sm">{role.label}</span>
                   </label>
                 ))}
               </div>
@@ -193,7 +193,7 @@ const NoticeBarManagement = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-body-lg">All Notices</CardTitle>
+            <CardTitle className="text-lg">All Notices</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -223,13 +223,13 @@ const NoticeBarManagement = () => {
                         {notice.restricted_to_roles && notice.restricted_to_roles.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {notice.restricted_to_roles.map((role) => (
-                              <Badge key={role} variant="outline" className="text-caption">
+                              <Badge key={role} variant="outline" className="text-xs">
                                 {role}
                               </Badge>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-small text-muted-foreground">All users</span>
+                          <span className="text-sm text-muted-foreground">All users</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -238,7 +238,7 @@ const NoticeBarManagement = () => {
                           onCheckedChange={() => toggleActive(notice.id, notice.is_active)}
                         />
                       </TableCell>
-                      <TableCell className="text-small text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground">
                         {notice.expires_at
                           ? new Date(notice.expires_at).toLocaleString()
                           : "Never"}

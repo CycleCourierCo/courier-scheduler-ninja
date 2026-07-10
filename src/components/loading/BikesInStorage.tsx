@@ -199,19 +199,19 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   {isMultiBike ? (
                     <div className="flex flex-wrap gap-1">
                       {allocations.map((allocation) => (
-                        <Badge key={allocation.id} variant="secondary" className="font-mono text-caption">
+                        <Badge key={allocation.id} variant="secondary" className="font-mono text-xs">
                           {allocation.bay}{allocation.position}
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <Badge variant="secondary" className="font-mono text-caption">
+                    <Badge variant="secondary" className="font-mono text-xs">
                       {allocations[0].bay}{allocations[0].position}
                     </Badge>
                   )}
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <h4 className="font-medium text-small truncate">{allocations[0].customerName}</h4>
-                    <p className="text-caption text-muted-foreground truncate">
+                    <h4 className="font-medium text-sm truncate">{allocations[0].customerName}</h4>
+                    <p className="text-xs text-muted-foreground truncate">
                       {allocations[0].bikeBrand} {allocations[0].bikeModel}
                       {order?.trackingNumber && (
                         <>
@@ -225,19 +225,19 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                 <div className="flex items-center gap-1 flex-wrap">
                   <Badge
                     variant={daysInStorage > 7 ? "destructive" : daysInStorage > 3 ? "default" : "secondary"}
-                    className="text-caption flex items-center gap-1"
+                    className="text-xs flex items-center gap-1"
                   >
                     <Clock className="h-3 w-3" />
                     {daysInStorage} {daysInStorage === 1 ? 'day' : 'days'}
                   </Badge>
                   {isMultiBike && (
-                    <Badge variant="outline" className="text-caption">
+                    <Badge variant="outline" className="text-xs">
                       {allocations.length} bikes
                     </Badge>
                   )}
                   <Badge 
                     variant={order?.status === 'delivery_scheduled' ? 'default' : 'outline'}
-                    className="text-caption"
+                    className="text-xs"
                   >
                     {order?.status || 'Unknown'}
                   </Badge>
@@ -250,12 +250,12 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     return (
                       <div className="flex flex-wrap gap-1">
                         {collectionDriverName && (
-                          <Badge variant="default" className="text-caption bg-blue-600 text-white">
+                          <Badge variant="default" className="text-xs bg-blue-600 text-white">
                             Collected by {collectionDriverName}
                           </Badge>
                         )}
                         {deliveryDriverName && (
-                          <Badge variant="default" className="text-caption bg-orange-600 text-white">
+                          <Badge variant="default" className="text-xs bg-orange-600 text-white">
                             Load onto {deliveryDriverName} van
                           </Badge>
                         )}
@@ -266,7 +266,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   {order?.needsInspection && (() => {
                     const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
                     return (
-                      <Badge className={`text-caption flex items-center gap-1 ${
+                      <Badge className={`text-xs flex items-center gap-1 ${
                         isComplete 
                           ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                           : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
@@ -280,23 +280,23 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
               </CollapsibleTrigger>
 
               <CollapsibleContent>
-                <div className="text-small text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                 <p className="font-medium">
                   {allocations[0].bikeBrand} {allocations[0].bikeModel}
                   {order?.bikeValue ? ` • £${order.bikeValue.toLocaleString()}` : ''}
                 </p>
                 {order && (
                   <>
-                    <div className="flex items-center gap-1 text-caption mt-1">
+                    <div className="flex items-center gap-1 text-xs mt-1">
                       <MapPin className="h-3 w-3" />
                       To: {order.receiver.address.city}, {order.receiver.address.zipCode}
                     </div>
-                    <p className="text-caption mt-1">
+                    <p className="text-xs mt-1">
                       Tracking: {order.trackingNumber}
                     </p>
                   </>
                 )}
-                <p className="text-caption mt-1">
+                <p className="text-xs mt-1">
                   Stored: {format(allocations[0].allocatedAt, 'MMM dd, yyyy HH:mm')}
                 </p>
                 <div className="flex flex-col gap-2 mt-3">
@@ -305,7 +305,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                       size="sm"
                       variant="outline"
                       onClick={() => openEditDialog(allocations[0])}
-                      className="h-9 text-caption flex-1 min-h-[44px]"
+                      className="h-9 text-xs flex-1 min-h-[44px]"
                     >
                       <Edit className="h-3 w-3 sm:mr-1" />
                       <span className="hidden sm:inline ml-1">
@@ -324,7 +324,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                           onRemoveFromStorage(allocations[0].id);
                         }
                       }}
-                      className="h-9 text-caption flex-1 min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
+                      className="h-9 text-xs flex-1 min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
                     >
                       <Truck className="h-3 w-3 sm:mr-1" />
                       <span className="hidden sm:inline ml-1">
@@ -341,7 +341,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                       variant="outline"
                       onClick={() => order && generateSingleOrderLabel(order)}
                       disabled={!order}
-                      className="h-9 text-caption flex-1 min-h-[44px] border-blue-500 text-blue-600 hover:bg-blue-50"
+                      className="h-9 text-xs flex-1 min-h-[44px] border-blue-500 text-blue-600 hover:bg-blue-50"
                     >
                       <Printer className="h-3 w-3 sm:mr-1" />
                       <span className="ml-1">Print Label</span>
@@ -351,7 +351,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                       variant="outline"
                       onClick={() => order && setImageDialogOrder(order)}
                       disabled={!order || getCollectionImages(order).length === 0}
-                      className="h-9 text-caption flex-1 min-h-[44px]"
+                      className="h-9 text-xs flex-1 min-h-[44px]"
                     >
                       <Image className="h-3 w-3 sm:mr-1" />
                       <span className="ml-1">See Image</span>
@@ -384,27 +384,27 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
           <div className="space-y-4">
             {editingAllocation && (
               <div className="space-y-3">
-                <div className="text-small text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                   Order: <strong>{editingAllocation.customerName}</strong> - {editingAllocation.bikeBrand} {editingAllocation.bikeModel}
                 </div>
                 
                 {editingOrderAllocations.length > 1 ? (
                   <div className="space-y-4">
-                    <div className="text-small font-medium">Update all bike locations:</div>
+                    <div className="text-sm font-medium">Update all bike locations:</div>
                     
                     {editingOrderAllocations.map((allocation, index) => (
                       <div key={allocation.id} className="border rounded-lg p-3 space-y-3">
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4" />
                           <span className="font-medium">Bike {index + 1} of {editingOrderAllocations.length}</span>
-                          <Badge variant="outline" className="font-mono text-caption">
+                          <Badge variant="outline" className="font-mono text-xs">
                             Currently: {allocation.bay}{allocation.position}
                           </Badge>
                         </div>
                         
                         <div className="flex gap-3 items-end">
                           <div className="flex-1">
-                            <Label htmlFor={`new-bay-${index}`} className="text-small">Bay ({bayHelp})</Label>
+                            <Label htmlFor={`new-bay-${index}`} className="text-sm">Bay ({bayHelp})</Label>
                             <Input
                               id={`new-bay-${index}`}
                               value={newBays[index] || ''}
@@ -419,7 +419,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                             />
                           </div>
                           <div className="flex-1">
-                            <Label htmlFor={`new-position-${index}`} className="text-small">Position</Label>
+                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position</Label>
                             <Input
                               id={`new-position-${index}`}
                               value={newPositions[index] || ''}
@@ -441,10 +441,10 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="text-small font-medium">New location:</div>
+                    <div className="text-sm font-medium">New location:</div>
                     <div className="flex gap-3 items-end">
                       <div className="flex-1">
-                        <Label htmlFor="new-bay" className="text-small">Bay ({bayHelp})</Label>
+                        <Label htmlFor="new-bay" className="text-sm">Bay ({bayHelp})</Label>
                         <Input
                           id="new-bay"
                           value={newBays[0] || ''}
@@ -455,7 +455,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                         />
                       </div>
                       <div className="flex-1">
-                        <Label htmlFor="new-position" className="text-small">Position</Label>
+                        <Label htmlFor="new-position" className="text-sm">Position</Label>
                         <Input
                           id="new-position"
                           value={newPositions[0] || ''}

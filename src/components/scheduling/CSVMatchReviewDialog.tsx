@@ -58,22 +58,22 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-4 bg-muted/50 rounded-lg">
           <div className="text-center">
-            <div className="text-h3 font-bold text-green-600">{stats.matched}</div>
-            <div className="text-caption text-muted-foreground">Matched</div>
+            <div className="text-2xl font-bold text-green-600">{stats.matched}</div>
+            <div className="text-xs text-muted-foreground">Matched</div>
           </div>
           <div className="text-center">
-            <div className="text-h3 font-bold text-red-600">{stats.unmatched}</div>
-            <div className="text-caption text-muted-foreground">Unmatched</div>
+            <div className="text-2xl font-bold text-red-600">{stats.unmatched}</div>
+            <div className="text-xs text-muted-foreground">Unmatched</div>
           </div>
           <div className="text-center">
-            <div className="text-h3 font-bold">{stats.total}</div>
-            <div className="text-caption text-muted-foreground">Total Rows</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-xs text-muted-foreground">Total Rows</div>
           </div>
           <div className="text-center">
-            <div className="text-h3 font-bold text-blue-600">
+            <div className="text-2xl font-bold text-blue-600">
               {stats.total > 0 ? Math.round((stats.matched / stats.total) * 100) : 0}%
             </div>
-            <div className="text-caption text-muted-foreground">Match Rate</div>
+            <div className="text-xs text-muted-foreground">Match Rate</div>
           </div>
         </div>
 
@@ -92,10 +92,10 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-caption">#{result.csvRow.sequence}</Badge>
-                      <span className="font-medium text-small truncate">{result.csvRow.name}</span>
+                      <Badge variant="outline" className="text-xs">#{result.csvRow.sequence}</Badge>
+                      <span className="font-medium text-sm truncate">{result.csvRow.name}</span>
                     </div>
-                    <div className="flex items-start gap-1 text-caption text-muted-foreground">
+                    <div className="flex items-start gap-1 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
                       <span className="line-clamp-2">{result.csvRow.address}</span>
                     </div>
@@ -109,14 +109,14 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                     ) : (
                       <div className="flex items-center gap-1 text-red-600">
                         <X className="h-4 w-4" />
-                        <span className="text-caption">Not Found</span>
+                        <span className="text-xs">Not Found</span>
                       </div>
                     )}
                   </div>
                 </div>
                 {result.matchedOrder && (
                   <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
-                    <div className="flex items-center gap-1 text-caption text-muted-foreground">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Check className="h-3 w-3 text-green-600" />
                       <span>Matched to: {result.matchedOrder.tracking_number}</span>
                       <span className="mx-1">•</span>
@@ -138,7 +138,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         {stats.matched < stats.total * 0.5 && stats.total > 0 && (
           <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
             <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <span className="text-small text-yellow-700 dark:text-yellow-300">
+            <span className="text-sm text-yellow-700 dark:text-yellow-300">
               Low match rate. Some jobs may need manual selection.
             </span>
           </div>

@@ -38,7 +38,7 @@ const GenerateTimeslipsDialog: React.FC<GenerateTimeslipsDialogProps> = ({
         <div className="space-y-4">
           <div>
             <Label>Select Date</Label>
-            <p className="text-small text-muted-foreground mb-2">
+            <p className="text-sm text-muted-foreground mb-2">
               Choose the date to generate timeslips for all drivers with scheduled jobs
             </p>
             <Calendar
@@ -50,7 +50,7 @@ const GenerateTimeslipsDialog: React.FC<GenerateTimeslipsDialogProps> = ({
           </div>
 
           <div className="p-4 bg-muted rounded-lg">
-            <p className="text-small text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               This will create draft timeslips for all drivers who have jobs scheduled on{' '}
               <span className="font-medium text-foreground">
                 {selectedDate.toLocaleDateString()}

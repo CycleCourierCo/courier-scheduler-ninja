@@ -53,7 +53,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
   return (
     <div className="border-t p-3 space-y-2 bg-background">
       {outsideWaWindow && !isNote && (
-        <div className="text-caption text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
           The WhatsApp 24h reply window is closed. Free-form messages may be rejected — use an approved template via SendZen, or send an internal note.
         </div>
       )}
@@ -70,7 +70,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Switch id="note-toggle" checked={isNote} onCheckedChange={setIsNote} />
-          <Label htmlFor="note-toggle" className="text-caption cursor-pointer">Internal note</Label>
+          <Label htmlFor="note-toggle" className="text-xs cursor-pointer">Internal note</Label>
         </div>
         <Button onClick={send} disabled={sending || !text.trim()} size="sm">
           {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}

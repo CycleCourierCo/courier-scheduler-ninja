@@ -40,7 +40,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ control }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-body-lg font-medium mb-4">Bike Information</h3>
+        <h3 className="text-lg font-medium mb-4">Bike Information</h3>
         
         <div className="mb-4">
           <FormField

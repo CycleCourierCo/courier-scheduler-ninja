@@ -12,7 +12,7 @@ const map: Record<TaskStatus, { label: string; cls: string }> = {
 
 const TaskStatusBadge: React.FC<{ status: TaskStatus }> = ({ status }) => {
   const m = map[status];
-  return <Badge variant="outline" className={`text-caption ${m.cls}`}>{m.label}</Badge>;
+  return <Badge variant="outline" className={`text-[10px] ${m.cls}`}>{m.label}</Badge>;
 };
 
 export default TaskStatusBadge;

@@ -114,7 +114,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
 
   if (scopedEvents.length === 0) {
     return (
-      <Badge variant="outline" className="text-caption text-gray-500">
+      <Badge variant="outline" className="text-xs text-gray-500">
         No email sent
       </Badge>
     );
@@ -136,7 +136,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className={`text-caption gap-1 cursor-help ${style.className}`}>
+          <Badge variant="outline" className={`text-xs gap-1 cursor-help ${style.className}`}>
             <Icon className="h-3 w-3" />
             {label ?? "Email"} {style.label}
             <span className="opacity-70 ml-1">
@@ -145,7 +145,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
-          <div className="space-y-1 text-caption">
+          <div className="space-y-1 text-xs">
             <p className="font-medium">Email delivery</p>
             {history.map((e) => {
               const s = STYLES[e.event_type] ?? { label: e.event_type };

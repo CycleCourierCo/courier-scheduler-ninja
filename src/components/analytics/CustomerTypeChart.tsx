@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     return (
       <div className="bg-white p-2 border rounded shadow-sm">
         <p className="font-medium">{`${payload[0].name}: ${payload[0].value}`}</p>
-        <p className="text-small text-gray-500">{`${Math.round(payload[0].payload.percent * 100)}%`}</p>
+        <p className="text-sm text-gray-500">{`${Math.round(payload[0].payload.percent * 100)}%`}</p>
       </div>
     );
   }

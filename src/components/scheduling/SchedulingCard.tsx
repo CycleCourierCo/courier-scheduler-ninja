@@ -77,7 +77,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
       className={`w-full mb-4 cursor-move transition-all ${isDragging ? 'opacity-50' : 'opacity-100'} ${isPickup ? 'bg-green-50' : 'bg-blue-50'}`}
     >
       <CardHeader className="pb-2">
-        <CardTitle className="text-body-lg flex items-center justify-between">
+        <CardTitle className="text-lg flex items-center justify-between">
           <div className="flex items-center">
             <span className={`mr-2 w-3 h-3 rounded-full ${group.isOptimal ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
             <span>{isPickup ? 'Collection' : 'Delivery'}</span>
@@ -86,20 +86,20 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
             {polygonSegment && badgeVariant && (
               <Badge 
                 variant={badgeVariant}
-                className="text-caption"
+                className="text-xs"
               >
                 P{polygonSegment}
               </Badge>
             )}
             {isScheduled && (
-              <Badge variant="outline" className="text-caption">Scheduled</Badge>
+              <Badge variant="outline" className="text-xs">Scheduled</Badge>
             )}
           </div>
         </CardTitle>
       </CardHeader>
       
       <CardContent className="pb-2">
-        <div className="flex flex-col space-y-2 text-small">
+        <div className="flex flex-col space-y-2 text-sm">
           <div className="flex items-start">
             <MapPin className="w-4 h-4 mr-2 mt-1 text-muted-foreground" />
             <span>

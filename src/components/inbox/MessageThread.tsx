@@ -16,7 +16,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
   }, [messages.length]);
 
   if (!messages.length) {
-    return <div className="p-8 text-center text-small text-muted-foreground">No messages yet.</div>;
+    return <div className="p-8 text-center text-sm text-muted-foreground">No messages yet.</div>;
   }
 
   return (
@@ -28,14 +28,14 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
           <div
             key={m.id}
             className={cn(
-              "max-w-[80%] rounded-lg px-3 py-2 text-small",
+              "max-w-[80%] rounded-lg px-3 py-2 text-sm",
               isNote && "bg-yellow-50 border border-yellow-200 text-yellow-900 self-center max-w-full w-full",
               isInbound && !isNote && "bg-muted self-start",
               !isInbound && !isNote && "bg-primary text-primary-foreground self-end",
             )}
           >
             {isNote && (
-              <div className="text-caption uppercase tracking-wide font-semibold mb-1 opacity-70">
+              <div className="text-[10px] uppercase tracking-wide font-semibold mb-1 opacity-70">
                 Internal note
               </div>
             )}
@@ -56,13 +56,13 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
             {Array.isArray(m.attachments) && m.attachments.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {m.attachments.map((a, i) => (
-                  <a key={i} href={a.url} target="_blank" rel="noopener" className="text-caption underline">
+                  <a key={i} href={a.url} target="_blank" rel="noopener" className="text-xs underline">
                     {a.filename || `attachment-${i+1}`}
                   </a>
                 ))}
               </div>
             )}
-            <div className="mt-1 flex items-center justify-between gap-2 text-caption opacity-70">
+            <div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-70">
               <span>{format(new Date(m.created_at), 'PP p')}</span>
               {m.status === 'failed' && (
                 <span className="flex items-center gap-1 text-red-200">

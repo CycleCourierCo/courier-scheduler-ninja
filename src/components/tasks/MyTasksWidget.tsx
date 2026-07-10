@@ -25,16 +25,16 @@ const MyTasksWidget: React.FC = () => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between py-3">
-        <CardTitle className="text-body flex items-center gap-2">
+        <CardTitle className="text-base flex items-center gap-2">
           <CheckSquare className="h-4 w-4 text-primary" /> My tasks
         </CardTitle>
-        <Link to="/tasks" className="text-caption text-primary hover:underline inline-flex items-center gap-1">
+        <Link to="/tasks" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
           View all <ExternalLink className="h-3 w-3" />
         </Link>
       </CardHeader>
       <CardContent className="space-y-1">
         {sorted.length === 0 && (
-          <div className="text-caption text-muted-foreground">No open tasks assigned to you.</div>
+          <div className="text-xs text-muted-foreground">No open tasks assigned to you.</div>
         )}
         {sorted.map(t => {
           const overdue = t.due_date && isPast(new Date(t.due_date));
@@ -42,12 +42,12 @@ const MyTasksWidget: React.FC = () => {
             <button
               key={t.id}
               onClick={() => setSelectedId(t.id)}
-              className="w-full text-left text-small border rounded p-2 hover:bg-accent flex items-center justify-between gap-2"
+              className="w-full text-left text-sm border rounded p-2 hover:bg-accent flex items-center justify-between gap-2"
             >
               <span className="truncate flex-1">{t.title}</span>
               <div className="flex items-center gap-2 shrink-0">
                 {t.due_date && (
-                  <span className={`text-caption ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                  <span className={`text-[11px] ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
                     {format(new Date(t.due_date), 'MMM d')}
                   </span>
                 )}

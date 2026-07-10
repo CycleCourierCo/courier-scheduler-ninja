@@ -43,7 +43,7 @@ const TimeSeriesFilters = ({
     <div className="flex flex-wrap items-center gap-2">
       {/* Mobile: dropdown */}
       <select
-        className="sm:hidden h-7 rounded-md border bg-background px-2 text-caption"
+        className="sm:hidden h-7 rounded-md border bg-background px-2 text-xs"
         onChange={(e) => {
           const v = e.target.value as "4w" | "8w" | "12w" | "6m" | "1y" | "all";
           if (v) onRangeChange(presetRange(v, minDate));
@@ -66,7 +66,7 @@ const TimeSeriesFilters = ({
             key={p}
             size="sm"
             variant="outline"
-            className="h-7 px-2 text-caption"
+            className="h-7 px-2 text-xs"
             onClick={() => onRangeChange(presetRange(p, minDate))}
           >
             {p === "all" ? "All" : p}
@@ -79,7 +79,7 @@ const TimeSeriesFilters = ({
           <Button
             variant="outline"
             size="sm"
-            className={cn("h-7 justify-start text-left font-normal text-caption px-2")}
+            className={cn("h-7 justify-start text-left font-normal text-xs px-2")}
           >
             <CalendarIcon className="mr-1 h-3 w-3" />
             {format(range.start, "d MMM yy")} – {format(range.end, "d MMM yy")}
@@ -107,9 +107,9 @@ const TimeSeriesFilters = ({
         onValueChange={(v) => v && onGranularityChange(v as Granularity)}
         className="gap-0 border rounded-md"
       >
-        <ToggleGroupItem value="day" className="h-7 px-2 text-caption rounded-none rounded-l-md">Day</ToggleGroupItem>
-        <ToggleGroupItem value="week" className="h-7 px-2 text-caption rounded-none">Week</ToggleGroupItem>
-        <ToggleGroupItem value="month" className="h-7 px-2 text-caption rounded-none rounded-r-md">Month</ToggleGroupItem>
+        <ToggleGroupItem value="day" className="h-7 px-2 text-xs rounded-none rounded-l-md">Day</ToggleGroupItem>
+        <ToggleGroupItem value="week" className="h-7 px-2 text-xs rounded-none">Week</ToggleGroupItem>
+        <ToggleGroupItem value="month" className="h-7 px-2 text-xs rounded-none rounded-r-md">Month</ToggleGroupItem>
       </ToggleGroup>
     </div>
   );

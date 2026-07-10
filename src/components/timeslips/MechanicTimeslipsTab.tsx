@@ -33,7 +33,7 @@ function PhotoCell({ path }: { path: string | null }) {
       alive = false;
     };
   }, [path]);
-  if (!path) return <span className="text-caption text-muted-foreground">—</span>;
+  if (!path) return <span className="text-xs text-muted-foreground">—</span>;
   return (
     <a href={url ?? '#'} target="_blank" rel="noreferrer" className="inline-block">
       {url ? (
@@ -46,13 +46,13 @@ function PhotoCell({ path }: { path: string | null }) {
 }
 
 function GpsLink({ lat, lng }: { lat: number | null; lng: number | null }) {
-  if (lat == null || lng == null) return <span className="text-caption text-muted-foreground">no GPS</span>;
+  if (lat == null || lng == null) return <span className="text-xs text-muted-foreground">no GPS</span>;
   return (
     <a
       href={`https://www.google.com/maps?q=${lat},${lng}`}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center text-caption text-primary hover:underline"
+      className="inline-flex items-center text-xs text-primary hover:underline"
     >
       <MapPin className="h-3 w-3 mr-1" /> map
     </a>
@@ -123,8 +123,8 @@ const MechanicTimeslipsTab: React.FC = () => {
         </div>
         <Card className="ml-auto">
           <CardContent className="p-3 text-right">
-            <div className="text-caption text-muted-foreground">Total pay shown</div>
-            <div className="text-h4 font-bold text-green-600">£{total.toFixed(2)}</div>
+            <div className="text-xs text-muted-foreground">Total pay shown</div>
+            <div className="text-xl font-bold text-green-600">£{total.toFixed(2)}</div>
           </CardContent>
         </Card>
       </div>
@@ -138,29 +138,29 @@ const MechanicTimeslipsTab: React.FC = () => {
               <CardContent className="p-4 flex flex-wrap gap-4 items-center">
                 <div className="min-w-[160px]">
                   <div className="font-semibold">{s.driver?.name || s.driver?.email || '—'}</div>
-                  <div className="text-caption text-muted-foreground">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
-                  <div className="text-caption mt-1 inline-block px-2 py-0.5 rounded bg-muted capitalize">{s.status}</div>
+                  <div className="text-xs text-muted-foreground">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
+                  <div className="text-xs mt-1 inline-block px-2 py-0.5 rounded bg-muted capitalize">{s.status}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-caption text-muted-foreground mb-1">Clock in</div>
+                  <div className="text-xs text-muted-foreground mb-1">Clock in</div>
                   <PhotoCell path={s.clock_in_photo_url} />
-                  <div className="text-caption mt-1">{format(new Date(s.clock_in_at), 'HH:mm')}</div>
+                  <div className="text-xs mt-1">{format(new Date(s.clock_in_at), 'HH:mm')}</div>
                   <GpsLink lat={s.clock_in_lat} lng={s.clock_in_lng} />
                 </div>
                 <div className="text-center">
-                  <div className="text-caption text-muted-foreground mb-1">Clock out</div>
+                  <div className="text-xs text-muted-foreground mb-1">Clock out</div>
                   <PhotoCell path={s.clock_out_photo_url} />
-                  <div className="text-caption mt-1">{s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : '—'}</div>
+                  <div className="text-xs mt-1">{s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : '—'}</div>
                   <GpsLink lat={s.clock_out_lat} lng={s.clock_out_lng} />
                 </div>
                 <div className="min-w-[120px] text-right">
-                  <div className="text-caption text-muted-foreground">Hours</div>
+                  <div className="text-xs text-muted-foreground">Hours</div>
                   <div className="font-semibold">{Number(s.total_hours || 0).toFixed(2)}h</div>
-                  <div className="text-caption text-muted-foreground">Lunch {Number(s.lunch_hours).toFixed(2)}h · £{Number(s.hourly_rate).toFixed(2)}/hr</div>
+                  <div className="text-xs text-muted-foreground">Lunch {Number(s.lunch_hours).toFixed(2)}h · £{Number(s.hourly_rate).toFixed(2)}/hr</div>
                 </div>
                 <div className="min-w-[100px] text-right">
-                  <div className="text-caption text-muted-foreground">Pay</div>
-                  <div className="text-body-lg font-bold text-green-600">£{Number(s.total_pay || 0).toFixed(2)}</div>
+                  <div className="text-xs text-muted-foreground">Pay</div>
+                  <div className="text-lg font-bold text-green-600">£{Number(s.total_pay || 0).toFixed(2)}</div>
                 </div>
                 <div className="ml-auto flex flex-wrap gap-2">
                   {s.status !== 'approved' && s.clock_out_at && (
@@ -188,7 +188,7 @@ const MechanicTimeslipsTab: React.FC = () => {
                 </div>
               </CardContent>
               {s.admin_notes && (
-                <div className="px-4 pb-3 text-caption text-muted-foreground">Notes: {s.admin_notes}</div>
+                <div className="px-4 pb-3 text-xs text-muted-foreground">Notes: {s.admin_notes}</div>
               )}
             </Card>
           ))}
@@ -251,7 +251,7 @@ const MechanicTimeslipsTab: React.FC = () => {
       <Dialog open={!!deletingId} onOpenChange={(o) => !o && setDeletingId(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete timeslip?</DialogTitle></DialogHeader>
-          <p className="text-small text-muted-foreground">This cannot be undone.</p>
+          <p className="text-sm text-muted-foreground">This cannot be undone.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => deletingId && deleteMut.mutate(deletingId)} disabled={deleteMut.isPending}>Delete</Button>

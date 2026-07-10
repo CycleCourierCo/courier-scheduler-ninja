@@ -137,7 +137,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
               <Input
                 value={generatedId}
                 readOnly
-                className="font-mono text-caption bg-muted"
+                className="font-mono text-xs bg-muted"
               />
               <Button
                 variant="outline"
@@ -148,19 +148,19 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-caption text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Auto-generated unique identifier
             </p>
           </div>
           
           <div className="p-3 bg-muted rounded-lg">
-            <p className="text-small font-medium">
+            <p className="text-sm font-medium">
               This route contains {jobCount} jobs
             </p>
-            <p className="text-caption text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               ({collectionCount} collections, {deliveryCount} deliveries)
             </p>
-            <p className="text-caption text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Start time: {startTime} • Starting bikes: {startingBikes}
             </p>
           </div>

@@ -169,7 +169,7 @@ const AnalyticsPage = () => {
   return (
     <Layout>
       <div className="container px-2 sm:px-4 py-4 sm:py-6 mx-auto max-w-7xl">
-        <h1 className="text-h3 sm:text-h2 font-bold mb-4 sm:mb-8">Order Analytics</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-8">Order Analytics</h1>
         
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
@@ -177,7 +177,7 @@ const AnalyticsPage = () => {
           </div>
         ) : error ? (
           <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-small text-destructive">Error loading analytics data. Please try again later.</p>
+            <p className="text-sm text-destructive">Error loading analytics data. Please try again later.</p>
           </div>
         ) : (
           <>
@@ -212,37 +212,37 @@ const AnalyticsPage = () => {
               className="mb-4 sm:mb-8"
             >
               <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 h-auto mb-4 sm:mb-8">
-                <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2">
+                <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <BarChart className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Overview</span>
                   <span className="sm:hidden">Over</span>
                 </TabsTrigger>
-                <TabsTrigger value="customers" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2">
+                <TabsTrigger value="customers" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <PieChart className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Customers</span>
                   <span className="sm:hidden">Cust</span>
                 </TabsTrigger>
-                <TabsTrigger value="business" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2">
+                <TabsTrigger value="business" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <LineChart className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Business</span>
                   <span className="sm:hidden">Biz</span>
                 </TabsTrigger>
-                <TabsTrigger value="products" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2">
+                <TabsTrigger value="products" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <Bike className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Products</span>
                   <span className="sm:hidden">Prod</span>
                 </TabsTrigger>
-                <TabsTrigger value="performance" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2">
+                <TabsTrigger value="performance" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Performance</span>
                   <span className="sm:hidden">Perf</span>
                 </TabsTrigger>
-                <TabsTrigger value="inspections" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2">
+                <TabsTrigger value="inspections" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <ClipboardCheck className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Inspections</span>
                   <span className="sm:hidden">Insp</span>
                 </TabsTrigger>
-                <TabsTrigger value="vehicles" className="flex items-center gap-1 sm:gap-2 text-caption sm:text-small px-2 py-2 col-span-2 sm:col-span-1">
+                <TabsTrigger value="vehicles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2 col-span-2 sm:col-span-1">
                   <Truck className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Vehicles</span>
                   <span className="sm:hidden">Veh</span>
@@ -250,25 +250,25 @@ const AnalyticsPage = () => {
               </TabsList>
               
               <TabsContent value="overview" className="space-y-8">
-                <h2 className="text-body-lg sm:text-h4 font-semibold mb-2 sm:mb-4">Order Overview</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
                 <section>
-                  <h3 className="text-body font-semibold mb-3">Order Status</h3>
+                  <h3 className="text-base font-semibold mb-3">Order Status</h3>
                   <OrderStatusChart data={orderStatusData} />
                 </section>
                 <Separator />
                 <section>
-                  <h3 className="text-body font-semibold mb-3">Orders Created</h3>
+                  <h3 className="text-base font-semibold mb-3">Orders Created</h3>
                   <OrdersCreatedChart orders={orders} />
                 </section>
                 <Separator />
                 <section>
-                  <h3 className="text-body font-semibold mb-3">Orders Completed</h3>
+                  <h3 className="text-base font-semibold mb-3">Orders Completed</h3>
                   <OrdersCompletedChart orders={orders} />
                 </section>
               </TabsContent>
               
               <TabsContent value="customers" className="space-y-2 sm:space-y-4">
-                <h2 className="text-body-lg sm:text-h4 font-semibold mb-2 sm:mb-4">Customer Analysis</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Customer Analysis</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
                   <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Orders" />
                   <CustomerTypeChart data={partExchangeData} title="Part Exchange Orders" />
@@ -279,7 +279,7 @@ const AnalyticsPage = () => {
               </TabsContent>
               
               <TabsContent value="business" className="space-y-2 sm:space-y-4">
-                <h2 className="text-body-lg sm:text-h4 font-semibold mb-2 sm:mb-4">Business Customer Analysis</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Business Customer Analysis</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
                   <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Distribution" />
                   <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
@@ -290,7 +290,7 @@ const AnalyticsPage = () => {
               </TabsContent>
               
               <TabsContent value="products" className="space-y-2 sm:space-y-4">
-                <h2 className="text-body-lg sm:text-h4 font-semibold mb-2 sm:mb-4">Bike & Product Analysis</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Bike & Product Analysis</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
                   <BikeBrandsChart data={bikeBrandData} />
                   <div className="grid grid-cols-1 gap-2 sm:gap-4">
@@ -302,7 +302,7 @@ const AnalyticsPage = () => {
               
               <TabsContent value="performance" className="space-y-2 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
-                  <h2 className="text-body-lg sm:text-h4 font-semibold">Performance & Timing Analytics</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold">Performance & Timing Analytics</h2>
                   <TimeSeriesFilters
                     range={perfRange}
                     granularity={perfGranularity}
@@ -373,7 +373,7 @@ const AnalyticsPage = () => {
               </TabsContent>
 
               <TabsContent value="inspections" className="space-y-2 sm:space-y-4">
-                <h2 className="text-body-lg sm:text-h4 font-semibold mb-2 sm:mb-4">Inspections</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Inspections</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <StatsCard
                     title="% With Issues"
@@ -408,7 +408,7 @@ const AnalyticsPage = () => {
 
               <TabsContent value="vehicles" className="space-y-2 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
-                  <h2 className="text-body-lg sm:text-h4 font-semibold">Vehicles & Routes</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold">Vehicles & Routes</h2>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-1">
                       <Button size="sm" variant={vehicleRange && Math.round((new Date(vehicleRange.end).getTime() - new Date(vehicleRange.start).getTime()) / (7 * 86400000)) === 4 ? "default" : "outline"} onClick={() => setVehicleRange(weeksAgoRange(4))}>4w</Button>

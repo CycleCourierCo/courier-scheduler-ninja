@@ -290,13 +290,13 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       <div className="space-y-3">
         {/* Date Selection */}
         <div className="space-y-2">
-          <label className="text-small font-medium">Select Date</label>
+          <label className="text-sm font-medium">Select Date</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-normal text-small h-10",
+                  "w-full justify-start text-left font-normal text-sm h-10",
                   !selectedDate && "text-muted-foreground"
                 )}
               >
@@ -318,7 +318,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
 
         {/* Optimization Status */}
         {isOptimizing && (
-          <div className="flex items-center gap-2 text-small text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
             Optimizing route...
           </div>
@@ -327,7 +327,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
         {/* Collections */}
         {collectionJobs.length > 0 && (
           <div className="space-y-2">
-            <h3 className="font-semibold text-small text-green-700 dark:text-green-400">
+            <h3 className="font-semibold text-sm text-green-700 dark:text-green-400">
               Collections ({collectionJobs.length})
             </h3>
             {collectionJobs.map((job) => (
@@ -337,11 +337,11 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                         {job.sequenceOrder !== undefined && (
-                          <Badge variant="outline" className="bg-background text-caption px-1.5 py-0 flex-shrink-0">
+                          <Badge variant="outline" className="bg-background text-xs px-1.5 py-0 flex-shrink-0">
                             #{job.sequenceOrder}
                           </Badge>
                         )}
-                        <p className="font-medium text-caption truncate">{job.contactName}</p>
+                        <p className="font-medium text-xs truncate">{job.contactName}</p>
                       </div>
                       
                       <div className="flex gap-1 mb-1 flex-wrap">
@@ -353,21 +353,21 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                             job.deliveryDates
                           );
                           return availabilityBadge ? (
-                            <Badge className={`text-caption ${availabilityBadge.color}`}>
+                            <Badge className={`text-xs ${availabilityBadge.color}`}>
                               {availabilityBadge.text}
                             </Badge>
                           ) : null;
                         })()}
                       </div>
                       
-                      <p className="text-caption text-muted-foreground line-clamp-2 break-words">{job.address}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
                       {job.timeslotWindow && (
-                        <p className="text-caption text-green-700 dark:text-green-400 mt-1">
+                        <p className="text-xs text-green-700 dark:text-green-400 mt-1">
                           {job.timeslotWindow}
                         </p>
                       )}
                     </div>
-                    <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-caption whitespace-nowrap flex-shrink-0">
+                    <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-xs whitespace-nowrap flex-shrink-0">
                       Collect
                     </Badge>
                   </div>
@@ -375,7 +375,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                     type="time"
                     value={jobTimes[job.orderId] || ''}
                     onChange={(e) => setJobTimes(prev => ({ ...prev, [job.orderId]: e.target.value }))}
-                    className="w-full h-9 text-small"
+                    className="w-full h-9 text-sm"
                   />
                 </div>
               </Card>
@@ -386,7 +386,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
         {/* Deliveries */}
         {deliveryJobs.length > 0 && (
           <div className="space-y-2">
-            <h3 className="font-semibold text-small text-blue-700 dark:text-blue-400">
+            <h3 className="font-semibold text-sm text-blue-700 dark:text-blue-400">
               Deliveries ({deliveryJobs.length})
             </h3>
             {deliveryJobs.map((job) => (
@@ -396,11 +396,11 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                         {job.sequenceOrder !== undefined && (
-                          <Badge variant="outline" className="bg-background text-caption px-1.5 py-0 flex-shrink-0">
+                          <Badge variant="outline" className="bg-background text-xs px-1.5 py-0 flex-shrink-0">
                             #{job.sequenceOrder}
                           </Badge>
                         )}
-                        <p className="font-medium text-caption truncate">{job.contactName}</p>
+                        <p className="font-medium text-xs truncate">{job.contactName}</p>
                       </div>
                       
                       <div className="flex gap-1 mb-1 flex-wrap">
@@ -412,7 +412,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                             job.deliveryDates
                           );
                           return availabilityBadge ? (
-                            <Badge className={`text-caption ${availabilityBadge.color}`}>
+                            <Badge className={`text-xs ${availabilityBadge.color}`}>
                               {availabilityBadge.text}
                             </Badge>
                           ) : null;
@@ -426,7 +426,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                             displayJobs
                           );
                           return (
-                            <Badge className={`text-caption flex items-center gap-1 ${collectionBadge.color}`}>
+                            <Badge className={`text-xs flex items-center gap-1 ${collectionBadge.color}`}>
                               {collectionBadge.icon}
                               {collectionBadge.text}
                             </Badge>
@@ -434,14 +434,14 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                         })()}
                       </div>
                       
-                      <p className="text-caption text-muted-foreground line-clamp-2 break-words">{job.address}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
                       {job.timeslotWindow && (
-                        <p className="text-caption text-blue-700 dark:text-blue-400 mt-1">
+                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
                           {job.timeslotWindow}
                         </p>
                       )}
                     </div>
-                    <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-caption whitespace-nowrap flex-shrink-0">
+                    <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-xs whitespace-nowrap flex-shrink-0">
                       Deliver
                     </Badge>
                   </div>
@@ -449,7 +449,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                     type="time"
                     value={jobTimes[job.orderId] || ''}
                     onChange={(e) => setJobTimes(prev => ({ ...prev, [job.orderId]: e.target.value }))}
-                    className="w-full h-9 text-small"
+                    className="w-full h-9 text-sm"
                   />
                 </div>
               </Card>
@@ -490,11 +490,11 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent className="max-h-[90vh] overflow-hidden">
           <DrawerHeader className="text-left pb-2">
-            <DrawerTitle className="flex items-center gap-2 text-body">
+            <DrawerTitle className="flex items-center gap-2 text-base">
               <Navigation className="h-4 w-4 flex-shrink-0" />
               <span className="truncate">Route Timeslots</span>
             </DrawerTitle>
-            <DrawerDescription className="text-caption">
+            <DrawerDescription className="text-xs">
               {jobs.length} jobs ({collectionJobs.length} col, {deliveryJobs.length} del)
             </DrawerDescription>
           </DrawerHeader>

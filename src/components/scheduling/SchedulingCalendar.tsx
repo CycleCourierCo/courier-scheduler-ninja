@@ -36,7 +36,7 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
         {count > 0 && (
           <Badge 
             variant="secondary" 
-            className="absolute -top-1 -right-1 w-4 h-4 p-0 flex items-center justify-center text-caption"
+            className="absolute -top-1 -right-1 w-4 h-4 p-0 flex items-center justify-center text-[10px]"
           >
             {count}
           </Badge>
@@ -73,7 +73,7 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
       
       <Card ref={dropRef} className="min-h-[200px] border-dashed">
         <CardHeader>
-          <CardTitle className="text-body-lg">
+          <CardTitle className="text-lg">
             {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a date'}
           </CardTitle>
         </CardHeader>
@@ -85,7 +85,7 @@ const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({
                   <div className="font-medium">
                     {group.locationPair.from} → {group.locationPair.to}
                   </div>
-                  <div className="text-small text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     {group.orders.length} orders
                   </div>
                 </div>

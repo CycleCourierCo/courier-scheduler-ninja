@@ -358,7 +358,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                     style={{ width: `${columnWidths[columnId]}%` }}
                   >
                     {columnId === "creator" && (
-                      <span className="text-caption font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
+                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
                         {creatorNames[order.user_id] || 'Unknown'}
                       </span>
                     )}
@@ -394,7 +394,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                             <span>
                               {order.bikeBrand} {order.bikeModel}
                               {order.bikeQuantity && order.bikeQuantity > 1 && (
-                                <span className="text-caption text-gray-500 ml-1">
+                                <span className="text-xs text-gray-500 ml-1">
                                   (×{order.bikeQuantity})
                                 </span>
                               )}
@@ -424,7 +424,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                           <span>{formatDate(order.scheduledPickupDate)}</span>
                         </div>
                         {order.pickupTimeslot && (
-                          <span className="text-caption text-muted-foreground ml-5">{formatTimeslotWindow(order.pickupTimeslot)}</span>
+                          <span className="text-xs text-muted-foreground ml-5">{formatTimeslotWindow(order.pickupTimeslot)}</span>
                         )}
                       </div>
                     )}
@@ -435,7 +435,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
                           <span>{formatDate(order.scheduledDeliveryDate)}</span>
                         </div>
                         {order.deliveryTimeslot && (
-                          <span className="text-caption text-muted-foreground ml-5">{formatTimeslotWindow(order.deliveryTimeslot)}</span>
+                          <span className="text-xs text-muted-foreground ml-5">{formatTimeslotWindow(order.deliveryTimeslot)}</span>
                         )}
                       </div>
                     )}

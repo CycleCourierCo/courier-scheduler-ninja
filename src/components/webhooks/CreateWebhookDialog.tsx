@@ -226,7 +226,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
                       />
                       <label
                         htmlFor={event.id}
-                        className="text-small font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
                         {event.label}
                       </label>
@@ -258,7 +258,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
               <div className="bg-muted p-4 rounded-lg space-y-2">
                 <Label>Webhook Secret</Label>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-background p-3 rounded text-small break-all">
+                  <code className="flex-1 bg-background p-3 rounded text-sm break-all">
                     {generatedSecret}
                   </code>
                   <Button
@@ -271,7 +271,7 @@ export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWeb
                 </div>
               </div>
 
-              <div className="text-small text-muted-foreground space-y-1">
+              <div className="text-sm text-muted-foreground space-y-1">
                 <p>• Use this secret to verify webhook signatures</p>
                 <p>• Store it securely in your application</p>
                 <p>• Never share it publicly or commit it to version control</p>

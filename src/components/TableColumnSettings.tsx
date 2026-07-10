@@ -81,7 +81,7 @@ const TableColumnSettings: React.FC<TableColumnSettingsProps> = ({
       </PopoverTrigger>
       <PopoverContent className="w-56">
         <div className="space-y-2">
-          <h4 className="font-medium text-small">Toggle Columns</h4>
+          <h4 className="font-medium text-sm">Toggle Columns</h4>
           <div className="border-t pt-2">
             {columns.map((column) => (
               <div key={column.id} className="flex items-center space-x-2 py-1">
@@ -92,7 +92,7 @@ const TableColumnSettings: React.FC<TableColumnSettingsProps> = ({
                 />
                 <label
                   htmlFor={`column-${column.id}`}
-                  className="text-small cursor-pointer"
+                  className="text-sm cursor-pointer"
                 >
                   {column.label}
                 </label>

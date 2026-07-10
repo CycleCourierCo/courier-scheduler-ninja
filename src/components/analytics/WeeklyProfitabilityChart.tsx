@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { DailyProfitability } from "@/services/profitabilityService";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface WeeklyProfitabilityChartProps {
   data: DailyProfitability[];
@@ -19,7 +18,7 @@ const WeeklyProfitabilityChart = ({ data }: WeeklyProfitabilityChartProps) => {
         <div className="bg-background border rounded-lg p-3 shadow-lg">
           <p className="font-medium mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }} className="text-small">
+            <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.name}: £{entry.value.toFixed(2)}
             </p>
           ))}
@@ -53,7 +52,7 @@ const WeeklyProfitabilityChart = ({ data }: WeeklyProfitabilityChartProps) => {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis 
               dataKey="formattedDate" 
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               stroke="hsl(var(--border))"
             />
             <YAxis 
@@ -104,7 +103,7 @@ const WeeklyProfitabilityChart = ({ data }: WeeklyProfitabilityChartProps) => {
           </LineChart>
         </ResponsiveContainer>
         
-        <div className="mt-4 flex justify-center gap-6 text-small">
+        <div className="mt-4 flex justify-center gap-6 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 bg-green-500" />
             <span className="text-muted-foreground">Revenue</span>

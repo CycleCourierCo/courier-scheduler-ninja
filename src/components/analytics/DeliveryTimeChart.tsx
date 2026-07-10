@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { DeliveryTimeAnalytics } from "@/services/analyticsService";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface DeliveryTimeChartProps {
   data: DeliveryTimeAnalytics;
@@ -37,20 +36,20 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
       <CardContent>
         <div className="mb-4 grid grid-cols-3 gap-4">
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-small text-muted-foreground">Collection → Delivery</p>
-            <p className="text-h3 font-bold">
+            <p className="text-sm text-muted-foreground">Collection → Delivery</p>
+            <p className="text-2xl font-bold">
               {data.averageCollectionToDelivery.toFixed(1)}h
             </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-small text-muted-foreground">Total Duration</p>
-            <p className="text-h3 font-bold">
+            <p className="text-sm text-muted-foreground">Total Duration</p>
+            <p className="text-2xl font-bold">
               {data.averageTotalDuration.toFixed(1)}h
             </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-small text-muted-foreground">SLA (&lt;48h)</p>
-            <p className={`text-h3 font-bold ${
+            <p className="text-sm text-muted-foreground">SLA (&lt;48h)</p>
+            <p className={`text-2xl font-bold ${
               data.deliverySLA >= 90 ? 'text-primary' : 
               data.deliverySLA >= 75 ? 'text-yellow-600' : 
               'text-destructive'
@@ -66,7 +65,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
                 dataKey="name" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
@@ -83,7 +82,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
           </ResponsiveContainer>
         </ChartContainer>
         
-        <p className="text-caption text-muted-foreground mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           Top 5 customers by slowest delivery time
         </p>
       </CardContent>

@@ -307,9 +307,9 @@ const ClaimDetail = () => {
           <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             <Card>
               <CardContent className="p-4 space-y-3">
-                <div className="font-mono text-small text-muted-foreground">{claim.claim_ref}</div>
-                <ClaimStatusBadge status={claim.status} className="text-small px-3 py-1" />
-                <div className="space-y-1 text-small">
+                <div className="font-mono text-sm text-muted-foreground">{claim.claim_ref}</div>
+                <ClaimStatusBadge status={claim.status} className="text-sm px-3 py-1" />
+                <div className="space-y-1 text-sm">
                   <div className="flex items-center gap-1">
                     <span className="text-muted-foreground">Booking:</span> {derived.bookingRef}
                     {claim.order_id && (
@@ -319,8 +319,8 @@ const ClaimDetail = () => {
                     )}
                   </div>
                   <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
-                  {derived.customerEmail && <div className="text-caption text-muted-foreground">{derived.customerEmail}</div>}
-                  {derived.customerPhone && <div className="text-caption text-muted-foreground">{derived.customerPhone}</div>}
+                  {derived.customerEmail && <div className="text-xs text-muted-foreground">{derived.customerEmail}</div>}
+                  {derived.customerPhone && <div className="text-xs text-muted-foreground">{derived.customerPhone}</div>}
                   <div><span className="text-muted-foreground">Bike:</span> {derived.bikeMakeModel ?? "—"}</div>
                   <div><span className="text-muted-foreground">Declared value:</span> {fmtMoney(derived.declaredValue)}</div>
                   <div><span className="text-muted-foreground">Collection:</span> {fmtDate(derived.collectionDate)}</div>
@@ -333,8 +333,8 @@ const ClaimDetail = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-small">Timeline</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-caption">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Timeline</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-xs">
                 {statusLog.map((s) => (
                   <div key={s.id} className="border-l-2 pl-2 border-primary">
                     <div className="font-medium">{s.from_status ? `${s.from_status} → ${s.to_status}` : `Opened (${s.to_status})`}</div>
@@ -372,7 +372,7 @@ const ClaimDetail = () => {
                 </CardHeader>
                 <CardContent>
                   {order ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-small">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                       <div><span className="text-muted-foreground">Tracking #:</span> <span className="font-mono">{order.tracking_number}</span></div>
                       <div><span className="text-muted-foreground">Order status:</span> {order.status ?? "—"}</div>
                       <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
@@ -445,7 +445,7 @@ const ClaimDetail = () => {
                 <CardHeader><CardTitle>Checklist</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {EVIDENCE_FIELDS.map((f) => (
-                    <label key={f.key as string} className="flex items-center gap-2 text-small">
+                    <label key={f.key as string} className="flex items-center gap-2 text-sm">
                       <Checkbox
                         checked={!!claim[f.key]}
                         onCheckedChange={(v) => evidenceToggle(f.key, !!v)}
@@ -485,9 +485,9 @@ const ClaimDetail = () => {
                             <img src={evidenceUrls[f.id]} alt={f.label ?? f.file_name} className="w-full h-32 object-cover rounded" />
                           </a>
                         ) : (
-                          <a className="text-small underline block truncate" href={evidenceUrls[f.id]} target="_blank" rel="noreferrer">{f.file_name}</a>
+                          <a className="text-sm underline block truncate" href={evidenceUrls[f.id]} target="_blank" rel="noreferrer">{f.file_name}</a>
                         )}
-                        <div className="text-caption truncate">{f.label ?? f.file_name}</div>
+                        <div className="text-xs truncate">{f.label ?? f.file_name}</div>
                         <Button size="sm" variant="ghost" className="text-destructive h-7 px-2" onClick={() => removeFile(f)}>
                           <Trash2 className="h-3 w-3 mr-1" /> Remove
                         </Button>
@@ -580,7 +580,7 @@ const ClaimDetail = () => {
                     <Alert>
                       <AlertDescription className="space-y-2">
                         <div>Full declared value paid — title transfer applies.</div>
-                        <label className="flex items-center gap-2 text-small">
+                        <label className="flex items-center gap-2 text-sm">
                           <Checkbox checked={!!view.title_transferred} onCheckedChange={(v) => setField("title_transferred", !!v)} />
                           Title transferred to Cycle Courier Co.
                         </label>
@@ -604,16 +604,16 @@ const ClaimDetail = () => {
               <Card>
                 <CardHeader><CardTitle>History</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {timeline.length === 0 && <div className="text-small text-muted-foreground">No activity yet.</div>}
+                  {timeline.length === 0 && <div className="text-sm text-muted-foreground">No activity yet.</div>}
                   {timeline.map((t, i) => (
                     <div
                       key={i}
                       className={`border-l-2 pl-3 ${t.isSystem ? "border-muted-foreground/40 bg-muted/30 rounded-r py-1" : "border-primary/50"}`}
                     >
-                      <div className="text-caption text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {format(new Date(t.ts), "dd MMM yyyy HH:mm")} · {t.who ?? "—"} · {t.isSystem ? "System" : "Note"}
                       </div>
-                      <div className="text-small">{t.text}</div>
+                      <div className="text-sm">{t.text}</div>
                     </div>
                   ))}
                 </CardContent>

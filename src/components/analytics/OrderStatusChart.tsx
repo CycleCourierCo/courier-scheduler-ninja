@@ -11,7 +11,6 @@ import {
   ResponsiveContainer 
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface OrderStatusChartProps {
   data: OrderCountByStatus[];
@@ -44,7 +43,7 @@ const OrderStatusChart = ({ data }: OrderStatusChartProps) => {
               angle={-45} 
               textAnchor="end" 
               height={70} 
-              tick={{ fontSize: CHART_TICK_FONT_SIZE }}
+              tick={{ fontSize: 12 }}
             />
             <YAxis />
             <Tooltip formatter={(value) => [`${value} orders`, 'Count']} />

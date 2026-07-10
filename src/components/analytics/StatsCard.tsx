@@ -17,16 +17,16 @@ const StatsCard = ({ title, value, description, icon: Icon, trend }: StatsCardPr
   return (
     <Card className="hover-lift">
       <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
-        <CardTitle className="text-caption sm:text-small font-medium truncate pr-2">{title}</CardTitle>
+        <CardTitle className="text-xs sm:text-sm font-medium truncate pr-2">{title}</CardTitle>
         {Icon && <Icon className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />}
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
-        <div className="text-body-lg sm:text-h3 font-bold truncate">{value}</div>
+        <div className="text-lg sm:text-2xl font-bold truncate">{value}</div>
         {description && (
-          <p className="text-caption sm:text-caption text-muted-foreground line-clamp-2">{description}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">{description}</p>
         )}
         {trend && (
-          <div className={`flex items-center text-caption sm:text-caption ${
+          <div className={`flex items-center text-[10px] sm:text-xs ${
             trend.isPositive ? 'text-primary' : 'text-destructive'
           }`}>
             <span>{trend.isPositive ? '↑' : '↓'}</span>

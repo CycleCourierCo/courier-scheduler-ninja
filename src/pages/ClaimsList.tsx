@@ -73,7 +73,7 @@ const ClaimsList = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-7 w-7 text-primary" />
-            <h1 className="text-h3 font-bold">Damage Claims</h1>
+            <h1 className="text-2xl font-bold">Damage Claims</h1>
           </div>
           <Button asChild className="bg-green-600 hover:bg-green-700 text-white">
             <Link to="/claims/new">
@@ -85,20 +85,20 @@ const ClaimsList = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card><CardContent className="p-4">
-            <div className="text-caption text-muted-foreground">Open Claims</div>
-            <div className="text-h3 font-bold">{stats?.open ?? "—"}</div>
+            <div className="text-xs text-muted-foreground">Open Claims</div>
+            <div className="text-2xl font-bold">{stats?.open ?? "—"}</div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
-            <div className="text-caption text-muted-foreground">Awaiting Response</div>
-            <div className="text-h3 font-bold">{stats?.awaitingInfo ?? "—"}</div>
+            <div className="text-xs text-muted-foreground">Awaiting Response</div>
+            <div className="text-2xl font-bold">{stats?.awaitingInfo ?? "—"}</div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
-            <div className="text-caption text-muted-foreground">Settled This Month</div>
-            <div className="text-h3 font-bold">{fmtMoney(stats?.settledThisMonthAmount ?? 0)}</div>
+            <div className="text-xs text-muted-foreground">Settled This Month</div>
+            <div className="text-2xl font-bold">{fmtMoney(stats?.settledThisMonthAmount ?? 0)}</div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
-            <div className="text-caption text-muted-foreground">Avg Days to Resolution</div>
-            <div className="text-h3 font-bold">{stats?.avgDaysToResolution ?? "—"}</div>
+            <div className="text-xs text-muted-foreground">Avg Days to Resolution</div>
+            <div className="text-2xl font-bold">{stats?.avgDaysToResolution ?? "—"}</div>
           </CardContent></Card>
         </div>
 
@@ -158,7 +158,7 @@ const ClaimsList = () => {
                     className="cursor-pointer"
                     onClick={() => navigate(`/claims/${claim.id}`)}
                   >
-                    <TableCell className="font-mono text-small">{claim.claim_ref}</TableCell>
+                    <TableCell className="font-mono text-sm">{claim.claim_ref}</TableCell>
                     <TableCell>{derived.bookingRef}</TableCell>
                     <TableCell>{derived.customerName ?? "—"}</TableCell>
                     <TableCell>{derived.bikeMakeModel ?? "—"}</TableCell>

@@ -160,7 +160,7 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
                   <SelectItem key={d.id} value={d.id}>
                     {d.name || d.email || 'Unknown'}
                     {d.is_active === false && (
-                      <span className="ml-1 text-caption text-muted-foreground">(disabled)</span>
+                      <span className="ml-1 text-xs text-muted-foreground">(disabled)</span>
                     )}
                   </SelectItem>
                 ))}
@@ -238,14 +238,14 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
           <div className="flex items-center justify-between rounded-md border p-3">
             <div className="space-y-0.5">
               <Label>Only fill empty</Label>
-              <p className="text-caption text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Skip timeslips that already have a vehicle assigned.
               </p>
             </div>
             <Switch checked={onlyEmpty} onCheckedChange={setOnlyEmpty} />
           </div>
 
-          <div className="p-3 rounded-md bg-muted text-small">
+          <div className="p-3 rounded-md bg-muted text-sm">
             {!canPreview ? (
               <span className="text-muted-foreground">Pick a driver and date range to preview.</span>
             ) : loadingPreview ? (

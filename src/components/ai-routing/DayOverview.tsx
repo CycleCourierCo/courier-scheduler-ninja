@@ -30,8 +30,8 @@ const DayOverview: React.FC<DayOverviewProps> = ({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 border border-border/50">
       <div className="flex items-center gap-6">
-        <h3 className="text-body-lg font-semibold">{formattedDate}</h3>
-        <div className="flex items-center gap-4 text-small text-muted-foreground">
+        <h3 className="text-lg font-semibold">{formattedDate}</h3>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5" />
             {totalStops} stops

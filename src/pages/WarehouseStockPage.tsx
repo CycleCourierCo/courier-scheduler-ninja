@@ -141,11 +141,11 @@ const WarehouseStockPage: React.FC = () => {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-h3 font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Warehouse className="h-6 w-6" />
               Warehouse Stock
             </h1>
-            <p className="text-muted-foreground text-small mt-1">
+            <p className="text-muted-foreground text-sm mt-1">
               Manage customer inventory stored at the depot
             </p>
           </div>
@@ -158,26 +158,26 @@ const WarehouseStockPage: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="text-h3 font-bold">{stock.length}</div>
-              <div className="text-caption text-muted-foreground">Total Items</div>
+              <div className="text-2xl font-bold">{stock.length}</div>
+              <div className="text-xs text-muted-foreground">Total Items</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="text-h3 font-bold text-green-600">{storedCount}</div>
-              <div className="text-caption text-muted-foreground">Stored</div>
+              <div className="text-2xl font-bold text-green-600">{storedCount}</div>
+              <div className="text-xs text-muted-foreground">Stored</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="text-h3 font-bold text-yellow-600">{reservedCount}</div>
-              <div className="text-caption text-muted-foreground">Reserved</div>
+              <div className="text-2xl font-bold text-yellow-600">{reservedCount}</div>
+              <div className="text-xs text-muted-foreground">Reserved</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="text-h3 font-bold">{new Set(stock.filter(s => s.status === 'stored').map(s => s.user_id)).size}</div>
-              <div className="text-caption text-muted-foreground">Customers</div>
+              <div className="text-2xl font-bold">{new Set(stock.filter(s => s.status === 'stored').map(s => s.user_id)).size}</div>
+              <div className="text-xs text-muted-foreground">Customers</div>
             </CardContent>
           </Card>
         </div>
@@ -243,14 +243,14 @@ const WarehouseStockPage: React.FC = () => {
                       {item.customer_name}
                     </TableCell>
                     <TableCell>
-                      <div className="text-small">
+                      <div className="text-sm">
                         {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || "—"}
                       </div>
                       {item.bike_type && (
-                        <div className="text-caption text-muted-foreground">{item.bike_type}</div>
+                        <div className="text-xs text-muted-foreground">{item.bike_type}</div>
                       )}
                       {item.sku && (
-                        <div className="text-caption text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
+                        <div className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -259,11 +259,11 @@ const WarehouseStockPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-caption font-medium ${statusColors[item.status] || ""}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[item.status] || ""}`}>
                         {item.status}
                       </span>
                     </TableCell>
-                    <TableCell className="text-small text-muted-foreground">
+                    <TableCell className="text-sm text-muted-foreground">
                       {format(new Date(item.deposited_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell>
@@ -364,7 +364,7 @@ const WarehouseStockPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 placeholder="Match this exactly to your Shopify variant SKU"
               />
-              <p className="text-caption text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Required for Shopify auto-dispatch
               </p>
             </div>

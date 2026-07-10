@@ -11,7 +11,6 @@ import {
   Legend,
 } from "recharts";
 import type { WeeklyVehicleStat } from "@/services/vehicleAnalyticsService";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface Props {
   data: WeeklyVehicleStat[];
@@ -21,16 +20,16 @@ const WeeklyVehicleStatsChart = ({ data }: Props) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-body sm:text-body-lg">Weekly Miles, Routes & Drivers</CardTitle>
+        <CardTitle className="text-base sm:text-lg">Weekly Miles, Routes & Drivers</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="w-full h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
-              <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
-              <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
+              <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",

@@ -91,11 +91,11 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({
     }
   };
 
-  const labelClass = compact ? "text-caption font-medium" : "text-small font-medium";
+  const labelClass = compact ? "text-xs font-medium" : "text-sm font-medium";
   const popoverButtonClass = compact 
-    ? "w-full h-8 py-1 justify-start text-left text-caption font-normal"
+    ? "w-full h-8 py-1 justify-start text-left text-xs font-normal"
     : "w-full justify-start text-left font-normal";
-  const buttonClass = compact ? "w-full h-8 text-caption py-1" : "w-full";
+  const buttonClass = compact ? "w-full h-8 text-xs py-1" : "w-full";
 
   return (
     <div className={`space-y-${compact ? '2' : '4'} ${compact ? 'mt-2' : 'mt-4'}`}>
@@ -132,7 +132,7 @@ const JobSchedulingForm: React.FC<JobSchedulingFormProps> = ({
           type="time"
           value={timeValue}
           onChange={(e) => setTimeValue(e.target.value)}
-          className={`w-full ${compact ? 'h-8 text-caption' : ''}`}
+          className={`w-full ${compact ? 'h-8 text-xs' : ''}`}
         />
       </div>
 

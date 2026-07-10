@@ -139,7 +139,7 @@ const ShopifyIntegrationPage = () => {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingBag className="h-7 w-7 text-primary" />
-          <h1 className="text-h3 font-bold">Shopify Integration</h1>
+          <h1 className="text-2xl font-bold">Shopify Integration</h1>
           {store?.is_active && <Badge className="bg-green-600">Connected</Badge>}
         </div>
 
@@ -160,7 +160,7 @@ const ShopifyIntegrationPage = () => {
             <CardTitle>Setup steps</CardTitle>
             <CardDescription>One-time setup in your Shopify admin</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 text-small">
+          <CardContent className="space-y-3 text-sm">
             <div>
               <p className="font-medium">1. Create a Custom App</p>
               <p className="text-muted-foreground">
@@ -187,7 +187,7 @@ const ShopifyIntegrationPage = () => {
                 URL:
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <code className="text-caption bg-muted px-2 py-1 rounded flex-1 break-all">{WEBHOOK_URL}</code>
+                <code className="text-xs bg-muted px-2 py-1 rounded flex-1 break-all">{WEBHOOK_URL}</code>
                 <Button size="sm" variant="ghost" onClick={() => copy(WEBHOOK_URL)}>
                   <Copy className="h-3 w-3" />
                 </Button>
@@ -245,7 +245,7 @@ const ShopifyIntegrationPage = () => {
               )}
             </div>
             {store?.last_synced_at && (
-              <p className="text-caption text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Last activity {formatDistanceToNow(new Date(store.last_synced_at), { addSuffix: true })}
               </p>
             )}
@@ -259,26 +259,26 @@ const ShopifyIntegrationPage = () => {
           </CardHeader>
           <CardContent>
             {logs.length === 0 ? (
-              <p className="text-small text-muted-foreground">No activity yet.</p>
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
             ) : (
               <div className="space-y-2">
                 {logs.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-start gap-3 p-3 rounded border text-small"
+                    className="flex items-start gap-3 p-3 rounded border text-sm"
                   >
                     {statusBadge(log.status)}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">#{log.shopify_order_number}</span>
                         {log.line_item_sku && !log.line_item_sku.startsWith("__") && (
-                          <code className="text-caption bg-muted px-1 rounded">{log.line_item_sku}</code>
+                          <code className="text-xs bg-muted px-1 rounded">{log.line_item_sku}</code>
                         )}
                       </div>
                       {log.message && (
-                        <p className="text-muted-foreground text-caption mt-1">{log.message}</p>
+                        <p className="text-muted-foreground text-xs mt-1">{log.message}</p>
                       )}
-                      <p className="text-caption text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                       </p>
                     </div>

@@ -83,7 +83,7 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                   <TaskStatusBadge status={task.status} />
                   <TaskPriorityBadge priority={task.priority} />
                   {task.due_date && (
-                    <span className="text-caption text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       Due {format(new Date(task.due_date), 'PP p')}
                     </span>
                   )}
@@ -96,31 +96,31 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                       size="sm"
                       variant={task.status === s.value ? 'default' : 'outline'}
                       onClick={() => handleStatus(s.value)}
-                      className="h-7 text-caption"
+                      className="h-7 text-xs"
                     >{s.label}</Button>
                   ))}
                 </div>
 
                 {task.description && (
-                  <div className="text-small whitespace-pre-wrap border rounded p-3 bg-muted/30">
+                  <div className="text-sm whitespace-pre-wrap border rounded p-3 bg-muted/30">
                     {task.description}
                   </div>
                 )}
 
-                <div className="text-caption text-muted-foreground space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                   <div>Assignee: {task.assignee?.name || task.assignee?.email || 'Unassigned'}</div>
                   <div>Created by: {task.creator?.name || task.creator?.email || '—'}</div>
                   <div>Created: {format(new Date(task.created_at), 'PP p')}</div>
                 </div>
 
                 {task.linked_order_id && (
-                  <Link to={`/orders/${task.linked_order_id}`} className="inline-flex items-center gap-1 text-small text-primary hover:underline">
+                  <Link to={`/orders/${task.linked_order_id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                     Open linked order <ExternalLink className="h-3 w-3" />
                   </Link>
                 )}
                 {task.linked_conversation_id && (
                   <div>
-                    <Link to={`/inbox/${task.linked_conversation_id}`} className="inline-flex items-center gap-1 text-small text-primary hover:underline">
+                    <Link to={`/inbox/${task.linked_conversation_id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                       Open conversation <ExternalLink className="h-3 w-3" />
                     </Link>
                   </div>
@@ -138,12 +138,12 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                 </div>
 
                 <div className="border-t pt-4">
-                  <div className="text-caption font-semibold uppercase text-muted-foreground mb-2">Comments</div>
+                  <div className="text-xs font-semibold uppercase text-muted-foreground mb-2">Comments</div>
                   <div className="space-y-2 mb-3">
-                    {comments.length === 0 && <div className="text-caption text-muted-foreground">No comments yet.</div>}
+                    {comments.length === 0 && <div className="text-xs text-muted-foreground">No comments yet.</div>}
                     {comments.map(c => (
-                      <div key={c.id} className="text-small border rounded p-2">
-                        <div className="text-caption text-muted-foreground mb-1">
+                      <div key={c.id} className="text-sm border rounded p-2">
+                        <div className="text-[11px] text-muted-foreground mb-1">
                           {c.author?.name || c.author?.email || '—'} · {format(new Date(c.created_at), 'PP p')}
                         </div>
                         <div className="whitespace-pre-wrap">{c.body}</div>

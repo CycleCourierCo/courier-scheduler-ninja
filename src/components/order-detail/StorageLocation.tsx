@@ -232,7 +232,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
             <div className="flex items-center gap-2">
               {isMultiBike ? (
                 <div className="space-y-2">
-                  <div className="text-small font-medium">Storage Locations:</div>
+                  <div className="text-sm font-medium">Storage Locations:</div>
                   <div className="flex flex-wrap gap-1">
                     {orderAllocations
                       .sort((a, b) => {
@@ -240,21 +240,21 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                         return a.position - b.position;
                       })
                       .map((allocation, index) => (
-                        <Badge key={allocation.id} variant="secondary" className="font-mono text-small px-2 py-1">
+                        <Badge key={allocation.id} variant="secondary" className="font-mono text-sm px-2 py-1">
                           {allocation.bay}{allocation.position}
                         </Badge>
                       ))}
                   </div>
-                  <div className="text-caption text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     {orderAllocations.length} of {bikeQuantity} bikes allocated
                   </div>
                 </div>
               ) : (
                 <>
-                  <Badge variant="secondary" className="font-mono text-body-lg px-3 py-1">
+                  <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
                     {orderAllocations[0].bay}{orderAllocations[0].position}
                   </Badge>
-                  <span className="text-small text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     Stored: {orderAllocations[0].allocatedAt.toLocaleDateString()} at {orderAllocations[0].allocatedAt.toLocaleTimeString()}
                   </span>
                 </>
@@ -264,14 +264,14 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
             {!isMultiBike && (
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-small">
+                <span className="text-sm">
                   Bay {orderAllocations[0].bay}, Position {orderAllocations[0].position}
                 </span>
               </div>
             )}
             
             {isMultiBike && (
-              <div className="text-small text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 First bike stored: {orderAllocations[0].allocatedAt.toLocaleDateString()} at {orderAllocations[0].allocatedAt.toLocaleTimeString()}
               </div>
             )}
@@ -286,14 +286,14 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="text-small text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               This bike has been collected but not yet allocated to storage.
               {isMultiBike && ` (${bikeQuantity} bikes need allocation)`}
             </div>
             
             {isMultiBike ? (
               <div className="space-y-4">
-                <div className="text-small font-medium">
+                <div className="text-sm font-medium">
                   {bikeQuantity} bikes total - {bikeQuantity} remaining to allocate
                 </div>
                 
@@ -306,7 +306,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                     
                     <div className="flex gap-3 items-end">
                       <div className="flex-1">
-                        <Label htmlFor={`bay-${index}`} className="text-small">Bay ({bayHelp})</Label>
+                        <Label htmlFor={`bay-${index}`} className="text-sm">Bay ({bayHelp})</Label>
                         <Input
                           id={`bay-${index}`}
                           value={bays[index] || ''}
@@ -321,7 +321,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                         />
                       </div>
                       <div className="flex-1">
-                        <Label htmlFor={`position-${index}`} className="text-small">Position (1-20)</Label>
+                        <Label htmlFor={`position-${index}`} className="text-sm">Position (1-20)</Label>
                         <Input
                           id={`position-${index}`}
                           value={positions[index] || ''}
@@ -352,7 +352,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
             ) : (
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
-                  <Label htmlFor="bay" className="text-small">Bay ({bayHelp})</Label>
+                  <Label htmlFor="bay" className="text-sm">Bay ({bayHelp})</Label>
                   <Input
                     id="bay"
                     value={bays[0] || ''}
@@ -363,7 +363,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                   />
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="position" className="text-small">Position (1-20)</Label>
+                  <Label htmlFor="position" className="text-sm">Position (1-20)</Label>
                   <Input
                     id="position"
                     value={positions[0] || ''}

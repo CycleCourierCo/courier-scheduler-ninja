@@ -9,8 +9,8 @@ const ApiDocumentationPage = () => {
   return <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-h3 md:text-h1 font-bold text-primary mb-2">API Documentation</h1>
-          <p className="text-muted-foreground text-body md:text-body-lg">
+          <h1 className="text-2xl md:text-4xl font-bold text-primary mb-2">API Documentation</h1>
+          <p className="text-muted-foreground text-base md:text-lg">
             Integrate with Cycle Courier's REST API to create and manage orders programmatically.
           </p>
         </div>
@@ -27,22 +27,22 @@ const ApiDocumentationPage = () => {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-semibold mb-2">Base URL</h3>
-                <code className="bg-muted px-3 py-1 rounded text-small break-all">
+                <code className="bg-muted px-3 py-1 rounded text-sm break-all">
                   https://api.cyclecourierco.com/functions/v1
                 </code>
               </div>
               <div>
                 <h3 className="font-semibold mb-2">Authentication</h3>
-                <p className="text-small text-muted-foreground mb-2">
+                <p className="text-sm text-muted-foreground mb-2">
                   All requests require an API key in the headers:
                 </p>
-                <code className="bg-muted px-3 py-1 rounded text-small block break-all">
+                <code className="bg-muted px-3 py-1 rounded text-sm block break-all">
                   X-API-Key: your_api_key_here
                 </code>
               </div>
               <div>
                 <h3 className="font-semibold mb-2">Rate Limiting</h3>
-                <p className="text-small text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   100 requests per minute per API key
                 </p>
               </div>
@@ -63,7 +63,7 @@ const ApiDocumentationPage = () => {
 
         {/* Orders API */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6">Orders API</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Orders API</h2>
           
           <Card className="mb-6">
             <CardHeader>
@@ -76,15 +76,15 @@ const ApiDocumentationPage = () => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge variant="default">POST</Badge>
-                  <code className="text-small">/orders</code>
+                  <code className="text-sm">/orders</code>
                 </div>
-                <p className="text-small text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Create a new courier order with complete sender, receiver, and item details.
                 </p>
                 
                 <div>
                   <h4 className="font-semibold mb-2">Required Headers</h4>
-                  <pre className="bg-muted p-3 rounded text-small whitespace-pre-wrap break-words">
+                  <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words">
                   {`X-API-Key: your_api_key_here
 Content-Type: application/json
 Idempotency-Key: unique_request_id (optional)`}
@@ -93,7 +93,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Request Body</h4>
-                  <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "sender": {
     "name": "John Smith",
@@ -145,7 +145,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Field Descriptions</h4>
-                  <div className="space-y-2 text-small">
+                  <div className="space-y-2 text-sm">
                     <div><strong>bikeQuantity:</strong> <em>(required)</em> Number of bikes being transported</div>
                     <div><strong>bikes:</strong> <em>(required)</em> Array of bike details with brand and model</div>
                     <div><strong>bikes[].type_id:</strong> <em>(optional)</em> Numeric bike type ID (1-17, see reference table below; takes precedence over type)</div>
@@ -168,7 +168,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Success Response (201 Created)</h4>
-                  <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "id": "ord_1234567890",
   "tracking_number": "CC-TR-ABC123",
@@ -232,18 +232,18 @@ Idempotency-Key: unique_request_id (optional)`}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">GET</Badge>
-                  <code className="text-small">/orders/{`{order_id}`}</code>
+                  <code className="text-sm">/orders/{`{order_id}`}</code>
                 </div>
-                <p className="text-small text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Retrieve detailed information about a specific order, including current status and tracking events.
                 </p>
                 
                 <div>
                   <h4 className="font-semibold mb-2">Example Response</h4>
-                  <p className="text-small text-muted-foreground mb-2">
+                  <p className="text-sm text-muted-foreground mb-2">
                     Returns the full order record including additional fields like <code>customer_order_number</code> and <code>updated_at</code>.
                   </p>
-                  <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "id": "ord_1234567890",
   "tracking_number": "CC-TR-ABC123",
@@ -274,18 +274,18 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Bike Type Reference */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6">Bike Type Reference</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Bike Type Reference</h2>
           
           <Card>
             <CardHeader>
               <CardTitle>Numeric Type IDs</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-small text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Use <code>bike_type_id</code> or <code>type_id</code> (per bike) for reliable type specification. Numeric IDs take precedence over string names.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full text-small">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-3 font-semibold">ID</th>
@@ -328,12 +328,12 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Order Statuses */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6">Order Statuses</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Order Statuses</h2>
           
           <Card>
             <CardContent className="pt-6">
               <div className="grid gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-small">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <div className="font-semibold mb-2">Pre-Collection</div>
                     <div className="space-y-1">
@@ -362,7 +362,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Error Responses */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6">Error Responses</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Error Responses</h2>
           
           <div className="grid gap-4">
             <Card>
@@ -371,7 +371,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div>
                     <Badge variant="destructive">400</Badge>
                     <span className="ml-2 font-semibold">Bad Request</span>
-                    <pre className="bg-muted p-3 rounded text-small whitespace-pre-wrap break-words leading-relaxed mt-2">
+                    <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed mt-2">
                     {`{
   "error": "validation_error",
   "message": "Invalid request data",
@@ -388,7 +388,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div>
                     <Badge variant="destructive">401</Badge>
                     <span className="ml-2 font-semibold">Unauthorized</span>
-                    <pre className="bg-muted p-3 rounded text-small whitespace-pre-wrap break-words leading-relaxed mt-2">
+                    <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed mt-2">
                     {`{
   "error": "unauthorized",
   "message": "Invalid or missing API key"
@@ -399,7 +399,7 @@ Idempotency-Key: unique_request_id (optional)`}
                   <div>
                     <Badge variant="destructive">429</Badge>
                     <span className="ml-2 font-semibold">Rate Limited</span>
-                    <pre className="bg-muted p-3 rounded text-small whitespace-pre-wrap break-words leading-relaxed mt-2">
+                    <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed mt-2">
                     {`{
   "error": "rate_limit_exceeded", 
   "message": "Too many requests",
@@ -417,7 +417,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
         {/* Webhooks */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold mb-6 flex items-center gap-2">
             <Bell className="h-6 w-6" />
             Webhooks
           </h2>
@@ -427,14 +427,14 @@ Idempotency-Key: unique_request_id (optional)`}
               <CardTitle>Webhook Events</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-small text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Receive real-time notifications when order events occur. Configure your webhook endpoint to receive POST requests.
               </p>
               
               <div className="space-y-4">
                 <div>
                   <h4 className="font-semibold mb-2">Available Events</h4>
-                  <div className="grid gap-2 text-small">
+                  <div className="grid gap-2 text-sm">
                     <div><Badge>order.created</Badge> New order created</div>
                     <div><Badge>order.status.updated</Badge> Order status changed</div>
                     <div><Badge>order.collection.started</Badge> Driver en route to collection</div>
@@ -452,7 +452,7 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Webhook Payload Example</h4>
-                  <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "event": "order.status.updated",
   "timestamp": "2024-01-15T14:30:00.000Z",
@@ -471,10 +471,10 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Box My Bike Payload Example</h4>
-                  <p className="text-small text-muted-foreground mb-2">
+                  <p className="text-sm text-muted-foreground mb-2">
                     When the order has <code>is_box_my_bike: true</code>, Box My Bike events include additional fields tracking the boxing lifecycle.
                   </p>
-                  <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                  <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`{
   "event": "order.box.status.updated",
   "timestamp": "2026-06-06T11:00:00.000Z",
@@ -499,10 +499,10 @@ Idempotency-Key: unique_request_id (optional)`}
 
                 <div>
                   <h4 className="font-semibold mb-2">Security</h4>
-                  <p className="text-small text-muted-foreground mb-2">
+                  <p className="text-sm text-muted-foreground mb-2">
                     All webhooks include an HMAC SHA-256 signature in the <code>X-Webhook-Signature</code> header for verification.
                   </p>
-                  <pre className="bg-muted p-3 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                  <pre className="bg-muted p-3 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                   {`const crypto = require('crypto');
 
 function verifyWebhook(payload, signature, secret) {
@@ -518,7 +518,7 @@ function verifyWebhook(payload, signature, secret) {
 
                 <div>
                   <h4 className="font-semibold mb-2">Retry Logic</h4>
-                  <p className="text-small text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Failed webhooks are retried with exponential backoff: immediately, 1 minute, 5 minutes, 30 minutes, and 2 hours. 
                     Your endpoint should respond with a 2xx status code within 5 seconds.
                   </p>
@@ -532,7 +532,7 @@ function verifyWebhook(payload, signature, secret) {
 
         {/* API Key Management */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold mb-6 flex items-center gap-2">
             <Key className="h-6 w-6" />
             API Key Management
           </h2>
@@ -553,7 +553,7 @@ function verifyWebhook(payload, signature, secret) {
 
                 <div>
                   <h4 className="font-semibold mb-2">Request Process</h4>
-                  <ol className="list-decimal list-inside space-y-1 text-small">
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>Contact our API support team at <strong>info@cyclecourierco.com</strong></li>
                     <li>Provide your business details and existing account information</li>
                     <li>Specify your intended use case and expected order volume</li>
@@ -564,7 +564,7 @@ function verifyWebhook(payload, signature, secret) {
 
                 <div>
                   <h4 className="font-semibold mb-2">Required Information</h4>
-                  <ul className="list-disc list-inside space-y-1 text-small text-muted-foreground">
+                  <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                     <li>Business name and existing Cycle Courier account email</li>
                     <li>Technical contact information</li>
                     <li>Estimated monthly order volume</li>
@@ -589,7 +589,7 @@ function verifyWebhook(payload, signature, secret) {
 
         {/* Code Examples */}
         <div className="mb-8">
-          <h2 className="text-h4 md:text-h3 font-bold mb-6">Code Examples</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-6">Code Examples</h2>
           
           <div className="grid gap-6">
             <Card>
@@ -597,7 +597,7 @@ function verifyWebhook(payload, signature, secret) {
                 <CardTitle>cURL</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                 {`curl -X POST https://api.cyclecourierco.com/functions/v1/orders \\
   -H "X-API-Key: your_api_key_here" \\
   -H "Content-Type: application/json" \\
@@ -641,7 +641,7 @@ function verifyWebhook(payload, signature, secret) {
                 <CardTitle>JavaScript (Node.js)</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                 {`const axios = require('axios');
 
 async function createOrder(orderData) {
@@ -674,7 +674,7 @@ async function createOrder(orderData) {
                 <CardTitle>Python</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded text-small whitespace-pre-wrap break-words leading-relaxed">
+                <pre className="bg-muted p-4 rounded text-sm whitespace-pre-wrap break-words leading-relaxed">
                 {`import requests
 import time
 
@@ -715,10 +715,10 @@ def create_order(order_data, api_key):
             <div className="grid gap-4">
               <div>
                 <h4 className="font-semibold mb-2">API Support</h4>
-                <p className="text-small text-muted-foreground mb-2">
+                <p className="text-sm text-muted-foreground mb-2">
                   For technical support, API key requests, or integration assistance:
                 </p>
-                <p className="text-small">
+                <p className="text-sm">
                   <strong>Email:</strong> info@cyclecourierco.com
                 </p>
               </div>

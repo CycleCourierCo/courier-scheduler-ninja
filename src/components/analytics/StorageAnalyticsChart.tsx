@@ -3,7 +3,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StorageAnalytics } from "@/services/analyticsService";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface StorageAnalyticsChartProps {
   data: StorageAnalytics;
@@ -28,26 +27,26 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
       <CardContent>
         <div className="mb-4 grid grid-cols-2 gap-4">
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-small text-muted-foreground">Bikes in Storage</p>
-            <p className="text-h3 font-bold">{data.currentInStorage}</p>
+            <p className="text-sm text-muted-foreground">Bikes in Storage</p>
+            <p className="text-2xl font-bold">{data.currentInStorage}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-small text-muted-foreground">Avg Storage Duration</p>
-            <p className="text-h3 font-bold">
+            <p className="text-sm text-muted-foreground">Avg Storage Duration</p>
+            <p className="text-2xl font-bold">
               {data.averageDaysInStorage.toFixed(1)} days
             </p>
           </div>
         </div>
         
         <div className="mb-6">
-          <h3 className="text-small font-medium mb-3">Storage Duration Distribution</h3>
+          <h3 className="text-sm font-medium mb-3">Storage Duration Distribution</h3>
           <ChartContainer config={chartConfig} className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.storageDistribution}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="range" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                 />
                 <YAxis 
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
@@ -62,7 +61,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
 
         {data.longestStoredBikes.length > 0 && (
           <div>
-            <h3 className="text-small font-medium mb-3">Longest Stored Bikes</h3>
+            <h3 className="text-sm font-medium mb-3">Longest Stored Bikes</h3>
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
@@ -75,7 +74,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
                 <TableBody>
                   {data.longestStoredBikes.map((bike, index) => (
                     <TableRow key={index}>
-                      <TableCell className="font-mono text-small">
+                      <TableCell className="font-mono text-sm">
                         {bike.orderId.substring(0, 12)}...
                       </TableCell>
                       <TableCell>{bike.customerName}</TableCell>

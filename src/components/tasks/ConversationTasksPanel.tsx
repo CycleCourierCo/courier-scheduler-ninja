@@ -27,22 +27,22 @@ const ConversationTasksPanel: React.FC<Props> = ({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <div className="text-caption font-semibold uppercase text-muted-foreground flex items-center gap-1">
+        <div className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1">
           <CheckSquare className="h-3 w-3" /> Tasks
         </div>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-caption" onClick={() => setCreateOpen(true)}>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setCreateOpen(true)}>
           <Plus className="h-3 w-3 mr-1" /> New
         </Button>
       </div>
       {tasks.length === 0 ? (
-        <div className="text-caption text-muted-foreground">No tasks for this conversation.</div>
+        <div className="text-xs text-muted-foreground">No tasks for this conversation.</div>
       ) : (
         <div className="space-y-1">
           {tasks.map(t => (
             <button
               key={t.id}
               onClick={() => setSelectedId(t.id)}
-              className="w-full text-left text-caption border rounded p-2 hover:bg-accent flex items-center justify-between gap-2"
+              className="w-full text-left text-xs border rounded p-2 hover:bg-accent flex items-center justify-between gap-2"
             >
               <span className="truncate flex-1">{t.title}</span>
               <TaskStatusBadge status={t.status} />

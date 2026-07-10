@@ -19,18 +19,6 @@ export default {
 			}
 		},
 		extend: {
-			fontSize: {
-				// Modular type scale — base 16px, ratio 1.25 (major third)
-				'display':  ['3.815rem', { lineHeight: '1.05', fontWeight: '700' }],
-				'h1':       ['3.052rem', { lineHeight: '1.1',  fontWeight: '700' }],
-				'h2':       ['2.441rem', { lineHeight: '1.15', fontWeight: '700' }],
-				'h3':       ['1.953rem', { lineHeight: '1.2',  fontWeight: '600' }],
-				'h4':       ['1.563rem', { lineHeight: '1.25', fontWeight: '600' }],
-				'body-lg':  ['1.25rem',  { lineHeight: '1.5',  fontWeight: '400' }],
-				'body':     ['1rem',     { lineHeight: '1.55', fontWeight: '400' }],
-				'small':    ['0.875rem', { lineHeight: '1.45', fontWeight: '400' }],
-				'caption':  ['0.75rem',  { lineHeight: '1.4',  fontWeight: '500' }],
-			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

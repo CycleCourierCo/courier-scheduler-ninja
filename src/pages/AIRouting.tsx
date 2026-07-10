@@ -295,8 +295,8 @@ const AIRouting: React.FC = () => {
       <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-h3 font-bold">AI Route Prediction</h1>
-            <p className="text-small text-muted-foreground">
+            <h1 className="text-2xl font-bold">AI Route Prediction</h1>
+            <p className="text-sm text-muted-foreground">
               Generate and compare multi-day route plans using AI-assisted scheduling
             </p>
           </div>
@@ -353,7 +353,7 @@ const AIRouting: React.FC = () => {
                 const stopCount = Object.values(prediction.routes_by_day[day] || {})
                   .reduce((sum, stops) => sum + (stops as RouteStop[]).length, 0);
                 return (
-                  <TabsTrigger key={day} value={day} className="text-caption">
+                  <TabsTrigger key={day} value={day} className="text-xs">
                     {dayLabel} ({stopCount})
                   </TabsTrigger>
                 );
@@ -416,8 +416,8 @@ const AIRouting: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
               </svg>
             </div>
-            <h3 className="text-body-lg font-medium">No plan generated yet</h3>
-            <p className="text-small text-muted-foreground max-w-md">
+            <h3 className="text-lg font-medium">No plan generated yet</h3>
+            <p className="text-sm text-muted-foreground max-w-md">
               Set your date range and driver count, then click "Generate AI Plan" to create an optimised route prediction.
             </p>
           </div>

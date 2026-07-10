@@ -49,12 +49,12 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-gray-200 dark:border-gray-800 gap-4">
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
-          <h1 className="text-h3 font-bold">Order Details</h1>
+          <h1 className="text-2xl font-bold">Order Details</h1>
           <ChevronRight className="mx-1 h-5 w-5 text-muted-foreground" />
           <StatusBadge status={status} />
         </div>
         {(customerName || customerEmail) && (
-          <div className="flex items-center text-small text-muted-foreground">
+          <div className="flex items-center text-sm text-muted-foreground">
             <User className="h-4 w-4 mr-1.5" />
             <span>Booked by </span>
             <span className="font-medium text-foreground ml-1">

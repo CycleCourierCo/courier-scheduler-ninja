@@ -20,11 +20,11 @@ const RouteWhyPanel: React.FC<RouteWhyPanelProps> = ({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-1 text-caption text-muted-foreground hover:text-foreground transition-colors">
+      <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
         <Info className="h-3 w-3" />
         <span>Why this route?</span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 space-y-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-caption">
+      <CollapsibleContent className="mt-2 space-y-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-xs">
         {archetypeLabel && (
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Matched archetype:</span>

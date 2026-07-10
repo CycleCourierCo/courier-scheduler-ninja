@@ -198,7 +198,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                     <SelectItem key={d.id} value={d.id}>
                       {d.name || d.email || 'Unknown'}
                       {d.is_active === false && (
-                        <span className="ml-1 text-caption text-muted-foreground">(disabled)</span>
+                        <span className="ml-1 text-xs text-muted-foreground">(disabled)</span>
                       )}
                     </SelectItem>
                   ))}
@@ -258,7 +258,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                   setForm({ ...form, total_stops: parseInt(e.target.value) || 0 })
                 }
               />
-              <p className="text-caption text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Stop hours: {stop_hours.toFixed(2)} (10 min/stop)
               </p>
             </div>
@@ -368,7 +368,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                   {form.custom_addons.map((addon, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between text-small"
+                      className="flex items-center justify-between text-sm"
                     >
                       <span>
                         {addon.title}: {addon.hours}h
@@ -385,7 +385,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                   ))}
                 </div>
               ) : (
-                <p className="text-caption text-muted-foreground">No custom add-ons</p>
+                <p className="text-xs text-muted-foreground">No custom add-ons</p>
               )}
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -427,7 +427,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                   {form.route_links.map((link, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between text-small gap-2"
+                      className="flex items-center justify-between text-sm gap-2"
                     >
                       <a
                         href={link}
@@ -449,7 +449,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                   ))}
                 </div>
               ) : (
-                <p className="text-caption text-muted-foreground">No route links</p>
+                <p className="text-xs text-muted-foreground">No route links</p>
               )}
             </div>
             <div className="flex gap-2">
@@ -487,12 +487,12 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
 
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <h4 className="font-semibold">Summary</h4>
-            <div className="grid grid-cols-2 gap-2 text-small">
+            <div className="grid grid-cols-2 gap-2 text-sm">
               <div>Total Hours:</div>
               <div className="font-medium">{totalHours.toFixed(2)}h</div>
               <div>Total Pay:</div>
               <div className="font-medium text-primary">£{totalPay.toFixed(2)}</div>
-              <div className="text-caption text-muted-foreground col-span-2 space-y-1 mt-2 pt-2 border-t">
+              <div className="text-xs text-muted-foreground col-span-2 space-y-1 mt-2 pt-2 border-t">
                 <div>• Driving: {form.driving_hours}h</div>
                 <div>• Stops: {stop_hours.toFixed(2)}h</div>
                 <div>• Lunch: +{form.lunch_hours}h</div>

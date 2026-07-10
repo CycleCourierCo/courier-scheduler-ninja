@@ -49,7 +49,7 @@ const ExpiryCell = ({ status, date }: { status: string | null; date: string | nu
     ? "text-amber-600 dark:text-amber-400 font-medium"
     : "text-foreground";
   return (
-    <div className="text-small">
+    <div className="text-sm">
       <div>{status ?? "—"}</div>
       {date && <div className={cls}>{date}</div>}
     </div>
@@ -224,7 +224,7 @@ const VehicleManagement = () => {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Truck className="h-6 w-6 text-primary" />
-            <h1 className="text-h3 font-bold">Vehicle Management</h1>
+            <h1 className="text-2xl font-bold">Vehicle Management</h1>
           </div>
           <AddVehicleDialog onCreated={load} />
         </div>
@@ -276,7 +276,7 @@ const VehicleManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="text-small text-muted-foreground ml-auto">
+              <div className="text-sm text-muted-foreground ml-auto">
                 {filtered.length} of {vehicles.length} vehicles
               </div>
             </Card>
@@ -313,15 +313,15 @@ const VehicleManagement = () => {
                         <TableRow key={v.id}>
                           <TableCell className="font-mono font-semibold">{v.registration}</TableCell>
                           <TableCell>
-                            <div className="text-small">
+                            <div className="text-sm">
                               <div>{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
-                              <div className="text-muted-foreground text-caption">
+                              <div className="text-muted-foreground text-xs">
                                 {v.fuel_type ?? ""} {v.year_of_manufacture ?? ""}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell><StatusDropdown v={v} /></TableCell>
-                          <TableCell className="text-small whitespace-nowrap">
+                          <TableCell className="text-sm whitespace-nowrap">
                             {v.purchase_date
                               ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                               : "—"}
@@ -329,22 +329,22 @@ const VehicleManagement = () => {
                           <TableCell><ExpiryCell status={v.tax_status} date={v.tax_due_date} /></TableCell>
                           <TableCell><ExpiryCell status={v.mot_status} date={v.mot_expiry_date} /></TableCell>
                           <TableCell className="text-right whitespace-nowrap">
-                            <div className="text-small font-medium">
+                            <div className="text-sm font-medium">
                               {(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi
                             </div>
                             {v.status === "sold" && (v as any).sold_mileage != null && (
-                              <div className="text-caption text-muted-foreground">
+                              <div className="text-xs text-muted-foreground">
                                 Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi
                               </div>
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="text-caption space-y-0.5">
+                            <div className="text-xs space-y-0.5">
                               <div>London: {v.london_auto_pay ? "✓" : "—"}</div>
                               <div>Dartford: {v.dartford_crossing ? "✓" : "—"}</div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-caption text-muted-foreground">
+                          <TableCell className="text-xs text-muted-foreground">
                             {v.last_refreshed_at ? new Date(v.last_refreshed_at).toLocaleDateString() : "—"}
                           </TableCell>
                           <TableCell className="text-right">
@@ -409,13 +409,13 @@ const VehicleManagement = () => {
                         <div className="font-mono font-semibold">{v.registration}</div>
                         <StatusDropdown v={v} />
                       </div>
-                      <div className="text-small">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
-                      <div className="text-caption text-muted-foreground">
+                      <div className="text-sm">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
+                      <div className="text-xs text-muted-foreground">
                         Purchased: {v.purchase_date
                           ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                           : "—"}
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-caption">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <div className="text-muted-foreground">Tax</div>
                           <ExpiryCell status={v.tax_status} date={v.tax_due_date} />
@@ -425,10 +425,10 @@ const VehicleManagement = () => {
                           <ExpiryCell status={v.mot_status} date={v.mot_expiry_date} />
                         </div>
                       </div>
-                      <div className="text-caption text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         London Auto Pay: {v.london_auto_pay ? "✓" : "—"} · Dartford: {v.dartford_crossing ? "✓" : "—"}
                       </div>
-                      <div className="text-caption">
+                      <div className="text-xs">
                         <span className="text-muted-foreground">Miles driven: </span>
                         <span className="font-medium">{(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi</span>
                         {v.status === "sold" && (v as any).sold_mileage != null && (

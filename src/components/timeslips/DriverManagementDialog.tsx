@@ -217,13 +217,13 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className="text-caption text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           Auto-assigned to new timeslips generated for this driver.
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4 text-small">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Email:</span>{' '}
                         {driver.email || 'N/A'}

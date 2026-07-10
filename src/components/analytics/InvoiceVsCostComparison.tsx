@@ -106,7 +106,7 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
                   Compare actual invoiced revenue against route profitability estimates
                 </CardDescription>
               </div>
-              <span className="text-small text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
+              <span className="text-sm text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
             </div>
           </CardHeader>
         </CollapsibleTrigger>
@@ -116,7 +116,7 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
             {/* Date Range Picker */}
             <div className="flex flex-wrap gap-4 items-end">
               <div className="space-y-1">
-                <label className="text-small font-medium">Start Date</label>
+                <label className="text-sm font-medium">Start Date</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
@@ -136,7 +136,7 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
                 </Popover>
               </div>
               <div className="space-y-1">
-                <label className="text-small font-medium">End Date</label>
+                <label className="text-sm font-medium">End Date</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
@@ -165,25 +165,25 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
                 <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
                   <Card>
                     <CardHeader className="pb-2 p-3">
-                      <CardTitle className="text-caption font-medium text-muted-foreground flex items-center gap-1">
+                      <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                         <FileText className="h-3 w-3" /> Invoiced
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
-                      <p className="text-h4 font-bold text-primary">£{totalInvoiced.toFixed(2)}</p>
-                      <p className="text-caption text-muted-foreground">{totalOrders} orders</p>
+                      <p className="text-xl font-bold text-primary">£{totalInvoiced.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">{totalOrders} orders</p>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader className="pb-2 p-3">
-                      <CardTitle className="text-caption font-medium text-muted-foreground flex items-center gap-1">
+                      <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Route Revenue
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
-                      <p className="text-h4 font-bold text-green-600">£{routeRevenue.toFixed(2)}</p>
-                      <p className="text-caption text-muted-foreground">
+                      <p className="text-xl font-bold text-green-600">£{routeRevenue.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">
                         {totalInvoiced > 0 && routeRevenue > 0
                           ? `${((routeRevenue / totalInvoiced) * 100).toFixed(0)}% of invoiced`
                           : "—"}
@@ -193,31 +193,31 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
 
                   <Card>
                     <CardHeader className="pb-2 p-3">
-                      <CardTitle className="text-caption font-medium text-muted-foreground">Route Costs</CardTitle>
+                      <CardTitle className="text-xs font-medium text-muted-foreground">Route Costs</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
-                      <p className="text-h4 font-bold text-orange-600">£{routeCosts.toFixed(2)}</p>
+                      <p className="text-xl font-bold text-orange-600">£{routeCosts.toFixed(2)}</p>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader className="pb-2 p-3">
-                      <CardTitle className="text-caption font-medium text-muted-foreground">True Profit</CardTitle>
+                      <CardTitle className="text-xs font-medium text-muted-foreground">True Profit</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
-                      <p className={cn("text-h4 font-bold", trueProfit >= 0 ? "text-green-600" : "text-red-600")}>
+                      <p className={cn("text-xl font-bold", trueProfit >= 0 ? "text-green-600" : "text-red-600")}>
                         £{trueProfit.toFixed(2)}
                       </p>
-                      <p className="text-caption text-muted-foreground">Invoiced − Costs</p>
+                      <p className="text-xs text-muted-foreground">Invoiced − Costs</p>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader className="pb-2 p-3">
-                      <CardTitle className="text-caption font-medium text-muted-foreground">Margin</CardTitle>
+                      <CardTitle className="text-xs font-medium text-muted-foreground">Margin</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
-                      <p className={cn("text-h4 font-bold", margin >= 0 ? "text-green-600" : "text-red-600")}>
+                      <p className={cn("text-xl font-bold", margin >= 0 ? "text-green-600" : "text-red-600")}>
                         {margin.toFixed(1)}%
                       </p>
                     </CardContent>
@@ -242,7 +242,7 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
                 {/* Customer Breakdown */}
                 {customerBreakdown.length > 0 && (
                   <div>
-                    <h3 className="text-small font-semibold mb-2">Per-Customer Breakdown</h3>
+                    <h3 className="text-sm font-semibold mb-2">Per-Customer Breakdown</h3>
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>

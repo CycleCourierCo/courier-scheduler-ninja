@@ -179,7 +179,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     value={formData.special_rate_code || ''}
                     onChange={(e) => setFormData({ ...formData, special_rate_code: e.target.value || null })}
                   />
-                  <p className="text-caption text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
                   </p>
                 </div>
@@ -193,7 +193,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     value={formData.special_rate_price ?? ''}
                     onChange={(e) => setFormData({ ...formData, special_rate_price: e.target.value ? parseFloat(e.target.value) : null })}
                   />
-                  <p className="text-caption text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     If set, this price per delivery will be used in profitability calculations instead of the standard bike-type pricing.
                   </p>
                 </div>
@@ -211,7 +211,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   />
                   <div>
                     <Label htmlFor="edit-test-account">Test Account</Label>
-                    <p className="text-caption text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Disables Shipday sync and email sending for this account
                     </p>
                   </div>
@@ -324,7 +324,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-caption text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Auto-assigned to new timeslips generated for this driver.
                   </p>
                 </div>

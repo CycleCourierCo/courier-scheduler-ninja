@@ -156,7 +156,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-body-lg font-semibold flex items-center">
+      <h3 className="text-lg font-semibold flex items-center">
         <Calendar className="mr-2" />
         {title}
       </h3>
@@ -164,7 +164,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
       {availableDates && (
         <div className="space-y-3">
           <div className="space-y-2">
-            <label className="text-small font-medium">Select from available dates:</label>
+            <label className="text-sm font-medium">Select from available dates:</label>
             <Select value={selectedDate || ""} onValueChange={(value) => {
               // Clear calendar date when using dropdown selection
               setCalendarDate(undefined);
@@ -223,9 +223,9 @@ const DateSelection: React.FC<DateSelectionProps> = ({
       {/* Show date picker for scheduled_dates_pending status */}
       {orderStatus === 'scheduled_dates_pending' && showAdminControls && (
         <div className="space-y-3 mt-4 border-t pt-4">
-          <p className="text-small font-medium text-orange-700">Admin Date Override:</p>
+          <p className="text-sm font-medium text-orange-700">Admin Date Override:</p>
           <div className="space-y-2">
-            <label className="text-small font-medium">Select override date:</label>
+            <label className="text-sm font-medium">Select override date:</label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -268,7 +268,7 @@ const DateSelection: React.FC<DateSelectionProps> = ({
                 {scheduledDate ? safeFormat(scheduledDate, "PPP") : formatDates(availableDates)}
               </p>
               {timeslot && (
-                <p className="text-small text-green-700 mt-1">
+                <p className="text-sm text-green-700 mt-1">
                   Timeslot: {formatTimeslotWindow(timeslot)}
                 </p>
               )}

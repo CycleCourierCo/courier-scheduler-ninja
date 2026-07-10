@@ -29,18 +29,18 @@ export function ConfirmedDatesView({ title, dates, notes }: ConfirmedDatesViewPr
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
             <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
-          <CardTitle className="text-h4">{title}</CardTitle>
+          <CardTitle className="text-xl">{title}</CardTitle>
           <CardDescription>Your dates have already been confirmed</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <div className="flex items-center gap-2 mb-2 text-small font-medium text-muted-foreground">
+            <div className="flex items-center gap-2 mb-2 text-sm font-medium text-muted-foreground">
               <CalendarCheck className="h-4 w-4" />
               <span>Confirmed dates</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {formattedDates.map((date, i) => (
-                <Badge key={i} variant="secondary" className="text-small py-1 px-3">
+                <Badge key={i} variant="secondary" className="text-sm py-1 px-3">
                   {date}
                 </Badge>
               ))}
@@ -48,8 +48,8 @@ export function ConfirmedDatesView({ title, dates, notes }: ConfirmedDatesViewPr
           </div>
           {notes && (
             <div>
-              <p className="text-small font-medium text-muted-foreground mb-1">Notes</p>
-              <p className="text-small bg-muted rounded-md p-3">{notes}</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Notes</p>
+              <p className="text-sm bg-muted rounded-md p-3">{notes}</p>
             </div>
           )}
         </CardContent>

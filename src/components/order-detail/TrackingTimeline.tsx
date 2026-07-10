@@ -547,10 +547,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                 </div>
                 <div className="min-w-0 overflow-hidden">
                   <p className="font-medium text-gray-800 break-words">{ev.title}</p>
-                  <p className="text-caption sm:text-small text-gray-500 break-words">
+                  <p className="text-xs sm:text-sm text-gray-500 break-words">
                     {formatDate(ev.date)}
                   </p>
-                  <p className="text-caption sm:text-small break-words">{ev.description}</p>
+                  <p className="text-xs sm:text-sm break-words">{ev.description}</p>
 
                   {/* Proof-of-delivery photos. Server only sends URLs after the
                       correct postcode has been verified. */}
@@ -558,7 +558,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                     <div className="mt-2">
                       <div className="flex items-center gap-1 mb-2">
                         <Image className="h-4 w-4 text-courier-600" />
-                        <span className="text-small font-medium text-gray-700">Proof of Delivery:</span>
+                        <span className="text-sm font-medium text-gray-700">Proof of Delivery:</span>
                       </div>
                       {podUrls.length === 0 ? (
                         <Button
@@ -600,7 +600,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                     <div className="mt-2">
                       <div className="flex items-center gap-1 mb-2">
                         <Image className="h-4 w-4 text-courier-600" />
-                        <span className="text-small font-medium text-gray-700">Signature:</span>
+                        <span className="text-sm font-medium text-gray-700">Signature:</span>
                       </div>
                       {!signatureUrl ? (
                         <Button

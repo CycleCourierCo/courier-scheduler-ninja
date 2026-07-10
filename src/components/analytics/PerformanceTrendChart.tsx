@@ -11,7 +11,6 @@ import {
   type TimeRange,
 } from "@/services/analyticsService";
 import type { Order } from "@/types/order";
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface Props {
   orders: Order[];
@@ -81,23 +80,23 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-caption text-muted-foreground">Creation → Collection</p>
+            <p className="text-xs text-muted-foreground">Creation → Collection</p>
             <div className="flex items-center justify-between">
-              <p className="text-h4 font-bold">{summary.c2c.now !== null ? `${summary.c2c.now.toFixed(1)}h` : "—"}</p>
+              <p className="text-xl font-bold">{summary.c2c.now !== null ? `${summary.c2c.now.toFixed(1)}h` : "—"}</p>
               <DeltaBadge current={summary.c2c.now} previous={summary.c2c.prev} />
             </div>
           </div>
           <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-caption text-muted-foreground">Collection → Delivery</p>
+            <p className="text-xs text-muted-foreground">Collection → Delivery</p>
             <div className="flex items-center justify-between">
-              <p className="text-h4 font-bold">{summary.c2d.now !== null ? `${summary.c2d.now.toFixed(1)}h` : "—"}</p>
+              <p className="text-xl font-bold">{summary.c2d.now !== null ? `${summary.c2d.now.toFixed(1)}h` : "—"}</p>
               <DeltaBadge current={summary.c2d.now} previous={summary.c2d.prev} />
             </div>
           </div>
           <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-caption text-muted-foreground">Creation → Delivery</p>
+            <p className="text-xs text-muted-foreground">Creation → Delivery</p>
             <div className="flex items-center justify-between">
-              <p className="text-h4 font-bold">{summary.cr2d.now !== null ? `${summary.cr2d.now.toFixed(1)}h` : "—"}</p>
+              <p className="text-xl font-bold">{summary.cr2d.now !== null ? `${summary.cr2d.now.toFixed(1)}h` : "—"}</p>
               <DeltaBadge current={summary.cr2d.now} previous={summary.cr2d.prev} />
             </div>
           </div>
@@ -114,9 +113,9 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }} />
+              <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
               <YAxis
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "hsl(var(--muted-foreground))" }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />

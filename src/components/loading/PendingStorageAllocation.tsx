@@ -189,17 +189,17 @@ export const PendingStorageAllocation = ({
             <CollapsibleTrigger className="w-full flex items-center gap-2 flex-wrap pt-2 pb-2 border-b border-border hover:bg-muted/40 rounded-sm px-1 text-left">
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]/driver:-rotate-90" />
               <Truck className="h-5 w-5 text-muted-foreground" />
-              <h3 className="font-semibold text-body-lg">{driverName}</h3>
+              <h3 className="font-semibold text-lg">{driverName}</h3>
               <Badge variant="secondary">
                 {totalBikes} bike{totalBikes > 1 ? 's' : ''}
               </Badge>
               {loadedForDriver.length > 0 && (
-                <Badge variant="success" className="text-caption">
+                <Badge variant="success" className="text-xs">
                   {loadedForDriver.length} on van
                 </Badge>
               )}
               {driverValue > 0 && (
-                <Badge variant="outline" className="text-caption">
+                <Badge variant="outline" className="text-xs">
                   £{driverValue.toLocaleString()}
                 </Badge>
               )}
@@ -212,25 +212,25 @@ export const PendingStorageAllocation = ({
                 <CardContent className="space-y-4 p-0">
                   <div className="flex flex-col space-y-2 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
                     <div className="space-y-2 min-w-0 flex-1">
-                      <h4 className="font-semibold text-small sm:text-body truncate">{bike.sender.name}</h4>
-                      <p className="text-caption sm:text-small text-muted-foreground truncate">
+                      <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
                         {bike.bikeBrand} {bike.bikeModel}
                         {bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
                       </p>
-                      <div className="flex items-center gap-1 text-caption text-muted-foreground">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{bike.receiver.address.city}, {bike.receiver.address.zipCode}</span>
                       </div>
-                      <p className="text-caption text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Tracking: <span className="font-mono">{bike.trackingNumber}</span>
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="success" className="text-caption">
+                        <Badge variant="success" className="text-xs">
                           <Truck className="h-3 w-3 mr-1" />
                           Loaded onto Van
                         </Badge>
                         {bike.bikeQuantity && bike.bikeQuantity > 1 && (
-                          <Badge variant="secondary" className="text-caption">
+                          <Badge variant="secondary" className="text-xs">
                             {bike.bikeQuantity} bikes
                           </Badge>
                         )}
@@ -238,7 +238,7 @@ export const PendingStorageAllocation = ({
                         {bike.needsInspection && (() => {
                           const isComplete = bike.inspection_status === 'inspected' || bike.inspection_status === 'repaired';
                           return (
-                            <Badge className={`text-caption flex items-center gap-1 ${
+                            <Badge className={`text-xs flex items-center gap-1 ${
                               isComplete 
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
@@ -258,7 +258,7 @@ export const PendingStorageAllocation = ({
                         size="sm"
                         variant="outline"
                         onClick={() => generateSingleOrderLabel(bike)}
-                        className="h-9 text-caption flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
+                        className="h-9 text-xs flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
                       >
                         <Printer className="h-3 w-3 sm:mr-1" />
                         <span className="ml-1">Print Label</span>
@@ -268,7 +268,7 @@ export const PendingStorageAllocation = ({
                         variant="outline"
                         onClick={() => setImageDialogOrder(bike)}
                         disabled={getCollectionImages(bike).length === 0}
-                        className="h-9 text-caption flex-1 min-h-[44px]"
+                        className="h-9 text-xs flex-1 min-h-[44px]"
                       >
                         <Image className="h-3 w-3 sm:mr-1" />
                         <span className="ml-1">See Image</span>
@@ -280,7 +280,7 @@ export const PendingStorageAllocation = ({
                       size="sm"
                       variant="outline"
                       onClick={() => onUnloadFromVan(bike.id)}
-                      className="h-9 text-caption w-full min-h-[44px] border-destructive text-destructive hover:bg-destructive/10"
+                      className="h-9 text-xs w-full min-h-[44px] border-destructive text-destructive hover:bg-destructive/10"
                     >
                       <PackageMinus className="h-3 w-3 sm:mr-1" />
                       <span className="ml-1">Unload from Van</span>
@@ -302,30 +302,30 @@ export const PendingStorageAllocation = ({
                   <CardContent className="space-y-4 p-0">
                     <div className="flex flex-col space-y-2 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
                       <div className="space-y-2 min-w-0 flex-1">
-                        <h4 className="font-semibold text-small sm:text-body truncate">{bike.sender.name}</h4>
-                        <p className="text-caption sm:text-small text-muted-foreground truncate">
+                        <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
                           {bike.bikeBrand} {bike.bikeModel}
                           {bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
                         </p>
-                        <div className="flex items-center gap-1 text-caption text-muted-foreground">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <MapPin className="h-3 w-3 flex-shrink-0" />
                           <span className="truncate">{bike.sender.address.city}, {bike.sender.address.zipCode}</span>
                         </div>
-                        <p className="text-caption text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Tracking: <span className="font-mono">{bike.trackingNumber}</span>
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="text-caption">
+                          <Badge variant="secondary" className="text-xs">
                             {bikeQuantity} bike{bikeQuantity > 1 ? 's' : ''} total
                           </Badge>
-                          <Badge variant="outline" className="text-caption">
+                          <Badge variant="outline" className="text-xs">
                             {remainingToAllocate} remaining to allocate
                           </Badge>
                           {(() => {
                             const collectionDriverName = getCompletedDriverName(bike, 'pickup');
                             if (collectionDriverName) {
                               return (
-                                <Badge variant="active" className="text-caption">
+                                <Badge variant="active" className="text-xs">
                                   In {collectionDriverName} Van
                                 </Badge>
                               );
@@ -333,7 +333,7 @@ export const PendingStorageAllocation = ({
                             return null;
                           })()}
                           {bike.delivery_driver_name && (
-                            <Badge variant="warning" className="text-caption">
+                            <Badge variant="warning" className="text-xs">
                               Load onto {bike.delivery_driver_name} van
                             </Badge>
                           )}
@@ -341,7 +341,7 @@ export const PendingStorageAllocation = ({
                           {bike.needsInspection && (() => {
                             const isComplete = bike.inspection_status === 'inspected' || bike.inspection_status === 'repaired';
                             return (
-                              <Badge className={`text-caption flex items-center gap-1 ${
+                              <Badge className={`text-xs flex items-center gap-1 ${
                                 isComplete 
                                   ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                                   : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
@@ -361,7 +361,7 @@ export const PendingStorageAllocation = ({
                         size="sm"
                         variant="outline"
                         onClick={() => generateSingleOrderLabel(bike)}
-                        className="h-9 text-caption flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
+                        className="h-9 text-xs flex-1 min-h-[44px] border-primary text-primary hover:bg-primary/10"
                       >
                         <Printer className="h-3 w-3 sm:mr-1" />
                         <span className="ml-1">Print Label</span>
@@ -371,7 +371,7 @@ export const PendingStorageAllocation = ({
                         variant="outline"
                         onClick={() => setImageDialogOrder(bike)}
                         disabled={getCollectionImages(bike).length === 0}
-                        className="h-9 text-caption flex-1 min-h-[44px]"
+                        className="h-9 text-xs flex-1 min-h-[44px]"
                       >
                         <Image className="h-3 w-3 sm:mr-1" />
                         <span className="ml-1">See Image</span>
@@ -384,7 +384,7 @@ export const PendingStorageAllocation = ({
                         size="sm"
                         variant="outline"
                         onClick={() => onLoadOntoVan(bike.id)}
-                        className="h-9 text-caption w-full min-h-[44px] border-success text-success hover:bg-success/10"
+                        className="h-9 text-xs w-full min-h-[44px] border-success text-success hover:bg-success/10"
                       >
                         <Truck className="h-3 w-3 sm:mr-1" />
                         <span className="ml-1">Load onto {bike.delivery_driver_name} Van</span>
@@ -401,14 +401,14 @@ export const PendingStorageAllocation = ({
                           <div key={key} className="border rounded-lg p-2 sm:p-3 bg-muted/10">
                             <div className="flex items-center gap-2 mb-2">
                               <Package className="h-4 w-4 flex-shrink-0" />
-                              <span className="text-caption sm:text-small font-medium">
+                              <span className="text-xs sm:text-sm font-medium">
                                 Bike {bikeIndex + 1} of {bikeQuantity}
                               </span>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <Label htmlFor={`bay-${key}`} className="text-caption">Bay ({bayHelp})</Label>
+                                <Label htmlFor={`bay-${key}`} className="text-xs">Bay ({bayHelp})</Label>
                                 <Input
                                   id={`bay-${key}`}
                                   value={allocations[key]?.bay || ''}
@@ -419,7 +419,7 @@ export const PendingStorageAllocation = ({
                                 />
                               </div>
                               <div>
-                                <Label htmlFor={`position-${key}`} className="text-caption">Position (1-20)</Label>
+                                <Label htmlFor={`position-${key}`} className="text-xs">Position (1-20)</Label>
                                 <Input
                                   id={`position-${key}`}
                                   value={allocations[key]?.position || ''}
@@ -445,7 +445,7 @@ export const PendingStorageAllocation = ({
                           const key = `${bike.id}-${bikeIndex}`;
                           return allocations[key]?.bay && allocations[key]?.position;
                         }).every(Boolean)}
-                        className="w-full bg-primary hover:bg-primary/90 text-caption sm:text-small"
+                        className="w-full bg-primary hover:bg-primary/90 text-xs sm:text-sm"
                       >
                         Allocate All {remainingToAllocate} Bike{remainingToAllocate > 1 ? 's' : ''}
                       </Button>

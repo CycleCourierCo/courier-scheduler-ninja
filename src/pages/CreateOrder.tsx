@@ -531,7 +531,7 @@ const CreateOrder = () => {
   return (
     <Layout>
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        <h1 className="text-h2 font-bold text-courier-800 mb-6">Create New Order</h1>
+        <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
         <Card>
           <CardHeader>
             <CardTitle>Order Details</CardTitle>
@@ -585,7 +585,7 @@ const CreateOrder = () => {
                   setActiveTab(value);
                 }} className="flex flex-col lg:flex-row gap-6">
                   <div className="w-full lg:w-64 space-y-4 shrink-0">
-                    <h3 className="text-body font-medium mb-2">Order Steps</h3>
+                    <h3 className="text-base font-medium mb-2">Order Steps</h3>
                     <TabsList orientation="vertical" className="w-full bg-muted/60">
                       <TabsTrigger 
                         value="details" 
@@ -612,7 +612,7 @@ const CreateOrder = () => {
                       )}
                     </TabsList>
                     
-                    <div className="text-small text-muted-foreground pt-4 hidden lg:block">
+                    <div className="text-sm text-muted-foreground pt-4 hidden lg:block">
                       <p>Complete all steps to create your bicycle courier order.</p>
                     </div>
                   </div>
@@ -637,7 +637,7 @@ const CreateOrder = () => {
                     <TabsContent value="sender" className="space-y-6 mt-0">
                       <div className="overflow-hidden">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                          <h3 className="text-body-lg font-medium">Collection Contact Information</h3>
+                          <h3 className="text-lg font-medium">Collection Contact Information</h3>
                           <Button
                             type="button"
                             size="sm"
@@ -660,7 +660,7 @@ const CreateOrder = () => {
                       </div>
 
                       <div>
-                        <h3 className="text-body-lg font-medium mb-4">Collection Address</h3>
+                        <h3 className="text-lg font-medium mb-4">Collection Address</h3>
                         <AddressForm 
                           control={form.control} 
                           prefix="sender.address" 
@@ -700,7 +700,7 @@ const CreateOrder = () => {
                     {!isBoxMyBike && (<TabsContent value="receiver" className="space-y-6 mt-0">
                       <div className="overflow-hidden">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                          <h3 className="text-body-lg font-medium">Delivery Contact Information</h3>
+                          <h3 className="text-lg font-medium">Delivery Contact Information</h3>
                           <Button
                             type="button"
                             size="sm"
@@ -723,7 +723,7 @@ const CreateOrder = () => {
                       </div>
 
                       <div>
-                        <h3 className="text-body-lg font-medium mb-4">Delivery Address</h3>
+                        <h3 className="text-lg font-medium mb-4">Delivery Address</h3>
                         <AddressForm 
                           control={form.control} 
                           prefix="receiver.address" 

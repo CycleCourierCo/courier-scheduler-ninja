@@ -223,7 +223,7 @@ const AccountApprovals = () => {
           <div className="flex items-center">
             <Shield size={28} className="mr-2" />
             <div>
-              <h2 className="text-h2 font-bold tracking-tight">Account Approvals</h2>
+              <h2 className="text-3xl font-bold tracking-tight">Account Approvals</h2>
               <p className="text-muted-foreground">
                 Manage business account applications
               </p>
@@ -236,18 +236,18 @@ const AccountApprovals = () => {
         <BusinessAccountsMap accounts={filteredAccounts} />
         <Card className="overflow-hidden shadow-md">
           <CardHeader className="bg-white dark:bg-background p-6 border-b">
-            <CardTitle className="flex items-center gap-2 text-h2 font-bold">
+            <CardTitle className="flex items-center gap-2 text-3xl font-bold">
               <Building size={24} />
               Business Accounts
             </CardTitle>
-            <CardDescription className="text-body-lg text-gray-600 dark:text-gray-400">
+            <CardDescription className="text-lg text-gray-600 dark:text-gray-400">
               Review and approve business account applications
             </CardDescription>
           </CardHeader>
           
           <div className="p-6 flex justify-between items-center">
             <div className="flex items-center space-x-2">
-              <p className="text-small font-medium">Filter by status:</p>
+              <p className="text-sm font-medium">Filter by status:</p>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select status" />
@@ -261,7 +261,7 @@ const AccountApprovals = () => {
               </Select>
             </div>
             
-            <div className="text-small text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               Showing {filteredAccounts.length} of {businessAccounts.length} accounts
             </div>
           </div>
@@ -299,25 +299,25 @@ const AccountApprovals = () => {
                               href={account.website.startsWith('http') ? account.website : `https://${account.website}`}
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-caption text-muted-foreground flex items-center hover:underline mt-1"
+                              className="text-xs text-muted-foreground flex items-center hover:underline mt-1"
                             >
                               {account.website} <ExternalLink size={12} className="ml-1" />
                             </a>
                           )}
-                          <div className="text-caption text-muted-foreground mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Created: {new Date(account.created_at).toLocaleDateString()}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>{account.name}</div>
-                          <div className="text-caption text-muted-foreground">{account.email}</div>
+                          <div className="text-xs text-muted-foreground">{account.email}</div>
                           {account.phone && (
-                            <div className="text-caption text-muted-foreground">{account.phone}</div>
+                            <div className="text-xs text-muted-foreground">{account.phone}</div>
                           )}
                         </TableCell>
                         <TableCell>
                           {account.address_line_1 ? (
-                            <div className="text-caption">
+                            <div className="text-xs">
                               <div>{account.address_line_1}</div>
                               {account.address_line_2 && <div>{account.address_line_2}</div>}
                               <div>
@@ -325,7 +325,7 @@ const AccountApprovals = () => {
                               </div>
                             </div>
                           ) : (
-                            <span className="text-caption text-muted-foreground">No address provided</span>
+                            <span className="text-xs text-muted-foreground">No address provided</span>
                           )}
                         </TableCell>
                         <TableCell>
