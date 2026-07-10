@@ -319,6 +319,31 @@ const BulkOrderUpload: React.FC = () => {
               </Card>
             )}
 
+            {/* Failed orders panel — persistent, per-row error detail */}
+            {results.filter((r) => !r.success).length > 0 && !isSubmitting && (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="font-semibold mb-2">
+                    {results.filter((r) => !r.success).length} order(s) failed to create:
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {results
+                      .filter((r) => !r.success)
+                      .map((r, i) => (
+                        <li key={i} className="font-mono">
+                          <span className="font-semibold">
+                            {r.orderNumber || `Row ${r.rowIndex}`}
+                          </span>{" "}
+                          — {r.error || "Unknown error"}
+                        </li>
+                      ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
+
             {/* Data table */}
             <Card>
               <CardContent className="p-0">
