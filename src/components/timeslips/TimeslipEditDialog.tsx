@@ -159,7 +159,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                 value={formData.total_stops}
                 onChange={(e) => setFormData({ ...formData, total_stops: parseInt(e.target.value) || 0 })}
               />
-              <p className="text-xs text-muted-foreground">Stop hours: {stop_hours.toFixed(2)} (10 min per stop)</p>
+              <p className="text-caption text-muted-foreground">Stop hours: {stop_hours.toFixed(2)} (10 min per stop)</p>
             </div>
 
             <div className="space-y-2">
@@ -211,7 +211,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                   mileage: e.target.value ? parseFloat(e.target.value) : null 
                 })}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {formData.van_allowance > 0 
                   ? 'Default: 160 miles for drivers with van allowance' 
                   : 'Enter actual miles driven'}
@@ -240,7 +240,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Which van the driver used (for mileage tracking).
             </p>
           </div>
@@ -268,7 +268,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
               {formData.custom_addons.length > 0 ? (
                 <div className="space-y-1">
                   {formData.custom_addons.map((addon, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
+                    <div key={index} className="flex items-center justify-between text-small">
                       <span>{addon.title}: {addon.hours}h</span>
                       <Button
                         variant="ghost"
@@ -282,7 +282,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No custom add-ons</p>
+                <p className="text-caption text-muted-foreground">No custom add-ons</p>
               )}
             </div>
 
@@ -329,12 +329,12 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
 
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <h4 className="font-semibold">Summary</h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-2 gap-2 text-small">
               <div>Total Hours:</div>
               <div className="font-medium">{totalHours.toFixed(2)}h</div>
               <div>Total Pay:</div>
               <div className="font-medium text-primary">£{totalPay.toFixed(2)}</div>
-              <div className="text-xs text-muted-foreground col-span-2 space-y-1 mt-2 pt-2 border-t">
+              <div className="text-caption text-muted-foreground col-span-2 space-y-1 mt-2 pt-2 border-t">
                 <div>• Driving: {formData.driving_hours}h</div>
                 <div>• Stops: {stop_hours.toFixed(2)}h</div>
                 <div>• Lunch: +{formData.lunch_hours}h</div>

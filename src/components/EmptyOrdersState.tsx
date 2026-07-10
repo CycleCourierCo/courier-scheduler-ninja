@@ -11,7 +11,7 @@ interface EmptyOrdersStateProps {
 const EmptyOrdersState: React.FC<EmptyOrdersStateProps> = ({ hasOrders, onClearFilters }) => {
   return (
     <div className="bg-gray-50 rounded-lg p-8 text-center">
-      <h2 className="text-xl font-semibold mb-4">No Orders Found</h2>
+      <h2 className="text-h4 font-semibold mb-4">No Orders Found</h2>
       <p className="text-gray-600 mb-6">
         {!hasOrders 
           ? "You haven't created any orders yet. Start by creating your first order."

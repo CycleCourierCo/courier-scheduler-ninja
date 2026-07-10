@@ -74,7 +74,7 @@ export const RemoveBikesDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <DialogTitle className="flex items-center gap-2 text-body sm:text-body-lg">
             <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
             Remove Bikes from Storage
           </DialogTitle>
@@ -97,7 +97,7 @@ export const RemoveBikesDialog = ({
                   />
                   <label
                     htmlFor="select-all"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    className="text-small font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     Select All ({bikesForDelivery.length} bikes)
                   </label>
@@ -134,20 +134,20 @@ export const RemoveBikesDialog = ({
                                 </Badge>
                                 <h4 className="font-medium">{bike.sender.name}</h4>
                               </div>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-caption">
                                 {bike.status}
                               </Badge>
                             </div>
                             
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-small text-muted-foreground">
                               <p className="font-medium">
                                 {bike.bikeBrand} {bike.bikeModel}
                               </p>
-                              <div className="flex items-center gap-1 text-xs mt-1">
+                              <div className="flex items-center gap-1 text-caption mt-1">
                                 <MapPin className="h-3 w-3" />
                                 Deliver to: {bike.receiver.name}, {bike.receiver.address.city}
                               </div>
-                              <p className="text-xs mt-1">
+                              <p className="text-caption mt-1">
                                 Tracking: {bike.trackingNumber}
                               </p>
                             </div>

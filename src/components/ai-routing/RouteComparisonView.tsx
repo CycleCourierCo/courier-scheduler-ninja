@@ -32,13 +32,13 @@ const RouteComparisonView: React.FC<RouteComparisonViewProps> = ({ scenarios, on
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Plan Comparison</h3>
+      <h3 className="text-body-lg font-semibold">Plan Comparison</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {scenarios.map((scenario) => (
           <Card key={scenario.driverCount} className="relative">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">
+                <CardTitle className="text-body">
                   {scenario.driverCount} Driver{scenario.driverCount !== 1 ? 's' : ''}
                 </CardTitle>
                 <ValidationBadge
@@ -51,21 +51,21 @@ const RouteComparisonView: React.FC<RouteComparisonViewProps> = ({ scenarios, on
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Stops</p>
-                  <p className="text-lg font-semibold">{scenario.totalStops}</p>
+                  <p className="text-caption text-muted-foreground">Total Stops</p>
+                  <p className="text-body-lg font-semibold">{scenario.totalStops}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Days Needed</p>
-                  <p className="text-lg font-semibold">{scenario.daysUsed}</p>
+                  <p className="text-caption text-muted-foreground">Days Needed</p>
+                  <p className="text-body-lg font-semibold">{scenario.daysUsed}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Avg Stops/Route</p>
-                  <p className="text-lg font-semibold">{scenario.avgStopsPerRoute.toFixed(1)}</p>
+                  <p className="text-caption text-muted-foreground">Avg Stops/Route</p>
+                  <p className="text-body-lg font-semibold">{scenario.avgStopsPerRoute.toFixed(1)}</p>
                 </div>
                 {scenario.estimatedMiles !== undefined && (
                   <div>
-                    <p className="text-xs text-muted-foreground">Est. Miles</p>
-                    <p className="text-lg font-semibold">{scenario.estimatedMiles.toFixed(0)}</p>
+                    <p className="text-caption text-muted-foreground">Est. Miles</p>
+                    <p className="text-body-lg font-semibold">{scenario.estimatedMiles.toFixed(0)}</p>
                   </div>
                 )}
               </div>

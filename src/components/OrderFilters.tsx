@@ -233,7 +233,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
             placeholder="Search by name, phone, email, postcode, tracking, bike…"
             value={search}
             onChange={handleSearchChange}
-            className="pl-12 pr-10 h-12 text-base"
+            className="pl-12 pr-10 h-12 text-body"
           />
           {search && (
             <button
@@ -274,7 +274,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           </PopoverTrigger>
           <PopoverContent align="start" collisionPadding={16} className={cn(popoverContentBase, "w-[min(20rem,calc(100vw-2rem))]")}>
             <div className="p-3 max-h-[60vh] overflow-y-auto">
-              <div className="text-sm font-medium mb-2">Filter by Status</div>
+              <div className="text-small font-medium mb-2">Filter by Status</div>
               <div className="space-y-1">
                 {statusOptions.map(option => (
                   <div
@@ -285,7 +285,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                     <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center shrink-0">
                       {status.includes(option.value) && <Check className="h-3 w-3" />}
                     </div>
-                    <span className="text-sm">{option.label}</span>
+                    <span className="text-small">{option.label}</span>
                   </div>
                 ))}
               </div>
@@ -308,7 +308,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           </PopoverTrigger>
           <PopoverContent align="start" collisionPadding={16} className={cn(popoverContentBase, "w-[min(20rem,calc(100vw-2rem))]")}>
             <div className="p-3 max-h-[60vh] overflow-y-auto">
-              <div className="text-sm font-medium mb-2">Filter by Bike Type</div>
+              <div className="text-small font-medium mb-2">Filter by Bike Type</div>
               <div className="space-y-1">
                 {bikeTypeOptions.map(option => (
                   <div
@@ -319,7 +319,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                     <div className="w-4 h-4 border border-muted-foreground rounded flex items-center justify-center shrink-0">
                       {bikeType.includes(option.value) && <Check className="h-3 w-3" />}
                     </div>
-                    <span className="text-sm">{option.label}</span>
+                    <span className="text-small">{option.label}</span>
                   </div>
                 ))}
               </div>
@@ -342,10 +342,10 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           </PopoverTrigger>
           <PopoverContent align="start" collisionPadding={16} className={cn(popoverContentBase, "w-[min(20rem,calc(100vw-2rem))]")}>
             <div className="p-3 space-y-3">
-              <div className="text-sm font-medium">Filter by Date Range</div>
+              <div className="text-small font-medium">Filter by Date Range</div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">From</label>
+                  <label className="text-caption text-muted-foreground">From</label>
                   <Calendar
                     mode="single"
                     selected={dateFrom}
@@ -354,7 +354,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">To</label>
+                  <label className="text-caption text-muted-foreground">To</label>
                   <Calendar
                     mode="single"
                     selected={dateTo}

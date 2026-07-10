@@ -206,7 +206,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
       {/* Cluster Legend */}
       {showClusters && clusters.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border">
-          <span className="text-sm font-medium mr-2">Clusters:</span>
+          <span className="text-small font-medium mr-2">Clusters:</span>
           {clusters.map(cluster => (
             <Badge 
               key={cluster.id} 
@@ -262,7 +262,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
             <Popup>
               <div className="p-2">
                 <p className="font-semibold">🏭 Depot</p>
-                <p className="text-sm text-muted-foreground">{DEPOT_LOCATION.address}</p>
+                <p className="text-small text-muted-foreground">{DEPOT_LOCATION.address}</p>
               </div>
             </Popup>
           </Marker>
@@ -279,13 +279,13 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                   <p className="font-semibold" style={{ color: cluster.color }}>
                     {getClusterName(cluster)} Cluster
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-small text-muted-foreground">
                     {cluster.points.length} jobs
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-caption text-muted-foreground mt-1">
                     Collections: {cluster.points.filter(p => p.type === 'collection').length}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-caption text-muted-foreground">
                     Deliveries: {cluster.points.filter(p => p.type === 'delivery').length}
                   </p>
                 </div>
@@ -306,7 +306,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                   <p className="font-semibold">
                     {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-caption text-muted-foreground mt-1">
                     Bikes: {point.bikeQuantity}
                   </p>
                   {point.trackingNumber && (
@@ -314,12 +314,12 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                       href={`/tracking/${point.trackingNumber}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline block mt-1"
+                      className="text-caption text-blue-600 hover:underline block mt-1"
                     >
                       #{point.trackingNumber}
                     </a>
                   )}
-                  <p className="text-xs mt-1" style={{ color: cluster.color }}>
+                  <p className="text-caption mt-1" style={{ color: cluster.color }}>
                     Cluster: {getClusterName(cluster)}
                   </p>
                 </div>
@@ -340,7 +340,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                 <p className="font-semibold">
                   {point.type === 'collection' ? '📦 Collection' : '🚚 Delivery'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-caption text-muted-foreground mt-1">
                   Bikes: {point.bikeQuantity}
                 </p>
                 {point.trackingNumber && (
@@ -348,7 +348,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                     href={`/tracking/${point.trackingNumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline block mt-1"
+                    className="text-caption text-blue-600 hover:underline block mt-1"
                   >
                     #{point.trackingNumber}
                   </a>

@@ -62,14 +62,14 @@ export default function InsuranceTimeline({
         <div className="min-w-[720px]">
           {/* Header months */}
           <div className="flex border-b bg-muted/30">
-            <div className="w-40 shrink-0 px-3 py-2 text-xs font-medium text-muted-foreground border-r">
+            <div className="w-40 shrink-0 px-3 py-2 text-caption font-medium text-muted-foreground border-r">
               Vehicle
             </div>
             <div className="relative flex-1 h-9">
               {months.map((m, i) => (
                 <div
                   key={i}
-                  className="absolute top-0 bottom-0 border-l text-xs text-muted-foreground flex items-center px-2"
+                  className="absolute top-0 bottom-0 border-l text-caption text-muted-foreground flex items-center px-2"
                   style={{ left: `${m.leftPct}%`, width: `${m.widthPct}%` }}
                 >
                   {m.label}
@@ -81,15 +81,15 @@ export default function InsuranceTimeline({
           {/* Rows */}
           <TooltipProvider delayDuration={150}>
             {sortedVehicles.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-muted-foreground">No vehicles</div>
+              <div className="px-3 py-8 text-center text-small text-muted-foreground">No vehicles</div>
             ) : (
               sortedVehicles.map((v) => {
                 const vPolicies = policies.filter((p) => p.vehicle_id === v.id);
                 return (
                   <div key={v.id} className="flex border-b last:border-b-0 hover:bg-muted/20">
-                    <div className="w-40 shrink-0 px-3 py-3 text-sm border-r">
+                    <div className="w-40 shrink-0 px-3 py-3 text-small border-r">
                       <div className="font-mono font-semibold">{v.registration}</div>
-                      <div className="text-xs text-muted-foreground truncate">{v.make ?? ""}</div>
+                      <div className="text-caption text-muted-foreground truncate">{v.make ?? ""}</div>
                     </div>
                     <div className="relative flex-1 h-12">
                       {/* Month gridlines */}
@@ -124,7 +124,7 @@ export default function InsuranceTimeline({
                               <button
                                 type="button"
                                 onClick={() => onPolicyClick(p)}
-                                className={`absolute top-2 bottom-2 rounded-md px-2 text-[11px] font-medium truncate text-left transition-opacity hover:opacity-80 ${
+                                className={`absolute top-2 bottom-2 rounded-md px-2 text-caption font-medium truncate text-left transition-opacity hover:opacity-80 ${
                                   isCurrent ? "bg-primary text-primary-foreground" : "bg-muted-foreground/40 text-foreground"
                                 }`}
                                 style={{ left: `${leftPct}%`, width: `max(${widthPct}%, 12px)` }}
@@ -133,7 +133,7 @@ export default function InsuranceTimeline({
                               </button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <div className="text-xs">
+                              <div className="text-caption">
                                 <div className="font-medium">{p.insurer}</div>
                                 {p.policy_number && <div>#{p.policy_number}</div>}
                                 <div>{p.start_date} → {p.end_date}</div>

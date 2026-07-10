@@ -115,7 +115,7 @@ const TrackingPage = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </Button>
-          <h1 className="text-2xl font-bold mb-6">Track Your Order</h1>
+          <h1 className="text-h3 font-bold mb-6">Track Your Order</h1>
           
           <Card className="mb-8">
             <CardContent className="pt-6">
@@ -147,9 +147,9 @@ const TrackingPage = () => {
                 <div className="grid gap-6">
                   <div className="flex flex-col gap-4">
                     <div className="min-w-0 overflow-hidden">
-                      <h2 className="text-lg sm:text-xl font-semibold flex items-start gap-2 mb-2">
+                      <h2 className="text-body-lg sm:text-h4 font-semibold flex items-start gap-2 mb-2">
                         <Package className="h-5 w-5 text-courier-500 shrink-0 mt-0.5" />
-                        <span className="break-all text-sm sm:text-base leading-tight">
+                        <span className="break-all text-small sm:text-body leading-tight">
                           {order.customerOrderNumber ? (
                             `Order #${order.customerOrderNumber}`
                           ) : (
@@ -157,12 +157,12 @@ const TrackingPage = () => {
                           )}
                         </span>
                       </h2>
-                      <p className="text-muted-foreground text-sm break-words">Created on {new Date(order.createdAt).toLocaleDateString()}</p>
+                      <p className="text-muted-foreground text-small break-words">Created on {new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                     
                     {/* Bike Details */}
                     {(order.bikeBrand || order.bikeModel) && (
-                      <div className="flex items-start text-sm text-muted-foreground gap-2 min-w-0 overflow-hidden">
+                      <div className="flex items-start text-small text-muted-foreground gap-2 min-w-0 overflow-hidden">
                         <Bike className="h-4 w-4 mt-0.5 shrink-0" />
                         <span className="break-words truncate">
                           {order.bikeBrand} {order.bikeModel}
@@ -177,18 +177,18 @@ const TrackingPage = () => {
                   {/* Scheduled Dates Section */}
                   {(order.scheduledPickupDate || order.scheduledDeliveryDate) && (
                     <div className="border-t pt-4">
-                      <h3 className="text-sm font-medium mb-3 flex items-center">
+                      <h3 className="text-small font-medium mb-3 flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-courier-500" />
                         Scheduled Dates
                       </h3>
                    <div className="space-y-4">
                      {order.scheduledPickupDate && (
                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
-                         <p className="text-sm font-medium text-blue-900 mb-2">Collection Date</p>
+                         <p className="text-small font-medium text-blue-900 mb-2">Collection Date</p>
                          <div className="flex flex-col sm:flex-row sm:items-start text-blue-700 mb-2 gap-1 sm:gap-2">
                            <div className="flex items-start gap-2 min-w-0">
                              <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
-                             <span className="text-xs sm:text-sm break-words leading-tight">
+                             <span className="text-caption sm:text-small break-words leading-tight">
                                {window.innerWidth < 640 ? 
                                  new Date(order.scheduledPickupDate).toLocaleDateString('en-GB', {
                                    weekday: 'short',
@@ -209,7 +209,7 @@ const TrackingPage = () => {
                          {order.pickupTimeslot && (
                            <div className="flex items-start text-blue-600 gap-2 min-w-0">
                              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                              <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {formatTimeslotWindow(order.pickupTimeslot)}</span>
+                              <span className="text-caption sm:text-small break-words leading-tight">Timeslot: {formatTimeslotWindow(order.pickupTimeslot)}</span>
                            </div>
                          )}
                        </div>
@@ -217,11 +217,11 @@ const TrackingPage = () => {
                      
                      {order.scheduledDeliveryDate && (
                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
-                         <p className="text-sm font-medium text-green-900 mb-2">Delivery Date</p>
+                         <p className="text-small font-medium text-green-900 mb-2">Delivery Date</p>
                          <div className="flex flex-col sm:flex-row sm:items-start text-green-700 mb-2 gap-1 sm:gap-2">
                            <div className="flex items-start gap-2 min-w-0">
                              <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
-                             <span className="text-xs sm:text-sm break-words leading-tight">
+                             <span className="text-caption sm:text-small break-words leading-tight">
                                {window.innerWidth < 640 ? 
                                  new Date(order.scheduledDeliveryDate).toLocaleDateString('en-GB', {
                                    weekday: 'short',
@@ -242,13 +242,13 @@ const TrackingPage = () => {
                          {order.deliveryTimeslot && (
                            <div className="flex items-start text-green-600 gap-2 min-w-0">
                              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                              <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {formatTimeslotWindow(order.deliveryTimeslot)}</span>
+                              <span className="text-caption sm:text-small break-words leading-tight">Timeslot: {formatTimeslotWindow(order.deliveryTimeslot)}</span>
                            </div>
                          )}
                        </div>
                      )}
                        </div>
-                      <p className="text-sm text-muted-foreground mt-3 italic">
+                      <p className="text-small text-muted-foreground mt-3 italic">
                         * These dates are provisional. You will receive a 3-hour timeslot when an exact date is scheduled in.
                       </p>
                     </div>

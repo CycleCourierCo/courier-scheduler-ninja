@@ -962,7 +962,7 @@ const LoadingUnloadingPage = () => {
           <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
             <div className="flex items-center gap-3">
               <Truck className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl md:text-3xl font-bold">Loading & Unloading</h1>
+              <h1 className="text-h3 md:text-h2 font-bold">Loading & Unloading</h1>
             </div>
             
             {/* Action buttons */}
@@ -1065,7 +1065,7 @@ const LoadingUnloadingPage = () => {
                              <div className="font-medium">
                                Loading List for {format(selectedLoadingDate, 'PPP')}
                              </div>
-                             <div className="text-sm text-muted-foreground mt-1">
+                             <div className="text-small text-muted-foreground mt-1">
                                {bikesLoadedOnDate.length + getBikesNeedingLoading(selectedLoadingDate).length} bikes scheduled • {bikesLoadedOnDate.length} loaded • {getBikesNeedingLoading(selectedLoadingDate).length} pending
                              </div>
                            </div>
@@ -1130,16 +1130,16 @@ const LoadingUnloadingPage = () => {
                                          </div>
                                          <div className="flex items-center gap-2">
                                            {quantity > 1 && (
-                                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                             <div className="text-caption bg-green-100 text-green-700 px-2 py-1 rounded">
                                                {quantity} bikes
                                              </div>
                                            )}
-                                           <div className="text-xs bg-green-600 text-white px-2 py-1 rounded font-medium">
+                                           <div className="text-caption bg-green-600 text-white px-2 py-1 rounded font-medium">
                                              Loaded {loadedTime}
                                            </div>
                                          </div>
                                        </div>
-                                       <div className="text-sm text-green-700">
+                                       <div className="text-small text-green-700">
                                          <div>{order.bikeBrand} {order.bikeModel}</div>
                                          <div>Tracking: {order.trackingNumber}</div>
                                          <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
@@ -1258,7 +1258,7 @@ const LoadingUnloadingPage = () => {
                                      .filter(([_, orders]) => orders.length > 0)
                                      .map(([locationName, orders]) => (
                                        <div key={locationName} className="space-y-2">
-                                         <h4 className="font-semibold text-orange-800 text-sm uppercase tracking-wide border-b border-orange-300 pb-1">
+                                         <h4 className="font-semibold text-orange-800 text-small uppercase tracking-wide border-b border-orange-300 pb-1">
                                            📍 {locationName} ({orders.length})
                                          </h4>
                                          <div className="space-y-2">
@@ -1284,7 +1284,7 @@ const LoadingUnloadingPage = () => {
                                                      </div>
                                                      <div className="flex items-center gap-2">
                                                        {quantity > 1 && (
-                                                         <div className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                                         <div className="text-caption bg-orange-100 text-orange-700 px-2 py-1 rounded">
                                                            {quantity} bikes
                                                          </div>
                                                        )}
@@ -1296,7 +1296,7 @@ const LoadingUnloadingPage = () => {
                                                                return a.position - b.position;
                                                              })
                                                             .map((allocation) => (
-                                                              <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
+                                                              <div key={allocation.id} className="text-caption bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
                                                                 {allocation.bay}{allocation.position}
                                                               </div>
                                                             ))}
@@ -1304,7 +1304,7 @@ const LoadingUnloadingPage = () => {
                                                       )}
                                                     </div>
                                                   </div>
-                                                  <div className="text-sm text-orange-700">
+                                                  <div className="text-small text-orange-700">
                                                     <div>{order.bikeBrand} {order.bikeModel}</div>
                                                     <div>Tracking: {order.trackingNumber}</div>
                                                     <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
@@ -1375,7 +1375,7 @@ const LoadingUnloadingPage = () => {
         {/* Storage Unit Layout */}
         <Card className="mb-6 sm:mb-8">
           <CardHeader className="pb-3 sm:pb-6">
-            <CardTitle className="text-lg sm:text-xl">Storage Unit Layout</CardTitle>
+            <CardTitle className="text-body-lg sm:text-h4">Storage Unit Layout</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-6">
             <StorageUnitLayout 
@@ -1397,8 +1397,8 @@ const LoadingUnloadingPage = () => {
           {/* Bikes Pending Storage Allocation */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg sm:text-xl">Bikes Pending Storage Allocation</CardTitle>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <CardTitle className="text-body-lg sm:text-h4">Bikes Pending Storage Allocation</CardTitle>
+              <p className="text-caption sm:text-small text-muted-foreground">
                 {collectedBikes.length} bike(s) collected and awaiting storage allocation
                 {bikesLoadedOntoVan.length > 0 && ` • ${bikesLoadedOntoVan.length} bike(s) loaded onto van`}
                 {(() => {
@@ -1422,8 +1422,8 @@ const LoadingUnloadingPage = () => {
           {/* Bikes in Storage */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg sm:text-xl">Bikes in Storage</CardTitle>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <CardTitle className="text-body-lg sm:text-h4">Bikes in Storage</CardTitle>
+              <p className="text-caption sm:text-small text-muted-foreground">
                 {bikesInStorage.length} bike(s) currently in storage
                 {(() => {
                   const totalValue = bikesInStorage.reduce((sum, { order }) => sum + (order?.bikeValue || 0), 0);
@@ -1463,11 +1463,11 @@ const LoadingUnloadingPage = () => {
             <div className="space-y-6">
               {/* Loader Section */}
               <div className="space-y-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                <div className="font-medium text-sm flex items-center gap-2">
+                <div className="font-medium text-small flex items-center gap-2">
                   📦 Loader (optional)
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Select loader profile</Label>
+                  <Label className="text-caption text-muted-foreground">Select loader profile</Label>
                   <Select
                     value={loaderProfileSelection}
                     onValueChange={(profileId) => {
@@ -1492,7 +1492,7 @@ const LoadingUnloadingPage = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
+                  <Label className="text-caption text-muted-foreground">Phone (WhatsApp)</Label>
                   <Input
                     type="tel"
                     placeholder="+44..."
@@ -1501,7 +1501,7 @@ const LoadingUnloadingPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <Label className="text-caption text-muted-foreground">Email</Label>
                   <Input
                     type="email"
                     placeholder="loader@example.com"
@@ -1514,9 +1514,9 @@ const LoadingUnloadingPage = () => {
               {/* Driver Sections */}
               {driversForLoading.map((driver) => (
                 <div key={driver} className="space-y-3 p-4 bg-muted/50 rounded-lg">
-                  <div className="font-medium text-sm">{driver}</div>
+                  <div className="font-medium text-small">{driver}</div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Select driver profile</Label>
+                    <Label className="text-caption text-muted-foreground">Select driver profile</Label>
                     <Select
                       value={driverProfileSelections[driver] || ''}
                       onValueChange={(profileId) => {
@@ -1541,7 +1541,7 @@ const LoadingUnloadingPage = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Phone (WhatsApp)</Label>
+                    <Label className="text-caption text-muted-foreground">Phone (WhatsApp)</Label>
                     <Input
                       type="tel"
                       placeholder="+44..."
@@ -1553,7 +1553,7 @@ const LoadingUnloadingPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <Label className="text-caption text-muted-foreground">Email</Label>
                     <Input
                       type="email"
                       placeholder="driver@example.com"

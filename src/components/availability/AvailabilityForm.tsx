@@ -108,7 +108,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
     <form onSubmit={onSubmit} className="max-w-4xl mx-auto py-8 px-4">
       <Card className="shadow-lg border-slate-200">
         <CardHeader className="space-y-1 bg-slate-50 rounded-t-lg border-b">
-          <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardTitle className="text-h3">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -122,7 +122,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           )}
           <div className="flex flex-col md:flex-row gap-8">
             <div className="flex-1">
-              <h3 className="text-lg font-medium mb-4 flex items-center">
+              <h3 className="text-body-lg font-medium mb-4 flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
                 Select Available Dates
               </h3>
@@ -156,13 +156,13 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
               )}
             </div>
             <div className="flex-1 flex flex-col">
-              <h3 className="text-lg font-medium mb-4 flex items-center">
+              <h3 className="text-body-lg font-medium mb-4 flex items-center">
                 <Calendar className="mr-2 h-5 w-5 text-primary" />
                 Selected Dates
               </h3>
               {dates.length > 0 ? (
                 <div className="space-y-2 flex-grow">
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="text-small text-muted-foreground mb-2">
                     {dates.length >= 7 
                       ? `You've selected ${dates.length} dates. Great!` 
                       : `Please select at least ${7 - dates.length} more date${7 - dates.length > 1 ? 's' : ''}.`}
@@ -193,7 +193,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
               )}
               
               <div className="mt-4">
-                <label htmlFor="notes" className="block text-sm font-medium mb-2">
+                <label htmlFor="notes" className="block text-small font-medium mb-2">
                   Additional Notes
                 </label>
                 <Textarea
@@ -207,7 +207,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
               </div>
 
               <div className="mt-4">
-                <label htmlFor="postcode" className="block text-sm font-medium mb-2">
+                <label htmlFor="postcode" className="block text-small font-medium mb-2">
                   {postcodeLabel || 'Postcode'} <span className="text-destructive">*</span>
                 </label>
                 <input
@@ -218,9 +218,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   required
                   autoComplete="postal-code"
                   placeholder="e.g. SW1A 1AA"
-                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-small focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-caption text-muted-foreground mt-1">
                   We use this to confirm you're the right person for this order.
                 </p>
               </div>
@@ -247,7 +247,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           </Button>
           
           {dates.length < 7 && (
-            <p className="text-sm text-center text-muted-foreground">
+            <p className="text-small text-center text-muted-foreground">
               Please select at least 7 available dates to continue
             </p>
           )}

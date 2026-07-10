@@ -99,7 +99,7 @@ export default function InsuranceTab({ vehicles }: Props) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Vehicle Insurance</h2>
+        <h2 className="text-body-lg font-semibold">Vehicle Insurance</h2>
         <Button onClick={() => openAdd()}>
           <Plus className="h-4 w-4 mr-2" /> Add policy
         </Button>
@@ -115,14 +115,14 @@ export default function InsuranceTab({ vehicles }: Props) {
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : uninsured.length === 0 ? (
-          <div className="text-sm text-muted-foreground">All active vehicles are currently insured.</div>
+          <div className="text-small text-muted-foreground">All active vehicles are currently insured.</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {uninsured.map((v) => (
               <div key={v.id} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
-                <div className="text-sm">
+                <div className="text-small">
                   <div className="font-mono font-semibold">{v.registration}</div>
-                  <div className="text-xs text-muted-foreground">{v.make ?? "—"}</div>
+                  <div className="text-caption text-muted-foreground">{v.make ?? "—"}</div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => openAdd(v.id)}>Add policy</Button>
               </div>
@@ -186,7 +186,7 @@ export default function InsuranceTab({ vehicles }: Props) {
             <TableBody>
               {sortedPolicies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">
+                  <TableCell colSpan={7} className="text-center text-small text-muted-foreground py-6">
                     No policies yet
                   </TableCell>
                 </TableRow>
@@ -199,16 +199,16 @@ export default function InsuranceTab({ vehicles }: Props) {
                     <TableRow key={p.id}>
                       <TableCell className="font-mono">{v?.registration ?? "—"}</TableCell>
                       <TableCell>{p.insurer}</TableCell>
-                      <TableCell className="text-sm">{p.policy_number ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{p.start_date}</TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-small">{p.policy_number ?? "—"}</TableCell>
+                      <TableCell className="text-small">{p.start_date}</TableCell>
+                      <TableCell className="text-small">
                         <span className={
                           expired ? "text-destructive font-medium"
                           : expiringSoon ? "text-amber-600 dark:text-amber-400 font-medium"
                           : ""
                         }>{p.end_date}</span>
                       </TableCell>
-                      <TableCell className="text-sm">{p.premium != null ? `£${Number(p.premium).toFixed(2)}` : "—"}</TableCell>
+                      <TableCell className="text-small">{p.premium != null ? `£${Number(p.premium).toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openEdit(p)}>

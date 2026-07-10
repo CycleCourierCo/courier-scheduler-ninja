@@ -10,6 +10,7 @@ import {
   type TimeRange,
 } from "@/services/analyticsService";
 import type { Order } from "@/types/order";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface OrdersCompletedChartProps {
   orders: Order[];
@@ -45,7 +46,7 @@ const OrdersCompletedChart = ({ orders }: OrdersCompletedChartProps) => {
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 space-y-0">
         <div>
           <CardTitle>Orders Completed</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-caption text-muted-foreground mt-1">
             {totals.orders} orders · {totals.collections} collections · {totals.deliveries} deliveries
           </p>
         </div>
@@ -60,7 +61,7 @@ const OrdersCompletedChart = ({ orders }: OrdersCompletedChartProps) => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 11 }} interval={Math.max(0, Math.floor(data.length / 6) - 1)} minTickGap={12} />
+            <XAxis dataKey="label" angle={-45} textAnchor="end" height={70} tick={{ fontSize: CHART_TICK_FONT_SIZE }} interval={Math.max(0, Math.floor(data.length / 6) - 1)} minTickGap={12} />
             <YAxis allowDecimals={false} />
             <Tooltip />
             <Legend />

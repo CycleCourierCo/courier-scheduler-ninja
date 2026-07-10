@@ -784,15 +784,15 @@ export default function DispatchRoutesPage() {
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <Label className="text-xs">Date</Label>
+            <Label className="text-caption">Date</Label>
             <Input type="date" value={routeDate} onChange={(e) => setRouteDate(e.target.value)} />
           </div>
           <div>
-            <Label className="text-xs">Route name</Label>
+            <Label className="text-caption">Route name</Label>
             <Input value={routeName} onChange={(e) => setRouteName(e.target.value)} className="w-48" />
           </div>
           <div>
-            <Label className="text-xs">Driver</Label>
+            <Label className="text-caption">Driver</Label>
             <Select value={driverId} onValueChange={setDriverId}>
               <SelectTrigger className="w-56"><SelectValue placeholder="Unassigned" /></SelectTrigger>
               <SelectContent>
@@ -817,7 +817,7 @@ export default function DispatchRoutesPage() {
                 <SelectTrigger className="w-48"><SelectValue placeholder="Existing route…" /></SelectTrigger>
                 <SelectContent>
                   {(routesForDate.data ?? []).length === 0 && (
-                    <div className="p-2 text-xs text-muted-foreground">No routes for {routeDate}</div>
+                    <div className="p-2 text-caption text-muted-foreground">No routes for {routeDate}</div>
                   )}
                   {(routesForDate.data ?? []).map((r: any) => (
                     <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
@@ -832,17 +832,17 @@ export default function DispatchRoutesPage() {
         </div>
 
         {mapsError && (
-          <Card className="p-3 text-sm text-destructive">Google Maps failed to load: {mapsError.message}</Card>
+          <Card className="p-3 text-small text-destructive">Google Maps failed to load: {mapsError.message}</Card>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
           <Card className="p-3 flex flex-col gap-3 h-[calc(100vh-220px)]">
             <div className="flex items-center justify-between">
-              <div className="font-semibold text-sm">Stops on {routeDate}</div>
+              <div className="font-semibold text-small">Stops on {routeDate}</div>
               <Badge variant="secondary">{pins.length} unassigned</Badge>
             </div>
 
-            <div className="text-[11px] text-muted-foreground leading-snug">
+            <div className="text-caption text-muted-foreground leading-snug">
               {stats.totalCandidates === 0
                 ? "No pickups or deliveries match this date (checked scheduled dates and sender/receiver availability)."
                 : (
@@ -855,10 +855,10 @@ export default function DispatchRoutesPage() {
                 )}
             </div>
 
-            <div className="text-xs text-muted-foreground">
+            <div className="text-caption text-muted-foreground">
               Click <kbd className="px-1 border rounded">Box select</kbd> (or hold <kbd className="px-1 border rounded">Shift</kbd>) and drag on the map. Click pins to toggle individually.
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-caption">
               <Button size="sm" variant={boxSelectMode ? "default" : "outline"} onClick={() => setBoxSelectMode((v) => !v)}>
                 <SquareDashed className="h-3 w-3 mr-1" />
                 {boxSelectMode ? "Drag to box-select…" : "Box select"}
@@ -870,7 +870,7 @@ export default function DispatchRoutesPage() {
                 <Trash2 className="h-3 w-3 mr-1" />Clear
               </Button>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between text-caption">
               <span className="font-medium">Selected: {selectedPins.length}</span>
               {totals && <span className="text-muted-foreground">{totals.km.toFixed(1)} km · {Math.round(totals.min)} min</span>}
             </div>
@@ -878,7 +878,7 @@ export default function DispatchRoutesPage() {
               <div className="space-y-1">
                 {sequence ? (
                   sequence.map((k) => pinsByKey[k]).filter(Boolean).map((p, i) => (
-                    <div key={p.key} className="flex items-start gap-2 text-xs border rounded p-2 bg-amber-50">
+                    <div key={p.key} className="flex items-start gap-2 text-caption border rounded p-2 bg-amber-50">
                       <div className="font-mono w-5 text-muted-foreground">{i + 1}</div>
                       <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
                       <div className="flex-1 min-w-0">
@@ -888,7 +888,7 @@ export default function DispatchRoutesPage() {
                     </div>
                   ))
                 ) : pins.length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic p-2">No stops for this date.</div>
+                  <div className="text-caption text-muted-foreground italic p-2">No stops for this date.</div>
                 ) : (
                   pins.map((p) => {
                     const sel = !!selected[p.key];
@@ -900,7 +900,7 @@ export default function DispatchRoutesPage() {
                           if (next[p.key]) delete next[p.key]; else next[p.key] = true;
                           return next;
                         })}
-                        className={`flex items-start gap-2 text-xs border rounded p-2 cursor-pointer hover:bg-accent ${sel ? "ring-2 ring-amber-400 bg-amber-50" : ""}`}
+                        className={`flex items-start gap-2 text-caption border rounded p-2 cursor-pointer hover:bg-accent ${sel ? "ring-2 ring-amber-400 bg-amber-50" : ""}`}
                       >
                         <MapPin className={`h-3 w-3 mt-0.5 ${p.type === "pickup" ? "text-blue-600" : "text-green-600"}`} />
                         <div className="flex-1 min-w-0">
@@ -916,14 +916,14 @@ export default function DispatchRoutesPage() {
               {(routesForDate.data ?? []).length > 0 && (
                 <div className="mt-4 pt-3 border-t space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold text-sm">Routes on {routeDate}</div>
+                    <div className="font-semibold text-small">Routes on {routeDate}</div>
                     <div className="flex items-center gap-2">
-                      <label className="text-[10px] text-muted-foreground">Start</label>
+                      <label className="text-caption text-muted-foreground">Start</label>
                       <Input
                         type="time"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
-                        className="h-7 w-[90px] text-xs"
+                        className="h-7 w-[90px] text-caption"
                       />
                       <Badge variant="secondary">{(routesForDate.data ?? []).length}</Badge>
                     </div>
@@ -965,12 +965,12 @@ export default function DispatchRoutesPage() {
                     }
 
                     return (
-                      <div key={r.id} className="border rounded p-2 text-xs space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
+                      <div key={r.id} className="border rounded p-2 text-caption space-y-1.5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium truncate">{r.name}</div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Button
-                              size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
+                              size="sm" variant="ghost" className="h-6 px-2 text-caption"
                               onClick={() => setHiddenRoutes((p) => { const n = { ...p }; if (n[r.id]) delete n[r.id]; else n[r.id] = true; return n; })}
                             >
                               {hidden ? "Show" : "Hide"}
@@ -1002,13 +1002,13 @@ export default function DispatchRoutesPage() {
                           {driver ? (driver.name ?? driver.email) : "Unassigned"}
                           {" · "}{r.status}
                         </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-caption">
                           <span><b>{stopCount}</b> stops</span>
                           <span><b>{r.total_distance_km != null ? Number(r.total_distance_km).toFixed(1) : "—"}</b> km</span>
                           <span><b>{fmtDuration(r.total_duration_min)}</b></span>
                           {depotEta && <span>Back at depot <b>{depotEta}</b></span>}
                         </div>
-                        <details className="text-[11px]">
+                        <details className="text-caption">
                           <summary className="cursor-pointer text-muted-foreground">Stops (Depot → {stopCount} → Depot)</summary>
                           <div className="mt-1 space-y-0.5 pl-1">
                             <div className="text-muted-foreground">0. Depot · B10 0AD · {startTime}</div>
@@ -1049,7 +1049,7 @@ export default function DispatchRoutesPage() {
               <div ref={mapDivRef} className="absolute inset-0 h-full w-full" />
             </div>
             {!ready && (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground bg-white/80 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center text-small text-muted-foreground bg-white/80 pointer-events-none">
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Loading map…
               </div>
             )}

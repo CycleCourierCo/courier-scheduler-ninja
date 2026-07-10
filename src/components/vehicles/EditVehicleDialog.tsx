@@ -150,7 +150,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+          <div className="rounded-lg border bg-muted/30 p-3 text-small space-y-1">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
               <div>Make: <span className="text-foreground">{vehicle.make ?? "—"}</span></div>
               <div>Colour: <span className="text-foreground">{vehicle.colour ?? "—"}</span></div>
@@ -165,7 +165,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
                 Refresh from DVLA
               </Button>
               {vehicle.last_refreshed_at && (
-                <span className="ml-2 text-xs text-muted-foreground">
+                <span className="ml-2 text-caption text-muted-foreground">
                   Last: {new Date(vehicle.last_refreshed_at).toLocaleString()}
                 </span>
               )}
@@ -210,7 +210,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
 
           {isSold && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3">
-              <div className="text-sm font-medium">Sold details (required)</div>
+              <div className="text-small font-medium">Sold details (required)</div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="sold-date">Sold date</Label>
@@ -242,7 +242,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
             <div className="space-y-2">
               {TOLL_FIELDS.map((f) => (
                 <div key={f.key} className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="font-medium text-sm">{f.label}</div>
+                  <div className="font-medium text-small">{f.label}</div>
                   <Switch
                     checked={tolls[f.key]}
                     onCheckedChange={(v) => setTolls((t) => ({ ...t, [f.key]: v }))}

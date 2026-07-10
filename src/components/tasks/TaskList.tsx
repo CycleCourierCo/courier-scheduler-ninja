@@ -13,8 +13,8 @@ interface Props {
 }
 
 const TaskList: React.FC<Props> = ({ tasks, loading, onSelect }) => {
-  if (loading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>;
-  if (!tasks.length) return <div className="p-6 text-center text-sm text-muted-foreground">No tasks.</div>;
+  if (loading) return <div className="p-6 text-center text-small text-muted-foreground">Loading…</div>;
+  if (!tasks.length) return <div className="p-6 text-center text-small text-muted-foreground">No tasks.</div>;
 
   return (
     <Table>
@@ -36,12 +36,12 @@ const TaskList: React.FC<Props> = ({ tasks, loading, onSelect }) => {
               <TableCell className="font-medium">{t.title}</TableCell>
               <TableCell><TaskStatusBadge status={t.status} /></TableCell>
               <TableCell><TaskPriorityBadge priority={t.priority} /></TableCell>
-              <TableCell className="text-sm">{t.assignee?.name || t.assignee?.email || <span className="text-muted-foreground">—</span>}</TableCell>
-              <TableCell className={`text-xs ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+              <TableCell className="text-small">{t.assignee?.name || t.assignee?.email || <span className="text-muted-foreground">—</span>}</TableCell>
+              <TableCell className={`text-caption ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
                 {t.due_date ? format(new Date(t.due_date), 'PP') : '—'}
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1 text-caption text-muted-foreground">
                   {t.linked_order_id && <LinkIcon className="h-3 w-3" />}
                   {t.linked_conversation_id && <LinkIcon className="h-3 w-3" />}
                 </div>

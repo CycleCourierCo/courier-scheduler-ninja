@@ -9,19 +9,19 @@ const PrivacyPolicyPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">Privacy Policy</CardTitle>
+            <CardTitle className="text-h2 font-bold text-center">Privacy Policy</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground text-center">Last updated: April 4, 2025</p>
+            <p className="text-small text-muted-foreground text-center">Last updated: April 4, 2025</p>
             
             <div className="space-y-6">
               <section>
-                <h2 className="text-2xl font-semibold">Introduction</h2>
+                <h2 className="text-h3 font-semibold">Introduction</h2>
                 <p>At The Cycle Courier Co., we respect your privacy and are committed to protecting your personal data. This privacy policy will inform you about how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you.</p>
               </section>
               
               <section>
-                <h2 className="text-2xl font-semibold">Information We Collect</h2>
+                <h2 className="text-h3 font-semibold">Information We Collect</h2>
                 <p>We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:</p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li><span className="font-medium">Identity Data</span> - includes first name, last name, username or similar identifier.</li>
@@ -32,7 +32,7 @@ const PrivacyPolicyPage: React.FC = () => {
               </section>
               
               <section>
-                <h2 className="text-2xl font-semibold">How We Use Your Information</h2>
+                <h2 className="text-h3 font-semibold">How We Use Your Information</h2>
                 <p>We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:</p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>To register you as a new customer</li>
@@ -43,12 +43,12 @@ const PrivacyPolicyPage: React.FC = () => {
               </section>
               
               <section>
-                <h2 className="text-2xl font-semibold">Data Security</h2>
+                <h2 className="text-h3 font-semibold">Data Security</h2>
                 <p>We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorized way, altered or disclosed. In addition, we limit access to your personal data to those employees, agents, contractors and other third parties who have a business need to know.</p>
               </section>
               
               <section>
-                <h2 className="text-2xl font-semibold">Your Legal Rights</h2>
+                <h2 className="text-h3 font-semibold">Your Legal Rights</h2>
                 <p>Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to:</p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>Request access to your personal data</li>
@@ -62,7 +62,7 @@ const PrivacyPolicyPage: React.FC = () => {
               </section>
               
               <section>
-                <h2 className="text-2xl font-semibold">Contact Us</h2>
+                <h2 className="text-h3 font-semibold">Contact Us</h2>
                 <p>If you have any questions about this privacy policy or our privacy practices, please contact us at privacy@cyclecourierco.com.</p>
               </section>
             </div>

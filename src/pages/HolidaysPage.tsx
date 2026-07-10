@@ -160,7 +160,7 @@ const HolidaysPage: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
+        <h1 className="text-h2 font-bold mb-6 flex items-center gap-2">
           <CalendarOff className="h-8 w-8 text-primary" />
           Holiday Management
         </h1>
@@ -197,7 +197,7 @@ const HolidaysPage: React.FC = () => {
               </div>
 
               {selectedDates.length > 0 && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-small text-muted-foreground">
                   {selectedDates.length} date{selectedDates.length > 1 ? "s" : ""} selected
                 </p>
               )}
@@ -263,11 +263,11 @@ const HolidaysPage: React.FC = () => {
           </Card>
         </div>
 
-        <h2 className="text-2xl font-bold mt-10 mb-4 flex items-center gap-2">
+        <h2 className="text-h3 font-bold mt-10 mb-4 flex items-center gap-2">
           <CalendarCheck className="h-7 w-7 text-primary" />
           Allowed Fridays
         </h2>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-small text-muted-foreground mb-4">
           Fridays are blocked by default on customer availability calendars. Add specific Fridays here to make them
           selectable.
         </p>
@@ -305,7 +305,7 @@ const HolidaysPage: React.FC = () => {
               </div>
 
               {selectedFridays.length > 0 && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-small text-muted-foreground">
                   {selectedFridays.length} Friday{selectedFridays.length > 1 ? "s" : ""} selected
                 </p>
               )}

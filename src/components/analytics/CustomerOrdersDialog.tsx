@@ -23,6 +23,7 @@ import {
   type TimeRange,
 } from "@/services/analyticsService";
 import TimeSeriesFilters from "./TimeSeriesFilters";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface CustomerOrdersDialogProps {
   open: boolean;
@@ -89,7 +90,7 @@ const CustomerOrdersDialog = ({
 
         <div className="h-80 w-full">
           {data.length === 0 || total === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-full items-center justify-center text-small text-muted-foreground">
               No orders in this range.
             </div>
           ) : (
@@ -104,11 +105,11 @@ const CustomerOrdersDialog = ({
                 />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }}
                 />
                 <Tooltip
                   contentStyle={{

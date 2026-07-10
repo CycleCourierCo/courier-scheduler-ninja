@@ -87,10 +87,10 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
         </DialogHeader>
 
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="text-sm">
+          <div className="text-small">
             Current odometer:{" "}
             <span className="font-semibold">{currentMi.toLocaleString("en-GB")} mi</span>
-            <span className="text-muted-foreground text-xs ml-2">
+            <span className="text-muted-foreground text-caption ml-2">
               ({baselineMileage.toLocaleString("en-GB")} baseline + {timeslipMiles.toLocaleString("en-GB")} from timeslips)
             </span>
           </div>
@@ -127,8 +127,8 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
                   <TableBody>
                     {due.map((d) => (
                       <TableRow key={`${d.serviceType}-${d.position}-${d.customName}`}>
-                        <TableCell className="font-medium text-sm">{d.label}</TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell className="font-medium text-small">{d.label}</TableCell>
+                        <TableCell className="text-caption">
                           {d.lastDate ? (
                             <>
                               {new Date(d.lastDate).toLocaleDateString("en-GB")}
@@ -138,7 +138,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
                             </>
                           ) : "Never"}
                         </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell className="text-caption">
                           {d.dueDate && <div>{new Date(d.dueDate).toLocaleDateString("en-GB")}</div>}
                           {d.dueMiles != null && <div className="text-muted-foreground">@ {d.dueMiles.toLocaleString("en-GB")} mi</div>}
                           {!d.dueDate && d.dueMiles == null && <span className="text-muted-foreground">—</span>}
@@ -156,7 +156,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
             <TabsContent value="history">
               <Card className="overflow-x-auto">
                 {logs.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground text-sm">
+                  <div className="p-8 text-center text-muted-foreground text-small">
                     No services logged yet.
                   </div>
                 ) : (
@@ -176,24 +176,24 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
                     <TableBody>
                       {logs.map((log) => (
                         <TableRow key={log.id}>
-                          <TableCell className="text-xs whitespace-nowrap">
+                          <TableCell className="text-caption whitespace-nowrap">
                             {new Date(log.service_date).toLocaleDateString("en-GB")}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-small">
                             {formatServiceLabel(log.service_type, log.position, log.custom_name)}
                           </TableCell>
-                          <TableCell className="text-right text-xs">
+                          <TableCell className="text-right text-caption">
                             {log.odometer_mi != null ? `${log.odometer_mi.toLocaleString("en-GB")} mi` : "—"}
                           </TableCell>
-                          <TableCell className="text-xs">
+                          <TableCell className="text-caption">
                             {[log.brand, log.model].filter(Boolean).join(" / ") || "—"}
                             {log.part_number && <div className="text-muted-foreground">{log.part_number}</div>}
                           </TableCell>
-                          <TableCell className="text-xs">{log.vendor || "—"}</TableCell>
-                          <TableCell className="text-right text-xs">
+                          <TableCell className="text-caption">{log.vendor || "—"}</TableCell>
+                          <TableCell className="text-right text-caption">
                             {log.cost != null ? `£${Number(log.cost).toFixed(2)}` : "—"}
                           </TableCell>
-                          <TableCell className="text-xs max-w-xs truncate" title={log.notes ?? ""}>
+                          <TableCell className="text-caption max-w-xs truncate" title={log.notes ?? ""}>
                             {log.notes || "—"}
                           </TableCell>
                           <TableCell>

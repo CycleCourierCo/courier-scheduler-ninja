@@ -17,7 +17,7 @@ const OrderTasksPanel: React.FC<{ orderId: string }> = ({ orderId }) => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between py-3">
-        <CardTitle className="text-base flex items-center gap-2">
+        <CardTitle className="text-body flex items-center gap-2">
           <CheckSquare className="h-4 w-4" /> Tasks
         </CardTitle>
         <Button size="sm" onClick={() => setCreateOpen(true)}>

@@ -186,7 +186,7 @@ const Dashboard: React.FC = () => {
       <div className="container mx-auto px-4 py-6 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+            <h1 className="text-h2 font-bold tracking-tight">Orders</h1>
             <p className="text-muted-foreground">Manage your delivery orders</p>
           </div>
           <Dialog open={isLabelsDialogOpen} onOpenChange={setIsLabelsDialogOpen}>
@@ -240,11 +240,11 @@ const Dashboard: React.FC = () => {
         {totalCount > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t pt-4 gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-small text-muted-foreground">
                 Showing {startIndex} to {endIndex} of {totalCount} orders
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Rows per page:</span>
+                <span className="text-small text-muted-foreground">Rows per page:</span>
                 <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
                   <SelectTrigger className="w-20">
                     <SelectValue />

@@ -96,7 +96,7 @@ export default function WebhookConfigPage() {
       <div className="container mx-auto py-8 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Webhook Configuration</h1>
+            <h1 className="text-h2 font-bold">Webhook Configuration</h1>
             <p className="text-muted-foreground mt-1">
               Manage webhook endpoints for order event notifications
             </p>
@@ -150,12 +150,12 @@ export default function WebhookConfigPage() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {webhook.events.slice(0, 2).map((event) => (
-                            <Badge key={event} variant="secondary" className="text-xs">
+                            <Badge key={event} variant="secondary" className="text-caption">
                               {event}
                             </Badge>
                           ))}
                           {webhook.events.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-caption">
                               +{webhook.events.length - 2}
                             </Badge>
                           )}
@@ -169,17 +169,17 @@ export default function WebhookConfigPage() {
                       <TableCell>
                         {webhook.last_triggered_at ? (
                           <div>
-                            <div className="text-sm">{format(new Date(webhook.last_triggered_at), 'MMM d, yyyy')}</div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-small">{format(new Date(webhook.last_triggered_at), 'MMM d, yyyy')}</div>
+                            <div className="text-caption text-muted-foreground">
                               {format(new Date(webhook.last_triggered_at), 'HH:mm:ss')}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Never</span>
+                          <span className="text-muted-foreground text-small">Never</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">{webhook.secret_prefix}...</code>
+                        <code className="text-caption bg-muted px-2 py-1 rounded">{webhook.secret_prefix}...</code>
                       </TableCell>
                       <TableCell>
                         <Button

@@ -90,12 +90,12 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
           icon={location.type === 'pickup' ? pickupIcon : deliveryIcon}
         >
           <Popup>
-            <div className="text-sm">
+            <div className="text-small">
               <p className="font-semibold">
                 {location.type === 'pickup' ? '🟢 Pickup' : '🔴 Delivery'}
               </p>
               {location.postcode && <p>Postcode: {location.postcode}</p>}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 Order: {location.order_id.slice(0, 8)}...
               </p>
             </div>

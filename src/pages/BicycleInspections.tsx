@@ -709,7 +709,7 @@ const BicycleInspections = () => {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <CardTitle className="flex items-center gap-2 text-body-lg">
                 <Wrench className="h-5 w-5" />
                 {order.bike_brand} {order.bike_model}
                 {order.bike_quantity > 1 && (
@@ -720,7 +720,7 @@ const BicycleInspections = () => {
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
               {order.customer_order_number && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-caption text-muted-foreground mt-1">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
                 </p>
               )}
@@ -765,7 +765,7 @@ const BicycleInspections = () => {
                     });
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectTrigger className="h-8 w-[180px] text-caption">
                     <SelectValue placeholder="Change status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -799,24 +799,24 @@ const BicycleInspections = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <p className="font-medium text-sm flex items-center gap-1">
+                      <p className="font-medium text-small flex items-center gap-1">
                         <AlertTriangle className="h-4 w-4" />
                         {issue.issue_description}
                       </p>
                       {issue.estimated_cost != null && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-small text-muted-foreground mt-1">
                           {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
                         </p>
                       )}
                       {/* Part info — mechanic/admin only */}
                       {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
-                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                        <div className="mt-1 text-caption text-muted-foreground space-y-0.5">
                           {issue.part_name && <p>Part: <span className="font-medium text-foreground">{issue.part_name}</span></p>}
                           {issue.part_spec && <p>Spec: <span className="font-medium text-foreground">{issue.part_spec}</span></p>}
                           {issue.part_number && <p>Part #: <span className="font-medium text-foreground">{issue.part_number}</span></p>}
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-caption text-muted-foreground mt-1">
                         Reported by {issue.requested_by_name}
                       </p>
                     </div>
@@ -830,14 +830,14 @@ const BicycleInspections = () => {
                     <div className="mt-3 space-y-2">
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
-                          <Label className="text-xs">Price (£)</Label>
+                          <Label className="text-caption">Price (£)</Label>
                           <Input
                             type="number"
                             step="0.01"
                             placeholder="0.00"
                             value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
                             onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
-                            className="text-sm"
+                            className="text-small"
                           />
                         </div>
                         <Button
@@ -907,37 +907,37 @@ const BicycleInspections = () => {
                   {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
                     <div className="mt-3 space-y-2 p-3 rounded-md border bg-background">
                       <div>
-                        <Label className="text-xs">Description</Label>
+                        <Label className="text-caption">Description</Label>
                         <Textarea
                           value={editIssueDraft.description}
                           onChange={(e) => setEditIssueDraft(prev => ({ ...prev, description: e.target.value }))}
-                          className="text-sm"
+                          className="text-small"
                           rows={2}
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Estimated cost (£)</Label>
+                        <Label className="text-caption">Estimated cost (£)</Label>
                         <Input
                           type="number"
                           step="0.01"
                           placeholder="0.00"
                           value={editIssueDraft.cost}
                           onChange={(e) => setEditIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                          className="text-sm"
+                          className="text-small"
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
-                          <Label className="text-xs">Part name</Label>
-                          <Input value={editIssueDraft.partName} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
+                          <Label className="text-caption">Part name</Label>
+                          <Input value={editIssueDraft.partName} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-small" />
                         </div>
                         <div>
-                          <Label className="text-xs">Spec</Label>
-                          <Input value={editIssueDraft.partSpec} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
+                          <Label className="text-caption">Spec</Label>
+                          <Input value={editIssueDraft.partSpec} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-small" />
                         </div>
                         <div>
-                          <Label className="text-xs">Part #</Label>
-                          <Input value={editIssueDraft.partNumber} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
+                          <Label className="text-caption">Part #</Label>
+                          <Input value={editIssueDraft.partNumber} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-small" />
                         </div>
                       </div>
                       <div className="flex gap-2 pt-1">
@@ -988,11 +988,11 @@ const BicycleInspections = () => {
                             togglePartsOrderedMutation.mutate({ issueId: issue.id, ordered: !!checked })
                           }
                         />
-                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                        <Label htmlFor={`ordered-${issue.id}`} className="text-small cursor-pointer flex items-center gap-1">
                           <PackageCheck className="h-4 w-4" />
                           Parts ordered
                           {issue.parts_ordered && issue.parts_ordered_by_name && (
-                            <span className="text-xs text-muted-foreground ml-2">
+                            <span className="text-caption text-muted-foreground ml-2">
                               by {issue.parts_ordered_by_name}
                             </span>
                           )}
@@ -1009,12 +1009,12 @@ const BicycleInspections = () => {
                         />
                         <Label
                           htmlFor={`parts-${issue.id}`}
-                          className={`text-sm flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                          className={`text-small flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                         >
                           <PackageCheck className="h-4 w-4" />
                           Parts arrived
                           {issue.parts_arrived && issue.parts_arrived_by_name && (
-                            <span className="text-xs text-muted-foreground ml-2">
+                            <span className="text-caption text-muted-foreground ml-2">
                               by {issue.parts_arrived_by_name}
                             </span>
                           )}
@@ -1026,8 +1026,8 @@ const BicycleInspections = () => {
                   {/* Customer Response Display */}
                   {issue.customer_response && (
                     <div className="mt-3 p-2 bg-background rounded border">
-                      <p className="text-xs text-muted-foreground mb-1">Customer Response:</p>
-                      <p className="text-sm">{issue.customer_response}</p>
+                      <p className="text-caption text-muted-foreground mb-1">Customer Response:</p>
+                      <p className="text-small">{issue.customer_response}</p>
                     </div>
                   )}
 
@@ -1075,7 +1075,7 @@ const BicycleInspections = () => {
                             [issue.id]: e.target.value,
                           }))
                         }
-                        className="text-sm"
+                        className="text-small"
                       />
                     </div>
                   )}
@@ -1129,37 +1129,37 @@ const BicycleInspections = () => {
               {addIssueForInspectionId === inspection.id ? (
                 <div className="space-y-2 p-3 rounded-md border bg-background">
                   <div>
-                    <Label className="text-xs">Description</Label>
+                    <Label className="text-caption">Description</Label>
                     <Textarea
                       value={newIssueDraft.description}
                       onChange={(e) => setNewIssueDraft(prev => ({ ...prev, description: e.target.value }))}
-                      className="text-sm"
+                      className="text-small"
                       rows={2}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Estimated cost (£)</Label>
+                    <Label className="text-caption">Estimated cost (£)</Label>
                     <Input
                       type="number"
                       step="0.01"
                       placeholder="0.00"
                       value={newIssueDraft.cost}
                       onChange={(e) => setNewIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                      className="text-sm"
+                      className="text-small"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
-                      <Label className="text-xs">Part name</Label>
-                      <Input value={newIssueDraft.partName} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
+                      <Label className="text-caption">Part name</Label>
+                      <Input value={newIssueDraft.partName} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-small" />
                     </div>
                     <div>
-                      <Label className="text-xs">Spec</Label>
-                      <Input value={newIssueDraft.partSpec} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
+                      <Label className="text-caption">Spec</Label>
+                      <Input value={newIssueDraft.partSpec} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-small" />
                     </div>
                     <div>
-                      <Label className="text-xs">Part #</Label>
-                      <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
+                      <Label className="text-caption">Part #</Label>
+                      <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-small" />
                     </div>
                   </div>
                   <div className="flex gap-2 pt-1">
@@ -1250,7 +1250,7 @@ const BicycleInspections = () => {
           {/* Inspection Info */}
           {inspection?.inspected_at && (
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 Inspected by {inspection.inspected_by_name} on{" "}
                 {new Date(inspection.inspected_at).toLocaleDateString()}
               </p>
@@ -1284,7 +1284,7 @@ const BicycleInspections = () => {
                   href={inspection.invoice_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                  className="text-caption text-primary hover:underline flex items-center gap-1"
                 >
                   <ExternalLink className="h-3 w-3" />
                   View
@@ -1320,7 +1320,7 @@ const BicycleInspections = () => {
       <div className="container py-6">
         <DashboardHeader>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <h1 className="text-h2 font-bold tracking-tight flex items-center gap-2">
               <Wrench className="h-8 w-8" />
               {isAdmin ? "Bicycle Inspections" : "My Inspections"}
             </h1>
@@ -1340,7 +1340,7 @@ const BicycleInspections = () => {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Wrench className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium text-muted-foreground">
+              <p className="text-body-lg font-medium text-muted-foreground">
                 No bikes requiring inspection
               </p>
             </CardContent>
@@ -1360,7 +1360,7 @@ const BicycleInspections = () => {
               {canManageInspections && (
                 <div className="flex items-center gap-2">
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
+                  <Label htmlFor="sort-inspections" className="text-small text-muted-foreground">
                     Sort by:
                   </Label>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
@@ -1509,7 +1509,7 @@ const BicycleInspections = () => {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-small text-muted-foreground">
                 Complete each inspection item. Report any issues found under each section.
               </p>
               {INSPECTION_ITEMS.map((item) => {
@@ -1522,7 +1522,7 @@ const BicycleInspections = () => {
                         checked={inspectionChecklist[item.id] || false}
                         onCheckedChange={() => handleChecklistItemToggle(item.id)}
                       />
-                      <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer leading-tight">
+                      <Label htmlFor={item.id} className="text-small font-medium cursor-pointer leading-tight">
                         {item.label}
                       </Label>
                     </div>
@@ -1532,14 +1532,14 @@ const BicycleInspections = () => {
                           placeholder="Optional: Add notes..."
                           value={inspectionComments[item.id] || ""}
                           onChange={(e) => handleChecklistCommentChange(item.id, e.target.value)}
-                          className="text-sm"
+                          className="text-small"
                         />
                         
                         {/* Issues for this checklist item */}
                         {itemIssues.map((issue, idx) => (
                           <div key={idx} className="space-y-2 p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs font-medium text-destructive flex items-center gap-1">
+                              <p className="text-caption font-medium text-destructive flex items-center gap-1">
                                 <AlertTriangle className="h-3 w-3" />
                                 Issue #{idx + 1}
                               </p>
@@ -1556,30 +1556,30 @@ const BicycleInspections = () => {
                               placeholder="Describe the issue..."
                               value={issue.description}
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
-                              className="text-sm min-h-[60px]"
+                              className="text-small min-h-[60px]"
                             />
                             {canManageInspections && (
                               <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
-                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                <p className="text-caption uppercase tracking-wide text-muted-foreground">
                                   Part details (mechanic/admin only)
                                 </p>
                                 <Input
                                   placeholder="Part name"
                                   value={issue.partName}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partName', e.target.value)}
-                                  className="text-sm"
+                                  className="text-small"
                                 />
                                 <Input
                                   placeholder="Spec"
                                   value={issue.partSpec}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partSpec', e.target.value)}
-                                  className="text-sm"
+                                  className="text-small"
                                 />
                                 <Input
                                   placeholder="Part number"
                                   value={issue.partNumber}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partNumber', e.target.value)}
-                                  className="text-sm"
+                                  className="text-small"
                                 />
                               </div>
                             )}
@@ -1589,7 +1589,7 @@ const BicycleInspections = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-xs"
+                          className="text-caption"
                           onClick={() => handleAddChecklistIssue(item.id)}
                         >
                           <AlertTriangle className="h-3 w-3 mr-1" />
@@ -1603,7 +1603,7 @@ const BicycleInspections = () => {
 
               {hasIssues && (
                 <div className="p-3 bg-muted rounded-md">
-                  <p className="text-sm font-medium text-destructive">
+                  <p className="text-small font-medium text-destructive">
                     {allChecklistIssues.length} issue{allChecklistIssues.length !== 1 ? 's' : ''} will be reported to the customer
                   </p>
                 </div>

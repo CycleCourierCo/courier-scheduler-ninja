@@ -9,9 +9,9 @@ const TermsPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">Terms and Conditions</CardTitle>
+            <CardTitle className="text-h2 font-bold text-center">Terms and Conditions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 text-sm leading-relaxed text-foreground">
+          <CardContent className="space-y-6 text-small leading-relaxed text-foreground">
             <p className="text-muted-foreground text-center">Last updated: March 16, 2026</p>
 
             <p className="font-semibold text-center">Applicable to all bicycle transport bookings</p>
@@ -30,7 +30,7 @@ const TermsPage: React.FC = () => {
 
             {/* 1. Definitions */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">1. Definitions</h2>
+              <h2 className="text-h4 font-semibold">1. Definitions</h2>
               <p>In these Terms and Conditions:</p>
               <dl className="space-y-2 pl-4">
                 <div><dt className="font-medium inline">Agreement</dt> <dd className="inline">means these Terms and Conditions together with the Booking Confirmation.</dd></div>
@@ -56,7 +56,7 @@ const TermsPage: React.FC = () => {
 
             {/* 2. Our Contract With You */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">2. Our Contract With You</h2>
+              <h2 className="text-h4 font-semibold">2. Our Contract With You</h2>
               <p>2.1 A contract is formed when we issue a Booking Confirmation.</p>
               <p>2.2 The Booking Confirmation and these Terms and Conditions form the entire agreement between you and us in relation to the Service.</p>
               <p>2.3 If there is any conflict between these Terms and Conditions and the Booking Confirmation, the Booking Confirmation shall take priority.</p>
@@ -65,7 +65,7 @@ const TermsPage: React.FC = () => {
 
             {/* 3. Our Services */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">3. Our Services</h2>
+              <h2 className="text-h4 font-semibold">3. Our Services</h2>
               <p>3.1 We provide a specialist cycle courier service, including unboxed transport of cycles between agreed collection and delivery points.</p>
               <p>3.2 Unless expressly agreed in writing, our Service is a transport service only. It does not include:</p>
               <ol className="list-[lower-alpha] pl-8 space-y-1">
@@ -81,7 +81,7 @@ const TermsPage: React.FC = () => {
 
             {/* 4. What We Can and Cannot Carry */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">4. What We Can and Cannot Carry</h2>
+              <h2 className="text-h4 font-semibold">4. What We Can and Cannot Carry</h2>
               <p>4.1 We will only carry items that we have agreed in writing to carry.</p>
               <p>4.2 Unless expressly accepted by us in writing, we do not carry:</p>
               <ol className="list-[lower-alpha] pl-8 space-y-1">
@@ -106,7 +106,7 @@ const TermsPage: React.FC = () => {
 
             {/* 5. Your Responsibilities */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">5. Your Responsibilities</h2>
+              <h2 className="text-h4 font-semibold">5. Your Responsibilities</h2>
               <p>5.1 You must ensure that all booking information is complete and accurate, including:</p>
               <ol className="list-[lower-alpha] pl-8 space-y-1">
                 <li>names, addresses, and contact details;</li>
@@ -134,7 +134,7 @@ const TermsPage: React.FC = () => {
 
             {/* 6. Collection, Delivery, and Failed Attempts */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">6. Collection, Delivery, and Failed Attempts</h2>
+              <h2 className="text-h4 font-semibold">6. Collection, Delivery, and Failed Attempts</h2>
               <p>6.1 Collection and delivery dates and windows are estimates unless we expressly guarantee them in writing.</p>
               <p>6.2 We may request identification, proof of address, proof of ownership, or proof of authority to release or receive the Cycle.</p>
               <p>6.3 If collection cannot be completed because:</p>
@@ -161,7 +161,7 @@ const TermsPage: React.FC = () => {
 
             {/* 7. Condition Recording and Handover */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">7. Condition Recording and Handover</h2>
+              <h2 className="text-h4 font-semibold">7. Condition Recording and Handover</h2>
               <p>7.1 We may inspect, photograph, and/or video the Cycle at collection and delivery.</p>
               <p>7.2 At collection, we may complete a Condition Report recording the visible condition of the Cycle, including any pre-existing marks, chips, cracks, scratches, bent components, worn parts, corrosion, crash damage, transport damage, or poor repairs.</p>
               <p>7.3 You, your sender, or your recipient should review the Condition Report where reasonably possible and raise any disagreement at the point of handover.</p>
@@ -172,7 +172,7 @@ const TermsPage: React.FC = () => {
 
             {/* 8. Charges and Payment */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">8. Charges and Payment</h2>
+              <h2 className="text-h4 font-semibold">8. Charges and Payment</h2>
               <p>8.1 Prices are as shown on the pricing page or otherwise agreed in writing.</p>
               <p>8.2 Unless we have agreed account terms in writing, all charges must be paid in full before collection.</p>
               <p>8.3 We may charge additional sums where:</p>
@@ -189,7 +189,7 @@ const TermsPage: React.FC = () => {
 
             {/* 9. Cancellations and Changes */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">9. Cancellations and Changes</h2>
+              <h2 className="text-h4 font-semibold">9. Cancellations and Changes</h2>
               <p>9.1 You may request to cancel or change a Booking by contacting us using the details above.</p>
               <p>9.2 Unless we agree otherwise in writing, our standard cancellation charges are:</p>
               <ol className="list-[lower-alpha] pl-8 space-y-1">
@@ -208,7 +208,7 @@ const TermsPage: React.FC = () => {
 
             {/* 10. Insurance and Liability */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">10. Insurance and Liability</h2>
+              <h2 className="text-h4 font-semibold">10. Insurance and Liability</h2>
               <p>10.1 We maintain goods-in-transit insurance that we consider appropriate for our business.</p>
               <p>10.2 Our insurance arrangements do not create any direct contractual rights for you against our insurer and do not, by themselves, increase our liability beyond this Agreement unless we expressly agree otherwise in writing.</p>
               <p>10.3 Nothing in this Agreement excludes or limits liability for:</p>
@@ -241,7 +241,7 @@ const TermsPage: React.FC = () => {
 
             {/* 11. Valuation of Cycles and Damage Assessment */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">11. Valuation of Cycles and Damage Assessment</h2>
+              <h2 className="text-h4 font-semibold">11. Valuation of Cycles and Damage Assessment</h2>
               <p>11.1 Our aim is to place you in the position you would have been in had the loss or damage not occurred, but not in a better position.</p>
               <p>11.2 Where damage can reasonably be repaired, we may choose to settle the claim by paying:</p>
               <ol className="list-[lower-alpha] pl-8 space-y-1">
@@ -271,7 +271,7 @@ const TermsPage: React.FC = () => {
 
             {/* 12. Claims Procedure */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">12. Claims Procedure</h2>
+              <h2 className="text-h4 font-semibold">12. Claims Procedure</h2>
               <p>12.1 On delivery, you or the recipient should inspect the Cycle as soon as reasonably possible.</p>
               <p>12.2 If there is visible damage or obvious missing parts, this should be recorded at delivery and notified to us as soon as possible.</p>
               <p>12.3 We must be notified:</p>
@@ -301,7 +301,7 @@ const TermsPage: React.FC = () => {
 
             {/* 13. Storage, Retention, and Uncollected Cycles */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">13. Storage, Retention, and Uncollected Cycles</h2>
+              <h2 className="text-h4 font-semibold">13. Storage, Retention, and Uncollected Cycles</h2>
               <p>13.1 If we are unable to deliver, redeliver, or return a Cycle, we may store it.</p>
               <p>13.2 We may charge reasonable storage fees from 3 Working Days after notifying you that storage is required.</p>
               <p>13.3 We may retain possession of the Cycle until all outstanding sums due to us are paid.</p>
@@ -310,21 +310,21 @@ const TermsPage: React.FC = () => {
 
             {/* 14. Events Outside Our Control */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">14. Events Outside Our Control</h2>
+              <h2 className="text-h4 font-semibold">14. Events Outside Our Control</h2>
               <p>14.1 We are not liable for delay, loss, failure to collect, or failure to deliver caused by events beyond our reasonable control, including severe weather, road closures, traffic disruption, vehicle breakdown, accidents, strikes, civil unrest, government action, war, terrorism, epidemic, fire, or flood.</p>
               <p>14.2 Where reasonably possible, we will take reasonable steps to minimise disruption and keep you informed.</p>
             </section>
 
             {/* 15. Data Protection */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">15. Data Protection</h2>
+              <h2 className="text-h4 font-semibold">15. Data Protection</h2>
               <p>15.1 We process personal data in accordance with our Privacy Policy and applicable data protection law.</p>
               <p>15.2 You confirm that you have permission to provide us with the contact details of any sender, recipient, or third party involved in the Booking.</p>
             </section>
 
             {/* 16. Consumers and Business Customers */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">16. Consumers and Business Customers</h2>
+              <h2 className="text-h4 font-semibold">16. Consumers and Business Customers</h2>
               <p>16.1 If you are a Business Customer, you confirm that you have authority to bind the business on whose behalf you book.</p>
               <p>16.2 For Business Customers, any implied terms not required by law are excluded to the fullest extent permitted by law.</p>
               <p>16.3 Business Customers must inspect deliveries promptly and comply with the claims procedure in clause 12.</p>
@@ -333,7 +333,7 @@ const TermsPage: React.FC = () => {
 
             {/* 17. General */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">17. General</h2>
+              <h2 className="text-h4 font-semibold">17. General</h2>
               <p>17.1 We may update these Terms and Conditions from time to time, but the version in force at the time of Booking will apply to that Booking.</p>
               <p>17.2 If any provision is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.</p>
               <p>17.3 A person who is not a party to this Agreement shall have no right to enforce any term under the Contracts (Rights of Third Parties) Act 1999.</p>
@@ -343,7 +343,7 @@ const TermsPage: React.FC = () => {
 
             {/* 18. Governing Law and Jurisdiction */}
             <section className="space-y-3">
-              <h2 className="text-xl font-semibold">18. Governing Law and Jurisdiction</h2>
+              <h2 className="text-h4 font-semibold">18. Governing Law and Jurisdiction</h2>
               <p>18.1 These Terms and any dispute or claim arising out of or in connection with them shall be governed by the law of England and Wales.</p>
               <p>18.2 The courts of England and Wales shall have jurisdiction, except that Consumers living in Scotland or Northern Ireland may also have rights to bring proceedings in their home courts.</p>
             </section>

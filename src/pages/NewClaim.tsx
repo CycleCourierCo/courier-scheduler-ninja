@@ -126,7 +126,7 @@ const NewClaim = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        <h1 className="text-2xl font-bold">New Damage Claim</h1>
+        <h1 className="text-h3 font-bold">New Damage Claim</h1>
 
         <Card>
           <CardHeader>
@@ -149,7 +149,7 @@ const NewClaim = () => {
                       onValueChange={setSearchTerm}
                     />
                     <CommandList>
-                      {searching && <div className="p-3 text-sm text-muted-foreground">Searching…</div>}
+                      {searching && <div className="p-3 text-small text-muted-foreground">Searching…</div>}
                       {!searching && (
                         <CommandEmpty>No orders found.</CommandEmpty>
                       )}
@@ -167,11 +167,11 @@ const NewClaim = () => {
                               className="flex flex-col items-start gap-1"
                             >
                               <div className="flex w-full justify-between gap-2">
-                                <span className="font-mono text-sm">{o.tracking_number ?? "—"}</span>
-                                <span className="text-xs text-muted-foreground">{o.status ?? ""}</span>
+                                <span className="font-mono text-small">{o.tracking_number ?? "—"}</span>
+                                <span className="text-caption text-muted-foreground">{o.status ?? ""}</span>
                               </div>
-                              <div className="text-sm">{d.customerName ?? "—"}</div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-small">{d.customerName ?? "—"}</div>
+                              <div className="text-caption text-muted-foreground">
                                 {d.senderPostcode ?? "—"} → {d.receiverPostcode ?? "—"} ·{" "}
                                 {fmtDate(d.collectionDate)} → {fmtDate(d.deliveryDate)}
                               </div>
@@ -187,15 +187,15 @@ const NewClaim = () => {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-mono text-sm">{order.tracking_number}</div>
-                    <div className="text-xs text-muted-foreground">Linked order</div>
+                    <div className="font-mono text-small">{order.tracking_number}</div>
+                    <div className="text-caption text-muted-foreground">Linked order</div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setOrder(null)}>
                     <X className="h-4 w-4 mr-1" /> Change
                   </Button>
                 </div>
                 {derived && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-small">
                     <div><span className="text-muted-foreground">Customer:</span> {derived.customerName ?? "—"}</div>
                     <div><span className="text-muted-foreground">Email:</span> {derived.customerEmail ?? "—"}</div>
                     <div><span className="text-muted-foreground">Phone:</span> {derived.customerPhone ?? "—"}</div>
@@ -265,7 +265,7 @@ const NewClaim = () => {
           <CardHeader><CardTitle>Evidence Checklist</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {EVIDENCE_FIELDS.map((f) => (
-              <label key={f.key} className="flex items-center gap-2 text-sm">
+              <label key={f.key} className="flex items-center gap-2 text-small">
                 <Checkbox checked={!!evidence[f.key]} onCheckedChange={(v) => setEvidence((p) => ({ ...p, [f.key]: !!v }))} />
                 {f.label}
               </label>

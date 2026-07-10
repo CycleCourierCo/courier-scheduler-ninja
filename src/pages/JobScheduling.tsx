@@ -218,7 +218,7 @@ const JobScheduling = () => {
       <div className="container py-6">
         <DashboardHeader>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Job Scheduling</h1>
+            <h1 className="text-h2 font-bold tracking-tight">Job Scheduling</h1>
             <p className="text-muted-foreground">
               Manage and schedule deliveries with K-means clustering
             </p>
@@ -244,7 +244,7 @@ const JobScheduling = () => {
                 </Label>
               </div>
               <div className="flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">Show:</Label>
+                <Label className="text-small text-muted-foreground">Show:</Label>
                 <ToggleGroup
                   type="single"
                   value={jobTypeFilter}
@@ -279,7 +279,7 @@ const JobScheduling = () => {
                     setIsReconciling(false);
                   }
                 }}
-                className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-caption font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
               >
                 {isReconciling ? 'Reconciling Shipday…' : 'Reconcile Shipday (24h)'}
               </button>

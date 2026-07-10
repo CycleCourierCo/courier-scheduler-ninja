@@ -22,13 +22,13 @@ const PricingPage: React.FC = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-h2 font-bold text-foreground mb-2">
             Delivery Pricing
           </h1>
-          <p className="text-lg text-muted-foreground mb-3">
+          <p className="text-body-lg text-muted-foreground mb-3">
             Collection in Mainland England &amp; Wales
           </p>
-          <Badge variant="secondary" className="text-sm px-4 py-1">
+          <Badge variant="secondary" className="text-small px-4 py-1">
             <Shield className="mr-1.5 h-3.5 w-3.5" />
             Fully Insured
           </Badge>
@@ -37,7 +37,7 @@ const PricingPage: React.FC = () => {
         {/* Standard Delivery Prices */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center text-xl">
+            <CardTitle className="flex items-center text-h4">
               <Bike className="mr-2 h-5 w-5 text-primary" />
               Standard Delivery Prices
             </CardTitle>
@@ -52,7 +52,7 @@ const PricingPage: React.FC = () => {
                   <span className="text-foreground">{item.type}</span>
                   <span className="font-semibold text-foreground whitespace-nowrap ml-4">
                     £{item.price}{" "}
-                    <span className="text-muted-foreground font-normal text-sm">
+                    <span className="text-muted-foreground font-normal text-small">
                       + VAT
                     </span>
                   </span>
@@ -65,7 +65,7 @@ const PricingPage: React.FC = () => {
         {/* Scotland */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center text-xl">
+            <CardTitle className="flex items-center text-h4">
               <MapPin className="mr-2 h-5 w-5 text-primary" />
               Scotland
             </CardTitle>
@@ -78,7 +78,7 @@ const PricingPage: React.FC = () => {
         {/* Additional Services */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center text-xl">
+            <CardTitle className="flex items-center text-h4">
               <Wrench className="mr-2 h-5 w-5 text-primary" />
               Additional Services
             </CardTitle>
@@ -91,7 +91,7 @@ const PricingPage: React.FC = () => {
                 </span>
                 <span className="font-semibold text-foreground whitespace-nowrap ml-4">
                   £60{" "}
-                  <span className="text-muted-foreground font-normal text-sm">
+                  <span className="text-muted-foreground font-normal text-small">
                     + VAT
                   </span>
                 </span>

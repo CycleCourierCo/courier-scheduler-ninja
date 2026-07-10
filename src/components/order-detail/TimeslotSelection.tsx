@@ -209,7 +209,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
   return (
     <Card className="mt-4">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between text-sm gap-2">
+        <CardTitle className="flex items-center justify-between text-small gap-2">
           <span className="flex items-center">
             <Clock className="w-4 h-4 mr-2" />
             {currentTimeslot ? "Update" : "Set"} {type === "sender" ? "Collection" : "Delivery"} Time Slot
@@ -271,7 +271,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         </Button>
         
         {!contact?.phone && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-small text-muted-foreground">
             No phone number available for {type}
           </p>
         )}

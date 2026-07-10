@@ -21,7 +21,7 @@ const OpeningHoursEditor: React.FC<OpeningHoursEditorProps> = ({ value, onChange
 
   return (
     <div className="space-y-3">
-      <Label className="text-sm font-medium">Opening Hours</Label>
+      <Label className="text-small font-medium">Opening Hours</Label>
       <div className="space-y-2">
         {DAY_NAMES.filter(day => day !== 'friday').map((day) => {
           const dayData = hours[day];
@@ -32,7 +32,7 @@ const OpeningHoursEditor: React.FC<OpeningHoursEditorProps> = ({ value, onChange
                   checked={dayData.open}
                   onCheckedChange={(checked) => updateDay(day, { open: checked })}
                 />
-                <span className="text-xs capitalize">{day.slice(0, 3)}</span>
+                <span className="text-caption capitalize">{day.slice(0, 3)}</span>
               </div>
               {dayData.open && (
                 <>
@@ -41,7 +41,7 @@ const OpeningHoursEditor: React.FC<OpeningHoursEditorProps> = ({ value, onChange
                       checked={dayData.is24h}
                       onCheckedChange={(checked) => updateDay(day, { is24h: checked })}
                     />
-                    <span className="text-xs">24h</span>
+                    <span className="text-caption">24h</span>
                   </div>
                   {!dayData.is24h && (
                     <>
@@ -49,21 +49,21 @@ const OpeningHoursEditor: React.FC<OpeningHoursEditorProps> = ({ value, onChange
                         type="time"
                         value={dayData.start}
                         onChange={(e) => updateDay(day, { start: e.target.value })}
-                        className="w-28 h-8 text-xs"
+                        className="w-28 h-8 text-caption"
                       />
-                      <span className="text-xs text-muted-foreground">to</span>
+                      <span className="text-caption text-muted-foreground">to</span>
                       <Input
                         type="time"
                         value={dayData.end}
                         onChange={(e) => updateDay(day, { end: e.target.value })}
-                        className="w-28 h-8 text-xs"
+                        className="w-28 h-8 text-caption"
                       />
                     </>
                   )}
                 </>
               )}
               {!dayData.open && (
-                <span className="text-xs text-muted-foreground">Closed</span>
+                <span className="text-caption text-muted-foreground">Closed</span>
               )}
             </div>
           );

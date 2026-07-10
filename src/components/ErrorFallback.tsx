@@ -11,7 +11,7 @@ const ErrorFallback = ({ error, resetError }: ErrorFallbackProps) => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="text-center max-w-md">
         <AlertTriangle className="h-16 w-16 text-destructive mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-foreground mb-2">Something went wrong</h1>
+        <h1 className="text-h3 font-bold text-foreground mb-2">Something went wrong</h1>
         <p className="text-muted-foreground mb-6">
           We've been notified and are working to fix the issue.
         </p>

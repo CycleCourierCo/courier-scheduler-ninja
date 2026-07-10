@@ -91,12 +91,12 @@ const ClaimAdvanceDialog = ({ open, onOpenChange, claim, nextStatus, onConfirm }
       case "info_requested":
         return (
           <>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Tick the items you are requesting from the customer.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {EVIDENCE_FIELDS.map((f) => (
-                <label key={f.key as string} className="flex items-center gap-2 text-sm">
+                <label key={f.key as string} className="flex items-center gap-2 text-small">
                   <Checkbox
                     checked={!!(form[f.key] ?? claim[f.key])}
                     onCheckedChange={(v) => set(f.key, !!v as any)}
@@ -120,12 +120,12 @@ const ClaimAdvanceDialog = ({ open, onOpenChange, claim, nextStatus, onConfirm }
       case "info_provided":
         return (
           <>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Tick everything the customer has supplied so far.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {EVIDENCE_FIELDS.map((f) => (
-                <label key={f.key as string} className="flex items-center gap-2 text-sm">
+                <label key={f.key as string} className="flex items-center gap-2 text-small">
                   <Checkbox
                     checked={!!(form[f.key] ?? claim[f.key])}
                     onCheckedChange={(v) => set(f.key, !!v as any)}
@@ -240,7 +240,7 @@ const ClaimAdvanceDialog = ({ open, onOpenChange, claim, nextStatus, onConfirm }
       case "negotiation":
         return (
           <>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Capture the customer's response and any counter-offer.
             </p>
             <div>
@@ -288,7 +288,7 @@ const ClaimAdvanceDialog = ({ open, onOpenChange, claim, nextStatus, onConfirm }
                 placeholder="Bank ref / transaction ID"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-small">
               <Checkbox
                 checked={!!form.title_transferred}
                 onCheckedChange={(v) => set("title_transferred", !!v as any)}
@@ -309,7 +309,7 @@ const ClaimAdvanceDialog = ({ open, onOpenChange, claim, nextStatus, onConfirm }
       case "closed":
         return (
           <>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Confirm the case is fully resolved and ready to close.
             </p>
             <div>

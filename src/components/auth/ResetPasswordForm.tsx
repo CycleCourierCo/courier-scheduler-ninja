@@ -47,8 +47,8 @@ const ResetPasswordForm = ({ onSubmit, isLoading, onBack }: ResetPasswordFormPro
           <KeyRound className="h-6 w-6 text-courier-600" />
         </div>
       </div>
-      <h3 className="text-lg font-medium text-center">Reset Your Password</h3>
-      <p className="text-sm text-center text-muted-foreground mb-4">
+      <h3 className="text-body-lg font-medium text-center">Reset Your Password</h3>
+      <p className="text-small text-center text-muted-foreground mb-4">
         Please enter a new password for your account
       </p>
       

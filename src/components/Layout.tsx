@@ -323,7 +323,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="max-h-[calc(100vh-100px)] overflow-y-auto">
                   <DropdownMenuItem disabled>
-                    <span className="text-sm">{user.email}</span>
+                    <span className="text-small">{user.email}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   
@@ -629,13 +629,13 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
-              <h3 className="text-2xl font-bold mb-6">The Cycle Courier Co.</h3>
+              <h3 className="text-h3 font-bold mb-6">The Cycle Courier Co.</h3>
               
               <div className="mt-6 space-y-2">
-                <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>
-                <p className="text-sm opacity-90">Company No: 16220087</p>
-                <p className="text-sm opacity-90">VAT Number: GB507727188</p>
-                <div className="text-sm opacity-90">
+                <p className="text-small opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>
+                <p className="text-small opacity-90">Company No: 16220087</p>
+                <p className="text-small opacity-90">VAT Number: GB507727188</p>
+                <div className="text-small opacity-90">
                   <p className="font-medium">Company address:</p>
                   <address className="not-italic opacity-80">
                     30 Wake Green Road<br />
@@ -647,16 +647,16 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             
             <div>
-              <h3 className="text-xl font-bold mb-6">Contact Us</h3>
+              <h3 className="text-h4 font-bold mb-6">Contact Us</h3>
               <ul className="space-y-2">
                 <li>
-                  <div className="flex items-start text-sm opacity-90 hover:opacity-100 transition-opacity">
+                  <div className="flex items-start text-small opacity-90 hover:opacity-100 transition-opacity">
                     <span className="mt-1 mr-3 p-2 bg-primary-foreground/10 rounded-lg"><Mail className="h-4 w-4" /></span>
                     <span>info@cyclecourierco.com</span>
                   </div>
                 </li>
                 <li>
-                  <div className="flex items-start text-sm opacity-90 hover:opacity-100 transition-opacity">
+                  <div className="flex items-start text-small opacity-90 hover:opacity-100 transition-opacity">
                     <span className="mt-1 mr-3 p-2 bg-primary-foreground/10 rounded-lg"><Phone className="h-4 w-4" /></span>
                     <span>+44 121 798 0767 (Call or WhatsApp)</span>
                   </div>
@@ -677,31 +677,31 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             
             <div>
-              <h3 className="text-xl font-bold mb-6">Quick Links</h3>
+              <h3 className="text-h4 font-bold mb-6">Quick Links</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
+                  <Link to="/" className="text-small opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     Home
                   </Link>
                 </li>
                 <li>
-                  <Link to="/about" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
+                  <Link to="/about" className="text-small opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     About Us
                   </Link>
                 </li>
                 <li>
-                  <Link to="/tracking" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
+                  <Link to="/tracking" className="text-small opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     Track Order
                   </Link>
                 </li>
                 <li>
-                  <Link to="/create-order" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
+                  <Link to="/create-order" className="text-small opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                     Create Order
                   </Link>
                 </li>
                 {isB2B && (
                   <li>
-                    <Link to="/pricing" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
+                    <Link to="/pricing" className="text-small opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
                       Pricing
                     </Link>
                   </li>
@@ -710,28 +710,28 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             
             <div>
-              <h3 className="text-xl font-bold mb-6">Legal</h3>
+              <h3 className="text-h4 font-bold mb-6">Legal</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/privacy" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                  <Link to="/privacy" className="text-small opacity-80 hover:opacity-100 transition-opacity flex items-center">
                     <Shield className="h-4 w-4 mr-1" />
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link to="/terms" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                  <Link to="/terms" className="text-small opacity-80 hover:opacity-100 transition-opacity flex items-center">
                     <FileText className="h-4 w-4 mr-1" />
                     Terms &amp; Conditions
                   </Link>
                 </li>
                 <li>
-                  <Link to="/api-docs" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                  <Link to="/api-docs" className="text-small opacity-80 hover:opacity-100 transition-opacity flex items-center">
                     <ExternalLink className="h-4 w-4 mr-1" />
                     API Documentation
                   </Link>
                 </li>
                 <li>
-                  <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
+                  <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="text-small opacity-80 hover:opacity-100 transition-opacity flex items-center">
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Trustpilot Reviews
                   </a>
@@ -740,7 +740,7 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
           </div>
           <div className="border-t border-primary-foreground/20 mt-12 pt-8 text-center">
-            <p className="text-sm opacity-90">&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
+            <p className="text-small opacity-90">&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
           </div>
         </div>
       </footer>

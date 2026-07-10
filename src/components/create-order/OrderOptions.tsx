@@ -90,7 +90,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
 
   return (
     <div>
-      <h3 className="text-lg font-medium mb-4">Order Options</h3>
+      <h3 className="text-body-lg font-medium mb-4">Order Options</h3>
       <div className="space-y-4">
         <FormField
           control={control}
@@ -98,7 +98,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">
+                <FormLabel className="text-body">
                   eBay Order
                 </FormLabel>
                 <FormDescription>
@@ -140,7 +140,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">
+                <FormLabel className="text-body">
                   Payment Required on Collection
                 </FormLabel>
                 <FormDescription>
@@ -182,7 +182,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">
+                <FormLabel className="text-body">
                   Part Exchange
                 </FormLabel>
                 <FormDescription>
@@ -285,7 +285,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">
+                <FormLabel className="text-body">
                   Inspect and Service
                 </FormLabel>
                 <FormDescription>
@@ -308,7 +308,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">
+                <FormLabel className="text-body">
                   Box My Bike
                 </FormLabel>
                 <FormDescription>

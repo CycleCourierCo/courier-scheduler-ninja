@@ -43,7 +43,7 @@ const B2BLeaderboard = ({ customers, orders }: B2BLeaderboardProps) => {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[28rem] rounded-md border">
-          <table className="w-full text-sm">
+          <table className="w-full text-small">
             <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
               <tr className="text-left">
                 <th className="px-3 py-2 w-16">Rank</th>

@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import type { Vehicle } from "@/services/vehicleService";
 import {
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
   getWeeklyMileageByVehicle,
   type TimeslipRow,
 } from "@/services/vehicleAnalyticsService";
@@ -57,7 +58,7 @@ const VehicleMileageChart = ({ rows, vehicles, selectedIds, onSelectedIdsChange 
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 space-y-0">
-        <CardTitle className="text-base sm:text-lg">Mileage per Vehicle</CardTitle>
+        <CardTitle className="text-body sm:text-body-lg">Mileage per Vehicle</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -89,11 +90,11 @@ const VehicleMileageChart = ({ rows, vehicles, selectedIds, onSelectedIdsChange 
                       key={v.id}
                       type="button"
                       onClick={() => toggle(v.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-small rounded hover:bg-accent text-left"
                     >
                       <Checkbox checked={checked} className="pointer-events-none" />
                       <span className="font-mono font-medium">{v.registration}</span>
-                      <span className="text-muted-foreground text-xs truncate">
+                      <span className="text-muted-foreground text-caption truncate">
                         {v.make ?? ""}
                       </span>
                       {checked && <Check className="h-3 w-3 ml-auto text-primary" />}
@@ -101,7 +102,7 @@ const VehicleMileageChart = ({ rows, vehicles, selectedIds, onSelectedIdsChange 
                   );
                 })}
                 {vehicles.length === 0 && (
-                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                  <div className="px-2 py-4 text-small text-muted-foreground text-center">
                     No vehicles
                   </div>
                 )}
@@ -114,7 +115,7 @@ const VehicleMileageChart = ({ rows, vehicles, selectedIds, onSelectedIdsChange 
         {selectedRegs.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {selectedRegs.map((r) => (
-              <Badge key={r} variant="secondary" className="font-mono text-xs">
+              <Badge key={r} variant="secondary" className="font-mono text-caption">
                 {r}
               </Badge>
             ))}
@@ -122,15 +123,15 @@ const VehicleMileageChart = ({ rows, vehicles, selectedIds, onSelectedIdsChange 
         )}
         <div className="w-full h-[320px]">
           {selectedIds.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+            <div className="h-full flex items-center justify-center text-small text-muted-foreground">
               Select one or more vehicles to compare mileage
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",

@@ -167,7 +167,7 @@ export const BikeSearchSection = ({
     <Card>
       <CardContent className="pt-6 space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="bike-search" className="text-sm font-semibold flex items-center gap-2">
+          <Label htmlFor="bike-search" className="text-small font-semibold flex items-center gap-2">
             <Search className="h-4 w-4" />
             Find a Bike
           </Label>
@@ -192,13 +192,13 @@ export const BikeSearchSection = ({
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Find any in-progress bike to load onto a van or allocate to storage.
           </p>
         </div>
 
         {query.trim().length >= 2 && results.length === 0 && (
-          <div className="text-center py-6 text-muted-foreground text-sm">
+          <div className="text-center py-6 text-muted-foreground text-small">
             No bikes found.
           </div>
         )}
@@ -239,36 +239,36 @@ export const BikeSearchSection = ({
                       })()}
                       <div className="space-y-1 flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 flex-wrap">
-                        <h4 className="font-semibold text-sm">{order.sender?.name}</h4>
+                        <h4 className="font-semibold text-small">{order.sender?.name}</h4>
                         {state === "pending" && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-caption">
                             <Package className="h-3 w-3 mr-1" /> Pending Allocation
                           </Badge>
                         )}
                         {state === "storage" && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-caption">
                             <MapPin className="h-3 w-3 mr-1" />
                             In Storage – {orderAllocations.map((a) => `${a.bay}${a.position}`).join(", ")}
                           </Badge>
                         )}
                         {state === "van" && (
-                          <Badge variant="success" className="text-xs">
+                          <Badge variant="success" className="text-caption">
                             <Truck className="h-3 w-3 mr-1" /> On Van
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         {order.bikeBrand} {order.bikeModel}
                         {order.bikeQuantity && order.bikeQuantity > 1 ? ` • ${order.bikeQuantity} bikes` : ""}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         To: {order.receiver?.name} • {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         Tracking: <span className="font-mono">{order.trackingNumber}</span>
                       </p>
                       {order.scheduledDeliveryDate && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-caption text-muted-foreground">
                           Scheduled delivery: {new Date(order.scheduledDeliveryDate).toLocaleDateString("en-GB")}
                         </p>
                       )}
@@ -284,10 +284,10 @@ export const BikeSearchSection = ({
                           return (
                             <div key={key} className="flex items-end gap-2 flex-wrap">
                               {remaining > 1 && (
-                                <span className="text-xs text-muted-foreground w-full">Bike {bikeIndex + 1}</span>
+                                <span className="text-caption text-muted-foreground w-full">Bike {bikeIndex + 1}</span>
                               )}
                               <div className="space-y-1">
-                                <Label className="text-xs">Bay</Label>
+                                <Label className="text-caption">Bay</Label>
                                 <Input
                                   value={a.bay}
                                   onChange={(e) => setInput(key, "bay", e.target.value)}
@@ -297,7 +297,7 @@ export const BikeSearchSection = ({
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Position</Label>
+                                <Label className="text-caption">Position</Label>
                                 <Input
                                   value={a.position}
                                   onChange={(e) => setInput(key, "position", e.target.value)}
@@ -345,11 +345,11 @@ export const BikeSearchSection = ({
                           const a = allocInputs[key] || { bay: "", position: "" };
                           return (
                             <div key={alloc.id} className="flex items-end gap-2 flex-wrap">
-                              <span className="text-xs text-muted-foreground w-full">
+                              <span className="text-caption text-muted-foreground w-full">
                                 Move {alloc.bay}{alloc.position} to:
                               </span>
                               <div className="space-y-1">
-                                <Label className="text-xs">Bay</Label>
+                                <Label className="text-caption">Bay</Label>
                                 <Input
                                   value={a.bay}
                                   onChange={(e) => setInput(key, "bay", e.target.value)}
@@ -359,7 +359,7 @@ export const BikeSearchSection = ({
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Position</Label>
+                                <Label className="text-caption">Position</Label>
                                 <Input
                                   value={a.position}
                                   onChange={(e) => setInput(key, "position", e.target.value)}

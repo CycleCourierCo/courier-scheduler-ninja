@@ -193,7 +193,7 @@ const BulkAvailabilityPage = () => {
     <Layout>
       <div className="container mx-auto py-8 px-4 max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Bulk Availability Confirmation</h1>
+          <h1 className="text-h2 font-bold mb-2">Bulk Availability Confirmation</h1>
           <p className="text-muted-foreground">
             Select multiple orders and provide your availability dates for all of them at once
           </p>
@@ -210,9 +210,9 @@ const BulkAvailabilityPage = () => {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <p className="text-sm text-muted-foreground">Loading orders...</p>
+                <p className="text-small text-muted-foreground">Loading orders...</p>
               ) : orders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-small text-muted-foreground">
                   No orders pending availability confirmation
                 </p>
               ) : (
@@ -233,7 +233,7 @@ const BulkAvailabilityPage = () => {
                         />
                         <label
                           htmlFor={key}
-                          className="flex-1 cursor-pointer text-sm"
+                          className="flex-1 cursor-pointer text-small"
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <Package className="h-4 w-4 text-muted-foreground" />
@@ -242,18 +242,18 @@ const BulkAvailabilityPage = () => {
                                 ? `${order.bikeBrand} ${order.bikeModel}`
                                 : order.customerOrderNumber || "No bike info"}
                             </span>
-                            <span className="text-xs text-muted-foreground">({role})</span>
+                            <span className="text-caption text-muted-foreground">({role})</span>
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-caption text-muted-foreground">
                             {order.sender?.name} → {order.receiver?.name}
                           </div>
                           {order.trackingNumber && (
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-caption text-muted-foreground">
                               Tracking: {order.trackingNumber}
                             </div>
                           )}
                           {order.customerOrderNumber && (
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-caption text-muted-foreground">
                               Order #{order.customerOrderNumber}
                             </div>
                           )}
@@ -291,14 +291,14 @@ const BulkAvailabilityPage = () => {
                 </div>
                 {dates.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">
+                    <p className="text-small font-medium mb-2">
                       Selected dates ({dates.length}/7 minimum):
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {dates.map((date, index) => (
                         <div
                           key={index}
-                          className="text-xs bg-primary/10 text-primary px-2 py-1 rounded"
+                          className="text-caption bg-primary/10 text-primary px-2 py-1 rounded"
                         >
                           {format(date, "MMM dd, yyyy")}
                         </div>

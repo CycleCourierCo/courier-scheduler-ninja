@@ -134,18 +134,18 @@ const BusinessAccountsMap: React.FC<Props> = ({ accounts, height = "400px" }) =>
         {located.map((a) => (
           <Marker key={a.id} position={[a._lat, a._lng]} icon={getIcon(a.account_status)}>
             <Popup>
-              <div className="text-sm space-y-1">
+              <div className="text-small space-y-1">
                 <p className="font-semibold">{a.company_name || "Unnamed business"}</p>
                 {a.name && <p>{a.name}</p>}
-                {a.email && <p className="text-xs text-muted-foreground">{a.email}</p>}
+                {a.email && <p className="text-caption text-muted-foreground">{a.email}</p>}
                 {(a.city || a.postal_code) && (
-                  <p className="text-xs">
+                  <p className="text-caption">
                     {a.city}
                     {a.city && a.postal_code ? ", " : ""}
                     {a.postal_code}
                   </p>
                 )}
-                <p className="text-xs capitalize">
+                <p className="text-caption capitalize">
                   Status: <strong>{a.account_status || "pending"}</strong>
                 </p>
               </div>
@@ -155,7 +155,7 @@ const BusinessAccountsMap: React.FC<Props> = ({ accounts, height = "400px" }) =>
       </MapContainer>
       {located.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/70 pointer-events-none">
-          <p className="text-sm text-muted-foreground">No business locations to display yet</p>
+          <p className="text-small text-muted-foreground">No business locations to display yet</p>
         </div>
       )}
     </div>

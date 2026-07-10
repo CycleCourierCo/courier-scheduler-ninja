@@ -257,7 +257,7 @@ const DriverTimeslips = () => {
       <div className="container mx-auto px-4 py-6 space-y-6">
         <DashboardHeader>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-h2 font-bold tracking-tight">
               {isAdmin ? 'Driver Timeslips' : 'My Timeslips'}
             </h1>
             <p className="text-muted-foreground">
@@ -293,12 +293,12 @@ const DriverTimeslips = () => {
           <Card>
             <CardContent className="flex justify-between items-center p-4">
               <div>
-                <p className="text-sm text-muted-foreground">Showing</p>
-                <p className="text-2xl font-bold">{sortedTimeslips.length} timeslips</p>
+                <p className="text-small text-muted-foreground">Showing</p>
+                <p className="text-h3 font-bold">{sortedTimeslips.length} timeslips</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Pay</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-small text-muted-foreground">Total Pay</p>
+                <p className="text-h3 font-bold text-green-600">
                   £{totalPay.toFixed(2)}
                 </p>
               </div>

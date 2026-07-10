@@ -209,7 +209,7 @@ const UserManagement: React.FC = () => {
       <div className="container mx-auto px-4 py-6 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">User Management</h1>
+            <h1 className="text-h2 font-bold">User Management</h1>
             <p className="text-muted-foreground">Manage users and their roles</p>
           </div>
           <Button variant="outline" onClick={() => setCarriersDialogOpen(true)}>
@@ -367,7 +367,7 @@ const UserManagement: React.FC = () => {
                                     <span className="text-muted-foreground">No role</span>
                                   ) : (
                                     current.map(r => (
-                                      <Badge key={r} variant="secondary" className="text-xs">
+                                      <Badge key={r} variant="secondary" className="text-caption">
                                         {ALL_ROLES.find(o => o.value === r)?.label || r}
                                       </Badge>
                                     ))
@@ -375,7 +375,7 @@ const UserManagement: React.FC = () => {
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-56 p-2" align="start">
-                                <div className="text-xs font-medium px-2 py-1 text-muted-foreground">Assign roles</div>
+                                <div className="text-caption font-medium px-2 py-1 text-muted-foreground">Assign roles</div>
                                 <div className="space-y-1">
                                   {ALL_ROLES.map(opt => {
                                     const checked = current.includes(opt.value);
@@ -390,7 +390,7 @@ const UserManagement: React.FC = () => {
                                             handleRolesChange(user.id, next);
                                           }}
                                         />
-                                        <span className="text-sm">{opt.label}</span>
+                                        <span className="text-small">{opt.label}</span>
                                       </label>
                                     );
                                   })}

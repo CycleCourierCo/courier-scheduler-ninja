@@ -16,7 +16,7 @@ interface Props {
 }
 
 const OrderRow: React.FC<{ o: any; onLink?: () => void; onUnlink?: () => void; linked?: boolean }> = ({ o, onLink, onUnlink, linked }) => (
-  <div className="flex items-center justify-between gap-2 text-xs border rounded p-2">
+  <div className="flex items-center justify-between gap-2 text-caption border rounded p-2">
     <div className="min-w-0 flex-1">
       <div className="font-medium truncate">{o.tracking_number || o.customer_order_number || o.id.slice(0,8)}</div>
       <div className="text-muted-foreground truncate">
@@ -30,7 +30,7 @@ const OrderRow: React.FC<{ o: any; onLink?: () => void; onUnlink?: () => void; l
       </Link>
       {linked
         ? <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onUnlink}><X className="h-3 w-3" /></Button>
-        : <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onLink}>Link</Button>}
+        : <Button variant="outline" size="sm" className="h-7 px-2 text-caption" onClick={onLink}>Link</Button>}
     </div>
   </div>
 );
@@ -87,26 +87,26 @@ const ContextPanel: React.FC<Props> = ({ conversation }) => {
   };
 
   return (
-    <div className="p-3 space-y-4 text-sm">
+    <div className="p-3 space-y-4 text-small">
       <Card className="p-3">
-        <div className="text-xs text-muted-foreground uppercase mb-1">Contact</div>
+        <div className="text-caption text-muted-foreground uppercase mb-1">Contact</div>
         <div className="font-medium">{conversation.contact?.display_name || conversation.contact?.handle}</div>
-        <div className="text-xs text-muted-foreground break-all">{conversation.contact?.handle}</div>
-        <Badge variant="outline" className="mt-2 text-[10px] capitalize">{conversation.channel}</Badge>
+        <div className="text-caption text-muted-foreground break-all">{conversation.contact?.handle}</div>
+        <Badge variant="outline" className="mt-2 text-caption capitalize">{conversation.channel}</Badge>
       </Card>
 
       <div>
-        <div className="text-xs font-semibold uppercase text-muted-foreground mb-2">Linked order</div>
+        <div className="text-caption font-semibold uppercase text-muted-foreground mb-2">Linked order</div>
         {linkedOrder ? (
           <OrderRow o={linkedOrder} linked onUnlink={unlink} />
         ) : (
-          <div className="text-xs text-muted-foreground">No order linked yet.</div>
+          <div className="text-caption text-muted-foreground">No order linked yet.</div>
         )}
       </div>
 
       {suggested.length > 0 && (
         <div>
-          <div className="text-xs font-semibold uppercase text-muted-foreground mb-2">Suggested matches</div>
+          <div className="text-caption font-semibold uppercase text-muted-foreground mb-2">Suggested matches</div>
           <div className="space-y-2">
             {suggested.map(o => <OrderRow key={o.id} o={o} onLink={() => linkOrder(o.id)} />)}
           </div>
@@ -114,14 +114,14 @@ const ContextPanel: React.FC<Props> = ({ conversation }) => {
       )}
 
       <div>
-        <div className="text-xs font-semibold uppercase text-muted-foreground mb-2">Find an order</div>
+        <div className="text-caption font-semibold uppercase text-muted-foreground mb-2">Find an order</div>
         <div className="flex gap-1">
           <Input
             placeholder="Tracking # or order #"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); }}
-            className="h-8 text-xs"
+            className="h-8 text-caption"
           />
           <Button size="icon" variant="outline" onClick={runSearch} className="h-8 w-8 shrink-0">
             <Search className="h-3 w-3" />

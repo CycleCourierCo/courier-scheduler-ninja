@@ -125,7 +125,7 @@ const UserProfile = () => {
           <div className="flex items-center">
             <User size={28} className="mr-2" />
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">Your Profile</h2>
+              <h2 className="text-h2 font-bold tracking-tight">Your Profile</h2>
               <p className="text-muted-foreground">
                 Manage your personal information and address
               </p>

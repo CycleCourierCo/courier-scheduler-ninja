@@ -142,7 +142,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   return (
     <div className="space-y-4">
       <div className="relative mb-4">
-        <FormLabel className="text-sm font-medium">Search Address</FormLabel>
+        <FormLabel className="text-small font-medium">Search Address</FormLabel>
         <div className="relative">
           <div className="relative">
             <Input
@@ -177,7 +177,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
               )}
               
               {!loading && suggestions.length === 0 && (
-                <div className="py-3 px-4 text-sm text-gray-500">No address found.</div>
+                <div className="py-3 px-4 text-small text-gray-500">No address found.</div>
               )}
               
               {!loading && suggestions.length > 0 && (
@@ -185,7 +185,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                   {suggestions.map((suggestion, index) => (
                     <li 
                       key={index}
-                      className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                      className="px-4 py-2 text-small hover:bg-gray-100 cursor-pointer"
                       onClick={() => handleSuggestionClick(suggestion)}
                     >
                       {suggestion.properties.formatted}
@@ -199,7 +199,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
                   variant="link" 
                   type="button" 
                   onClick={handleManualEntry}
-                  className="w-full text-sm"
+                  className="w-full text-small"
                 >
                   Enter address manually
                 </Button>

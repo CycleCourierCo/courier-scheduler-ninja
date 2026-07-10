@@ -118,7 +118,7 @@ const MaintenanceIntervalsDialog = ({ vehicleId, vehicleReg, open, onOpenChange,
           <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
         ) : (
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr,100px,100px] gap-2 text-xs text-muted-foreground font-medium">
+            <div className="grid grid-cols-[1fr,100px,100px] gap-2 text-caption text-muted-foreground font-medium">
               <div>Service</div>
               <div>Miles</div>
               <div>Months</div>
@@ -128,7 +128,7 @@ const MaintenanceIntervalsDialog = ({ vehicleId, vehicleReg, open, onOpenChange,
               const e = edited[k];
               return (
                 <div key={k} className="grid grid-cols-[1fr,100px,100px] gap-2 items-center">
-                  <div className="text-sm">{formatServiceLabel(r.serviceType, r.position, r.customName)}</div>
+                  <div className="text-small">{formatServiceLabel(r.serviceType, r.position, r.customName)}</div>
                   <Input
                     type="number"
                     value={e?.miles ?? r.miles}

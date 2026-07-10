@@ -11,7 +11,7 @@ const map: Record<TaskPriority, { label: string; cls: string }> = {
 
 const TaskPriorityBadge: React.FC<{ priority: TaskPriority }> = ({ priority }) => {
   const m = map[priority];
-  return <Badge variant="outline" className={`text-[10px] ${m.cls}`}>{m.label}</Badge>;
+  return <Badge variant="outline" className={`text-caption ${m.cls}`}>{m.label}</Badge>;
 };
 
 export default TaskPriorityBadge;

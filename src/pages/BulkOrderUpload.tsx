@@ -190,7 +190,7 @@ const BulkOrderUpload: React.FC = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Bulk Order Upload</h1>
+          <h1 className="text-h2 font-bold text-foreground">Bulk Order Upload</h1>
           <p className="text-muted-foreground mt-1">
             Upload a CSV or XLSX file to create multiple orders at once
           </p>
@@ -245,7 +245,7 @@ const BulkOrderUpload: React.FC = () => {
               >
                 <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                 <p className="text-foreground font-medium">Drag & drop your file here</p>
-                <p className="text-muted-foreground text-sm mt-1">Supports .xlsx and .csv files</p>
+                <p className="text-muted-foreground text-small mt-1">Supports .xlsx and .csv files</p>
               </div>
 
               <input
@@ -291,7 +291,7 @@ const BulkOrderUpload: React.FC = () => {
                 {isSubmitting && (
                   <div className="mt-4">
                     <Progress value={progress} className="h-2" />
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-small text-muted-foreground mt-1">
                       {results.length} of {includedCount} processed
                     </p>
                   </div>
@@ -327,7 +327,7 @@ const BulkOrderUpload: React.FC = () => {
                   <div className="font-semibold mb-2">
                     {results.filter((r) => !r.success).length} order(s) failed to create:
                   </div>
-                  <ul className="space-y-1 text-sm">
+                  <ul className="space-y-1 text-small">
                     {results
                       .filter((r) => !r.success)
                       .map((r, i) => (
@@ -393,7 +393,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.orderNumber || ""}
                                     onChange={(e) => updateOrderNumber(key, e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[80px]"
+                                    className="h-8 text-caption min-w-[80px]"
                                     placeholder="Order #"
                                   />
                                 </TableCell>
@@ -402,7 +402,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.receiverData.receiver_name || ""}
                                     onChange={(e) => updateReceiverField(key, "receiver_name", e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[100px]"
+                                    className="h-8 text-caption min-w-[100px]"
                                     placeholder="Name"
                                   />
                                 </TableCell>
@@ -411,7 +411,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.receiverData.receiver_email || ""}
                                     onChange={(e) => updateReceiverField(key, "receiver_email", e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[120px]"
+                                    className="h-8 text-caption min-w-[120px]"
                                     placeholder="Email"
                                   />
                                 </TableCell>
@@ -420,7 +420,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.receiverData.receiver_phone || ""}
                                     onChange={(e) => updateReceiverField(key, "receiver_phone", e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[100px]"
+                                    className="h-8 text-caption min-w-[100px]"
                                     placeholder="Phone"
                                   />
                                 </TableCell>
@@ -429,7 +429,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.receiverData.receiver_street || ""}
                                     onChange={(e) => updateReceiverField(key, "receiver_street", e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[120px]"
+                                    className="h-8 text-caption min-w-[120px]"
                                     placeholder="Street"
                                   />
                                 </TableCell>
@@ -438,7 +438,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.receiverData.receiver_city || ""}
                                     onChange={(e) => updateReceiverField(key, "receiver_city", e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[80px]"
+                                    className="h-8 text-caption min-w-[80px]"
                                     placeholder="City"
                                   />
                                 </TableCell>
@@ -447,7 +447,7 @@ const BulkOrderUpload: React.FC = () => {
                                     value={order.receiverData.receiver_postcode || ""}
                                     onChange={(e) => updateReceiverField(key, "receiver_postcode", e.target.value)}
                                     disabled={isSubmitting}
-                                    className="h-8 text-xs min-w-[80px]"
+                                    className="h-8 text-caption min-w-[80px]"
                                     placeholder="Postcode"
                                   />
                                 </TableCell>
@@ -461,7 +461,7 @@ const BulkOrderUpload: React.FC = () => {
                                 value={bike.brand || ""}
                                 onChange={(e) => updateBike(key, bikeIdx, "brand", e.target.value)}
                                 disabled={isSubmitting}
-                                className="h-8 text-xs"
+                                className="h-8 text-caption"
                               />
                             </TableCell>
                             <TableCell className="p-1">
@@ -469,7 +469,7 @@ const BulkOrderUpload: React.FC = () => {
                                 value={bike.model || ""}
                                 onChange={(e) => updateBike(key, bikeIdx, "model", e.target.value)}
                                 disabled={isSubmitting}
-                                className="h-8 text-xs"
+                                className="h-8 text-caption"
                               />
                             </TableCell>
                             <TableCell className="p-1">
@@ -478,7 +478,7 @@ const BulkOrderUpload: React.FC = () => {
                                 onValueChange={(val) => updateBike(key, bikeIdx, "type", val)}
                                 disabled={isSubmitting}
                               >
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className="h-8 text-caption">
                                   <SelectValue placeholder="Select type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -494,7 +494,7 @@ const BulkOrderUpload: React.FC = () => {
                                 value={bike.value || ""}
                                 onChange={(e) => updateBike(key, bikeIdx, "value", e.target.value)}
                                 disabled={isSubmitting}
-                                className="h-8 text-xs min-w-[70px]"
+                                className="h-8 text-caption min-w-[70px]"
                                 placeholder="0"
                               />
                             </TableCell>
@@ -528,7 +528,7 @@ const BulkOrderUpload: React.FC = () => {
                                     </Tooltip>
                                   </TooltipProvider>
                                 ) : (
-                                  <span className="text-muted-foreground text-xs">Ready</span>
+                                  <span className="text-muted-foreground text-caption">Ready</span>
                                 )}
                               </TableCell>
                             )}

@@ -92,7 +92,7 @@ const PerformanceLeaderboard = ({ orders, range }: Props) => {
       <CardContent>
         <ScrollArea className="h-[32rem] rounded-md border">
           <div className="min-w-[860px]">
-            <table className="w-full text-sm">
+            <table className="w-full text-small">
               <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
                 <tr className="text-muted-foreground">
                   <th className="px-3 py-2 text-left">Customer</th>
@@ -128,7 +128,7 @@ const PerformanceLeaderboard = ({ orders, range }: Props) => {
                         <td className="px-3 py-2 font-medium">
                           <div className="flex items-center gap-2">
                             <span>{r.customerName}</span>
-                            {r.isB2B && <Badge variant="secondary" className="text-[10px]">B2B</Badge>}
+                            {r.isB2B && <Badge variant="secondary" className="text-caption">B2B</Badge>}
                           </div>
                         </td>
                         <td className="px-3 py-2 text-right">{r.orders}</td>

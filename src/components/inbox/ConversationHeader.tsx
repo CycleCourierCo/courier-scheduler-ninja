@@ -31,11 +31,11 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
           {conversation.contact?.display_name || conversation.contact?.handle || 'Unknown'}
         </div>
         {conversation.subject && (
-          <div className="text-xs text-muted-foreground truncate">{conversation.subject}</div>
+          <div className="text-caption text-muted-foreground truncate">{conversation.subject}</div>
         )}
       </div>
       <Select value={conversation.status} onValueChange={(v) => setStatus(v as CsConversationStatus)}>
-        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="w-32 h-8 text-caption"><SelectValue /></SelectTrigger>
         <SelectContent>
           {STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
         </SelectContent>

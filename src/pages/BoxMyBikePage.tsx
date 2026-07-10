@@ -187,11 +187,11 @@ const BoxMyBikePage: React.FC = () => {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <div className="font-semibold">{o.tracking_number || o.id.slice(0, 8)}</div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-small text-muted-foreground">
                 {[o.bike_brand, o.bike_model].filter(Boolean).join(" ") || "Bike"} ·{" "}
                 {o.sender?.name}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className="text-caption text-muted-foreground mt-1">
                 Order status: <StatusBadge status={o.status as any} />
               </div>
             </div>
@@ -202,18 +202,18 @@ const BoxMyBikePage: React.FC = () => {
           {(stage === "boxed_awaiting_label" || o.box_label_url) && (
             <div className="rounded-md border p-3 bg-muted/30">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="text-sm font-medium">Shipping label</div>
+                <div className="text-small font-medium">Shipping label</div>
                 {o.box_label_url ? (
                   <Button size="sm" variant="outline" onClick={() => viewLabel(o.box_label_url!)}>
                     <Printer className="h-4 w-4 mr-1" /> View / print
                   </Button>
                 ) : (
-                  <span className="text-xs text-muted-foreground">No label uploaded yet</span>
+                  <span className="text-caption text-muted-foreground">No label uploaded yet</span>
                 )}
               </div>
               {(isOwner || isStaff) && stage === "boxed_awaiting_label" && (
                 <div className="mt-2">
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-small">
                     <Upload className="h-4 w-4" />
                     <span>{o.box_label_url ? "Replace label" : "Upload label"}</span>
                     <input
@@ -235,7 +235,7 @@ const BoxMyBikePage: React.FC = () => {
           {/* Invoice info (admin, read-only) */}
           {hasRole(userProfile, "admin") && o.box_my_bike_invoice_number && (
             <div className="rounded-md border p-3 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
-              <div className="text-sm">
+              <div className="text-small">
                 <span className="font-medium">Boxing service invoiced</span>{" "}
                 <span className="text-muted-foreground">#{o.box_my_bike_invoice_number}</span>
               </div>
@@ -278,7 +278,7 @@ const BoxMyBikePage: React.FC = () => {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <h1 className="text-3xl font-bold mb-2">Box My Bike</h1>
+        <h1 className="text-h2 font-bold mb-2">Box My Bike</h1>
         <p className="text-muted-foreground mb-6">
           {isStaff
             ? "Track Box My Bike orders through every stage from collection to 3rd-party handover."
@@ -286,12 +286,12 @@ const BoxMyBikePage: React.FC = () => {
         </p>
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">Loading…</div>
+          <div className="text-small text-muted-foreground">Loading…</div>
         ) : isStaff ? (
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as BoxMyBikeStatus)}>
             <TabsList className="flex flex-wrap h-auto">
               {STAFF_STAGES.map((s) => (
-                <TabsTrigger key={s} value={s} className="text-xs sm:text-sm">
+                <TabsTrigger key={s} value={s} className="text-caption sm:text-small">
                   {BOX_MY_BIKE_STATUS_LABELS[s]}{" "}
                   <Badge variant="outline" className="ml-2">{grouped[s].length}</Badge>
                 </TabsTrigger>
@@ -300,7 +300,7 @@ const BoxMyBikePage: React.FC = () => {
             {STAFF_STAGES.map((s) => (
               <TabsContent key={s} value={s} className="mt-4">
                 {grouped[s].length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-8 text-center">
+                  <div className="text-small text-muted-foreground py-8 text-center">
                     No orders in this stage.
                   </div>
                 ) : (
@@ -316,7 +316,7 @@ const BoxMyBikePage: React.FC = () => {
                 <FileText className="h-5 w-5" /> No Box My Bike orders yet
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
+            <CardContent className="text-small text-muted-foreground">
               When you create an order with the “Box My Bike” option turned on, it will appear here.
             </CardContent>
           </Card>

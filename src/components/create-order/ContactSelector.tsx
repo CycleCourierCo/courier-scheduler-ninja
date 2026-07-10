@@ -96,7 +96,7 @@ export const ContactSelector = ({
                   <div className="flex flex-col">
                     <span>{contact.name}</span>
                     {contact.email && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-caption text-muted-foreground">
                         {contact.email}
                       </span>
                     )}
