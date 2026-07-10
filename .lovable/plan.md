@@ -1,51 +1,49 @@
-## Mechanic Timeslips + Mechanic Profitability
+## Root cause
 
-### 1. Mechanic clock in / clock out
+`#1137` has **13 bikes** in the CSV. The `orders` table has a CHECK constraint:
 
-**New table `mechanic_timeslips`** (schema, RLS, GRANTs):
-- `driver_id` → mechanic user id (reused naming for consistency)
-- `date` (Europe/London), `clock_in_at`, `clock_out_at` timestamps
-- `clock_in_photo_url`, `clock_out_photo_url` (Supabase Storage, private bucket `mechanic-clock-photos`)
-- `clock_in_lat/lng`, `clock_out_lat/lng`
-- `hourly_rate` (snapshot from profile), `lunch_hours` (default 0.5), `total_hours` and `total_pay` generated columns
-- `status` (`open` | `closed` | `approved` | `rejected`), `admin_notes`, `approved_by`, `approved_at`
-- RLS: mechanic can insert/read/update their own open slip; admins/`timeslip_admin` can read/update all; storage policy scoped to `driver_id/` prefix
+```
+orders_bike_quantity_check: CHECK ((bike_quantity >= 1) AND (bike_quantity <= 8))
+```
 
-**New Storage bucket** `mechanic-clock-photos` (private, RLS scoped by folder = user id).
+`createOrder()` inserts `bike_quantity: 13`, Postgres rejects the row, and the error bubbles up as a per-order failure inside `createBulkOrders`. It's captured in `results[]` and shown in a tooltip on the row's status icon — but only if the user is still on the Bulk Upload page after submit. Once they navigate away there's no persistent record, which is why the customer thought the upload silently dropped the order.
 
-**New page `/mechanic-clock`** (mechanic role, added to sidebar under Timeslips):
-- Big **Clock In** button when no open slip today → opens camera (`<input type="file" accept="image/*" capture="environment">`), requests `navigator.geolocation.getCurrentPosition`, uploads photo, inserts row with server `now()`.
-- If open slip exists → shows live elapsed time + **Clock Out** button (same photo + GPS flow), closes the slip.
-- History list of the mechanic's own past slips with status.
+All other 21 orders in both uploads went through fine (verified in DB — each appears twice, matching bike counts).
 
-**Admin section in existing Timeslips page**:
-- New tab **"Mechanic Timeslips"** listing all `mechanic_timeslips` with filters (driver, status, date range). Row shows both photos (thumbnails → lightbox), GPS pins on a small map link, hours, pay. Approve / reject actions and edit dialog (rate, lunch, notes).
+## Changes
 
-### 2. Mechanic Profitability panel (bottom of Route Profitability page)
+### 1. Raise the DB limit
+The customer legitimately has 13-bike orders. Change the constraint to allow up to **20 bikes**:
 
-New section rendered under existing route profitability, admin-only, with the same date-range filter.
+```sql
+ALTER TABLE public.orders DROP CONSTRAINT orders_bike_quantity_check;
+ALTER TABLE public.orders ADD CONSTRAINT orders_bike_quantity_check
+  CHECK (bike_quantity >= 1 AND bike_quantity <= 20);
+```
 
-**Revenue per mechanic**, aggregated in one service (`mechanicProfitabilityService.ts`):
+### 2. Pre-flight validation in `bulkOrderService.ts`
+In `validateGroupedOrder`, push a clear error when `bikes.length > 20`:
 
-- **Inspection revenue (£60 each)** — for every `bicycle_inspections` row where `status` transitioned from `awaiting_inspection` to either `awaiting_pricing` (issues found) or straight to `no_issues`/`released_to_customer_at` with no open issues, within the date range. Attribute £60 to `inspected_by_id` on the transition date. Source of transition date = `inspected_at` (fallback `updated_at`).
-- **Repair revenue (labour = price − part cost)** — for every `inspection_issues` row where `status IN ('resolved','repaired')` and `resolved_at` is in the range. Amount = `COALESCE(price,0) − COALESCE(part_cost,0)` (never below 0). Attribute to `resolved_by_id`.
+```
+"Order has X bikes; max 20 per order. Split into multiple orders."
+```
 
-**Cost per mechanic** — sum of `total_pay` from `mechanic_timeslips` where `date` is in the range and status ∈ (`closed`,`approved`).
+This flags the row red in the preview table before submit, matching how missing-field errors already work.
 
-**Table columns**: Mechanic · Inspections done · Inspection revenue · Repairs done · Repair revenue · **Total revenue** · Hours worked · Wage cost · **Profit** · Profit margin %.
+### 3. Better error surfacing after submit
+In `src/pages/BulkOrderUpload.tsx`:
+- After `createBulkOrders` completes, when `failCount > 0` render a **persistent failed-orders panel** above the table listing each failed `orderNumber` with its error message (not just the tooltip on the icon).
+- Change the completion toast from `toast.warning` to a `toast.error` that names the failed order numbers, e.g. `"Failed: #1137 — bike_quantity exceeds limit"`.
+- Log each failure to Sentry with the order number and bike count as attributes (currently only the exception object is captured, not the context).
 
-Grand total row at the bottom.
+### 4. Backfill the missing order
+`#1137` for MTB Monster is not in the DB. After the constraint is raised, the customer can re-run just that order via the normal Create Order flow or a fresh bulk upload containing only `#1137`. No migration backfill — we don't have the original submitter's `user_id` context to attribute it safely.
 
-### Technical details
+## Files touched
+- `supabase/migrations/<new>.sql` — raise constraint to 20
+- `src/services/bulkOrderService.ts` — add >20 validation in `validateGroupedOrder`
+- `src/pages/BulkOrderUpload.tsx` — persistent failed-order panel + richer toast + Sentry context
 
-- **Files added**: `supabase/migrations/*` (table + bucket policies), `src/services/mechanicTimeslipService.ts`, `src/services/mechanicProfitabilityService.ts`, `src/pages/MechanicClock.tsx`, `src/components/timeslips/MechanicTimeslipList.tsx`, `src/components/timeslips/MechanicTimeslipEditDialog.tsx`, `src/components/analytics/MechanicProfitabilityPanel.tsx`.
-- **Files edited**: `src/App.tsx` (route), `src/components/Layout.tsx` (sidebar link for mechanic + admin tab), `src/pages/DriverTimeslips.tsx` (add "Mechanic" tab), `src/pages/RouteProfitabilityPage.tsx` (mount the new panel at the bottom).
-- Photo upload = `supabase.storage.from('mechanic-clock-photos').upload(\`${uid}/${slipId}-in.jpg\`, blob)`.
-- GPS captured with `navigator.geolocation`; if user denies, we still allow submit but flag the row `location_missing = true` for admin visibility.
-- Timezone: `date` computed with `Europe/London` (matches existing driver timeslip convention).
-- No changes to driver timeslip logic or route profitability numbers above.
-
-### Out of scope
-- Enforcing a geo-fence radius (photo + GPS captured, not validated against a workshop location).
-- QuickBooks bill creation for mechanic timeslips (can be added later, matching driver flow).
-- Historical backfill of inspection/repair revenue before this ships (calculations are date-range based and will just work from existing timestamps).
+## Out of scope
+- Splitting oversized orders automatically (would change customer intent)
+- Any change to Shipday / invoicing flow for orders with >8 bikes (assumed already handled since existing 5-bike orders work)
