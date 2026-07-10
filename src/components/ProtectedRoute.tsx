@@ -107,6 +107,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isUsersPage = location.pathname === '/users';
   const isEmailsPage = location.pathname === '/emails';
   const isBoxMyBikePage = location.pathname === '/box-my-bike';
+  const isMechanicClockPage = location.pathname === '/mechanic-clock';
   const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
   const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
 
