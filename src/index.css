@@ -61,6 +61,17 @@
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --radius: 1rem;
+
+    /* Modular type scale (base 16px, ratio 1.25). Use for non-Tailwind contexts. */
+    --fs-display: 61px;
+    --fs-h1: 49px;
+    --fs-h2: 39px;
+    --fs-h3: 31px;
+    --fs-h4: 25px;
+    --fs-body-lg: 20px;
+    --fs-body: 16px;
+    --fs-small: 14px;
+    --fs-caption: 12px;
   }
 
   .dark {
