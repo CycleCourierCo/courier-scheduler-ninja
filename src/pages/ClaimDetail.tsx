@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { format } from "date-fns";
 import ClaimStatusBadge from "@/components/claims/ClaimStatusBadge";
 import ClaimStepper from "@/components/claims/ClaimStepper";

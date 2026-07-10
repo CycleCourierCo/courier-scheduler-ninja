@@ -9,6 +9,7 @@ import { addTaskComment, deleteTask, updateTask } from "@/services/tasksService"
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { TASK_STATUSES } from "@/types/task";
 import { format } from "date-fns";
 import TaskStatusBadge from "./TaskStatusBadge";

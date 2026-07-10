@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Plus, Trash2, Edit, Warehouse, Package } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Copy, ExternalLink, ShoppingBag, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";

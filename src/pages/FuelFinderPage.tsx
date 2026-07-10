@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Fuel, MapPin, Clock, CreditCard, Search, Loader2, Trophy, RefreshCw, ArrowUpDown, Database, Plus, Trash2, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { geocodeAddress } from "@/utils/geocoding";
 import { format, formatDistanceToNow } from "date-fns";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
