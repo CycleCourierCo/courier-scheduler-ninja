@@ -155,12 +155,22 @@ const BulkOrderUpload: React.FC = () => {
           });
 
           const successCount = allResults.filter((r) => r.success).length;
-          const failCount = allResults.filter((r) => !r.success).length;
+          const failures = allResults.filter((r) => !r.success);
+          const failCount = failures.length;
           span.setAttribute("success_count", successCount);
           span.setAttribute("fail_count", failCount);
 
-          if (failCount === 0) toast.success(`All ${successCount} orders created successfully!`);
-          else toast.warning(`${successCount} orders created, ${failCount} failed`);
+          if (failCount === 0) {
+            toast.success(`All ${successCount} orders created successfully!`);
+          } else {
+            const failedRefs = failures
+              .map((f) => f.orderNumber || `row ${f.rowIndex}`)
+              .join(", ");
+            toast.error(
+              `${successCount} created, ${failCount} failed: ${failedRefs}`,
+              { duration: 15000 }
+            );
+          }
         } catch (error) {
           Sentry.captureException(error);
           toast.error("Bulk upload failed");
