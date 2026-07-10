@@ -13,11 +13,11 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       
       return (
         <div className="flex h-10 w-full rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-          <span className="flex items-center px-3 text-base text-foreground select-none md:text-sm">+44</span>
+          <span className="flex items-center px-3 text-body text-foreground select-none md:text-small">+44</span>
           <input
             type="text" // Changed from tel to text to avoid browser's native formatting
             className={cn(
-              "flex-1 h-full border-0 bg-transparent px-0 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+              "flex-1 h-full border-0 bg-transparent px-0 py-2 text-body placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-small",
               className
             )}
             ref={ref}
@@ -47,7 +47,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-body ring-offset-background file:border-0 file:bg-transparent file:text-small file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-small",
           className
         )}
         ref={ref}

@@ -594,7 +594,7 @@ export default function InvoicesPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Create Invoice</h1>
+            <h1 className="text-h2 font-bold">Create Invoice</h1>
           </div>
           
           {!quickBooksConnected && (
@@ -642,7 +642,7 @@ export default function InvoicesPage() {
                 </SelectContent>
               </Select>
               {selectedCustomerData && !selectedCustomerData.accounts_email && (
-                <p className="text-sm text-destructive">
+                <p className="text-small text-destructive">
                   This customer needs an accounts email address for invoicing.
                 </p>
               )}
@@ -718,11 +718,11 @@ export default function InvoicesPage() {
                       <p className="font-medium">
                         {order.tracking_number} - {order.bike_brand} {order.bike_model}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-small text-muted-foreground">
                         {order.sender?.name} → {order.receiver?.name}
                       </p>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-small text-muted-foreground">
                       {format(new Date(order.created_at), "MMM d, yyyy")}
                     </div>
                   </div>
@@ -735,7 +735,7 @@ export default function InvoicesPage() {
         {/* Create Invoice Button */}
         <div className="space-y-4">
           {selectedCustomer && startDate && endDate && (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-small text-muted-foreground">
               {!selectedCustomerData?.accounts_email && (
                 <p className="text-destructive">❌ Customer needs an accounts email address</p>
               )}
@@ -804,7 +804,7 @@ export default function InvoicesPage() {
             <div className="border-b pb-4">
               <div className="flex items-center gap-2 mb-4">
                 <Filter className="h-4 w-4" />
-                <Label className="text-sm font-medium">Filter History</Label>
+                <Label className="text-small font-medium">Filter History</Label>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -899,22 +899,22 @@ export default function InvoicesPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-medium">{invoice.customer_name}</h4>
                         {invoice.quickbooks_invoice_number && (
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-small text-muted-foreground">
                             #{invoice.quickbooks_invoice_number}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-small text-muted-foreground">
                         {invoice.customer_email} • {invoice.order_count} orders • £{invoice.total_amount}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         {format(new Date(invoice.start_date), "MMM d")} - {format(new Date(invoice.end_date), "MMM d, yyyy")} • 
                         Created {format(new Date(invoice.created_at), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      <span className={`px-2 py-1 rounded-full text-caption font-medium ${
                         invoice.status === 'created' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                           : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
@@ -951,7 +951,7 @@ export default function InvoicesPage() {
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No invoices found</p>
-                <p className="text-sm">
+                <p className="text-small">
                   {(historyCustomerFilter !== "all" || historyStartDate || historyEndDate) 
                     ? "Try adjusting your filters or create your first invoice above"
                     : "Create your first invoice above to see it here"

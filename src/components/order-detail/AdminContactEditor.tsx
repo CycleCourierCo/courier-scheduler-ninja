@@ -168,7 +168,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <User className="text-courier-600" />
-          <h3 className="font-semibold text-lg">
+          <h3 className="font-semibold text-body-lg">
             {type === "sender" ? "Sender" : "Receiver"} Information
           </h3>
         </div>
@@ -222,7 +222,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
           <div className="space-y-4">
             {/* Contact Selector */}
             <div>
-              <Label className="text-sm">Select from address book</Label>
+              <Label className="text-small">Select from address book</Label>
               <div className="mt-1">
                 <ContactSelector
                   contacts={allContacts}
@@ -234,7 +234,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             </div>
             {/* Name */}
             <div>
-              <Label htmlFor={`${type}-name`} className="text-sm">Name</Label>
+              <Label htmlFor={`${type}-name`} className="text-small">Name</Label>
               <Input
                 id={`${type}-name`}
                 value={editedContact.name}
@@ -246,7 +246,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             {/* Email and Phone */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor={`${type}-email`} className="text-sm">Email</Label>
+                <Label htmlFor={`${type}-email`} className="text-small">Email</Label>
                 <Input
                   id={`${type}-email`}
                   type="email"
@@ -256,7 +256,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
                 />
               </div>
               <div>
-                <Label htmlFor={`${type}-phone`} className="text-sm">Phone</Label>
+                <Label htmlFor={`${type}-phone`} className="text-small">Phone</Label>
                 <Input
                   id={`${type}-phone`}
                   type="tel"
@@ -269,7 +269,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             
             {/* Street Address */}
             <div>
-              <Label htmlFor={`${type}-street`} className="text-sm">Street Address</Label>
+              <Label htmlFor={`${type}-street`} className="text-small">Street Address</Label>
               <Input
                 id={`${type}-street`}
                 value={editedContact.street}
@@ -281,7 +281,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             {/* City and State */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor={`${type}-city`} className="text-sm">City</Label>
+                <Label htmlFor={`${type}-city`} className="text-small">City</Label>
                 <Input
                   id={`${type}-city`}
                   value={editedContact.city}
@@ -290,7 +290,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
                 />
               </div>
               <div>
-                <Label htmlFor={`${type}-state`} className="text-sm">County/State</Label>
+                <Label htmlFor={`${type}-state`} className="text-small">County/State</Label>
                 <Input
                   id={`${type}-state`}
                   value={editedContact.state}
@@ -303,7 +303,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             {/* Postcode and Country */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor={`${type}-zipCode`} className="text-sm">Postcode</Label>
+                <Label htmlFor={`${type}-zipCode`} className="text-small">Postcode</Label>
                 <Input
                   id={`${type}-zipCode`}
                   value={editedContact.zipCode}
@@ -312,7 +312,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
                 />
               </div>
               <div>
-                <Label htmlFor={`${type}-country`} className="text-sm">Country</Label>
+                <Label htmlFor={`${type}-country`} className="text-small">Country</Label>
                 <Input
                   id={`${type}-country`}
                   value={editedContact.country}
@@ -347,7 +347,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
                   <FileText className="h-4 w-4 mt-1 text-gray-500" />
                   <div>
                     <p className="font-medium mb-1">{type === "sender" ? "Sender" : "Receiver"} Notes:</p>
-                    <p className="text-sm whitespace-pre-line">{notes}</p>
+                    <p className="text-small whitespace-pre-line">{notes}</p>
                   </div>
                 </div>
               )}

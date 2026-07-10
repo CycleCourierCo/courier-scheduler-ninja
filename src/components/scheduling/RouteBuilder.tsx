@@ -357,13 +357,13 @@ const JobItem: React.FC<JobItemProps> = ({
       >
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab flex-shrink-0 mt-0.5" />
-          <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          <Badge variant="outline" className="flex-shrink-0 text-caption">#{job.order}</Badge>
           <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
               // Multiple jobs at same location
               <div className="space-y-1.5">
-                <p className="text-xs font-medium">📍 Multiple stops</p>
-                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
+                <p className="text-caption font-medium">📍 Multiple stops</p>
+                <p className="text-caption text-muted-foreground line-clamp-1 break-words">{job.address}</p>
                 <div className="space-y-1">
                   {(() => {
                     // Sort grouped jobs: deliveries first, then pickups
@@ -419,11 +419,11 @@ const JobItem: React.FC<JobItemProps> = ({
                         <div key={`${groupedJob.orderId}-${groupedJob.type}`} className="space-y-1 pl-1.5 border-l border-muted">
                           {/* Job info row */}
                           <div className="flex items-center gap-1 flex-wrap">
-                            <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                            <Badge variant={groupedJob.type === 'pickup' ? 'default' : 'secondary'} className="text-caption px-1 py-0">
                               {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                             </Badge>
-                            <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
-                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
+                            <span className="text-caption font-medium truncate">{groupedJob.contactName}</span>
+                            <Badge variant="outline" className="text-caption bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
                               🚲 {bikeCountAfterJob}
                             </Badge>
                           </div>
@@ -431,12 +431,12 @@ const JobItem: React.FC<JobItemProps> = ({
                           {/* Badges row */}
                           <div className="flex gap-1 flex-wrap">
                             {availabilityBadge && (
-                              <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
+                              <Badge className={`text-caption px-1.5 py-0 ${availabilityBadge.color}`}>
                                 {availabilityBadge.text}
                               </Badge>
                             )}
                             {collectionBadge && (
-                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                              <Badge className={`text-caption px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                                 {collectionBadge.icon}
                                 {collectionBadge.text}
                               </Badge>
@@ -445,7 +445,7 @@ const JobItem: React.FC<JobItemProps> = ({
                             {(() => {
                               const inspectionBadge = getInspectionStatusBadge(groupedJob.orderData?.needs_inspection, groupedJob.orderData?.inspection_status);
                               return inspectionBadge ? (
-                                <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
+                                <Badge className={`text-caption px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
                                   {inspectionBadge.icon}
                                   {inspectionBadge.text}
                                 </Badge>
@@ -456,23 +456,23 @@ const JobItem: React.FC<JobItemProps> = ({
                               const stopEmail = groupedJob.type === 'pickup' ? groupedJob.orderData?.sender?.email : groupedJob.orderData?.receiver?.email;
                               const hoursBadge = getOpeningHoursBadge(groupedJob.type, groupedJob.estimatedTime, selectedDate, openingHoursMap[groupedJob.orderData?.user_id], stopEmail);
                               return hoursBadge ? (
-                                <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
+                                <Badge className={`text-caption px-1.5 py-0 ${hoursBadge.color}`}>
                                   {hoursBadge.text}
                                 </Badge>
                               ) : null;
                             })()}
                           </div>
                           {groupedJob.orderData?.delivery_instructions && (
-                            <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
+                            <p className="text-caption text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
                           )}
                           {groupedJob.type === 'pickup' && groupedJob.orderData?.sender_notes && (
-                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.sender_notes}</p>
+                            <p className="text-caption text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.sender_notes}</p>
                           )}
                           {groupedJob.type === 'delivery' && groupedJob.orderData?.receiver_notes && (
-                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.receiver_notes}</p>
+                            <p className="text-caption text-muted-foreground whitespace-pre-wrap">📝 {groupedJob.orderData.receiver_notes}</p>
                           )}
                           {adminComments.filter(c => c.order_id === groupedJob.orderId).map(c => (
-                            <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                            <p key={c.id} className="text-caption text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
                           ))}
                         </div>
                       );
@@ -483,22 +483,22 @@ const JobItem: React.FC<JobItemProps> = ({
             ) : (
               // Single job
               <div className="space-y-0.5">
-                <p className="text-xs font-medium truncate">{job.contactName}</p>
-                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
+                <p className="text-caption font-medium truncate">{job.contactName}</p>
+                <p className="text-caption text-muted-foreground line-clamp-1 break-words">{job.address}</p>
                 <div className="flex gap-1 flex-wrap items-center">
                   {job.type === 'break' ? (
-                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 px-1.5 py-0">
+                    <Badge variant="outline" className="text-caption bg-orange-100 text-orange-800 px-1.5 py-0">
                       {job.breakType === 'lunch' ? '🍽️ Lunch' : '☕ Stop'} ({job.breakDuration}min)
                     </Badge>
                   ) : (
                     <>
                       {/* Job Type Badge */}
-                      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-xs px-1.5 py-0">
+                      <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'} className="text-caption px-1.5 py-0">
                         {job.type === 'pickup' ? 'Collection' : 'Delivery'}
                       </Badge>
                       
                       {/* Bike Count Badge */}
-                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
+                      <Badge variant="outline" className="text-caption bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
                         🚲 {bikeCount}
                       </Badge>
                       
@@ -511,7 +511,7 @@ const JobItem: React.FC<JobItemProps> = ({
                           job.orderData?.delivery_date
                         );
                         return availabilityBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
+                          <Badge className={`text-caption px-1.5 py-0 ${availabilityBadge.color}`}>
                             {availabilityBadge.text}
                           </Badge>
                         ) : null;
@@ -528,7 +528,7 @@ const JobItem: React.FC<JobItemProps> = ({
                           job.orderData?.order_collected
                         );
                         return collectionBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                          <Badge className={`text-caption px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
                             {collectionBadge.text}
                           </Badge>
@@ -539,7 +539,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       {(() => {
                         const inspectionBadge = getInspectionStatusBadge(job.orderData?.needs_inspection, job.orderData?.inspection_status);
                         return inspectionBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
+                          <Badge className={`text-caption px-1.5 py-0 flex items-center gap-1 ${inspectionBadge.color}`}>
                             {inspectionBadge.icon}
                             {inspectionBadge.text}
                           </Badge>
@@ -551,7 +551,7 @@ const JobItem: React.FC<JobItemProps> = ({
                         const stopEmail = job.type === 'pickup' ? job.orderData?.sender?.email : job.orderData?.receiver?.email;
                         const hoursBadge = getOpeningHoursBadge(job.type, job.estimatedTime, selectedDate, openingHoursMap[job.orderData?.user_id], stopEmail);
                         return hoursBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 ${hoursBadge.color}`}>
+                          <Badge className={`text-caption px-1.5 py-0 ${hoursBadge.color}`}>
                             {hoursBadge.text}
                           </Badge>
                         ) : null;
@@ -562,16 +562,16 @@ const JobItem: React.FC<JobItemProps> = ({
                 {job.type !== 'break' && (
                   <>
                     {job.orderData?.delivery_instructions && (
-                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {job.orderData.delivery_instructions}</p>
+                      <p className="text-caption text-muted-foreground mt-1 whitespace-pre-wrap">📋 {job.orderData.delivery_instructions}</p>
                     )}
                     {job.type === 'pickup' && job.orderData?.sender_notes && (
-                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.sender_notes}</p>
+                      <p className="text-caption text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.sender_notes}</p>
                     )}
                     {job.type === 'delivery' && job.orderData?.receiver_notes && (
-                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.receiver_notes}</p>
+                      <p className="text-caption text-muted-foreground whitespace-pre-wrap">📝 {job.orderData.receiver_notes}</p>
                     )}
                     {adminComments.filter(c => c.order_id === job.orderId).map(c => (
-                      <p key={c.id} className="text-xs text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
+                      <p key={c.id} className="text-caption text-muted-foreground whitespace-pre-wrap">💬 {c.admin_name}: {c.comment}</p>
                     ))}
                   </>
                 )}
@@ -582,7 +582,7 @@ const JobItem: React.FC<JobItemProps> = ({
         
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {job.estimatedTime && (
-            <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
+            <Badge variant="outline" className="flex items-center gap-1 text-caption px-1.5 py-0">
               <Clock className="h-3 w-3" />
               {job.estimatedTime}
             </Badge>
@@ -600,7 +600,7 @@ const JobItem: React.FC<JobItemProps> = ({
                     onUpdateCoordinates(job, Number(lat), Number(lon));
                   }
                 }}
-                className="flex items-center gap-1 text-orange-600 hover:text-orange-700 h-7 text-xs px-2"
+                className="flex items-center gap-1 text-orange-600 hover:text-orange-700 h-7 text-caption px-2"
               >
                 <Edit3 className="h-3 w-3" />
                 Coords
@@ -617,7 +617,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       size="sm"
                       onClick={() => onSendTimeslot(groupedJob)}
                       disabled={isSendingTimeslots || !groupedJob.estimatedTime}
-                      className="flex items-center gap-1 text-xs h-7 px-2"
+                      className="flex items-center gap-1 text-caption h-7 px-2"
                     >
                       <Send className="h-3 w-3" />
                       {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
@@ -629,7 +629,7 @@ const JobItem: React.FC<JobItemProps> = ({
                     size="sm"
                     onClick={() => onSendTimeslot(job)}
                     disabled={isSendingTimeslots || !job.estimatedTime}
-                    className="flex items-center gap-1 h-7 text-xs px-2"
+                    className="flex items-center gap-1 h-7 text-caption px-2"
                   >
                     <Send className="h-3 w-3" />
                     Send
@@ -644,7 +644,7 @@ const JobItem: React.FC<JobItemProps> = ({
                       variant="outline"
                       onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
                       disabled={isSendingTimeslots || !job.estimatedTime}
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-caption px-2"
                     >
                       <Send className="h-3 w-3" />
                       All
@@ -655,7 +655,7 @@ const JobItem: React.FC<JobItemProps> = ({
                         variant="outline"
                         onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
                         disabled={isSendingTimeslots || !job.estimatedTime}
-                        className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
+                        className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-caption px-2"
                       >
                         <Zap className="h-3 w-3" />
                         SZ
@@ -685,7 +685,7 @@ const JobItem: React.FC<JobItemProps> = ({
             onClick={() => onAddBreak(index, 'lunch')} 
             variant="ghost" 
             size="sm"
-            className="text-xs h-6 px-2"
+            className="text-caption h-6 px-2"
           >
             + Lunch
           </Button>
@@ -693,7 +693,7 @@ const JobItem: React.FC<JobItemProps> = ({
             onClick={() => onAddBreak(index, 'stop')} 
             variant="ghost" 
             size="sm"
-            className="text-xs h-6 px-2"
+            className="text-caption h-6 px-2"
           >
             + Stop
           </Button>
@@ -3126,12 +3126,12 @@ Route Link: ${routeLink}`;
           <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg border">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filters:</span>
+              <span className="text-small font-medium">Filters:</span>
             </div>
             
             {/* Date Filter */}
             <div className="flex items-center gap-2">
-              <Label className="text-sm">Available on:</Label>
+              <Label className="text-small">Available on:</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -3175,7 +3175,7 @@ Route Link: ${routeLink}`;
                 checked={showCollectedOnly} 
                 onCheckedChange={handleShowCollectedOnlyChange}
               />
-              <Label htmlFor="collected-filter" className="text-sm cursor-pointer">
+              <Label htmlFor="collected-filter" className="text-small cursor-pointer">
                 Collected (ready to deliver)
               </Label>
             </div>
@@ -3187,7 +3187,7 @@ Route Link: ${routeLink}`;
                 checked={showCollectionToday}
                 onCheckedChange={handleShowCollectionTodayChange}
               />
-              <Label htmlFor="collection-today-filter" className="text-sm cursor-pointer">
+              <Label htmlFor="collection-today-filter" className="text-small cursor-pointer">
                 Collecting before delivery date
               </Label>
             </div>
@@ -3199,7 +3199,7 @@ Route Link: ${routeLink}`;
                 checked={showExpiredDatesOnly}
                 onCheckedChange={handleShowExpiredDatesOnlyChange}
               />
-              <Label htmlFor="expired-dates-filter" className="text-sm cursor-pointer">
+              <Label htmlFor="expired-dates-filter" className="text-small cursor-pointer">
                 Expired availability dates
               </Label>
             </div>
@@ -3211,7 +3211,7 @@ Route Link: ${routeLink}`;
                 checked={showInspectedOnly}
                 onCheckedChange={handleShowInspectedOnlyChange}
               />
-              <Label htmlFor="inspected-filter" className="text-sm cursor-pointer">
+              <Label htmlFor="inspected-filter" className="text-small cursor-pointer">
                 Inspected only
               </Label>
             </div>
@@ -3286,11 +3286,11 @@ Route Link: ${routeLink}`;
                         {/* Collection Status Badge - only for delivery jobs */}
                         {job.type === 'delivery' && (
                           job.order.order_collected ? (
-                            <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            <Badge className="text-caption bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                               Collected
                             </Badge>
                           ) : (
-                            <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                            <Badge className="text-caption bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
                               Awaiting Collection
                             </Badge>
                           )
@@ -3299,7 +3299,7 @@ Route Link: ${routeLink}`;
                         {job.order.needs_inspection && (() => {
                           const isInspectionComplete = job.order.inspection_status === 'inspected' || job.order.inspection_status === 'repaired';
                           return (
-                            <Badge className={`text-xs flex items-center gap-1 ${
+                            <Badge className={`text-caption flex items-center gap-1 ${
                               isInspectionComplete 
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
@@ -3323,7 +3323,7 @@ Route Link: ${routeLink}`;
                     
                     <div className="space-y-2">
                       {/* Tracking Number */}
-                      <p className="font-medium text-sm flex items-center gap-1">
+                      <p className="font-medium text-small flex items-center gap-1">
                         <Package className="h-3 w-3 text-muted-foreground" />
                         #{job.order.tracking_number}
                         {(() => {
@@ -3335,19 +3335,19 @@ Route Link: ${routeLink}`;
                             ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
                             : 'bg-muted text-muted-foreground';
                           return (
-                            <Badge className={`text-xs ml-auto flex items-center gap-1 ${tone}`}>
+                            <Badge className={`text-caption ml-auto flex items-center gap-1 ${tone}`}>
                               <Clock className="h-3 w-3" />
                               {label}
                             </Badge>
                           );
                         })()}
                       </p>
-                      <p className="text-sm">{job.contactName}</p>
+                      <p className="text-small">{job.contactName}</p>
                       <div className="flex items-start gap-1">
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">{job.address}</p>
+                        <p className="text-caption text-muted-foreground">{job.address}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         {job.order.bike_brand} {job.order.bike_model}
                       </p>
                       {!hasCoordinates && (
@@ -3391,7 +3391,7 @@ Route Link: ${routeLink}`;
         <Drawer open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
           <DrawerContent className="max-h-[90vh] overflow-hidden">
             <DrawerHeader className="text-left pb-2">
-              <DrawerTitle className="text-base">Route Timeslots</DrawerTitle>
+              <DrawerTitle className="text-body">Route Timeslots</DrawerTitle>
             </DrawerHeader>
             
             <div className="overflow-y-auto overflow-x-hidden px-4 pb-4">
@@ -3399,23 +3399,23 @@ Route Link: ${routeLink}`;
                 {/* Controls */}
                 <div className="space-y-3 p-2 bg-muted/50 rounded-lg">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium">Start Time:</label>
+                    <label className="text-caption font-medium">Start Time:</label>
                     <Input
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full h-9 text-sm"
+                      className="w-full h-9 text-small"
                     />
                   </div>
                   
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium">Date:</label>
+                    <label className="text-caption font-medium">Date:</label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal h-9 text-sm",
+                            "w-full justify-start text-left font-normal h-9 text-small",
                             !selectedDate && "text-muted-foreground"
                           )}
                         >
@@ -3435,7 +3435,7 @@ Route Link: ${routeLink}`;
                     </Popover>
                   </div>
                   
-                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-xs">
+                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-caption">
                     Recalculate
                   </Button>
                 </div>
@@ -3444,9 +3444,9 @@ Route Link: ${routeLink}`;
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="text-xs font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
-                    <Badge variant="outline" className="text-xs px-1.5 py-0">{startTime}</Badge>
-                    <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
+                    <span className="text-caption font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
+                    <Badge variant="outline" className="text-caption px-1.5 py-0">{startTime}</Badge>
+                    <Badge variant="outline" className="bg-green-100 text-green-800 text-caption px-1.5 py-0 whitespace-nowrap">
                       🚲 {startingBikes}
                     </Badge>
                   </div>
@@ -3475,21 +3475,21 @@ Route Link: ${routeLink}`;
 
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="text-xs font-medium truncate flex-1">End: Lawden Rd, B10 0AD</span>
+                    <span className="text-caption font-medium truncate flex-1">End: Lawden Rd, B10 0AD</span>
                     {routeStats && (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 whitespace-nowrap">
+                      <Badge variant="outline" className="text-caption px-1.5 py-0 whitespace-nowrap">
                         ETA {routeStats.endTime}
                       </Badge>
                     )}
-                    <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
+                    <Badge variant="outline" className="bg-green-100 text-green-800 text-caption px-1.5 py-0 whitespace-nowrap">
                       🚲 {calculateFinalBikeCount()}
                     </Badge>
                   </div>
 
                   {routeStats && (
                     <div className="p-2 border rounded-lg bg-muted/40">
-                      <p className="text-xs font-semibold mb-1">Route Summary</p>
-                      <div className="grid grid-cols-2 gap-1 text-xs">
+                      <p className="text-caption font-semibold mb-1">Route Summary</p>
+                      <div className="grid grid-cols-2 gap-1 text-caption">
                         <div><span className="text-muted-foreground">Stops:</span> <span className="font-medium">{selectedJobs.filter(j => j.type !== 'break').length}</span></div>
                         <div><span className="text-muted-foreground">Orders:</span> <span className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</span></div>
                         <div><span className="text-muted-foreground">Distance:</span> <span className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</span></div>
@@ -3501,10 +3501,10 @@ Route Link: ${routeLink}`;
                   {isAdmin && profitability && (
                     <div className="p-2 border rounded-lg bg-muted/40">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs font-semibold">Route Profitability</p>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">Admin</Badge>
+                        <p className="text-caption font-semibold">Route Profitability</p>
+                        <Badge variant="outline" className="text-caption px-1 py-0">Admin</Badge>
                       </div>
-                      <div className="grid grid-cols-2 gap-1 text-xs">
+                      <div className="grid grid-cols-2 gap-1 text-caption">
                         <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatGBP(profitability.revenue)}</span></div>
                         <div><span className="text-muted-foreground">Mileage:</span> <span className="font-medium">{formatGBP(profitability.mileageCost)}</span></div>
                         <div><span className="text-muted-foreground">Driver pay:</span> <span className="font-medium">{formatGBP(profitability.driverPay)}</span></div>
@@ -3533,7 +3533,7 @@ Route Link: ${routeLink}`;
                       onClick={() => setShowSaveRouteDialog(true)}
                       variant="outline"
                       size="sm"
-                      className="flex-1 flex items-center justify-center gap-1 h-9 text-sm"
+                      className="flex-1 flex items-center justify-center gap-1 h-9 text-small"
                       disabled={selectedJobs.length === 0}
                     >
                       <Save className="h-3 w-3" />
@@ -3546,7 +3546,7 @@ Route Link: ${routeLink}`;
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
-                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
+                    className="w-full flex items-center justify-center gap-1 h-9 text-small"
                   >
                     <Send className="h-3 w-3" />
                     {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
@@ -3557,7 +3557,7 @@ Route Link: ${routeLink}`;
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
-                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
+                    className="w-full flex items-center justify-center gap-1 h-9 text-small"
                   >
                     <Zap className="h-3 w-3" />
                     {isSendingTimeslots ? 'Sending...' : 'Send All (SendZen)'}
@@ -3577,7 +3577,7 @@ Route Link: ${routeLink}`;
             <div className="space-y-4">
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium">Start Time:</label>
+                  <label className="text-small font-medium">Start Time:</label>
                   <Input
                     type="time"
                     value={startTime}
@@ -3587,7 +3587,7 @@ Route Link: ${routeLink}`;
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium">Date:</label>
+                  <label className="text-small font-medium">Date:</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -3621,7 +3621,7 @@ Route Link: ${routeLink}`;
               <div className="space-y-3">
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
+                  <span className="text-small font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
                   <Badge variant="outline">{startTime}</Badge>
                   <Badge variant="outline" className="bg-green-100 text-green-800">
                     🚲 {startingBikes} bikes
@@ -3652,7 +3652,7 @@ Route Link: ${routeLink}`;
 
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-sm font-medium flex-1">End: Lawden Road, Birmingham, B10 0AD</span>
+                  <span className="text-small font-medium flex-1">End: Lawden Road, Birmingham, B10 0AD</span>
                   {routeStats && (
                     <Badge variant="outline">ETA {routeStats.endTime}</Badge>
                   )}
@@ -3663,12 +3663,12 @@ Route Link: ${routeLink}`;
 
                 {routeStats && (
                   <div className="p-3 border rounded-lg bg-muted/40">
-                    <p className="text-sm font-semibold mb-2">Route Summary</p>
-                    <div className="grid grid-cols-4 gap-3 text-sm">
-                      <div><p className="text-muted-foreground text-xs">Stops</p><p className="font-medium">{selectedJobs.filter(j => j.type !== 'break').length}</p></div>
-                      <div><p className="text-muted-foreground text-xs">Orders</p><p className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</p></div>
-                      <div><p className="text-muted-foreground text-xs">Total Distance</p><p className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</p></div>
-                      <div><p className="text-muted-foreground text-xs">Route Length</p><p className="font-medium">{Math.floor(routeStats.durationMinutes / 60)}h {routeStats.durationMinutes % 60}m</p></div>
+                    <p className="text-small font-semibold mb-2">Route Summary</p>
+                    <div className="grid grid-cols-4 gap-3 text-small">
+                      <div><p className="text-muted-foreground text-caption">Stops</p><p className="font-medium">{selectedJobs.filter(j => j.type !== 'break').length}</p></div>
+                      <div><p className="text-muted-foreground text-caption">Orders</p><p className="font-medium">{new Set(selectedJobs.filter(j => j.type !== 'break').map((j: any) => j.orderId)).size}</p></div>
+                      <div><p className="text-muted-foreground text-caption">Total Distance</p><p className="font-medium">{routeStats.distanceMiles.toFixed(1)} mi</p></div>
+                      <div><p className="text-muted-foreground text-caption">Route Length</p><p className="font-medium">{Math.floor(routeStats.durationMinutes / 60)}h {routeStats.durationMinutes % 60}m</p></div>
                     </div>
                   </div>
                 )}
@@ -3676,40 +3676,40 @@ Route Link: ${routeLink}`;
                 {isAdmin && profitability && (
                   <div className="p-3 border rounded-lg bg-muted/40">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold">Route Profitability</p>
-                      <Badge variant="outline" className="text-xs">Admin</Badge>
+                      <p className="text-small font-semibold">Route Profitability</p>
+                      <Badge variant="outline" className="text-caption">Admin</Badge>
                     </div>
-                    <div className="grid grid-cols-4 gap-3 text-sm">
-                      <div><p className="text-muted-foreground text-xs">Revenue</p><p className="font-medium">{formatGBP(profitability.revenue)}</p></div>
-                      <div><p className="text-muted-foreground text-xs">Mileage Cost</p><p className="font-medium">{formatGBP(profitability.mileageCost)}</p></div>
-                      <div><p className="text-muted-foreground text-xs">Driver Pay</p><p className="font-medium">{formatGBP(profitability.driverPay)}</p></div>
-                      <div><p className="text-muted-foreground text-xs">Total Cost</p><p className="font-medium">{formatGBP(profitability.totalCost)}</p></div>
+                    <div className="grid grid-cols-4 gap-3 text-small">
+                      <div><p className="text-muted-foreground text-caption">Revenue</p><p className="font-medium">{formatGBP(profitability.revenue)}</p></div>
+                      <div><p className="text-muted-foreground text-caption">Mileage Cost</p><p className="font-medium">{formatGBP(profitability.mileageCost)}</p></div>
+                      <div><p className="text-muted-foreground text-caption">Driver Pay</p><p className="font-medium">{formatGBP(profitability.driverPay)}</p></div>
+                      <div><p className="text-muted-foreground text-caption">Total Cost</p><p className="font-medium">{formatGBP(profitability.totalCost)}</p></div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Profit</p>
+                        <p className="text-muted-foreground text-caption">Profit</p>
                         <p className={cn("font-semibold", profitability.profit >= 0 ? "text-green-600" : "text-red-600")}>
                           {formatGBP(profitability.profit)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Margin</p>
+                        <p className="text-muted-foreground text-caption">Margin</p>
                         <p className="font-medium">
                           {profitability.revenue > 0 ? `${((profitability.profit / profitability.revenue) * 100).toFixed(1)}%` : '—'}
                         </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Revenue / Stop</p>
+                        <p className="text-muted-foreground text-caption">Revenue / Stop</p>
                         <p className="font-medium">{formatGBP(profitability.stopCount ? profitability.revenue / profitability.stopCount : 0)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Profit / Stop</p>
+                        <p className="text-muted-foreground text-caption">Profit / Stop</p>
                         <p className="font-medium">{formatGBP(profitability.stopCount ? profitability.profit / profitability.stopCount : 0)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Cost / Stop</p>
+                        <p className="text-muted-foreground text-caption">Cost / Stop</p>
                         <p className="font-medium">{formatGBP(profitability.stopCount ? profitability.totalCost / profitability.stopCount : 0)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Profit / Order</p>
+                        <p className="text-muted-foreground text-caption">Profit / Order</p>
                         <p className="font-medium">{formatGBP(profitability.orderCount ? profitability.profit / profitability.orderCount : 0)}</p>
                       </div>
                     </div>
@@ -3763,8 +3763,8 @@ Route Link: ${routeLink}`;
           {coordinateJobToUpdate && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium">{coordinateJobToUpdate.contactName}</p>
-                <p className="text-xs text-muted-foreground">{coordinateJobToUpdate.address}</p>
+                <p className="text-small font-medium">{coordinateJobToUpdate.contactName}</p>
+                <p className="text-caption text-muted-foreground">{coordinateJobToUpdate.address}</p>
                 <Badge variant={coordinateJobToUpdate.type === 'pickup' ? 'default' : 'secondary'}>
                   {coordinateJobToUpdate.type === 'pickup' ? 'Collection' : 'Delivery'}
                 </Badge>
@@ -3772,7 +3772,7 @@ Route Link: ${routeLink}`;
               
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium">Latitude</label>
+                  <label className="text-small font-medium">Latitude</label>
                   <Input
                     type="number"
                     step="any"
@@ -3781,11 +3781,11 @@ Route Link: ${routeLink}`;
                     onChange={(e) => setCoordinateInputs(prev => ({ ...prev, lat: e.target.value }))}
                     className="mt-1"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Range: -90 to 90</p>
+                  <p className="text-caption text-muted-foreground mt-1">Range: -90 to 90</p>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium">Longitude</label>
+                  <label className="text-small font-medium">Longitude</label>
                   <Input
                     type="number"
                     step="any"
@@ -3794,7 +3794,7 @@ Route Link: ${routeLink}`;
                     onChange={(e) => setCoordinateInputs(prev => ({ ...prev, lon: e.target.value }))}
                     className="mt-1"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Range: -180 to 180</p>
+                  <p className="text-caption text-muted-foreground mt-1">Range: -180 to 180</p>
                 </div>
               </div>
               

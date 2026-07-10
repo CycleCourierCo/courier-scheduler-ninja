@@ -184,7 +184,7 @@ const TaskDialog: React.FC<Props> = ({
           <div>
             <Label>Linked order</Label>
             {linkedOrderId ? (
-              <div className="flex items-center justify-between text-sm border rounded p-2 bg-muted/40">
+              <div className="flex items-center justify-between text-small border rounded p-2 bg-muted/40">
                 <span className="truncate">{linkedOrderLabel || linkedOrderId.slice(0,8)}</span>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLinkedOrderId(null)}>
                   <X className="h-3 w-3" />
@@ -208,7 +208,7 @@ const TaskDialog: React.FC<Props> = ({
                         type="button"
                         key={o.id}
                         onClick={() => { setLinkedOrderId(o.id); setOrderResults([]); setOrderQuery(''); }}
-                        className="w-full text-left text-xs p-2 rounded hover:bg-accent"
+                        className="w-full text-left text-caption p-2 rounded hover:bg-accent"
                       >
                         <div className="font-medium">{o.tracking_number || o.customer_order_number || o.id.slice(0,8)}</div>
                         <div className="text-muted-foreground truncate">{o.sender?.name} → {o.receiver?.name}</div>

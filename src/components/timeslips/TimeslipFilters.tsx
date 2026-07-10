@@ -123,7 +123,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
             <PopoverContent className="w-auto p-4" align="start">
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">From Date</label>
+                  <label className="text-small font-medium mb-2 block">From Date</label>
                   <CalendarComponent
                     mode="single"
                     selected={dateFrom}
@@ -133,7 +133,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">To Date</label>
+                  <label className="text-small font-medium mb-2 block">To Date</label>
                   <CalendarComponent
                     mode="single"
                     selected={dateTo}
@@ -183,7 +183,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
               checked={noMileage}
               onCheckedChange={setNoMileage}
             />
-            <label htmlFor="no-mileage" className="flex items-center gap-1 text-sm cursor-pointer">
+            <label htmlFor="no-mileage" className="flex items-center gap-1 text-small cursor-pointer">
               <Route className="h-4 w-4 text-muted-foreground" />
               No mileage
             </label>
@@ -194,7 +194,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
               checked={noVehicle}
               onCheckedChange={setNoVehicle}
             />
-            <label htmlFor="no-vehicle" className="flex items-center gap-1 text-sm cursor-pointer">
+            <label htmlFor="no-vehicle" className="flex items-center gap-1 text-small cursor-pointer">
               <Truck className="h-4 w-4 text-muted-foreground" />
               No vehicle
             </label>

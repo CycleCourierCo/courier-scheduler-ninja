@@ -98,7 +98,7 @@ const ResetPassword = () => {
       <div className="container mx-auto max-w-md py-12">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Reset your password</CardTitle>
+            <CardTitle className="text-h3 text-center">Reset your password</CardTitle>
             <CardDescription className="text-center">
               {status === "ready" || status === "updating"
                 ? "Choose a new password for your account"
@@ -124,7 +124,7 @@ const ResetPassword = () => {
 
             {status === "expired" && (
               <div className="space-y-4 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-small text-muted-foreground">
                   {errorMsg ||
                     "This password reset link is invalid or has expired. Please request a new one."}
                 </p>

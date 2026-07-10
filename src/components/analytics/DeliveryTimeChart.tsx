@@ -36,20 +36,20 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
       <CardContent>
         <div className="mb-4 grid grid-cols-3 gap-4">
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-sm text-muted-foreground">Collection → Delivery</p>
-            <p className="text-2xl font-bold">
+            <p className="text-small text-muted-foreground">Collection → Delivery</p>
+            <p className="text-h3 font-bold">
               {data.averageCollectionToDelivery.toFixed(1)}h
             </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-sm text-muted-foreground">Total Duration</p>
-            <p className="text-2xl font-bold">
+            <p className="text-small text-muted-foreground">Total Duration</p>
+            <p className="text-h3 font-bold">
               {data.averageTotalDuration.toFixed(1)}h
             </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-sm text-muted-foreground">SLA (&lt;48h)</p>
-            <p className={`text-2xl font-bold ${
+            <p className="text-small text-muted-foreground">SLA (&lt;48h)</p>
+            <p className={`text-h3 font-bold ${
               data.deliverySLA >= 90 ? 'text-primary' : 
               data.deliverySLA >= 75 ? 'text-yellow-600' : 
               'text-destructive'
@@ -82,7 +82,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
           </ResponsiveContainer>
         </ChartContainer>
         
-        <p className="text-xs text-muted-foreground mt-2">
+        <p className="text-caption text-muted-foreground mt-2">
           Top 5 customers by slowest delivery time
         </p>
       </CardContent>

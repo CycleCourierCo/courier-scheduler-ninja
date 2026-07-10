@@ -10,11 +10,11 @@ const VehicleLeaderboardCard = ({ rows }: Props) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base sm:text-lg">Vehicle Leaderboard</CardTitle>
+        <CardTitle className="text-body sm:text-body-lg">Vehicle Leaderboard</CardTitle>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">
+          <div className="text-small text-muted-foreground py-8 text-center">
             No vehicle data for this period
           </div>
         ) : (

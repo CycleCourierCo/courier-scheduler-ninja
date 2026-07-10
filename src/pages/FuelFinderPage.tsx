@@ -358,7 +358,7 @@ const FuelFinderPage: React.FC = () => {
         <div className="flex items-center gap-3 mb-6">
           <Fuel className="h-8 w-8 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Fuel Finder</h1>
+            <h1 className="text-h3 font-bold text-foreground">Fuel Finder</h1>
             <p className="text-muted-foreground">Find the cheapest diesel near you</p>
           </div>
         </div>
@@ -367,7 +367,7 @@ const FuelFinderPage: React.FC = () => {
         {isAdmin && (
           <Card className="mb-6 border-primary/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-body-lg flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
                 Fuel Cards
               </CardTitle>
@@ -417,10 +417,10 @@ const FuelFinderPage: React.FC = () => {
                         <>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{card.card_name}</span>
-                              <span className="text-sm font-bold text-primary">{Number(card.price_per_litre)}p/l</span>
+                              <span className="font-medium text-small">{card.card_name}</span>
+                              <span className="text-small font-bold text-primary">{Number(card.price_per_litre)}p/l</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-caption text-muted-foreground">
                               Updated {formatDistanceToNow(new Date(card.updated_at), { addSuffix: true })}
                             </p>
                           </div>
@@ -465,7 +465,7 @@ const FuelFinderPage: React.FC = () => {
               {/* Add new card */}
               <div className="flex gap-2 items-end pt-2 border-t">
                 <div className="flex-1">
-                  <Label htmlFor="newCardName" className="text-xs">Card Name</Label>
+                  <Label htmlFor="newCardName" className="text-caption">Card Name</Label>
                   <Input
                     id="newCardName"
                     placeholder="e.g. Shell Fuel Card"
@@ -474,7 +474,7 @@ const FuelFinderPage: React.FC = () => {
                   />
                 </div>
                 <div className="w-28">
-                  <Label htmlFor="newCardPrice" className="text-xs">Price (ppl)</Label>
+                  <Label htmlFor="newCardPrice" className="text-caption">Price (ppl)</Label>
                   <Input
                     id="newCardPrice"
                     type="number"
@@ -510,15 +510,15 @@ const FuelFinderPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Station Price Cache</p>
+                  <p className="text-small font-medium">Station Price Cache</p>
                   {cacheStatusLoading ? (
-                    <p className="text-xs text-muted-foreground">Checking cache…</p>
+                    <p className="text-caption text-muted-foreground">Checking cache…</p>
                   ) : cachedAt ? (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {cacheStatus?.stationCount?.toLocaleString()} stations cached · Last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
                     </p>
                   ) : (
-                    <p className="text-xs text-destructive">Cache is empty — refresh required</p>
+                    <p className="text-caption text-destructive">Cache is empty — refresh required</p>
                   )}
                 </div>
               </div>
@@ -545,7 +545,7 @@ const FuelFinderPage: React.FC = () => {
               {activeFuelCards.map(card => (
                 <div key={card.id} className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-small text-muted-foreground">
                     {card.card_name}: <span className="font-semibold text-foreground">{Number(card.price_per_litre)}p/litre</span>
                   </span>
                 </div>
@@ -625,10 +625,10 @@ const FuelFinderPage: React.FC = () => {
             <CardContent className="py-4 flex items-center gap-3">
               <Database className="h-5 w-5 text-amber-600" />
               <div>
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                <p className="text-small font-medium text-amber-800 dark:text-amber-200">
                   No cached station data available
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-caption text-muted-foreground">
                   {isAdmin
                     ? "Click 'Refresh Prices' above to fetch the latest data from GOV.UK."
                     : "Please ask an admin to refresh the fuel price cache."}
@@ -643,7 +643,7 @@ const FuelFinderPage: React.FC = () => {
           <Card className="mb-6 border-destructive/50 bg-destructive/5">
             <CardContent className="py-4 flex items-center gap-3">
               <CreditCard className="h-5 w-5 text-destructive" />
-              <p className="text-sm font-medium text-destructive">
+              <p className="text-small font-medium text-destructive">
                 All stations are more expensive than your {cheapestCard.card_name} ({cheapestCardPrice}p). Use your fuel card!
               </p>
             </CardContent>
@@ -656,7 +656,7 @@ const FuelFinderPage: React.FC = () => {
             <CardContent className="py-8 text-center text-destructive">
               <Fuel className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p className="font-medium">Failed to fetch fuel prices</p>
-              <p className="text-sm mt-1 text-muted-foreground">{queryError?.message || "Please try again later"}</p>
+              <p className="text-small mt-1 text-muted-foreground">{queryError?.message || "Please try again later"}</p>
               <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
                 <RefreshCw className="h-4 w-4 mr-1" />Retry
               </Button>
@@ -670,7 +670,7 @@ const FuelFinderPage: React.FC = () => {
               <Fuel className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No diesel stations found in this area.</p>
               {cachedAt && (
-                <p className="text-xs mt-2">
+                <p className="text-caption mt-2">
                   Data last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
                 </p>
               )}
@@ -699,15 +699,15 @@ const FuelFinderPage: React.FC = () => {
                       icon={isCheapest ? greenIcon : blueIcon}
                     >
                       <Popup>
-                        <div className="text-sm">
+                        <div className="text-small">
                           <p className="font-semibold">{station.brand}</p>
-                          <p className="text-xs">{station.name}</p>
+                          <p className="text-caption">{station.name}</p>
                           <p className={`font-bold mt-1 ${isCheapest ? "text-green-600" : ""}`}>
                             {station.diesel_price}p/litre
                           </p>
-                          <p className="text-xs mt-0.5">{station.distance_miles} miles away</p>
+                          <p className="text-caption mt-0.5">{station.distance_miles} miles away</p>
                           {station.last_updated && (
-                            <p className="text-xs mt-0.5">
+                            <p className="text-caption mt-0.5">
                               Updated {formatDistanceToNow(new Date(station.last_updated), { addSuffix: true })}
                             </p>
                           )}
@@ -725,9 +725,9 @@ const FuelFinderPage: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">{stations.length} station{stations.length !== 1 ? "s" : ""} found</p>
+                <p className="text-small text-muted-foreground">{stations.length} station{stations.length !== 1 ? "s" : ""} found</p>
                 {cachedAt && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-caption text-muted-foreground">
                     Prices last refreshed: {formatDistanceToNow(new Date(cachedAt), { addSuffix: true })}
                   </p>
                 )}
@@ -768,27 +768,27 @@ const FuelFinderPage: React.FC = () => {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="font-semibold text-foreground">{station.brand}</span>
                           {isCheapest && (
-                            <Badge variant="success" className="text-xs">
+                            <Badge variant="success" className="text-caption">
                               <Trophy className="h-3 w-3 mr-1" />Cheapest
                             </Badge>
                           )}
                           {isMostRecent && (
-                            <Badge className="text-xs bg-blue-500 text-white border-transparent">
+                            <Badge className="text-caption bg-blue-500 text-white border-transparent">
                               <Clock className="h-3 w-3 mr-1" />Most Recent
                             </Badge>
                           )}
                           {moreExpensiveThanCard && cheapestCard && (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge variant="destructive" className="text-caption">
                               <CreditCard className="h-3 w-3 mr-1" />Use {cheapestCard.card_name}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">{station.name}</p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <p className="text-small text-muted-foreground truncate">{station.name}</p>
+                        <div className="flex items-center gap-1 text-caption text-muted-foreground mt-1">
                           <MapPin className="h-3 w-3" />
                           <span>{station.address}{station.address && station.postcode ? ", " : ""}{station.postcode}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                        <div className="flex items-center gap-1 text-caption text-muted-foreground mt-0.5">
                           <Clock className="h-3 w-3" />
                           <span>
                             Updated: {station.last_updated
@@ -798,11 +798,11 @@ const FuelFinderPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={`text-2xl font-bold ${isCheapest ? "text-green-600" : "text-foreground"}`}>
+                        <p className={`text-h3 font-bold ${isCheapest ? "text-green-600" : "text-foreground"}`}>
                           {station.diesel_price}p
                         </p>
-                        <p className="text-xs text-muted-foreground">per litre</p>
-                        <p className="text-xs text-muted-foreground mt-1">{station.distance_miles} mi</p>
+                        <p className="text-caption text-muted-foreground">per litre</p>
+                        <p className="text-caption text-muted-foreground mt-1">{station.distance_miles} mi</p>
                       </div>
                     </div>
                   </CardContent>

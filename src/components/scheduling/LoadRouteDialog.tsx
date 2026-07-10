@@ -196,7 +196,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
             ) : filteredRoutes.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                 <FolderOpen className="h-8 w-8 mb-2 opacity-50" />
-                <p className="text-sm">
+                <p className="text-small">
                   {searchQuery ? "No routes match your search" : "No saved routes yet"}
                 </p>
               </div>
@@ -215,20 +215,20 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{route.name}</h4>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-caption">
                               {stats.total} jobs
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-caption text-muted-foreground">
                               {stats.collections}C / {stats.deliveries}D
                             </span>
                             {!viability.allMatched && (
-                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                              <Badge variant="outline" className="text-caption bg-amber-50 text-amber-700 border-amber-200">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
                                 {viability.matchedCount}/{viability.totalJobs} available
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-caption text-muted-foreground mt-1">
                             Created {format(new Date(route.created_at), "MMM d, yyyy 'at' HH:mm")}
                           </p>
                         </div>

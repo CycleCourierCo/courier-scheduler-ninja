@@ -12,7 +12,7 @@ interface DeliveryInstructionsProps {
 const DeliveryInstructions: React.FC<DeliveryInstructionsProps> = ({ control }) => {
   return (
     <div>
-      <h3 className="text-lg font-medium mb-4">Delivery Instructions</h3>
+      <h3 className="text-body-lg font-medium mb-4">Delivery Instructions</h3>
       <FormField
         control={control}
         name="deliveryInstructions"

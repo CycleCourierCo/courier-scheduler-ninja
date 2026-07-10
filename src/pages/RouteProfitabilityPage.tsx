@@ -190,7 +190,7 @@ const RouteProfitabilityPage = () => {
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Route Profitability</h1>
+          <h1 className="text-h2 font-bold">Route Profitability</h1>
         </div>
 
         {/* Current Week Summary */}
@@ -244,21 +244,21 @@ const RouteProfitabilityPage = () => {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Weekly Revenue</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-small font-medium text-muted-foreground">Weekly Revenue</p>
+                <p className="text-h3 font-bold text-green-600">
                   £{weekAggregated?.totalRevenue.toFixed(2) || '0.00'}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Weekly Costs</p>
-                <p className="text-2xl font-bold text-orange-600">
+                <p className="text-small font-medium text-muted-foreground">Weekly Costs</p>
+                <p className="text-h3 font-bold text-orange-600">
                   £{weekAggregated?.totalCosts.toFixed(2) || '0.00'}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Weekly Profit</p>
+                <p className="text-small font-medium text-muted-foreground">Weekly Profit</p>
                 <p className={cn(
-                  "text-2xl font-bold",
+                  "text-h3 font-bold",
                   (weekAggregated?.totalProfit || 0) >= 0 ? "text-green-600" : "text-red-600"
                 )}>
                   £{weekAggregated?.totalProfit.toFixed(2) || '0.00'}
@@ -266,11 +266,11 @@ const RouteProfitabilityPage = () => {
               </div>
             </div>
             <div className="mt-4 pt-4 border-t">
-              <div className="flex justify-between text-sm text-muted-foreground">
+              <div className="flex justify-between text-small text-muted-foreground">
                 <span>Total Timeslips</span>
                 <span className="font-medium text-foreground">{weekTimeslips.length}</span>
               </div>
-              <div className="flex justify-between text-sm text-muted-foreground mt-1">
+              <div className="flex justify-between text-small text-muted-foreground mt-1">
                 <span>Active Drivers</span>
                 <span className="font-medium text-foreground">{weekAggregated?.driverCount || 0}</span>
               </div>
@@ -351,11 +351,11 @@ const RouteProfitabilityPage = () => {
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <Label htmlFor="bike-type-pricing" className="flex items-center gap-2 text-base">
+                <Label htmlFor="bike-type-pricing" className="flex items-center gap-2 text-body">
                   <Bike className="h-4 w-4" />
                   Use bike-type pricing
                 </Label>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-small text-muted-foreground">
                   Calculate revenue based on each order's bike type (halved per stop)
                 </p>
               </div>
@@ -427,10 +427,10 @@ const RouteProfitabilityPage = () => {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+              <CardTitle className="text-small font-medium text-muted-foreground">Total Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-h3 font-bold text-green-600">
                 £{aggregated?.totalRevenue.toFixed(2) || '0.00'}
               </div>
             </CardContent>
@@ -438,10 +438,10 @@ const RouteProfitabilityPage = () => {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Costs</CardTitle>
+              <CardTitle className="text-small font-medium text-muted-foreground">Total Costs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-h3 font-bold text-orange-600">
                 £{aggregated?.totalCosts.toFixed(2) || '0.00'}
               </div>
             </CardContent>
@@ -449,11 +449,11 @@ const RouteProfitabilityPage = () => {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Profit</CardTitle>
+              <CardTitle className="text-small font-medium text-muted-foreground">Total Profit</CardTitle>
             </CardHeader>
             <CardContent>
               <div className={cn(
-                "text-2xl font-bold",
+                "text-h3 font-bold",
                 (aggregated?.totalProfit || 0) >= 0 ? "text-green-600" : "text-red-600"
               )}>
                 £{aggregated?.totalProfit.toFixed(2) || '0.00'}
@@ -463,10 +463,10 @@ const RouteProfitabilityPage = () => {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Drivers</CardTitle>
+              <CardTitle className="text-small font-medium text-muted-foreground">Drivers</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{aggregated?.driverCount || 0}</div>
+              <div className="text-h3 font-bold">{aggregated?.driverCount || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -570,7 +570,7 @@ const TimeslipRow = ({
           <div className="flex items-center justify-end gap-2">
             <span className="font-semibold">{totalJobs}</span>
             {timeslip.total_jobs === null && (
-              <span className="text-xs text-muted-foreground">(calc)</span>
+              <span className="text-caption text-muted-foreground">(calc)</span>
             )}
           </div>
         )}

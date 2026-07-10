@@ -27,19 +27,19 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
       <CardContent>
         <div className="mb-4 grid grid-cols-2 gap-4">
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-sm text-muted-foreground">Bikes in Storage</p>
-            <p className="text-2xl font-bold">{data.currentInStorage}</p>
+            <p className="text-small text-muted-foreground">Bikes in Storage</p>
+            <p className="text-h3 font-bold">{data.currentInStorage}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-sm text-muted-foreground">Avg Storage Duration</p>
-            <p className="text-2xl font-bold">
+            <p className="text-small text-muted-foreground">Avg Storage Duration</p>
+            <p className="text-h3 font-bold">
               {data.averageDaysInStorage.toFixed(1)} days
             </p>
           </div>
         </div>
         
         <div className="mb-6">
-          <h3 className="text-sm font-medium mb-3">Storage Duration Distribution</h3>
+          <h3 className="text-small font-medium mb-3">Storage Duration Distribution</h3>
           <ChartContainer config={chartConfig} className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.storageDistribution}>
@@ -61,7 +61,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
 
         {data.longestStoredBikes.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium mb-3">Longest Stored Bikes</h3>
+            <h3 className="text-small font-medium mb-3">Longest Stored Bikes</h3>
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
@@ -74,7 +74,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
                 <TableBody>
                   {data.longestStoredBikes.map((bike, index) => (
                     <TableRow key={index}>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="font-mono text-small">
                         {bike.orderId.substring(0, 12)}...
                       </TableCell>
                       <TableCell>{bike.customerName}</TableCell>

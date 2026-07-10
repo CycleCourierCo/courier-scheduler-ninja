@@ -22,7 +22,7 @@ const ClaimStepper = ({ status }: Props) => {
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    "h-7 w-7 rounded-full border-2 flex items-center justify-center text-xs font-semibold",
+                    "h-7 w-7 rounded-full border-2 flex items-center justify-center text-caption font-semibold",
                     done && "bg-primary border-primary text-primary-foreground",
                     current && "bg-primary/10 border-primary text-primary",
                     !done && !current && "border-muted-foreground/30 text-muted-foreground bg-background",
@@ -32,7 +32,7 @@ const ClaimStepper = ({ status }: Props) => {
                 </div>
                 <div
                   className={cn(
-                    "mt-1 text-[10px] sm:text-xs whitespace-nowrap max-w-[110px] text-center",
+                    "mt-1 text-caption sm:text-caption whitespace-nowrap max-w-[110px] text-center",
                     current ? "text-foreground font-medium" : "text-muted-foreground",
                   )}
                 >
@@ -52,7 +52,7 @@ const ClaimStepper = ({ status }: Props) => {
         })}
       </ol>
       {isRejected && (
-        <div className="text-xs text-destructive font-medium px-1 pb-1">Claim rejected</div>
+        <div className="text-caption text-destructive font-medium px-1 pb-1">Claim rejected</div>
       )}
     </div>
   );

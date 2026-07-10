@@ -167,8 +167,8 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
           </div>
 
           {details && (
-            <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
-              <div className="font-semibold text-base">{details.registration}</div>
+            <div className="rounded-lg border bg-muted/30 p-3 text-small space-y-1">
+              <div className="font-semibold text-body">{details.registration}</div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
                 <div>Make: <span className="text-foreground">{details.make ?? "—"}</span></div>
                 <div>Colour: <span className="text-foreground">{details.colour ?? "—"}</span></div>
@@ -222,8 +222,8 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
               {TOLL_FIELDS.map((f) => (
                 <div key={f.key} className="flex items-center justify-between rounded-lg border p-3">
                   <div>
-                    <div className="font-medium text-sm">{f.label}</div>
-                    <div className="text-xs text-muted-foreground">{f.desc}</div>
+                    <div className="font-medium text-small">{f.label}</div>
+                    <div className="text-caption text-muted-foreground">{f.desc}</div>
                   </div>
                   <Switch
                     checked={tolls[f.key]}

@@ -48,10 +48,10 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
               </CardDescription>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-primary">
+              <p className="text-h3 font-bold text-primary">
                 £{(timeslip.total_pay ?? 0).toFixed(2)}
               </p>
-              <p className="text-xs text-muted-foreground">Total Pay</p>
+              <p className="text-caption text-muted-foreground">Total Pay</p>
             </div>
           </div>
         </CardHeader>
@@ -59,7 +59,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
         <CardContent className="space-y-4">
           {/* Hours Breakdown */}
           <div className="space-y-2">
-            <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="grid grid-cols-3 gap-2 text-small">
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{timeslip.driving_hours}h</span>
@@ -80,7 +80,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
             {timeslip.custom_addons && timeslip.custom_addons.length > 0 && (
               <div className="space-y-1">
                 {timeslip.custom_addons.map((addon, index) => (
-                  <div key={index} className="flex items-center gap-1 text-sm text-primary">
+                  <div key={index} className="flex items-center gap-1 text-small text-primary">
                     <Zap className="h-4 w-4" />
                     <span className="font-medium">{addon.hours}h</span>
                     <span>{addon.title}</span>
@@ -91,7 +91,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
           </div>
 
           {/* Pay Details */}
-          <div className="text-sm space-y-1 p-3 bg-muted rounded-lg">
+          <div className="text-small space-y-1 p-3 bg-muted rounded-lg">
             <div className="flex justify-between">
               <span>Total Hours:</span>
               <span className="font-medium">{timeslip.total_hours}h</span>
@@ -130,7 +130,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
           {/* Route Links */}
           {timeslip.route_links && timeslip.route_links.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">Route Maps:</p>
+              <p className="text-small font-medium">Route Maps:</p>
               <div className="flex flex-wrap gap-2">
                 {timeslip.route_links.map((link, index) => (
                   <Button
@@ -149,7 +149,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
           {/* QuickBooks Bill */}
           {(timeslip as any).quickbooks_bill_id && (
-            <div className="flex items-center gap-2 text-sm p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 text-small p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
               <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
               <span className="font-medium text-green-700 dark:text-green-300">
                 QuickBooks Bill #{(timeslip as any).quickbooks_bill_number}
@@ -170,7 +170,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
           {/* Admin Notes */}
           {timeslip.admin_notes && (
-            <div className="text-sm p-3 bg-muted rounded-lg">
+            <div className="text-small p-3 bg-muted rounded-lg">
               <p className="font-medium mb-1">Admin Notes:</p>
               <p className="text-muted-foreground">{timeslip.admin_notes}</p>
             </div>

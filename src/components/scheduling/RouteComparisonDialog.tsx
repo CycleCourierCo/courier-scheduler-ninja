@@ -59,7 +59,7 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                   <CardContent className="p-4">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm truncate flex-1">
+                      <h3 className="font-semibold text-small truncate flex-1">
                         {analysis.fileName}
                       </h3>
                       <Badge 
@@ -71,7 +71,7 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                     </div>
                     
                     {/* Stats Row */}
-                    <div className="flex flex-wrap gap-3 mb-3 text-sm">
+                    <div className="flex flex-wrap gap-3 mb-3 text-small">
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">Matched:</span>
                         <span className="font-medium">{analysis.totalMatched}</span>
@@ -89,7 +89,7 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                     </div>
                     
                     {/* Breakdown Row */}
-                    <div className="flex flex-wrap gap-4 mb-3 text-xs">
+                    <div className="flex flex-wrap gap-4 mb-3 text-caption">
                       <div className="flex items-center gap-1.5">
                         <Package className="h-3.5 w-3.5 text-blue-500" />
                         <span>Collections: {analysis.viableCollections}/{analysis.collections}</span>
@@ -103,22 +103,22 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                     {/* Issues */}
                     {totalIssues(analysis) > 0 && (
                       <div className="bg-muted/50 rounded-md p-2 mb-3 space-y-1">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Issues:</p>
+                        <p className="text-caption font-medium text-muted-foreground mb-1">Issues:</p>
                         <div className="flex flex-wrap gap-2">
                           {analysis.issues.notCollected > 0 && (
-                            <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                            <Badge variant="outline" className="text-caption bg-red-50 text-red-700 border-red-200">
                               <AlertCircle className="h-3 w-3 mr-1" />
                               {analysis.issues.notCollected} not collected
                             </Badge>
                           )}
                           {analysis.issues.collectionWrongDate > 0 && (
-                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="text-caption bg-amber-50 text-amber-700 border-amber-200">
                               <AlertCircle className="h-3 w-3 mr-1" />
                               {analysis.issues.collectionWrongDate} collection wrong date
                             </Badge>
                           )}
                           {analysis.issues.deliveryWrongDate > 0 && (
-                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="text-caption bg-amber-50 text-amber-700 border-amber-200">
                               <AlertCircle className="h-3 w-3 mr-1" />
                               {analysis.issues.deliveryWrongDate} delivery wrong date
                             </Badge>

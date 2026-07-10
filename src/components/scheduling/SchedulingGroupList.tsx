@@ -31,7 +31,7 @@ const SchedulingGroupList: React.FC<SchedulingGroupListProps> = ({
       {locationGroups.map(({ location, groups }) => (
         <div key={location} className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-lg font-medium">{location}</h3>
+            <h3 className="text-body-lg font-medium">{location}</h3>
             <Badge variant="outline">{groups.length} groups</Badge>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

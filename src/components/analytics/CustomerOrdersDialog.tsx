@@ -89,7 +89,7 @@ const CustomerOrdersDialog = ({
 
         <div className="h-80 w-full">
           {data.length === 0 || total === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-full items-center justify-center text-small text-muted-foreground">
               No orders in this range.
             </div>
           ) : (

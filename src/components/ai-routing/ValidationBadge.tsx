@@ -41,7 +41,7 @@ const ValidationBadge: React.FC<ValidationBadgeProps> = ({ passed, fallbackUsed,
           <TooltipContent className="max-w-xs">
             <p className="font-medium mb-1">AI allocation failed validation, heuristic fallback applied</p>
             {errors.length > 0 && (
-              <ul className="text-xs space-y-0.5">
+              <ul className="text-caption space-y-0.5">
                 {errors.slice(0, 5).map((e, i) => (
                   <li key={i}>• {e}</li>
                 ))}
@@ -64,7 +64,7 @@ const ValidationBadge: React.FC<ValidationBadgeProps> = ({ passed, fallbackUsed,
           </Badge>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
-          <ul className="text-xs space-y-0.5">
+          <ul className="text-caption space-y-0.5">
             {errors.slice(0, 5).map((e, i) => (
               <li key={i}>• {e}</li>
             ))}

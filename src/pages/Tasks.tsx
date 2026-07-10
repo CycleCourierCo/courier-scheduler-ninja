@@ -35,7 +35,7 @@ const Tasks: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-semibold">Tasks</h1>
+            <h1 className="text-h4 font-semibold">Tasks</h1>
           </div>
           <Button onClick={() => setCreateOpen(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" /> New task

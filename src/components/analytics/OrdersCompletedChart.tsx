@@ -45,7 +45,7 @@ const OrdersCompletedChart = ({ orders }: OrdersCompletedChartProps) => {
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 space-y-0">
         <div>
           <CardTitle>Orders Completed</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-caption text-muted-foreground mt-1">
             {totals.orders} orders · {totals.collections} collections · {totals.deliveries} deliveries
           </p>
         </div>

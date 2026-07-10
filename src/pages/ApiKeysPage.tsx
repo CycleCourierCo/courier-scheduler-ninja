@@ -180,7 +180,7 @@ export default function ApiKeysPage() {
       <div className="container px-4 py-6 md:px-6 mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">API Key Management</h1>
+            <h1 className="text-h2 font-bold tracking-tight">API Key Management</h1>
             <p className="text-muted-foreground">
               Generate and manage API keys for customer accounts
             </p>
@@ -257,7 +257,7 @@ export default function ApiKeysPage() {
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center justify-between">
-                  <code className="text-sm break-all">{newApiKey}</code>
+                  <code className="text-small break-all">{newApiKey}</code>
                   <Button
                     variant="outline"
                     size="sm"
@@ -267,7 +267,7 @@ export default function ApiKeysPage() {
                   </Button>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-small text-muted-foreground">
                 Store this key securely. You won't be able to see it again.
               </p>
             </div>
@@ -320,15 +320,15 @@ export default function ApiKeysPage() {
                         <TableCell>
                           <div>
                             <div className="font-medium">{key.profile?.name}</div>
-                            <div className="text-sm text-muted-foreground">{key.profile?.email}</div>
+                            <div className="text-small text-muted-foreground">{key.profile?.email}</div>
                             {key.profile?.company_name && (
-                              <div className="text-sm text-muted-foreground">{key.profile.company_name}</div>
+                              <div className="text-small text-muted-foreground">{key.profile.company_name}</div>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>{key.key_name}</TableCell>
                         <TableCell>
-                          <code className="text-sm bg-muted px-2 py-1 rounded">{key.key_prefix}...</code>
+                          <code className="text-small bg-muted px-2 py-1 rounded">{key.key_prefix}...</code>
                         </TableCell>
                         <TableCell>
                           <Badge variant={key.is_active ? 'default' : 'secondary'}>

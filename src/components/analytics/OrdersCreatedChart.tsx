@@ -47,7 +47,7 @@ const OrdersCreatedChart = ({ orders }: OrdersCreatedChartProps) => {
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 space-y-0">
         <div>
           <CardTitle>Orders Created</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">{total} orders in range</p>
+          <p className="text-caption text-muted-foreground mt-1">{total} orders in range</p>
         </div>
         <TimeSeriesFilters
           range={range}

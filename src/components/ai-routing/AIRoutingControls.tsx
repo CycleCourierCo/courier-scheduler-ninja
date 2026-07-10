@@ -42,7 +42,7 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
     <div className="space-y-4 p-4 rounded-lg bg-card border border-border">
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="date-start" className="text-xs">Start Date</Label>
+          <Label htmlFor="date-start" className="text-caption">Start Date</Label>
           <Input
             id="date-start"
             type="date"
@@ -52,7 +52,7 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="date-end" className="text-xs">End Date</Label>
+          <Label htmlFor="date-end" className="text-caption">End Date</Label>
           <Input
             id="date-end"
             type="date"
@@ -62,7 +62,7 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="driver-count" className="text-xs">Drivers</Label>
+          <Label htmlFor="driver-count" className="text-caption">Drivers</Label>
           <Input
             id="driver-count"
             type="number"
@@ -79,7 +79,7 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
             checked={includeNoDates}
             onCheckedChange={onIncludeNoDatesChange}
           />
-          <Label htmlFor="include-no-dates" className="text-xs cursor-pointer">
+          <Label htmlFor="include-no-dates" className="text-caption cursor-pointer">
             Include jobs without dates
           </Label>
         </div>
@@ -97,7 +97,7 @@ const AIRoutingControls: React.FC<AIRoutingControlsProps> = ({
           {isRefreshing ? 'Refreshing...' : 'Refresh Patterns'}
         </Button>
         {patternsLastUpdated && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-caption text-muted-foreground">
             Last updated: {new Date(patternsLastUpdated).toLocaleDateString('en-GB')}
           </span>
         )}

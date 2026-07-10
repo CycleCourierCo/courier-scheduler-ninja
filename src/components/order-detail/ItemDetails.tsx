@@ -110,7 +110,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
         
         <div className="mt-2 space-y-1">
           {groupedBikes.map((group, idx) => (
-            <div key={idx} className="text-sm">
+            <div key={idx} className="text-small">
               <span className="font-medium">{group.quantity}×</span> {group.label}
               {group.value && <> — £{group.value}</>}
             </div>
@@ -193,7 +193,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             {editBikes.map((b, idx) => (
               <div key={idx} className="border rounded-md p-3 space-y-2">
-                <div className="text-sm font-medium">Bike {idx + 1}{b.type ? ` — ${b.type}` : ""}</div>
+                <div className="text-small font-medium">Bike {idx + 1}{b.type ? ` — ${b.type}` : ""}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor={`brand-${idx}`}>Brand</Label>

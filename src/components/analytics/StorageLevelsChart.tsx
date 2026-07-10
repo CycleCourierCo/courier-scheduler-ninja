@@ -56,23 +56,23 @@ const StorageLevelsChart = ({ orders, range, granularity }: Props) => {
       <CardContent>
         <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-xs text-muted-foreground">Currently in bays</p>
-            <p className="text-2xl font-bold">{data.currentInStorage}</p>
+            <p className="text-caption text-muted-foreground">Currently in bays</p>
+            <p className="text-h3 font-bold">{data.currentInStorage}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-xs text-muted-foreground">Peak in range</p>
-            <p className="text-2xl font-bold">{data.peak}</p>
+            <p className="text-caption text-muted-foreground">Peak in range</p>
+            <p className="text-h3 font-bold">{data.peak}</p>
             {data.peakLabel && (
-              <p className="text-xs text-muted-foreground truncate">{data.peakLabel}</p>
+              <p className="text-caption text-muted-foreground truncate">{data.peakLabel}</p>
             )}
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-xs text-muted-foreground">Average level</p>
-            <p className="text-2xl font-bold">{data.avg.toFixed(1)}</p>
+            <p className="text-caption text-muted-foreground">Average level</p>
+            <p className="text-h3 font-bold">{data.avg.toFixed(1)}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-xs text-muted-foreground">Net change</p>
-            <p className={`text-2xl font-bold inline-flex items-center gap-1 ${trendColor}`}>
+            <p className="text-caption text-muted-foreground">Net change</p>
+            <p className={`text-h3 font-bold inline-flex items-center gap-1 ${trendColor}`}>
               <TrendIcon className="h-5 w-5" />
               {data.netChange > 0 ? "+" : ""}
               {data.netChange}

@@ -28,9 +28,9 @@ const MetricCell = ({ label, value, prefix = "£", colored = false }: {
   colored?: boolean;
 }) => (
   <div className="rounded-lg border bg-card p-3 space-y-1">
-    <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
+    <p className="text-caption font-medium text-muted-foreground truncate">{label}</p>
     <p className={cn(
-      "text-lg font-bold tabular-nums",
+      "text-body-lg font-bold tabular-nums",
       colored && value > 0 && "text-green-600",
       colored && value < 0 && "text-red-600"
     )}>
@@ -42,7 +42,7 @@ const MetricCell = ({ label, value, prefix = "£", colored = false }: {
 const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
   <div className="space-y-4">
     {/* Summary context */}
-    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+    <div className="flex flex-wrap gap-3 text-caption text-muted-foreground">
       <span>{metrics.totalStops} stops</span>
       <span>{metrics.totalMiles.toFixed(0)} miles</span>
       <span>{metrics.driverDays} driver-days</span>
@@ -53,7 +53,7 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-        <h4 className="text-sm font-medium text-muted-foreground">Per Stop</h4>
+        <h4 className="text-small font-medium text-muted-foreground">Per Stop</h4>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <MetricCell label="Revenue" value={metrics.revenuePerStop} />
@@ -66,7 +66,7 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <Route className="h-3.5 w-3.5 text-muted-foreground" />
-        <h4 className="text-sm font-medium text-muted-foreground">Per Mile</h4>
+        <h4 className="text-small font-medium text-muted-foreground">Per Mile</h4>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <MetricCell label="Revenue" value={metrics.revenuePerMile} />
@@ -79,7 +79,7 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <Users className="h-3.5 w-3.5 text-muted-foreground" />
-        <h4 className="text-sm font-medium text-muted-foreground">Per Driver-Day</h4>
+        <h4 className="text-small font-medium text-muted-foreground">Per Driver-Day</h4>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <MetricCell label="Revenue" value={metrics.revenuePerDriverDay} />
@@ -92,7 +92,7 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-        <h4 className="text-sm font-medium text-muted-foreground">Per Hour</h4>
+        <h4 className="text-small font-medium text-muted-foreground">Per Hour</h4>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <MetricCell label="Revenue / Hour" value={metrics.revenuePerHour} />

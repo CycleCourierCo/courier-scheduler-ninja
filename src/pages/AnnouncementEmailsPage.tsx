@@ -529,13 +529,13 @@ const AnnouncementEmailsPage: React.FC = () => {
         <div className="flex items-center gap-3 mb-6">
           <Mail className="h-6 w-6 text-primary" />
           <MessageSquare className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Announcements</h1>
+          <h1 className="text-h3 font-bold text-foreground">Announcements</h1>
         </div>
 
         {/* Recipients */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg">Recipients</CardTitle>
+            <CardTitle className="text-body-lg">Recipients</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs value={recipientMode} onValueChange={(v) => setRecipientMode(v as any)}>
@@ -574,21 +574,21 @@ const AnnouncementEmailsPage: React.FC = () => {
 
                 <div className="max-h-60 overflow-y-auto border rounded-md divide-y divide-border">
                   {isLoading ? (
-                    <p className="p-3 text-sm text-muted-foreground">Loading profiles...</p>
+                    <p className="p-3 text-small text-muted-foreground">Loading profiles...</p>
                   ) : filteredProfiles.length === 0 ? (
-                    <p className="p-3 text-sm text-muted-foreground">No matching profiles</p>
+                    <p className="p-3 text-small text-muted-foreground">No matching profiles</p>
                   ) : (
                     filteredProfiles.map((p) => (
                       <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 cursor-pointer">
                         <Checkbox checked={selectedProfileIds.has(p.id)} onCheckedChange={() => toggleProfile(p.id)} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
+                          <p className="text-small font-medium text-foreground truncate">
                             {p.name || "Unnamed"}{" "}
                             {p.company_name && <span className="text-muted-foreground">({p.company_name})</span>}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate">{p.email}</p>
+                          <p className="text-caption text-muted-foreground truncate">{p.email}</p>
                         </div>
-                        <Badge variant="outline" className="text-xs shrink-0">{ROLE_LABELS[p.role]}</Badge>
+                        <Badge variant="outline" className="text-caption shrink-0">{ROLE_LABELS[p.role]}</Badge>
                       </label>
                     ))
                   )}
@@ -602,7 +602,7 @@ const AnnouncementEmailsPage: React.FC = () => {
                     return (
                       <label key={role} className="flex items-center gap-2 cursor-pointer">
                         <Checkbox checked={selectedRoles.has(role)} onCheckedChange={() => toggleRole(role)} />
-                        <span className="text-sm text-foreground">
+                        <span className="text-small text-foreground">
                           {ROLE_LABELS[role]} <span className="text-muted-foreground">({count})</span>
                         </span>
                       </label>
@@ -613,10 +613,10 @@ const AnnouncementEmailsPage: React.FC = () => {
             </Tabs>
 
             <div className="flex flex-col gap-1 mt-3">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-small text-muted-foreground">
                 {recipients.length} unique recipient{recipients.length !== 1 ? "s" : ""} selected
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {recipientsWithPhone.length} of {recipients.length} have phone numbers for WhatsApp
               </p>
             </div>
@@ -626,7 +626,7 @@ const AnnouncementEmailsPage: React.FC = () => {
         {/* Compose Email */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-body-lg flex items-center gap-2">
               <Mail className="h-5 w-5" /> Compose Email
             </CardTitle>
           </CardHeader>
@@ -656,10 +656,10 @@ const AnnouncementEmailsPage: React.FC = () => {
                   placeholder={"Just type your message here.\n\nLeave a blank line between paragraphs. Branding, header and footer are added automatically."}
                   value={htmlBody}
                   onChange={(e) => setHtmlBody(e.target.value)}
-                  className="min-h-[200px] text-sm"
+                  className="min-h-[200px] text-small"
                 />
               )}
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-caption text-muted-foreground mt-2">
                 Just type your message — the Cycle Courier branded header, footer and contact info are applied automatically on send. Leave a blank line between paragraphs.
               </p>
             </div>
@@ -669,7 +669,7 @@ const AnnouncementEmailsPage: React.FC = () => {
         {/* Compose WhatsApp */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-body-lg flex items-center gap-2">
               <MessageSquare className="h-5 w-5" /> Compose WhatsApp
             </CardTitle>
           </CardHeader>
@@ -687,10 +687,10 @@ const AnnouncementEmailsPage: React.FC = () => {
                   placeholder="Hello! We wanted to let you know..."
                   value={whatsappMessage}
                   onChange={(e) => setWhatsappMessage(e.target.value)}
-                  className="min-h-[150px] text-sm"
+                  className="min-h-[150px] text-small"
                   maxLength={4096}
                 />
-                <p className="text-xs text-muted-foreground text-right">
+                <p className="text-caption text-muted-foreground text-right">
                   {whatsappMessage.length} / 4,096 characters
                 </p>
               </TabsContent>
@@ -721,8 +721,8 @@ const AnnouncementEmailsPage: React.FC = () => {
                 {selectedTemplate && (
                   <>
                     <div className="bg-muted/50 rounded-md p-3">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Template preview</p>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">
+                      <p className="text-caption font-medium text-muted-foreground mb-1">Template preview</p>
+                      <p className="text-small text-foreground whitespace-pre-wrap">
                         {getTemplateBodyText(selectedTemplate)}
                       </p>
                     </div>
@@ -732,7 +732,7 @@ const AnnouncementEmailsPage: React.FC = () => {
                         <Label>Parameters</Label>
                         {selectedTemplateParams.map((idx) => (
                           <div key={idx}>
-                            <Label className="text-xs text-muted-foreground">{"{{" + idx + "}}"}</Label>
+                            <Label className="text-caption text-muted-foreground">{"{{" + idx + "}}"}</Label>
                             <Input
                               placeholder={`Value for parameter ${idx}`}
                               value={templateParams[idx] || ""}
@@ -755,7 +755,7 @@ const AnnouncementEmailsPage: React.FC = () => {
         {isSendingEmail && (
           <div className="mb-4 space-y-2">
             <Progress value={(emailProgress.sent / emailProgress.total) * 100} />
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-small text-muted-foreground text-center">
               Sending emails {emailProgress.sent} / {emailProgress.total}...
             </p>
           </div>
@@ -763,7 +763,7 @@ const AnnouncementEmailsPage: React.FC = () => {
         {isSendingWhatsApp && (
           <div className="mb-4 space-y-2">
             <Progress value={(whatsappProgress.sent / whatsappProgress.total) * 100} />
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-small text-muted-foreground text-center">
               Sending WhatsApp {whatsappProgress.sent} / {whatsappProgress.total}...
             </p>
           </div>
@@ -802,13 +802,13 @@ const AnnouncementEmailsPage: React.FC = () => {
         {/* Scheduled Emails Backlog */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-body-lg flex items-center gap-2">
               <Calendar className="h-5 w-5" /> Scheduled Emails
             </CardTitle>
           </CardHeader>
           <CardContent>
             {scheduledAnnouncements.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No scheduled emails yet</p>
+              <p className="text-small text-muted-foreground text-center py-6">No scheduled emails yet</p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -830,7 +830,7 @@ const AnnouncementEmailsPage: React.FC = () => {
                         <TableCell>
                           {getStatusBadge(a.status)}
                           {a.error_message && (
-                            <p className="text-xs text-destructive mt-1">{a.error_message}</p>
+                            <p className="text-caption text-destructive mt-1">{a.error_message}</p>
                           )}
                         </TableCell>
                         <TableCell>
@@ -874,8 +874,8 @@ const AnnouncementEmailsPage: React.FC = () => {
               />
             </div>
             <div className="bg-muted/50 rounded-md p-3">
-              <p className="text-sm font-medium">Subject: {subject}</p>
-              <p className="text-xs text-muted-foreground mt-1">{recipients.length} recipient(s)</p>
+              <p className="text-small font-medium">Subject: {subject}</p>
+              <p className="text-caption text-muted-foreground mt-1">{recipients.length} recipient(s)</p>
             </div>
           </div>
           <DialogFooter>
@@ -902,8 +902,8 @@ const AnnouncementEmailsPage: React.FC = () => {
             </div>
             <div>
               <Label htmlFor="edit-body">Message Content</Label>
-              <Textarea id="edit-body" value={editHtmlBody} onChange={(e) => setEditHtmlBody(e.target.value)} className="min-h-[150px] text-sm" />
-              <p className="text-xs text-muted-foreground mt-1">Branded header & footer are applied automatically when sent.</p>
+              <Textarea id="edit-body" value={editHtmlBody} onChange={(e) => setEditHtmlBody(e.target.value)} className="min-h-[150px] text-small" />
+              <p className="text-caption text-muted-foreground mt-1">Branded header & footer are applied automatically when sent.</p>
             </div>
             <div>
               <Label htmlFor="edit-datetime">Scheduled For</Label>

@@ -50,7 +50,7 @@ const MonthlyProfitabilityChart = ({
         <div className="bg-background border rounded-lg p-3 shadow-lg">
           <p className="font-medium mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }} className="text-sm">
+            <p key={index} style={{ color: entry.color }} className="text-small">
               {entry.name}: £{entry.value.toFixed(2)}
             </p>
           ))}
@@ -120,21 +120,21 @@ const MonthlyProfitabilityChart = ({
         {totals && (
           <div className="grid gap-4 md:grid-cols-3 mb-6 p-4 bg-muted/50 rounded-lg">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Revenue</p>
-              <p className="text-xl font-bold text-green-600">
+              <p className="text-small font-medium text-muted-foreground">Monthly Revenue</p>
+              <p className="text-h4 font-bold text-green-600">
                 £{totals.revenue.toFixed(2)}
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Costs</p>
-              <p className="text-xl font-bold text-orange-600">
+              <p className="text-small font-medium text-muted-foreground">Monthly Costs</p>
+              <p className="text-h4 font-bold text-orange-600">
                 £{totals.costs.toFixed(2)}
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Monthly Profit</p>
+              <p className="text-small font-medium text-muted-foreground">Monthly Profit</p>
               <p className={cn(
-                "text-xl font-bold",
+                "text-h4 font-bold",
                 totals.profit >= 0 ? "text-green-600" : "text-red-600"
               )}>
                 £{totals.profit.toFixed(2)}

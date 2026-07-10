@@ -58,12 +58,12 @@ const Index = () => {
         <div className="container px-4 md:px-6 relative z-10 mx-auto">
           <div className="flex flex-col items-center space-y-8 text-center justify-center">
             <div className="space-y-6 animate-fade-in">
-              <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-gradient">
+              <h1 className="text-h1 font-bold tracking-tight sm:text-display md:text-display lg:text-display text-gradient">
                 Book your Bike 
                 <br />
                 <span className="text-primary">Delivery</span> now!
               </h1>
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              <p className="text-h4 md:text-h3 text-muted-foreground max-w-3xl mx-auto leading-relaxed">
                 Streamlining Bike Transport
                 Fast, friendly and reliable courier services for your business needs
               </p>

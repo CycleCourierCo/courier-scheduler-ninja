@@ -165,10 +165,10 @@ const OrderComments: React.FC<OrderCommentsProps> = ({ orderId }) => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">
+                    <span className="font-medium text-small">
                       {comment.admin_name}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-caption text-muted-foreground">
                       {format(new Date(comment.created_at), 'MMM d, yyyy at h:mm a')}
                     </span>
                   </div>
@@ -183,7 +183,7 @@ const OrderComments: React.FC<OrderCommentsProps> = ({ orderId }) => {
                     </Button>
                   )}
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{comment.comment}</p>
+                <p className="text-small whitespace-pre-wrap">{comment.comment}</p>
               </div>
             ))}
           </div>

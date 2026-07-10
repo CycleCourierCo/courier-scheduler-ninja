@@ -20,7 +20,7 @@ const WeeklyVehicleStatsChart = ({ data }: Props) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base sm:text-lg">Weekly Miles, Routes & Drivers</CardTitle>
+        <CardTitle className="text-body sm:text-body-lg">Weekly Miles, Routes & Drivers</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="w-full h-[320px]">

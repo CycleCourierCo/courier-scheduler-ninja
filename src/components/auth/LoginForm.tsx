@@ -121,7 +121,7 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         <div className="text-center mt-2">
           <button
             onClick={handleForgotPassword}
-            className="text-sm text-courier-600 hover:text-courier-700 hover:underline"
+            className="text-small text-courier-600 hover:text-courier-700 hover:underline"
             disabled={forgotPasswordIsLoading}
           >
             {forgotPasswordIsLoading ? "Sending..." : "Forgot your password?"}
