@@ -153,6 +153,11 @@ function App() {
                   <DriverTimeslips />
                 </ProtectedRoute>
               } />
+              <Route path="/mechanic-clock" element={
+                <ProtectedRoute>
+                  <MechanicClock />
+                </ProtectedRoute>
+              } />
               <Route path="/route-profitability" element={
                 <ProtectedRoute adminOnly={true}>
                   <RouteProfitabilityPage />
