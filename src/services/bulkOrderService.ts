@@ -282,13 +282,13 @@ function validateGroupedOrder(
 ): RowError[] {
   const errors: RowError[] = [];
 
-  if (!receiver.receiver_name) errors.push({ field: "receiver_name", message: "Receiver name is required" });
-  if (!receiver.receiver_street) errors.push({ field: "receiver_street", message: "Receiver street is required" });
-  if (!receiver.receiver_postcode) errors.push({ field: "receiver_postcode", message: "Receiver postcode is required" });
+  if (!receiver.receiver_name) errors.push({ field: "receiver_name", message: "Receiver: add a contact name." });
+  if (!receiver.receiver_street) errors.push({ field: "receiver_street", message: "Receiver: add a street address." });
+  if (!receiver.receiver_postcode) errors.push({ field: "receiver_postcode", message: "Receiver: add a postcode." });
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (receiver.receiver_email && !emailRegex.test(receiver.receiver_email)) {
-    errors.push({ field: "receiver_email", message: "Invalid email format" });
+    errors.push({ field: "receiver_email", message: "Receiver email doesn't look right — use format name@example.com." });
   }
 
   if (bikes.length > MAX_BIKES_PER_ORDER) {
@@ -411,7 +411,7 @@ export async function createBulkOrders(
         orderNumber: order.orderNumber,
         rowIndex: order.sourceRowIndices[0],
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "Import failed for this row. Check the highlighted fields and re-upload.",
       };
       results.push(result);
       onProgress(result);

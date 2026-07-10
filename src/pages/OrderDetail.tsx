@@ -140,7 +140,7 @@ const EditableNotesSection = ({ order, onUpdate }: { order: Order; onUpdate: () 
       .eq('id', order.id);
     setSaving(false);
     if (error) {
-      toast.error('Failed to save: ' + error.message);
+      toast.error(`Couldn't save your changes — ${error.message}`);
     } else {
       toast.success('Notes updated');
       setEditingField(null);
@@ -304,7 +304,7 @@ const OrderDetail = () => {
 
   const handleSchedulePickup = async () => {
     if (!id || !selectedPickupDate) {
-      toast.error("Please select pickup date");
+      toast.error("Pick a collection date before scheduling.");
       return;
     }
 
@@ -336,7 +336,7 @@ const OrderDetail = () => {
       }
     } catch (error) {
       console.error("Error scheduling pickup:", error);
-      toast.error(`Failed to schedule pickup: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast.error(`Couldn't schedule the collection: ${error instanceof Error ? error.message : "please try again in a moment"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -344,7 +344,7 @@ const OrderDetail = () => {
 
   const handleScheduleDelivery = async () => {
     if (!id) {
-      toast.error("Order ID is missing");
+      toast.error("We've lost track of this order. Refresh the page and try again.");
       return;
     }
 
@@ -363,7 +363,7 @@ const OrderDetail = () => {
         const [deliveryHours, deliveryMinutes] = deliveryTime.split(':').map(Number);
         deliveryDateTime.setUTCHours(deliveryHours, deliveryMinutes, 0);
       } else {
-        toast.error("Please select delivery date");
+        toast.error("Pick a delivery date before scheduling.");
         setIsSubmitting(false);
         return;
       }
@@ -377,7 +377,7 @@ const OrderDetail = () => {
       if (order?.scheduledPickupDate) {
         const existingPickupDate = new Date(order.scheduledPickupDate);
         if (deliveryDateTime <= existingPickupDate) {
-          toast.error("Delivery date must be after the pickup date");
+          toast.error("Delivery has to happen on or after the collection date — please adjust one of them.");
           setIsSubmitting(false);
           return;
         }
@@ -404,7 +404,7 @@ const OrderDetail = () => {
       }
     } catch (error) {
       console.error("Error scheduling delivery:", error);
-      toast.error(`Failed to schedule delivery: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast.error(`Couldn't schedule the delivery: ${error instanceof Error ? error.message : "please try again in a moment"}`);
     } finally {
       setIsSubmitting(false);
     }

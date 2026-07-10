@@ -86,7 +86,7 @@ const VehicleManagement = () => {
       setPolicies(ps);
       setMileageByVehicle(mileage);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't load your vehicles — ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ const VehicleManagement = () => {
       toast.success(`${v.registration} refreshed`);
       load();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't refresh DVLA details — ${(e as Error).message}`);
     } finally {
       setRefreshingId(null);
     }
@@ -159,14 +159,14 @@ const VehicleManagement = () => {
       toast.success(`${v.registration} → ${label}`);
     } catch (e) {
       setVehicles(prev);
-      toast.error((e as Error).message);
+      toast.error(`Couldn't update this vehicle's status — ${(e as Error).message}`);
     }
   };
 
   const handleConfirmSold = async () => {
     if (!soldTarget) return;
     if (!soldDate || !soldMileage) {
-      toast.error("Sold date and mileage are required");
+      toast.error("Enter the date the vehicle was sold and its final mileage so records stay accurate.");
       return;
     }
     setSavingSold(true);
@@ -180,7 +180,7 @@ const VehicleManagement = () => {
       setSoldTarget(null);
       load();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't mark as sold — ${(e as Error).message}`);
     } finally {
       setSavingSold(false);
     }
@@ -214,7 +214,7 @@ const VehicleManagement = () => {
       toast.success("Vehicle removed");
       load();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't remove this vehicle — ${(e as Error).message}`);
     }
   };
 

@@ -68,11 +68,11 @@ export default function PolicyDialog({
 
   const submit = async () => {
     if (!vehicleId || !insurer || !startDate || !endDate) {
-      toast.error("Vehicle, insurer, start and end date are required");
+      toast.error("Fill in the vehicle, insurer, start date and end date before saving the policy.");
       return;
     }
     if (endDate < startDate) {
-      toast.error("End date must be after start date");
+      toast.error("The policy end date needs to be after its start date.");
       return;
     }
     setSaving(true);
@@ -96,7 +96,7 @@ export default function PolicyDialog({
       onSaved();
       onOpenChange(false);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't save the policy — ${(e as Error).message}`);
     } finally {
       setSaving(false);
     }

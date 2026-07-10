@@ -24,14 +24,14 @@ const DURATIONS = {
 type Opts = ExternalToast;
 
 function normalizeError(err: unknown): { message: string; description?: string } {
-  if (!err) return { message: "Something went wrong" };
+  if (!err) return { message: "Something didn't work. Please try again in a moment." };
   if (typeof err === "string") return { message: err };
   if (err instanceof Error) return { message: err.message };
   if (typeof err === "object" && err !== null && "message" in err) {
     const m = (err as { message?: unknown }).message;
     if (typeof m === "string") return { message: m };
   }
-  return { message: "Something went wrong", description: String(err) };
+  return { message: "Something didn't work. Please try again in a moment.", description: String(err) };
 }
 
 export const notify = {

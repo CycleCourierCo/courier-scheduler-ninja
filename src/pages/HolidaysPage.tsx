@@ -35,7 +35,7 @@ const HolidaysPage: React.FC = () => {
       const data = await fetchHolidays();
       setHolidays(data);
     } catch {
-      toast.error("Failed to load holidays");
+      toast.error("Couldn't load holidays. Refresh the page to try again.");
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +46,7 @@ const HolidaysPage: React.FC = () => {
       const data = await fetchAllowedFridays();
       setAllowedFridays(data);
     } catch {
-      toast.error("Failed to load allowed Fridays");
+      toast.error("Couldn't load allowed Fridays. Refresh the page to try again.");
     } finally {
       setIsLoadingFridays(false);
     }
@@ -62,11 +62,11 @@ const HolidaysPage: React.FC = () => {
 
   const handleAdd = async () => {
     if (!holidayName.trim()) {
-      toast.error("Please enter a holiday name");
+      toast.error("Give this holiday a name so it's easy to spot in the calendar (e.g. Christmas Day).");
       return;
     }
     if (selectedDates.length === 0) {
-      toast.error("Please select at least one date");
+      toast.error("Pick at least one date on the calendar to mark as a holiday.");
       return;
     }
 
@@ -103,17 +103,17 @@ const HolidaysPage: React.FC = () => {
       toast.success("Holiday removed");
       await loadHolidays();
     } catch {
-      toast.error("Failed to remove holiday");
+      toast.error("Couldn't remove this holiday. Try again in a moment.");
     }
   };
 
   const handleAddFriday = async () => {
     if (!fridayName.trim()) {
-      toast.error("Please enter a name/note");
+      toast.error("Add a short note so staff know why this Friday is allowed (e.g. 'End of month push').");
       return;
     }
     if (selectedFridays.length === 0) {
-      toast.error("Please select at least one Friday");
+      toast.error("Pick at least one Friday on the calendar to allow bookings.");
       return;
     }
 
@@ -150,7 +150,7 @@ const HolidaysPage: React.FC = () => {
       toast.success("Allowed Friday removed");
       await loadAllowedFridays();
     } catch {
-      toast.error("Failed to remove");
+      toast.error("Couldn't remove this date. Try again in a moment.");
     }
   };
 

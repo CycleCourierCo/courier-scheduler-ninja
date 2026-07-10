@@ -50,7 +50,7 @@ const ShopifyIntegrationPage = () => {
 
   const handleSave = async () => {
     if (!shopDomain || !accessToken || !webhookSecret) {
-      toast.error("All fields required");
+      toast.error("Fill in your shop domain and both API keys before saving.");
       return;
     }
     setLoading(true);
@@ -70,7 +70,7 @@ const ShopifyIntegrationPage = () => {
       setWebhookSecret("");
       await loadStore();
     } catch (err: any) {
-      toast.error(err.message || "Failed to save");
+      toast.error(err.message || "Couldn't save your Shopify settings. Check the details and try again.");
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ const ShopifyIntegrationPage = () => {
 
   const handleTest = async () => {
     if (!shopDomain || !accessToken) {
-      toast.error("Enter shop domain and access token first");
+      toast.error("Type your shop domain and access token above, then run the test.");
       return;
     }
     setTesting(true);
@@ -90,10 +90,10 @@ const ShopifyIntegrationPage = () => {
       if ((data as any)?.success) {
         toast.success(`Connected to ${(data as any).shop || shopDomain}`);
       } else {
-        toast.error(`Test failed: ${(data as any)?.message || "Unknown error"}`);
+        toast.error(`Couldn't reach Shopify: ${(data as any)?.message || "double-check the shop domain and access token"}`);
       }
     } catch (err: any) {
-      toast.error(err.message || "Test failed");
+      toast.error(err.message || "Couldn't reach Shopify. Check your shop domain and access token.");
     } finally {
       setTesting(false);
     }
@@ -110,7 +110,7 @@ const ShopifyIntegrationPage = () => {
           body: { action: "disconnect" },
         });
         if (error) {
-          toast.error("Failed to disconnect");
+          toast.error("Couldn't disconnect your Shopify store. Try again in a moment.");
           return;
         }
         toast.success("Disconnected");

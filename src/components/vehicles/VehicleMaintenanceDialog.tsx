@@ -53,7 +53,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
       setTimeslipMiles(mi);
       setDue(computeNextDue(l, iv, { baselineMileage, timeslipMileage: mi }));
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't load maintenance details — ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
       toast.success("Service deleted");
       load();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(`Couldn't delete this service log — ${(e as Error).message}`);
     }
   };
 

@@ -112,7 +112,7 @@ const UserProfile = () => {
       toast.success("Profile updated successfully");
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      toast.error("Couldn't save your profile changes. Check the highlighted fields and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +138,7 @@ const UserProfile = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
             const errorCount = Object.keys(errors).length;
-            toast.error(`Please fill in all required fields correctly (${errorCount} error${errorCount > 1 ? 's' : ''})`);
+            toast.error(`There ${errorCount === 1 ? 'is' : 'are'} ${errorCount} field${errorCount === 1 ? '' : 's'} to fix — scroll up to see what's highlighted in red.`);
           })} className="space-y-6">
             <Card>
               <CardHeader>

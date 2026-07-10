@@ -42,7 +42,7 @@ export default function WebhookConfigPage() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      toast.error("Failed to fetch webhooks");
+      toast.error("Couldn't load your webhooks. Refresh the page to try again.");
       console.error(error);
     } else {
       setWebhooks(data || []);
@@ -64,7 +64,7 @@ export default function WebhookConfigPage() {
     });
 
     if (error) {
-      toast.error("Failed to revoke webhook");
+      toast.error("Couldn't revoke this webhook. Try again in a moment.");
       console.error(error);
     } else {
       toast.success("Webhook revoked successfully");
