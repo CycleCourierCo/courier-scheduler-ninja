@@ -17,10 +17,10 @@ import {
 } from "recharts";
 import type { Vehicle } from "@/services/vehicleService";
 import {
-import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
   getWeeklyMileageByVehicle,
   type TimeslipRow,
 } from "@/services/vehicleAnalyticsService";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface Props {
   rows: TimeslipRow[];
