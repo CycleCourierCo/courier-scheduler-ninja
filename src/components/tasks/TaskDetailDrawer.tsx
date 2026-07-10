@@ -51,15 +51,21 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
     } catch (e: any) { toast.error(e?.message || 'Failed to update'); }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!taskId) return;
-    if (!confirm('Delete this task?')) return;
-    try {
-      await deleteTask(taskId);
-      toast.success('Task deleted');
-      qc.invalidateQueries({ queryKey: ['tasks'] });
-      onOpenChange(false);
-    } catch (e: any) { toast.error(e?.message || 'Failed to delete'); }
+    notify.confirm({
+      title: "Delete this task?",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteTask(taskId);
+          toast.success('Task deleted');
+          qc.invalidateQueries({ queryKey: ['tasks'] });
+          onOpenChange(false);
+        } catch (e: any) { toast.error(e?.message || 'Failed to delete'); }
+      },
+    });
   };
 
   return (

@@ -3013,37 +3013,44 @@ Route Link: ${routeLink}`;
       toast.info('No filtered jobs to load');
       return;
     }
-    // Skip jobs already verified in Shipday
     const toSend = jobs.filter(j => getShipdayStatus(j.order, j.type) !== 'verified');
     const alreadyIn = jobs.length - toSend.length;
     if (toSend.length === 0) {
       toast.info('All filtered jobs are already in Shipday');
       return;
     }
-    if (toSend.length > 20 && !window.confirm(`Push ${toSend.length} jobs into Shipday?`)) {
+    const doPush = async () => {
+      setIsLoadingShipday(true);
+      toast.info(`Loading ${toSend.length} jobs into Shipday...`);
+      let success = 0;
+      let failed = 0;
+      for (const job of toSend) {
+        try {
+          await createShipdayOrder(job.orderId, job.type);
+          success++;
+        } catch (err) {
+          console.error('Failed to load job into Shipday', job, err);
+          failed++;
+        }
+      }
+      const parts = [`${success} loaded`];
+      if (alreadyIn > 0) parts.push(`${alreadyIn} already in Shipday`);
+      if (failed > 0) parts.push(`${failed} failed`);
+      const msg = parts.join(', ');
+      if (failed === 0) toast.success(msg);
+      else toast.warning(msg);
+      onReVerifyShipday?.();
+      setIsLoadingShipday(false);
+    };
+    if (toSend.length > 20) {
+      notify.confirm({
+        title: `Push ${toSend.length} jobs into Shipday?`,
+        confirmLabel: "Push all",
+        onConfirm: doPush,
+      });
       return;
     }
-    setIsLoadingShipday(true);
-    toast.info(`Loading ${toSend.length} jobs into Shipday...`);
-    let success = 0;
-    let failed = 0;
-    for (const job of toSend) {
-      try {
-        await createShipdayOrder(job.orderId, job.type);
-        success++;
-      } catch (err) {
-        console.error('Failed to load job into Shipday', job, err);
-        failed++;
-      }
-    }
-    const parts = [`${success} loaded`];
-    if (alreadyIn > 0) parts.push(`${alreadyIn} already in Shipday`);
-    if (failed > 0) parts.push(`${failed} failed`);
-    const msg = parts.join(', ');
-    if (failed === 0) toast.success(msg);
-    else toast.warning(msg);
-    onReVerifyShipday?.();
-    setIsLoadingShipday(false);
+    await doPush();
   };
 
   const renderShipdayIcon = (status: 'verified' | 'missing' | 'none', orderId?: string, jobType?: 'pickup' | 'delivery') => {

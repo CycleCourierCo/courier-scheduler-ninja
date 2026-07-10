@@ -444,9 +444,12 @@ const FuelFinderPage: React.FC = () => {
                             variant="ghost"
                             className="h-8 w-8 text-destructive"
                             onClick={() => {
-                              if (confirm(`Delete "${card.card_name}"?`)) {
-                                deleteFuelCard.mutate(card.id);
-                              }
+                              notify.confirm({
+                                title: `Delete "${card.card_name}"?`,
+                                confirmLabel: "Delete",
+                                destructive: true,
+                                onConfirm: () => deleteFuelCard.mutate(card.id),
+                              });
                             }}
                           >
                             <Trash2 className="h-4 w-4" />

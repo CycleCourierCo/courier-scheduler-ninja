@@ -108,16 +108,22 @@ const WarehouseStockPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remove this stock item?")) return;
-    try {
-      await removeWarehouseStock(id);
-      toast.success("Stock removed");
-      fetchData();
-    } catch (err) {
-      Sentry.captureException(err);
-      toast.error("Failed to remove stock");
-    }
+  const handleDelete = (id: string) => {
+    notify.confirm({
+      title: "Remove this stock item?",
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removeWarehouseStock(id);
+          toast.success("Stock removed");
+          fetchData();
+        } catch (err) {
+          Sentry.captureException(err);
+          toast.error("Failed to remove stock");
+        }
+      },
+    });
   };
 
   const filtered = stock.filter((item) => {

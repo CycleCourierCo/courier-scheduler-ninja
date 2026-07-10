@@ -200,15 +200,22 @@ const ClaimDetail = () => {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const handleReject = async () => {
-    if (!confirm("Reject this claim? This is a terminal action.")) return;
-    try {
-      const updated = await rejectClaim(claim.id);
-      setClaim(updated);
-      const n = await listNotes(claim.id);
-      setNotes(n);
-      toast.success("Claim rejected");
-    } catch (e: any) { toast.error(e.message); }
+  const handleReject = () => {
+    notify.confirm({
+      title: "Reject this claim?",
+      description: "This is a terminal action.",
+      confirmLabel: "Reject",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const updated = await rejectClaim(claim.id);
+          setClaim(updated);
+          const n = await listNotes(claim.id);
+          setNotes(n);
+          toast.success("Claim rejected");
+        } catch (e: any) { toast.error(e.message); }
+      },
+    });
   };
 
   const next = nextStep(claim.status);
