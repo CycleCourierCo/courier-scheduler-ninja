@@ -11,6 +11,7 @@ import {
   type TimeRange,
 } from "@/services/analyticsService";
 import type { Order } from "@/types/order";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface Props {
   orders: Order[];
@@ -113,9 +114,9 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+              <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }} />
               <YAxis
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }}
                 label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "hsl(var(--muted-foreground))" }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />

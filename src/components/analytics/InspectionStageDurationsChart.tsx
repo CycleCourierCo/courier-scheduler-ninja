@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StageDuration } from "@/services/inspectionAnalyticsService";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface Props {
   data: StageDuration[];
@@ -39,13 +40,13 @@ const InspectionStageDurationsChart = ({ data }: Props) => {
             <XAxis
               type="number"
               tickFormatter={(v) => formatDuration(Number(v))}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: CHART_TICK_FONT_SIZE }}
             />
             <YAxis
               type="category"
               dataKey="stage"
               width={180}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: CHART_TICK_FONT_SIZE }}
             />
             <Tooltip
               formatter={(value: any, _name, props: any) => {
@@ -60,7 +61,7 @@ const InspectionStageDurationsChart = ({ data }: Props) => {
                 backgroundColor: "hsl(var(--background))",
                 border: "1px solid hsl(var(--border))",
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: CHART_TICK_FONT_SIZE,
               }}
             />
             <Bar dataKey="avgHours" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
@@ -68,7 +69,7 @@ const InspectionStageDurationsChart = ({ data }: Props) => {
                 dataKey="avgHours"
                 position="right"
                 formatter={(v: number) => formatDuration(v)}
-                style={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                style={{ fill: "hsl(var(--foreground))", fontSize: CHART_TICK_FONT_SIZE }}
               />
             </Bar>
           </BarChart>

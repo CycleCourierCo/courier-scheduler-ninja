@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import type { Vehicle } from "@/services/vehicleService";
 import {
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
   getWeeklyMileageByVehicle,
   type TimeslipRow,
 } from "@/services/vehicleAnalyticsService";
@@ -129,8 +130,8 @@ const VehicleMileageChart = ({ rows, vehicles, selectedIds, onSelectedIdsChange 
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={CHART_TICK_FONT_SIZE} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",

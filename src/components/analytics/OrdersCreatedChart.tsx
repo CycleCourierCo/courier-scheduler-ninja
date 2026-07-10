@@ -10,6 +10,7 @@ import {
   type TimeRange,
 } from "@/services/analyticsService";
 import type { Order } from "@/types/order";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface OrdersCreatedChartProps {
   orders: Order[];
@@ -61,7 +62,7 @@ const OrdersCreatedChart = ({ orders }: OrdersCreatedChartProps) => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 11 }} interval={Math.max(0, Math.floor(data.length / 6) - 1)} minTickGap={12} />
+            <XAxis dataKey="label" angle={-45} textAnchor="end" height={70} tick={{ fontSize: CHART_TICK_FONT_SIZE }} interval={Math.max(0, Math.floor(data.length / 6) - 1)} minTickGap={12} />
             <YAxis allowDecimals={false} />
             <Tooltip formatter={(v) => [`${v} orders`, "Created"]} labelFormatter={(l) => String(l)} />
             <Legend />

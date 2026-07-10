@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { DeliveryTimeAnalytics } from "@/services/analyticsService";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface DeliveryTimeChartProps {
   data: DeliveryTimeAnalytics;
@@ -65,7 +66,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
                 dataKey="name" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
                 angle={-45}
                 textAnchor="end"
                 height={80}

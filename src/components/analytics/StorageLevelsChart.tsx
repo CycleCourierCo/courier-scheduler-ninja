@@ -18,6 +18,7 @@ import {
   type TimeRange,
 } from "@/services/analyticsService";
 import type { Order } from "@/types/order";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface Props {
   orders: Order[];
@@ -86,7 +87,7 @@ const StorageLevelsChart = ({ orders, range, granularity }: Props) => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="label"
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: CHART_TICK_FONT_SIZE }}
               />
               <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />

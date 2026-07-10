@@ -3,6 +3,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StorageAnalytics } from "@/services/analyticsService";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface StorageAnalyticsChartProps {
   data: StorageAnalytics;
@@ -46,7 +47,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="range" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
                 />
                 <YAxis 
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}

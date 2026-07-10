@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 export interface WeeklyProfitabilityData {
   weekNumber: number;
@@ -156,7 +157,7 @@ const MonthlyProfitabilityChart = ({
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
                 dataKey="formattedLabel" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
                 stroke="hsl(var(--border))"
               />
               <YAxis 

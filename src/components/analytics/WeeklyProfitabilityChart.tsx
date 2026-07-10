@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { DailyProfitability } from "@/services/profitabilityService";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { CHART_TICK_FONT_SIZE } from "@/lib/typography";
 
 interface WeeklyProfitabilityChartProps {
   data: DailyProfitability[];
@@ -52,7 +53,7 @@ const WeeklyProfitabilityChart = ({ data }: WeeklyProfitabilityChartProps) => {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis 
               dataKey="formattedDate" 
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: CHART_TICK_FONT_SIZE }}
               stroke="hsl(var(--border))"
             />
             <YAxis 
