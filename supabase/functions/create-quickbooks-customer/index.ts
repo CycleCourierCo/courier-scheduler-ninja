@@ -139,7 +139,7 @@ serve(async (req: Request): Promise<Response> => {
     };
 
     // First, search by email
-    const escapedEmail = escapeQuickBooksString(profile.email);
+    const escapedEmail = escapeQuickBooksString(qbEmail);
     const queryUrl = `${baseUrl}/query?query=${encodeURIComponent(`SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`)}`;
     const searchResp = await fetch(queryUrl, { headers: authHeaders });
     if (searchResp.ok) {
@@ -161,14 +161,14 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const { given, family } = splitName(profile.name);
-    const displayName = profile.company_name || profile.name || profile.email;
+    const displayName = profile.company_name || profile.name || qbEmail;
 
     const customerPayload: any = {
       DisplayName: displayName,
       CompanyName: profile.company_name || undefined,
       GivenName: given || undefined,
       FamilyName: family || undefined,
-      PrimaryEmailAddr: { Address: profile.email },
+      PrimaryEmailAddr: { Address: qbEmail },
     };
     if (profile.phone) {
       customerPayload.PrimaryPhone = { FreeFormNumber: profile.phone };
