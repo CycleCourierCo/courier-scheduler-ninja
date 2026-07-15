@@ -3377,6 +3377,52 @@ export type Database = {
         }
         Returns: Json
       }
+      update_user_profile_for_management: {
+        Args: { p_updates: Json; p_user_id: string }
+        Returns: {
+          account_status:
+            | Database["public"]["Enums"]["account_status_type"]
+            | null
+          accounts_email: string | null
+          address_line_1: string | null
+          address_line_2: string | null
+          available_hours: number | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          county: string | null
+          created_at: string
+          default_vehicle_id: string | null
+          email: string | null
+          hourly_rate: number | null
+          id: string
+          is_active: boolean | null
+          is_business: boolean | null
+          is_test_account: boolean
+          latitude: number | null
+          longitude: number | null
+          name: string | null
+          opening_hours: Json | null
+          phone: string | null
+          postal_code: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          shipday_driver_id: string | null
+          shipday_driver_name: string | null
+          special_rate_code: string | null
+          special_rate_price: number | null
+          table_preferences: Json | null
+          updated_at: string
+          uses_own_van: boolean | null
+          van_allowance: number | null
+          website: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       verify_api_key: { Args: { api_key: string }; Returns: string }
     }
     Enums: {
