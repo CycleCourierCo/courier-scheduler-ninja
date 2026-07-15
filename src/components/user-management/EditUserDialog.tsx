@@ -82,8 +82,9 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   const handleCreateQuickBooksCustomer = async () => {
     if (!user) return;
-    if (!formData.email) {
-      toast.error('Profile must have an email before syncing to QuickBooks');
+    const qbEmail = formData.accounts_email?.trim() || formData.email?.trim();
+    if (!qbEmail) {
+      toast.error('Profile must have an email or accounts email before syncing to QuickBooks');
       return;
     }
     setCreatingQbCustomer(true);
@@ -204,8 +205,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     type="button"
                     size="sm"
                     onClick={handleCreateQuickBooksCustomer}
-                    disabled={creatingQbCustomer || !formData.email}
-                    title={!formData.email ? 'Email required' : undefined}
+                    disabled={creatingQbCustomer || !(formData.accounts_email?.trim() || formData.email?.trim())}
+                    title={!(formData.accounts_email?.trim() || formData.email?.trim()) ? 'Email or accounts email required' : undefined}
                   >
                     {creatingQbCustomer ? 'Creating...' : 'Create customer in QuickBooks'}
                   </Button>
