@@ -29,6 +29,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   const [formData, setFormData] = useState<Partial<UserProfile>>({});
   const [saving, setSaving] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [creatingQbCustomer, setCreatingQbCustomer] = useState(false);
 
   useEffect(() => {
     listVehicles().then(setVehicles).catch(() => setVehicles([]));
