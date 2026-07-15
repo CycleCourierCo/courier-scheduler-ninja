@@ -200,7 +200,7 @@ export const PendingStorageAllocation = ({
                   {loadedForDriver.length} on van
                 </Badge>
               )}
-              {driverValue > 0 && (
+              {isAdmin && driverValue > 0 && (
                 <Badge variant="outline" className="text-xs">
                   £{driverValue.toLocaleString()}
                 </Badge>
