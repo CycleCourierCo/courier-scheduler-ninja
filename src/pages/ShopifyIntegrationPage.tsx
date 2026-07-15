@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 
-const WEBHOOK_URL = `https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/customer-shopify-webhook`;
+const WEBHOOK_URL = `https://api.cyclecourierco.com/functions/v1/customer-shopify-webhook`;
 
 const ShopifyIntegrationPage = () => {
   const { user } = useAuth();
