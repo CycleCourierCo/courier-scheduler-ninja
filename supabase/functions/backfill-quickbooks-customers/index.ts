@@ -143,7 +143,8 @@ serve(async (req: Request): Promise<Response> => {
           PrimaryEmailAddr: { Address: qbEmail },
         };
         if (profile.phone) customerPayload.PrimaryPhone = { FreeFormNumber: profile.phone };
-        if (profile.website) customerPayload.WebAddr = { URI: profile.website };
+        const normalizedWebsite = normalizeWebsite(profile.website);
+        if (normalizedWebsite) customerPayload.WebAddr = { URI: normalizedWebsite };
         if (profile.address_line_1 || profile.city || profile.postal_code) {
           customerPayload.BillAddr = {
             Line1: profile.address_line_1 || undefined,
