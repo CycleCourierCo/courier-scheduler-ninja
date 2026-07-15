@@ -1401,7 +1401,7 @@ const LoadingUnloadingPage = () => {
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {collectedBikes.length} bike(s) collected and awaiting storage allocation
                 {bikesLoadedOntoVan.length > 0 && ` • ${bikesLoadedOntoVan.length} bike(s) loaded onto van`}
-                {(() => {
+                {isAdmin && (() => {
                   const totalValue = [...collectedBikes, ...bikesLoadedOntoVan].reduce((sum, bike) => sum + (bike.bikeValue || 0), 0);
                   return totalValue > 0 ? ` • Total value: £${totalValue.toLocaleString()}` : '';
                 })()}
@@ -1415,6 +1415,7 @@ const LoadingUnloadingPage = () => {
                 onAllocateStorage={handleAllocateStorage}
                 onUnloadFromVan={handleUnloadFromVan}
                 onLoadOntoVan={handleRemoveAllBikesFromOrder}
+                isAdmin={isAdmin}
               />
             </CardContent>
           </Card>
@@ -1425,7 +1426,7 @@ const LoadingUnloadingPage = () => {
               <CardTitle className="text-lg sm:text-xl">Bikes in Storage</CardTitle>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {bikesInStorage.length} bike(s) currently in storage
-                {(() => {
+                {isAdmin && (() => {
                   const totalValue = bikesInStorage.reduce((sum, { order }) => sum + (order?.bikeValue || 0), 0);
                   return totalValue > 0 ? ` • Total value: £${totalValue.toLocaleString()}` : '';
                 })()}
@@ -1437,7 +1438,9 @@ const LoadingUnloadingPage = () => {
                 onRemoveFromStorage={handleRemoveFromStorage}
                 onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
                 onChangeLocation={handleChangeLocation}
+                isAdmin={isAdmin}
               />
+
             </CardContent>
           </Card>
         </div>
