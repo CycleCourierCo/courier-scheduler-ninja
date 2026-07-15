@@ -1,22 +1,20 @@
-## Problem
+## Plan
 
-The Box My Bike label upload fails with "Bucket not found" because the `box-my-bike-labels` storage bucket was never created. The migration `20260603213537_...sql` added the orders columns and left a comment saying the bucket would be created via the storage tool, but that step never ran. There are also no RLS policies on `storage.objects` for this bucket.
+1. **Keep CS out of User Management**
+   - Leave database and edge-function permissions as admin + sales only.
+   - Make sure CS-only users do not see User Management navigation/buttons.
+   - Also block direct `/users` access for CS-only users via route protection.
 
-## Fix
+2. **Fix admin/sales profile edit failures**
+   - Add a focused migration for `profiles` update access so admin and sales can save user edits reliably.
+   - Preserve the existing self-update protection that prevents normal users from changing their own role/status.
+   - Keep role assignment rules unchanged: admin can assign all roles; sales can only assign customer-tier roles.
 
-1. **Create the bucket** `box-my-bike-labels` as **private** (labels contain shipping data and shouldn't be publicly listable). The app already uses `createSignedUrl` to read them, which works on private buckets.
+3. **Fix Jabir / mixed-role customer access**
+   - Update `ProtectedRoute` so `b2b_customer` and `b2c_customer` always grant customer pages in addition to operational-role pages.
+   - Include customer pages such as `/create-order`, `/dashboard`, `/customer-orders/*`, `/profile`, `/box-my-bike`, and B2B pages like `/my-stock`, `/pricing`, `/bulk-availability` where relevant.
+   - Keep operational restrictions for users who are not customers.
 
-2. **Add RLS policies on `storage.objects`** for this bucket via migration:
-   - **Customer (order owner)** can `INSERT`/`UPDATE`/`SELECT` an object whose path starts with `<their order id>/` for an order where `orders.user_id = auth.uid()` and `is_box_my_bike = true`.
-   - **Admin/staff roles** (admin, warehouse, dispatcher — whichever roles currently manage Box My Bike, matching existing patterns) get full `SELECT/INSERT/UPDATE/DELETE`.
-   - `service_role` bypasses RLS, so edge functions keep working.
-
-3. **No frontend changes** — the upload path `supabase.storage.from("box-my-bike-labels").upload(path, ...)` already works once the bucket exists.
-
-## Verification
-
-After the bucket + policies are live, re-try the upload as the customer on the Box My Bike page — the toast should switch from "Bucket not found" to "Label uploaded", and the "No label uploaded yet" row should flip to the signed-URL view.
-
-## Question before I build
-
-The path used for the object is defined in `BoxMyBikePage.tsx` around line 131 — I'll read it before writing the policies so the ownership check (`storage.foldername(name)[1] = order.id`) matches exactly. No decision needed from you unless you want the bucket to be **public** instead of private (not recommended for shipping labels).
+4. **Verify**
+   - Check database policies after the migration.
+   - Confirm the routing logic allows a mixed-role B2B user like Jabir to reach `/create-order` while CS-only users cannot reach `/users`.
