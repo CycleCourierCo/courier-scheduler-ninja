@@ -9,6 +9,9 @@ import { UserProfile, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
 import { listVehicles, type Vehicle } from "@/services/vehicleService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
 
 interface EditUserDialogProps {
   user: UserProfile | null;
