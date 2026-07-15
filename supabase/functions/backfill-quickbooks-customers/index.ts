@@ -106,7 +106,7 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       try {
-        const escapedEmail = escapeQuickBooksString(profile.email);
+        const escapedEmail = escapeQuickBooksString(qbEmail);
         const queryUrl = `${baseUrl}/query?query=${encodeURIComponent(`SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`)}`;
         const searchResp = await fetch(queryUrl, { headers: authHeaders });
         if (searchResp.ok) {
@@ -115,20 +115,20 @@ serve(async (req: Request): Promise<Response> => {
           if (existing) {
             await supabase.from('profiles').update({ quickbooks_customer_id: existing.Id }).eq('id', profile.id);
             linked++;
-            details.push({ userId: profile.id, email: profile.email, status: 'linked', customerId: existing.Id });
+            details.push({ userId: profile.id, email: qbEmail, status: 'linked', customerId: existing.Id });
             await new Promise(r => setTimeout(r, 150));
             continue;
           }
         }
 
         const { given, family } = splitName(profile.name);
-        const displayName = profile.company_name || profile.name || profile.email;
+        const displayName = profile.company_name || profile.name || qbEmail;
         const customerPayload: any = {
           DisplayName: displayName,
           CompanyName: profile.company_name || undefined,
           GivenName: given || undefined,
           FamilyName: family || undefined,
-          PrimaryEmailAddr: { Address: profile.email },
+          PrimaryEmailAddr: { Address: qbEmail },
         };
         if (profile.phone) customerPayload.PrimaryPhone = { FreeFormNumber: profile.phone };
         if (profile.website) customerPayload.WebAddr = { URI: profile.website };
@@ -151,22 +151,22 @@ serve(async (req: Request): Promise<Response> => {
         if (!createResp.ok) {
           const errBody = await createResp.text();
           errors++;
-          details.push({ userId: profile.id, email: profile.email, status: 'error', error: `${createResp.status}: ${errBody.slice(0, 200)}` });
+          details.push({ userId: profile.id, email: qbEmail, status: 'error', error: `${createResp.status}: ${errBody.slice(0, 200)}` });
         } else {
           const createdData = await createResp.json();
           const customerId = createdData.Customer?.Id;
           if (customerId) {
             await supabase.from('profiles').update({ quickbooks_customer_id: customerId }).eq('id', profile.id);
             created++;
-            details.push({ userId: profile.id, email: profile.email, status: 'created', customerId });
+            details.push({ userId: profile.id, email: qbEmail, status: 'created', customerId });
           } else {
             errors++;
-            details.push({ userId: profile.id, email: profile.email, status: 'error', error: 'no customer id returned' });
+            details.push({ userId: profile.id, email: qbEmail, status: 'error', error: 'no customer id returned' });
           }
         }
       } catch (err: any) {
         errors++;
-        details.push({ userId: profile.id, email: profile.email, status: 'error', error: err?.message || String(err) });
+        details.push({ userId: profile.id, email: qbEmail, status: 'error', error: err?.message || String(err) });
       }
 
       await new Promise(r => setTimeout(r, 150));
