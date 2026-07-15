@@ -11,6 +11,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BIKE_TYPE_BY_ID } from "@/constants/bikePricing";
+
+const BIKE_TYPE_OPTIONS = Object.values(BIKE_TYPE_BY_ID);
 import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
 import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
