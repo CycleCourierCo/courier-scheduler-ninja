@@ -85,7 +85,7 @@ export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | '
     
     // Display helpful information about webhook setup
     console.log("Shipday order created. Configure the Shipday webhook:", {
-      url: `https://axigtrmaxhetyfzjjdve.supabase.co/functions/v1/shipday-webhook`,
+      url: `https://api.cyclecourierco.com/functions/v1/shipday-webhook`,
       message: "Note: Webhook token validation is currently disabled for initial setup."
     });
     
