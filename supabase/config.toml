@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.create-quickbooks-customer]
 verify_jwt = false
 
+[functions.backfill-quickbooks-customers]
+verify_jwt = false
+
 [functions.create-business-user]
 verify_jwt = false
 

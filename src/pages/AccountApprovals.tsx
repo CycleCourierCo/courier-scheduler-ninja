@@ -24,6 +24,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import BusinessAccountsMap from "@/components/admin/BusinessAccountsMap";
 import { hasRole } from "@/lib/roles";
@@ -55,6 +65,8 @@ const AccountApprovals = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const { userProfile } = useAuth();
 
   useEffect(() => {
@@ -210,6 +222,23 @@ const AccountApprovals = () => {
     }
   };
 
+  const runBackfill = async () => {
+    setBackfillOpen(false);
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-quickbooks-customers', { body: {} });
+      if (error) throw error;
+      const { total = 0, linked = 0, created = 0, skipped = 0, errors = 0 } = data || {};
+      toast.success(`Backfill complete — ${linked} linked, ${created} created, ${skipped} skipped, ${errors} errors (of ${total})`);
+      await fetchBusinessAccounts();
+    } catch (err: any) {
+      console.error('Backfill failed:', err);
+      toast.error(`Backfill failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
@@ -262,7 +291,7 @@ const AccountApprovals = () => {
             </CardDescription>
           </CardHeader>
           
-          <div className="p-6 flex justify-between items-center">
+          <div className="p-6 flex justify-between items-center flex-wrap gap-4">
             <div className="flex items-center space-x-2">
               <p className="text-sm font-medium">Filter by status:</p>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -277,9 +306,23 @@ const AccountApprovals = () => {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredAccounts.length} of {businessAccounts.length} accounts
+
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBackfillOpen(true)}
+                disabled={backfilling}
+              >
+                {backfilling ? (
+                  <><span className="animate-spin mr-2">◌</span> Backfilling…</>
+                ) : (
+                  <>Backfill QuickBooks customers</>
+                )}
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredAccounts.length} of {businessAccounts.length} accounts
+              </div>
             </div>
           </div>
           
@@ -417,6 +460,21 @@ const AccountApprovals = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={backfillOpen} onOpenChange={setBackfillOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Backfill QuickBooks customers?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will run through every approved business account that isn't linked to QuickBooks yet. For each one it searches QuickBooks by email — if a customer exists it's linked, otherwise a new customer is created. Safe to re-run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={runBackfill}>Run backfill</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
