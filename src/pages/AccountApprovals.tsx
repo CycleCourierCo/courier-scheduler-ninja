@@ -55,6 +55,8 @@ const AccountApprovals = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [processingAccountIds, setProcessingAccountIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const { userProfile } = useAuth();
 
   useEffect(() => {
