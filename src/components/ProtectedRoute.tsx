@@ -69,6 +69,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
+  // User Management is limited to admin and sales users.
+  if (location.pathname === '/users' && !hasRole(userProfile, 'sales')) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // B2B-only users: block operational/admin pages even if reached via direct URL
   {
     const operationalRoles = ['admin','route_planner','sales','driver','loader','mechanic'] as const;
