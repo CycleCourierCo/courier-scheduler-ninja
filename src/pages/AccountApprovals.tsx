@@ -129,6 +129,23 @@ const AccountApprovals = () => {
         }
       }
 
+      // Auto-create a matching QuickBooks customer for approved business accounts
+      try {
+        const { data: qbData, error: qbError } = await supabase.functions.invoke(
+          'create-quickbooks-customer',
+          { body: { userId } }
+        );
+        if (qbError) {
+          console.error('QuickBooks customer sync failed:', qbError);
+          toast.error('Account approved — QuickBooks sync failed. Retry from User Management.');
+        } else {
+          console.log('QuickBooks customer synced:', qbData);
+        }
+      } catch (qbErr) {
+        console.error('QuickBooks customer sync exception:', qbErr);
+        toast.error('Account approved — QuickBooks sync failed. Retry from User Management.');
+      }
+
       toast.success("Account approved successfully");
       
       await fetchBusinessAccounts();
