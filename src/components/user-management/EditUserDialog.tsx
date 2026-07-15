@@ -205,8 +205,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     type="button"
                     size="sm"
                     onClick={handleCreateQuickBooksCustomer}
-                    disabled={creatingQbCustomer || !formData.email}
-                    title={!formData.email ? 'Email required' : undefined}
+                    disabled={creatingQbCustomer || !(formData.accounts_email?.trim() || formData.email?.trim())}
+                    title={!(formData.accounts_email?.trim() || formData.email?.trim()) ? 'Email or accounts email required' : undefined}
                   >
                     {creatingQbCustomer ? 'Creating...' : 'Create customer in QuickBooks'}
                   </Button>
