@@ -61,6 +61,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         shipday_driver_id: user.shipday_driver_id,
         shipday_driver_name: user.shipday_driver_name,
         default_vehicle_id: user.default_vehicle_id,
+        quickbooks_customer_id: user.quickbooks_customer_id,
       });
     }
   }, [user]);
