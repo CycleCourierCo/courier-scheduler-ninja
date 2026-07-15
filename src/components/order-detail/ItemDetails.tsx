@@ -11,6 +11,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BIKE_TYPE_BY_ID } from "@/constants/bikePricing";
+
+const BIKE_TYPE_OPTIONS = Object.values(BIKE_TYPE_BY_ID);
 import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
 import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
@@ -219,6 +223,28 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
                       }}
                     />
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`type-${idx}`}>Type</Label>
+                  <Select
+                    value={b.type || ""}
+                    onValueChange={(value) => {
+                      const next = [...editBikes];
+                      next[idx] = { ...next[idx], type: value };
+                      setEditBikes(next);
+                    }}
+                  >
+                    <SelectTrigger id={`type-${idx}`}>
+                      <SelectValue placeholder="Select bike type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BIKE_TYPE_OPTIONS.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             ))}

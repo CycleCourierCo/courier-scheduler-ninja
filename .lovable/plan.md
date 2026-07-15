@@ -1,21 +1,18 @@
-## Problem
+## Add bike type editing to Item Details
 
-The QuickBooks create-customer call failed with:
+In `src/components/order-detail/ItemDetails.tsx`, the admin "Edit Bikes" dialog currently only edits **Brand** and **Model**. Extend it so **Type** can also be changed.
 
-> Malformed Web Site Address format — Supplied value: www.marcusbikes.com
+### Changes
 
-QuickBooks' `WebAddr.URI` requires a fully-qualified URL (with `http://` or `https://`). The profile had `www.marcusbikes.com`, which QB rejects with a 400, causing the edge function to return non-2xx.
+1. **Edit Bikes dialog** (`ItemDetails.tsx`)
+   - Add a Type `Select` field next to Brand/Model for each bike, using the same `BIKE_TYPES` list used in `src/components/create-order/OrderDetails.tsx` (extract it into a shared constant or import from a shared location — reusing `BIKE_TYPE_BY_ID` from `src/constants/bikePricing.ts` is the cleanest fit since it already contains the canonical type names).
+   - Update the dialog layout to accommodate three fields per bike (e.g. stack Type below Brand/Model on narrow widths).
+   - Wire the new field into the existing `editBikes` state.
 
-## Fix
+2. **Save flow**
+   - `updateOrderBikes` in `src/services/orderService.ts` already accepts `{brand, model, type, value}` per bike, so no service change is needed — the `type` will now flow through when the admin edits it.
 
-Add a small `normalizeWebsite()` helper in both edge functions that:
-- Trims the value
-- Returns `undefined` if empty
-- Prepends `https://` if the value doesn't already start with `http://` or `https://`
-- Wraps in try/catch with `new URL(...)` — if it still doesn't parse as a valid URL, omit `WebAddr` from the payload rather than failing the whole customer create
+### Notes
 
-Apply in:
-- `supabase/functions/create-quickbooks-customer/index.ts` — where `WebAddr` is set from `profile.website`
-- `supabase/functions/backfill-quickbooks-customers/index.ts` — same spot in the backfill loop
-
-No frontend or schema changes. This unblocks Marcus Bikes and any other account whose stored website is missing a scheme.
+- Purely a UI enhancement to the existing admin edit dialog; no DB or backend changes.
+- Keeps parity with the type list used at order creation so downstream pricing/invoicing continues to match.
