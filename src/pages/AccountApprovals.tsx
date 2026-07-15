@@ -264,7 +264,7 @@ const AccountApprovals = () => {
             </CardDescription>
           </CardHeader>
           
-          <div className="p-6 flex justify-between items-center">
+          <div className="p-6 flex justify-between items-center flex-wrap gap-4">
             <div className="flex items-center space-x-2">
               <p className="text-sm font-medium">Filter by status:</p>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -279,9 +279,23 @@ const AccountApprovals = () => {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredAccounts.length} of {businessAccounts.length} accounts
+
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBackfillOpen(true)}
+                disabled={backfilling}
+              >
+                {backfilling ? (
+                  <><span className="animate-spin mr-2">◌</span> Backfilling…</>
+                ) : (
+                  <>Backfill QuickBooks customers</>
+                )}
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredAccounts.length} of {businessAccounts.length} accounts
+              </div>
             </div>
           </div>
           
