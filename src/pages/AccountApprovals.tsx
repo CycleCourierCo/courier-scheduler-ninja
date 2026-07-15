@@ -212,6 +212,23 @@ const AccountApprovals = () => {
     }
   };
 
+  const runBackfill = async () => {
+    setBackfillOpen(false);
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-quickbooks-customers', { body: {} });
+      if (error) throw error;
+      const { total = 0, linked = 0, created = 0, skipped = 0, errors = 0 } = data || {};
+      toast.success(`Backfill complete — ${linked} linked, ${created} created, ${skipped} skipped, ${errors} errors (of ${total})`);
+      await fetchBusinessAccounts();
+    } catch (err: any) {
+      console.error('Backfill failed:', err);
+      toast.error(`Backfill failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
