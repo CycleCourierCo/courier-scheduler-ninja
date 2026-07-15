@@ -151,9 +151,12 @@ const UserManagement: React.FC = () => {
 
   const handleEditUser = async (userId: string, updates: Partial<UserProfile>) => {
     try {
+      const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([, value]) => value !== undefined)
+      );
       const { error } = await supabase.rpc('update_user_profile_for_management', {
         p_user_id: userId,
-        p_updates: updates,
+        p_updates: safeUpdates,
       });
 
       if (error) throw error;
