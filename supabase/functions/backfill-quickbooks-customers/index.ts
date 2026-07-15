@@ -88,7 +88,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, phone, company_name, website, address_line_1, address_line_2, city, postal_code')
+      .select('id, name, email, accounts_email, phone, company_name, website, address_line_1, address_line_2, city, postal_code')
       .eq('is_business', true)
       .eq('account_status', 'approved')
       .is('quickbooks_customer_id', null);
@@ -98,9 +98,10 @@ serve(async (req: Request): Promise<Response> => {
     let linked = 0, created = 0, skipped = 0, errors = 0;
 
     for (const profile of profiles || []) {
-      if (!profile.email) {
+      const qbEmail = (profile.accounts_email?.trim() || profile.email?.trim()) || '';
+      if (!qbEmail) {
         skipped++;
-        details.push({ userId: profile.id, status: 'skipped', reason: 'no email' });
+        details.push({ userId: profile.id, status: 'skipped', reason: 'no email or accounts email' });
         continue;
       }
 
