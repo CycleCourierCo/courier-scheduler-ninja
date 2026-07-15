@@ -1864,6 +1864,7 @@ export type Database = {
           opening_hours: Json | null
           phone: string | null
           postal_code: string | null
+          quickbooks_customer_id: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
           shipday_driver_name: string | null
@@ -1901,6 +1902,7 @@ export type Database = {
           opening_hours?: Json | null
           phone?: string | null
           postal_code?: string | null
+          quickbooks_customer_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
@@ -1938,6 +1940,7 @@ export type Database = {
           opening_hours?: Json | null
           phone?: string | null
           postal_code?: string | null
+          quickbooks_customer_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
@@ -3291,6 +3294,7 @@ export type Database = {
           opening_hours: Json | null
           phone: string | null
           postal_code: string | null
+          quickbooks_customer_id: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
           shipday_driver_name: string | null
@@ -3405,6 +3409,7 @@ export type Database = {
           opening_hours: Json | null
           phone: string | null
           postal_code: string | null
+          quickbooks_customer_id: string | null
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
           shipday_driver_name: string | null
