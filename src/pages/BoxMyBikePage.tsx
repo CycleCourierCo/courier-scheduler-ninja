@@ -88,7 +88,7 @@ async function fireBoxWebhooks(orderId: string, specificEvent: string | null) {
 const BoxMyBikePage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
-  const isStaff = hasRole(userProfile, "admin") || hasRole(userProfile, "mechanic");
+  const isStaff = hasRole(userProfile, "admin") || hasRole(userProfile, "mechanic") || hasRole(userProfile, "loader");
   const [activeTab, setActiveTab] = React.useState<BoxMyBikeStatus>("awaiting_depot");
 
   const { data: orders = [], isLoading } = useQuery({

@@ -282,7 +282,15 @@ function App() {
               <Route path="/api-docs" element={<ApiDocumentationPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <Toaster position="top-right" closeButton richColors />
+            <Toaster
+              position="top-right"
+              closeButton
+              richColors
+              expand={false}
+              visibleToasts={5}
+              pauseWhenPageIsHidden
+              toastOptions={{ duration: 4000 }}
+            />
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>

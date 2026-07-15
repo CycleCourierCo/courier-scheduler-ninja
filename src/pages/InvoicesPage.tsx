@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, FileText, Send, ExternalLink, Eye, Filter, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
 import Layout from "@/components/Layout";
 
 type Customer = {
@@ -71,7 +71,6 @@ export default function InvoicesPage() {
   const [historyStartDate, setHistoryStartDate] = useState<Date>();
   const [historyEndDate, setHistoryEndDate] = useState<Date>();
   
-  const { toast } = useToast();
 
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ["customers"],
@@ -200,44 +199,33 @@ export default function InvoicesPage() {
       }
     } catch (error: any) {
       console.error('Error connecting to QuickBooks:', error);
-      toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect to QuickBooks",
-        variant: "destructive",
-      });
+      notify.error("Connection Failed", { description: error.message || "Failed to connect to QuickBooks" });
     } finally {
       setIsConnectingQuickBooks(false);
     }
   };
 
   const handleDeleteInvoice = async (invoiceId: string) => {
-    if (!confirm("Are you sure you want to delete this invoice? This action cannot be undone.")) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('invoice_history')
-        .delete()
-        .eq('id', invoiceId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Invoice Deleted",
-        description: "The invoice has been deleted successfully.",
-      });
-
-      // Refresh the invoice history
-      refetchHistory();
-    } catch (error: any) {
-      console.error('Error deleting invoice:', error);
-      toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete invoice",
-        variant: "destructive",
-      });
-    }
+    notify.confirm({
+      title: "Delete this invoice?",
+      description: "This action cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('invoice_history')
+            .delete()
+            .eq('id', invoiceId);
+          if (error) throw error;
+          notify.success("Invoice Deleted", { description: "The invoice has been deleted successfully." });
+          refetchHistory();
+        } catch (error: any) {
+          console.error('Error deleting invoice:', error);
+          notify.error("Delete Failed", { description: error.message || "Failed to delete invoice" });
+        }
+      },
+    });
   };
 
   console.log("Debug invoice button state:", {
@@ -253,29 +241,17 @@ export default function InvoicesPage() {
 
   const handleCreateInvoice = async () => {
     if (!selectedCustomerData || !orders || orders.length === 0 || !startDate || !endDate) {
-      toast({
-        title: "Missing Information",
-        description: "Please select a customer, date range, and ensure there are orders to invoice.",
-        variant: "destructive",
-      });
+      notify.error("Missing Information", { description: "Please select a customer, date range, and ensure there are orders to invoice." });
       return;
     }
 
     if (!selectedCustomerData.accounts_email) {
-      toast({
-        title: "Missing Accounts Email",
-        description: "Customer must have an accounts email address set up for invoicing.",
-        variant: "destructive",
-      });
+      notify.error("Missing Accounts Email", { description: "Customer must have an accounts email address set up for invoicing." });
       return;
     }
 
     if (!quickBooksConnected) {
-      toast({
-        title: "QuickBooks Not Connected",
-        description: "Please connect to QuickBooks before creating invoices.",
-        variant: "destructive",
-      });
+      notify.error("QuickBooks Not Connected", { description: "Please connect to QuickBooks before creating invoices." });
       return;
     }
 
@@ -295,21 +271,14 @@ export default function InvoicesPage() {
 
       if (error) throw error;
 
-      toast({
-        title: "Invoice Created",
-        description: `QuickBooks invoice has been sent to ${selectedCustomerData.accounts_email}`,
-      });
+      notify.success("Invoice Created", { description: `QuickBooks invoice has been sent to ${selectedCustomerData.accounts_email}` });
 
       // Refetch invoice history to show the new invoice
       refetchHistory();
 
     } catch (error: any) {
       console.error("Error creating invoice:", error);
-      toast({
-        title: "Error Creating Invoice",
-        description: error.message || "Failed to create QuickBooks invoice",
-        variant: "destructive",
-      });
+      notify.error("Error Creating Invoice", { description: error.message || "Failed to create QuickBooks invoice" });
     } finally {
       setIsCreatingInvoice(false);
     }
@@ -317,20 +286,12 @@ export default function InvoicesPage() {
 
   const handleCreateAllInvoices = async () => {
     if (!startDate || !endDate) {
-      toast({
-        title: "Missing Date Range",
-        description: "Please select start and end dates.",
-        variant: "destructive",
-      });
+      notify.error("Missing Date Range", { description: "Please select start and end dates." });
       return;
     }
 
     if (!quickBooksConnected) {
-      toast({
-        title: "QuickBooks Not Connected",
-        description: "Please connect to QuickBooks before creating invoices.",
-        variant: "destructive",
-      });
+      notify.error("QuickBooks Not Connected", { description: "Please connect to QuickBooks before creating invoices." });
       return;
     }
 
@@ -338,11 +299,7 @@ export default function InvoicesPage() {
     const customersWithoutEmail = customers?.filter(c => !c.accounts_email) || [];
     
     if (eligibleCustomers.length === 0) {
-      toast({
-        title: "No Eligible Customers",
-        description: "No customers with accounts email found.",
-        variant: "destructive",
-      });
+      notify.error("No Eligible Customers", { description: "No customers with accounts email found." });
       return;
     }
 
@@ -417,10 +374,7 @@ export default function InvoicesPage() {
           missingProducts: data?.missingProducts || [],
         });
 
-        toast({
-          title: "Invoice Created",
-          description: `Invoice for ${customer.name} created successfully`,
-        });
+        notify.success("Invoice Created", { description: `Invoice for ${customer.name} created successfully` });
 
       } catch (error: any) {
         console.error(`Error creating invoice for ${customer.name}:`, error);
@@ -430,11 +384,7 @@ export default function InvoicesPage() {
           error: error.message,
         });
 
-        toast({
-          title: "Invoice Failed",
-          description: `Failed to create invoice for ${customer.name}`,
-          variant: "destructive",
-        });
+        notify.error("Invoice Failed", { description: `Failed to create invoice for ${customer.name}` });
       }
     }
 
@@ -635,10 +585,7 @@ export default function InvoicesPage() {
     setBatchProgress({ current: 0, total: 0 });
     refetchHistory();
 
-    toast({
-      title: "Batch Complete",
-      description: `Created ${successfulInvoices.length} invoices. ${failedInvoices.length} failed. Report sent to info@cyclecourierco.com`,
-    });
+    notify.success("Batch Complete", { description: `Created ${successfulInvoices.length} invoices. ${failedInvoices.length} failed. Report sent to info@cyclecourierco.com` });
   };
 
   return (

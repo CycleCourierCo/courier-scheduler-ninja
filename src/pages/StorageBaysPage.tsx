@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Plus, Trash2, Edit, Warehouse, ArrowUp, ArrowDown } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -46,9 +47,9 @@ const StorageBaysPage: React.FC = () => {
   const handleSave = async () => {
     const cleanLabel = label.trim().toUpperCase();
     const count = parseInt(positionCount, 10);
-    if (!cleanLabel) return toast.error("Label is required");
+    if (!cleanLabel) return toast.error("Give this bay a short label so staff can find it (e.g. A1 or Rack-3).");
     if (!Number.isFinite(count) || count < 1 || count > 100)
-      return toast.error("Positions must be 1–100");
+      return toast.error("Enter a bay size between 1 and 100 positions.");
 
     setSaving(true);
     try {
@@ -73,25 +74,32 @@ const StorageBaysPage: React.FC = () => {
       refresh();
     } catch (err: any) {
       Sentry.captureException(err);
-      toast.error(err?.message || "Failed to save bay");
+      toast.error(err?.message || "Couldn't save this bay. Try again in a moment.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (bay: StorageBay) => {
-    if (!confirm(`Delete bay ${bay.label}? This cannot be undone.`)) return;
-    try {
-      const { error } = await (supabase.from("storage_bays" as any) as any)
-        .delete()
-        .eq("id", bay.id);
-      if (error) throw error;
-      toast.success("Bay deleted");
-      refresh();
-    } catch (err: any) {
-      Sentry.captureException(err);
-      toast.error(err?.message || "Failed to delete bay (it may still be in use)");
-    }
+  const handleDelete = (bay: StorageBay) => {
+    notify.confirm({
+      title: `Delete bay ${bay.label}?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const { error } = await (supabase.from("storage_bays" as any) as any)
+            .delete()
+            .eq("id", bay.id);
+          if (error) throw error;
+          toast.success("Bay deleted");
+          refresh();
+        } catch (err: any) {
+          Sentry.captureException(err);
+          toast.error(err?.message || "Couldn't delete this bay — it may still have bikes stored in it.");
+        }
+      },
+    });
   };
 
   const move = async (bay: StorageBay, direction: -1 | 1) => {
@@ -112,7 +120,7 @@ const StorageBaysPage: React.FC = () => {
       refresh();
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Failed to reorder");
+      toast.error("Couldn't reorder the bays. Refresh and try again.");
     }
   };
 

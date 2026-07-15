@@ -69,6 +69,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
+  // User Management is limited to admin and sales users.
+  if (location.pathname === '/users' && !hasRole(userProfile, 'sales')) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // B2B-only users: block operational/admin pages even if reached via direct URL
   {
     const operationalRoles = ['admin','route_planner','sales','driver','loader','mechanic'] as const;
@@ -96,6 +101,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
   const isSchedulingPage = location.pathname === '/scheduling';
   const isDashboardPage = location.pathname === '/dashboard';
+  const isCreateOrderPage = location.pathname === '/create-order';
   const isOrderDetailPage = location.pathname.startsWith('/orders/');
   const isCustomerOrderDetailPage = location.pathname.startsWith('/customer-orders/');
   const isAIRoutingPage = location.pathname === '/ai-routing';
@@ -107,19 +113,33 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isUsersPage = location.pathname === '/users';
   const isEmailsPage = location.pathname === '/emails';
   const isBoxMyBikePage = location.pathname === '/box-my-bike';
+  const isMyStockPage = location.pathname === '/my-stock';
+  const isPricingPage = location.pathname === '/pricing';
+  const isBulkAvailabilityPage = location.pathname === '/bulk-availability';
+  const isBulkUploadPage = location.pathname === '/bulk-upload';
   const isMechanicClockPage = location.pathname === '/mechanic-clock';
   const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
   const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
+  const hasCustomerRole = hasRole(userProfile, 'b2b_customer') || hasRole(userProfile, 'b2c_customer');
+  const isCustomerPage =
+    isDashboardPage ||
+    isCreateOrderPage ||
+    isCustomerOrderDetailPage ||
+    isProfilePage ||
+    isBoxMyBikePage ||
+    isBulkUploadPage ||
+    (hasRole(userProfile, 'b2b_customer') && (isMyStockPage || isPricingPage || isBulkAvailabilityPage));
 
   const restrictedRoles = ['loader','mechanic','route_planner','sales','driver','timeslip_admin','cs_agent'] as const;
   const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
 
   if (userRestricted.length > 0) {
-    const allowed = new Set<boolean>();
     let anyAllowed = false;
 
+    if (hasCustomerRole && isCustomerPage) anyAllowed = true;
+
     for (const r of userRestricted) {
-      if (r === 'loader' && (isLoadingPg || isTasksPage)) anyAllowed = true;
+      if (r === 'loader' && (isLoadingPg || isTasksPage || isBoxMyBikePage)) anyAllowed = true;
       if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage || isMechanicClockPage || isProfilePage)) anyAllowed = true;
       if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage || isTasksPage)) anyAllowed = true;
       if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage || isTasksPage)) anyAllowed = true;

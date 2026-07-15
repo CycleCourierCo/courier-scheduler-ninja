@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -700,6 +701,8 @@ const BicycleInspections = () => {
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
+    const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
+    const totalRepairCost = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
@@ -756,9 +759,12 @@ const BicycleInspections = () => {
                   value={inspection.status}
                   onValueChange={(value) => {
                     if (value === inspection.status) return;
-                    if (window.confirm(`Change inspection status to "${value}"? This is a manual override and will not send emails or update related flags.`)) {
-                      adminSetStatusMutation.mutate({ inspectionId: inspection.id, status: value as InspectionStatus });
-                    }
+                    notify.confirm({
+                      title: `Change inspection status to "${value}"?`,
+                      description: "Manual override — will not send emails or update related flags.",
+                      confirmLabel: "Change status",
+                      onConfirm: () => adminSetStatusMutation.mutate({ inspectionId: inspection.id, status: value as InspectionStatus }),
+                    });
                   }}
                 >
                   <SelectTrigger className="h-8 w-[180px] text-xs">
@@ -779,6 +785,22 @@ const BicycleInspections = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Issues Section */}
+          {orderIssues.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                Approved: {approvedCount}
+              </Badge>
+              <Badge variant="destructive">
+                Declined: {declinedCount}
+              </Badge>
+              {isAdmin && (
+                <Badge variant="outline">
+                  Total repairs: £{totalRepairCost.toFixed(2)}
+                </Badge>
+              )}
+            </div>
+          )}
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="space-y-3">

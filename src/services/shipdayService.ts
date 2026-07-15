@@ -61,7 +61,7 @@ export const syncOrdersToShipday = async (orders: any[]) => {
     return { successCount, errorCount, skippedCount };
   } catch (error) {
     console.error("Error during Shipday bulk sync:", error);
-    toast.error("Failed to sync orders to Shipday");
+    toast.error("Couldn't sync orders to Shipday. Check the Shipday connection and retry.");
     throw error;
   }
 };
@@ -80,7 +80,7 @@ export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | '
 
     if (!data || !data.success) {
       console.error("Failed to create Shipday orders:", data);
-      throw new Error(data?.error || "Unknown error creating Shipday orders");
+      throw new Error(data?.error || "Shipday didn't accept these orders — please retry from the Dispatch page.");
     }
     
     // Display helpful information about webhook setup

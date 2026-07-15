@@ -1,49 +1,40 @@
-## Root cause
+## 1. Loader access to Box My Bike
 
-`#1137` has **13 bikes** in the CSV. The `orders` table has a CHECK constraint:
-
-```
-orders_bike_quantity_check: CHECK ((bike_quantity >= 1) AND (bike_quantity <= 8))
-```
-
-`createOrder()` inserts `bike_quantity: 13`, Postgres rejects the row, and the error bubbles up as a per-order failure inside `createBulkOrders`. It's captured in `results[]` and shown in a tooltip on the row's status icon — but only if the user is still on the Bulk Upload page after submit. Once they navigate away there's no persistent record, which is why the customer thought the upload silently dropped the order.
-
-All other 21 orders in both uploads went through fine (verified in DB — each appears twice, matching bike counts).
-
-## Changes
-
-### 1. Raise the DB limit
-The customer legitimately has 13-bike orders. Change the constraint to allow up to **20 bikes**:
-
-```sql
-ALTER TABLE public.orders DROP CONSTRAINT orders_bike_quantity_check;
-ALTER TABLE public.orders ADD CONSTRAINT orders_bike_quantity_check
-  CHECK (bike_quantity >= 1 AND bike_quantity <= 20);
+**`src/components/ProtectedRoute.tsx`** — extend the `loader` allow-list on line 142 to include `isBoxMyBikePage`:
+```ts
+if (r === 'loader' && (isLoadingPg || isTasksPage || isBoxMyBikePage)) anyAllowed = true;
 ```
 
-### 2. Pre-flight validation in `bulkOrderService.ts`
-In `validateGroupedOrder`, push a clear error when `bikes.length > 20`:
-
-```
-"Order has X bikes; max 20 per order. Split into multiple orders."
+**`src/pages/BoxMyBikePage.tsx`** — include loader in the staff check so loaders see the staged tabs and controls, not the customer view:
+```ts
+const isStaff = hasRole(userProfile, "admin") || hasRole(userProfile, "mechanic") || hasRole(userProfile, "loader");
 ```
 
-This flags the row red in the preview table before submit, matching how missing-field errors already work.
+## 2. Hide bike prices on Loading & Storage from non-admins
 
-### 3. Better error surfacing after submit
-In `src/pages/BulkOrderUpload.tsx`:
-- After `createBulkOrders` completes, when `failCount > 0` render a **persistent failed-orders panel** above the table listing each failed `orderNumber` with its error message (not just the tooltip on the icon).
-- Change the completion toast from `toast.warning` to a `toast.error` that names the failed order numbers, e.g. `"Failed: #1137 — bike_quantity exceeds limit"`.
-- Log each failure to Sentry with the order number and bike count as attributes (currently only the exception object is captured, not the context).
+Only admins should see `£value` on bikes. Gate every price render with `hasRole(userProfile, 'admin')`:
 
-### 4. Backfill the missing order
-`#1137` for MTB Monster is not in the DB. After the constraint is raised, the customer can re-run just that order via the normal Create Order flow or a fresh bulk upload containing only `#1137`. No migration backfill — we don't have the original submitter's `user_id` context to attribute it safely.
+- **`src/components/loading/PendingStorageAllocation.tsx`** — lines 203, 218, 308 (driver total value pill + per-bike `• £value`).
+- **`src/components/loading/BikesInStorage.tsx`** — line 286 (`order.bikeValue` per-bike suffix).
+- **`src/pages/LoadingUnloadingPage.tsx`** — lines 1406 and 1430 (`Total value: £…` strings on the driver messaging summaries).
+- **`src/pages/WarehouseStockPage.tsx`** — hide any rendered `bike_value` columns/cells and the "Value (£)" form field for non-admins (create form stays admin-only anyway; verify list rendering hides value column for non-admins).
 
-## Files touched
-- `supabase/migrations/<new>.sql` — raise constraint to 20
-- `src/services/bulkOrderService.ts` — add >20 validation in `validateGroupedOrder`
-- `src/pages/BulkOrderUpload.tsx` — persistent failed-order panel + richer toast + Sentry context
+Each component already receives `userProfile` via `useAuth()` where used, or needs a small `useAuth()` import. No changes to services, queries, or DB.
 
-## Out of scope
-- Splitting oversized orders automatically (would change customer intent)
-- Any change to Shipday / invoicing flow for orders with >8 bikes (assumed already handled since existing 5-bike orders work)
+## 3. Bicycle Inspections — admin repair totals + approved/declined counts
+
+**`src/pages/BicycleInspections.tsx`** — inside `renderOrderCard` (around line 703), compute per-order:
+```ts
+const declinedCount = orderIssues.filter(i => i.status === 'declined').length;
+const totalRepairCost = approvedIssues.reduce((s, i) => s + (Number(i.estimated_cost) || 0), 0);
+```
+
+Render a small summary row at the top of `CardContent` (before the Issues list, ~line 786):
+- Always visible (all roles that already see this card): `Approved: {approvedCount}` and `Declined: {declinedCount}` badges.
+- Admin-only (`isAdmin`): `Total repairs: £{totalRepairCost.toFixed(2)}` badge.
+
+Use existing `Badge` component with variants matching the current approved (green) / declined (destructive) styling so it's consistent with the per-issue chips. No backend/RPC changes required — data is already in `orderIssues`.
+
+## Notes
+- No migrations, no edge function changes.
+- Verification: log in as loader → `/box-my-bike` should load with staged tabs; log in as loader/mechanic on `/loading` → no £ values shown; log in as admin on `/bicycle-inspections` → per-order shows approved/declined counts and total repair £; non-admin roles that view inspections (mechanic) see only approved/declined counts, no £ total.

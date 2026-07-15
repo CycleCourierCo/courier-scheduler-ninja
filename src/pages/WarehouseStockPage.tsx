@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Plus, Trash2, Edit, Warehouse, Package } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ const WarehouseStockPage: React.FC = () => {
       setCustomers(customerData);
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Failed to load warehouse stock");
+      toast.error("Couldn't load warehouse stock right now. Refresh the page to try again.");
     } finally {
       setLoading(false);
     }
@@ -78,11 +79,11 @@ const WarehouseStockPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.user_id) {
-      toast.error("Please select a customer");
+      toast.error("Pick which customer this bike belongs to before saving.");
       return;
     }
     if (!formData.bay || !formData.position) {
-      toast.error("Please select a storage location");
+      toast.error("Choose a bay and position so warehouse staff can find it.");
       return;
     }
 
@@ -102,22 +103,28 @@ const WarehouseStockPage: React.FC = () => {
       fetchData();
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Failed to add stock");
+      toast.error("Couldn't add the bike to stock. Check the details and try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remove this stock item?")) return;
-    try {
-      await removeWarehouseStock(id);
-      toast.success("Stock removed");
-      fetchData();
-    } catch (err) {
-      Sentry.captureException(err);
-      toast.error("Failed to remove stock");
-    }
+  const handleDelete = (id: string) => {
+    notify.confirm({
+      title: "Remove this stock item?",
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removeWarehouseStock(id);
+          toast.success("Stock removed");
+          fetchData();
+        } catch (err) {
+          Sentry.captureException(err);
+          toast.error("Couldn't remove this bike. Refresh and try again.");
+        }
+      },
+    });
   };
 
   const filtered = stock.filter((item) => {

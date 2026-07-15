@@ -38,6 +38,7 @@ interface PendingStorageAllocationProps {
   onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
   onUnloadFromVan: (orderId: string) => void;
   onLoadOntoVan: (orderId: string) => void;
+  isAdmin?: boolean;
 }
 
 export const PendingStorageAllocation = ({ 
@@ -46,7 +47,8 @@ export const PendingStorageAllocation = ({
   storageAllocations, 
   onAllocateStorage,
   onUnloadFromVan,
-  onLoadOntoVan
+  onLoadOntoVan,
+  isAdmin = false,
 }: PendingStorageAllocationProps) => {
   const { bays } = useStorageBays();
   const validBayLabels = bays.map((b) => b.label.toUpperCase());
@@ -198,7 +200,7 @@ export const PendingStorageAllocation = ({
                   {loadedForDriver.length} on van
                 </Badge>
               )}
-              {driverValue > 0 && (
+              {isAdmin && driverValue > 0 && (
                 <Badge variant="outline" className="text-xs">
                   £{driverValue.toLocaleString()}
                 </Badge>
@@ -215,7 +217,7 @@ export const PendingStorageAllocation = ({
                       <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
                         {bike.bikeBrand} {bike.bikeModel}
-                        {bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
+                        {isAdmin && bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
                       </p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
@@ -305,7 +307,7 @@ export const PendingStorageAllocation = ({
                         <h4 className="font-semibold text-sm sm:text-base truncate">{bike.sender.name}</h4>
                         <p className="text-xs sm:text-sm text-muted-foreground truncate">
                           {bike.bikeBrand} {bike.bikeModel}
-                          {bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
+                          {isAdmin && bike.bikeValue ? ` • £${bike.bikeValue.toLocaleString()}` : ''}
                         </p>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <MapPin className="h-3 w-3 flex-shrink-0" />

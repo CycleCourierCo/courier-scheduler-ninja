@@ -63,7 +63,7 @@ const UserManagement: React.FC = () => {
       setUsers((data || []) as UserProfile[]);
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error("Failed to fetch users");
+      toast.error("Couldn't load users. Refresh the page to try again.");
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ const UserManagement: React.FC = () => {
 
   const handleRolesChange = async (userId: string, nextRoles: UserRole[]) => {
     if (nextRoles.length === 0) {
-      toast.error("User must have at least one role");
+      toast.error("Every user needs at least one role — pick one before saving.");
       return;
     }
     try {
@@ -90,7 +90,7 @@ const UserManagement: React.FC = () => {
       fetchUsers();
     } catch (error) {
       console.error("Error updating roles:", error);
-      toast.error("Failed to update roles");
+      toast.error("Couldn't update this user's roles. Try again in a moment.");
     }
   };
 
@@ -98,7 +98,7 @@ const UserManagement: React.FC = () => {
     e.preventDefault();
     
     if (!newUser.email || !newUser.password || !newUser.name) {
-      toast.error("Please fill in all fields");
+      toast.error("Fill in the name, email and role before creating this user.");
       return;
     }
 
@@ -129,7 +129,7 @@ const UserManagement: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error creating user:", error);
-      toast.error(error.message || "Failed to create user");
+      toast.error(error.message || "Couldn't create this user. Check the details and try again.");
     }
   };
 
@@ -145,16 +145,19 @@ const UserManagement: React.FC = () => {
       fetchUsers();
     } catch (error) {
       console.error("Error updating role:", error);
-      toast.error("Failed to update role");
+      toast.error("Couldn't update this user's role. Try again in a moment.");
     }
   };
 
   const handleEditUser = async (userId: string, updates: Partial<UserProfile>) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId);
+      const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([, value]) => value !== undefined)
+      );
+      const { error } = await supabase.rpc('update_user_profile_for_management', {
+        p_user_id: userId,
+        p_updates: safeUpdates,
+      });
 
       if (error) throw error;
 
@@ -162,7 +165,7 @@ const UserManagement: React.FC = () => {
       fetchUsers();
     } catch (error) {
       console.error("Error updating user:", error);
-      toast.error("Failed to update user");
+      toast.error("Couldn't save changes to this user. Try again in a moment.");
     }
   };
 
@@ -178,7 +181,7 @@ const UserManagement: React.FC = () => {
       fetchUsers();
     } catch (error) {
       console.error("Error deleting user:", error);
-      toast.error("Failed to delete user");
+      toast.error("Couldn't delete this user — they may still have orders or timeslips linked.");
     }
   };
 
@@ -469,7 +472,7 @@ const UserManagement: React.FC = () => {
             if (!driverName) return;
             const driver = users.find(u => u.name?.toLowerCase().includes(driverName.toLowerCase()) && u.role === 'driver');
             if (!driver) {
-              toast.error(`No driver found matching "${driverName}"`);
+              toast.error(`No driver found matching "${driverName}". Check the spelling and try again.`);
               return;
             }
             try {
@@ -482,7 +485,7 @@ const UserManagement: React.FC = () => {
               fetchUsers();
             } catch (error) {
               console.error("Error linking carrier:", error);
-              toast.error("Failed to link carrier to driver");
+              toast.error("Couldn't link this Shipday carrier to the driver. Check the name matches and try again.");
             }
           }}
         />
