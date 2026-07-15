@@ -460,6 +460,21 @@ const AccountApprovals = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={backfillOpen} onOpenChange={setBackfillOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Backfill QuickBooks customers?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will run through every approved business account that isn't linked to QuickBooks yet. For each one it searches QuickBooks by email — if a customer exists it's linked, otherwise a new customer is created. Safe to re-run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={runBackfill}>Run backfill</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
