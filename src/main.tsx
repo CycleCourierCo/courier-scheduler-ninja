@@ -28,6 +28,7 @@ Sentry.init({
   // Note: Geoapify excluded because their CORS policy doesn't allow sentry-trace header
   tracePropagationTargets: [
     "localhost",
+    /^https:\/\/api\.cyclecourierco\.com/,
     /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/,
   ],
 });
