@@ -85,6 +85,18 @@ async function getValidQuickBooksToken(supabase: any, userId: string) {
   return { access_token: tokenData.access_token, company_id: tokenData.company_id };
 }
 
+function normalizeWebsite(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withScheme).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function splitName(fullName: string | null): { given: string; family: string } {
   if (!fullName) return { given: '', family: '' };
   const parts = fullName.trim().split(/\s+/);
@@ -173,8 +185,9 @@ serve(async (req: Request): Promise<Response> => {
     if (profile.phone) {
       customerPayload.PrimaryPhone = { FreeFormNumber: profile.phone };
     }
-    if (profile.website) {
-      customerPayload.WebAddr = { URI: profile.website };
+    const normalizedWebsite = normalizeWebsite(profile.website);
+    if (normalizedWebsite) {
+      customerPayload.WebAddr = { URI: normalizedWebsite };
     }
     if (profile.address_line_1 || profile.city || profile.postal_code) {
       customerPayload.BillAddr = {
