@@ -129,7 +129,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
 
   if (userRestricted.length > 0) {
-    const allowed = new Set<boolean>();
     let anyAllowed = false;
 
     if (hasCustomerRole && isCustomerPage) anyAllowed = true;
