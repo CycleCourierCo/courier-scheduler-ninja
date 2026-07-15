@@ -80,6 +80,35 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   if (!user) return null;
 
+  const handleCreateQuickBooksCustomer = async () => {
+    if (!user) return;
+    if (!formData.email) {
+      toast.error('Profile must have an email before syncing to QuickBooks');
+      return;
+    }
+    setCreatingQbCustomer(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-quickbooks-customer', {
+        body: { userId: user.id },
+      });
+      if (error) throw error;
+      const customerId = (data as any)?.customerId;
+      if (!customerId) throw new Error('No customer ID returned');
+      setFormData(prev => ({ ...prev, quickbooks_customer_id: customerId }));
+      toast.success(
+        (data as any)?.alreadyExisted
+          ? 'Linked existing QuickBooks customer'
+          : 'Created customer in QuickBooks'
+      );
+    } catch (err: any) {
+      console.error('Failed to create QB customer:', err);
+      toast.error(err?.message || 'Failed to create QuickBooks customer');
+    } finally {
+      setCreatingQbCustomer(false);
+    }
+  };
+
+
   const isDriver = user.role === 'driver';
   const isBusiness = user.is_business;
 
