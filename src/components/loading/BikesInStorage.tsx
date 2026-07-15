@@ -37,9 +37,10 @@ interface BikesInStorageProps {
   onRemoveFromStorage: (allocationId: string) => void;
   onRemoveAllBikesFromOrder: (orderId: string) => void;
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
+  isAdmin?: boolean;
 }
 
-export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation }: BikesInStorageProps) => {
+export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, isAdmin = false }: BikesInStorageProps) => {
   const { bays } = useStorageBays();
   const validBayLabels = bays.map((b) => b.label.toUpperCase());
   const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "—";
