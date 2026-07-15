@@ -3357,6 +3357,7 @@ export type Database = {
         Returns: undefined
       }
       invoke_refresh_vehicles: { Args: never; Returns: undefined }
+      invoke_weekly_invoice_batch: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_sales: { Args: never; Returns: boolean }
