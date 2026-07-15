@@ -38,6 +38,7 @@ interface PendingStorageAllocationProps {
   onAllocateStorage: (orderId: string, allocations: { bay: string; position: number; bikeIndex: number }[]) => void;
   onUnloadFromVan: (orderId: string) => void;
   onLoadOntoVan: (orderId: string) => void;
+  isAdmin?: boolean;
 }
 
 export const PendingStorageAllocation = ({ 
@@ -46,7 +47,8 @@ export const PendingStorageAllocation = ({
   storageAllocations, 
   onAllocateStorage,
   onUnloadFromVan,
-  onLoadOntoVan
+  onLoadOntoVan,
+  isAdmin = false,
 }: PendingStorageAllocationProps) => {
   const { bays } = useStorageBays();
   const validBayLabels = bays.map((b) => b.label.toUpperCase());
