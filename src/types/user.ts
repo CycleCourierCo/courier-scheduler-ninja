@@ -65,4 +65,5 @@ export interface UserProfile {
   opening_hours: any | null;
   is_test_account: boolean | null;
   default_vehicle_id: string | null;
+  quickbooks_customer_id: string | null;
 }
