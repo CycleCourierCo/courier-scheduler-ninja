@@ -179,7 +179,40 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
           {isBusiness && (
             <TabsContent value="business" className="space-y-4 mt-4">
+              <div className="flex items-center justify-between rounded-md border p-3 bg-muted/30">
+                <div className="space-y-0.5">
+                  <div className="text-sm font-medium">QuickBooks Customer</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formData.quickbooks_customer_id
+                      ? `Linked (ID: ${formData.quickbooks_customer_id})`
+                      : 'Not linked to QuickBooks yet.'}
+                  </div>
+                </div>
+                {formData.quickbooks_customer_id ? (
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={`https://app.qbo.intuit.com/app/customerdetail?nameId=${formData.quickbooks_customer_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View in QuickBooks
+                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateQuickBooksCustomer}
+                    disabled={creatingQbCustomer || !formData.email}
+                    title={!formData.email ? 'Email required' : undefined}
+                  >
+                    {creatingQbCustomer ? 'Creating...' : 'Create customer in QuickBooks'}
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-company">Company Name</Label>
                   <Input
