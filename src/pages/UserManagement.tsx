@@ -151,7 +151,7 @@ const UserManagement: React.FC = () => {
 
   const handleEditUser = async (userId: string, updates: Partial<UserProfile>) => {
     try {
-      const { error } = await (supabase.rpc as any)('update_user_profile_for_management', {
+      const { error } = await supabase.rpc('update_user_profile_for_management', {
         p_user_id: userId,
         p_updates: updates,
       });
