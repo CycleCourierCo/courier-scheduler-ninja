@@ -304,26 +304,42 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
+    // Auth: either a valid admin JWT, or an internal cron call with X-Cron-Secret.
+    const cronSecretHeader = req.headers.get('X-Cron-Secret');
+    const cronSecretEnv = Deno.env.get('CRON_SECRET');
+    let user: { id: string } | null = null;
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || profile?.role !== 'admin') {
-      throw new Error('Admin access required');
+    if (cronSecretHeader && cronSecretEnv && cronSecretHeader === cronSecretEnv) {
+      // Cron path: pick the most recently updated QuickBooks-connected admin.
+      const { data: qbRow, error: qbErr } = await supabase
+        .from('quickbooks_tokens')
+        .select('user_id, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (qbErr || !qbRow) {
+        throw new Error('No QuickBooks-connected user found for cron invocation');
+      }
+      user = { id: qbRow.user_id };
+    } else {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        throw new Error('No authorization header');
+      }
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !authUser) {
+        throw new Error('Unauthorized');
+      }
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authUser.id)
+        .single();
+      if (profileError || profile?.role !== 'admin') {
+        throw new Error('Admin access required');
+      }
+      user = { id: authUser.id };
     }
 
     const invoiceData: InvoiceRequest = await req.json();
