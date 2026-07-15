@@ -787,6 +787,22 @@ const BicycleInspections = () => {
         <CardContent className="space-y-4">
           {/* Issues Section */}
           {orderIssues.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                Approved: {approvedCount}
+              </Badge>
+              <Badge variant="destructive">
+                Declined: {declinedCount}
+              </Badge>
+              {isAdmin && (
+                <Badge variant="outline">
+                  Total repairs: £{totalRepairCost.toFixed(2)}
+                </Badge>
+              )}
+            </div>
+          )}
+          {/* Issues Section */}
+          {orderIssues.length > 0 && (
             <div className="space-y-3">
               {orderIssues.map((issue: InspectionIssue) => (
                 <div
