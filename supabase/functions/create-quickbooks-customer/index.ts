@@ -85,6 +85,18 @@ async function getValidQuickBooksToken(supabase: any, userId: string) {
   return { access_token: tokenData.access_token, company_id: tokenData.company_id };
 }
 
+function normalizeWebsite(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withScheme).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function splitName(fullName: string | null): { given: string; family: string } {
   if (!fullName) return { given: '', family: '' };
   const parts = fullName.trim().split(/\s+/);
