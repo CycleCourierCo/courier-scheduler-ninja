@@ -17,6 +17,18 @@ function splitName(fullName: string | null): { given: string; family: string } {
   return { given: parts[0], family: parts.slice(1).join(' ') };
 }
 
+function normalizeWebsite(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withScheme).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 async function refreshQuickBooksToken(supabase: any, userId: string, refreshToken: string) {
   const clientId = Deno.env.get('QUICKBOOKS_CLIENT_ID');
   const clientSecret = Deno.env.get('QUICKBOOKS_CLIENT_SECRET');
