@@ -824,6 +824,11 @@ const BicycleInspections = () => {
                       {issue.estimated_cost != null && (
                         <p className="text-sm text-muted-foreground mt-1">
                           {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
+                          {(issue.parts_cost != null || issue.labour_cost != null) && (
+                            <span className="ml-1 text-xs">
+                              (Parts £{Number(issue.parts_cost || 0).toFixed(2)} + Labour £{Number(issue.labour_cost || 0).toFixed(2)})
+                            </span>
+                          )}
                         </p>
                       )}
                       {/* Part info — mechanic/admin only */}
