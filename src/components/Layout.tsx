@@ -204,6 +204,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Wrench className="mr-2 h-4 w-4" />
                             Bicycle Inspections
                           </Link>
+                          <Link to="/admin/labour-times" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Wrench className="mr-2 h-4 w-4" />
+                            Labour Times
+                          </Link>
                           <Link to="/holidays" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <CalendarOff className="mr-2 h-4 w-4" />
                             Holidays
@@ -474,6 +478,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
                           <Wrench className="mr-2 h-4 w-4" />
                           <span>Bicycle Inspections</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/labour-times" className="cursor-pointer flex w-full items-center">
+                          <Wrench className="mr-2 h-4 w-4" />
+                          <span>Labour Times</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
