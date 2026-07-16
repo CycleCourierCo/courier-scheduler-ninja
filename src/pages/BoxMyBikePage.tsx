@@ -207,7 +207,7 @@ const BoxMyBikePage: React.FC = () => {
     const next = nextStage(stage);
     const isOwner = !isStaff && o.user_id === user?.id;
     const blockedAdvance =
-      stage === "boxed_awaiting_label" && !o.box_label_url; // can't move to awaiting 3p collection without label
+      stage === "boxed_awaiting_label" && (!o.box_label_url || !o.box_tracking_url); // need both label and tracking link
     return (
       <Card key={o.id} className="mb-3">
         <CardContent className="p-4 space-y-3">
