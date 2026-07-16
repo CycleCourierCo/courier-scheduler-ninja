@@ -41,6 +41,7 @@ export interface OrderData {
   delivery_instructions: string | null;
   sender_notes: string | null;
   receiver_notes: string | null;
+  is_box_my_bike: boolean | null;
 }
 
 export type ShipdayVerificationResults = Record<string, boolean>;
@@ -180,7 +181,8 @@ const JobScheduling = () => {
       const deliveryVisibleByDate = deliveryBaseVisible || deliveryExpiredVisible;
 
       const hasUnscheduledPickup = !order.scheduled_pickup_date;
-      const hasUnscheduledDelivery = !order.scheduled_delivery_date;
+      // Box My Bike orders never have a delivery leg — 3rd party collects from depot
+      const hasUnscheduledDelivery = !order.scheduled_delivery_date && !order.is_box_my_bike;
       const hasValidPickup = hasUnscheduledPickup && pickupVisibleByDate;
 
       // "Collecting before delivery date" filter: deliveries only appear if the order

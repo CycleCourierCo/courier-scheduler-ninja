@@ -1081,7 +1081,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
 
       // Add delivery job if not scheduled
-      if (allowDelivery && !order.scheduled_delivery_date) {
+      // Add delivery job if not scheduled (Box My Bike orders never have a delivery leg — 3rd party handles it)
+      if (allowDelivery && !order.scheduled_delivery_date && !order.is_box_my_bike) {
         const deliveryDates = order.delivery_date as string[] | null;
         const deliveryMatchesDate = matchesFilterDate(deliveryDates);
         const deliveryIsExpired = hasAllDatesExpired(deliveryDates);
