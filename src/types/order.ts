@@ -32,7 +32,12 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled'
   | 'collection_scheduled'  // New status
-  | 'delivery_scheduled';    // New status
+  | 'delivery_scheduled'    // New status
+  | 'awaiting_depot'
+  | 'in_depot_awaiting_boxing'
+  | 'boxed_awaiting_label'
+  | 'awaiting_3p_collection'
+  | 'collected_by_3p';
 
 export type BoxMyBikeStatus =
   | 'awaiting_depot'
