@@ -977,10 +977,13 @@ export const addIssueToExistingInspection = async (
   estimatedCost: number | null,
   requestedById: string,
   requestedByName: string,
-  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null }
+  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null },
+  extra?: { repair_id?: string | null; parts_cost?: number | null; labour_cost?: number | null }
 ): Promise<InspectionIssue | null> => {
   try {
     const now = new Date().toISOString();
+    const hasSplit = extra?.parts_cost != null || extra?.labour_cost != null;
+    const hasAnyPrice = estimatedCost != null || hasSplit;
     const { data, error } = await supabase
       .from('inspection_issues')
       .insert({
@@ -988,16 +991,19 @@ export const addIssueToExistingInspection = async (
         order_id: orderId,
         issue_description: issueDescription,
         estimated_cost: estimatedCost,
+        parts_cost: extra?.parts_cost ?? null,
+        labour_cost: extra?.labour_cost ?? null,
+        repair_id: extra?.repair_id ?? null,
         requested_by_id: requestedById,
         requested_by_name: requestedByName,
         status: 'pending' as IssueStatus,
         part_name: partInfo?.part_name || null,
         part_spec: partInfo?.part_spec || null,
         part_number: partInfo?.part_number || null,
-        priced_at: estimatedCost != null ? now : null,
-        priced_by_id: estimatedCost != null ? requestedById : null,
-        priced_by_name: estimatedCost != null ? requestedByName : null,
-      })
+        priced_at: hasAnyPrice ? now : null,
+        priced_by_id: hasAnyPrice ? requestedById : null,
+        priced_by_name: hasAnyPrice ? requestedByName : null,
+      } as any)
       .select()
       .single();
     if (error) throw error;
@@ -1007,6 +1013,7 @@ export const addIssueToExistingInspection = async (
     throw error;
   }
 };
+
 
 export const createInspectionServiceInvoice = async (
   orderId: string
