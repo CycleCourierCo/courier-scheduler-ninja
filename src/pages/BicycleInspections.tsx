@@ -57,25 +57,27 @@ import {
   deleteInspectionIssue,
   addIssueToExistingInspection,
   adminSetInspectionStatus,
+  updateInspectionBikeType,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
+import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
+import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
+// (workshop settings/labour pricing consumed inside RepairPicker)
+
 
 interface IssueEntry {
   description: string;
   estimatedCost: string;
+  partsCost: string;
+  labourCost: string;
   partName: string;
   partSpec: string;
   partNumber: string;
+  repairId: string | null;
 }
 
-interface ChecklistIssue {
-  description: string;
-  estimatedCost: string;
-  partName: string;
-  partSpec: string;
-  partNumber: string;
-}
+interface ChecklistIssue extends IssueEntry {}
 
 // Standard inspection checklist items
 const INSPECTION_ITEMS = [
@@ -84,6 +86,12 @@ const INSPECTION_ITEMS = [
   { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
   { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
 ];
+
+const EMPTY_ISSUE: IssueEntry = {
+  description: "", estimatedCost: "", partsCost: "", labourCost: "",
+  partName: "", partSpec: "", partNumber: "", repairId: null,
+};
+
 
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
@@ -95,15 +103,16 @@ const BicycleInspections = () => {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
   // Per-issue price input for the awaiting-pricing stage
   const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
-  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "" });
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
-  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
+
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,6 +123,9 @@ const BicycleInspections = () => {
   const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
+  const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
+  // Workshop settings are consumed inside RepairPicker for live labour pricing.
+
 
   // Fetch inspections based on role
   const { data: inspections = [], isLoading } = useQuery({
@@ -151,7 +163,7 @@ const BicycleInspections = () => {
 
   // Add multiple issues mutation
   const addMultipleIssuesMutation = useMutation({
-    mutationFn: async ({ orderId, issues }: { orderId: string; issues: IssueEntry[] }) => {
+    mutationFn: async ({ orderId, issues, bikeType }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
@@ -159,17 +171,28 @@ const BicycleInspections = () => {
       const results = [];
       for (const issue of issues) {
         if (issue.description.trim()) {
-          const cost = issue.estimatedCost ? parseFloat(issue.estimatedCost) : null;
+          const parts = issue.partsCost.trim() ? parseFloat(issue.partsCost) : null;
+          const labour = issue.labourCost.trim() ? parseFloat(issue.labourCost) : null;
+          const fallback = issue.estimatedCost.trim() ? parseFloat(issue.estimatedCost) : null;
+          const estimated = parts != null || labour != null
+            ? (parts ?? 0) + (labour ?? 0)
+            : fallback;
           const result = await addInspectionIssue(
             orderId,
             issue.description,
-            cost,
+            estimated,
             user.id,
             userProfile.name || user.email || "Admin",
             {
               part_name: issue.partName?.trim() || null,
               part_spec: issue.partSpec?.trim() || null,
               part_number: issue.partNumber?.trim() || null,
+            },
+            {
+              bike_type: bikeType ?? null,
+              repair_id: issue.repairId,
+              parts_cost: parts,
+              labour_cost: labour,
             }
           );
           results.push(result);
@@ -188,6 +211,7 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
 
   // Set price on a single issue (admin pricing stage)
   const setPriceMutation = useMutation({
@@ -244,25 +268,35 @@ const BicycleInspections = () => {
   const addIssueAtPricingMutation = useMutation({
     mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
       if (!user?.id) throw new Error("User not authenticated");
-      const cost = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
+      const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
+      const fallback = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      const estimated = parts != null || labour != null
+        ? (parts ?? 0) + (labour ?? 0)
+        : fallback;
       return addIssueToExistingInspection(
         inspectionId,
         orderId,
         draft.description.trim(),
-        cost,
+        estimated,
         user.id,
         userProfile?.name || user.email || "Admin",
         {
           part_name: draft.partName.trim() || null,
           part_spec: draft.partSpec.trim() || null,
           part_number: draft.partNumber.trim() || null,
+        },
+        {
+          repair_id: draft.repairId,
+          parts_cost: parts,
+          labour_cost: labour,
         }
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
-      setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
       toast.success("Issue added");
     },
     onError: (error) => {
@@ -270,6 +304,21 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // Update bike category on an inspection
+  const updateBikeTypeMutation = useMutation({
+    mutationFn: async ({ inspectionId, bikeType }: { inspectionId: string; bikeType: string }) =>
+      updateInspectionBikeType(inspectionId, bikeType),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Bike category updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update bike category");
+      console.error(error);
+    },
+  });
+
 
 
   // Release inspection to customer (admin gate)
@@ -489,8 +538,14 @@ const BicycleInspections = () => {
     setInspectionChecklist({});
     setInspectionComments({});
     setChecklistIssues({});
+    // Prefill bike category from any existing inspection, else leave blank so
+    // the mechanic classifies it before pricing/labour lookup.
+    const order = (inspections as any[]).find((o) => o.id === orderId);
+    const existing = order?.inspection?.bike_type as string | null | undefined;
+    setChecklistBikeType(existing ?? null);
     setInspectionChecklistOpen(true);
   };
+
 
   const handleChecklistItemToggle = (itemId: string) => {
     setInspectionChecklist(prev => ({
@@ -509,7 +564,7 @@ const BicycleInspections = () => {
   const handleAddChecklistIssue = (itemId: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]
+      [itemId]: [...(prev[itemId] || []), { ...EMPTY_ISSUE }]
     }));
   };
 
@@ -520,7 +575,7 @@ const BicycleInspections = () => {
     }));
   };
 
-  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partsCost' | 'labourCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
     setChecklistIssues(prev => ({
       ...prev,
       [itemId]: (prev[itemId] || []).map((issue, i) =>
@@ -528,6 +583,16 @@ const BicycleInspections = () => {
       )
     }));
   };
+
+  const patchChecklistIssue = (itemId: string, index: number, patch: Partial<ChecklistIssue>) => {
+    setChecklistIssues(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).map((issue, i) =>
+        i === index ? { ...issue, ...patch } : issue
+      )
+    }));
+  };
+
 
   const allItemsChecked = INSPECTION_ITEMS.every(
     item => inspectionChecklist[item.id]
@@ -539,13 +604,11 @@ const BicycleInspections = () => {
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
+        ...issue,
         description: `[${itemLabel}] ${issue.description}`,
-        estimatedCost: issue.estimatedCost,
-        partName: issue.partName,
-        partSpec: issue.partSpec,
-        partNumber: issue.partNumber,
       }));
   });
+
 
   const hasIssues = allChecklistIssues.length > 0;
 
@@ -553,7 +616,15 @@ const BicycleInspections = () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
 
     if (hasIssues) {
-      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: allChecklistIssues });
+      if (!checklistBikeType) {
+        toast.error("Choose the bike category before reporting issues");
+        return;
+      }
+      addMultipleIssuesMutation.mutate({
+        orderId: selectedOrderForInspection,
+        issues: allChecklistIssues,
+        bikeType: checklistBikeType,
+      });
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
@@ -569,13 +640,14 @@ const BicycleInspections = () => {
     }
   };
 
+
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
     setIssueCount(newCount);
 
     setIssues(prev => {
       if (newCount > prev.length) {
-        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }))];
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ ...EMPTY_ISSUE }))];
       } else {
         return prev.slice(0, newCount);
       }
@@ -590,7 +662,7 @@ const BicycleInspections = () => {
 
   const resetIssueForm = () => {
     setIssueCount(1);
-    setIssues([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+    setIssues([{ ...EMPTY_ISSUE }]);
     setSelectedOrderId(null);
   };
 
@@ -748,7 +820,24 @@ const BicycleInspections = () => {
                       : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
                   </Badge>
                 )}
+                {canManageInspections && inspection?.id && (
+                  <div className="flex items-center gap-1">
+                    <Badge variant={inspection.bike_type ? "secondary" : "outline"} className="flex items-center gap-1">
+                      <Wrench className="h-3 w-3" />
+                      {inspection.bike_type || "No bike category"}
+                    </Badge>
+                    <div className="w-[180px]">
+                      <BikeCategoryPicker
+                        value={inspection.bike_type ?? null}
+                        onChange={(v) => updateBikeTypeMutation.mutate({ inspectionId: inspection.id, bikeType: v })}
+                        placeholder={inspection.bike_type ? "Change…" : "Set category…"}
+                        buttonClassName="h-6 text-[11px]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
             <div className="flex flex-col items-end gap-2">
               <Badge variant={badgeConfig.variant}>
@@ -831,6 +920,12 @@ const BicycleInspections = () => {
                           )}
                         </p>
                       )}
+                      {canManageInspections && (issue as any).repair_id && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          From catalogue · {(issue as any).repair_id}
+                        </p>
+                      )}
+
                       {/* Part info — mechanic/admin only */}
                       {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
                         <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
@@ -921,6 +1016,8 @@ const BicycleInspections = () => {
                               partName: issue.part_name || "",
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
+                              repairId: (issue as any).repair_id ?? null,
+
                             });
                           }}
                         >
@@ -960,6 +1057,21 @@ const BicycleInspections = () => {
                   {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
                     <div className="mt-3 space-y-2 p-3 rounded-md border bg-background">
                       <div>
+                        <Label className="text-xs">Repair (from catalogue)</Label>
+                        <RepairPicker
+                          bikeType={inspection?.bike_type ?? null}
+                          value={editIssueDraft.repairId}
+                          onSelect={(sel) => {
+                            setEditIssueDraft(prev => ({
+                              ...prev,
+                              repairId: sel.repair_id,
+                              labourCost: sel.labour_price_gbp.toFixed(2),
+                              description: prev.description.trim() ? prev.description : sel.repair_name,
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div>
                         <Label className="text-xs">Description</Label>
                         <Textarea
                           value={editIssueDraft.description}
@@ -968,6 +1080,7 @@ const BicycleInspections = () => {
                           rows={2}
                         />
                       </div>
+
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Parts (£)</Label>
@@ -1035,7 +1148,9 @@ const BicycleInspections = () => {
                                 part_name: editIssueDraft.partName.trim() || null,
                                 part_spec: editIssueDraft.partSpec.trim() || null,
                                 part_number: editIssueDraft.partNumber.trim() || null,
+                                repair_id: editIssueDraft.repairId,
                               },
+
                             });
                           }}
                           disabled={updateIssueMutation.isPending}
@@ -1202,6 +1317,21 @@ const BicycleInspections = () => {
               {addIssueForInspectionId === inspection.id ? (
                 <div className="space-y-2 p-3 rounded-md border bg-background">
                   <div>
+                    <Label className="text-xs">Repair (from catalogue)</Label>
+                    <RepairPicker
+                      bikeType={inspection?.bike_type ?? null}
+                      value={newIssueDraft.repairId}
+                      onSelect={(sel) => {
+                        setNewIssueDraft(prev => ({
+                          ...prev,
+                          repairId: sel.repair_id,
+                          labourCost: sel.labour_price_gbp.toFixed(2),
+                          description: prev.description.trim() ? prev.description : sel.repair_name,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div>
                     <Label className="text-xs">Description</Label>
                     <Textarea
                       value={newIssueDraft.description}
@@ -1210,17 +1340,31 @@ const BicycleInspections = () => {
                       rows={2}
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs">Estimated cost (£)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newIssueDraft.cost}
-                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                      className="text-sm"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Parts (£)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIssueDraft.partsCost}
+                        onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partsCost: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Labour (£)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIssueDraft.labourCost}
+                        onChange={(e) => setNewIssueDraft(prev => ({ ...prev, labourCost: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs">Part name</Label>
@@ -1254,7 +1398,7 @@ const BicycleInspections = () => {
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add issue
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null }); }}>
                       Cancel
                     </Button>
                   </div>
@@ -1585,6 +1729,20 @@ const BicycleInspections = () => {
               <p className="text-sm text-muted-foreground">
                 Complete each inspection item. Report any issues found under each section.
               </p>
+
+              {/* Bike category — required when reporting issues, filters the repair catalogue */}
+              <div className="p-3 border rounded-lg space-y-2 bg-muted/30">
+                <Label className="text-sm font-medium">Bike category</Label>
+                <BikeCategoryPicker
+                  value={checklistBikeType}
+                  onChange={setChecklistBikeType}
+                  placeholder="Choose bike category to unlock repair catalogue…"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Required before reporting issues — filters the repair catalogue to matching labour times.
+                </p>
+              </div>
+
               {INSPECTION_ITEMS.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
@@ -1625,12 +1783,53 @@ const BicycleInspections = () => {
                                 <X className="h-3 w-3" />
                               </Button>
                             </div>
+                            <RepairPicker
+                              bikeType={checklistBikeType}
+                              value={issue.repairId}
+                              onSelect={(sel) => {
+                                patchChecklistIssue(item.id, idx, {
+                                  repairId: sel.repair_id,
+                                  labourCost: sel.labour_price_gbp.toFixed(2),
+                                  description: issue.description.trim() ? issue.description : sel.repair_name,
+                                });
+                              }}
+                            />
+                            {issue.repairId && (
+                              <p className="text-[10px] text-muted-foreground">
+                                From catalogue · labour auto-priced at current workshop rate
+                              </p>
+                            )}
                             <Textarea
                               placeholder="Describe the issue..."
                               value={issue.description}
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Parts (£)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={issue.partsCost}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partsCost', e.target.value)}
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Labour (£)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={issue.labourCost}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'labourCost', e.target.value)}
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+
                             {canManageInspections && (
                               <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">

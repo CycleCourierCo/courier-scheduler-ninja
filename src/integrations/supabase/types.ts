@@ -84,6 +84,7 @@ export type Database = {
       }
       bicycle_inspections: {
         Row: {
+          bike_type: string | null
           created_at: string
           id: string
           inspected_at: string | null
@@ -101,6 +102,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bike_type?: string | null
           created_at?: string
           id?: string
           inspected_at?: string | null
@@ -118,6 +120,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bike_type?: string | null
           created_at?: string
           id?: string
           inspected_at?: string | null
@@ -1157,6 +1160,7 @@ export type Database = {
           priced_at: string | null
           priced_by_id: string | null
           priced_by_name: string | null
+          repair_id: string | null
           requested_by_id: string
           requested_by_name: string
           resolved_at: string | null
@@ -1190,6 +1194,7 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          repair_id?: string | null
           requested_by_id: string
           requested_by_name: string
           resolved_at?: string | null
@@ -1223,6 +1228,7 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          repair_id?: string | null
           requested_by_id?: string
           requested_by_name?: string
           resolved_at?: string | null
@@ -1245,6 +1251,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_issues_repair_id_fkey"
+            columns: ["repair_id"]
+            isOneToOne: false
+            referencedRelation: "labour_times"
+            referencedColumns: ["repair_id"]
           },
           {
             foreignKeyName: "inspection_issues_requested_by_id_fkey"

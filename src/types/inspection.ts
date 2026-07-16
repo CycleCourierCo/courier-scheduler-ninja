@@ -14,6 +14,7 @@ export interface BicycleInspection {
   id: string;
   order_id: string;
   status: InspectionStatus;
+  bike_type: string | null;
   inspected_at: string | null;
   inspected_by_id: string | null;
   inspected_by_name: string | null;
@@ -27,6 +28,7 @@ export interface BicycleInspection {
   issues?: InspectionIssue[];
 }
 
+
 export interface InspectionIssue {
   id: string;
   inspection_id: string;
@@ -35,8 +37,10 @@ export interface InspectionIssue {
   estimated_cost: number | null;
   parts_cost: number | null;
   labour_cost: number | null;
+  repair_id: string | null;
   requested_by_id: string;
   requested_by_name: string;
+
   // Mechanic/admin-only part details
   part_name: string | null;
   part_spec: string | null;
