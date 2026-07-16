@@ -71,10 +71,12 @@ export async function getMechanicProfitability(fromISO: string, toISO: string): 
         inspectionRevenue: 0,
         repairsDone: 0,
         repairRevenue: 0,
+        labourRevenue: 0,
         totalRevenue: 0,
         hoursWorked: 0,
         wageCost: 0,
         profit: 0,
+        labourProfit: 0,
         margin: 0,
       };
       map.set(id, row);
@@ -94,6 +96,9 @@ export async function getMechanicProfitability(fromISO: string, toISO: string): 
     const row = ensure(iss.resolved_by_id, iss.resolved_by_name);
     row.repairsDone += 1;
     row.repairRevenue += Number(iss.estimated_cost || 0);
+    if (iss.labour_cost != null) {
+      row.labourRevenue += Number(iss.labour_cost || 0);
+    }
   });
 
   (slips || []).forEach((s: any) => {
@@ -106,6 +111,7 @@ export async function getMechanicProfitability(fromISO: string, toISO: string): 
   const rows = Array.from(map.values()).map((r) => {
     r.totalRevenue = r.inspectionRevenue + r.repairRevenue;
     r.profit = r.totalRevenue - r.wageCost;
+    r.labourProfit = r.labourRevenue - r.wageCost;
     r.margin = r.totalRevenue > 0 ? (r.profit / r.totalRevenue) * 100 : 0;
     return r;
   });
