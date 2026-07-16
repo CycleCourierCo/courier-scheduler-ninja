@@ -42,6 +42,16 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
         return { label: "Delivered", className: "bg-green-500" };
       case "cancelled":
         return { label: "Cancelled", className: "bg-red-500" };
+      case "awaiting_depot":
+        return { label: "Awaiting delivery to depot", className: "bg-amber-500" };
+      case "in_depot_awaiting_boxing":
+        return { label: "In depot, awaiting boxing", className: "bg-blue-500" };
+      case "boxed_awaiting_label":
+        return { label: "Boxed, awaiting label", className: "bg-indigo-500" };
+      case "awaiting_3p_collection":
+        return { label: "Awaiting 3rd-party collection", className: "bg-purple-500" };
+      case "collected_by_3p":
+        return { label: "Collected by 3rd-party courier", className: "bg-green-500" };
       default:
         return { label: status, className: "bg-gray-500" };
     }
