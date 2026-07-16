@@ -575,7 +575,7 @@ const BicycleInspections = () => {
     }));
   };
 
-  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partsCost' | 'labourCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
     setChecklistIssues(prev => ({
       ...prev,
       [itemId]: (prev[itemId] || []).map((issue, i) =>
