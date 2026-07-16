@@ -3606,6 +3606,11 @@ export type Database = {
         | "driver_to_delivery"
         | "collection_scheduled"
         | "delivery_scheduled"
+        | "awaiting_depot"
+        | "in_depot_awaiting_boxing"
+        | "boxed_awaiting_label"
+        | "awaiting_3p_collection"
+        | "collected_by_3p"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -3808,6 +3813,11 @@ export const Constants = {
         "driver_to_delivery",
         "collection_scheduled",
         "delivery_scheduled",
+        "awaiting_depot",
+        "in_depot_awaiting_boxing",
+        "boxed_awaiting_label",
+        "awaiting_3p_collection",
+        "collected_by_3p",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],
