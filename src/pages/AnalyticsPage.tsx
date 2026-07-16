@@ -104,6 +104,9 @@ const AnalyticsPage = () => {
     queryFn: fetchOrdersForAnalytics
   });
 
+  // Bike value tab: preset range in days ("all" = whole history)
+  const [bikeValueDays, setBikeValueDays] = useState<number | "all">(30);
+
   const { data: inspections = [] } = useQuery({
     queryKey: ["inspectionsAnalytics"],
     queryFn: fetchInspectionsForAnalytics,
