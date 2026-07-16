@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,25 +58,27 @@ import {
   deleteInspectionIssue,
   addIssueToExistingInspection,
   adminSetInspectionStatus,
+  updateInspectionBikeType,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
+import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
+import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
+// (workshop settings/labour pricing consumed inside RepairPicker)
+
 
 interface IssueEntry {
   description: string;
   estimatedCost: string;
+  partsCost: string;
+  labourCost: string;
   partName: string;
   partSpec: string;
   partNumber: string;
+  repairId: string | null;
 }
 
-interface ChecklistIssue {
-  description: string;
-  estimatedCost: string;
-  partName: string;
-  partSpec: string;
-  partNumber: string;
-}
+interface ChecklistIssue extends IssueEntry {}
 
 // Standard inspection checklist items
 const INSPECTION_ITEMS = [
@@ -84,6 +87,12 @@ const INSPECTION_ITEMS = [
   { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
   { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
 ];
+
+const EMPTY_ISSUE: IssueEntry = {
+  description: "", estimatedCost: "", partsCost: "", labourCost: "",
+  partName: "", partSpec: "", partNumber: "", repairId: null,
+};
+
 
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
@@ -95,15 +104,16 @@ const BicycleInspections = () => {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
   // Per-issue price input for the awaiting-pricing stage
-  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
-  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
-  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
+
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,6 +124,9 @@ const BicycleInspections = () => {
   const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
+  const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
+  // Workshop settings are consumed inside RepairPicker for live labour pricing.
+
 
   // Fetch inspections based on role
   const { data: inspections = [], isLoading } = useQuery({
@@ -151,7 +164,7 @@ const BicycleInspections = () => {
 
   // Add multiple issues mutation
   const addMultipleIssuesMutation = useMutation({
-    mutationFn: async ({ orderId, issues }: { orderId: string; issues: IssueEntry[] }) => {
+    mutationFn: async ({ orderId, issues, bikeType }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
@@ -159,17 +172,28 @@ const BicycleInspections = () => {
       const results = [];
       for (const issue of issues) {
         if (issue.description.trim()) {
-          const cost = issue.estimatedCost ? parseFloat(issue.estimatedCost) : null;
+          const parts = issue.partsCost.trim() ? parseFloat(issue.partsCost) : null;
+          const labour = issue.labourCost.trim() ? parseFloat(issue.labourCost) : null;
+          const fallback = issue.estimatedCost.trim() ? parseFloat(issue.estimatedCost) : null;
+          const estimated = parts != null || labour != null
+            ? (parts ?? 0) + (labour ?? 0)
+            : fallback;
           const result = await addInspectionIssue(
             orderId,
             issue.description,
-            cost,
+            estimated,
             user.id,
             userProfile.name || user.email || "Admin",
             {
               part_name: issue.partName?.trim() || null,
               part_spec: issue.partSpec?.trim() || null,
               part_number: issue.partNumber?.trim() || null,
+            },
+            {
+              bike_type: bikeType ?? null,
+              repair_id: issue.repairId,
+              parts_cost: parts,
+              labour_cost: labour,
             }
           );
           results.push(result);
@@ -189,11 +213,12 @@ const BicycleInspections = () => {
     },
   });
 
+
   // Set price on a single issue (admin pricing stage)
   const setPriceMutation = useMutation({
-    mutationFn: async ({ issueId, price }: { issueId: string; price: number }) => {
+    mutationFn: async ({ issueId, partsCost, labourCost }: { issueId: string; partsCost: number; labourCost: number }) => {
       if (!user?.id) throw new Error("User not authenticated");
-      return setIssuePrice(issueId, price, user.id, userProfile?.name || user.email || "Admin");
+      return setIssuePrice(issueId, partsCost, labourCost, user.id, userProfile?.name || user.email || "Admin");
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
@@ -244,25 +269,35 @@ const BicycleInspections = () => {
   const addIssueAtPricingMutation = useMutation({
     mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
       if (!user?.id) throw new Error("User not authenticated");
-      const cost = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
+      const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
+      const fallback = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      const estimated = parts != null || labour != null
+        ? (parts ?? 0) + (labour ?? 0)
+        : fallback;
       return addIssueToExistingInspection(
         inspectionId,
         orderId,
         draft.description.trim(),
-        cost,
+        estimated,
         user.id,
         userProfile?.name || user.email || "Admin",
         {
           part_name: draft.partName.trim() || null,
           part_spec: draft.partSpec.trim() || null,
           part_number: draft.partNumber.trim() || null,
+        },
+        {
+          repair_id: draft.repairId,
+          parts_cost: parts,
+          labour_cost: labour,
         }
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
-      setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
       toast.success("Issue added");
     },
     onError: (error) => {
@@ -270,6 +305,21 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // Update bike category on an inspection
+  const updateBikeTypeMutation = useMutation({
+    mutationFn: async ({ inspectionId, bikeType }: { inspectionId: string; bikeType: string }) =>
+      updateInspectionBikeType(inspectionId, bikeType),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Bike category updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update bike category");
+      console.error(error);
+    },
+  });
+
 
 
   // Release inspection to customer (admin gate)
@@ -489,8 +539,14 @@ const BicycleInspections = () => {
     setInspectionChecklist({});
     setInspectionComments({});
     setChecklistIssues({});
+    // Prefill bike category from any existing inspection, else leave blank so
+    // the mechanic classifies it before pricing/labour lookup.
+    const order = (inspections as any[]).find((o) => o.id === orderId);
+    const existing = order?.inspection?.bike_type as string | null | undefined;
+    setChecklistBikeType(existing ?? null);
     setInspectionChecklistOpen(true);
   };
+
 
   const handleChecklistItemToggle = (itemId: string) => {
     setInspectionChecklist(prev => ({
@@ -509,7 +565,7 @@ const BicycleInspections = () => {
   const handleAddChecklistIssue = (itemId: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]
+      [itemId]: [...(prev[itemId] || []), { ...EMPTY_ISSUE }]
     }));
   };
 
@@ -520,7 +576,7 @@ const BicycleInspections = () => {
     }));
   };
 
-  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
+  const handleUpdateChecklistIssue = (itemId: string, index: number, field: 'description' | 'estimatedCost' | 'partsCost' | 'labourCost' | 'partName' | 'partSpec' | 'partNumber', value: string) => {
     setChecklistIssues(prev => ({
       ...prev,
       [itemId]: (prev[itemId] || []).map((issue, i) =>
@@ -528,6 +584,16 @@ const BicycleInspections = () => {
       )
     }));
   };
+
+  const patchChecklistIssue = (itemId: string, index: number, patch: Partial<ChecklistIssue>) => {
+    setChecklistIssues(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).map((issue, i) =>
+        i === index ? { ...issue, ...patch } : issue
+      )
+    }));
+  };
+
 
   const allItemsChecked = INSPECTION_ITEMS.every(
     item => inspectionChecklist[item.id]
@@ -539,13 +605,11 @@ const BicycleInspections = () => {
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
+        ...issue,
         description: `[${itemLabel}] ${issue.description}`,
-        estimatedCost: issue.estimatedCost,
-        partName: issue.partName,
-        partSpec: issue.partSpec,
-        partNumber: issue.partNumber,
       }));
   });
+
 
   const hasIssues = allChecklistIssues.length > 0;
 
@@ -553,7 +617,15 @@ const BicycleInspections = () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
 
     if (hasIssues) {
-      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: allChecklistIssues });
+      if (!checklistBikeType) {
+        toast.error("Choose the bike category before reporting issues");
+        return;
+      }
+      addMultipleIssuesMutation.mutate({
+        orderId: selectedOrderForInspection,
+        issues: allChecklistIssues,
+        bikeType: checklistBikeType,
+      });
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
@@ -569,13 +641,14 @@ const BicycleInspections = () => {
     }
   };
 
+
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
     setIssueCount(newCount);
 
     setIssues(prev => {
       if (newCount > prev.length) {
-        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }))];
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ ...EMPTY_ISSUE }))];
       } else {
         return prev.slice(0, newCount);
       }
@@ -590,7 +663,7 @@ const BicycleInspections = () => {
 
   const resetIssueForm = () => {
     setIssueCount(1);
-    setIssues([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+    setIssues([{ ...EMPTY_ISSUE }]);
     setSelectedOrderId(null);
   };
 
@@ -695,7 +768,8 @@ const BicycleInspections = () => {
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
-    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice;
+    const totalForInvoice = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
@@ -707,27 +781,27 @@ const BicycleInspections = () => {
 
 
     return (
-      <Card key={order.id} className="mb-4">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Wrench className="h-5 w-5" />
-                {order.bike_brand} {order.bike_model}
+      <Card key={order.id} className="mb-4 overflow-hidden">
+        <CardHeader className="pb-3 p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="flex min-w-0 flex-wrap items-start gap-2 text-base sm:text-lg break-words">
+                <Wrench className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 break-words">{order.bike_brand} {order.bike_model}</span>
                 {order.bike_quantity > 1 && (
-                  <Badge variant="secondary">x{order.bike_quantity}</Badge>
+                  <Badge variant="secondary" className="shrink-0">x{order.bike_quantity}</Badge>
                 )}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
               {order.customer_order_number && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
                 </p>
               )}
               {/* Order status and storage location badges */}
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex min-w-0 flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
                 {order.storage_locations && Array.isArray(order.storage_locations) && 
                  order.storage_locations.length > 0 && (
@@ -740,6 +814,23 @@ const BicycleInspections = () => {
                     ))}
                   </>
                 )}
+                {(() => {
+                  const hasAllocation = Array.isArray(order.storage_locations)
+                    ? order.storage_locations.length > 0
+                    : !!order.storage_locations;
+                  if (hasAllocation || !order.collection_confirmation_sent_at) return null;
+                  const driver = getDriverAssignment(
+                    { trackingEvents: order.tracking_events } as any,
+                    'pickup'
+                  );
+                  if (!driver) return null;
+                  return (
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Truck className="h-3 w-3" />
+                      In {driver}'s van
+                    </Badge>
+                  );
+                })()}
                 {canManageInspections && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
@@ -748,10 +839,27 @@ const BicycleInspections = () => {
                       : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
                   </Badge>
                 )}
+                {canManageInspections && inspection?.id && (
+                  <div className="flex min-w-0 w-full flex-col gap-1 sm:w-auto sm:flex-row sm:items-center">
+                    <Badge variant={inspection.bike_type ? "secondary" : "outline"} className="flex min-w-0 max-w-full items-center gap-1 self-start">
+                      <Wrench className="h-3 w-3 shrink-0" />
+                      <span className="min-w-0 truncate">{inspection.bike_type || "No bike category"}</span>
+                    </Badge>
+                    <div className="w-full min-w-0 sm:w-[180px]">
+                      <BikeCategoryPicker
+                        value={inspection.bike_type ?? null}
+                        onChange={(v) => updateBikeTypeMutation.mutate({ inspectionId: inspection.id, bikeType: v })}
+                        placeholder={inspection.bike_type ? "Change…" : "Set category…"}
+                        buttonClassName="h-6 text-[11px]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge variant={badgeConfig.variant}>
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
+              <Badge variant={badgeConfig.variant} className="max-w-full whitespace-normal text-left sm:whitespace-nowrap sm:text-center">
                 {badgeConfig.label}
               </Badge>
               {isAdmin && inspection?.id && (
@@ -767,7 +875,7 @@ const BicycleInspections = () => {
                     });
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectTrigger className="h-8 w-full min-w-0 text-xs sm:w-[180px]">
                     <SelectValue placeholder="Change status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -807,7 +915,7 @@ const BicycleInspections = () => {
               {orderIssues.map((issue: InspectionIssue) => (
                 <div
                   key={issue.id}
-                  className={`p-3 rounded-lg border-l-4 ${
+                  className={`p-3 rounded-lg border-l-4 min-w-0 overflow-hidden ${
                     issue.status === "resolved" || issue.status === "approved" || issue.status === "repaired"
                       ? "bg-muted/50 border-green-500"
                       : issue.status === "declined"
@@ -815,17 +923,28 @@ const BicycleInspections = () => {
                       : "bg-muted/50 border-amber-500"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm flex items-center gap-1">
-                        <AlertTriangle className="h-4 w-4" />
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm flex min-w-0 items-start gap-1 break-words">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
                         {issue.issue_description}
                       </p>
                       {issue.estimated_cost != null && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 break-words">
                           {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
+                          {(issue.parts_cost != null || issue.labour_cost != null) && (
+                            <span className="text-xs sm:ml-1">
+                              (Parts £{Number(issue.parts_cost || 0).toFixed(2)} + Labour £{Number(issue.labour_cost || 0).toFixed(2)})
+                            </span>
+                          )}
                         </p>
                       )}
+                      {canManageInspections && (issue as any).repair_id && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          From catalogue · {(issue as any).repair_id}
+                        </p>
+                      )}
+
                       {/* Part info — mechanic/admin only */}
                       {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
                         <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
@@ -838,7 +957,7 @@ const BicycleInspections = () => {
                         Reported by {issue.requested_by_name}
                       </p>
                     </div>
-                    <Badge variant={getIssueBadgeVariant(issue.status)}>
+                    <Badge variant={getIssueBadgeVariant(issue.status)} className="self-start shrink-0">
                       {issue.status}
                     </Badge>
                   </div>
@@ -846,34 +965,63 @@ const BicycleInspections = () => {
                   {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
                   {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
-                          <Label className="text-xs">Price (£)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
-                            onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
-                            className="text-sm"
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
-                            const val = parseFloat(raw);
-                            if (!isFinite(val) || val < 0) {
-                              toast.error("Enter a valid price");
-                              return;
-                            }
-                            setPriceMutation.mutate({ issueId: issue.id, price: val });
-                          }}
-                          disabled={setPriceMutation.isPending}
-                        >
-                          <PoundSterling className="h-4 w-4 mr-1" /> Save
-                        </Button>
-                      </div>
+                      {(() => {
+                        const current = priceInputs[issue.id] ?? {
+                          parts: issue.parts_cost != null ? String(issue.parts_cost) : "",
+                          labour: issue.labour_cost != null ? String(issue.labour_cost) : "",
+                        };
+                        const partsNum = parseFloat(current.parts);
+                        const labourNum = parseFloat(current.labour);
+                        const total = (isFinite(partsNum) ? partsNum : 0) + (isFinite(labourNum) ? labourNum : 0);
+                        return (
+                          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                            <div className="min-w-0 flex-1 sm:min-w-[100px]">
+                              <Label className="text-xs">Parts (£)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={current.parts}
+                                onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: { ...current, parts: e.target.value } }))}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1 sm:min-w-[100px]">
+                              <Label className="text-xs">Labour (£)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={current.labour}
+                                onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: { ...current, labour: e.target.value } }))}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground sm:pb-2">
+                              Total: <span className="font-medium text-foreground">£{total.toFixed(2)}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const parts = current.parts.trim() === "" ? 0 : parseFloat(current.parts);
+                                const labour = current.labour.trim() === "" ? 0 : parseFloat(current.labour);
+                                if (!isFinite(parts) || parts < 0 || !isFinite(labour) || labour < 0) {
+                                  toast.error("Enter valid parts and labour prices");
+                                  return;
+                                }
+                                if (parts + labour <= 0) {
+                                  toast.error("Enter at least a parts or labour price");
+                                  return;
+                                }
+                                setPriceMutation.mutate({ issueId: issue.id, partsCost: parts, labourCost: labour });
+                              }}
+                              disabled={setPriceMutation.isPending}
+                            >
+                              <PoundSterling className="h-4 w-4 mr-1" /> Save
+                            </Button>
+                          </div>
+                        );
+                      })()}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -882,10 +1030,13 @@ const BicycleInspections = () => {
                             setEditingIssueId(issue.id);
                             setEditIssueDraft({
                               description: issue.issue_description || "",
-                              cost: issue.estimated_cost != null ? String(issue.estimated_cost) : "",
+                              partsCost: issue.parts_cost != null ? String(issue.parts_cost) : "",
+                              labourCost: issue.labour_cost != null ? String(issue.labour_cost) : "",
                               partName: issue.part_name || "",
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
+                              repairId: (issue as any).repair_id ?? null,
+
                             });
                           }}
                         >
@@ -923,7 +1074,22 @@ const BicycleInspections = () => {
 
                   {/* Edit form (awaiting_pricing) */}
                   {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
-                    <div className="mt-3 space-y-2 p-3 rounded-md border bg-background">
+                    <div className="mt-3 space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
+                      <div>
+                        <Label className="text-xs">Repair (from catalogue)</Label>
+                        <RepairPicker
+                          bikeType={inspection?.bike_type ?? null}
+                          value={editIssueDraft.repairId}
+                          onSelect={(sel) => {
+                            setEditIssueDraft(prev => ({
+                              ...prev,
+                              repairId: sel.repair_id,
+                              labourCost: sel.labour_price_gbp.toFixed(2),
+                              description: prev.description.trim() ? prev.description : sel.repair_name,
+                            }));
+                          }}
+                        />
+                      </div>
                       <div>
                         <Label className="text-xs">Description</Label>
                         <Textarea
@@ -933,32 +1099,46 @@ const BicycleInspections = () => {
                           rows={2}
                         />
                       </div>
-                      <div>
-                        <Label className="text-xs">Estimated cost (£)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={editIssueDraft.cost}
-                          onChange={(e) => setEditIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                          className="text-sm"
-                        />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                        <div className="min-w-0">
+                          <Label className="text-xs">Parts (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={editIssueDraft.partsCost}
+                            onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partsCost: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <Label className="text-xs">Labour (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={editIssueDraft.labourCost}
+                            onChange={(e) => setEditIssueDraft(prev => ({ ...prev, labourCost: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
+                        <div className="min-w-0">
                           <Label className="text-xs">Part name</Label>
                           <Input value={editIssueDraft.partName} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <Label className="text-xs">Spec</Label>
                           <Input value={editIssueDraft.partSpec} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <Label className="text-xs">Part #</Label>
                           <Input value={editIssueDraft.partNumber} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
                         </div>
                       </div>
-                      <div className="flex gap-2 pt-1">
+                      <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                         <Button
                           size="sm"
                           onClick={() => {
@@ -966,21 +1146,30 @@ const BicycleInspections = () => {
                               toast.error("Description is required");
                               return;
                             }
-                            const costStr = editIssueDraft.cost.trim();
-                            const costVal = costStr === "" ? null : parseFloat(costStr);
-                            if (costVal != null && (!isFinite(costVal) || costVal < 0)) {
-                              toast.error("Enter a valid cost");
+                            const partsStr = editIssueDraft.partsCost.trim();
+                            const labourStr = editIssueDraft.labourCost.trim();
+                            const partsVal = partsStr === "" ? null : parseFloat(partsStr);
+                            const labourVal = labourStr === "" ? null : parseFloat(labourStr);
+                            if (partsVal != null && (!isFinite(partsVal) || partsVal < 0)) {
+                              toast.error("Enter a valid parts cost");
+                              return;
+                            }
+                            if (labourVal != null && (!isFinite(labourVal) || labourVal < 0)) {
+                              toast.error("Enter a valid labour cost");
                               return;
                             }
                             updateIssueMutation.mutate({
                               issueId: issue.id,
                               fields: {
                                 issue_description: editIssueDraft.description.trim(),
-                                estimated_cost: costVal,
+                                parts_cost: partsVal,
+                                labour_cost: labourVal,
                                 part_name: editIssueDraft.partName.trim() || null,
                                 part_spec: editIssueDraft.partSpec.trim() || null,
                                 part_number: editIssueDraft.partNumber.trim() || null,
+                                repair_id: editIssueDraft.repairId,
                               },
+
                             });
                           }}
                           disabled={updateIssueMutation.isPending}
@@ -997,8 +1186,8 @@ const BicycleInspections = () => {
 
                   {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
                   {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
-                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div className="flex items-center gap-2">
+                    <div className="mt-3 flex min-w-0 flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
                           id={`ordered-${issue.id}`}
                           checked={!!issue.parts_ordered}
@@ -1006,8 +1195,8 @@ const BicycleInspections = () => {
                             togglePartsOrderedMutation.mutate({ issueId: issue.id, ordered: !!checked })
                           }
                         />
-                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
-                          <PackageCheck className="h-4 w-4" />
+                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex min-w-0 flex-wrap items-center gap-1">
+                          <PackageCheck className="h-4 w-4 shrink-0" />
                           Parts ordered
                           {issue.parts_ordered && issue.parts_ordered_by_name && (
                             <span className="text-xs text-muted-foreground ml-2">
@@ -1016,7 +1205,7 @@ const BicycleInspections = () => {
                           )}
                         </Label>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
                           id={`parts-${issue.id}`}
                           checked={!!issue.parts_arrived}
@@ -1027,9 +1216,9 @@ const BicycleInspections = () => {
                         />
                         <Label
                           htmlFor={`parts-${issue.id}`}
-                          className={`text-sm flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                          className={`text-sm flex min-w-0 flex-wrap items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                         >
-                          <PackageCheck className="h-4 w-4" />
+                          <PackageCheck className="h-4 w-4 shrink-0" />
                           Parts arrived
                           {issue.parts_arrived && issue.parts_arrived_by_name && (
                             <span className="text-xs text-muted-foreground ml-2">
@@ -1052,7 +1241,7 @@ const BicycleInspections = () => {
                   {/* Accept/Decline Buttons (for customers) */}
                   {!isAdmin && isOwner && issue.status === "pending" && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           size="sm"
                           variant="outline"
@@ -1145,7 +1334,22 @@ const BicycleInspections = () => {
           {canManageInspections && isAwaitingPricing && inspection && (
             <div className="pt-1">
               {addIssueForInspectionId === inspection.id ? (
-                <div className="space-y-2 p-3 rounded-md border bg-background">
+                <div className="space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
+                  <div>
+                    <Label className="text-xs">Repair (from catalogue)</Label>
+                    <RepairPicker
+                      bikeType={inspection?.bike_type ?? null}
+                      value={newIssueDraft.repairId}
+                      onSelect={(sel) => {
+                        setNewIssueDraft(prev => ({
+                          ...prev,
+                          repairId: sel.repair_id,
+                          labourCost: sel.labour_price_gbp.toFixed(2),
+                          description: prev.description.trim() ? prev.description : sel.repair_name,
+                        }));
+                      }}
+                    />
+                  </div>
                   <div>
                     <Label className="text-xs">Description</Label>
                     <Textarea
@@ -1155,32 +1359,46 @@ const BicycleInspections = () => {
                       rows={2}
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs">Estimated cost (£)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newIssueDraft.cost}
-                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                      className="text-sm"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <Label className="text-xs">Parts (£)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIssueDraft.partsCost}
+                        onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partsCost: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="text-xs">Labour (£)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIssueDraft.labourCost}
+                        onChange={(e) => setNewIssueDraft(prev => ({ ...prev, labourCost: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
+                    <div className="min-w-0">
                       <Label className="text-xs">Part name</Label>
                       <Input value={newIssueDraft.partName} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <Label className="text-xs">Spec</Label>
                       <Input value={newIssueDraft.partSpec} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <Label className="text-xs">Part #</Label>
                       <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
                     </div>
                   </div>
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                     <Button
                       size="sm"
                       onClick={() => {
@@ -1199,7 +1417,7 @@ const BicycleInspections = () => {
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add issue
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null }); }}>
                       Cancel
                     </Button>
                   </div>
@@ -1254,7 +1472,7 @@ const BicycleInspections = () => {
 
           {/* Admin Actions for awaiting inspection */}
           {canManageInspections && (!inspection || inspection.status === "pending") && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <Button
                 size="sm"
                 onClick={() => handleOpenInspectionChecklist(order.id)}
@@ -1267,8 +1485,8 @@ const BicycleInspections = () => {
 
           {/* Inspection Info */}
           {inspection?.inspected_at && (
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground break-words">
                 Inspected by {inspection.inspected_by_name} on{" "}
                 {new Date(inspection.inspected_at).toLocaleDateString()}
               </p>
@@ -1292,9 +1510,9 @@ const BicycleInspections = () => {
 
           {/* Invoice Section */}
           {hasInvoice && (
-            <div className="flex items-center gap-2 pt-2">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <FileText className="h-3 w-3" />
+              <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+                <Badge variant="outline" className="flex min-w-0 max-w-full items-center gap-1">
+                  <FileText className="h-3 w-3 shrink-0" />
                 Invoice: {inspection.invoice_number}
               </Badge>
               {inspection.invoice_url && (
@@ -1302,7 +1520,7 @@ const BicycleInspections = () => {
                   href={inspection.invoice_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
                 >
                   <ExternalLink className="h-3 w-3" />
                   View
@@ -1335,11 +1553,11 @@ const BicycleInspections = () => {
 
   return (
     <Layout>
-      <div className="container py-6">
+      <div className="container py-4 sm:py-6 overflow-x-hidden">
         <DashboardHeader>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Wrench className="h-8 w-8" />
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Wrench className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
               {isAdmin ? "Bicycle Inspections" : "My Inspections"}
             </h1>
             <p className="text-muted-foreground">
@@ -1364,9 +1582,9 @@ const BicycleInspections = () => {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="awaiting" className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3 justify-end">
-              <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Tabs defaultValue="awaiting" className="space-y-4 min-w-0">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <div className="relative w-full min-w-0 sm:flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by tracking #, order #, bike or name..."
@@ -1376,13 +1594,13 @@ const BicycleInspections = () => {
                 />
               </div>
               {canManageInspections && (
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
                   <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
                     Sort by:
                   </Label>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                    <SelectTrigger id="sort-inspections" className="w-[220px]">
+                    <SelectTrigger id="sort-inspections" className="w-full min-w-0 sm:w-[220px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1394,8 +1612,9 @@ const BicycleInspections = () => {
                 </div>
               )}
             </div>
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="awaiting" className="flex items-center gap-1">
+            <div className="w-full">
+            <TabsList className="grid w-full grid-cols-1 gap-1 h-auto sm:flex sm:flex-wrap">
+              <TabsTrigger value="awaiting" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
@@ -1403,7 +1622,7 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="collected" className="flex items-center gap-1">
+              <TabsTrigger value="collected" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Collected
                 {collected.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
@@ -1412,14 +1631,14 @@ const BicycleInspections = () => {
                 )}
               </TabsTrigger>
               {canManageInspections && (
-                <TabsTrigger value="pricing" className="flex items-center gap-1">
+                <TabsTrigger value="pricing" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                   Pricing
                   {awaitingPricing.length > 0 && (
                     <Badge variant="warning" className="ml-1">{awaitingPricing.length}</Badge>
                   )}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="issues" className="flex items-center gap-1">
+              <TabsTrigger value="issues" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Issues
                 {withIssues.length > 0 && (
                   <Badge variant="destructive" className="ml-1">
@@ -1427,19 +1646,19 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
+              <TabsTrigger value="awaiting-parts" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting Parts
                 {awaitingParts.length > 0 && (
                   <Badge variant="warning" className="ml-1">{awaitingParts.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="awaiting-repair" className="flex items-center gap-1">
+              <TabsTrigger value="awaiting-repair" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting Repair
                 {awaitingRepair.length > 0 && (
                   <Badge variant="warning" className="ml-1">{awaitingRepair.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="inspected-serviced" className="flex items-center gap-1">
+              <TabsTrigger value="inspected-serviced" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Inspected &amp; Serviced
                 {inspectedAndServiced.length > 0 && (
                   <Badge variant="success" className="ml-1">
@@ -1448,6 +1667,7 @@ const BicycleInspections = () => {
                 )}
               </TabsTrigger>
             </TabsList>
+            </div>
 
             <TabsContent value="awaiting" className="space-y-4">
               {awaitingInspection.length === 0 ? (
@@ -1519,21 +1739,35 @@ const BicycleInspections = () => {
 
         {/* Inspection Checklist Dialog */}
         <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
-          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-y-auto [&>*]:min-w-0">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Wrench className="h-5 w-5" />
                 Bike Inspection
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 min-w-0">
               <p className="text-sm text-muted-foreground">
                 Complete each inspection item. Report any issues found under each section.
               </p>
+
+              {/* Bike category — required when reporting issues, filters the repair catalogue */}
+              <div className="p-3 border rounded-lg space-y-2 bg-muted/30">
+                <Label className="text-sm font-medium">Bike category</Label>
+                <BikeCategoryPicker
+                  value={checklistBikeType}
+                  onChange={setChecklistBikeType}
+                  placeholder="Choose bike category to unlock repair catalogue…"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Required before reporting issues — filters the repair catalogue to matching labour times.
+                </p>
+              </div>
+
               {INSPECTION_ITEMS.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
-                  <div key={item.id} className="space-y-3 p-3 border rounded-lg">
+                  <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
                     <div className="flex items-start gap-3">
                       <Checkbox
                         id={item.id}
@@ -1545,7 +1779,7 @@ const BicycleInspections = () => {
                       </Label>
                     </div>
                     {inspectionChecklist[item.id] && (
-                      <div className="ml-7 space-y-3">
+                      <div className="ml-4 sm:ml-7 space-y-3 min-w-0">
                         <Input
                           placeholder="Optional: Add notes..."
                           value={inspectionComments[item.id] || ""}
@@ -1555,7 +1789,7 @@ const BicycleInspections = () => {
                         
                         {/* Issues for this checklist item */}
                         {itemIssues.map((issue, idx) => (
-                          <div key={idx} className="space-y-2 p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30">
+                          <div key={idx} className="space-y-2 p-2 sm:p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30 min-w-0 overflow-hidden">
                             <div className="flex items-center justify-between">
                               <p className="text-xs font-medium text-destructive flex items-center gap-1">
                                 <AlertTriangle className="h-3 w-3" />
@@ -1570,12 +1804,53 @@ const BicycleInspections = () => {
                                 <X className="h-3 w-3" />
                               </Button>
                             </div>
+                            <RepairPicker
+                              bikeType={checklistBikeType}
+                              value={issue.repairId}
+                              onSelect={(sel) => {
+                                patchChecklistIssue(item.id, idx, {
+                                  repairId: sel.repair_id,
+                                  labourCost: sel.labour_price_gbp.toFixed(2),
+                                  description: issue.description.trim() ? issue.description : sel.repair_name,
+                                });
+                              }}
+                            />
+                            {issue.repairId && (
+                              <p className="text-[10px] text-muted-foreground">
+                                From catalogue · labour auto-priced at current workshop rate
+                              </p>
+                            )}
                             <Textarea
                               placeholder="Describe the issue..."
                               value={issue.description}
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
+                            <div className="grid grid-cols-2 gap-2 min-w-0">
+                              <div className="min-w-0">
+                                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Parts (£)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={issue.partsCost}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partsCost', e.target.value)}
+                                  className="text-sm w-full"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Labour (£)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={issue.labourCost}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'labourCost', e.target.value)}
+                                  className="text-sm w-full"
+                                />
+                              </div>
+                            </div>
+
                             {canManageInspections && (
                               <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">

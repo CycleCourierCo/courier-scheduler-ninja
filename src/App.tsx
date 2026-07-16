@@ -57,6 +57,7 @@ import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 import Tasks from "./pages/Tasks";
+import LabourTimesAdmin from "./pages/LabourTimesAdmin";
 
 const queryClient = new QueryClient();
 
@@ -272,6 +273,11 @@ function App() {
               <Route path="/dispatch/routes" element={
                 <ProtectedRoute>
                   <DispatchRoutesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/labour-times" element={
+                <ProtectedRoute>
+                  <LabourTimesAdmin />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />

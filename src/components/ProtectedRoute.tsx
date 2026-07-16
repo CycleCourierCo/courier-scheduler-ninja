@@ -118,6 +118,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isBulkAvailabilityPage = location.pathname === '/bulk-availability';
   const isBulkUploadPage = location.pathname === '/bulk-upload';
   const isMechanicClockPage = location.pathname === '/mechanic-clock';
+  const isLabourTimesPage = location.pathname === '/admin/labour-times';
   const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
   const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
   const hasCustomerRole = hasRole(userProfile, 'b2b_customer') || hasRole(userProfile, 'b2c_customer');
@@ -140,7 +141,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     for (const r of userRestricted) {
       if (r === 'loader' && (isLoadingPg || isTasksPage || isBoxMyBikePage)) anyAllowed = true;
-      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage || isMechanicClockPage || isProfilePage)) anyAllowed = true;
+      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage || isMechanicClockPage || isLabourTimesPage || isProfilePage)) anyAllowed = true;
       if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage || isTasksPage)) anyAllowed = true;
       if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage || isTasksPage)) anyAllowed = true;
       if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage || isTasksPage)) anyAllowed = true;

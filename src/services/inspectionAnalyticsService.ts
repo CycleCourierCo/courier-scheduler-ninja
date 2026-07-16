@@ -4,6 +4,8 @@ export interface InspectionAnalyticsIssue {
   id: string;
   status: string;
   estimated_cost: number | null;
+  parts_cost: number | null;
+  labour_cost: number | null;
   customer_response: string | null;
   customer_responded_at: string | null;
   priced_at: string | null;
@@ -42,7 +44,7 @@ export const fetchInspectionsForAnalytics = async (): Promise<InspectionAnalytic
       .select(
         "id, created_at, status, inspected_at, order_id, " +
           "orders:order_id(id, order_collected, scheduled_pickup_date, tracking_events, bikes, bike_value), " +
-          "inspection_issues(id, status, estimated_cost, customer_response, customer_responded_at, priced_at, parts_ordered_at, parts_arrived_at, resolved_at, created_at)"
+          "inspection_issues(id, status, estimated_cost, parts_cost, labour_cost, customer_response, customer_responded_at, priced_at, parts_ordered_at, parts_arrived_at, resolved_at, created_at)"
       )
       .order("created_at", { ascending: false })
       .range(from, from + pageSize - 1);
@@ -130,6 +132,32 @@ export const getAverageRepairCost = (inspections: InspectionAnalyticsRecord[]) =
   });
   const average = totals.length > 0 ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
   return { average, sampleSize: totals.length };
+};
+
+// Average parts / labour spend per bike (only counts bikes with the new split populated)
+export const getAveragePartsAndLabourPerBike = (inspections: InspectionAnalyticsRecord[]) => {
+  const partsTotals: number[] = [];
+  const labourTotals: number[] = [];
+  let approvedBikeCount = 0;
+  inspections.forEach(i => {
+    const issues = (i.inspection_issues || []).filter(iss => APPROVED_STATUSES.has(iss.status));
+    if (issues.length === 0) return;
+    const splitIssues = issues.filter(iss => iss.parts_cost != null || iss.labour_cost != null);
+    approvedBikeCount++;
+    if (splitIssues.length === 0) return;
+    const parts = splitIssues.reduce((s, iss) => s + Number(iss.parts_cost || 0), 0);
+    const labour = splitIssues.reduce((s, iss) => s + Number(iss.labour_cost || 0), 0);
+    partsTotals.push(parts);
+    labourTotals.push(labour);
+  });
+  const avgParts = partsTotals.length > 0 ? partsTotals.reduce((a, b) => a + b, 0) / partsTotals.length : 0;
+  const avgLabour = labourTotals.length > 0 ? labourTotals.reduce((a, b) => a + b, 0) / labourTotals.length : 0;
+  return {
+    avgParts,
+    avgLabour,
+    sampleSize: partsTotals.length,
+    totalPricedBikes: approvedBikeCount,
+  };
 };
 
 export const getIssueApprovalRate = (inspections: InspectionAnalyticsRecord[]) => {

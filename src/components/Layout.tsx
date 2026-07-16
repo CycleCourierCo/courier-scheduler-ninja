@@ -71,6 +71,9 @@ const Layout: React.FC<LayoutProps> = ({
       <Link to="/mechanic-clock" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Clock In/Out
       </Link>
+      <Link to="/admin/labour-times" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Labour Times
+      </Link>
     </> : null;
 
   const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
@@ -203,6 +206,10 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Wrench className="mr-2 h-4 w-4" />
                             Bicycle Inspections
+                          </Link>
+                          <Link to="/admin/labour-times" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Wrench className="mr-2 h-4 w-4" />
+                            Labour Times
                           </Link>
                           <Link to="/holidays" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <CalendarOff className="mr-2 h-4 w-4" />
@@ -477,6 +484,12 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        <Link to="/admin/labour-times" className="cursor-pointer flex w-full items-center">
+                          <Wrench className="mr-2 h-4 w-4" />
+                          <span>Labour Times</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link to="/holidays" className="cursor-pointer flex w-full items-center">
                           <CalendarOff className="mr-2 h-4 w-4" />
                           <span>Holidays</span>
@@ -598,6 +611,13 @@ const Layout: React.FC<LayoutProps> = ({
                       <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
                         <Wrench className="mr-2 h-4 w-4" />
                         <span>Bicycle Inspections</span>
+                      </Link>
+                    </DropdownMenuItem>}
+
+                  {isMechanic && !isAdmin && <DropdownMenuItem asChild>
+                      <Link to="/admin/labour-times" className="cursor-pointer flex w-full items-center">
+                        <Wrench className="mr-2 h-4 w-4" />
+                        <span>Labour Times</span>
                       </Link>
                     </DropdownMenuItem>}
 

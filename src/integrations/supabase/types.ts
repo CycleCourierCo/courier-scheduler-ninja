@@ -84,6 +84,7 @@ export type Database = {
       }
       bicycle_inspections: {
         Row: {
+          bike_type: string | null
           created_at: string
           id: string
           inspected_at: string | null
@@ -101,6 +102,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bike_type?: string | null
           created_at?: string
           id?: string
           inspected_at?: string | null
@@ -118,6 +120,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bike_type?: string | null
           created_at?: string
           id?: string
           inspected_at?: string | null
@@ -1140,6 +1143,7 @@ export type Database = {
           id: string
           inspection_id: string
           issue_description: string
+          labour_cost: number | null
           order_id: string
           part_name: string | null
           part_number: string | null
@@ -1148,6 +1152,7 @@ export type Database = {
           parts_arrived_at: string | null
           parts_arrived_by_id: string | null
           parts_arrived_by_name: string | null
+          parts_cost: number | null
           parts_ordered: boolean
           parts_ordered_at: string | null
           parts_ordered_by_id: string | null
@@ -1155,6 +1160,7 @@ export type Database = {
           priced_at: string | null
           priced_by_id: string | null
           priced_by_name: string | null
+          repair_id: string | null
           requested_by_id: string
           requested_by_name: string
           resolved_at: string | null
@@ -1171,6 +1177,7 @@ export type Database = {
           id?: string
           inspection_id: string
           issue_description: string
+          labour_cost?: number | null
           order_id: string
           part_name?: string | null
           part_number?: string | null
@@ -1179,6 +1186,7 @@ export type Database = {
           parts_arrived_at?: string | null
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
+          parts_cost?: number | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
@@ -1186,6 +1194,7 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          repair_id?: string | null
           requested_by_id: string
           requested_by_name: string
           resolved_at?: string | null
@@ -1202,6 +1211,7 @@ export type Database = {
           id?: string
           inspection_id?: string
           issue_description?: string
+          labour_cost?: number | null
           order_id?: string
           part_name?: string | null
           part_number?: string | null
@@ -1210,6 +1220,7 @@ export type Database = {
           parts_arrived_at?: string | null
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
+          parts_cost?: number | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
@@ -1217,6 +1228,7 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          repair_id?: string | null
           requested_by_id?: string
           requested_by_name?: string
           resolved_at?: string | null
@@ -1239,6 +1251,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_issues_repair_id_fkey"
+            columns: ["repair_id"]
+            isOneToOne: false
+            referencedRelation: "labour_times"
+            referencedColumns: ["repair_id"]
           },
           {
             foreignKeyName: "inspection_issues_requested_by_id_fkey"
@@ -1307,6 +1326,102 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      labour_time_multipliers: {
+        Row: {
+          adjustment_type: string
+          applies_to: string | null
+          modifier: string
+          notes: string | null
+          value: number
+        }
+        Insert: {
+          adjustment_type: string
+          applies_to?: string | null
+          modifier: string
+          notes?: string | null
+          value: number
+        }
+        Update: {
+          adjustment_type?: string
+          applies_to?: string | null
+          modifier?: string
+          notes?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      labour_times: {
+        Row: {
+          bike_type: string
+          brake_bed_in_required: string
+          category: string
+          combinable: string
+          combined_saving_minutes: number
+          common_parts: string | null
+          difficulty_1_5: number
+          labour_minutes: number
+          min_charge_gbp: number
+          notes: string | null
+          repair_id: string
+          repair_name: string
+          safety_critical: string
+          skill_level: string
+          software_calibration_required: string
+          specialist_tools: string | null
+          subcategory: string
+          suspension_setup_required: string
+          test_ride_required: string
+          torque_check_required: string
+          warranty_eligible: string
+        }
+        Insert: {
+          bike_type: string
+          brake_bed_in_required: string
+          category: string
+          combinable: string
+          combined_saving_minutes?: number
+          common_parts?: string | null
+          difficulty_1_5: number
+          labour_minutes: number
+          min_charge_gbp: number
+          notes?: string | null
+          repair_id: string
+          repair_name: string
+          safety_critical: string
+          skill_level: string
+          software_calibration_required: string
+          specialist_tools?: string | null
+          subcategory: string
+          suspension_setup_required: string
+          test_ride_required: string
+          torque_check_required: string
+          warranty_eligible: string
+        }
+        Update: {
+          bike_type?: string
+          brake_bed_in_required?: string
+          category?: string
+          combinable?: string
+          combined_saving_minutes?: number
+          common_parts?: string | null
+          difficulty_1_5?: number
+          labour_minutes?: number
+          min_charge_gbp?: number
+          notes?: string | null
+          repair_id?: string
+          repair_name?: string
+          safety_critical?: string
+          skill_level?: string
+          software_calibration_required?: string
+          specialist_tools?: string | null
+          subcategory?: string
+          suspension_setup_required?: string
+          test_ride_required?: string
+          torque_check_required?: string
+          warranty_eligible?: string
         }
         Relationships: []
       }
@@ -1528,6 +1643,7 @@ export type Database = {
           box_my_bike_invoice_number: string | null
           box_my_bike_invoice_url: string | null
           box_my_bike_status: string | null
+          box_tracking_url: string | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
@@ -1591,6 +1707,7 @@ export type Database = {
           box_my_bike_invoice_number?: string | null
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
+          box_tracking_url?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -1654,6 +1771,7 @@ export type Database = {
           box_my_bike_invoice_number?: string | null
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
+          box_tracking_url?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -3224,6 +3342,30 @@ export type Database = {
         }
         Relationships: []
       }
+      workshop_settings: {
+        Row: {
+          hourly_rate_gbp: number
+          id: number
+          min_charge_gbp: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          hourly_rate_gbp?: number
+          id?: number
+          min_charge_gbp?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          hourly_rate_gbp?: number
+          id?: number
+          min_charge_gbp?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3372,6 +3514,7 @@ export type Database = {
           name: string
         }[]
       }
+      next_custom_repair_id: { Args: never; Returns: string }
       set_order_availability: {
         Args: {
           p_dates: Json
@@ -3466,6 +3609,11 @@ export type Database = {
         | "driver_to_delivery"
         | "collection_scheduled"
         | "delivery_scheduled"
+        | "awaiting_depot"
+        | "in_depot_awaiting_boxing"
+        | "boxed_awaiting_label"
+        | "awaiting_3p_collection"
+        | "collected_by_3p"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -3668,6 +3816,11 @@ export const Constants = {
         "driver_to_delivery",
         "collection_scheduled",
         "delivery_scheduled",
+        "awaiting_depot",
+        "in_depot_awaiting_boxing",
+        "boxed_awaiting_label",
+        "awaiting_3p_collection",
+        "collected_by_3p",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],
