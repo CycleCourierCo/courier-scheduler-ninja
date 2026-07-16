@@ -57,9 +57,14 @@ import {
   deleteInspectionIssue,
   addIssueToExistingInspection,
   adminSetInspectionStatus,
+  updateInspectionBikeType,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
+import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
+import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
+import { useWorkshopSettings, calculateLabourPrice } from "@/lib/labourPricing";
+
 
 interface IssueEntry {
   description: string;
