@@ -1718,14 +1718,14 @@ const BicycleInspections = () => {
 
         {/* Inspection Checklist Dialog */}
         <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
-          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-y-auto [&>*]:min-w-0">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Wrench className="h-5 w-5" />
                 Bike Inspection
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 min-w-0">
               <p className="text-sm text-muted-foreground">
                 Complete each inspection item. Report any issues found under each section.
               </p>
@@ -1746,7 +1746,7 @@ const BicycleInspections = () => {
               {INSPECTION_ITEMS.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
-                  <div key={item.id} className="space-y-3 p-3 border rounded-lg">
+                  <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
                     <div className="flex items-start gap-3">
                       <Checkbox
                         id={item.id}
@@ -1758,7 +1758,7 @@ const BicycleInspections = () => {
                       </Label>
                     </div>
                     {inspectionChecklist[item.id] && (
-                      <div className="ml-7 space-y-3">
+                      <div className="ml-4 sm:ml-7 space-y-3 min-w-0">
                         <Input
                           placeholder="Optional: Add notes..."
                           value={inspectionComments[item.id] || ""}
@@ -1768,7 +1768,7 @@ const BicycleInspections = () => {
                         
                         {/* Issues for this checklist item */}
                         {itemIssues.map((issue, idx) => (
-                          <div key={idx} className="space-y-2 p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30">
+                          <div key={idx} className="space-y-2 p-2 sm:p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30 min-w-0 overflow-hidden">
                             <div className="flex items-center justify-between">
                               <p className="text-xs font-medium text-destructive flex items-center gap-1">
                                 <AlertTriangle className="h-3 w-3" />
@@ -1805,8 +1805,8 @@ const BicycleInspections = () => {
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
+                            <div className="grid grid-cols-2 gap-2 min-w-0">
+                              <div className="min-w-0">
                                 <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Parts (£)</Label>
                                 <Input
                                   type="number"
@@ -1814,10 +1814,10 @@ const BicycleInspections = () => {
                                   placeholder="0.00"
                                   value={issue.partsCost}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partsCost', e.target.value)}
-                                  className="text-sm"
+                                  className="text-sm w-full"
                                 />
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Labour (£)</Label>
                                 <Input
                                   type="number"
@@ -1825,7 +1825,7 @@ const BicycleInspections = () => {
                                   placeholder="0.00"
                                   value={issue.labourCost}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'labourCost', e.target.value)}
-                                  className="text-sm"
+                                  className="text-sm w-full"
                                 />
                               </div>
                             </div>
