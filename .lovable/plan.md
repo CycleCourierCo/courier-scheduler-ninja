@@ -1,24 +1,30 @@
-## Fix mobile overflow in the Bike Inspection dialog
+## Plan
 
-The dialog on mobile (360px) is wider than the viewport, cutting off the left side of every row. Root cause: shadcn `DialogContent` uses `grid w-full max-w-lg` — grid tracks default to `min-content`, so any long unbreakable child (the RepairPicker button label "Rim brake inner/outer cable replacement (per brake, external)", the workshop-rate helper text, the Textarea, etc.) forces the whole grid to expand past 100vw. `p-6` on mobile also eats ~48px.
+Fix the mobile overflow shown on the Bicycle Inspections page by making the inspection list/card layout responsive instead of keeping desktop row layouts on small screens.
 
-### Changes (frontend/presentation only, scoped to the checklist dialog + RepairPicker)
+### Changes
 
-1. `src/pages/BicycleInspections.tsx` — Inspection Checklist `<DialogContent>` (line 1721):
-   - Replace class with `w-[calc(100vw-1rem)] sm:w-full max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-y-auto` plus `[&>*]:min-w-0` so grid tracks can shrink.
-   - Inner wrapper `space-y-4 py-4` → add `min-w-0`.
-   - Each issue card (`p-3 bg-muted/50 …`) → add `min-w-0 overflow-hidden` and drop internal `p-3` to `p-2 sm:p-3` on mobile.
-   - `grid grid-cols-2 gap-2` for Parts/Labour → keep, but wrap each `<Input>` parent with `min-w-0` so numeric inputs shrink.
-   - Checklist item wrapper (`space-y-3 p-3 border rounded-lg`) → `p-2 sm:p-3 min-w-0`.
-   - Reduce left indent `ml-7` → `ml-4 sm:ml-7` to give issue cards more room.
+1. **Inspection card header**
+   - Change the top card header from a forced horizontal `justify-between` layout to `flex-col` on mobile and `sm:flex-row` on larger screens.
+   - Add `min-w-0`, wrapping, and safe text breaking to bike titles, tracking/customer names, and metadata so long bike/order/customer strings cannot widen the page.
+   - Make the status badge/status dropdown area full-width on mobile, right-aligned only on desktop.
 
-2. `src/components/inspections/RepairPicker.tsx`:
-   - Trigger button: add `min-w-0` on the outer `<Button>` and on the inner label `<span>` (`flex items-center gap-2 truncate min-w-0`) so the truncate actually engages inside the flex row.
-   - `PopoverContent` width: `w-[calc(100vw-1rem)] sm:w-[420px] sm:max-w-[92vw]` so the popover itself never overflows on mobile.
+2. **Bike category controls inside cards**
+   - Replace the fixed `w-[180px]` category picker wrapper with responsive widths: full-width on mobile, fixed/narrow only from `sm` upwards.
+   - Update `BikeCategoryPicker` with `min-w-0` on the trigger and truncate-safe labels.
+   - Make its popover mobile-safe like the repair picker: `w-[calc(100vw-1rem)] sm:w-[300px]`.
 
-3. No changes to logic, data flow, services, or the pricing/edit forms outside the checklist dialog. Card-level RepairPicker usages (lines 1061, 1321) inherit the RepairPicker fix automatically.
+3. **Tabs and top filters**
+   - Make the search/sort row stack cleanly on mobile.
+   - Make the tabs area horizontally scrollable or wrap without forcing page width, so long labels like “Inspected & Serviced” do not create body overflow.
 
-### Out of scope
-- No changes to `src/components/ui/dialog.tsx` (shared component).
-- No changes to inspection data model, submission flow, or the labour-times catalogue.
-- Desktop layout is preserved (all mobile-only tweaks are behind `sm:` breakpoints).
+4. **Issue/action sections in cards**
+   - Add `min-w-0`/`overflow-hidden` to issue rows and nested action sections.
+   - Stack pricing/edit/add-issue action buttons on very small screens where needed.
+   - Ensure badges, invoice links, and “Inspected by…” rows wrap instead of pushing the card wider.
+
+### Scope
+
+- Frontend layout only.
+- No changes to inspection data, statuses, pricing logic, labour catalogue, or permissions.
+- Desktop layout remains the same or visually equivalent, with mobile-specific fixes behind responsive classes.

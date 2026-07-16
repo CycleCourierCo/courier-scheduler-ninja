@@ -44,13 +44,13 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
           variant="outline"
           size="sm"
           disabled={disabled}
-          className={cn("w-full justify-between font-normal", buttonClassName)}
+          className={cn("w-full min-w-0 justify-between font-normal", buttonClassName)}
         >
-          <span className="truncate">{value || placeholder || "Choose bike category…"}</span>
+          <span className="min-w-0 truncate">{value || placeholder || "Choose bike category…"}</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[300px] max-w-[92vw]" align="start">
+      <PopoverContent className="p-0 w-[calc(100vw-1rem)] sm:w-[300px] sm:max-w-[92vw]" align="start">
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -74,12 +74,12 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
                 setOpen(false);
               }}
               className={cn(
-                "w-full text-left px-3 py-1.5 text-sm hover:bg-accent border-b last:border-b-0 flex items-center gap-2",
+                "w-full min-w-0 text-left px-3 py-1.5 text-sm hover:bg-accent border-b last:border-b-0 flex items-center gap-2",
                 v === value && "bg-accent"
               )}
             >
               {v === value ? <Check className="h-3 w-3 text-primary" /> : <span className="w-3" />}
-              {v}
+              <span className="min-w-0 truncate">{v}</span>
             </button>
           ))}
         </ScrollArea>

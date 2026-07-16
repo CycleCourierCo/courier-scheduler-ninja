@@ -779,27 +779,27 @@ const BicycleInspections = () => {
 
 
     return (
-      <Card key={order.id} className="mb-4">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Wrench className="h-5 w-5" />
-                {order.bike_brand} {order.bike_model}
+      <Card key={order.id} className="mb-4 overflow-hidden">
+        <CardHeader className="pb-3 p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="flex min-w-0 flex-wrap items-start gap-2 text-base sm:text-lg break-words">
+                <Wrench className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 break-words">{order.bike_brand} {order.bike_model}</span>
                 {order.bike_quantity > 1 && (
-                  <Badge variant="secondary">x{order.bike_quantity}</Badge>
+                  <Badge variant="secondary" className="shrink-0">x{order.bike_quantity}</Badge>
                 )}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
               {order.customer_order_number && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
                 </p>
               )}
               {/* Order status and storage location badges */}
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex min-w-0 flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
                 {order.storage_locations && Array.isArray(order.storage_locations) && 
                  order.storage_locations.length > 0 && (
@@ -821,12 +821,12 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
                 {canManageInspections && inspection?.id && (
-                  <div className="flex items-center gap-1">
-                    <Badge variant={inspection.bike_type ? "secondary" : "outline"} className="flex items-center gap-1">
-                      <Wrench className="h-3 w-3" />
-                      {inspection.bike_type || "No bike category"}
+                  <div className="flex min-w-0 w-full flex-col gap-1 sm:w-auto sm:flex-row sm:items-center">
+                    <Badge variant={inspection.bike_type ? "secondary" : "outline"} className="flex min-w-0 max-w-full items-center gap-1 self-start">
+                      <Wrench className="h-3 w-3 shrink-0" />
+                      <span className="min-w-0 truncate">{inspection.bike_type || "No bike category"}</span>
                     </Badge>
-                    <div className="w-[180px]">
+                    <div className="w-full min-w-0 sm:w-[180px]">
                       <BikeCategoryPicker
                         value={inspection.bike_type ?? null}
                         onChange={(v) => updateBikeTypeMutation.mutate({ inspectionId: inspection.id, bikeType: v })}
@@ -839,8 +839,8 @@ const BicycleInspections = () => {
               </div>
 
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge variant={badgeConfig.variant}>
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
+              <Badge variant={badgeConfig.variant} className="max-w-full whitespace-normal text-left sm:whitespace-nowrap sm:text-center">
                 {badgeConfig.label}
               </Badge>
               {isAdmin && inspection?.id && (
@@ -856,7 +856,7 @@ const BicycleInspections = () => {
                     });
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectTrigger className="h-8 w-full min-w-0 text-xs sm:w-[180px]">
                     <SelectValue placeholder="Change status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -896,7 +896,7 @@ const BicycleInspections = () => {
               {orderIssues.map((issue: InspectionIssue) => (
                 <div
                   key={issue.id}
-                  className={`p-3 rounded-lg border-l-4 ${
+                  className={`p-3 rounded-lg border-l-4 min-w-0 overflow-hidden ${
                     issue.status === "resolved" || issue.status === "approved" || issue.status === "repaired"
                       ? "bg-muted/50 border-green-500"
                       : issue.status === "declined"
@@ -904,17 +904,17 @@ const BicycleInspections = () => {
                       : "bg-muted/50 border-amber-500"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm flex items-center gap-1">
-                        <AlertTriangle className="h-4 w-4" />
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm flex min-w-0 items-start gap-1 break-words">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
                         {issue.issue_description}
                       </p>
                       {issue.estimated_cost != null && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 break-words">
                           {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
                           {(issue.parts_cost != null || issue.labour_cost != null) && (
-                            <span className="ml-1 text-xs">
+                            <span className="text-xs sm:ml-1">
                               (Parts £{Number(issue.parts_cost || 0).toFixed(2)} + Labour £{Number(issue.labour_cost || 0).toFixed(2)})
                             </span>
                           )}
@@ -938,7 +938,7 @@ const BicycleInspections = () => {
                         Reported by {issue.requested_by_name}
                       </p>
                     </div>
-                    <Badge variant={getIssueBadgeVariant(issue.status)}>
+                    <Badge variant={getIssueBadgeVariant(issue.status)} className="self-start shrink-0">
                       {issue.status}
                     </Badge>
                   </div>
@@ -955,8 +955,8 @@ const BicycleInspections = () => {
                         const labourNum = parseFloat(current.labour);
                         const total = (isFinite(partsNum) ? partsNum : 0) + (isFinite(labourNum) ? labourNum : 0);
                         return (
-                          <div className="flex items-end gap-2 flex-wrap">
-                            <div className="flex-1 min-w-[100px]">
+                          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                            <div className="min-w-0 flex-1 sm:min-w-[100px]">
                               <Label className="text-xs">Parts (£)</Label>
                               <Input
                                 type="number"
@@ -967,7 +967,7 @@ const BicycleInspections = () => {
                                 className="text-sm"
                               />
                             </div>
-                            <div className="flex-1 min-w-[100px]">
+                            <div className="min-w-0 flex-1 sm:min-w-[100px]">
                               <Label className="text-xs">Labour (£)</Label>
                               <Input
                                 type="number"
@@ -978,7 +978,7 @@ const BicycleInspections = () => {
                                 className="text-sm"
                               />
                             </div>
-                            <div className="text-xs text-muted-foreground pb-2">
+                            <div className="text-xs text-muted-foreground sm:pb-2">
                               Total: <span className="font-medium text-foreground">£{total.toFixed(2)}</span>
                             </div>
                             <Button
@@ -1055,7 +1055,7 @@ const BicycleInspections = () => {
 
                   {/* Edit form (awaiting_pricing) */}
                   {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
-                    <div className="mt-3 space-y-2 p-3 rounded-md border bg-background">
+                    <div className="mt-3 space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
                       <div>
                         <Label className="text-xs">Repair (from catalogue)</Label>
                         <RepairPicker
@@ -1081,8 +1081,8 @@ const BicycleInspections = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                        <div className="min-w-0">
                           <Label className="text-xs">Parts (£)</Label>
                           <Input
                             type="number"
@@ -1093,7 +1093,7 @@ const BicycleInspections = () => {
                             className="text-sm"
                           />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <Label className="text-xs">Labour (£)</Label>
                           <Input
                             type="number"
@@ -1105,21 +1105,21 @@ const BicycleInspections = () => {
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
+                        <div className="min-w-0">
                           <Label className="text-xs">Part name</Label>
                           <Input value={editIssueDraft.partName} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <Label className="text-xs">Spec</Label>
                           <Input value={editIssueDraft.partSpec} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <Label className="text-xs">Part #</Label>
                           <Input value={editIssueDraft.partNumber} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
                         </div>
                       </div>
-                      <div className="flex gap-2 pt-1">
+                      <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                         <Button
                           size="sm"
                           onClick={() => {
@@ -1167,8 +1167,8 @@ const BicycleInspections = () => {
 
                   {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
                   {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
-                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div className="flex items-center gap-2">
+                    <div className="mt-3 flex min-w-0 flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
                           id={`ordered-${issue.id}`}
                           checked={!!issue.parts_ordered}
@@ -1176,8 +1176,8 @@ const BicycleInspections = () => {
                             togglePartsOrderedMutation.mutate({ issueId: issue.id, ordered: !!checked })
                           }
                         />
-                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex items-center gap-1">
-                          <PackageCheck className="h-4 w-4" />
+                        <Label htmlFor={`ordered-${issue.id}`} className="text-sm cursor-pointer flex min-w-0 flex-wrap items-center gap-1">
+                          <PackageCheck className="h-4 w-4 shrink-0" />
                           Parts ordered
                           {issue.parts_ordered && issue.parts_ordered_by_name && (
                             <span className="text-xs text-muted-foreground ml-2">
@@ -1186,7 +1186,7 @@ const BicycleInspections = () => {
                           )}
                         </Label>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
                           id={`parts-${issue.id}`}
                           checked={!!issue.parts_arrived}
@@ -1197,9 +1197,9 @@ const BicycleInspections = () => {
                         />
                         <Label
                           htmlFor={`parts-${issue.id}`}
-                          className={`text-sm flex items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                          className={`text-sm flex min-w-0 flex-wrap items-center gap-1 ${issue.parts_ordered ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                         >
-                          <PackageCheck className="h-4 w-4" />
+                          <PackageCheck className="h-4 w-4 shrink-0" />
                           Parts arrived
                           {issue.parts_arrived && issue.parts_arrived_by_name && (
                             <span className="text-xs text-muted-foreground ml-2">
@@ -1222,7 +1222,7 @@ const BicycleInspections = () => {
                   {/* Accept/Decline Buttons (for customers) */}
                   {!isAdmin && isOwner && issue.status === "pending" && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           size="sm"
                           variant="outline"
@@ -1315,7 +1315,7 @@ const BicycleInspections = () => {
           {canManageInspections && isAwaitingPricing && inspection && (
             <div className="pt-1">
               {addIssueForInspectionId === inspection.id ? (
-                <div className="space-y-2 p-3 rounded-md border bg-background">
+                <div className="space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
                   <div>
                     <Label className="text-xs">Repair (from catalogue)</Label>
                     <RepairPicker
@@ -1340,8 +1340,8 @@ const BicycleInspections = () => {
                       rows={2}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                    <div className="min-w-0">
                       <Label className="text-xs">Parts (£)</Label>
                       <Input
                         type="number"
@@ -1352,7 +1352,7 @@ const BicycleInspections = () => {
                         className="text-sm"
                       />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <Label className="text-xs">Labour (£)</Label>
                       <Input
                         type="number"
@@ -1365,21 +1365,21 @@ const BicycleInspections = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
+                    <div className="min-w-0">
                       <Label className="text-xs">Part name</Label>
                       <Input value={newIssueDraft.partName} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partName: e.target.value }))} className="text-sm" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <Label className="text-xs">Spec</Label>
                       <Input value={newIssueDraft.partSpec} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partSpec: e.target.value }))} className="text-sm" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <Label className="text-xs">Part #</Label>
                       <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
                     </div>
                   </div>
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                     <Button
                       size="sm"
                       onClick={() => {
@@ -1453,7 +1453,7 @@ const BicycleInspections = () => {
 
           {/* Admin Actions for awaiting inspection */}
           {canManageInspections && (!inspection || inspection.status === "pending") && (
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <Button
                 size="sm"
                 onClick={() => handleOpenInspectionChecklist(order.id)}
@@ -1466,8 +1466,8 @@ const BicycleInspections = () => {
 
           {/* Inspection Info */}
           {inspection?.inspected_at && (
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground break-words">
                 Inspected by {inspection.inspected_by_name} on{" "}
                 {new Date(inspection.inspected_at).toLocaleDateString()}
               </p>
@@ -1491,9 +1491,9 @@ const BicycleInspections = () => {
 
           {/* Invoice Section */}
           {hasInvoice && (
-            <div className="flex items-center gap-2 pt-2">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <FileText className="h-3 w-3" />
+              <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+                <Badge variant="outline" className="flex min-w-0 max-w-full items-center gap-1">
+                  <FileText className="h-3 w-3 shrink-0" />
                 Invoice: {inspection.invoice_number}
               </Badge>
               {inspection.invoice_url && (
@@ -1501,7 +1501,7 @@ const BicycleInspections = () => {
                   href={inspection.invoice_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
                 >
                   <ExternalLink className="h-3 w-3" />
                   View
@@ -1534,11 +1534,11 @@ const BicycleInspections = () => {
 
   return (
     <Layout>
-      <div className="container py-6">
+      <div className="container py-4 sm:py-6 overflow-x-hidden">
         <DashboardHeader>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Wrench className="h-8 w-8" />
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Wrench className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
               {isAdmin ? "Bicycle Inspections" : "My Inspections"}
             </h1>
             <p className="text-muted-foreground">
@@ -1563,9 +1563,9 @@ const BicycleInspections = () => {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="awaiting" className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3 justify-end">
-              <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Tabs defaultValue="awaiting" className="space-y-4 min-w-0">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <div className="relative w-full min-w-0 sm:flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by tracking #, order #, bike or name..."
@@ -1575,13 +1575,13 @@ const BicycleInspections = () => {
                 />
               </div>
               {canManageInspections && (
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
                   <Label htmlFor="sort-inspections" className="text-sm text-muted-foreground">
                     Sort by:
                   </Label>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                    <SelectTrigger id="sort-inspections" className="w-[220px]">
+                    <SelectTrigger id="sort-inspections" className="w-full min-w-0 sm:w-[220px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1593,7 +1593,8 @@ const BicycleInspections = () => {
                 </div>
               )}
             </div>
-            <TabsList className="flex-wrap h-auto">
+            <div className="w-full overflow-x-auto pb-1">
+            <TabsList className="inline-flex h-auto min-w-max flex-nowrap sm:flex-wrap sm:min-w-0">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
@@ -1647,6 +1648,7 @@ const BicycleInspections = () => {
                 )}
               </TabsTrigger>
             </TabsList>
+            </div>
 
             <TabsContent value="awaiting" className="space-y-4">
               {awaitingInspection.length === 0 ? (
