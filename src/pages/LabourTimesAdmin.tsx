@@ -294,7 +294,7 @@ export default function LabourTimesAdmin() {
                     </PopoverTrigger>
                     <PopoverContent className="w-64 max-h-80 overflow-y-auto">
                       <div className="space-y-2">
-                        {ALL_COLUMNS.map((c) => (
+                        {availableColumns.map((c) => (
                           <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
                             <Checkbox
                               checked={visibleCols.has(c.key)}
@@ -306,7 +306,7 @@ export default function LabourTimesAdmin() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <Button onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add repair</Button>
+                  {isAdmin && <Button onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add repair</Button>}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -314,22 +314,22 @@ export default function LabourTimesAdmin() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        {ALL_COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
+                        {availableColumns.filter((c) => visibleCols.has(c.key)).map((c) => (
                           <TableHead key={c.key}>{c.label}</TableHead>
                         ))}
-                        <TableHead className="w-10" />
+                        {isAdmin && <TableHead className="w-10" />}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {listQuery.isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={visibleCols.size + 1} className="py-10 text-center text-muted-foreground">
+                          <TableCell colSpan={visibleCols.size + (isAdmin ? 1 : 0)} className="py-10 text-center text-muted-foreground">
                             <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Loading…
                           </TableCell>
                         </TableRow>
                       ) : listQuery.data?.rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={visibleCols.size + 1} className="py-10 text-center text-muted-foreground">
+                          <TableCell colSpan={visibleCols.size + (isAdmin ? 1 : 0)} className="py-10 text-center text-muted-foreground">
                             No results
                           </TableCell>
                         </TableRow>
@@ -337,28 +337,30 @@ export default function LabourTimesAdmin() {
                         listQuery.data?.rows.map((row) => (
                           <TableRow
                             key={row.repair_id}
-                            className="cursor-pointer"
-                            onClick={() => openEdit(row)}
+                            className={isAdmin ? "cursor-pointer" : ""}
+                            onClick={isAdmin ? () => openEdit(row) : undefined}
                           >
-                            {ALL_COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
+                            {availableColumns.filter((c) => visibleCols.has(c.key)).map((c) => (
                               <TableCell key={c.key} className="whitespace-nowrap">
                                 {renderCell(row, c.key, hourlyRate, minCharge)}
                               </TableCell>
                             ))}
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => setPendingDelete(row)}
-                                  >Delete</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
+                            {isAdmin && (
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => setPendingDelete(row)}
+                                    >Delete</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))
                       )}
