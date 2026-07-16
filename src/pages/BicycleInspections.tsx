@@ -1805,8 +1805,8 @@ const BicycleInspections = () => {
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
+                            <div className="grid grid-cols-2 gap-2 min-w-0">
+                              <div className="min-w-0">
                                 <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Parts (£)</Label>
                                 <Input
                                   type="number"
@@ -1814,10 +1814,10 @@ const BicycleInspections = () => {
                                   placeholder="0.00"
                                   value={issue.partsCost}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partsCost', e.target.value)}
-                                  className="text-sm"
+                                  className="text-sm w-full"
                                 />
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Labour (£)</Label>
                                 <Input
                                   type="number"
@@ -1825,7 +1825,7 @@ const BicycleInspections = () => {
                                   placeholder="0.00"
                                   value={issue.labourCost}
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'labourCost', e.target.value)}
-                                  className="text-sm"
+                                  className="text-sm w-full"
                                 />
                               </div>
                             </div>
