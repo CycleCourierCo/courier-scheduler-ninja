@@ -1,35 +1,68 @@
 ## Goal
-On the public tracking page, show Box My Bike lifecycle milestones in the tracking timeline so customers can see where their bike is in the boxing workflow.
 
-## Milestones to show (only when the order is a Box My Bike order)
+1. Extend the Postgres `order_status` enum with the 5 Box My Bike stages so an order's `status` column reflects its boxing lifecycle natively.
+2. Keep `orders.status` in sync with `orders.box_my_bike_status` via a DB trigger, backfill existing rows, and route the new statuses through webhooks.
+3. Update the frontend `OrderStatus` union, `StatusBadge`, and hide cancelled orders on the Box My Bike page.
 
-Rendered as timeline events using the timestamps stored on the order:
+## 1. Database migration
 
-| Timeline title | Timestamp field | Description |
-| --- | --- | --- |
-| In depot, awaiting boxing | `box_in_depot_at` | Bike has arrived at the depot and is queued for boxing |
-| Boxed, awaiting label | `box_boxed_at` | Bike has been boxed and is awaiting a shipping label |
-| Awaiting 3rd-party collection | `box_label_printed_at` | Label printed — awaiting 3rd-party courier collection |
-| Collected by 3rd-party courier | `box_collected_by_3p_at` | Bike has been handed to the 3rd-party courier |
+### 1a. Enum values (must be committed before use)
+```sql
+ALTER TYPE public.order_status ADD VALUE IF NOT EXISTS 'awaiting_depot';
+ALTER TYPE public.order_status ADD VALUE IF NOT EXISTS 'in_depot_awaiting_boxing';
+ALTER TYPE public.order_status ADD VALUE IF NOT EXISTS 'boxed_awaiting_label';
+ALTER TYPE public.order_status ADD VALUE IF NOT EXISTS 'awaiting_3p_collection';
+ALTER TYPE public.order_status ADD VALUE IF NOT EXISTS 'collected_by_3p';
+```
+`ALTER TYPE ... ADD VALUE` must run outside a transaction / in its own migration commit before the values are usable in subsequent SQL — so this migration only adds the enum values.
 
-Each event only renders when its timestamp is set. They chronologically slot into the existing timeline (sorted by date, alongside "Bike Collected", inspection events, etc.). Use a `Package`/`Box`-style icon from `lucide-react` (e.g. `Package` for depot, `Box` for boxed, `Truck` for the 3P steps) to visually differentiate them.
+### 1b. Second migration: trigger + backfill + webhook mapping
 
-## Technical changes
+- Sync trigger on `public.orders` (BEFORE INSERT OR UPDATE):
+  - If `NEW.is_box_my_bike = true`:
+    - On INSERT with NULL `box_my_bike_status`, default it to `awaiting_depot`.
+    - Always set `NEW.status := NEW.box_my_bike_status::order_status`.
+  - No effect for non-box orders.
+- Backfill: `UPDATE public.orders SET status = box_my_bike_status::order_status WHERE is_box_my_bike = true AND box_my_bike_status IS NOT NULL AND status <> 'cancelled';`
+- Extend `public.get_webhook_event_for_status` to map each new status to a distinct event:
+  - `awaiting_depot` → `order.box.awaiting_depot`
+  - `in_depot_awaiting_boxing` → `order.box.in_depot`
+  - `boxed_awaiting_label` → `order.box.boxed`
+  - `awaiting_3p_collection` → `order.box.awaiting_3p`
+  - `collected_by_3p` → `order.box.collected_by_3p`
+  
+  Existing webhook events remain unchanged. `trigger_order_webhook` already fires via `get_webhook_event_for_status`, so no trigger changes required beyond the mapping.
 
-1. **`supabase/migrations/<new>.sql` — extend `_build_public_order_payload`**
-   Add the following keys to the returned JSON so the public tracking RPC exposes them:
-   - `is_box_my_bike`
-   - `box_my_bike_status`
-   - `box_in_depot_at`
-   - `box_boxed_at`
-   - `box_label_printed_at`
-   - `box_collected_by_3p_at`
-   
-   `get_public_order` and `get_public_order_with_proof` both delegate to this helper, so no other RPC changes needed.
+## 2. Frontend
 
-2. **`src/services/orderServiceUtils.ts`** — already maps all six fields (`isBoxMyBike`, `boxMyBikeStatus`, `boxInDepotAt`, `boxBoxedAt`, `boxLabelPrintedAt`, `boxCollectedBy3pAt`). No change required.
+### 2a. Types
+`src/types/order.ts` — extend the `OrderStatus` union with the five new values.
 
-3. **`src/components/order-detail/TrackingTimeline.tsx` — `getTrackingEvents`**
-   After the inspection lifecycle block, add a Box My Bike block: when `order.isBoxMyBike` is true, push one event per non-null timestamp above with the mapped title/description/icon. Sorting into the timeline uses the existing date-sort logic (no change).
+### 2b. `src/components/StatusBadge.tsx`
+Add cases for the five stages using the existing `BOX_MY_BIKE_STATUS_LABELS`:
+- `awaiting_depot` → amber
+- `in_depot_awaiting_boxing` → blue
+- `boxed_awaiting_label` → indigo
+- `awaiting_3p_collection` → purple
+- `collected_by_3p` → green
 
-No changes to the mechanic/admin Box My Bike workflow, RLS, or other tabs.
+No other call-site changes needed — every `StatusBadge` consumer already receives `order.status`, which will now carry the box stage.
+
+### 2c. `src/pages/BoxMyBikePage.tsx`
+- Add `.neq("status", "cancelled")` to the orders query so cancelled box orders don't appear.
+- Client-side stage update mutation (line ~113) — no functional change needed: the DB trigger will keep `status` synced. Optionally also send `status: newStage` in the update patch to avoid a round-trip re-render before the trigger fires.
+
+## 3. Scheduling / dispatch / other filters
+
+- Scheduling and dispatch queries do NOT enumerate positive status lists that would need to include the new values — they either use `is_box_my_bike` or exclude by status (e.g. `<> 'cancelled'`). Box My Bike orders skip Shipday scheduling entirely, so no additional exclusions are required.
+- `shipday-webhook` and `reconcile-shipday-orders` reference `order_status` only for driver events (`driver_to_collection`, `collected`, etc.) — untouched by the new values.
+
+## Not changing
+- Existing `order_status` values, their triggers, or their consumers.
+- The Box My Bike UI stage flow — same 5 tabs and progression.
+- RLS.
+
+## Order of execution
+1. Approve → migration 1 (enum values only).
+2. Migration 2 (trigger + backfill + webhook mapping).
+3. Frontend edits (types + badge + cancelled filter).
