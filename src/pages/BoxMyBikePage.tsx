@@ -365,4 +365,49 @@ const BoxMyBikePage: React.FC = () => {
   );
 };
 
+const TrackingUrlEditor: React.FC<{
+  order: BoxOrder;
+  canEdit: boolean;
+  onSave: (url: string) => void;
+  saving: boolean;
+}> = ({ order, canEdit, onSave, saving }) => {
+  const [value, setValue] = React.useState(order.box_tracking_url || "");
+  React.useEffect(() => {
+    setValue(order.box_tracking_url || "");
+  }, [order.box_tracking_url]);
+  const dirty = (value || "") !== (order.box_tracking_url || "");
+
+  return (
+    <div className="rounded-md border p-3 bg-muted/30 space-y-2">
+      <div className="text-sm font-medium">3rd-party tracking link</div>
+      {canEdit ? (
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="https://tracking.example.com/..."
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="flex-1 min-w-[220px] rounded-md border bg-background px-3 py-2 text-sm"
+          />
+          <Button size="sm" onClick={() => onSave(value.trim())} disabled={saving || !dirty}>
+            Save
+          </Button>
+        </div>
+      ) : order.box_tracking_url ? (
+        <a
+          href={order.box_tracking_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-primary underline break-all"
+        >
+          {order.box_tracking_url}
+        </a>
+      ) : (
+        <div className="text-xs text-muted-foreground">No tracking link added yet</div>
+      )}
+    </div>
+  );
+};
+
 export default BoxMyBikePage;
