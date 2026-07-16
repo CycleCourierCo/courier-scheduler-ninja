@@ -1659,6 +1659,20 @@ const BicycleInspections = () => {
               <p className="text-sm text-muted-foreground">
                 Complete each inspection item. Report any issues found under each section.
               </p>
+
+              {/* Bike category — required when reporting issues, filters the repair catalogue */}
+              <div className="p-3 border rounded-lg space-y-2 bg-muted/30">
+                <Label className="text-sm font-medium">Bike category</Label>
+                <BikeCategoryPicker
+                  value={checklistBikeType}
+                  onChange={setChecklistBikeType}
+                  placeholder="Choose bike category to unlock repair catalogue…"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Required before reporting issues — filters the repair catalogue to matching labour times.
+                </p>
+              </div>
+
               {INSPECTION_ITEMS.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
