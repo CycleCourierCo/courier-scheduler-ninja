@@ -1725,7 +1725,7 @@ const BicycleInspections = () => {
                 Bike Inspection
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 min-w-0">
               <p className="text-sm text-muted-foreground">
                 Complete each inspection item. Report any issues found under each section.
               </p>
