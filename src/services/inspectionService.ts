@@ -865,6 +865,8 @@ export const updateInspectionIssue = async (
   fields: {
     issue_description?: string;
     estimated_cost?: number | null;
+    parts_cost?: number | null;
+    labour_cost?: number | null;
     part_name?: string | null;
     part_spec?: string | null;
     part_number?: string | null;
@@ -874,8 +876,16 @@ export const updateInspectionIssue = async (
 ): Promise<InspectionIssue | null> => {
   try {
     const update: Record<string, any> = { ...fields };
-    if (Object.prototype.hasOwnProperty.call(fields, 'estimated_cost')) {
-      if (fields.estimated_cost != null) {
+    const priceChanged =
+      Object.prototype.hasOwnProperty.call(fields, 'estimated_cost') ||
+      Object.prototype.hasOwnProperty.call(fields, 'parts_cost') ||
+      Object.prototype.hasOwnProperty.call(fields, 'labour_cost');
+    if (priceChanged) {
+      const hasPrice =
+        (fields.estimated_cost != null) ||
+        (fields.parts_cost != null) ||
+        (fields.labour_cost != null);
+      if (hasPrice) {
         update.priced_at = new Date().toISOString();
         if (actorId) update.priced_by_id = actorId;
         if (actorName) update.priced_by_name = actorName;
