@@ -505,6 +505,26 @@ const AnalyticsPage = () => {
                     description={`${issueApproval.approved} of ${issueApproval.responded} responded`}
                     icon={ThumbsUp}
                   />
+                  <StatsCard
+                    title="Avg Parts / Bike"
+                    value={`£${avgPartsLabour.avgParts.toFixed(2)}`}
+                    description={
+                      avgPartsLabour.sampleSize === 0
+                        ? "No priced bikes with parts/labour split yet"
+                        : `Across ${avgPartsLabour.sampleSize}${avgPartsLabour.totalPricedBikes ? ` of ${avgPartsLabour.totalPricedBikes}` : ""} bikes`
+                    }
+                    icon={PoundSterling}
+                  />
+                  <StatsCard
+                    title="Avg Labour / Bike"
+                    value={`£${avgPartsLabour.avgLabour.toFixed(2)}`}
+                    description={
+                      avgPartsLabour.sampleSize === 0
+                        ? "No priced bikes with parts/labour split yet"
+                        : `Across ${avgPartsLabour.sampleSize}${avgPartsLabour.totalPricedBikes ? ` of ${avgPartsLabour.totalPricedBikes}` : ""} bikes`
+                    }
+                    icon={PoundSterling}
+                  />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <InspectionsOverTimeChart data={inspectionsOverTime} />
