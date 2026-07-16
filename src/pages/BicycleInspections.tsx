@@ -1758,7 +1758,7 @@ const BicycleInspections = () => {
                       </Label>
                     </div>
                     {inspectionChecklist[item.id] && (
-                      <div className="ml-7 space-y-3">
+                      <div className="ml-4 sm:ml-7 space-y-3 min-w-0">
                         <Input
                           placeholder="Optional: Add notes..."
                           value={inspectionComments[item.id] || ""}
