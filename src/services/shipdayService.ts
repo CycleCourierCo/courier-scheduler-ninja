@@ -29,8 +29,12 @@ export const syncOrdersToShipday = async (orders: any[]) => {
     
     for (const order of ordersToSync) {
       try {
-        // For collected orders, only create delivery
-        if (order.status === 'collected') {
+        // Box My Bike orders only get a pickup leg on Shipday (delivery is handled by 3rd party)
+        if (order.is_box_my_bike === true) {
+          await createShipdayOrder(order.id, 'pickup');
+          successCount++;
+        } else if (order.status === 'collected') {
+          // For collected orders, only create delivery
           await createShipdayOrder(order.id, 'delivery');
           successCount++;
         } else {
