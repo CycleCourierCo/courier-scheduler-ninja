@@ -98,6 +98,7 @@ const BoxMyBikePage: React.FC = () => {
         .from("orders")
         .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
         .eq("is_box_my_bike", true)
+        .neq("status", "cancelled")
         .order("created_at", { ascending: false });
       if (!isStaff && user?.id) {
         q = q.eq("user_id", user.id);
