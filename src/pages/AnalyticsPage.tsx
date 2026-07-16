@@ -120,6 +120,7 @@ const AnalyticsPage = () => {
   const inspectionsWithIssues = getInspectionsWithIssuesRate(inspections);
   const avgRepairCost = getAverageRepairCost(inspections);
   const avgBikeValue = getAverageBikeValue(inspections);
+  const avgPartsLabour = getAveragePartsAndLabourPerBike(inspections);
   const issueApproval = getIssueApprovalRate(inspections);
   const stageDurations = getInspectionStageDurations(inspections);
 
