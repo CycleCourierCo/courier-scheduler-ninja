@@ -276,7 +276,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/admin/labour-times" element={
-                <ProtectedRoute adminOnly={true}>
+                <ProtectedRoute>
                   <LabourTimesAdmin />
                 </ProtectedRoute>
               } />
