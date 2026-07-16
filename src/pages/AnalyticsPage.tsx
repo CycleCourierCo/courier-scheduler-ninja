@@ -336,6 +336,35 @@ const AnalyticsPage = () => {
                   </div>
                 </div>
               </TabsContent>
+
+              <TabsContent value="bike-value" className="space-y-2 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
+                  <h2 className="text-lg sm:text-xl font-semibold">Bike Value</h2>
+                  <div className="flex flex-wrap gap-1">
+                    {([7, 30, 90, 365, "all"] as const).map((d) => (
+                      <Button
+                        key={String(d)}
+                        size="sm"
+                        variant={bikeValueDays === d ? "default" : "outline"}
+                        onClick={() => setBikeValueDays(d)}
+                      >
+                        {d === "all" ? "All" : d === 365 ? "1y" : `${d}d`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <BikeValueStatsCards
+                  scoped={bikeValueScoped}
+                  allTime={bikeValueAllTime}
+                  rangeLabel={bikeValueRangeLabel}
+                />
+                <DailyBikeValueChart data={bikeValueDaily} />
+                <BikeValueBreakdownChart
+                  byType={bikeValueScoped.valueByBikeType}
+                  byBrand={bikeValueScoped.valueByBrand}
+                />
+              </TabsContent>
+              
               
               <TabsContent value="performance" className="space-y-2 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
