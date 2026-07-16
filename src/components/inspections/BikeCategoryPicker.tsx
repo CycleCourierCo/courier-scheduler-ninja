@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { cn } from "@/lib/utils";
 import { listFilterOptions } from "@/services/labourTimesService";
 
@@ -63,7 +63,7 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
             />
           </div>
         </div>
-        <ScrollArea className="h-64">
+        <div className="max-h-64 overflow-y-auto overscroll-contain">
           {filtered.length === 0 && <p className="p-3 text-xs text-muted-foreground">No matches.</p>}
           {filtered.map((v) => (
             <button
@@ -82,7 +82,7 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
               <span className="min-w-0 truncate">{v}</span>
             </button>
           ))}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
