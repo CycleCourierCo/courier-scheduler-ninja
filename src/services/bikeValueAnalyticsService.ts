@@ -5,6 +5,20 @@ export interface BikeValueRange {
   end: Date;
 }
 
+export interface BikeValueFilter {
+  range?: BikeValueRange;
+  customerName?: string | null;
+}
+
+export interface CustomerBikeValueRow {
+  customerName: string;
+  totalValue: number;
+  totalBikes: number;
+  valuedBikes: number;
+  avgValuePerBike: number;
+  highestBikeValue: number;
+}
+
 export interface DailyBikeValuePoint {
   date: string; // YYYY-MM-DD
   label: string; // dd MMM
