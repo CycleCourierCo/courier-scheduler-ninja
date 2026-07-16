@@ -1316,6 +1316,102 @@ export type Database = {
         }
         Relationships: []
       }
+      labour_time_multipliers: {
+        Row: {
+          adjustment_type: string
+          applies_to: string | null
+          modifier: string
+          notes: string | null
+          value: number
+        }
+        Insert: {
+          adjustment_type: string
+          applies_to?: string | null
+          modifier: string
+          notes?: string | null
+          value: number
+        }
+        Update: {
+          adjustment_type?: string
+          applies_to?: string | null
+          modifier?: string
+          notes?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      labour_times: {
+        Row: {
+          bike_type: string
+          brake_bed_in_required: string
+          category: string
+          combinable: string
+          combined_saving_minutes: number
+          common_parts: string | null
+          difficulty_1_5: number
+          labour_minutes: number
+          min_charge_gbp: number
+          notes: string | null
+          repair_id: string
+          repair_name: string
+          safety_critical: string
+          skill_level: string
+          software_calibration_required: string
+          specialist_tools: string | null
+          subcategory: string
+          suspension_setup_required: string
+          test_ride_required: string
+          torque_check_required: string
+          warranty_eligible: string
+        }
+        Insert: {
+          bike_type: string
+          brake_bed_in_required: string
+          category: string
+          combinable: string
+          combined_saving_minutes?: number
+          common_parts?: string | null
+          difficulty_1_5: number
+          labour_minutes: number
+          min_charge_gbp: number
+          notes?: string | null
+          repair_id: string
+          repair_name: string
+          safety_critical: string
+          skill_level: string
+          software_calibration_required: string
+          specialist_tools?: string | null
+          subcategory: string
+          suspension_setup_required: string
+          test_ride_required: string
+          torque_check_required: string
+          warranty_eligible: string
+        }
+        Update: {
+          bike_type?: string
+          brake_bed_in_required?: string
+          category?: string
+          combinable?: string
+          combined_saving_minutes?: number
+          common_parts?: string | null
+          difficulty_1_5?: number
+          labour_minutes?: number
+          min_charge_gbp?: number
+          notes?: string | null
+          repair_id?: string
+          repair_name?: string
+          safety_critical?: string
+          skill_level?: string
+          software_calibration_required?: string
+          specialist_tools?: string | null
+          subcategory?: string
+          suspension_setup_required?: string
+          test_ride_required?: string
+          torque_check_required?: string
+          warranty_eligible?: string
+        }
+        Relationships: []
+      }
       mechanic_timeslips: {
         Row: {
           admin_notes: string | null
