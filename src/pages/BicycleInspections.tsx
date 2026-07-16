@@ -1594,7 +1594,7 @@ const BicycleInspections = () => {
               )}
             </div>
             <div className="w-full overflow-x-auto pb-1">
-            <TabsList className="inline-flex h-auto min-w-max flex-nowrap sm:flex-wrap sm:min-w-0">
+            <TabsList className="flex h-auto w-max min-w-max flex-nowrap sm:w-full sm:min-w-0 sm:flex-wrap">
               <TabsTrigger value="awaiting" className="flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
