@@ -3122,14 +3122,16 @@ Route Link: ${routeLink}`;
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {selectedJobs.length > 0 && (
-            <div className="flex gap-4 mb-4">
-              <Button onClick={() => calculateTimeslots()} className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Get Timeslots ({selectedJobs.length} jobs)
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-4 mb-4">
+            <Button
+              onClick={() => calculateTimeslots()}
+              disabled={selectedJobs.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Clock className="h-4 w-4" />
+              Get Timeslots ({selectedJobs.length} jobs)
+            </Button>
+          </div>
           {/* Filter Section */}
           <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg border">
             <div className="flex items-center gap-2">
@@ -3384,14 +3386,16 @@ Route Link: ${routeLink}`;
             })}
           </div>
 
-          {selectedJobs.length > 0 && (
-            <div className="flex gap-4">
-              <Button onClick={() => calculateTimeslots()} className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Get Timeslots ({selectedJobs.length} jobs)
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-4">
+            <Button
+              onClick={() => calculateTimeslots()}
+              disabled={selectedJobs.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Clock className="h-4 w-4" />
+              Get Timeslots ({selectedJobs.length} jobs)
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
