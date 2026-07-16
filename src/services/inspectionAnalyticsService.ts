@@ -4,6 +4,8 @@ export interface InspectionAnalyticsIssue {
   id: string;
   status: string;
   estimated_cost: number | null;
+  parts_cost: number | null;
+  labour_cost: number | null;
   customer_response: string | null;
   customer_responded_at: string | null;
   priced_at: string | null;
