@@ -1,29 +1,29 @@
 ## Goal
-For Box My Bike orders: still create and show the **collection** job (Cycle Courier picks up from sender → depot), but never create the **delivery** Shipday job and never show a delivery leg on Job Scheduling.
+When a Box My Bike order is at "Boxed, awaiting label", staff can enter a 3rd-party tracking URL alongside the label upload. The tracking URL is then shown as a clickable button on the customer's tracking page.
 
 ## Changes
 
-### 1. Skip only the delivery leg in Shipday
-**`supabase/functions/create-shipday-order/index.ts`** — after loading the order:
-- If `order.is_box_my_bike === true` and `jobType === 'delivery'`, return `{ success: true, skipped: 'box_my_bike_delivery' }` without calling Shipday.
-- If `order.is_box_my_bike === true` and `jobType` is omitted (create both legs), only create the pickup leg — skip the delivery half and don't write `shipday_delivery_id`.
-- Pickup-only calls (`jobType === 'pickup'`) behave normally.
+### 1. Database
+Migration adds a nullable `box_tracking_url TEXT` column on `public.orders`. Also update `public._build_public_order_payload` to include `box_tracking_url` so public tracking (`get_public_order` / with-proof) surfaces it. No policy/grant changes needed — column inherits from existing table policies.
 
-**`src/services/shipdayService.ts`** — in `syncOrdersToShipday`, for `order.is_box_my_bike === true` force the call to `createShipdayOrder(order.id, 'pickup')` instead of both legs (belt-and-braces; the edge function is still the authoritative guard).
+### 2. Admin UI — `src/pages/BoxMyBikePage.tsx`
+In the "Shipping label" card (visible for stage `boxed_awaiting_label` or when a label exists), add a "3rd-party tracking link" row:
+- Text input (URL) pre-filled with current value.
+- "Save" button that updates `box_tracking_url` on the order and fires an `order.box.tracking_url_set` webhook.
+- Keep the label upload block untouched.
+- Both `isOwner` (customer of the box order) and staff can save. Match the same permission gate already used for label upload.
+- Add `box_tracking_url` to the select list and `BoxOrder` type.
 
-**`src/services/orderService.ts`** — no change to the post-create `createShipdayJobs()` call; the edge function will now naturally only create the pickup leg for box orders.
+### 3. Order mapping — `src/services/orderServiceUtils.ts` + `src/types/order.ts`
+Add `boxTrackingUrl: string | null` to the mapped order shape and the `Order` type so it flows through both authenticated and public paths.
 
-### 2. Hide only the delivery leg from Job Scheduling
-**`src/pages/JobScheduling.tsx`** (`filteredOrdersForMap`, ~line 156) — treat Box My Bike orders as having no valid delivery leg:
-```
-const isBoxMyBike = order.is_box_my_bike === true;
-const hasValidDelivery = hasUnscheduledDelivery && deliveryVisibleByDate && ... && !isBoxMyBike;
-```
-Applied in both the `showCollectionToday` branch and the default branch. Collection leg logic is untouched, so pickups still appear.
+### 4. Customer tracking — `src/components/order-detail/TrackingTimeline.tsx`
+In the Box My Bike lifecycle block (~line 386), if `order.boxTrackingUrl` is present, render a "Track with courier" event entry that opens the URL in a new tab (target="_blank", rel="noopener noreferrer"). Anchor it to `boxLabelPrintedAt` when available, otherwise `boxBoxedAt`, so it sits at the "Awaiting 3rd-party collection" step in the timeline.
 
-**Downstream (`RouteBuilder`, `ClusterMap`, `DualSchedulingForm`)** — I'll audit these to confirm they render legs from the `is_box_my_bike` flag or from `scheduled_delivery_date`/dates in a way that this filter is enough. If any of them independently render a delivery marker from raw order rows, I'll add the same `!is_box_my_bike` guard there.
+### 5. Webhook payload — `supabase/functions/trigger-webhook/index.ts`
+Include `order.box_tracking_url` in the box event payload next to `box_label_url`, and add a new event constant `order.box.tracking_url_set` to the enum/mapping list where box events are declared.
 
 ## Out of scope
-- Orders already synced to Shipday with a delivery id from before this change are not cleaned up automatically.
-- The `/box-my-bike` page is unaffected.
-- No DB migration required.
+- No URL validation beyond `<input type="url">`.
+- No history log of tracking URL changes.
+- No auto-detection of courier from URL — plain link only.
