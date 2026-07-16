@@ -567,6 +567,16 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                     {formatDate(ev.date)}
                   </p>
                   <p className="text-xs sm:text-sm break-words">{ev.description}</p>
+                  {ev.link && (
+                    <a
+                      href={ev.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-xs sm:text-sm text-primary underline break-all"
+                    >
+                      Track with courier
+                    </a>
+                  )}
 
                   {/* Proof-of-delivery photos. Server only sends URLs after the
                       correct postcode has been verified. */}
