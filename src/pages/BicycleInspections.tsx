@@ -920,6 +920,12 @@ const BicycleInspections = () => {
                           )}
                         </p>
                       )}
+                      {canManageInspections && (issue as any).repair_id && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          From catalogue · {(issue as any).repair_id}
+                        </p>
+                      )}
+
                       {/* Part info — mechanic/admin only */}
                       {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
                         <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
