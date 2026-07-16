@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
       eventPayload.data.is_box_my_bike = true;
       eventPayload.data.box_my_bike_status = order.box_my_bike_status ?? null;
       eventPayload.data.box_label_url = order.box_label_url ?? null;
+      eventPayload.data.box_tracking_url = order.box_tracking_url ?? null;
       eventPayload.data.box_in_depot_at = order.box_in_depot_at ?? null;
       eventPayload.data.box_boxed_at = order.box_boxed_at ?? null;
       eventPayload.data.box_label_printed_at = order.box_label_printed_at ?? null;
