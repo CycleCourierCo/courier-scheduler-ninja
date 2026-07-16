@@ -265,18 +265,28 @@ const BicycleInspections = () => {
   const addIssueAtPricingMutation = useMutation({
     mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
       if (!user?.id) throw new Error("User not authenticated");
-      const cost = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
+      const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
+      const fallback = draft.cost.trim() ? parseFloat(draft.cost) : null;
+      const estimated = parts != null || labour != null
+        ? (parts ?? 0) + (labour ?? 0)
+        : fallback;
       return addIssueToExistingInspection(
         inspectionId,
         orderId,
         draft.description.trim(),
-        cost,
+        estimated,
         user.id,
         userProfile?.name || user.email || "Admin",
         {
           part_name: draft.partName.trim() || null,
           part_spec: draft.partSpec.trim() || null,
           part_number: draft.partNumber.trim() || null,
+        },
+        {
+          repair_id: draft.repairId,
+          parts_cost: parts,
+          labour_cost: labour,
         }
       );
     },
@@ -291,6 +301,21 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // Update bike category on an inspection
+  const updateBikeTypeMutation = useMutation({
+    mutationFn: async ({ inspectionId, bikeType }: { inspectionId: string; bikeType: string }) =>
+      updateInspectionBikeType(inspectionId, bikeType),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Bike category updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update bike category");
+      console.error(error);
+    },
+  });
+
 
 
   // Release inspection to customer (admin gate)
