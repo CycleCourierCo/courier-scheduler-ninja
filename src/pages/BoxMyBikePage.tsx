@@ -259,6 +259,16 @@ const BoxMyBikePage: React.FC = () => {
             </div>
           )}
 
+          {/* 3rd-party tracking link */}
+          {(stage === "boxed_awaiting_label" || stage === "awaiting_3p_collection" || stage === "collected_by_3p" || o.box_tracking_url) && (
+            <TrackingUrlEditor
+              order={o}
+              canEdit={(isOwner || isStaff) && stage === "boxed_awaiting_label"}
+              onSave={(url) => saveTrackingUrl.mutate({ id: o.id, url })}
+              saving={saveTrackingUrl.isPending}
+            />
+          )}
+
           {/* Invoice info (admin, read-only) */}
           {hasRole(userProfile, "admin") && o.box_my_bike_invoice_number && (
             <div className="rounded-md border p-3 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
