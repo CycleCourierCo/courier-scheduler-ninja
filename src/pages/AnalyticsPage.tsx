@@ -178,6 +178,26 @@ const AnalyticsPage = () => {
   // Get only B2B customers for business tab
   const b2bCustomers = getAllCustomersAnalytics(orders).filter(customer => customer.isB2B);
 
+  // Bike value metrics (scoped + all-time)
+  const bikeValueRange = useMemo<BikeValueRange | undefined>(() => {
+    if (bikeValueDays === "all") return undefined;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - bikeValueDays);
+    return { start, end };
+  }, [bikeValueDays]);
+  const bikeValueScoped = useMemo(
+    () => getBikeValueMetrics(orders, bikeValueRange),
+    [orders, bikeValueRange],
+  );
+  const bikeValueAllTime = useMemo(() => getAllTimeBikeValueStats(orders), [orders]);
+  const bikeValueDaily = useMemo(
+    () => getDailyBikeValueSeries(orders, bikeValueRange),
+    [orders, bikeValueRange],
+  );
+  const bikeValueRangeLabel =
+    bikeValueDays === "all" ? "All time" : `Last ${bikeValueDays} days`;
+
   return (
     <Layout>
       <div className="container px-2 sm:px-4 py-4 sm:py-6 mx-auto max-w-7xl">
