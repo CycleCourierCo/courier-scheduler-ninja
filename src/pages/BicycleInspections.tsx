@@ -271,7 +271,7 @@ const BicycleInspections = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
-      setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
       toast.success("Issue added");
     },
     onError: (error) => {
@@ -1261,7 +1261,7 @@ const BicycleInspections = () => {
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add issue
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null }); }}>
                       Cancel
                     </Button>
                   </div>
