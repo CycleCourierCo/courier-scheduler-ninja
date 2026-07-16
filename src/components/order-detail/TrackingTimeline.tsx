@@ -382,6 +382,21 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       }
     }
 
+    // Box My Bike lifecycle events (public tracking)
+    if ((order as any).isBoxMyBike) {
+      const bmb: Array<[any, string, string, JSX.Element]> = [
+        [(order as any).boxInDepotAt, "In depot, awaiting boxing", "Bike has arrived at the depot and is queued for boxing", <Package className="h-4 w-4 text-courier-600" />],
+        [(order as any).boxBoxedAt, "Boxed, awaiting label", "Bike has been boxed and is awaiting a shipping label", <Box className="h-4 w-4 text-courier-600" />],
+        [(order as any).boxLabelPrintedAt, "Awaiting 3rd-party collection", "Label printed — awaiting 3rd-party courier collection", <Clock className="h-4 w-4 text-courier-600" />],
+        [(order as any).boxCollectedBy3pAt, "Collected by 3rd-party courier", "Bike has been handed to the 3rd-party courier", <Truck className="h-4 w-4 text-green-600" />],
+      ];
+      bmb.forEach(([date, title, description, icon]) => {
+        if (date) {
+          events.push({ title, date, icon, description });
+        }
+      });
+    }
+
     if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
         order.status === "collected" || order.status === "delivered") {
       
