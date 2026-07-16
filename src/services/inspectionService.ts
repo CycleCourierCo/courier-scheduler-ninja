@@ -402,10 +402,16 @@ export const addInspectionIssue = async (
   estimatedCost: number | null,
   requestedById: string,
   requestedByName: string,
-  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null }
+  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null },
+  extra?: {
+    bike_type?: string | null;
+    repair_id?: string | null;
+    parts_cost?: number | null;
+    labour_cost?: number | null;
+  }
 ): Promise<InspectionIssue | null> => {
   try {
-    const inspection = await getOrCreateInspection(orderId);
+    const inspection = await getOrCreateInspection(orderId, extra?.bike_type ?? null);
     if (!inspection) throw new Error('Failed to get or create inspection');
 
     await supabase
@@ -419,6 +425,8 @@ export const addInspectionIssue = async (
       .eq('id', inspection.id);
 
     const now = new Date().toISOString();
+    const hasSplit = extra?.parts_cost != null || extra?.labour_cost != null;
+    const hasAnyPrice = estimatedCost != null || hasSplit;
     const { data, error } = await supabase
       .from('inspection_issues')
       .insert({
@@ -426,17 +434,19 @@ export const addInspectionIssue = async (
         order_id: orderId,
         issue_description: issueDescription,
         estimated_cost: estimatedCost,
+        parts_cost: extra?.parts_cost ?? null,
+        labour_cost: extra?.labour_cost ?? null,
+        repair_id: extra?.repair_id ?? null,
         requested_by_id: requestedById,
         requested_by_name: requestedByName,
         status: 'pending' as IssueStatus,
         part_name: partInfo?.part_name || null,
         part_spec: partInfo?.part_spec || null,
         part_number: partInfo?.part_number || null,
-        // If mechanic also entered a price, treat it as priced now.
-        priced_at: estimatedCost != null ? now : null,
-        priced_by_id: estimatedCost != null ? requestedById : null,
-        priced_by_name: estimatedCost != null ? requestedByName : null,
-      })
+        priced_at: hasAnyPrice ? now : null,
+        priced_by_id: hasAnyPrice ? requestedById : null,
+        priced_by_name: hasAnyPrice ? requestedByName : null,
+      } as any)
       .select()
       .single();
 
@@ -456,18 +466,21 @@ export const setIssuePrice = async (
   partsCost: number,
   labourCost: number,
   pricedById: string,
-  pricedByName: string
+  pricedByName: string,
+  repairId?: string | null
 ): Promise<InspectionIssue | null> => {
   try {
+    const update: Record<string, any> = {
+      parts_cost: partsCost,
+      labour_cost: labourCost,
+      priced_at: new Date().toISOString(),
+      priced_by_id: pricedById,
+      priced_by_name: pricedByName,
+    };
+    if (repairId !== undefined) update.repair_id = repairId;
     const { data, error } = await supabase
       .from('inspection_issues')
-      .update({
-        parts_cost: partsCost,
-        labour_cost: labourCost,
-        priced_at: new Date().toISOString(),
-        priced_by_id: pricedById,
-        priced_by_name: pricedByName,
-      } as any)
+      .update(update)
       .eq('id', issueId)
       .select()
       .single();
@@ -479,6 +492,7 @@ export const setIssuePrice = async (
     throw error;
   }
 };
+
 
 // Admin releases inspection to customer — moves from awaiting_pricing to issues_found.
 // Requires every issue to have a price.
