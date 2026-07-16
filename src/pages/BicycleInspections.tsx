@@ -814,6 +814,23 @@ const BicycleInspections = () => {
                     ))}
                   </>
                 )}
+                {(() => {
+                  const hasAllocation = Array.isArray(order.storage_locations)
+                    ? order.storage_locations.length > 0
+                    : !!order.storage_locations;
+                  if (hasAllocation || !order.collection_confirmation_sent_at) return null;
+                  const driver = getDriverAssignment(
+                    { trackingEvents: order.tracking_events } as any,
+                    'pickup'
+                  );
+                  if (!driver) return null;
+                  return (
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Truck className="h-3 w-3" />
+                      In {driver}'s van
+                    </Badge>
+                  );
+                })()}
                 {canManageInspections && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
