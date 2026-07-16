@@ -68,11 +68,13 @@ import {
   getBikeValueMetrics,
   getDailyBikeValueSeries,
   getAllTimeBikeValueStats,
+  getCustomerBikeValueLeaderboard,
   type BikeValueRange,
 } from "@/services/bikeValueAnalyticsService";
 import BikeValueStatsCards from "@/components/analytics/BikeValueStatsCards";
 import DailyBikeValueChart from "@/components/analytics/DailyBikeValueChart";
 import BikeValueBreakdownChart from "@/components/analytics/BikeValueBreakdownChart";
+import BikeValueLeaderboard from "@/components/analytics/BikeValueLeaderboard";
 
 const weeksAgoRange = (weeks: number): DateRange => {
   const end = new Date();
