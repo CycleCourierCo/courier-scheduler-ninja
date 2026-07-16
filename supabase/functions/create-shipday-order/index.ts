@@ -283,8 +283,21 @@ serve(async (req) => {
     let deliveryResponse = null;
     let deliveryResponseData = null;
     
-    const createPickup = !jobType || jobType === 'pickup';
-    const createDelivery = !jobType || jobType === 'delivery';
+    let createPickup = !jobType || jobType === 'pickup';
+    let createDelivery = !jobType || jobType === 'delivery';
+
+    // Box My Bike: never create the delivery leg on Shipday.
+    // The 3rd-party courier handles delivery from our depot.
+    if (order.is_box_my_bike === true) {
+      if (jobType === 'delivery') {
+        console.log("Skipping Shipday delivery for Box My Bike order:", orderId);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: "box_my_bike_delivery" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+      createDelivery = false;
+    }
     
     if (createPickup) {
       console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
