@@ -50,12 +50,15 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[calc(100vw-1rem)] sm:w-[300px] sm:max-w-[92vw]" align="start">
+      <PopoverContent
+        className="flex max-h-[var(--radix-popover-content-available-height)] w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-[300px] sm:max-w-[92vw]"
+        align="start"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
@@ -63,7 +66,11 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
             />
           </div>
         </div>
-        <div className="max-h-64 overflow-y-auto overscroll-contain">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [WebkitOverflowScrolling:touch]"
+          onTouchMove={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
           {filtered.length === 0 && <p className="p-3 text-xs text-muted-foreground">No matches.</p>}
           {filtered.map((v) => (
             <button

@@ -98,12 +98,15 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[calc(100vw-1rem)] sm:w-[420px] sm:max-w-[92vw]" align="start">
+      <PopoverContent
+        className="flex max-h-[var(--radix-popover-content-available-height)] w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-[420px] sm:max-w-[92vw]"
+        align="start"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         <div className="p-2 border-b space-y-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search repair name or subcategory…"
@@ -127,7 +130,11 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
             <p className="text-xs text-amber-600">No bike category set — showing all repairs.</p>
           )}
         </div>
-        <div className="max-h-72 overflow-y-auto overscroll-contain">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [WebkitOverflowScrolling:touch]"
+          onTouchMove={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
           {loading && <p className="p-3 text-xs text-muted-foreground">Loading…</p>}
           {!loading && rows.length === 0 && (
             <p className="p-3 text-xs text-muted-foreground">No matching repairs.</p>
