@@ -1034,6 +1034,21 @@ const BicycleInspections = () => {
                   {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
                     <div className="mt-3 space-y-2 p-3 rounded-md border bg-background">
                       <div>
+                        <Label className="text-xs">Repair (from catalogue)</Label>
+                        <RepairPicker
+                          bikeType={inspection?.bike_type ?? null}
+                          value={editIssueDraft.repairId}
+                          onSelect={(sel) => {
+                            setEditIssueDraft(prev => ({
+                              ...prev,
+                              repairId: sel.repair_id,
+                              labourCost: sel.labour_price_gbp.toFixed(2),
+                              description: prev.description.trim() ? prev.description : sel.repair_name,
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div>
                         <Label className="text-xs">Description</Label>
                         <Textarea
                           value={editIssueDraft.description}
@@ -1042,6 +1057,7 @@ const BicycleInspections = () => {
                           rows={2}
                         />
                       </div>
+
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Parts (£)</Label>
