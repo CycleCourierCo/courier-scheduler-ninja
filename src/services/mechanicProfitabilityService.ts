@@ -9,10 +9,12 @@ export interface MechanicProfitRow {
   inspectionRevenue: number;
   repairsDone: number;
   repairRevenue: number;
+  labourRevenue: number;
   totalRevenue: number;
   hoursWorked: number;
   wageCost: number;
   profit: number;
+  labourProfit: number;
   margin: number;
 }
 
