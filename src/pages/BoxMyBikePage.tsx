@@ -151,6 +151,24 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
   });
 
+  const saveTrackingUrl = useMutation({
+    mutationFn: async ({ id, url }: { id: string; url: string }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ box_tracking_url: url || null, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      await fireBoxWebhooks(id, "order.box.tracking_url_set");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
+      toast.success("Tracking link saved");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save tracking link"),
+  });
+
+
+
 
   const viewLabel = async (path: string) => {
     // Open synchronously to preserve the user-gesture; browsers block popups opened after await.
