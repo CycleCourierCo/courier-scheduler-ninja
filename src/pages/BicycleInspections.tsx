@@ -124,7 +124,7 @@ const BicycleInspections = () => {
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
   const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
-  const { data: workshopSettings } = useWorkshopSettings();
+  // Workshop settings are consumed inside RepairPicker for live labour pricing.
 
 
   // Fetch inspections based on role
