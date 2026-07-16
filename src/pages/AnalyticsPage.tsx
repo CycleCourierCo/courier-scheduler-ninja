@@ -31,6 +31,7 @@ import {
   getInspectionsOverTime,
   getInspectionsWithIssuesRate,
   getAverageRepairCost,
+  getAveragePartsAndLabourPerBike,
   getAverageBikeValue,
   getIssueApprovalRate,
   getInspectionStageDurations,
@@ -119,6 +120,7 @@ const AnalyticsPage = () => {
   const inspectionsWithIssues = getInspectionsWithIssuesRate(inspections);
   const avgRepairCost = getAverageRepairCost(inspections);
   const avgBikeValue = getAverageBikeValue(inspections);
+  const avgPartsLabour = getAveragePartsAndLabourPerBike(inspections);
   const issueApproval = getIssueApprovalRate(inspections);
   const stageDurations = getInspectionStageDurations(inspections);
 
@@ -502,6 +504,26 @@ const AnalyticsPage = () => {
                     value={`${issueApproval.percentage.toFixed(0)}%`}
                     description={`${issueApproval.approved} of ${issueApproval.responded} responded`}
                     icon={ThumbsUp}
+                  />
+                  <StatsCard
+                    title="Avg Parts / Bike"
+                    value={`£${avgPartsLabour.avgParts.toFixed(2)}`}
+                    description={
+                      avgPartsLabour.sampleSize === 0
+                        ? "No priced bikes with parts/labour split yet"
+                        : `Across ${avgPartsLabour.sampleSize}${avgPartsLabour.totalPricedBikes ? ` of ${avgPartsLabour.totalPricedBikes}` : ""} bikes`
+                    }
+                    icon={PoundSterling}
+                  />
+                  <StatsCard
+                    title="Avg Labour / Bike"
+                    value={`£${avgPartsLabour.avgLabour.toFixed(2)}`}
+                    description={
+                      avgPartsLabour.sampleSize === 0
+                        ? "No priced bikes with parts/labour split yet"
+                        : `Across ${avgPartsLabour.sampleSize}${avgPartsLabour.totalPricedBikes ? ` of ${avgPartsLabour.totalPricedBikes}` : ""} bikes`
+                    }
+                    icon={PoundSterling}
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">

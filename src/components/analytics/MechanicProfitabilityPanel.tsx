@@ -37,13 +37,15 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
       acc.inspectionRevenue += r.inspectionRevenue;
       acc.repairsDone += r.repairsDone;
       acc.repairRevenue += r.repairRevenue;
+      acc.labourRevenue += r.labourRevenue;
       acc.totalRevenue += r.totalRevenue;
       acc.hoursWorked += r.hoursWorked;
       acc.wageCost += r.wageCost;
       acc.profit += r.profit;
+      acc.labourProfit += r.labourProfit;
       return acc;
     },
-    { inspectionsDone: 0, inspectionRevenue: 0, repairsDone: 0, repairRevenue: 0, totalRevenue: 0, hoursWorked: 0, wageCost: 0, profit: 0 }
+    { inspectionsDone: 0, inspectionRevenue: 0, repairsDone: 0, repairRevenue: 0, labourRevenue: 0, totalRevenue: 0, hoursWorked: 0, wageCost: 0, profit: 0, labourProfit: 0 }
   );
 
   return (
@@ -70,6 +72,25 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
           </div>
         </div>
 
+        {rows && rows.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Total revenue</p>
+              <p className="text-lg font-bold text-green-600">{fmtGBP(totals.totalRevenue)}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Labour revenue</p>
+              <p className="text-lg font-bold text-green-600">{fmtGBP(totals.labourRevenue)}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Labour profit</p>
+              <p className={cn('text-lg font-bold', totals.labourProfit >= 0 ? 'text-green-600' : 'text-red-600')}>
+                {fmtGBP(totals.labourProfit)}
+              </p>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <p className="text-muted-foreground text-center py-6">Loading…</p>
         ) : rows && rows.length > 0 ? (
@@ -82,10 +103,12 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
                   <TableHead className="text-right">Inspection £</TableHead>
                   <TableHead className="text-right">Repairs</TableHead>
                   <TableHead className="text-right">Repair £</TableHead>
+                  <TableHead className="text-right">Labour £</TableHead>
                   <TableHead className="text-right">Total revenue</TableHead>
                   <TableHead className="text-right">Hours</TableHead>
                   <TableHead className="text-right">Wage cost</TableHead>
                   <TableHead className="text-right">Profit</TableHead>
+                  <TableHead className="text-right">Labour profit</TableHead>
                   <TableHead className="text-right">Margin</TableHead>
                 </TableRow>
               </TableHeader>
@@ -97,11 +120,15 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
                     <TableCell className="text-right">{fmtGBP(r.inspectionRevenue)}</TableCell>
                     <TableCell className="text-right">{r.repairsDone}</TableCell>
                     <TableCell className="text-right">{fmtGBP(r.repairRevenue)}</TableCell>
+                    <TableCell className="text-right">{fmtGBP(r.labourRevenue)}</TableCell>
                     <TableCell className="text-right font-semibold text-green-600">{fmtGBP(r.totalRevenue)}</TableCell>
                     <TableCell className="text-right">{r.hoursWorked.toFixed(1)}</TableCell>
                     <TableCell className="text-right text-orange-600">{fmtGBP(r.wageCost)}</TableCell>
                     <TableCell className={cn('text-right font-bold', r.profit >= 0 ? 'text-green-600' : 'text-red-600')}>
                       {fmtGBP(r.profit)}
+                    </TableCell>
+                    <TableCell className={cn('text-right font-bold', r.labourProfit >= 0 ? 'text-green-600' : 'text-red-600')}>
+                      {fmtGBP(r.labourProfit)}
                     </TableCell>
                     <TableCell className="text-right">{r.totalRevenue > 0 ? `${r.margin.toFixed(0)}%` : '—'}</TableCell>
                   </TableRow>
@@ -112,11 +139,15 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
                   <TableCell className="text-right">{fmtGBP(totals.inspectionRevenue)}</TableCell>
                   <TableCell className="text-right">{totals.repairsDone}</TableCell>
                   <TableCell className="text-right">{fmtGBP(totals.repairRevenue)}</TableCell>
+                  <TableCell className="text-right">{fmtGBP(totals.labourRevenue)}</TableCell>
                   <TableCell className="text-right text-green-600">{fmtGBP(totals.totalRevenue)}</TableCell>
                   <TableCell className="text-right">{totals.hoursWorked.toFixed(1)}</TableCell>
                   <TableCell className="text-right text-orange-600">{fmtGBP(totals.wageCost)}</TableCell>
                   <TableCell className={cn('text-right', totals.profit >= 0 ? 'text-green-600' : 'text-red-600')}>
                     {fmtGBP(totals.profit)}
+                  </TableCell>
+                  <TableCell className={cn('text-right', totals.labourProfit >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {fmtGBP(totals.labourProfit)}
                   </TableCell>
                   <TableCell className="text-right">
                     {totals.totalRevenue > 0 ? `${((totals.profit / totals.totalRevenue) * 100).toFixed(0)}%` : '—'}
@@ -124,6 +155,9 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
                 </TableRow>
               </TableBody>
             </Table>
+            <p className="text-xs text-muted-foreground mt-2">
+              Labour revenue only counts issues priced with the new parts/labour split. Labour profit = labour revenue − full mechanic wage cost.
+            </p>
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-6">No mechanic activity in this date range.</p>

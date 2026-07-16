@@ -97,10 +97,10 @@ const BicycleInspections = () => {
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
   // Per-issue price input for the awaiting-pricing stage
-  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
-  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "" });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
   const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
@@ -191,9 +191,9 @@ const BicycleInspections = () => {
 
   // Set price on a single issue (admin pricing stage)
   const setPriceMutation = useMutation({
-    mutationFn: async ({ issueId, price }: { issueId: string; price: number }) => {
+    mutationFn: async ({ issueId, partsCost, labourCost }: { issueId: string; partsCost: number; labourCost: number }) => {
       if (!user?.id) throw new Error("User not authenticated");
-      return setIssuePrice(issueId, price, user.id, userProfile?.name || user.email || "Admin");
+      return setIssuePrice(issueId, partsCost, labourCost, user.id, userProfile?.name || user.email || "Admin");
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
@@ -824,6 +824,11 @@ const BicycleInspections = () => {
                       {issue.estimated_cost != null && (
                         <p className="text-sm text-muted-foreground mt-1">
                           {isAwaitingPricing ? "Quoted price:" : "Estimated Cost:"} <span className="font-medium">£{Number(issue.estimated_cost).toFixed(2)}</span>
+                          {(issue.parts_cost != null || issue.labour_cost != null) && (
+                            <span className="ml-1 text-xs">
+                              (Parts £{Number(issue.parts_cost || 0).toFixed(2)} + Labour £{Number(issue.labour_cost || 0).toFixed(2)})
+                            </span>
+                          )}
                         </p>
                       )}
                       {/* Part info — mechanic/admin only */}
@@ -846,34 +851,63 @@ const BicycleInspections = () => {
                   {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
                   {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
-                          <Label className="text-xs">Price (£)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
-                            onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
-                            className="text-sm"
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
-                            const val = parseFloat(raw);
-                            if (!isFinite(val) || val < 0) {
-                              toast.error("Enter a valid price");
-                              return;
-                            }
-                            setPriceMutation.mutate({ issueId: issue.id, price: val });
-                          }}
-                          disabled={setPriceMutation.isPending}
-                        >
-                          <PoundSterling className="h-4 w-4 mr-1" /> Save
-                        </Button>
-                      </div>
+                      {(() => {
+                        const current = priceInputs[issue.id] ?? {
+                          parts: issue.parts_cost != null ? String(issue.parts_cost) : "",
+                          labour: issue.labour_cost != null ? String(issue.labour_cost) : "",
+                        };
+                        const partsNum = parseFloat(current.parts);
+                        const labourNum = parseFloat(current.labour);
+                        const total = (isFinite(partsNum) ? partsNum : 0) + (isFinite(labourNum) ? labourNum : 0);
+                        return (
+                          <div className="flex items-end gap-2 flex-wrap">
+                            <div className="flex-1 min-w-[100px]">
+                              <Label className="text-xs">Parts (£)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={current.parts}
+                                onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: { ...current, parts: e.target.value } }))}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-[100px]">
+                              <Label className="text-xs">Labour (£)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={current.labour}
+                                onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: { ...current, labour: e.target.value } }))}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground pb-2">
+                              Total: <span className="font-medium text-foreground">£{total.toFixed(2)}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const parts = current.parts.trim() === "" ? 0 : parseFloat(current.parts);
+                                const labour = current.labour.trim() === "" ? 0 : parseFloat(current.labour);
+                                if (!isFinite(parts) || parts < 0 || !isFinite(labour) || labour < 0) {
+                                  toast.error("Enter valid parts and labour prices");
+                                  return;
+                                }
+                                if (parts + labour <= 0) {
+                                  toast.error("Enter at least a parts or labour price");
+                                  return;
+                                }
+                                setPriceMutation.mutate({ issueId: issue.id, partsCost: parts, labourCost: labour });
+                              }}
+                              disabled={setPriceMutation.isPending}
+                            >
+                              <PoundSterling className="h-4 w-4 mr-1" /> Save
+                            </Button>
+                          </div>
+                        );
+                      })()}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -882,7 +916,8 @@ const BicycleInspections = () => {
                             setEditingIssueId(issue.id);
                             setEditIssueDraft({
                               description: issue.issue_description || "",
-                              cost: issue.estimated_cost != null ? String(issue.estimated_cost) : "",
+                              partsCost: issue.parts_cost != null ? String(issue.parts_cost) : "",
+                              labourCost: issue.labour_cost != null ? String(issue.labour_cost) : "",
                               partName: issue.part_name || "",
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
@@ -933,16 +968,29 @@ const BicycleInspections = () => {
                           rows={2}
                         />
                       </div>
-                      <div>
-                        <Label className="text-xs">Estimated cost (£)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={editIssueDraft.cost}
-                          onChange={(e) => setEditIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                          className="text-sm"
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Parts (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={editIssueDraft.partsCost}
+                            onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partsCost: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Labour (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={editIssueDraft.labourCost}
+                            onChange={(e) => setEditIssueDraft(prev => ({ ...prev, labourCost: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
@@ -966,17 +1014,24 @@ const BicycleInspections = () => {
                               toast.error("Description is required");
                               return;
                             }
-                            const costStr = editIssueDraft.cost.trim();
-                            const costVal = costStr === "" ? null : parseFloat(costStr);
-                            if (costVal != null && (!isFinite(costVal) || costVal < 0)) {
-                              toast.error("Enter a valid cost");
+                            const partsStr = editIssueDraft.partsCost.trim();
+                            const labourStr = editIssueDraft.labourCost.trim();
+                            const partsVal = partsStr === "" ? null : parseFloat(partsStr);
+                            const labourVal = labourStr === "" ? null : parseFloat(labourStr);
+                            if (partsVal != null && (!isFinite(partsVal) || partsVal < 0)) {
+                              toast.error("Enter a valid parts cost");
+                              return;
+                            }
+                            if (labourVal != null && (!isFinite(labourVal) || labourVal < 0)) {
+                              toast.error("Enter a valid labour cost");
                               return;
                             }
                             updateIssueMutation.mutate({
                               issueId: issue.id,
                               fields: {
                                 issue_description: editIssueDraft.description.trim(),
-                                estimated_cost: costVal,
+                                parts_cost: partsVal,
+                                labour_cost: labourVal,
                                 part_name: editIssueDraft.partName.trim() || null,
                                 part_spec: editIssueDraft.partSpec.trim() || null,
                                 part_number: editIssueDraft.partNumber.trim() || null,
