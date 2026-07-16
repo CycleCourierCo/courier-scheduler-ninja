@@ -820,7 +820,24 @@ const BicycleInspections = () => {
                       : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
                   </Badge>
                 )}
+                {canManageInspections && inspection?.id && (
+                  <div className="flex items-center gap-1">
+                    <Badge variant={inspection.bike_type ? "secondary" : "outline"} className="flex items-center gap-1">
+                      <Wrench className="h-3 w-3" />
+                      {inspection.bike_type || "No bike category"}
+                    </Badge>
+                    <div className="w-[180px]">
+                      <BikeCategoryPicker
+                        value={inspection.bike_type ?? null}
+                        onChange={(v) => updateBikeTypeMutation.mutate({ inspectionId: inspection.id, bikeType: v })}
+                        placeholder={inspection.bike_type ? "Change…" : "Set category…"}
+                        buttonClassName="h-6 text-[11px]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
             <div className="flex flex-col items-end gap-2">
               <Badge variant={badgeConfig.variant}>
