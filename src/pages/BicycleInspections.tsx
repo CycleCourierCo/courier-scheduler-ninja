@@ -97,10 +97,10 @@ const BicycleInspections = () => {
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
   // Per-issue price input for the awaiting-pricing stage
-  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
-  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "" });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
   const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partName: string; partSpec: string; partNumber: string }>({ description: "", cost: "", partName: "", partSpec: "", partNumber: "" });
