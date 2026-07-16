@@ -63,7 +63,7 @@ import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
 import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
-import { useWorkshopSettings, calculateLabourPrice } from "@/lib/labourPricing";
+// (workshop settings/labour pricing consumed inside RepairPicker)
 
 
 interface IssueEntry {
