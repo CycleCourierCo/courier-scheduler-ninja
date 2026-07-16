@@ -191,43 +191,45 @@ export default function LabourTimesAdmin() {
           <p className="text-muted-foreground">Manage workshop repair book times, multipliers, and pricing.</p>
         </div>
 
-        {/* Settings card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Workshop settings</CardTitle>
-            <CardDescription>
-              Prices shown across the app are computed live from labour minutes at this rate — data isn't rewritten.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-[1fr_1fr_auto_1fr] items-end">
-            <div className="space-y-2">
-              <Label>Hourly rate (£)</Label>
-              <Input type="number" min={0} step="0.01" value={rateInput} onChange={(e) => setRateInput(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Minimum charge (£)</Label>
-              <Input type="number" min={0} step="0.01" value={minInput} onChange={(e) => setMinInput(e.target.value)} />
-            </div>
-            <Button
-              onClick={() =>
-                updateSettings.mutate(
-                  { hourly_rate_gbp: Number(rateInput) || 0, min_charge_gbp: Number(minInput) || 0 },
-                  {
-                    onSuccess: () => toast.success("Workshop settings updated"),
-                    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
-                  }
-                )
-              }
-              disabled={updateSettings.isPending}
-            >
-              {updateSettings.isPending ? "Saving…" : "Save"}
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              Example: 30 min job → <span className="font-semibold text-foreground">{formatGBP(previewPrice)}</span>
-              <div className="text-xs">Formula: max(min, ceil(minutes × rate / 60 / 5) × 5)</div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Settings card — admin only */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Workshop settings</CardTitle>
+              <CardDescription>
+                Prices shown across the app are computed live from labour minutes at this rate — data isn't rewritten.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-[1fr_1fr_auto_1fr] items-end">
+              <div className="space-y-2">
+                <Label>Hourly rate (£)</Label>
+                <Input type="number" min={0} step="0.01" value={rateInput} onChange={(e) => setRateInput(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Minimum charge (£)</Label>
+                <Input type="number" min={0} step="0.01" value={minInput} onChange={(e) => setMinInput(e.target.value)} />
+              </div>
+              <Button
+                onClick={() =>
+                  updateSettings.mutate(
+                    { hourly_rate_gbp: Number(rateInput) || 0, min_charge_gbp: Number(minInput) || 0 },
+                    {
+                      onSuccess: () => toast.success("Workshop settings updated"),
+                      onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+                    }
+                  )
+                }
+                disabled={updateSettings.isPending}
+              >
+                {updateSettings.isPending ? "Saving…" : "Save"}
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                Example: 30 min job → <span className="font-semibold text-foreground">{formatGBP(previewPrice)}</span>
+                <div className="text-xs">Formula: max(min, ceil(minutes × rate / 60 / 5) × 5)</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="times" className="space-y-4">
           <TabsList>
