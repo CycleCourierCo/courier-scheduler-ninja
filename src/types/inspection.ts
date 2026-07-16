@@ -14,6 +14,7 @@ export interface BicycleInspection {
   id: string;
   order_id: string;
   status: InspectionStatus;
+  bike_type: string | null;
   inspected_at: string | null;
   inspected_by_id: string | null;
   inspected_by_name: string | null;
@@ -26,6 +27,7 @@ export interface BicycleInspection {
   // Joined data
   issues?: InspectionIssue[];
 }
+
 
 export interface InspectionIssue {
   id: string;
