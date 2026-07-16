@@ -1125,7 +1125,9 @@ const BicycleInspections = () => {
                                 part_name: editIssueDraft.partName.trim() || null,
                                 part_spec: editIssueDraft.partSpec.trim() || null,
                                 part_number: editIssueDraft.partNumber.trim() || null,
+                                repair_id: editIssueDraft.repairId,
                               },
+
                             });
                           }}
                           disabled={updateIssueMutation.isPending}
