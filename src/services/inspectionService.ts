@@ -265,7 +265,8 @@ export const getPendingInspections = async () => {
         customer_order_number,
         collection_confirmation_sent_at,
         pickup_date,
-        created_at
+        created_at,
+        tracking_events
       `)
       .eq('needs_inspection', true)
       .neq('status', 'cancelled')

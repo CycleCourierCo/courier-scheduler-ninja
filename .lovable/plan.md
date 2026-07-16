@@ -1,11 +1,22 @@
-Plan:
+## Goal
+On the Bicycle Inspections page, for bikes that have been collected by a driver but not yet allocated to a storage bay, show which driver's van the bike is currently in.
 
-1. Update both inspection dropdowns (`RepairPicker` and `BikeCategoryPicker`) so the popover itself is constrained to the available viewport height, not just the inner list.
-2. Make the option list the only scrollable area with mobile-friendly scrolling styles:
-   - `overflow-y-auto`
-   - `overscroll-contain`
-   - `touch-action: pan-y`
-   - `-webkit-overflow-scrolling: touch`
-3. Stop touch/wheel scroll events from bubbling to the parent page/dialog so dragging inside the dropdown scrolls the dropdown instead of the inspection page.
-4. Prevent mobile keyboard auto-focus from stealing usable dropdown space when the popover opens, while keeping the search input available to tap manually.
-5. Apply the same fix everywhere these inspection pickers are used, without changing selection behavior or layout outside the dropdowns.
+## Where it shows
+The inspection card in the **Collected** tab (bikes with `collection_confirmation_sent_at` set, awaiting inspection). If the order also has no `storage_locations` (i.e. not yet allocated to a bay), render a small badge like:
+
+> 🚐 In {DriverName}'s van
+
+If `storage_locations` exists, no badge (it's already in a bay). If we can't resolve a driver name, no badge.
+
+## Technical details
+
+1. **`src/services/inspectionService.ts` — `getPendingInspections`**
+   - Add `tracking_events` to the `orders` select so we have the Shipday updates needed to resolve the pickup driver.
+
+2. **`src/pages/BicycleInspections.tsx` — `renderInspectionCard`**
+   - Import `getDriverAssignment` from `@/utils/driverAssignmentUtils`.
+   - Compute `pickupDriver = getDriverAssignment(order as any, 'pickup')`.
+   - Compute `hasAllocation = Array.isArray(order.storage_locations) ? order.storage_locations.length > 0 : !!order.storage_locations`.
+   - When `!hasAllocation && !!order.collection_confirmation_sent_at && pickupDriver`, render a `Badge` (with a small van/truck icon) next to the existing status/meta badges near the top of the card.
+
+No changes to data model, RLS, or other tabs.
