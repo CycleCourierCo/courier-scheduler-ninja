@@ -9,6 +9,9 @@ import { UserProfile, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
 import { listVehicles, type Vehicle } from "@/services/vehicleService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
 
 interface EditUserDialogProps {
   user: UserProfile | null;
@@ -26,6 +29,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   const [formData, setFormData] = useState<Partial<UserProfile>>({});
   const [saving, setSaving] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [creatingQbCustomer, setCreatingQbCustomer] = useState(false);
 
   useEffect(() => {
     listVehicles().then(setVehicles).catch(() => setVehicles([]));
@@ -57,6 +61,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         shipday_driver_id: user.shipday_driver_id,
         shipday_driver_name: user.shipday_driver_name,
         default_vehicle_id: user.default_vehicle_id,
+        quickbooks_customer_id: user.quickbooks_customer_id,
       });
     }
   }, [user]);
@@ -74,6 +79,36 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   };
 
   if (!user) return null;
+
+  const handleCreateQuickBooksCustomer = async () => {
+    if (!user) return;
+    const qbEmail = formData.accounts_email?.trim() || formData.email?.trim();
+    if (!qbEmail) {
+      toast.error('Profile must have an email or accounts email before syncing to QuickBooks');
+      return;
+    }
+    setCreatingQbCustomer(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-quickbooks-customer', {
+        body: { userId: user.id },
+      });
+      if (error) throw error;
+      const customerId = (data as any)?.customerId;
+      if (!customerId) throw new Error('No customer ID returned');
+      setFormData(prev => ({ ...prev, quickbooks_customer_id: customerId }));
+      toast.success(
+        (data as any)?.alreadyExisted
+          ? 'Linked existing QuickBooks customer'
+          : 'Created customer in QuickBooks'
+      );
+    } catch (err: any) {
+      console.error('Failed to create QB customer:', err);
+      toast.error(err?.message || 'Failed to create QuickBooks customer');
+    } finally {
+      setCreatingQbCustomer(false);
+    }
+  };
+
 
   const isDriver = user.role === 'driver';
   const isBusiness = user.is_business;
@@ -145,7 +180,40 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
           {isBusiness && (
             <TabsContent value="business" className="space-y-4 mt-4">
+              <div className="flex items-center justify-between rounded-md border p-3 bg-muted/30">
+                <div className="space-y-0.5">
+                  <div className="text-sm font-medium">QuickBooks Customer</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formData.quickbooks_customer_id
+                      ? `Linked (ID: ${formData.quickbooks_customer_id})`
+                      : 'Not linked to QuickBooks yet.'}
+                  </div>
+                </div>
+                {formData.quickbooks_customer_id ? (
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={`https://app.qbo.intuit.com/app/customerdetail?nameId=${formData.quickbooks_customer_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View in QuickBooks
+                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateQuickBooksCustomer}
+                    disabled={creatingQbCustomer || !(formData.accounts_email?.trim() || formData.email?.trim())}
+                    title={!(formData.accounts_email?.trim() || formData.email?.trim()) ? 'Email or accounts email required' : undefined}
+                  >
+                    {creatingQbCustomer ? 'Creating...' : 'Create customer in QuickBooks'}
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-company">Company Name</Label>
                   <Input

@@ -151,12 +151,19 @@ const BoxMyBikePage: React.FC = () => {
 
 
   const viewLabel = async (path: string) => {
+    // Open synchronously to preserve the user-gesture; browsers block popups opened after await.
+    const win = window.open("", "_blank");
     const { data, error } = await supabase.storage.from("box-my-bike-labels").createSignedUrl(path, 60 * 10);
     if (error || !data?.signedUrl) {
+      if (win) win.close();
       toast.error("Could not load label");
       return;
     }
-    window.open(data.signedUrl, "_blank");
+    if (win && !win.closed) {
+      win.location.href = data.signedUrl;
+    } else {
+      window.location.href = data.signedUrl;
+    }
   };
 
   const grouped = React.useMemo(() => {
