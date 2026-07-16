@@ -1,22 +1,35 @@
 ## Goal
-On the Bicycle Inspections page, for bikes that have been collected by a driver but not yet allocated to a storage bay, show which driver's van the bike is currently in.
+On the public tracking page, show Box My Bike lifecycle milestones in the tracking timeline so customers can see where their bike is in the boxing workflow.
 
-## Where it shows
-The inspection card in the **Collected** tab (bikes with `collection_confirmation_sent_at` set, awaiting inspection). If the order also has no `storage_locations` (i.e. not yet allocated to a bay), render a small badge like:
+## Milestones to show (only when the order is a Box My Bike order)
 
-> 🚐 In {DriverName}'s van
+Rendered as timeline events using the timestamps stored on the order:
 
-If `storage_locations` exists, no badge (it's already in a bay). If we can't resolve a driver name, no badge.
+| Timeline title | Timestamp field | Description |
+| --- | --- | --- |
+| In depot, awaiting boxing | `box_in_depot_at` | Bike has arrived at the depot and is queued for boxing |
+| Boxed, awaiting label | `box_boxed_at` | Bike has been boxed and is awaiting a shipping label |
+| Awaiting 3rd-party collection | `box_label_printed_at` | Label printed — awaiting 3rd-party courier collection |
+| Collected by 3rd-party courier | `box_collected_by_3p_at` | Bike has been handed to the 3rd-party courier |
 
-## Technical details
+Each event only renders when its timestamp is set. They chronologically slot into the existing timeline (sorted by date, alongside "Bike Collected", inspection events, etc.). Use a `Package`/`Box`-style icon from `lucide-react` (e.g. `Package` for depot, `Box` for boxed, `Truck` for the 3P steps) to visually differentiate them.
 
-1. **`src/services/inspectionService.ts` — `getPendingInspections`**
-   - Add `tracking_events` to the `orders` select so we have the Shipday updates needed to resolve the pickup driver.
+## Technical changes
 
-2. **`src/pages/BicycleInspections.tsx` — `renderInspectionCard`**
-   - Import `getDriverAssignment` from `@/utils/driverAssignmentUtils`.
-   - Compute `pickupDriver = getDriverAssignment(order as any, 'pickup')`.
-   - Compute `hasAllocation = Array.isArray(order.storage_locations) ? order.storage_locations.length > 0 : !!order.storage_locations`.
-   - When `!hasAllocation && !!order.collection_confirmation_sent_at && pickupDriver`, render a `Badge` (with a small van/truck icon) next to the existing status/meta badges near the top of the card.
+1. **`supabase/migrations/<new>.sql` — extend `_build_public_order_payload`**
+   Add the following keys to the returned JSON so the public tracking RPC exposes them:
+   - `is_box_my_bike`
+   - `box_my_bike_status`
+   - `box_in_depot_at`
+   - `box_boxed_at`
+   - `box_label_printed_at`
+   - `box_collected_by_3p_at`
+   
+   `get_public_order` and `get_public_order_with_proof` both delegate to this helper, so no other RPC changes needed.
 
-No changes to data model, RLS, or other tabs.
+2. **`src/services/orderServiceUtils.ts`** — already maps all six fields (`isBoxMyBike`, `boxMyBikeStatus`, `boxInDepotAt`, `boxBoxedAt`, `boxLabelPrintedAt`, `boxCollectedBy3pAt`). No change required.
+
+3. **`src/components/order-detail/TrackingTimeline.tsx` — `getTrackingEvents`**
+   After the inspection lifecycle block, add a Box My Bike block: when `order.isBoxMyBike` is true, push one event per non-null timestamp above with the mapped title/description/icon. Sorting into the timeline uses the existing date-sort logic (no change).
+
+No changes to the mechanic/admin Box My Bike workflow, RLS, or other tabs.
