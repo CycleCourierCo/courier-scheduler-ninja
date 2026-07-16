@@ -1294,6 +1294,21 @@ const BicycleInspections = () => {
               {addIssueForInspectionId === inspection.id ? (
                 <div className="space-y-2 p-3 rounded-md border bg-background">
                   <div>
+                    <Label className="text-xs">Repair (from catalogue)</Label>
+                    <RepairPicker
+                      bikeType={inspection?.bike_type ?? null}
+                      value={newIssueDraft.repairId}
+                      onSelect={(sel) => {
+                        setNewIssueDraft(prev => ({
+                          ...prev,
+                          repairId: sel.repair_id,
+                          labourCost: sel.labour_price_gbp.toFixed(2),
+                          description: prev.description.trim() ? prev.description : sel.repair_name,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div>
                     <Label className="text-xs">Description</Label>
                     <Textarea
                       value={newIssueDraft.description}
@@ -1302,17 +1317,31 @@ const BicycleInspections = () => {
                       rows={2}
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs">Estimated cost (£)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newIssueDraft.cost}
-                      onChange={(e) => setNewIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                      className="text-sm"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Parts (£)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIssueDraft.partsCost}
+                        onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partsCost: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Labour (£)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIssueDraft.labourCost}
+                        onChange={(e) => setNewIssueDraft(prev => ({ ...prev, labourCost: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs">Part name</Label>
