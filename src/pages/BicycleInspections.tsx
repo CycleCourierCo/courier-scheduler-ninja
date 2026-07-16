@@ -69,18 +69,15 @@ import { useWorkshopSettings, calculateLabourPrice } from "@/lib/labourPricing";
 interface IssueEntry {
   description: string;
   estimatedCost: string;
+  partsCost: string;
+  labourCost: string;
   partName: string;
   partSpec: string;
   partNumber: string;
+  repairId: string | null;
 }
 
-interface ChecklistIssue {
-  description: string;
-  estimatedCost: string;
-  partName: string;
-  partSpec: string;
-  partNumber: string;
-}
+interface ChecklistIssue extends IssueEntry {}
 
 // Standard inspection checklist items
 const INSPECTION_ITEMS = [
@@ -89,6 +86,12 @@ const INSPECTION_ITEMS = [
   { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
   { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
 ];
+
+const EMPTY_ISSUE: IssueEntry = {
+  description: "", estimatedCost: "", partsCost: "", labourCost: "",
+  partName: "", partSpec: "", partNumber: "", repairId: null,
+};
+
 
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
