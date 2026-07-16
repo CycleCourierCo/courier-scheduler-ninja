@@ -243,7 +243,12 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 h-auto mb-4 sm:mb-8">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 h-auto mb-4 sm:mb-8">
+                <TabsTrigger value="bike-value" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
+                  <PoundSterling className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Bike Value</span>
+                  <span className="sm:hidden">Value</span>
+                </TabsTrigger>
                 <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <BarChart className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Overview</span>
