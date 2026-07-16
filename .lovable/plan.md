@@ -1,18 +1,24 @@
-## Add bike type editing to Item Details
+## Add "Get Timeslots" button to top of Route Builder
 
-In `src/components/order-detail/ItemDetails.tsx`, the admin "Edit Bikes" dialog currently only edits **Brand** and **Model**. Extend it so **Type** can also be changed.
+Mirror the existing bottom button (line 3381 in `src/components/scheduling/RouteBuilder.tsx`) at the top of the Route Builder card, so users don't have to scroll after selecting jobs.
 
-### Changes
+### Change
 
-1. **Edit Bikes dialog** (`ItemDetails.tsx`)
-   - Add a Type `Select` field next to Brand/Model for each bike, using the same `BIKE_TYPES` list used in `src/components/create-order/OrderDetails.tsx` (extract it into a shared constant or import from a shared location — reusing `BIKE_TYPE_BY_ID` from `src/constants/bikePricing.ts` is the cleanest fit since it already contains the canonical type names).
-   - Update the dialog layout to accommodate three fields per bike (e.g. stack Type below Brand/Model on narrow widths).
-   - Wire the new field into the existing `editBikes` state.
+In `src/components/scheduling/RouteBuilder.tsx`, inside `CardContent` just below the filter section (or directly under the `CardHeader`), add:
 
-2. **Save flow**
-   - `updateOrderBikes` in `src/services/orderService.ts` already accepts `{brand, model, type, value}` per bike, so no service change is needed — the `type` will now flow through when the admin edits it.
+```tsx
+{selectedJobs.length > 0 && (
+  <div className="flex gap-4 mb-4">
+    <Button onClick={() => calculateTimeslots()} className="flex items-center gap-2">
+      <Clock className="h-4 w-4" />
+      Get Timeslots ({selectedJobs.length} jobs)
+    </Button>
+  </div>
+)}
+```
 
-### Notes
+- Identical handler (`calculateTimeslots()`), identical label, identical icon — same behavior as the bottom button.
+- Only renders when at least one job is selected, matching the bottom button.
+- Bottom button stays in place unchanged.
 
-- Purely a UI enhancement to the existing admin edit dialog; no DB or backend changes.
-- Keeps parity with the type list used at order creation so downstream pricing/invoicing continues to match.
+No other files touched.
