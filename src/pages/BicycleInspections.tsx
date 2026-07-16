@@ -160,7 +160,7 @@ const BicycleInspections = () => {
 
   // Add multiple issues mutation
   const addMultipleIssuesMutation = useMutation({
-    mutationFn: async ({ orderId, issues }: { orderId: string; issues: IssueEntry[] }) => {
+    mutationFn: async ({ orderId, issues, bikeType }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
@@ -168,17 +168,28 @@ const BicycleInspections = () => {
       const results = [];
       for (const issue of issues) {
         if (issue.description.trim()) {
-          const cost = issue.estimatedCost ? parseFloat(issue.estimatedCost) : null;
+          const parts = issue.partsCost.trim() ? parseFloat(issue.partsCost) : null;
+          const labour = issue.labourCost.trim() ? parseFloat(issue.labourCost) : null;
+          const fallback = issue.estimatedCost.trim() ? parseFloat(issue.estimatedCost) : null;
+          const estimated = parts != null || labour != null
+            ? (parts ?? 0) + (labour ?? 0)
+            : fallback;
           const result = await addInspectionIssue(
             orderId,
             issue.description,
-            cost,
+            estimated,
             user.id,
             userProfile.name || user.email || "Admin",
             {
               part_name: issue.partName?.trim() || null,
               part_spec: issue.partSpec?.trim() || null,
               part_number: issue.partNumber?.trim() || null,
+            },
+            {
+              bike_type: bikeType ?? null,
+              repair_id: issue.repairId,
+              parts_cost: parts,
+              labour_cost: labour,
             }
           );
           results.push(result);
@@ -197,6 +208,7 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
 
   // Set price on a single issue (admin pricing stage)
   const setPriceMutation = useMutation({
