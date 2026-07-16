@@ -31,6 +31,7 @@ import {
   getInspectionsOverTime,
   getInspectionsWithIssuesRate,
   getAverageRepairCost,
+  getAveragePartsAndLabourPerBike,
   getAverageBikeValue,
   getIssueApprovalRate,
   getInspectionStageDurations,
