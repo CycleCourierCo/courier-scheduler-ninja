@@ -968,16 +968,29 @@ const BicycleInspections = () => {
                           rows={2}
                         />
                       </div>
-                      <div>
-                        <Label className="text-xs">Estimated cost (£)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={editIssueDraft.cost}
-                          onChange={(e) => setEditIssueDraft(prev => ({ ...prev, cost: e.target.value }))}
-                          className="text-sm"
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Parts (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={editIssueDraft.partsCost}
+                            onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partsCost: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Labour (£)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={editIssueDraft.labourCost}
+                            onChange={(e) => setEditIssueDraft(prev => ({ ...prev, labourCost: e.target.value }))}
+                            className="text-sm"
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
@@ -1001,17 +1014,24 @@ const BicycleInspections = () => {
                               toast.error("Description is required");
                               return;
                             }
-                            const costStr = editIssueDraft.cost.trim();
-                            const costVal = costStr === "" ? null : parseFloat(costStr);
-                            if (costVal != null && (!isFinite(costVal) || costVal < 0)) {
-                              toast.error("Enter a valid cost");
+                            const partsStr = editIssueDraft.partsCost.trim();
+                            const labourStr = editIssueDraft.labourCost.trim();
+                            const partsVal = partsStr === "" ? null : parseFloat(partsStr);
+                            const labourVal = labourStr === "" ? null : parseFloat(labourStr);
+                            if (partsVal != null && (!isFinite(partsVal) || partsVal < 0)) {
+                              toast.error("Enter a valid parts cost");
+                              return;
+                            }
+                            if (labourVal != null && (!isFinite(labourVal) || labourVal < 0)) {
+                              toast.error("Enter a valid labour cost");
                               return;
                             }
                             updateIssueMutation.mutate({
                               issueId: issue.id,
                               fields: {
                                 issue_description: editIssueDraft.description.trim(),
-                                estimated_cost: costVal,
+                                parts_cost: partsVal,
+                                labour_cost: labourVal,
                                 part_name: editIssueDraft.partName.trim() || null,
                                 part_spec: editIssueDraft.partSpec.trim() || null,
                                 part_number: editIssueDraft.partNumber.trim() || null,
