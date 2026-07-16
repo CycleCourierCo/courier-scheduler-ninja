@@ -1643,6 +1643,7 @@ export type Database = {
           box_my_bike_invoice_number: string | null
           box_my_bike_invoice_url: string | null
           box_my_bike_status: string | null
+          box_tracking_url: string | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
@@ -1706,6 +1707,7 @@ export type Database = {
           box_my_bike_invoice_number?: string | null
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
+          box_tracking_url?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -1769,6 +1771,7 @@ export type Database = {
           box_my_bike_invoice_number?: string | null
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
+          box_tracking_url?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
