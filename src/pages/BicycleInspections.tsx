@@ -548,13 +548,11 @@ const BicycleInspections = () => {
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
+        ...issue,
         description: `[${itemLabel}] ${issue.description}`,
-        estimatedCost: issue.estimatedCost,
-        partName: issue.partName,
-        partSpec: issue.partSpec,
-        partNumber: issue.partNumber,
       }));
   });
+
 
   const hasIssues = allChecklistIssues.length > 0;
 
