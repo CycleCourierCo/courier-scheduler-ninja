@@ -389,9 +389,11 @@ export default function LabourTimesAdmin() {
                   <CardTitle>Multipliers</CardTitle>
                   <CardDescription>Modifiers applied on top of standard times.</CardDescription>
                 </div>
-                <Button onClick={() => { setMultiplierRow(null); setMultiplierOpen(true); }}>
-                  <Plus className="mr-1 h-4 w-4" /> Add multiplier
-                </Button>
+                {isAdmin && (
+                  <Button onClick={() => { setMultiplierRow(null); setMultiplierOpen(true); }}>
+                    <Plus className="mr-1 h-4 w-4" /> Add multiplier
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -402,21 +404,21 @@ export default function LabourTimesAdmin() {
                       <TableHead>Value</TableHead>
                       <TableHead>Applies to</TableHead>
                       <TableHead>Notes</TableHead>
-                      <TableHead className="w-10" />
+                      {isAdmin && <TableHead className="w-10" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {multipliersQuery.isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-6 text-muted-foreground">
                           <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Loading…
                         </TableCell>
                       </TableRow>
                     ) : (multipliersQuery.data ?? []).map((row) => (
                       <TableRow
                         key={row.modifier}
-                        className="cursor-pointer"
-                        onClick={() => { setMultiplierRow(row); setMultiplierOpen(true); }}
+                        className={isAdmin ? "cursor-pointer" : ""}
+                        onClick={isAdmin ? () => { setMultiplierRow(row); setMultiplierOpen(true); } : undefined}
                       >
                         <TableCell className="font-medium">{row.modifier}</TableCell>
                         <TableCell>
@@ -427,20 +429,22 @@ export default function LabourTimesAdmin() {
                         </TableCell>
                         <TableCell className="max-w-xs truncate">{row.applies_to ?? ""}</TableCell>
                         <TableCell className="max-w-md truncate">{row.notes ?? ""}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => { setMultiplierRow(row); setMultiplierOpen(true); }}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => setPendingMultiplierDelete(row)}
-                              >Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                        {isAdmin && (
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setMultiplierRow(row); setMultiplierOpen(true); }}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => setPendingMultiplierDelete(row)}
+                                >Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
