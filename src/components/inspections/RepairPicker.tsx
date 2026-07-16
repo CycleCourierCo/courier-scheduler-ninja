@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { cn } from "@/lib/utils";
 import { listLabourTimes, type LabourTimeRow } from "@/services/labourTimesService";
 import { calculateLabourPrice, formatGBP, useWorkshopSettings } from "@/lib/labourPricing";
@@ -127,7 +127,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
             <p className="text-xs text-amber-600">No bike category set — showing all repairs.</p>
           )}
         </div>
-        <ScrollArea className="h-72">
+        <div className="max-h-72 overflow-y-auto overscroll-contain">
           {loading && <p className="p-3 text-xs text-muted-foreground">Loading…</p>}
           {!loading && rows.length === 0 && (
             <p className="p-3 text-xs text-muted-foreground">No matching repairs.</p>
@@ -192,7 +192,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
                 </button>
               );
             })}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

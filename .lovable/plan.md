@@ -1,15 +1,15 @@
-## Changes to `src/pages/BicycleInspections.tsx`
+## Fix: dropdown lists in inspection pickers won't scroll on mobile
 
-**1. Stack status tabs vertically on mobile**
-- Remove the horizontal-scroll wrapper on the status `TabsList`.
-- Change tabs container to a grid on mobile so each status sits on its own row, switching to inline wrap on `sm+`:
-  - `TabsList` classes → `grid w-full grid-cols-1 gap-1 h-auto sm:flex sm:flex-wrap`
-  - Each `TabsTrigger` → `w-full justify-start sm:w-auto sm:justify-center`
-- Drop the `overflow-x-auto` / `min-w-max` / `flex-nowrap` classes added previously since tabs no longer need to scroll sideways.
+**Problem:** The `RepairPicker` and `BikeCategoryPicker` popovers use Radix `ScrollArea` for the list. Radix `ScrollArea` renders its own custom scrollbar and, on touch devices, the viewport frequently doesn't respond to finger scrolling inside a Popover — which is what the user is hitting on mobile.
 
-**2. Hide "Create Invoice" when inspection total is £0**
-- Where the Create Invoice button is rendered on a completed inspection, wrap it in a condition that also checks the computed total (sum of `labour_price_gbp + parts_price_gbp` across issues/actions, matching the total already displayed on the card).
-- Condition becomes: `status === 'completed' && !inspection.invoice_id && total > 0` (keeping existing guards).
-- If an invoice already exists, continue to show the "View Invoice" link as today (unchanged).
+**Change:** Replace `ScrollArea` with a plain scroll container that works natively with touch.
 
-No backend, pricing, or data changes. Desktop layout for tabs remains a wrapped row; only mobile switches to stacked.
+### `src/components/inspections/RepairPicker.tsx`
+- Remove the `ScrollArea` import and wrapper around the results list.
+- Replace `<ScrollArea className="h-72">…</ScrollArea>` with `<div className="max-h-72 overflow-y-auto overscroll-contain">…</div>`.
+
+### `src/components/inspections/BikeCategoryPicker.tsx`
+- Remove the `ScrollArea` import and wrapper around the options list.
+- Replace `<ScrollArea className="h-64">…</ScrollArea>` with `<div className="max-h-64 overflow-y-auto overscroll-contain">…</div>`.
+
+No other behavior changes — same height, same content, just native scrolling so touch drag works inside the popover.
