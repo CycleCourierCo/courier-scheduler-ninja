@@ -37,8 +37,10 @@ export interface InspectionIssue {
   estimated_cost: number | null;
   parts_cost: number | null;
   labour_cost: number | null;
+  repair_id: string | null;
   requested_by_id: string;
   requested_by_name: string;
+
   // Mechanic/admin-only part details
   part_name: string | null;
   part_spec: string | null;
