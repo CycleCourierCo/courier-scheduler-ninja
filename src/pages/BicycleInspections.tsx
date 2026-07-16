@@ -806,7 +806,7 @@ const BicycleInspections = () => {
                  order.storage_locations.length > 0 && (
                   <>
                     {order.storage_locations.map((location: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
                         {location.bay}{location.position}
                       </Badge>
@@ -814,7 +814,7 @@ const BicycleInspections = () => {
                   </>
                 )}
                 {canManageInspections && (
-                  <Badge variant="outline" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {order.collection_confirmation_sent_at
                       ? `Collected ${formatDistanceToNowStrict(new Date(order.collection_confirmation_sent_at))} ago`
