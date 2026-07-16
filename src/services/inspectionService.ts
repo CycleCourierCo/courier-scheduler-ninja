@@ -422,10 +422,12 @@ export const addInspectionIssue = async (
   }
 };
 
-// Admin sets/updates the price for an issue
+// Admin sets/updates the price for an issue (split into parts + labour).
+// estimated_cost is auto-computed by DB trigger as parts + labour.
 export const setIssuePrice = async (
   issueId: string,
-  price: number,
+  partsCost: number,
+  labourCost: number,
   pricedById: string,
   pricedByName: string
 ): Promise<InspectionIssue | null> => {
@@ -433,11 +435,12 @@ export const setIssuePrice = async (
     const { data, error } = await supabase
       .from('inspection_issues')
       .update({
-        estimated_cost: price,
+        parts_cost: partsCost,
+        labour_cost: labourCost,
         priced_at: new Date().toISOString(),
         priced_by_id: pricedById,
         priced_by_name: pricedByName,
-      })
+      } as any)
       .eq('id', issueId)
       .select()
       .single();
