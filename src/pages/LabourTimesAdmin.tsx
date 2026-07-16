@@ -32,6 +32,8 @@ import {
   useUpdateWorkshopSettings,
   useWorkshopSettings,
 } from "@/lib/labourPricing";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 
 const PAGE_SIZE = 50;
 
@@ -73,6 +75,8 @@ function useDebouncedValue<T>(value: T, delay = 300): T {
 
 export default function LabourTimesAdmin() {
   const qc = useQueryClient();
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, 'admin');
   const { data: settings } = useWorkshopSettings();
   const hourlyRate = settings?.hourly_rate_gbp ?? 75;
   const minCharge = settings?.min_charge_gbp ?? 15;
