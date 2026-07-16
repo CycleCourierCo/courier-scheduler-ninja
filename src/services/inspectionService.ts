@@ -911,7 +911,9 @@ export const updateInspectionIssue = async (
     part_name?: string | null;
     part_spec?: string | null;
     part_number?: string | null;
+    repair_id?: string | null;
   },
+
   actorId?: string,
   actorName?: string
 ): Promise<InspectionIssue | null> => {
