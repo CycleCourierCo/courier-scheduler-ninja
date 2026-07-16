@@ -349,29 +349,57 @@ const AnalyticsPage = () => {
 
               <TabsContent value="bike-value" className="space-y-2 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
-                  <h2 className="text-lg sm:text-xl font-semibold">Bike Value</h2>
-                  <div className="flex flex-wrap gap-1">
-                    {([7, 30, 90, 365, "all"] as const).map((d) => (
+                  <h2 className="text-lg sm:text-xl font-semibold">
+                    Bike Value
+                    {bikeValueCustomer && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        · {bikeValueCustomer}
+                      </span>
+                    )}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {bikeValueCustomer && (
                       <Button
-                        key={String(d)}
                         size="sm"
-                        variant={bikeValueDays === d ? "default" : "outline"}
-                        onClick={() => setBikeValueDays(d)}
+                        variant="outline"
+                        onClick={() => setBikeValueCustomer(null)}
                       >
-                        {d === "all" ? "All" : d === 365 ? "1y" : `${d}d`}
+                        Clear customer
                       </Button>
-                    ))}
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {([7, 30, 90, 365, "all"] as const).map((d) => (
+                        <Button
+                          key={String(d)}
+                          size="sm"
+                          variant={bikeValueDays === d ? "default" : "outline"}
+                          onClick={() => setBikeValueDays(d)}
+                        >
+                          {d === "all" ? "All" : d === 365 ? "1y" : `${d}d`}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <BikeValueStatsCards
                   scoped={bikeValueScoped}
                   allTime={bikeValueAllTime}
-                  rangeLabel={bikeValueRangeLabel}
+                  rangeLabel={
+                    bikeValueCustomer
+                      ? `${bikeValueRangeLabel} · ${bikeValueCustomer}`
+                      : bikeValueRangeLabel
+                  }
                 />
                 <DailyBikeValueChart data={bikeValueDaily} />
                 <BikeValueBreakdownChart
                   byType={bikeValueScoped.valueByBikeType}
                   byBrand={bikeValueScoped.valueByBrand}
+                />
+                <BikeValueLeaderboard
+                  rows={bikeValueLeaderboard}
+                  rangeLabel={bikeValueRangeLabel}
+                  selectedCustomer={bikeValueCustomer}
+                  onSelectCustomer={setBikeValueCustomer}
                 />
               </TabsContent>
               
