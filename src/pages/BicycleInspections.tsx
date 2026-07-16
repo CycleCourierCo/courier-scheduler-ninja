@@ -1718,7 +1718,7 @@ const BicycleInspections = () => {
 
         {/* Inspection Checklist Dialog */}
         <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
-          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-y-auto [&>*]:min-w-0">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Wrench className="h-5 w-5" />
