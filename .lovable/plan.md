@@ -1,62 +1,24 @@
-## Goal
-Add a "Bike category" step to inspections that filters the repair picker, and wire the picker into inspection issues so labour prices auto-fill from the `labour_times` catalogue at the current workshop rate.
+## Fix mobile overflow in the Bike Inspection dialog
 
-## Why category lives on the inspection
-`labour_times.bike_type` has 44 fine-grained categories (Aero Road, Endurance Road, Downhill MTB, Electric MTB Hardtail, Electric Cargo…). The order-level `bike_type` is a coarse shipping enum ("Road", "MTB", "eBike") that doesn't map 1-to-1, and the bike can arrive different from what was booked. The mechanic classifies it once at inspection start.
+The dialog on mobile (360px) is wider than the viewport, cutting off the left side of every row. Root cause: shadcn `DialogContent` uses `grid w-full max-w-lg` — grid tracks default to `min-content`, so any long unbreakable child (the RepairPicker button label "Rim brake inner/outer cable replacement (per brake, external)", the workshop-rate helper text, the Textarea, etc.) forces the whole grid to expand past 100vw. `p-6` on mobile also eats ~48px.
 
-## 1. DB migration
-- `bicycle_inspections`: add nullable `bike_type TEXT`.
-- `inspection_issues`: add nullable `repair_id TEXT REFERENCES labour_times(repair_id) ON DELETE SET NULL`, plus an index on `repair_id`.
-- No RLS changes — existing policies cover both columns.
+### Changes (frontend/presentation only, scoped to the checklist dialog + RepairPicker)
 
-## 2. Types (`src/types/inspection.ts`)
-- `BicycleInspection.bike_type: string | null`
-- `InspectionIssue.repair_id: string | null`
+1. `src/pages/BicycleInspections.tsx` — Inspection Checklist `<DialogContent>` (line 1721):
+   - Replace class with `w-[calc(100vw-1rem)] sm:w-full max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-y-auto` plus `[&>*]:min-w-0` so grid tracks can shrink.
+   - Inner wrapper `space-y-4 py-4` → add `min-w-0`.
+   - Each issue card (`p-3 bg-muted/50 …`) → add `min-w-0 overflow-hidden` and drop internal `p-3` to `p-2 sm:p-3` on mobile.
+   - `grid grid-cols-2 gap-2` for Parts/Labour → keep, but wrap each `<Input>` parent with `min-w-0` so numeric inputs shrink.
+   - Checklist item wrapper (`space-y-3 p-3 border rounded-lg`) → `p-2 sm:p-3 min-w-0`.
+   - Reduce left indent `ml-7` → `ml-4 sm:ml-7` to give issue cards more room.
 
-## 3. Service (`src/services/inspectionService.ts`)
-- Persist `bike_type` when creating an inspection; add `updateInspectionBikeType(inspectionId, bikeType)`.
-- Extend `setPrice` and issue create/update payloads to accept optional `repair_id`.
-- No re-pricing of historical issues when the workshop rate changes — labour on saved issues stays as captured.
+2. `src/components/inspections/RepairPicker.tsx`:
+   - Trigger button: add `min-w-0` on the outer `<Button>` and on the inner label `<span>` (`flex items-center gap-2 truncate min-w-0`) so the truncate actually engages inside the flex row.
+   - `PopoverContent` width: `w-[calc(100vw-1rem)] sm:w-[420px] sm:max-w-[92vw]` so the popover itself never overflows on mobile.
 
-## 4. Repair picker (`src/components/inspections/RepairPicker.tsx` — new)
-- shadcn `Command` + `Popover` combobox.
-- Props: `bikeType?: string | null`, `onSelect({ repair_id, repair_name, labour_minutes, min_charge_gbp })`.
-- Debounced search hitting existing `listLabourTimes({ bikeType, search })`.
-- Result rows show: repair name, category / subcategory, minutes, computed price at current rate (via `useWorkshopSettings()` + `calculateLabourPrice`).
-- Toggle inside the popover: "Show all bike types" — clears the bike-type filter for edge cases.
-- Safety-critical / warranty / torque-check flags rendered as small badges next to the repair name.
+3. No changes to logic, data flow, services, or the pricing/edit forms outside the checklist dialog. Card-level RepairPicker usages (lines 1061, 1321) inherit the RepairPicker fix automatically.
 
-## 5. Inspection UI (`src/pages/BicycleInspections.tsx`)
-
-**Starting an inspection**
-- Required "Bike category" combobox (sourced from `listFilterOptions().bikeTypes`), prefilled with the order's `bike_type` when it matches a catalogue entry exactly, otherwise blank.
-- Cannot proceed to add issues until a category is chosen.
-
-**In-progress inspection header**
-- Show the selected bike category as a badge with a "Change" action (admin + mechanic).
-- Changing it does not rewrite existing issues; new issues use the new category filter.
-
-**Adding / editing an issue**
-- New `<RepairPicker>` above the description/parts/labour fields, pre-filtered by the inspection's `bike_type`.
-- On select:
-  - Set `labour_cost` = `calculateLabourPrice(labour_minutes, hourlyRate, minCharge)` (formula unchanged: `max(minCharge, ceil((minutes * rate/60)/5) * 5)`).
-  - Prefill description with the repair name if description is empty.
-  - Store `repair_id` on the issue.
-  - Leave `parts_cost` alone (parts vary too much to auto-price).
-- Show a small badge under priced issues: "From catalogue · <repair_name>" with a "Recompute at current rate" action (admin only) that re-runs the formula against the stored `repair_id`'s `labour_minutes`.
-- Manual override always allowed — editing the labour field just detaches the auto-computed value (badge stays for traceability).
-
-## 6. Permissions
-- Mechanics: can set/change the inspection `bike_type`, pick repairs, add/edit issues (as today).
-- Admin-only: "Recompute at current rate", and any UI that shows the workshop hourly rate/settings (unchanged from the previous mechanic-permissions pass).
-
-## Out of scope
-- No bulk re-pricing of existing issues when the workshop rate changes.
-- No changes to parts pricing, workshop settings, labour_times admin, or RLS.
-- No mapping table between order `bike_type` and catalogue `bike_type` — best-effort exact-match prefill only.
-
-## Alternatives considered (rejected)
-- **Reuse order.bike_type directly** — categories don't line up; would hide 40+ valid options.
-- **Pick bike type per issue** — repetitive; a mechanic inspects one bike per session.
-- **Auto-derive labour on read from `repair_id` + current rate (no stored labour_cost)** — breaks audit trail and invoice history.
-- **Maintain an order→catalogue mapping table** — brittle (44 destination values, marketing renames) and still needs a mechanic override.
+### Out of scope
+- No changes to `src/components/ui/dialog.tsx` (shared component).
+- No changes to inspection data model, submission flow, or the labour-times catalogue.
+- Desktop layout is preserved (all mobile-only tweaks are behind `sm:` breakpoints).

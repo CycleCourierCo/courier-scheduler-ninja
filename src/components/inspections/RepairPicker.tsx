@@ -89,16 +89,16 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           variant="outline"
           size="sm"
           disabled={disabled}
-          className={cn("w-full justify-between font-normal", buttonClassName)}
+          className={cn("w-full min-w-0 justify-between font-normal", buttonClassName)}
         >
-          <span className="flex items-center gap-2 truncate">
+          <span className="flex min-w-0 items-center gap-2 truncate">
             <Wrench className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{selectedLabel ?? placeholder ?? "Pick from repair catalogue…"}</span>
           </span>
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[420px] max-w-[92vw]" align="start">
+      <PopoverContent className="p-0 w-[calc(100vw-1rem)] sm:w-[420px] sm:max-w-[92vw]" align="start">
         <div className="p-2 border-b space-y-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
