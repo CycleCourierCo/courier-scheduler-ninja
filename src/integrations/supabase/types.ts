@@ -1140,6 +1140,7 @@ export type Database = {
           id: string
           inspection_id: string
           issue_description: string
+          labour_cost: number | null
           order_id: string
           part_name: string | null
           part_number: string | null
@@ -1148,6 +1149,7 @@ export type Database = {
           parts_arrived_at: string | null
           parts_arrived_by_id: string | null
           parts_arrived_by_name: string | null
+          parts_cost: number | null
           parts_ordered: boolean
           parts_ordered_at: string | null
           parts_ordered_by_id: string | null
@@ -1171,6 +1173,7 @@ export type Database = {
           id?: string
           inspection_id: string
           issue_description: string
+          labour_cost?: number | null
           order_id: string
           part_name?: string | null
           part_number?: string | null
@@ -1179,6 +1182,7 @@ export type Database = {
           parts_arrived_at?: string | null
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
+          parts_cost?: number | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
@@ -1202,6 +1206,7 @@ export type Database = {
           id?: string
           inspection_id?: string
           issue_description?: string
+          labour_cost?: number | null
           order_id?: string
           part_name?: string | null
           part_number?: string | null
@@ -1210,6 +1215,7 @@ export type Database = {
           parts_arrived_at?: string | null
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
+          parts_cost?: number | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
