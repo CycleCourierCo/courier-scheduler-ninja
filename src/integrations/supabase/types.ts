@@ -3326,6 +3326,30 @@ export type Database = {
         }
         Relationships: []
       }
+      workshop_settings: {
+        Row: {
+          hourly_rate_gbp: number
+          id: number
+          min_charge_gbp: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          hourly_rate_gbp?: number
+          id?: number
+          min_charge_gbp?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          hourly_rate_gbp?: number
+          id?: number
+          min_charge_gbp?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3474,6 +3498,7 @@ export type Database = {
           name: string
         }[]
       }
+      next_custom_repair_id: { Args: never; Returns: string }
       set_order_availability: {
         Args: {
           p_dates: Json
