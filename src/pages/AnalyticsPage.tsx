@@ -64,6 +64,15 @@ import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+import {
+  getBikeValueMetrics,
+  getDailyBikeValueSeries,
+  getAllTimeBikeValueStats,
+  type BikeValueRange,
+} from "@/services/bikeValueAnalyticsService";
+import BikeValueStatsCards from "@/components/analytics/BikeValueStatsCards";
+import DailyBikeValueChart from "@/components/analytics/DailyBikeValueChart";
+import BikeValueBreakdownChart from "@/components/analytics/BikeValueBreakdownChart";
 
 const weeksAgoRange = (weeks: number): DateRange => {
   const end = new Date();
