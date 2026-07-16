@@ -37,13 +37,15 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
       acc.inspectionRevenue += r.inspectionRevenue;
       acc.repairsDone += r.repairsDone;
       acc.repairRevenue += r.repairRevenue;
+      acc.labourRevenue += r.labourRevenue;
       acc.totalRevenue += r.totalRevenue;
       acc.hoursWorked += r.hoursWorked;
       acc.wageCost += r.wageCost;
       acc.profit += r.profit;
+      acc.labourProfit += r.labourProfit;
       return acc;
     },
-    { inspectionsDone: 0, inspectionRevenue: 0, repairsDone: 0, repairRevenue: 0, totalRevenue: 0, hoursWorked: 0, wageCost: 0, profit: 0 }
+    { inspectionsDone: 0, inspectionRevenue: 0, repairsDone: 0, repairRevenue: 0, labourRevenue: 0, totalRevenue: 0, hoursWorked: 0, wageCost: 0, profit: 0, labourProfit: 0 }
   );
 
   return (
