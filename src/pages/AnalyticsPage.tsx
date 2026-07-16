@@ -190,12 +190,19 @@ const AnalyticsPage = () => {
     return { start, end };
   }, [bikeValueDays]);
   const bikeValueScoped = useMemo(
-    () => getBikeValueMetrics(orders, bikeValueRange),
-    [orders, bikeValueRange],
+    () => getBikeValueMetrics(orders, { range: bikeValueRange, customerName: bikeValueCustomer }),
+    [orders, bikeValueRange, bikeValueCustomer],
   );
-  const bikeValueAllTime = useMemo(() => getAllTimeBikeValueStats(orders), [orders]);
+  const bikeValueAllTime = useMemo(
+    () => getAllTimeBikeValueStats(orders, bikeValueCustomer),
+    [orders, bikeValueCustomer],
+  );
   const bikeValueDaily = useMemo(
-    () => getDailyBikeValueSeries(orders, bikeValueRange),
+    () => getDailyBikeValueSeries(orders, { range: bikeValueRange, customerName: bikeValueCustomer }),
+    [orders, bikeValueRange, bikeValueCustomer],
+  );
+  const bikeValueLeaderboard = useMemo(
+    () => getCustomerBikeValueLeaderboard(orders, bikeValueRange),
     [orders, bikeValueRange],
   );
   const bikeValueRangeLabel =
