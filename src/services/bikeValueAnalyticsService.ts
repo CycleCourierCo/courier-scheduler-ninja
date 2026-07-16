@@ -5,6 +5,20 @@ export interface BikeValueRange {
   end: Date;
 }
 
+export interface BikeValueFilter {
+  range?: BikeValueRange;
+  customerName?: string | null;
+}
+
+export interface CustomerBikeValueRow {
+  customerName: string;
+  totalValue: number;
+  totalBikes: number;
+  valuedBikes: number;
+  avgValuePerBike: number;
+  highestBikeValue: number;
+}
+
 export interface DailyBikeValuePoint {
   date: string; // YYYY-MM-DD
   label: string; // dd MMM
@@ -45,6 +59,7 @@ const fmtDay = (d: Date) =>
 
 interface FlatBike {
   orderId: string;
+  customerName: string;
   date: Date;
   value: number; // 0 if unknown
   hasValue: boolean;
@@ -64,6 +79,7 @@ const flattenBikes = (orders: Order[]): FlatBike[] => {
     if (!o || o.status === "cancelled") continue;
     const date = new Date(o.createdAt);
     if (isNaN(date.getTime())) continue;
+    const customerName = (o.sender?.name || "Unknown").trim() || "Unknown";
 
     if (Array.isArray(o.bikes) && o.bikes.length > 0) {
       for (const b of o.bikes) {
@@ -71,6 +87,7 @@ const flattenBikes = (orders: Order[]): FlatBike[] => {
         const value = parseNumber(raw);
         rows.push({
           orderId: o.id,
+          customerName,
           date,
           value,
           hasValue: raw != null && String(raw).trim() !== "" && value > 0,
@@ -88,6 +105,7 @@ const flattenBikes = (orders: Order[]): FlatBike[] => {
     for (let i = 0; i < qty; i++) {
       rows.push({
         orderId: o.id,
+        customerName,
         date,
         value: perBike,
         hasValue: perBike > 0,
@@ -105,15 +123,28 @@ const inRange = (d: Date, r?: BikeValueRange) => {
   return d >= r.start && d <= r.end;
 };
 
+const matchesFilter = (b: FlatBike, filter?: BikeValueFilter) => {
+  if (!filter) return true;
+  if (!inRange(b.date, filter.range)) return false;
+  if (filter.customerName && b.customerName !== filter.customerName) return false;
+  return true;
+};
+
 const topN = <T extends { totalValue: number }>(arr: T[], n = 8): T[] =>
   [...arr].sort((a, b) => b.totalValue - a.totalValue).slice(0, n);
 
 export const getBikeValueMetrics = (
   orders: Order[],
-  range?: BikeValueRange,
+  filter?: BikeValueFilter | BikeValueRange,
 ): BikeValueMetrics => {
+  // Back-compat: accept a plain BikeValueRange
+  const f: BikeValueFilter | undefined = filter
+    ? "start" in (filter as any) && "end" in (filter as any)
+      ? { range: filter as BikeValueRange }
+      : (filter as BikeValueFilter)
+    : undefined;
   const all = flattenBikes(orders);
-  const scoped = all.filter((b) => inRange(b.date, range));
+  const scoped = all.filter((b) => matchesFilter(b, f));
 
   const totalValueMoved = scoped.reduce((s, b) => s + b.value, 0);
   const totalBikes = scoped.length;
@@ -180,9 +211,14 @@ export const getBikeValueMetrics = (
 
 export const getDailyBikeValueSeries = (
   orders: Order[],
-  range?: BikeValueRange,
+  filter?: BikeValueFilter | BikeValueRange,
 ): DailyBikeValuePoint[] => {
-  const rows = flattenBikes(orders).filter((b) => inRange(b.date, range));
+  const f: BikeValueFilter | undefined = filter
+    ? "start" in (filter as any) && "end" in (filter as any)
+      ? { range: filter as BikeValueRange }
+      : (filter as BikeValueFilter)
+    : undefined;
+  const rows = flattenBikes(orders).filter((b) => matchesFilter(b, f));
   const map = new Map<
     string,
     { date: Date; total: number; count: number; valued: number }
@@ -207,8 +243,45 @@ export const getDailyBikeValueSeries = (
     }));
 };
 
-export const getAllTimeBikeValueStats = (orders: Order[]) =>
-  getBikeValueMetrics(orders);
+export const getAllTimeBikeValueStats = (
+  orders: Order[],
+  customerName?: string | null,
+) => getBikeValueMetrics(orders, { customerName: customerName ?? undefined });
+
+export const getCustomerBikeValueLeaderboard = (
+  orders: Order[],
+  range?: BikeValueRange,
+): CustomerBikeValueRow[] => {
+  const rows = flattenBikes(orders).filter((b) => inRange(b.date, range));
+  const map = new Map<
+    string,
+    { total: number; count: number; valued: number; highest: number }
+  >();
+  for (const b of rows) {
+    const e = map.get(b.customerName) ?? {
+      total: 0,
+      count: 0,
+      valued: 0,
+      highest: 0,
+    };
+    e.total += b.value;
+    e.count += 1;
+    if (b.hasValue) e.valued += 1;
+    if (b.value > e.highest) e.highest = b.value;
+    map.set(b.customerName, e);
+  }
+  return Array.from(map.entries())
+    .map(([customerName, v]) => ({
+      customerName,
+      totalValue: v.total,
+      totalBikes: v.count,
+      valuedBikes: v.valued,
+      avgValuePerBike: v.valued > 0 ? v.total / v.valued : 0,
+      highestBikeValue: v.highest,
+    }))
+    .sort((a, b) => b.totalValue - a.totalValue);
+};
+
 
 export const formatGBP = (n: number) =>
   new Intl.NumberFormat("en-GB", {
