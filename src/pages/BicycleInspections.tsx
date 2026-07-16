@@ -1713,12 +1713,53 @@ const BicycleInspections = () => {
                                 <X className="h-3 w-3" />
                               </Button>
                             </div>
+                            <RepairPicker
+                              bikeType={checklistBikeType}
+                              value={issue.repairId}
+                              onSelect={(sel) => {
+                                patchChecklistIssue(item.id, idx, {
+                                  repairId: sel.repair_id,
+                                  labourCost: sel.labour_price_gbp.toFixed(2),
+                                  description: issue.description.trim() ? issue.description : sel.repair_name,
+                                });
+                              }}
+                            />
+                            {issue.repairId && (
+                              <p className="text-[10px] text-muted-foreground">
+                                From catalogue · labour auto-priced at current workshop rate
+                              </p>
+                            )}
                             <Textarea
                               placeholder="Describe the issue..."
                               value={issue.description}
                               onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'description', e.target.value)}
                               className="text-sm min-h-[60px]"
                             />
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Parts (£)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={issue.partsCost}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partsCost', e.target.value)}
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Labour (£)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={issue.labourCost}
+                                  onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'labourCost', e.target.value)}
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+
                             {canManageInspections && (
                               <div className="space-y-2 pt-1 border-t border-dashed border-muted-foreground/20">
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
