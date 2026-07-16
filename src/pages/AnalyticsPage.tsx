@@ -64,6 +64,15 @@ import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import StatsCard from "@/components/analytics/StatsCard";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+import {
+  getBikeValueMetrics,
+  getDailyBikeValueSeries,
+  getAllTimeBikeValueStats,
+  type BikeValueRange,
+} from "@/services/bikeValueAnalyticsService";
+import BikeValueStatsCards from "@/components/analytics/BikeValueStatsCards";
+import DailyBikeValueChart from "@/components/analytics/DailyBikeValueChart";
+import BikeValueBreakdownChart from "@/components/analytics/BikeValueBreakdownChart";
 
 const weeksAgoRange = (weeks: number): DateRange => {
   const end = new Date();
@@ -94,6 +103,9 @@ const AnalyticsPage = () => {
     queryKey: ["ordersAnalytics"],
     queryFn: fetchOrdersForAnalytics
   });
+
+  // Bike value tab: preset range in days ("all" = whole history)
+  const [bikeValueDays, setBikeValueDays] = useState<number | "all">(30);
 
   const { data: inspections = [] } = useQuery({
     queryKey: ["inspectionsAnalytics"],
@@ -166,6 +178,26 @@ const AnalyticsPage = () => {
   // Get only B2B customers for business tab
   const b2bCustomers = getAllCustomersAnalytics(orders).filter(customer => customer.isB2B);
 
+  // Bike value metrics (scoped + all-time)
+  const bikeValueRange = useMemo<BikeValueRange | undefined>(() => {
+    if (bikeValueDays === "all") return undefined;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - bikeValueDays);
+    return { start, end };
+  }, [bikeValueDays]);
+  const bikeValueScoped = useMemo(
+    () => getBikeValueMetrics(orders, bikeValueRange),
+    [orders, bikeValueRange],
+  );
+  const bikeValueAllTime = useMemo(() => getAllTimeBikeValueStats(orders), [orders]);
+  const bikeValueDaily = useMemo(
+    () => getDailyBikeValueSeries(orders, bikeValueRange),
+    [orders, bikeValueRange],
+  );
+  const bikeValueRangeLabel =
+    bikeValueDays === "all" ? "All time" : `Last ${bikeValueDays} days`;
+
   return (
     <Layout>
       <div className="container px-2 sm:px-4 py-4 sm:py-6 mx-auto max-w-7xl">
@@ -211,7 +243,12 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 h-auto mb-4 sm:mb-8">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 h-auto mb-4 sm:mb-8">
+                <TabsTrigger value="bike-value" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
+                  <PoundSterling className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Bike Value</span>
+                  <span className="sm:hidden">Value</span>
+                </TabsTrigger>
                 <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <BarChart className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Overview</span>
@@ -299,6 +336,35 @@ const AnalyticsPage = () => {
                   </div>
                 </div>
               </TabsContent>
+
+              <TabsContent value="bike-value" className="space-y-2 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
+                  <h2 className="text-lg sm:text-xl font-semibold">Bike Value</h2>
+                  <div className="flex flex-wrap gap-1">
+                    {([7, 30, 90, 365, "all"] as const).map((d) => (
+                      <Button
+                        key={String(d)}
+                        size="sm"
+                        variant={bikeValueDays === d ? "default" : "outline"}
+                        onClick={() => setBikeValueDays(d)}
+                      >
+                        {d === "all" ? "All" : d === 365 ? "1y" : `${d}d`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <BikeValueStatsCards
+                  scoped={bikeValueScoped}
+                  allTime={bikeValueAllTime}
+                  rangeLabel={bikeValueRangeLabel}
+                />
+                <DailyBikeValueChart data={bikeValueDaily} />
+                <BikeValueBreakdownChart
+                  byType={bikeValueScoped.valueByBikeType}
+                  byBrand={bikeValueScoped.valueByBrand}
+                />
+              </TabsContent>
+              
               
               <TabsContent value="performance" className="space-y-2 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2 sm:mb-4">
