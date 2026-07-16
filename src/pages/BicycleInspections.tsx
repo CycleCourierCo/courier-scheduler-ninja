@@ -851,34 +851,63 @@ const BicycleInspections = () => {
                   {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
                   {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
-                          <Label className="text-xs">Price (£)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "")}
-                            onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: e.target.value }))}
-                            className="text-sm"
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            const raw = priceInputs[issue.id] ?? (issue.estimated_cost != null ? String(issue.estimated_cost) : "");
-                            const val = parseFloat(raw);
-                            if (!isFinite(val) || val < 0) {
-                              toast.error("Enter a valid price");
-                              return;
-                            }
-                            setPriceMutation.mutate({ issueId: issue.id, price: val });
-                          }}
-                          disabled={setPriceMutation.isPending}
-                        >
-                          <PoundSterling className="h-4 w-4 mr-1" /> Save
-                        </Button>
-                      </div>
+                      {(() => {
+                        const current = priceInputs[issue.id] ?? {
+                          parts: issue.parts_cost != null ? String(issue.parts_cost) : "",
+                          labour: issue.labour_cost != null ? String(issue.labour_cost) : "",
+                        };
+                        const partsNum = parseFloat(current.parts);
+                        const labourNum = parseFloat(current.labour);
+                        const total = (isFinite(partsNum) ? partsNum : 0) + (isFinite(labourNum) ? labourNum : 0);
+                        return (
+                          <div className="flex items-end gap-2 flex-wrap">
+                            <div className="flex-1 min-w-[100px]">
+                              <Label className="text-xs">Parts (£)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={current.parts}
+                                onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: { ...current, parts: e.target.value } }))}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-[100px]">
+                              <Label className="text-xs">Labour (£)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={current.labour}
+                                onChange={(e) => setPriceInputs(prev => ({ ...prev, [issue.id]: { ...current, labour: e.target.value } }))}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground pb-2">
+                              Total: <span className="font-medium text-foreground">£{total.toFixed(2)}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const parts = current.parts.trim() === "" ? 0 : parseFloat(current.parts);
+                                const labour = current.labour.trim() === "" ? 0 : parseFloat(current.labour);
+                                if (!isFinite(parts) || parts < 0 || !isFinite(labour) || labour < 0) {
+                                  toast.error("Enter valid parts and labour prices");
+                                  return;
+                                }
+                                if (parts + labour <= 0) {
+                                  toast.error("Enter at least a parts or labour price");
+                                  return;
+                                }
+                                setPriceMutation.mutate({ issueId: issue.id, partsCost: parts, labourCost: labour });
+                              }}
+                              disabled={setPriceMutation.isPending}
+                            >
+                              <PoundSterling className="h-4 w-4 mr-1" /> Save
+                            </Button>
+                          </div>
+                        );
+                      })()}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -887,7 +916,8 @@ const BicycleInspections = () => {
                             setEditingIssueId(issue.id);
                             setEditIssueDraft({
                               description: issue.issue_description || "",
-                              cost: issue.estimated_cost != null ? String(issue.estimated_cost) : "",
+                              partsCost: issue.parts_cost != null ? String(issue.parts_cost) : "",
+                              labourCost: issue.labour_cost != null ? String(issue.labour_cost) : "",
                               partName: issue.part_name || "",
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
