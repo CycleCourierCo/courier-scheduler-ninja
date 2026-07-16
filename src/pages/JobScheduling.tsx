@@ -41,6 +41,7 @@ export interface OrderData {
   delivery_instructions: string | null;
   sender_notes: string | null;
   receiver_notes: string | null;
+  is_box_my_bike: boolean | null;
 }
 
 export type ShipdayVerificationResults = Record<string, boolean>;
