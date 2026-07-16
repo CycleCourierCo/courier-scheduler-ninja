@@ -1768,7 +1768,7 @@ const BicycleInspections = () => {
                         
                         {/* Issues for this checklist item */}
                         {itemIssues.map((issue, idx) => (
-                          <div key={idx} className="space-y-2 p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30">
+                          <div key={idx} className="space-y-2 p-2 sm:p-3 bg-muted/50 rounded-md border border-dashed border-destructive/30 min-w-0 overflow-hidden">
                             <div className="flex items-center justify-between">
                               <p className="text-xs font-medium text-destructive flex items-center gap-1">
                                 <AlertTriangle className="h-3 w-3" />
