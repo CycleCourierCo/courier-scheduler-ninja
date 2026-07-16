@@ -110,10 +110,24 @@ export default function LabourTimesAdmin() {
   const total = listQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // Column visibility
+  // Column visibility — non-admins never see price/min_charge columns
+  const availableColumns = useMemo(
+    () => ALL_COLUMNS.filter((c) => isAdmin || (c.key !== "price" && c.key !== "min_charge_gbp")),
+    [isAdmin]
+  );
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
     () => new Set(ALL_COLUMNS.filter((c) => c.default).map((c) => c.key))
   );
+  useEffect(() => {
+    if (!isAdmin) {
+      setVisibleCols((prev) => {
+        const n = new Set(prev);
+        n.delete("price");
+        n.delete("min_charge_gbp");
+        return n;
+      });
+    }
+  }, [isAdmin]);
   const toggleCol = (k: ColKey) => {
     setVisibleCols((prev) => {
       const n = new Set(prev);
