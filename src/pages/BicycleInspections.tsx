@@ -940,6 +940,8 @@ const BicycleInspections = () => {
                               partName: issue.part_name || "",
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
+                              repairId: (issue as any).repair_id ?? null,
+
                             });
                           }}
                         >
