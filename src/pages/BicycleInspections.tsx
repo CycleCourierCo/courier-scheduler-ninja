@@ -606,7 +606,15 @@ const BicycleInspections = () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
 
     if (hasIssues) {
-      addMultipleIssuesMutation.mutate({ orderId: selectedOrderForInspection, issues: allChecklistIssues });
+      if (!checklistBikeType) {
+        toast.error("Choose the bike category before reporting issues");
+        return;
+      }
+      addMultipleIssuesMutation.mutate({
+        orderId: selectedOrderForInspection,
+        issues: allChecklistIssues,
+        bikeType: checklistBikeType,
+      });
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
@@ -621,6 +629,7 @@ const BicycleInspections = () => {
       setInspectionChecklistOpen(false);
     }
   };
+
 
   const handleIssueCountChange = (count: string) => {
     const newCount = parseInt(count);
