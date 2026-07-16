@@ -41,7 +41,7 @@ export async function getMechanicProfitability(fromISO: string, toISO: string): 
   // 2. Resolved issues in range
   const { data: issues, error: issErr } = await supabase
     .from('inspection_issues')
-    .select('id, resolved_at, resolved_by_id, resolved_by_name, estimated_cost, status')
+    .select('id, resolved_at, resolved_by_id, resolved_by_name, estimated_cost, parts_cost, labour_cost, status')
     .in('status', ['resolved', 'repaired'])
     .not('resolved_by_id', 'is', null)
     .not('resolved_at', 'is', null)
