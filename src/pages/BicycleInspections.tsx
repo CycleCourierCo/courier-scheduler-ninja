@@ -1746,7 +1746,7 @@ const BicycleInspections = () => {
               {INSPECTION_ITEMS.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
-                  <div key={item.id} className="space-y-3 p-3 border rounded-lg">
+                  <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
                     <div className="flex items-start gap-3">
                       <Checkbox
                         id={item.id}
