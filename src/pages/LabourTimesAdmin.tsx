@@ -32,6 +32,8 @@ import {
   useUpdateWorkshopSettings,
   useWorkshopSettings,
 } from "@/lib/labourPricing";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 
 const PAGE_SIZE = 50;
 
@@ -73,6 +75,8 @@ function useDebouncedValue<T>(value: T, delay = 300): T {
 
 export default function LabourTimesAdmin() {
   const qc = useQueryClient();
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, 'admin');
   const { data: settings } = useWorkshopSettings();
   const hourlyRate = settings?.hourly_rate_gbp ?? 75;
   const minCharge = settings?.min_charge_gbp ?? 15;
@@ -106,10 +110,24 @@ export default function LabourTimesAdmin() {
   const total = listQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // Column visibility
+  // Column visibility — non-admins never see price/min_charge columns
+  const availableColumns = useMemo(
+    () => ALL_COLUMNS.filter((c) => isAdmin || (c.key !== "price" && c.key !== "min_charge_gbp")),
+    [isAdmin]
+  );
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
     () => new Set(ALL_COLUMNS.filter((c) => c.default).map((c) => c.key))
   );
+  useEffect(() => {
+    if (!isAdmin) {
+      setVisibleCols((prev) => {
+        const n = new Set(prev);
+        n.delete("price");
+        n.delete("min_charge_gbp");
+        return n;
+      });
+    }
+  }, [isAdmin]);
   const toggleCol = (k: ColKey) => {
     setVisibleCols((prev) => {
       const n = new Set(prev);
@@ -173,43 +191,45 @@ export default function LabourTimesAdmin() {
           <p className="text-muted-foreground">Manage workshop repair book times, multipliers, and pricing.</p>
         </div>
 
-        {/* Settings card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Workshop settings</CardTitle>
-            <CardDescription>
-              Prices shown across the app are computed live from labour minutes at this rate — data isn't rewritten.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-[1fr_1fr_auto_1fr] items-end">
-            <div className="space-y-2">
-              <Label>Hourly rate (£)</Label>
-              <Input type="number" min={0} step="0.01" value={rateInput} onChange={(e) => setRateInput(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Minimum charge (£)</Label>
-              <Input type="number" min={0} step="0.01" value={minInput} onChange={(e) => setMinInput(e.target.value)} />
-            </div>
-            <Button
-              onClick={() =>
-                updateSettings.mutate(
-                  { hourly_rate_gbp: Number(rateInput) || 0, min_charge_gbp: Number(minInput) || 0 },
-                  {
-                    onSuccess: () => toast.success("Workshop settings updated"),
-                    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
-                  }
-                )
-              }
-              disabled={updateSettings.isPending}
-            >
-              {updateSettings.isPending ? "Saving…" : "Save"}
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              Example: 30 min job → <span className="font-semibold text-foreground">{formatGBP(previewPrice)}</span>
-              <div className="text-xs">Formula: max(min, ceil(minutes × rate / 60 / 5) × 5)</div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Settings card — admin only */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Workshop settings</CardTitle>
+              <CardDescription>
+                Prices shown across the app are computed live from labour minutes at this rate — data isn't rewritten.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-[1fr_1fr_auto_1fr] items-end">
+              <div className="space-y-2">
+                <Label>Hourly rate (£)</Label>
+                <Input type="number" min={0} step="0.01" value={rateInput} onChange={(e) => setRateInput(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Minimum charge (£)</Label>
+                <Input type="number" min={0} step="0.01" value={minInput} onChange={(e) => setMinInput(e.target.value)} />
+              </div>
+              <Button
+                onClick={() =>
+                  updateSettings.mutate(
+                    { hourly_rate_gbp: Number(rateInput) || 0, min_charge_gbp: Number(minInput) || 0 },
+                    {
+                      onSuccess: () => toast.success("Workshop settings updated"),
+                      onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+                    }
+                  )
+                }
+                disabled={updateSettings.isPending}
+              >
+                {updateSettings.isPending ? "Saving…" : "Save"}
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                Example: 30 min job → <span className="font-semibold text-foreground">{formatGBP(previewPrice)}</span>
+                <div className="text-xs">Formula: max(min, ceil(minutes × rate / 60 / 5) × 5)</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="times" className="space-y-4">
           <TabsList>
@@ -274,7 +294,7 @@ export default function LabourTimesAdmin() {
                     </PopoverTrigger>
                     <PopoverContent className="w-64 max-h-80 overflow-y-auto">
                       <div className="space-y-2">
-                        {ALL_COLUMNS.map((c) => (
+                        {availableColumns.map((c) => (
                           <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
                             <Checkbox
                               checked={visibleCols.has(c.key)}
@@ -286,7 +306,7 @@ export default function LabourTimesAdmin() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <Button onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add repair</Button>
+                  {isAdmin && <Button onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add repair</Button>}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -294,22 +314,22 @@ export default function LabourTimesAdmin() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        {ALL_COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
+                        {availableColumns.filter((c) => visibleCols.has(c.key)).map((c) => (
                           <TableHead key={c.key}>{c.label}</TableHead>
                         ))}
-                        <TableHead className="w-10" />
+                        {isAdmin && <TableHead className="w-10" />}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {listQuery.isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={visibleCols.size + 1} className="py-10 text-center text-muted-foreground">
+                          <TableCell colSpan={visibleCols.size + (isAdmin ? 1 : 0)} className="py-10 text-center text-muted-foreground">
                             <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Loading…
                           </TableCell>
                         </TableRow>
                       ) : listQuery.data?.rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={visibleCols.size + 1} className="py-10 text-center text-muted-foreground">
+                          <TableCell colSpan={visibleCols.size + (isAdmin ? 1 : 0)} className="py-10 text-center text-muted-foreground">
                             No results
                           </TableCell>
                         </TableRow>
@@ -317,28 +337,30 @@ export default function LabourTimesAdmin() {
                         listQuery.data?.rows.map((row) => (
                           <TableRow
                             key={row.repair_id}
-                            className="cursor-pointer"
-                            onClick={() => openEdit(row)}
+                            className={isAdmin ? "cursor-pointer" : ""}
+                            onClick={isAdmin ? () => openEdit(row) : undefined}
                           >
-                            {ALL_COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
+                            {availableColumns.filter((c) => visibleCols.has(c.key)).map((c) => (
                               <TableCell key={c.key} className="whitespace-nowrap">
                                 {renderCell(row, c.key, hourlyRate, minCharge)}
                               </TableCell>
                             ))}
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => setPendingDelete(row)}
-                                  >Delete</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
+                            {isAdmin && (
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => setPendingDelete(row)}
+                                    >Delete</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))
                       )}
@@ -367,9 +389,11 @@ export default function LabourTimesAdmin() {
                   <CardTitle>Multipliers</CardTitle>
                   <CardDescription>Modifiers applied on top of standard times.</CardDescription>
                 </div>
-                <Button onClick={() => { setMultiplierRow(null); setMultiplierOpen(true); }}>
-                  <Plus className="mr-1 h-4 w-4" /> Add multiplier
-                </Button>
+                {isAdmin && (
+                  <Button onClick={() => { setMultiplierRow(null); setMultiplierOpen(true); }}>
+                    <Plus className="mr-1 h-4 w-4" /> Add multiplier
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -380,21 +404,21 @@ export default function LabourTimesAdmin() {
                       <TableHead>Value</TableHead>
                       <TableHead>Applies to</TableHead>
                       <TableHead>Notes</TableHead>
-                      <TableHead className="w-10" />
+                      {isAdmin && <TableHead className="w-10" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {multipliersQuery.isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-6 text-muted-foreground">
                           <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Loading…
                         </TableCell>
                       </TableRow>
                     ) : (multipliersQuery.data ?? []).map((row) => (
                       <TableRow
                         key={row.modifier}
-                        className="cursor-pointer"
-                        onClick={() => { setMultiplierRow(row); setMultiplierOpen(true); }}
+                        className={isAdmin ? "cursor-pointer" : ""}
+                        onClick={isAdmin ? () => { setMultiplierRow(row); setMultiplierOpen(true); } : undefined}
                       >
                         <TableCell className="font-medium">{row.modifier}</TableCell>
                         <TableCell>
@@ -405,20 +429,22 @@ export default function LabourTimesAdmin() {
                         </TableCell>
                         <TableCell className="max-w-xs truncate">{row.applies_to ?? ""}</TableCell>
                         <TableCell className="max-w-md truncate">{row.notes ?? ""}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => { setMultiplierRow(row); setMultiplierOpen(true); }}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => setPendingMultiplierDelete(row)}
-                              >Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                        {isAdmin && (
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setMultiplierRow(row); setMultiplierOpen(true); }}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => setPendingMultiplierDelete(row)}
+                                >Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
