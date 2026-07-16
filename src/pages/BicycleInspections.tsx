@@ -123,6 +123,9 @@ const BicycleInspections = () => {
   const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
+  const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
+  const { data: workshopSettings } = useWorkshopSettings();
+
 
   // Fetch inspections based on role
   const { data: inspections = [], isLoading } = useQuery({
