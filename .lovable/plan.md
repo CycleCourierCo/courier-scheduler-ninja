@@ -1,15 +1,11 @@
-## Fix: dropdown lists in inspection pickers won't scroll on mobile
+Plan:
 
-**Problem:** The `RepairPicker` and `BikeCategoryPicker` popovers use Radix `ScrollArea` for the list. Radix `ScrollArea` renders its own custom scrollbar and, on touch devices, the viewport frequently doesn't respond to finger scrolling inside a Popover — which is what the user is hitting on mobile.
-
-**Change:** Replace `ScrollArea` with a plain scroll container that works natively with touch.
-
-### `src/components/inspections/RepairPicker.tsx`
-- Remove the `ScrollArea` import and wrapper around the results list.
-- Replace `<ScrollArea className="h-72">…</ScrollArea>` with `<div className="max-h-72 overflow-y-auto overscroll-contain">…</div>`.
-
-### `src/components/inspections/BikeCategoryPicker.tsx`
-- Remove the `ScrollArea` import and wrapper around the options list.
-- Replace `<ScrollArea className="h-64">…</ScrollArea>` with `<div className="max-h-64 overflow-y-auto overscroll-contain">…</div>`.
-
-No other behavior changes — same height, same content, just native scrolling so touch drag works inside the popover.
+1. Update both inspection dropdowns (`RepairPicker` and `BikeCategoryPicker`) so the popover itself is constrained to the available viewport height, not just the inner list.
+2. Make the option list the only scrollable area with mobile-friendly scrolling styles:
+   - `overflow-y-auto`
+   - `overscroll-contain`
+   - `touch-action: pan-y`
+   - `-webkit-overflow-scrolling: touch`
+3. Stop touch/wheel scroll events from bubbling to the parent page/dialog so dragging inside the dropdown scrolls the dropdown instead of the inspection page.
+4. Prevent mobile keyboard auto-focus from stealing usable dropdown space when the popover opens, while keeping the search input available to tap manually.
+5. Apply the same fix everywhere these inspection pickers are used, without changing selection behavior or layout outside the dropdowns.
