@@ -55,6 +55,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     isBoxMyBike: dbOrder.is_box_my_bike || false,
     boxMyBikeStatus: dbOrder.box_my_bike_status || null,
     boxLabelUrl: dbOrder.box_label_url || null,
+    boxTrackingUrl: dbOrder.box_tracking_url || null,
     boxLabelUploadedAt: dbOrder.box_label_uploaded_at ? parseDate(dbOrder.box_label_uploaded_at) : null,
     boxLabelUploadedBy: dbOrder.box_label_uploaded_by || null,
     boxMyBikeInvoiceId: dbOrder.box_my_bike_invoice_id || null,

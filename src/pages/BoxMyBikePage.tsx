@@ -25,6 +25,7 @@ interface BoxOrder {
   status: string;
   box_my_bike_status: BoxMyBikeStatus | null;
   box_label_url: string | null;
+  box_tracking_url: string | null;
   box_my_bike_invoice_id: string | null;
   box_my_bike_invoice_number: string | null;
   box_my_bike_invoice_url: string | null;
@@ -96,7 +97,7 @@ const BoxMyBikePage: React.FC = () => {
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
+        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_tracking_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
         .eq("is_box_my_bike", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -150,6 +151,24 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
   });
 
+  const saveTrackingUrl = useMutation({
+    mutationFn: async ({ id, url }: { id: string; url: string }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ box_tracking_url: url || null, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      await fireBoxWebhooks(id, "order.box.tracking_url_set");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
+      toast.success("Tracking link saved");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save tracking link"),
+  });
+
+
+
 
   const viewLabel = async (path: string) => {
     // Open synchronously to preserve the user-gesture; browsers block popups opened after await.
@@ -188,7 +207,7 @@ const BoxMyBikePage: React.FC = () => {
     const next = nextStage(stage);
     const isOwner = !isStaff && o.user_id === user?.id;
     const blockedAdvance =
-      stage === "boxed_awaiting_label" && !o.box_label_url; // can't move to awaiting 3p collection without label
+      stage === "boxed_awaiting_label" && (!o.box_label_url || !o.box_tracking_url); // need both label and tracking link
     return (
       <Card key={o.id} className="mb-3">
         <CardContent className="p-4 space-y-3">
@@ -238,6 +257,16 @@ const BoxMyBikePage: React.FC = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* 3rd-party tracking link */}
+          {(stage === "boxed_awaiting_label" || stage === "awaiting_3p_collection" || stage === "collected_by_3p" || o.box_tracking_url) && (
+            <TrackingUrlEditor
+              order={o}
+              canEdit={(isOwner || isStaff) && stage === "boxed_awaiting_label"}
+              onSave={(url) => saveTrackingUrl.mutate({ id: o.id, url })}
+              saving={saveTrackingUrl.isPending}
+            />
           )}
 
           {/* Invoice info (admin, read-only) */}
@@ -333,6 +362,51 @@ const BoxMyBikePage: React.FC = () => {
         )}
       </div>
     </Layout>
+  );
+};
+
+const TrackingUrlEditor: React.FC<{
+  order: BoxOrder;
+  canEdit: boolean;
+  onSave: (url: string) => void;
+  saving: boolean;
+}> = ({ order, canEdit, onSave, saving }) => {
+  const [value, setValue] = React.useState(order.box_tracking_url || "");
+  React.useEffect(() => {
+    setValue(order.box_tracking_url || "");
+  }, [order.box_tracking_url]);
+  const dirty = (value || "") !== (order.box_tracking_url || "");
+
+  return (
+    <div className="rounded-md border p-3 bg-muted/30 space-y-2">
+      <div className="text-sm font-medium">3rd-party tracking link</div>
+      {canEdit ? (
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="https://tracking.example.com/..."
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="flex-1 min-w-[220px] rounded-md border bg-background px-3 py-2 text-sm"
+          />
+          <Button size="sm" onClick={() => onSave(value.trim())} disabled={saving || !dirty}>
+            Save
+          </Button>
+        </div>
+      ) : order.box_tracking_url ? (
+        <a
+          href={order.box_tracking_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-primary underline break-all"
+        >
+          {order.box_tracking_url}
+        </a>
+      ) : (
+        <div className="text-xs text-muted-foreground">No tracking link added yet</div>
+      )}
+    </div>
   );
 };
 

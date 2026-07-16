@@ -111,6 +111,7 @@ export type Order = {
   isBoxMyBike?: boolean;
   boxMyBikeStatus?: BoxMyBikeStatus | null;
   boxLabelUrl?: string | null;
+  boxTrackingUrl?: string | null;
   boxLabelUploadedAt?: Date | null;
   boxLabelUploadedBy?: string | null;
   boxMyBikeInvoiceId?: string | null;
