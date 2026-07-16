@@ -191,9 +191,9 @@ const BicycleInspections = () => {
 
   // Set price on a single issue (admin pricing stage)
   const setPriceMutation = useMutation({
-    mutationFn: async ({ issueId, price }: { issueId: string; price: number }) => {
+    mutationFn: async ({ issueId, partsCost, labourCost }: { issueId: string; partsCost: number; labourCost: number }) => {
       if (!user?.id) throw new Error("User not authenticated");
-      return setIssuePrice(issueId, price, user.id, userProfile?.name || user.email || "Admin");
+      return setIssuePrice(issueId, partsCost, labourCost, user.id, userProfile?.name || user.email || "Admin");
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
