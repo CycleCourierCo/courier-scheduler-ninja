@@ -103,7 +103,7 @@ const BicycleInspections = () => {
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [issues, setIssues] = useState<IssueEntry[]>([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+  const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
   // Per-issue price input for the awaiting-pricing stage
   const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
@@ -517,7 +517,7 @@ const BicycleInspections = () => {
   const handleAddChecklistIssue = (itemId: string) => {
     setChecklistIssues(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]
+      [itemId]: [...(prev[itemId] || []), { ...EMPTY_ISSUE }]
     }));
   };
 
@@ -583,7 +583,7 @@ const BicycleInspections = () => {
 
     setIssues(prev => {
       if (newCount > prev.length) {
-        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }))];
+        return [...prev, ...Array(newCount - prev.length).fill(null).map(() => ({ ...EMPTY_ISSUE }))];
       } else {
         return prev.slice(0, newCount);
       }
@@ -598,7 +598,7 @@ const BicycleInspections = () => {
 
   const resetIssueForm = () => {
     setIssueCount(1);
-    setIssues([{ description: "", estimatedCost: "", partName: "", partSpec: "", partNumber: "" }]);
+    setIssues([{ ...EMPTY_ISSUE }]);
     setSelectedOrderId(null);
   };
 
