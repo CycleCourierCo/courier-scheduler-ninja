@@ -806,7 +806,7 @@ const BicycleInspections = () => {
                  order.storage_locations.length > 0 && (
                   <>
                     {order.storage_locations.map((location: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                      <Badge key={idx} variant="outline" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
                         {location.bay}{location.position}
                       </Badge>
@@ -814,7 +814,7 @@ const BicycleInspections = () => {
                   </>
                 )}
                 {canManageInspections && (
-                  <Badge variant="outline" className="flex items-center gap-1">
+                  <Badge variant="outline" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {order.collection_confirmation_sent_at
                       ? `Collected ${formatDistanceToNowStrict(new Date(order.collection_confirmation_sent_at))} ago`
@@ -1596,7 +1596,7 @@ const BicycleInspections = () => {
             </div>
             <div className="w-full">
             <TabsList className="grid w-full grid-cols-1 gap-1 h-auto sm:flex sm:flex-wrap">
-              <TabsTrigger value="awaiting" className="flex items-center gap-1">
+              <TabsTrigger value="awaiting" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
@@ -1604,7 +1604,7 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="collected" className="flex items-center gap-1">
+              <TabsTrigger value="collected" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Collected
                 {collected.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
@@ -1613,14 +1613,14 @@ const BicycleInspections = () => {
                 )}
               </TabsTrigger>
               {canManageInspections && (
-                <TabsTrigger value="pricing" className="flex items-center gap-1">
+                <TabsTrigger value="pricing" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                   Pricing
                   {awaitingPricing.length > 0 && (
                     <Badge variant="warning" className="ml-1">{awaitingPricing.length}</Badge>
                   )}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="issues" className="flex items-center gap-1">
+              <TabsTrigger value="issues" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Issues
                 {withIssues.length > 0 && (
                   <Badge variant="destructive" className="ml-1">
@@ -1628,19 +1628,19 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="awaiting-parts" className="flex items-center gap-1">
+              <TabsTrigger value="awaiting-parts" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting Parts
                 {awaitingParts.length > 0 && (
                   <Badge variant="warning" className="ml-1">{awaitingParts.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="awaiting-repair" className="flex items-center gap-1">
+              <TabsTrigger value="awaiting-repair" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting Repair
                 {awaitingRepair.length > 0 && (
                   <Badge variant="warning" className="ml-1">{awaitingRepair.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="inspected-serviced" className="flex items-center gap-1">
+              <TabsTrigger value="inspected-serviced" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Inspected &amp; Serviced
                 {inspectedAndServiced.length > 0 && (
                   <Badge variant="success" className="ml-1">
