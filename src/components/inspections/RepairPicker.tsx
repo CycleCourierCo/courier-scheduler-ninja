@@ -131,7 +131,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           )}
         </div>
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [WebkitOverflowScrolling:touch]"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
           onTouchMove={(event) => event.stopPropagation()}
           onWheel={(event) => event.stopPropagation()}
         >
