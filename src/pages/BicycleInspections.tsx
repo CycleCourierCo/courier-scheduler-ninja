@@ -584,6 +584,16 @@ const BicycleInspections = () => {
     }));
   };
 
+  const patchChecklistIssue = (itemId: string, index: number, patch: Partial<ChecklistIssue>) => {
+    setChecklistIssues(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).map((issue, i) =>
+        i === index ? { ...issue, ...patch } : issue
+      )
+    }));
+  };
+
+
   const allItemsChecked = INSPECTION_ITEMS.every(
     item => inspectionChecklist[item.id]
   );
