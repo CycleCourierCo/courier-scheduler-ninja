@@ -167,8 +167,12 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
   }
 };
 
-// Get or create inspection record for an order
-export const getOrCreateInspection = async (orderId: string): Promise<BicycleInspection | null> => {
+// Get or create inspection record for an order. If a bikeType is provided and
+// the inspection either doesn't exist yet or has no bike_type set, it's persisted.
+export const getOrCreateInspection = async (
+  orderId: string,
+  bikeType?: string | null
+): Promise<BicycleInspection | null> => {
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('bicycle_inspections')
@@ -179,6 +183,15 @@ export const getOrCreateInspection = async (orderId: string): Promise<BicycleIns
     if (fetchError) throw fetchError;
 
     if (existing) {
+      if (bikeType && !(existing as any).bike_type) {
+        const { data: updated } = await supabase
+          .from('bicycle_inspections')
+          .update({ bike_type: bikeType } as any)
+          .eq('id', (existing as any).id)
+          .select()
+          .single();
+        return (updated ?? existing) as BicycleInspection;
+      }
       return existing as BicycleInspection;
     }
 
@@ -187,7 +200,8 @@ export const getOrCreateInspection = async (orderId: string): Promise<BicycleIns
       .insert({
         order_id: orderId,
         status: 'pending' as InspectionStatus,
-      })
+        ...(bikeType ? { bike_type: bikeType } : {}),
+      } as any)
       .select()
       .single();
 
@@ -199,6 +213,19 @@ export const getOrCreateInspection = async (orderId: string): Promise<BicycleIns
     return null;
   }
 };
+
+// Update the bike category on an inspection (admin/mechanic during pricing/inspection)
+export const updateInspectionBikeType = async (
+  inspectionId: string,
+  bikeType: string | null
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({ bike_type: bikeType } as any)
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
 
 // Enable inspection for an existing order (admin action)
 export const enableInspectionForOrder = async (orderId: string): Promise<BicycleInspection | null> => {
