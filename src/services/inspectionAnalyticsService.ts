@@ -134,6 +134,32 @@ export const getAverageRepairCost = (inspections: InspectionAnalyticsRecord[]) =
   return { average, sampleSize: totals.length };
 };
 
+// Average parts / labour spend per bike (only counts bikes with the new split populated)
+export const getAveragePartsAndLabourPerBike = (inspections: InspectionAnalyticsRecord[]) => {
+  const partsTotals: number[] = [];
+  const labourTotals: number[] = [];
+  let approvedBikeCount = 0;
+  inspections.forEach(i => {
+    const issues = (i.inspection_issues || []).filter(iss => APPROVED_STATUSES.has(iss.status));
+    if (issues.length === 0) return;
+    const splitIssues = issues.filter(iss => iss.parts_cost != null || iss.labour_cost != null);
+    approvedBikeCount++;
+    if (splitIssues.length === 0) return;
+    const parts = splitIssues.reduce((s, iss) => s + Number(iss.parts_cost || 0), 0);
+    const labour = splitIssues.reduce((s, iss) => s + Number(iss.labour_cost || 0), 0);
+    partsTotals.push(parts);
+    labourTotals.push(labour);
+  });
+  const avgParts = partsTotals.length > 0 ? partsTotals.reduce((a, b) => a + b, 0) / partsTotals.length : 0;
+  const avgLabour = labourTotals.length > 0 ? labourTotals.reduce((a, b) => a + b, 0) / labourTotals.length : 0;
+  return {
+    avgParts,
+    avgLabour,
+    sampleSize: partsTotals.length,
+    totalPricedBikes: approvedBikeCount,
+  };
+};
+
 export const getIssueApprovalRate = (inspections: InspectionAnalyticsRecord[]) => {
   let approved = 0;
   let declined = 0;
