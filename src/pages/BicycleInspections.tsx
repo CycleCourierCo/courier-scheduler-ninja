@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save } from "lucide-react";
+import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -813,6 +814,23 @@ const BicycleInspections = () => {
                     ))}
                   </>
                 )}
+                {(() => {
+                  const hasAllocation = Array.isArray(order.storage_locations)
+                    ? order.storage_locations.length > 0
+                    : !!order.storage_locations;
+                  if (hasAllocation || !order.collection_confirmation_sent_at) return null;
+                  const driver = getDriverAssignment(
+                    { trackingEvents: order.tracking_events } as any,
+                    'pickup'
+                  );
+                  if (!driver) return null;
+                  return (
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Truck className="h-3 w-3" />
+                      In {driver}'s van
+                    </Badge>
+                  );
+                })()}
                 {canManageInspections && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
