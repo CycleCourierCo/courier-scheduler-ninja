@@ -1026,3 +1026,29 @@ export const createInspectionServiceInvoice = async (
   if (data?.error) throw new Error(data.error);
   return data;
 };
+
+export type CleaningTaskKey = 'frame' | 'drivetrain';
+
+export const setInspectionCleaningTask = async (
+  inspectionId: string,
+  task: CleaningTaskKey,
+  done: boolean,
+  userId: string,
+  userName: string
+): Promise<BicycleInspection | null> => {
+  const now = new Date().toISOString();
+  const prefix = task === 'frame' ? 'frame_cleaned' : 'drivetrain_degreased';
+  const patch: any = {
+    [`${prefix}_at`]: done ? now : null,
+    [`${prefix}_by_id`]: done ? userId : null,
+    [`${prefix}_by_name`]: done ? userName : null,
+  };
+  const { data, error } = await supabase
+    .from('bicycle_inspections')
+    .update(patch)
+    .eq('id', inspectionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as BicycleInspection;
+};
