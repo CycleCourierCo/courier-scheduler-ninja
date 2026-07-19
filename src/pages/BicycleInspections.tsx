@@ -462,6 +462,28 @@ const BicycleInspections = () => {
     },
   });
 
+  // Cleaning task mutation (frame cleaned / drivetrain degreased)
+  const cleaningMutation = useMutation({
+    mutationFn: async (args: { inspectionId: string; task: 'frame' | 'drivetrain'; done: boolean }) => {
+      if (!user?.id) throw new Error("Not authenticated");
+      return setInspectionCleaningTask(
+        args.inspectionId,
+        args.task,
+        args.done,
+        user.id,
+        userProfile?.name || user.email || "Mechanic"
+      );
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(vars.done ? "Marked as done" : "Cleared");
+    },
+    onError: (err) => {
+      toast.error("Failed to update cleaning task");
+      console.error(err);
+    },
+  });
+
   // Complete repairs mutation (move to repaired status)
   const completeRepairsMutation = useMutation({
     mutationFn: async (inspectionId: string) => {
