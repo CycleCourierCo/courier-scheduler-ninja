@@ -1,29 +1,30 @@
-## Goal
-When a Box My Bike order is at "Boxed, awaiting label", staff can enter a 3rd-party tracking URL alongside the label upload. The tracking URL is then shown as a clickable button on the customer's tracking page.
+## Fix mobile overflow on Driver Timeslips
 
-## Changes
+The page overflows horizontally on mobile (~360px). Root causes visible in the screenshot:
 
-### 1. Database
-Migration adds a nullable `box_tracking_url TEXT` column on `public.orders`. Also update `public._build_public_order_payload` to include `box_tracking_url` so public tracking (`get_public_order` / with-proof) surfaces it. No policy/grant changes needed — column inherits from existing table policies.
+1. **TabsList** (`Draft/Approved/All/Mechanic Timeslips`) uses default shadcn grid which forces all 4 tabs into one row wider than the viewport, pushing the whole page horizontally.
+2. **TimeslipCard action row** — three `flex-1` buttons (Edit/Approve/Reject) plus a delete button on one row exceed narrow card width, causing the green "Approve" bar to clip past the card edge as seen in the screenshot.
+3. **Pay Details block** uses `flex justify-between` inside a card that's being stretched by the outer overflow; values render off-screen. Once outer overflow is fixed they'll sit correctly, but adding `min-w-0` and letting long values wrap keeps them safe.
+4. **Route link buttons row** already wraps; fine.
+5. **Total Pay summary card** (`flex justify-between`) is fine but its parent container should not overflow.
 
-### 2. Admin UI — `src/pages/BoxMyBikePage.tsx`
-In the "Shipping label" card (visible for stage `boxed_awaiting_label` or when a label exists), add a "3rd-party tracking link" row:
-- Text input (URL) pre-filled with current value.
-- "Save" button that updates `box_tracking_url` on the order and fires an `order.box.tracking_url_set` webhook.
-- Keep the label upload block untouched.
-- Both `isOwner` (customer of the box order) and staff can save. Match the same permission gate already used for label upload.
-- Add `box_tracking_url` to the select list and `BoxOrder` type.
+### Changes
 
-### 3. Order mapping — `src/services/orderServiceUtils.ts` + `src/types/order.ts`
-Add `boxTrackingUrl: string | null` to the mapped order shape and the `Order` type so it flows through both authenticated and public paths.
+**`src/pages/DriverTimeslips.tsx`**
+- Wrap `TabsList` in an `overflow-x-auto` container and set `TabsList` to `w-max` / `inline-flex` so tabs scroll horizontally instead of stretching the page.
+- Add `min-w-0` to the outer container / cards so children can shrink.
+- On the summary Card (Showing / Total Pay), keep flex row but allow wrap on narrow widths.
 
-### 4. Customer tracking — `src/components/order-detail/TrackingTimeline.tsx`
-In the Box My Bike lifecycle block (~line 386), if `order.boxTrackingUrl` is present, render a "Track with courier" event entry that opens the URL in a new tab (target="_blank", rel="noopener noreferrer"). Anchor it to `boxLabelPrintedAt` when available, otherwise `boxBoxedAt`, so it sits at the "Awaiting 3rd-party collection" step in the timeline.
+**`src/components/timeslips/TimeslipCard.tsx`**
+- Header row: allow the right-side pay column to shrink; add `min-w-0` and `flex-wrap` so the driver name and pay stack cleanly.
+- Hours breakdown: change `grid-cols-3` to `grid-cols-2 sm:grid-cols-3` (or allow wrap) so items don't overflow on 360px width.
+- Admin action buttons: replace `flex + flex-1` with a responsive `grid grid-cols-2 sm:flex sm:flex-wrap` so buttons stack 2-up on mobile instead of clipping.
+- Add `min-w-0` on inner text containers to prevent overflow.
 
-### 5. Webhook payload — `supabase/functions/trigger-webhook/index.ts`
-Include `order.box_tracking_url` in the box event payload next to `box_label_url`, and add a new event constant `order.box.tracking_url_set` to the enum/mapping list where box events are declared.
+**`src/components/timeslips/TimeslipFilters.tsx`**
+- The `min-w-[250px]` on the date range and `min-w-[220px]` quick filters push the filter card wider than a 360px viewport. Lower/remove the `min-w-*` values (e.g. `min-w-0 sm:min-w-[200px]`) and keep `flex-wrap`, so each filter takes full width on mobile and wraps naturally.
 
-## Out of scope
-- No URL validation beyond `<input type="url">`.
-- No history log of tracking URL changes.
-- No auto-detection of courier from URL — plain link only.
+No business-logic or data changes — presentation only.
+
+### Verification
+- Load `/driver-timeslips` at 360px width, confirm no horizontal scroll, tabs scroll independently, and action buttons stay inside the card.

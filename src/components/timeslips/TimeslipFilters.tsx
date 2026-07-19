@@ -84,7 +84,8 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
     <Card className="p-4">
       <div className="flex flex-wrap gap-3 items-center">
         {/* Driver Filter */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 w-full min-w-0 sm:min-w-[200px]">
+
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger>
               <User className="h-4 w-4 mr-2" />
@@ -102,7 +103,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
         </div>
 
         {/* Date Range Filter */}
-        <div className="flex-1 min-w-[250px]">
+        <div className="flex-1 w-full min-w-0 sm:min-w-[250px]">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start">
@@ -159,7 +160,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
         </div>
 
         {/* Sort Options */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 w-full min-w-0 sm:min-w-[200px]">
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger>
               <ArrowUpDown className="h-4 w-4 mr-2" />
@@ -176,7 +177,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
         </div>
 
         {/* Quick Filters */}
-        <div className="flex items-center gap-4 flex-1 min-w-[220px]">
+        <div className="flex items-center gap-4 flex-1 w-full min-w-0 sm:min-w-[220px]">
           <div className="flex items-center gap-2 flex-1">
             <Switch
               id="no-mileage"
