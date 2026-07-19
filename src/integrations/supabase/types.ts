@@ -86,6 +86,12 @@ export type Database = {
         Row: {
           bike_type: string | null
           created_at: string
+          drivetrain_degreased_at: string | null
+          drivetrain_degreased_by_id: string | null
+          drivetrain_degreased_by_name: string | null
+          frame_cleaned_at: string | null
+          frame_cleaned_by_id: string | null
+          frame_cleaned_by_name: string | null
           id: string
           inspected_at: string | null
           inspected_by_id: string | null
@@ -104,6 +110,12 @@ export type Database = {
         Insert: {
           bike_type?: string | null
           created_at?: string
+          drivetrain_degreased_at?: string | null
+          drivetrain_degreased_by_id?: string | null
+          drivetrain_degreased_by_name?: string | null
+          frame_cleaned_at?: string | null
+          frame_cleaned_by_id?: string | null
+          frame_cleaned_by_name?: string | null
           id?: string
           inspected_at?: string | null
           inspected_by_id?: string | null
@@ -122,6 +134,12 @@ export type Database = {
         Update: {
           bike_type?: string | null
           created_at?: string
+          drivetrain_degreased_at?: string | null
+          drivetrain_degreased_by_id?: string | null
+          drivetrain_degreased_by_name?: string | null
+          frame_cleaned_at?: string | null
+          frame_cleaned_by_id?: string | null
+          frame_cleaned_by_name?: string | null
           id?: string
           inspected_at?: string | null
           inspected_by_id?: string | null
