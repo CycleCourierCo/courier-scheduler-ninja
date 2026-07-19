@@ -1310,8 +1310,11 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Mark as Repaired Button (admin/mechanic for awaiting_repair status, approved issues) */}
-                  {(isAdmin || isMechanic) && isAwaitingRepair && issue.status === "approved" && (
+                  {/* Mark as Repaired Button — awaiting_repair, OR awaiting_parts once this issue's parts have arrived */}
+                  {(isAdmin || isMechanic) && issue.status === "approved" && (
+                    isAwaitingRepair ||
+                    (isAwaitingParts && issue.parts_ordered && issue.parts_arrived)
+                  ) && (
                     <div className="mt-3">
                       <Button
                         size="sm"
