@@ -916,6 +916,50 @@ const BicycleInspections = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Cleaning tasks (shown pre-repaired-final for every bike) */}
+          {inspection && inspection.status !== "repaired" && inspection.status !== "inspected" && (
+            <div className="rounded-md border p-3 bg-muted/30 space-y-2">
+              <p className="text-sm font-medium">Cleaning</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  { key: 'frame' as const, label: 'Clean frame', at: inspection.frame_cleaned_at, by: inspection.frame_cleaned_by_name },
+                  { key: 'drivetrain' as const, label: 'Degrease drivetrain', at: inspection.drivetrain_degreased_at, by: inspection.drivetrain_degreased_by_name },
+                ]).map((t) => {
+                  const done = !!t.at;
+                  const canToggle = isAdmin || isMechanic;
+                  return (
+                    <div key={t.key} className="flex items-center justify-between gap-2 rounded border bg-background p-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{t.label}</p>
+                        {done && (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            ✓ {t.by || 'Done'} · {new Date(t.at!).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      {canToggle ? (
+                        <Button
+                          size="sm"
+                          variant={done ? "outline" : "default"}
+                          onClick={() => cleaningMutation.mutate({ inspectionId: inspection.id, task: t.key, done: !done })}
+                          disabled={cleaningMutation.isPending}
+                          className="shrink-0"
+                        >
+                          {done ? 'Undo' : 'Mark done'}
+                        </Button>
+                      ) : (
+                        <Badge variant={done ? "secondary" : "outline"} className="shrink-0">
+                          {done ? 'Done' : 'Pending'}
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
