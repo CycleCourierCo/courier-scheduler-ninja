@@ -22,6 +22,12 @@ export interface BicycleInspection {
   released_by_id: string | null;
   released_by_name: string | null;
   notes: string | null;
+  frame_cleaned_at: string | null;
+  frame_cleaned_by_id: string | null;
+  frame_cleaned_by_name: string | null;
+  drivetrain_degreased_at: string | null;
+  drivetrain_degreased_by_id: string | null;
+  drivetrain_degreased_by_name: string | null;
   created_at: string;
   updated_at: string;
   // Joined data
