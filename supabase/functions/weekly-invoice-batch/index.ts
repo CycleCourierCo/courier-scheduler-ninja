@@ -54,10 +54,15 @@ function previousLondonWeekRange(now = new Date()): { start: Date; end: Date; la
   const start = toUTC(prevMondayLondon);
   const end = toUTC(prevSundayEndLondon);
 
-  const fmt = (d: Date) => new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric',
+  // Match the InvoicesPage button format: "MMM d to MMM d, yyyy"
+  // (e.g. "Nov 10 to Nov 16, 2025") so the report subject/body is identical.
+  const fmtShort = (d: Date) => new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/London', month: 'short', day: 'numeric',
   }).format(d);
-  return { start, end, label: `${fmt(start)} to ${fmt(end)}` };
+  const fmtLong = (d: Date) => new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/London', month: 'short', day: 'numeric', year: 'numeric',
+  }).format(d);
+  return { start, end, label: `${fmtShort(start)} to ${fmtLong(end)}` };
 }
 
 // ---- Bounded parallel runner (concurrency limit) ----
