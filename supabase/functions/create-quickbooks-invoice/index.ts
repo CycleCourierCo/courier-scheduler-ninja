@@ -708,7 +708,7 @@ const handler = async (req: Request): Promise<Response> => {
     const escapedCustomerEmail = escapeQuickBooksString(invoiceData.customerEmail);
     const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedCustomerEmail}'`;
     
-    const customerResponse = await fetch(customerQueryUrl, {
+    const customerResponse = await qbFetch(customerQueryUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -730,8 +730,12 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Customer not found in QuickBooks for email: ${invoiceData.customerEmail}. Please create the customer first.`);
       }
     } else {
-      console.error('Failed to query customers:', await customerResponse.text());
-      throw new Error('Failed to query QuickBooks customers');
+      const bodyText = await customerResponse.text();
+      console.error('Failed to query customers:', customerResponse.status, bodyText);
+      if (customerResponse.status === 429) {
+        throw new Error('QuickBooks rate limit exceeded while looking up customer. Please retry in a minute.');
+      }
+      throw new Error(`Failed to query QuickBooks customers (HTTP ${customerResponse.status})`);
     }
 
     // Create invoice in QuickBooks
