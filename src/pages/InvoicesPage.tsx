@@ -312,12 +312,14 @@ export default function InvoicesPage() {
     const skippedCustomers: any[] = [];
     const allMissingProducts: { product: string; customerName: string }[] = [];
 
-    for (let i = 0; i < eligibleCustomers.length; i++) {
-      const customer = eligibleCustomers[i];
-      setBatchProgress({ current: i + 1, total: eligibleCustomers.length });
+    // Bounded parallel runner — 5 customers in flight at a time so we finish
+    // ~5x faster without hammering QuickBooks rate limits.
+    const CONCURRENCY = 5;
+    let completed = 0;
+    let cursor = 0;
 
+    const processCustomer = async (customer: typeof eligibleCustomers[number]) => {
       try {
-        // Fetch orders for this customer
         const { data: customerOrders, error: ordersError } = await supabase
           .from("orders")
           .select("*")
@@ -328,22 +330,18 @@ export default function InvoicesPage() {
 
         if (ordersError) throw ordersError;
 
-        // Skip if no orders
         if (!customerOrders || customerOrders.length === 0) {
-          console.log(`Skipping ${customer.name} - no orders found`);
           skippedCustomers.push({
             customerName: customer.name,
             customerEmail: customer.accounts_email || customer.email,
             reason: 'No orders in date range',
             orderCount: 0,
           });
-          continue;
+          return;
         }
 
-        // Store all orders for statistics
         allOrdersData.push(...customerOrders);
 
-        // Create invoice
         const { data, error } = await supabase.functions.invoke("create-quickbooks-invoice", {
           body: {
             customerId: customer.id,
@@ -357,7 +355,6 @@ export default function InvoicesPage() {
 
         if (error) throw error;
 
-        // Track missing products for this invoice
         if (data?.missingProducts && Array.isArray(data.missingProducts)) {
           for (const product of data.missingProducts) {
             allMissingProducts.push({ product, customerName: customer.name });
@@ -373,24 +370,50 @@ export default function InvoicesPage() {
           invoiceNumber: data?.stats?.invoiceNumber || data?.invoice_number,
           missingProducts: data?.missingProducts || [],
         });
-
-        notify.success("Invoice Created", { description: `Invoice for ${customer.name} created successfully` });
-
       } catch (error: any) {
+        const errorMsg = error?.message || String(error);
         console.error(`Error creating invoice for ${customer.name}:`, error);
         failedInvoices.push({
           customerName: customer.name,
           customerEmail: customer.accounts_email || customer.email,
-          error: error.message,
+          error: errorMsg,
         });
 
-        notify.error("Invoice Failed", { description: `Failed to create invoice for ${customer.name}` });
+        // Persist failure so it's visible after the batch (toasts disappear).
+        try {
+          await supabase.from('invoice_history').insert({
+            customer_id: customer.id,
+            customer_name: customer.name,
+            customer_email: customer.accounts_email || customer.email,
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+            order_count: 0,
+            total_amount: 0,
+            status: 'failed',
+            error_message: errorMsg,
+          });
+        } catch (logErr) {
+          console.error('Failed to log invoice failure:', logErr);
+        }
       }
-    }
+    };
 
-    // Add customers without accounts_email to skipped list
-    for (const customer of customersWithoutEmail) {
-      // Check if they have orders in the date range
+    const runWorker = async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= eligibleCustomers.length) return;
+        await processCustomer(eligibleCustomers[i]);
+        completed++;
+        setBatchProgress({ current: completed, total: eligibleCustomers.length });
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, eligibleCustomers.length) }, runWorker)
+    );
+
+    // Add customers without accounts_email to skipped list (parallel too).
+    await Promise.all(customersWithoutEmail.map(async (customer) => {
       const { data: customerOrders } = await supabase
         .from("orders")
         .select("id")
@@ -399,15 +422,13 @@ export default function InvoicesPage() {
         .lte("created_at", endDate.toISOString())
         .neq("status", "cancelled");
 
-      const orderCount = customerOrders?.length || 0;
-      
       skippedCustomers.push({
         customerName: customer.name,
         customerEmail: customer.email || 'No email',
         reason: 'Missing accounts email',
-        orderCount,
+        orderCount: customerOrders?.length || 0,
       });
-    }
+    }));
 
     // Calculate statistics
     const deliveredOrders = allOrdersData.filter(o => o.status === 'delivered');
