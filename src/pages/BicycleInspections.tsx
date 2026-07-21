@@ -1736,6 +1736,9 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                Schedule
+              </TabsTrigger>
             </TabsList>
             </div>
 
@@ -1804,8 +1807,13 @@ const BicycleInspections = () => {
                 inspectedAndServiced.map(renderInspectionCard)
               )}
             </TabsContent>
+
+            <TabsContent value="schedule" className="space-y-4">
+              <WorkshopScheduleTab canManage={isAdmin} />
+            </TabsContent>
           </Tabs>
         )}
+
 
         {/* Inspection Checklist Dialog */}
         <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>
