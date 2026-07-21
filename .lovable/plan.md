@@ -1,27 +1,61 @@
-# Fix weekly invoice batch cron
+# Parallelize invoice creation (cron + button)
 
-## What's happening today
+## Goal
+Make "Create All Invoices" fast and reliable in two places:
+1. The **Monday 01:00 UTC cron** (`weekly-invoice-batch` edge function) — currently silently times out.
+2. The **manual button** on `InvoicesPage.tsx` — currently loops sequentially in the browser and some customers silently fail.
 
-Today's cron (Mon 2026-07-20 01:00 UTC) fired — pg_cron reports `succeeded` — but:
+## Approach: bounded parallelism (concurrency = 5)
 
-- **No rows added to `invoice_history` today.**
-- **No edge-function logs exist for `weekly-invoice-batch` at all.**
-- Last week is the same: the 2026-07-13 Monday cron produced nothing. The invoices dated 07-15 / 07-16 are one-per-customer, seconds apart — manual "Create All Invoices" clicks from the Invoices page.
+Full `Promise.all` over 114 customers would hammer QuickBooks (rate limits) and Supabase. Instead, run a small worker pool (5 in flight at a time). ~114 customers ÷ 5 ≈ 23 waves; even at 3–5 s each, the whole batch completes in ~1–2 min.
 
-## Root cause
+## Cron path (`supabase/functions/weekly-invoice-batch/index.ts`)
 
-`public.invoke_weekly_invoice_batch()` calls `net.http_post` without overriding pg_net's default 5-second timeout. The batch function loops every approved b2b customer and calls `create-quickbooks-invoice` for each — well over 5s. pg_net drops the connection, the edge runtime aborts the function before any log is flushed, and no invoices get created. (Same pattern shows in today's `net._http_response` timeouts at 03:00 / 05:00.)
+- Replace the `for (const customer of eligible)` loop with a concurrency-limited runner (simple inline pool, no new deps).
+- Wrap the entire batch (customer loop + report email) in `EdgeRuntime.waitUntil(processBatch())`; return **202 Accepted** immediately so pg_net's HTTP call completes in <1 s.
+- Add persistent run logging via new table `public.weekly_invoice_batch_logs` (id, run_started_at, run_completed_at, range_start, range_end, range_label, successful_count, failed_count, skipped_count, status, error_message, triggered_by, created_at). Row inserted on entry, updated on completion / catch. Admin-read RLS, service_role full grants — mirrors `timeslip_generation_logs`.
+- Fix `public.invoke_weekly_invoice_batch()` migration to pass `timeout_milliseconds := 60000` to `net.http_post` (defensive; 202 return means we rarely need it, but protects against slow cold starts).
 
-## Fix
+## Button path (`src/pages/InvoicesPage.tsx`, `handleCreateAllInvoices`)
 
-1. **Extend the pg_net timeout on the cron caller.** Update `public.invoke_weekly_invoice_batch()` to pass `timeout_milliseconds := 300000` (5 min) to `net.http_post`.
-2. **Make the batch survive client disconnects.** In `supabase/functions/weekly-invoice-batch/index.ts`, run the per-customer loop + report email inside `EdgeRuntime.waitUntil(...)` and return `202 Accepted` immediately.
-3. **Add persistent run logging.** New table `public.weekly_invoice_batch_logs` (id, run_started_at, run_completed_at, range_start, range_end, range_label, successful_count, failed_count, skipped_count, status, error_message, created_at) with admin-read RLS + service_role grants — mirrors `timeslip_generation_logs`. Write one row per run (started at entry, updated on completion/error) so we always know what happened without depending on edge-function log retention.
-4. **Manual re-run helper.** Keep the existing body override (`{startDate, endDate}`) so a specific week can be replayed on demand.
+- Replace the sequential `for` loop with the same bounded-parallel pattern (concurrency 5) using `Promise.all` over chunks or a small inline pool.
+- Keep the existing per-customer `try/catch` so one failure never poisons the batch.
+- Keep the existing progress toast/state; update counters as each promise resolves (not in strict order).
+- Report dialog (successful / failed / skipped tables) stays identical — order-independent.
+
+## Persistent per-customer error capture
+
+Right now failures only surface via `notify.error` toasts that disappear. To make the "which customers failed and why" question answerable after the fact:
+- Add `error_message TEXT` column to `public.invoice_history` **only** used when we insert a failure row (status = 'failed', quickbooks_invoice_id NULL). The frontend loop and the cron already know per-customer errors — they just don't persist them today. On failure, write a row with `{customer_id, customer_email, start_date, end_date, status: 'failed', error_message}`.
+- This gives us a permanent log of every failed attempt with the exact error, viewable in the existing Invoices history UI (with a small badge change to render failed rows differently).
+
+## Not in this plan
+- No change to `create-quickbooks-invoice` internals.
+- No retry logic (can add later if a specific transient error pattern shows up in `error_message`).
+- No backfill of last week's missed invoices — call this out and I'll do it in a follow-up once the fix is live.
 
 ## Technical details
 
-- Migration: alter `invoke_weekly_invoice_batch()` and create `weekly_invoice_batch_logs` (with `GRANT SELECT` to authenticated + `GRANT ALL` to service_role, RLS enabled, admin-select policy).
-- Edge function change: insert log row → `EdgeRuntime.waitUntil(processBatch())` → return 202. `processBatch` updates the log row on completion/failure.
-- No UI changes; Invoices page manual button keeps working as-is.
-- Not run in this plan: I will not manually re-invoke the function or backfill last week's invoices. If you want last week re-run after the fix ships, say so and I'll POST `{startDate, endDate}` for that window.
+- Concurrency helper (inline, both sides):
+  ```ts
+  async function runPool<T, R>(items: T[], limit: number, worker: (t: T) => Promise<R>): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let next = 0;
+    async function run() {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await worker(items[i]);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+    return results;
+  }
+  ```
+- Migration order per new table: CREATE TABLE → GRANT (authenticated SELECT, service_role ALL) → ENABLE RLS → CREATE POLICY (admin select).
+- Edge function returns `202 { accepted: true, logId }` synchronously; the background task updates the log row.
+
+## Files touched
+- `supabase/functions/weekly-invoice-batch/index.ts` — pool + waitUntil + log writes
+- `src/pages/InvoicesPage.tsx` — pool in `handleCreateAllInvoices`
+- Migration — `weekly_invoice_batch_logs` table, `invoice_history.error_message` column, `invoke_weekly_invoice_batch()` timeout fix
