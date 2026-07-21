@@ -753,7 +753,7 @@ const handler = async (req: Request): Promise<Response> => {
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
 
-    const response = await fetch(quickbooksApiUrl, {
+    const response = await qbFetch(quickbooksApiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
