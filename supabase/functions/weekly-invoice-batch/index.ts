@@ -1,9 +1,9 @@
 // Weekly invoice batch: replicates the "Create All Invoices" button on the
 // Invoices page. Invoked by the Monday 01:00 UTC cron job (or manually via
-// the X-Cron-Secret header). For every approved b2b_customer with an
-// accounts_email, it fetches non-cancelled orders created in the previous
-// Monday–Sunday window (Europe/London) and calls create-quickbooks-invoice
-// per customer, then emails the same HTML report to info@cyclecourierco.com.
+// the X-Cron-Secret header). Returns 202 immediately and processes the batch
+// in the background via EdgeRuntime.waitUntil so pg_net never times out.
+// Per-customer invoices are created with bounded parallelism (concurrency 5).
+// Run status/counts are persisted to public.weekly_invoice_batch_logs.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
@@ -11,10 +11,10 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
+const CONCURRENCY = 5;
 
 // ---- Date helpers (Europe/London week Mon 00:00 → Sun 23:59:59.999) ----
 function londonOffsetMinutes(date: Date): number {
-  // Approximation via Intl: get the London wall time, compare against UTC.
   const fmt = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -28,15 +28,14 @@ function londonOffsetMinutes(date: Date): number {
     Number(parts.year), Number(parts.month) - 1, Number(parts.day),
     Number(parts.hour), Number(parts.minute), Number(parts.second),
   );
-  return (asUTC - date.getTime()) / 60000; // minutes London is ahead of UTC
+  return (asUTC - date.getTime()) / 60000;
 }
 
 function previousLondonWeekRange(now = new Date()): { start: Date; end: Date; label: string } {
-  // Convert "now" to London wall clock, find this Monday 00:00 London, subtract 7 days.
   const offsetMin = londonOffsetMinutes(now);
   const nowLondon = new Date(now.getTime() + offsetMin * 60000);
-  const dow = nowLondon.getUTCDay(); // 0 Sun .. 6 Sat, in London wall clock
-  const daysSinceMonday = (dow + 6) % 7; // Monday-based
+  const dow = nowLondon.getUTCDay();
+  const daysSinceMonday = (dow + 6) % 7;
   const thisMondayLondon = new Date(Date.UTC(
     nowLondon.getUTCFullYear(),
     nowLondon.getUTCMonth(),
@@ -44,13 +43,9 @@ function previousLondonWeekRange(now = new Date()): { start: Date; end: Date; la
     0, 0, 0, 0,
   ));
   const prevMondayLondon = new Date(thisMondayLondon.getTime() - 7 * 86400_000);
-  const prevSundayEndLondon = new Date(thisMondayLondon.getTime() - 1); // 23:59:59.999 previous Sunday
+  const prevSundayEndLondon = new Date(thisMondayLondon.getTime() - 1);
 
-  // Convert London wall-clock instants back to real UTC instants using the
-  // offset that applies on each side (handles BST boundaries within the week).
   const toUTC = (londonWall: Date) => {
-    // londonWall was built from UTC components representing London wall time.
-    // We need a UTC instant such that its London wall time equals londonWall.
     const guessUTC = new Date(londonWall.getTime() - offsetMin * 60000);
     const guessOffset = londonOffsetMinutes(guessUTC);
     return new Date(londonWall.getTime() - guessOffset * 60000);
@@ -65,7 +60,22 @@ function previousLondonWeekRange(now = new Date()): { start: Date; end: Date; la
   return { start, end, label: `${fmt(start)} to ${fmt(end)}` };
 }
 
-// ---- Report HTML (mirror of InvoicesPage handleCreateAllInvoices) ----
+// ---- Bounded parallel runner (concurrency limit) ----
+async function runPool<T, R>(items: T[], limit: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function run() {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await worker(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+// ---- Report HTML ----
 function buildReportHtml(args: {
   rangeLabel: string;
   successful: any[];
@@ -184,54 +194,20 @@ function buildReportHtml(args: {
   `;
 }
 
-// ---- Handler ----
-Deno.serve(async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  // Auth: require X-Cron-Secret (cron) OR admin JWT.
-  const cronHeader = req.headers.get('X-Cron-Secret');
+// ---- Background batch processor ----
+async function processBatch(params: {
+  logId: string;
+  start: Date;
+  end: Date;
+  label: string;
+}) {
+  const { logId, start, end, label } = params;
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
-  let authorized = false;
-
-  if (cronHeader && CRON_SECRET && cronHeader === CRON_SECRET) {
-    authorized = true;
-  } else {
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.slice(7);
-      const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles').select('role').eq('id', user.id).single();
-        if (profile?.role === 'admin') authorized = true;
-      }
-    }
-  }
-
-  if (!authorized) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  const invoiceUrl = `${SUPABASE_URL}/functions/v1/create-quickbooks-invoice`;
 
   try {
-    // Optional body override for manual re-runs of an older week.
-    let body: any = {};
-    try { body = await req.json(); } catch (_) { /* empty body */ }
-
-    const { start, end, label } = body?.startDate && body?.endDate
-      ? {
-          start: new Date(body.startDate),
-          end: new Date(body.endDate),
-          label: `${new Date(body.startDate).toDateString()} to ${new Date(body.endDate).toDateString()}`,
-        }
-      : previousLondonWeekRange();
-
     console.log(`[weekly-invoice-batch] range ${start.toISOString()} → ${end.toISOString()} (${label})`);
 
-    // Eligible customers (matches Invoices page query).
     const { data: customers, error: custErr } = await supabase
       .from('profiles')
       .select('id, name, email, accounts_email')
@@ -249,9 +225,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const allOrders: any[] = [];
     const missingProducts: { product: string; customerName: string }[] = [];
 
-    const invoiceUrl = `${SUPABASE_URL}/functions/v1/create-quickbooks-invoice`;
+    await supabase
+      .from('weekly_invoice_batch_logs')
+      .update({ eligible_count: eligible.length })
+      .eq('id', logId);
 
-    for (const customer of eligible) {
+    // Parallel per-customer invoice creation (bounded concurrency).
+    await runPool(eligible, CONCURRENCY, async (customer: any) => {
       try {
         const { data: orders, error: ordersErr } = await supabase
           .from('orders')
@@ -269,7 +249,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             reason: 'No orders in date range',
             orderCount: 0,
           });
-          continue;
+          return;
         }
 
         allOrders.push(...orders);
@@ -312,17 +292,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
           missingProducts: data?.missingProducts || [],
         });
       } catch (err: any) {
-        console.error(`[weekly-invoice-batch] ${customer.name} failed:`, err?.message);
+        const errorMsg = err?.message || String(err);
+        console.error(`[weekly-invoice-batch] ${customer.name} failed:`, errorMsg);
         failed.push({
           customerName: customer.name,
           customerEmail: customer.accounts_email || customer.email,
-          error: err?.message || String(err),
+          error: errorMsg,
         });
+
+        // Persist failure to invoice_history so it's visible after the fact.
+        try {
+          await supabase.from('invoice_history').insert({
+            customer_id: customer.id,
+            customer_name: customer.name,
+            customer_email: customer.accounts_email || customer.email,
+            start_date: start.toISOString(),
+            end_date: end.toISOString(),
+            order_count: 0,
+            total_amount: 0,
+            status: 'failed',
+            error_message: errorMsg,
+          });
+        } catch (logErr) {
+          console.error('[weekly-invoice-batch] failed to log invoice failure:', logErr);
+        }
       }
-    }
+    });
 
     // Skipped: customers with orders but no accounts_email.
-    for (const customer of withoutEmail) {
+    await runPool(withoutEmail, CONCURRENCY, async (customer: any) => {
       const { data: rows } = await supabase
         .from('orders').select('id')
         .eq('user_id', customer.id)
@@ -335,7 +333,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         reason: 'Missing accounts email',
         orderCount: rows?.length || 0,
       });
-    }
+    });
 
     // Report email.
     try {
@@ -362,13 +360,109 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error('[weekly-invoice-batch] report email failed:', e);
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      range: { start: start.toISOString(), end: end.toISOString(), label },
-      counts: { successful: successful.length, failed: failed.length, skipped: skipped.length },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    await supabase.from('weekly_invoice_batch_logs').update({
+      run_completed_at: new Date().toISOString(),
+      status: 'completed',
+      successful_count: successful.length,
+      failed_count: failed.length,
+      skipped_count: skipped.length,
+      eligible_count: eligible.length,
+    }).eq('id', logId);
+
+    console.log(`[weekly-invoice-batch] done: ${successful.length} ok, ${failed.length} failed, ${skipped.length} skipped`);
   } catch (err: any) {
-    console.error('[weekly-invoice-batch] fatal:', err);
+    const errorMsg = err?.message || String(err);
+    console.error('[weekly-invoice-batch] fatal:', errorMsg);
+    try {
+      await supabase.from('weekly_invoice_batch_logs').update({
+        run_completed_at: new Date().toISOString(),
+        status: 'failed',
+        error_message: errorMsg,
+      }).eq('id', logId);
+    } catch (_) { /* noop */ }
+  }
+}
+
+// ---- Handler ----
+Deno.serve(async (req: Request): Promise<Response> => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const cronHeader = req.headers.get('X-Cron-Secret');
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+  let authorized = false;
+  let triggeredBy = 'cron';
+
+  if (cronHeader && CRON_SECRET && cronHeader === CRON_SECRET) {
+    authorized = true;
+    triggeredBy = 'cron';
+  } else {
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('role').eq('id', user.id).single();
+        if (profile?.role === 'admin') {
+          authorized = true;
+          triggeredBy = `admin:${user.email ?? user.id}`;
+        }
+      }
+    }
+  }
+
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    let body: any = {};
+    try { body = await req.json(); } catch (_) { /* empty body */ }
+
+    const { start, end, label } = body?.startDate && body?.endDate
+      ? {
+          start: new Date(body.startDate),
+          end: new Date(body.endDate),
+          label: `${new Date(body.startDate).toDateString()} to ${new Date(body.endDate).toDateString()}`,
+        }
+      : previousLondonWeekRange();
+
+    // Insert a run log row up front so we always have a record, even if the
+    // background task dies.
+    const { data: logRow, error: logErr } = await supabase
+      .from('weekly_invoice_batch_logs')
+      .insert({
+        range_start: start.toISOString(),
+        range_end: end.toISOString(),
+        range_label: label,
+        status: 'running',
+        triggered_by: triggeredBy,
+      })
+      .select('id')
+      .single();
+
+    if (logErr || !logRow) {
+      console.error('[weekly-invoice-batch] failed to insert run log:', logErr);
+      return new Response(JSON.stringify({ error: 'Failed to create run log' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fire-and-forget background processing so pg_net returns immediately.
+    // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime.
+    EdgeRuntime.waitUntil(processBatch({ logId: logRow.id, start, end, label }));
+
+    return new Response(JSON.stringify({
+      accepted: true,
+      logId: logRow.id,
+      range: { start: start.toISOString(), end: end.toISOString(), label },
+    }), { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (err: any) {
+    console.error('[weekly-invoice-batch] handler error:', err);
     return new Response(JSON.stringify({ error: err?.message || String(err) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
