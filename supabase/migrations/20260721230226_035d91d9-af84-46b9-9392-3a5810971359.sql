@@ -1,0 +1,1 @@
+ALTER TABLE public.workshop_settings ADD COLUMN IF NOT EXISTS daily_capacity_minutes integer NOT NULL DEFAULT 480;
