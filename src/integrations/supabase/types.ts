@@ -3416,6 +3416,7 @@ export type Database = {
       }
       workshop_settings: {
         Row: {
+          daily_capacity_minutes: number
           hourly_rate_gbp: number
           id: number
           min_charge_gbp: number
@@ -3423,6 +3424,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          daily_capacity_minutes?: number
           hourly_rate_gbp?: number
           id?: number
           min_charge_gbp?: number
@@ -3430,6 +3432,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          daily_capacity_minutes?: number
           hourly_rate_gbp?: number
           id?: number
           min_charge_gbp?: number
