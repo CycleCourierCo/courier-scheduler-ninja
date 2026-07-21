@@ -303,6 +303,7 @@ async function processBatch(params: {
         // Persist failure to invoice_history so it's visible after the fact.
         try {
           await supabase.from('invoice_history').insert({
+            user_id: customer.id,
             customer_id: customer.id,
             customer_name: customer.name,
             customer_email: customer.accounts_email || customer.email,
