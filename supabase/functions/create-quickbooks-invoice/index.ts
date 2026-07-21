@@ -477,9 +477,10 @@ const handler = async (req: Request): Promise<Response> => {
     
     const { data: customerProfile, error: customerProfileError } = await supabase
       .from('profiles')
-      .select('special_rate_code')
+      .select('special_rate_code, quickbooks_customer_id')
       .eq('id', invoiceData.customerId)
       .single();
+
     
     if (customerProfileError) {
       console.warn('Could not fetch customer profile for special rate check:', customerProfileError.message);
@@ -704,39 +705,94 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Invoice created with', lineItems.length, 'line items, total:', invoice.totalAmount);
 
-    // Find customer in QuickBooks - escape to prevent QbSQL injection
-    const escapedCustomerEmail = escapeQuickBooksString(invoiceData.customerEmail);
-    const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedCustomerEmail}'`;
-    
-    const customerResponse = await qbFetch(customerQueryUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/json'
-      }
-    });
+    // Resolve QuickBooks customer id in this order:
+    // 1) stored profiles.quickbooks_customer_id (verified against QB)
+    // 2) PrimaryEmailAddr match
+    // 3) DisplayName match
+    let customerId: string | null = null;
+    const qbBase = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}`;
+    const qbHeaders = {
+      'Authorization': `Bearer ${tokenData.access_token}`,
+      'Accept': 'application/json'
+    };
 
-    let customerId = null;
-    
-    if (customerResponse.ok) {
-      const customerData = await customerResponse.json();
-      const customers = customerData.QueryResponse?.Customer || [];
-      
-      if (customers.length > 0) {
-        customerId = customers[0].Id;
-        console.log('Found existing customer:', customerId);
+    const storedQbId = customerProfile?.quickbooks_customer_id?.trim() || null;
+    if (storedQbId) {
+      const escapedId = escapeQuickBooksString(storedQbId);
+      const verifyRes = await qbFetch(
+        `${qbBase}/query?query=SELECT * FROM Customer WHERE Id = '${escapedId}'`,
+        { method: 'GET', headers: qbHeaders }
+      );
+      if (verifyRes.ok) {
+        const body = await verifyRes.json();
+        const match = body.QueryResponse?.Customer?.[0];
+        if (match?.Id && match.Active !== false) {
+          customerId = match.Id;
+          console.log('Using stored QuickBooks customer id:', customerId);
+        } else {
+          console.warn('Stored quickbooks_customer_id no longer valid:', storedQbId);
+        }
       } else {
-        console.log('No customer found for email:', invoiceData.customerEmail);
-        throw new Error(`Customer not found in QuickBooks for email: ${invoiceData.customerEmail}. Please create the customer first.`);
+        console.warn('Failed to verify stored quickbooks_customer_id:', verifyRes.status, await verifyRes.text());
       }
-    } else {
-      const bodyText = await customerResponse.text();
-      console.error('Failed to query customers:', customerResponse.status, bodyText);
-      if (customerResponse.status === 429) {
-        throw new Error('QuickBooks rate limit exceeded while looking up customer. Please retry in a minute.');
-      }
-      throw new Error(`Failed to query QuickBooks customers (HTTP ${customerResponse.status})`);
     }
+
+    if (!customerId) {
+      const escapedCustomerEmail = escapeQuickBooksString(invoiceData.customerEmail);
+      const emailRes = await qbFetch(
+        `${qbBase}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedCustomerEmail}'`,
+        { method: 'GET', headers: qbHeaders }
+      );
+      if (emailRes.ok) {
+        const body = await emailRes.json();
+        const match = body.QueryResponse?.Customer?.[0];
+        if (match?.Id) {
+          customerId = match.Id;
+          console.log('Found customer by email:', customerId);
+        }
+      } else {
+        const bodyText = await emailRes.text();
+        console.error('Failed to query customers by email:', emailRes.status, bodyText);
+        if (emailRes.status === 429) {
+          throw new Error('QuickBooks rate limit exceeded while looking up customer. Please retry in a minute.');
+        }
+      }
+    }
+
+    if (!customerId && invoiceData.customerName) {
+      const escapedName = escapeQuickBooksString(invoiceData.customerName);
+      const nameRes = await qbFetch(
+        `${qbBase}/query?query=SELECT * FROM Customer WHERE DisplayName = '${escapedName}'`,
+        { method: 'GET', headers: qbHeaders }
+      );
+      if (nameRes.ok) {
+        const body = await nameRes.json();
+        const match = body.QueryResponse?.Customer?.[0];
+        if (match?.Id) {
+          customerId = match.Id;
+          console.log('Found customer by DisplayName:', customerId);
+        }
+      } else {
+        console.warn('Failed to query customers by DisplayName:', nameRes.status, await nameRes.text());
+      }
+    }
+
+    if (!customerId) {
+      console.log('No QuickBooks customer match for:', invoiceData.customerEmail, '/', invoiceData.customerName);
+      throw new Error(`Customer not found in QuickBooks for ${invoiceData.customerName} (${invoiceData.customerEmail}). Please create the customer first.`);
+    }
+
+    // Persist the resolved id so subsequent runs skip the search
+    if (customerId !== storedQbId) {
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ quickbooks_customer_id: customerId })
+        .eq('id', invoiceData.customerId);
+      if (updateErr) {
+        console.warn('Failed to persist quickbooks_customer_id:', updateErr.message);
+      }
+    }
+
 
     // Create invoice in QuickBooks
     const quickbooksApiUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;

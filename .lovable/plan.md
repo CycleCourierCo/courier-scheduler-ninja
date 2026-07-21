@@ -1,45 +1,23 @@
-## 1. QuickBooks Batch — retry on 429 + better error messages
+## Problem
 
-**Problem recap**
-- Broximo / Ben George / Adam Harrison failed with `429 ThrottleExceeded` on the initial customer lookup because the batch fires 5 invoice creations in parallel.
-- All failures currently store the generic `"Edge Function returned a non-2xx status code"` in `invoice_history.error_message`, hiding the real cause.
+After linking Mark Rushby via "Create customer in QuickBooks", his profile now has `quickbooks_customer_id` set. But `create-quickbooks-invoice` only searches QuickBooks by `PrimaryEmailAddr = accounts@giant-halifax.co.uk`, and that QB record has a different (or no) primary email. Lookup returns 0 rows → "Customer not found in QuickBooks" (confirmed in edge logs at 21:54:27Z).
 
-**Changes to `supabase/functions/create-quickbooks-invoice/index.ts`**
-- Wrap every QuickBooks HTTP call (customer query, invoice create, any follow-up reads) in a `qbFetch()` helper that retries on `429` and `5xx` with exponential backoff + jitter (e.g. 500ms → 1s → 2s → 4s, max 5 attempts, respecting a `Retry-After` header if present).
-- On final failure, return a structured JSON body `{ error, status, details }` with a human-readable `error` string (e.g. `"QuickBooks rate limit exceeded after 5 retries"`, `"Customer not found in QuickBooks for email: X"`).
+Meanwhile `create-quickbooks-customer` and the backfill function already persist the QB customer id onto `profiles.quickbooks_customer_id`, but the invoice function never reads it.
 
-**Changes to the invoice callers (`weekly-invoice-batch` edge function + `InvoicesPage.tsx`)**
-- When `functions.invoke` returns a non-2xx, read the response body and persist the specific `error` string into `invoice_history.error_message` instead of the generic message.
-- Reduce batch concurrency from 5 → 3 to lower the chance of tripping QB throttling in the first place (retries remain the safety net).
+## Fix
 
-**Result**
-- Transient 429s are recovered automatically.
-- Persistent failures (like Mark Rushby's missing QB customer) show up in `invoice_history.error_message` with the exact reason, visible in the report email and the Invoices page.
+In `supabase/functions/create-quickbooks-invoice/index.ts`, resolve the QB customer id in this order:
 
-## 2. "Create customer in QuickBooks" button error
+1. **Stored id** — read `profiles.quickbooks_customer_id` for `invoiceData.customerId` (we already fetch the profile for `special_rate_code`; extend that select). If present, verify it with `SELECT * FROM Customer WHERE Id = '<id>'` via `qbFetch`. Use it if active.
+2. **Email match** — existing `PrimaryEmailAddr = '<accounts_email>'` query (unchanged).
+3. **DisplayName match** — new fallback: `DisplayName = '<customerName>'` using `escapeQuickBooksString`, mirroring the logic already in `create-quickbooks-customer`.
+4. If a match is found in step 2 or 3, persist it back to `profiles.quickbooks_customer_id` so subsequent runs skip straight to step 1.
+5. Only throw "Customer not found — please create the customer first" if all three fail. Keep the structured JSON error shape added in the previous change.
 
-**Root cause (confirmed in edge-function logs)**
-```
-QuickBooks create customer failed: 400
-{"Fault":{"Error":[{"Message":"Duplicate Name Exists Error",
- "Detail":"The name supplied already exists. : null","code":"6240"}]}}
-```
-`create-quickbooks-customer` searches QuickBooks **by email only**. If a customer with the same **DisplayName** already exists in QB under a different email (or no email), the pre-check misses it and the create call is rejected with code `6240`.
+No changes to invoice line-item logic, tax, terms, or the email report. No schema changes.
 
-**Fix in `supabase/functions/create-quickbooks-customer/index.ts`**
-1. After the email lookup misses, run a second query by `DisplayName` (escaped) — `SELECT * FROM Customer WHERE DisplayName = '<name>'`. If a match exists, link that QB customer id to the profile and return `{ customerId, alreadyExisted: true }`.
-2. If the create call still returns `6240`, fall back to the DisplayName query one more time and link it — this handles the race where the QB search index lagged.
-3. Return a friendlier error body on other failures (`{ error: "QuickBooks: <Message>", details }`) so the toast on `InvoicesPage`/profile shows the real reason instead of `"Edge Function returned a non-2xx status code"`.
+## Verification
 
-**Frontend**
-- Update the toast in whichever component invokes `create-quickbooks-customer` to display the `error` field from the response body when present.
-
-## Technical notes
-
-- No database migrations needed.
-- Files touched:
-  - `supabase/functions/create-quickbooks-invoice/index.ts` (retry helper, structured errors)
-  - `supabase/functions/create-quickbooks-customer/index.ts` (DisplayName fallback, structured errors)
-  - `supabase/functions/weekly-invoice-batch/index.ts` (persist real error, lower concurrency)
-  - `src/pages/InvoicesPage.tsx` (persist real error, lower concurrency, surface message)
-  - Component with the "Create QB customer" button (surface `error` field in toast)
+- Re-run the "Create invoice" button for Mark Rushby: expect a 200 with `quickbooksInvoiceId`, and the report email to arrive.
+- Re-run for a customer whose email does match QB: unchanged behaviour.
+- Re-run for a truly missing customer: still returns the clear "please create the customer first" error.
