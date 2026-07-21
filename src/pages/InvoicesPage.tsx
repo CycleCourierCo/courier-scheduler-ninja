@@ -312,9 +312,9 @@ export default function InvoicesPage() {
     const skippedCustomers: any[] = [];
     const allMissingProducts: { product: string; customerName: string }[] = [];
 
-    // Bounded parallel runner — 5 customers in flight at a time so we finish
-    // ~5x faster without hammering QuickBooks rate limits.
-    const CONCURRENCY = 5;
+    // Bounded parallel runner — 3 customers in flight at a time. QuickBooks throttles
+    // aggressively (HTTP 429) at higher concurrency; 3 is a stable sweet spot.
+    const CONCURRENCY = 3;
     let completed = 0;
     let cursor = 0;
 
@@ -353,7 +353,19 @@ export default function InvoicesPage() {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // supabase-js wraps non-2xx in FunctionsHttpError; the actual JSON body
+          // (with our `error` field) lives on error.context (a Response).
+          let bodyMsg: string | undefined;
+          try {
+            const ctx: any = (error as any)?.context;
+            if (ctx && typeof ctx.json === 'function') {
+              const parsed = await ctx.json();
+              if (parsed?.error) bodyMsg = String(parsed.error);
+            }
+          } catch { /* ignore */ }
+          throw new Error(bodyMsg || error.message);
+        }
 
         if (data?.missingProducts && Array.isArray(data.missingProducts)) {
           for (const product of data.missingProducts) {

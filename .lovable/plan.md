@@ -1,61 +1,45 @@
-# Parallelize invoice creation (cron + button)
+## 1. QuickBooks Batch — retry on 429 + better error messages
 
-## Goal
-Make "Create All Invoices" fast and reliable in two places:
-1. The **Monday 01:00 UTC cron** (`weekly-invoice-batch` edge function) — currently silently times out.
-2. The **manual button** on `InvoicesPage.tsx` — currently loops sequentially in the browser and some customers silently fail.
+**Problem recap**
+- Broximo / Ben George / Adam Harrison failed with `429 ThrottleExceeded` on the initial customer lookup because the batch fires 5 invoice creations in parallel.
+- All failures currently store the generic `"Edge Function returned a non-2xx status code"` in `invoice_history.error_message`, hiding the real cause.
 
-## Approach: bounded parallelism (concurrency = 5)
+**Changes to `supabase/functions/create-quickbooks-invoice/index.ts`**
+- Wrap every QuickBooks HTTP call (customer query, invoice create, any follow-up reads) in a `qbFetch()` helper that retries on `429` and `5xx` with exponential backoff + jitter (e.g. 500ms → 1s → 2s → 4s, max 5 attempts, respecting a `Retry-After` header if present).
+- On final failure, return a structured JSON body `{ error, status, details }` with a human-readable `error` string (e.g. `"QuickBooks rate limit exceeded after 5 retries"`, `"Customer not found in QuickBooks for email: X"`).
 
-Full `Promise.all` over 114 customers would hammer QuickBooks (rate limits) and Supabase. Instead, run a small worker pool (5 in flight at a time). ~114 customers ÷ 5 ≈ 23 waves; even at 3–5 s each, the whole batch completes in ~1–2 min.
+**Changes to the invoice callers (`weekly-invoice-batch` edge function + `InvoicesPage.tsx`)**
+- When `functions.invoke` returns a non-2xx, read the response body and persist the specific `error` string into `invoice_history.error_message` instead of the generic message.
+- Reduce batch concurrency from 5 → 3 to lower the chance of tripping QB throttling in the first place (retries remain the safety net).
 
-## Cron path (`supabase/functions/weekly-invoice-batch/index.ts`)
+**Result**
+- Transient 429s are recovered automatically.
+- Persistent failures (like Mark Rushby's missing QB customer) show up in `invoice_history.error_message` with the exact reason, visible in the report email and the Invoices page.
 
-- Replace the `for (const customer of eligible)` loop with a concurrency-limited runner (simple inline pool, no new deps).
-- Wrap the entire batch (customer loop + report email) in `EdgeRuntime.waitUntil(processBatch())`; return **202 Accepted** immediately so pg_net's HTTP call completes in <1 s.
-- Add persistent run logging via new table `public.weekly_invoice_batch_logs` (id, run_started_at, run_completed_at, range_start, range_end, range_label, successful_count, failed_count, skipped_count, status, error_message, triggered_by, created_at). Row inserted on entry, updated on completion / catch. Admin-read RLS, service_role full grants — mirrors `timeslip_generation_logs`.
-- Fix `public.invoke_weekly_invoice_batch()` migration to pass `timeout_milliseconds := 60000` to `net.http_post` (defensive; 202 return means we rarely need it, but protects against slow cold starts).
+## 2. "Create customer in QuickBooks" button error
 
-## Button path (`src/pages/InvoicesPage.tsx`, `handleCreateAllInvoices`)
+**Root cause (confirmed in edge-function logs)**
+```
+QuickBooks create customer failed: 400
+{"Fault":{"Error":[{"Message":"Duplicate Name Exists Error",
+ "Detail":"The name supplied already exists. : null","code":"6240"}]}}
+```
+`create-quickbooks-customer` searches QuickBooks **by email only**. If a customer with the same **DisplayName** already exists in QB under a different email (or no email), the pre-check misses it and the create call is rejected with code `6240`.
 
-- Replace the sequential `for` loop with the same bounded-parallel pattern (concurrency 5) using `Promise.all` over chunks or a small inline pool.
-- Keep the existing per-customer `try/catch` so one failure never poisons the batch.
-- Keep the existing progress toast/state; update counters as each promise resolves (not in strict order).
-- Report dialog (successful / failed / skipped tables) stays identical — order-independent.
+**Fix in `supabase/functions/create-quickbooks-customer/index.ts`**
+1. After the email lookup misses, run a second query by `DisplayName` (escaped) — `SELECT * FROM Customer WHERE DisplayName = '<name>'`. If a match exists, link that QB customer id to the profile and return `{ customerId, alreadyExisted: true }`.
+2. If the create call still returns `6240`, fall back to the DisplayName query one more time and link it — this handles the race where the QB search index lagged.
+3. Return a friendlier error body on other failures (`{ error: "QuickBooks: <Message>", details }`) so the toast on `InvoicesPage`/profile shows the real reason instead of `"Edge Function returned a non-2xx status code"`.
 
-## Persistent per-customer error capture
+**Frontend**
+- Update the toast in whichever component invokes `create-quickbooks-customer` to display the `error` field from the response body when present.
 
-Right now failures only surface via `notify.error` toasts that disappear. To make the "which customers failed and why" question answerable after the fact:
-- Add `error_message TEXT` column to `public.invoice_history` **only** used when we insert a failure row (status = 'failed', quickbooks_invoice_id NULL). The frontend loop and the cron already know per-customer errors — they just don't persist them today. On failure, write a row with `{customer_id, customer_email, start_date, end_date, status: 'failed', error_message}`.
-- This gives us a permanent log of every failed attempt with the exact error, viewable in the existing Invoices history UI (with a small badge change to render failed rows differently).
+## Technical notes
 
-## Not in this plan
-- No change to `create-quickbooks-invoice` internals.
-- No retry logic (can add later if a specific transient error pattern shows up in `error_message`).
-- No backfill of last week's missed invoices — call this out and I'll do it in a follow-up once the fix is live.
-
-## Technical details
-
-- Concurrency helper (inline, both sides):
-  ```ts
-  async function runPool<T, R>(items: T[], limit: number, worker: (t: T) => Promise<R>): Promise<R[]> {
-    const results: R[] = new Array(items.length);
-    let next = 0;
-    async function run() {
-      while (true) {
-        const i = next++;
-        if (i >= items.length) return;
-        results[i] = await worker(items[i]);
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
-    return results;
-  }
-  ```
-- Migration order per new table: CREATE TABLE → GRANT (authenticated SELECT, service_role ALL) → ENABLE RLS → CREATE POLICY (admin select).
-- Edge function returns `202 { accepted: true, logId }` synchronously; the background task updates the log row.
-
-## Files touched
-- `supabase/functions/weekly-invoice-batch/index.ts` — pool + waitUntil + log writes
-- `src/pages/InvoicesPage.tsx` — pool in `handleCreateAllInvoices`
-- Migration — `weekly_invoice_batch_logs` table, `invoice_history.error_message` column, `invoke_weekly_invoice_batch()` timeout fix
+- No database migrations needed.
+- Files touched:
+  - `supabase/functions/create-quickbooks-invoice/index.ts` (retry helper, structured errors)
+  - `supabase/functions/create-quickbooks-customer/index.ts` (DisplayName fallback, structured errors)
+  - `supabase/functions/weekly-invoice-batch/index.ts` (persist real error, lower concurrency)
+  - `src/pages/InvoicesPage.tsx` (persist real error, lower concurrency, surface message)
+  - Component with the "Create QB customer" button (surface `error` field in toast)

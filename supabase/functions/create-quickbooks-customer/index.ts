@@ -150,30 +150,49 @@ serve(async (req: Request): Promise<Response> => {
       'Accept': 'application/json',
     };
 
-    // First, search by email
-    const escapedEmail = escapeQuickBooksString(qbEmail);
-    const queryUrl = `${baseUrl}/query?query=${encodeURIComponent(`SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`)}`;
-    const searchResp = await fetch(queryUrl, { headers: authHeaders });
-    if (searchResp.ok) {
-      const searchData = await searchResp.json();
-      const existing = searchData.QueryResponse?.Customer?.[0];
-      if (existing) {
-        console.log('Found existing QB customer:', existing.Id);
-        await supabase
-          .from('profiles')
-          .update({ quickbooks_customer_id: existing.Id })
-          .eq('id', userId);
-        return new Response(
-          JSON.stringify({ customerId: existing.Id, alreadyExisted: true }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    // Helper: try to find an existing customer, either by email or DisplayName.
+    const findExisting = async (whereClause: string): Promise<string | null> => {
+      const url = `${baseUrl}/query?query=${encodeURIComponent(`SELECT * FROM Customer WHERE ${whereClause}`)}`;
+      const resp = await fetch(url, { headers: authHeaders });
+      if (!resp.ok) {
+        console.error('Customer query failed:', resp.status, await resp.text());
+        return null;
       }
-    } else {
-      console.error('Customer query failed:', await searchResp.text());
+      const data = await resp.json();
+      return data.QueryResponse?.Customer?.[0]?.Id ?? null;
+    };
+
+    const linkCustomer = async (customerId: string, alreadyExisted: boolean) => {
+      await supabase
+        .from('profiles')
+        .update({ quickbooks_customer_id: customerId })
+        .eq('id', userId);
+      return new Response(
+        JSON.stringify({ customerId, alreadyExisted }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    };
+
+    // 1) Search by email
+    const escapedEmail = escapeQuickBooksString(qbEmail);
+    const emailMatchId = await findExisting(`PrimaryEmailAddr = '${escapedEmail}'`);
+    if (emailMatchId) {
+      console.log('Found existing QB customer by email:', emailMatchId);
+      return await linkCustomer(emailMatchId, true);
     }
 
+    // 2) Build the payload and derive the DisplayName we would create.
     const { given, family } = splitName(profile.name);
     const displayName = profile.company_name || profile.name || qbEmail;
+
+    // 3) Search by DisplayName to catch existing customers created without an email
+    //    (avoids the QuickBooks "6240 Duplicate Name Exists" error on create).
+    const escapedDisplayName = escapeQuickBooksString(displayName);
+    const nameMatchId = await findExisting(`DisplayName = '${escapedDisplayName}'`);
+    if (nameMatchId) {
+      console.log('Found existing QB customer by DisplayName:', nameMatchId);
+      return await linkCustomer(nameMatchId, true);
+    }
 
     const customerPayload: any = {
       DisplayName: displayName,
@@ -208,8 +227,40 @@ serve(async (req: Request): Promise<Response> => {
     if (!createResp.ok) {
       const errorBody = await createResp.text();
       console.error('QuickBooks create customer failed:', createResp.status, errorBody);
+
+      // Parse QB fault to detect duplicate-name (6240) and link the existing customer.
+      let qbCode: string | undefined;
+      let qbMessage: string | undefined;
+      try {
+        const parsed = JSON.parse(errorBody);
+        const fault = parsed?.Fault?.Error?.[0];
+        qbCode = fault?.code;
+        qbMessage = fault?.Message;
+      } catch { /* not JSON */ }
+
+      if (qbCode === '6240') {
+        // Retry the DisplayName lookup — QB's search index may have lagged the first check.
+        const retryMatch = await findExisting(`DisplayName = '${escapedDisplayName}'`);
+        if (retryMatch) {
+          console.log('Recovered from 6240 by linking existing DisplayName match:', retryMatch);
+          return await linkCustomer(retryMatch, true);
+        }
+        return new Response(
+          JSON.stringify({
+            error: `A QuickBooks customer named "${displayName}" already exists but couldn't be located by search. Please rename or link it manually in QuickBooks.`,
+            status: 409,
+            details: errorBody,
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: 'Failed to create QuickBooks customer', status: createResp.status, details: errorBody }),
+        JSON.stringify({
+          error: qbMessage ? `QuickBooks: ${qbMessage}` : 'Failed to create QuickBooks customer',
+          status: createResp.status,
+          details: errorBody,
+        }),
         { status: createResp.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

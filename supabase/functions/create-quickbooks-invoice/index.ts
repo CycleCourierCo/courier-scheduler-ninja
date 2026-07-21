@@ -57,6 +57,43 @@ function escapeQuickBooksString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+// Fetch with exponential backoff for QuickBooks throttling (429) and 5xx errors.
+// Respects Retry-After header when present. Returns the final Response (which may
+// still be non-ok if retries were exhausted).
+async function qbFetch(url: string, init: RequestInit, maxAttempts = 5): Promise<Response> {
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    attempt++;
+    let resp: Response;
+    try {
+      resp = await fetch(url, init);
+    } catch (err) {
+      if (attempt >= maxAttempts) throw err;
+      const wait = Math.min(500 * 2 ** (attempt - 1), 8000) + Math.floor(Math.random() * 250);
+      console.warn(`[qbFetch] network error attempt ${attempt}, retrying in ${wait}ms:`, (err as any)?.message);
+      await new Promise((r) => setTimeout(r, wait));
+      continue;
+    }
+    if (resp.ok) return resp;
+    const retriable = resp.status === 429 || resp.status >= 500;
+    if (!retriable || attempt >= maxAttempts) return resp;
+    let waitMs: number;
+    const retryAfter = resp.headers.get('Retry-After');
+    if (retryAfter) {
+      const asInt = parseInt(retryAfter, 10);
+      waitMs = Number.isFinite(asInt) ? asInt * 1000 : 1000;
+    } else {
+      waitMs = Math.min(500 * 2 ** (attempt - 1), 8000);
+    }
+    waitMs += Math.floor(Math.random() * 250);
+    // Drain body to free connection.
+    try { await resp.text(); } catch {}
+    console.warn(`[qbFetch] ${resp.status} attempt ${attempt}, retrying in ${waitMs}ms: ${url}`);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+}
+
 // Cache for product lookups to avoid repeated API calls
 const productCache = new Map<string, ProductInfo | null>();
 
@@ -671,7 +708,7 @@ const handler = async (req: Request): Promise<Response> => {
     const escapedCustomerEmail = escapeQuickBooksString(invoiceData.customerEmail);
     const customerQueryUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedCustomerEmail}'`;
     
-    const customerResponse = await fetch(customerQueryUrl, {
+    const customerResponse = await qbFetch(customerQueryUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -693,8 +730,12 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Customer not found in QuickBooks for email: ${invoiceData.customerEmail}. Please create the customer first.`);
       }
     } else {
-      console.error('Failed to query customers:', await customerResponse.text());
-      throw new Error('Failed to query QuickBooks customers');
+      const bodyText = await customerResponse.text();
+      console.error('Failed to query customers:', customerResponse.status, bodyText);
+      if (customerResponse.status === 429) {
+        throw new Error('QuickBooks rate limit exceeded while looking up customer. Please retry in a minute.');
+      }
+      throw new Error(`Failed to query QuickBooks customers (HTTP ${customerResponse.status})`);
     }
 
     // Create invoice in QuickBooks
@@ -712,7 +753,7 @@ const handler = async (req: Request): Promise<Response> => {
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
 
-    const response = await fetch(quickbooksApiUrl, {
+    const response = await qbFetch(quickbooksApiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,

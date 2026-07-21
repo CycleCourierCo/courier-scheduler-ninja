@@ -11,7 +11,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
-const CONCURRENCY = 5;
+const CONCURRENCY = 3;
 
 // ---- Date helpers (Europe/London week Mon 00:00 → Sun 23:59:59.999) ----
 function londonOffsetMinutes(date: Date): number {
@@ -277,7 +277,12 @@ async function processBatch(params: {
 
         if (!resp.ok) {
           const text = await resp.text();
-          throw new Error(`create-quickbooks-invoice ${resp.status}: ${text}`);
+          let friendly = `create-quickbooks-invoice ${resp.status}`;
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed?.error) friendly = String(parsed.error);
+          } catch { friendly = `${friendly}: ${text}`; }
+          throw new Error(friendly);
         }
         const data = await resp.json();
 
