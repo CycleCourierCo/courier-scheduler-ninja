@@ -381,7 +381,9 @@ export default function InvoicesPage() {
 
         // Persist failure so it's visible after the batch (toasts disappear).
         try {
+          const { data: { user } } = await supabase.auth.getUser();
           await supabase.from('invoice_history').insert({
+            user_id: user?.id ?? customer.id,
             customer_id: customer.id,
             customer_name: customer.name,
             customer_email: customer.accounts_email || customer.email,
