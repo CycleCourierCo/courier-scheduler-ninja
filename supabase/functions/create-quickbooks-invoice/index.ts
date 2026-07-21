@@ -477,9 +477,10 @@ const handler = async (req: Request): Promise<Response> => {
     
     const { data: customerProfile, error: customerProfileError } = await supabase
       .from('profiles')
-      .select('special_rate_code')
+      .select('special_rate_code, quickbooks_customer_id')
       .eq('id', invoiceData.customerId)
       .single();
+
     
     if (customerProfileError) {
       console.warn('Could not fetch customer profile for special rate check:', customerProfileError.message);
