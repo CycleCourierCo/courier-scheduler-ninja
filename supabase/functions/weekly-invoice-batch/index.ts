@@ -277,7 +277,12 @@ async function processBatch(params: {
 
         if (!resp.ok) {
           const text = await resp.text();
-          throw new Error(`create-quickbooks-invoice ${resp.status}: ${text}`);
+          let friendly = `create-quickbooks-invoice ${resp.status}`;
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed?.error) friendly = String(parsed.error);
+          } catch { friendly = `${friendly}: ${text}`; }
+          throw new Error(friendly);
         }
         const data = await resp.json();
 
