@@ -82,13 +82,12 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
 
   return (
     <Card className="p-4">
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Driver Filter */}
-        <div className="flex-1 w-full min-w-0 sm:min-w-[200px]">
-
+        <div className="w-full min-w-0">
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger>
-              <User className="h-4 w-4 mr-2" />
+              <User className="h-4 w-4 mr-2 shrink-0" />
               <SelectValue placeholder="All Drivers" />
             </SelectTrigger>
             <SelectContent>
@@ -103,22 +102,22 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
         </div>
 
         {/* Date Range Filter */}
-        <div className="flex-1 w-full min-w-0 sm:min-w-[250px]">
+        <div className="w-full min-w-0">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start">
-                <Calendar className="h-4 w-4 mr-2" />
-                {dateFrom && dateTo ? (
-                  <>
-                    {format(dateFrom, 'MMM dd')} - {format(dateTo, 'MMM dd, yyyy')}
-                  </>
-                ) : dateFrom ? (
-                  <>From {format(dateFrom, 'MMM dd, yyyy')}</>
-                ) : dateTo ? (
-                  <>Until {format(dateTo, 'MMM dd, yyyy')}</>
-                ) : (
-                  'All Dates'
-                )}
+                <Calendar className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">
+                  {dateFrom && dateTo ? (
+                    <>{format(dateFrom, 'MMM dd')} - {format(dateTo, 'MMM dd, yyyy')}</>
+                  ) : dateFrom ? (
+                    <>From {format(dateFrom, 'MMM dd, yyyy')}</>
+                  ) : dateTo ? (
+                    <>Until {format(dateTo, 'MMM dd, yyyy')}</>
+                  ) : (
+                    'All Dates'
+                  )}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-4" align="start">
@@ -160,10 +159,10 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
         </div>
 
         {/* Sort Options */}
-        <div className="flex-1 w-full min-w-0 sm:min-w-[200px]">
+        <div className="w-full min-w-0">
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger>
-              <ArrowUpDown className="h-4 w-4 mr-2" />
+              <ArrowUpDown className="h-4 w-4 mr-2 shrink-0" />
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -176,9 +175,9 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
           </Select>
         </div>
 
-        {/* Quick Filters */}
-        <div className="flex items-center gap-4 flex-1 w-full min-w-0 sm:min-w-[220px]">
-          <div className="flex items-center gap-2 flex-1">
+        {/* Quick Filter Toggles */}
+        <div className="w-full min-w-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:flex-wrap">
+          <div className="flex items-center gap-2">
             <Switch
               id="no-mileage"
               checked={noMileage}
@@ -189,7 +188,7 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
               No mileage
             </label>
           </div>
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2">
             <Switch
               id="no-vehicle"
               checked={noVehicle}
@@ -201,9 +200,11 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
             </label>
           </div>
         </div>
+      </div>
 
-        {/* Clear Filters Button */}
-        {hasActiveFilters && (
+      {/* Clear Filters Button */}
+      {hasActiveFilters && (
+        <div className="flex justify-end mt-3">
           <Button
             variant="ghost"
             size="sm"
@@ -213,10 +214,11 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
             <X className="h-4 w-4" />
             Clear Filters
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </Card>
   );
 };
+
 
 export default TimeslipFilters;
