@@ -351,6 +351,22 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
           </div>
         )}
 
+        {/* Flip Route */}
+        {optimizedJobs.length >= 2 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFlipRoute}
+            disabled={isOptimizing || !selectedDate}
+            className="w-full sm:w-auto"
+          >
+            <ArrowUpDown className="h-4 w-4 mr-2" />
+            Flip Route
+          </Button>
+        )}
+
+
+
         {/* Collections */}
         {collectionJobs.length > 0 && (
           <div className="space-y-2">
