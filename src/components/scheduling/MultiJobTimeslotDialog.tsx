@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { optimizeRouteWithGeoapify } from "@/services/routeOptimizationService";
+import { optimizeRouteWithGeoapify, computeRouteInOrder } from "@/services/routeOptimizationService";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Job {
