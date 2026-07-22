@@ -1624,6 +1624,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     calculateTimeslots(updatedJobs);
   };
 
+  const handleFlipRoute = async () => {
+    if (selectedJobs.length < 2) return;
+    try {
+      const reversed = [...selectedJobs].reverse();
+      setSelectedJobs(reversed);
+      toast.success('Route flipped, recalculating timings...');
+      // Give state a tick then recalculate using reversed order
+      await new Promise((r) => setTimeout(r, 50));
+      await refreshAndCalculateTimeslots();
+    } catch (err: any) {
+      console.error('Flip route error:', err);
+      toast.error(`Failed to flip route: ${err?.message || err}`);
+    }
+  };
+
   const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
     // Use passed jobs or fall back to state
     const jobs = jobsToCalculate || selectedJobs;
