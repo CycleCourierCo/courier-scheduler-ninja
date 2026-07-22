@@ -1630,9 +1630,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const reversed = [...selectedJobs].reverse();
       setSelectedJobs(reversed);
       toast.success('Route flipped, recalculating timings...');
-      // Give state a tick then recalculate using reversed order
-      await new Promise((r) => setTimeout(r, 50));
-      await refreshAndCalculateTimeslots();
+      calculateTimeslots(reversed);
     } catch (err: any) {
       console.error('Flip route error:', err);
       toast.error(`Failed to flip route: ${err?.message || err}`);
