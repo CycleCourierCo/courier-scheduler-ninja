@@ -3461,7 +3461,22 @@ Route Link: ${routeLink}`;
                     </Popover>
                   </div>
                   
-                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-xs">
+                  <div className="flex gap-2">
+                    <Button onClick={refreshAndCalculateTimeslots} size="sm" className="flex-1 h-8 text-xs">
+                      Recalculate
+                    </Button>
+                    <Button
+                      onClick={handleFlipRoute}
+                      size="sm"
+                      variant="outline"
+                      disabled={selectedJobs.length < 2}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                      Flip Route
+                    </Button>
+                  </div>
+                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-xs hidden">
                     Recalculate
                   </Button>
                 </div>
