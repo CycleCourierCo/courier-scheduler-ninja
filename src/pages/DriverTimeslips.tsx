@@ -254,7 +254,7 @@ const DriverTimeslips = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6 min-w-0 max-w-full overflow-x-hidden">
         <DashboardHeader>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -291,7 +291,7 @@ const DriverTimeslips = () => {
 
         {isAdmin && sortedTimeslips && sortedTimeslips.length > 0 && (
           <Card>
-            <CardContent className="flex justify-between items-center p-4">
+            <CardContent className="flex flex-wrap justify-between items-center gap-3 p-4">
               <div>
                 <p className="text-sm text-muted-foreground">Showing</p>
                 <p className="text-2xl font-bold">{sortedTimeslips.length} timeslips</p>
@@ -308,20 +308,23 @@ const DriverTimeslips = () => {
 
         {isAdmin ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="draft">
-                <FileText className="h-4 w-4 mr-2" />
-                Draft ({draftCount})
-              </TabsTrigger>
-              <TabsTrigger value="approved">
-                Approved ({approvedCount})
-              </TabsTrigger>
-              <TabsTrigger value="all">All ({allCount})</TabsTrigger>
-              <TabsTrigger value="mechanic">
-                <Wrench className="h-4 w-4 mr-2" />
-                Mechanic Timeslips
-              </TabsTrigger>
-            </TabsList>
+            <div className="w-full overflow-x-auto">
+              <TabsList className="inline-flex w-max">
+                <TabsTrigger value="draft">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Draft ({draftCount})
+                </TabsTrigger>
+                <TabsTrigger value="approved">
+                  Approved ({approvedCount})
+                </TabsTrigger>
+                <TabsTrigger value="all">All ({allCount})</TabsTrigger>
+                <TabsTrigger value="mechanic">
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Mechanic Timeslips
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
 
             {activeTab === 'mechanic' ? (
               <TabsContent value="mechanic" className="space-y-4">

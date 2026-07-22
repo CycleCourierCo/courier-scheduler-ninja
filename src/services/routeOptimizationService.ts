@@ -342,3 +342,71 @@ export const optimizeRouteWithGeoapify = async (
 
   return { jobs: optimizedJobs, distanceMiles };
 };
+
+// Compute arrival/departure times for a fixed job order (no reordering).
+// Uses Geoapify Routing API to get leg travel times between depot -> jobs -> depot.
+export const computeRouteInOrder = async (
+  orderedJobs: Job[],
+  startDate: Date,
+  startTime: string = "09:00",
+  dwellSeconds: number = 900
+): Promise<{ jobs: OptimizedJob[], distanceMiles: number }> => {
+  const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+  if (!apiKey) throw new Error('Geoapify API key not configured');
+  if (orderedJobs.length === 0) return { jobs: [], distanceMiles: 0 };
+
+  // Build waypoints: depot -> job1 -> job2 -> ... -> depot
+  const waypoints = [
+    `${DEPOT_LOCATION.lat},${DEPOT_LOCATION.lon}`,
+    ...orderedJobs.map(j => `${j.lat},${j.lon}`),
+    `${DEPOT_LOCATION.lat},${DEPOT_LOCATION.lon}`,
+  ].join('|');
+
+  const url = `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=light_truck&apiKey=${apiKey}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Routing API error:', errorData);
+    throw new Error(`Route re-timing failed: ${response.status}`);
+  }
+  const data = await response.json();
+  const feature = data.features?.[0];
+  if (!feature) throw new Error('Routing API returned no route');
+
+  const legs: Array<{ time: number; distance: number }> = feature.properties?.legs || [];
+  const distanceMeters = feature.properties?.distance || 0;
+  const distanceMiles = distanceMeters / 1609.34;
+
+  const startDateTime = new Date(startDate);
+  const [h, m] = startTime.split(':').map(Number);
+  startDateTime.setHours(h, m, 0, 0);
+
+  let cursor = startDateTime.getTime();
+  const result: OptimizedJob[] = [];
+
+  for (let i = 0; i < orderedJobs.length; i++) {
+    // Travel time from previous waypoint to this stop
+    const travelSeconds = legs[i]?.time ?? 0;
+    cursor += travelSeconds * 1000;
+
+    const arrival = new Date(cursor);
+    const departure = new Date(cursor + dwellSeconds * 1000);
+    cursor = departure.getTime();
+
+    const arrivalTimeStr = arrival.toTimeString().slice(0, 5);
+    const departureTimeStr = departure.toTimeString().slice(0, 5);
+    const windowEnd = new Date(arrival.getTime() + 3 * 60 * 60 * 1000);
+    const timeslotWindow = `${arrivalTimeStr} to ${windowEnd.toTimeString().slice(0, 5)}`;
+
+    result.push({
+      ...orderedJobs[i],
+      sequenceOrder: i + 1,
+      estimatedArrivalTime: arrivalTimeStr,
+      estimatedDepartureTime: departureTimeStr,
+      timeslotWindow,
+    });
+  }
+
+  return { jobs: result, distanceMiles };
+};
+

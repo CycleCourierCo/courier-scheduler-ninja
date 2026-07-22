@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Calendar as CalendarIcon, Navigation, Package, PackageX } from "lucide-react";
+import { Calendar as CalendarIcon, Navigation, Package, PackageX, ArrowUpDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { optimizeRouteWithGeoapify } from "@/services/routeOptimizationService";
+import { optimizeRouteWithGeoapify, computeRouteInOrder } from "@/services/routeOptimizationService";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Job {
@@ -185,6 +185,33 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     }
   };
 
+  const handleFlipRoute = async () => {
+    if (!selectedDate || optimizedJobs.length < 2) return;
+    setIsOptimizing(true);
+    try {
+      const sorted = [...optimizedJobs].sort(
+        (a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0)
+      );
+      const reversed = sorted.reverse();
+      const result = await computeRouteInOrder(reversed, selectedDate, "09:00");
+      setOptimizedJobs(result.jobs);
+      const newJobTimes: Record<string, string> = {};
+      result.jobs.forEach(j => {
+        newJobTimes[j.orderId] = j.estimatedArrivalTime;
+      });
+      setJobTimes(newJobTimes);
+      toast.success("Route flipped and re-timed");
+    } catch (error: any) {
+      console.error('Flip route error:', error);
+      toast.error(`Failed to flip route: ${error.message}`);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+
+
+
   const handleSendTimeslots = async () => {
     if (!selectedDate) {
       toast.error("Please select a date");
@@ -323,6 +350,22 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
             Optimizing route...
           </div>
         )}
+
+        {/* Flip Route */}
+        {optimizedJobs.length >= 2 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFlipRoute}
+            disabled={isOptimizing || !selectedDate}
+            className="w-full sm:w-auto"
+          >
+            <ArrowUpDown className="h-4 w-4 mr-2" />
+            Flip Route
+          </Button>
+        )}
+
+
 
         {/* Collections */}
         {collectionJobs.length > 0 && (

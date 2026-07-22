@@ -59,11 +59,13 @@ import {
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
+  setInspectionCleaningTask,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
 import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
+import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
 
@@ -458,6 +460,28 @@ const BicycleInspections = () => {
     onError: (error) => {
       toast.error("Failed to mark as repaired");
       console.error(error);
+    },
+  });
+
+  // Cleaning task mutation (frame cleaned / drivetrain degreased)
+  const cleaningMutation = useMutation({
+    mutationFn: async (args: { inspectionId: string; task: 'frame' | 'drivetrain'; done: boolean }) => {
+      if (!user?.id) throw new Error("Not authenticated");
+      return setInspectionCleaningTask(
+        args.inspectionId,
+        args.task,
+        args.done,
+        user.id,
+        userProfile?.name || user.email || "Mechanic"
+      );
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(vars.done ? "Marked as done" : "Cleared");
+    },
+    onError: (err) => {
+      toast.error("Failed to update cleaning task");
+      console.error(err);
     },
   });
 
@@ -893,6 +917,50 @@ const BicycleInspections = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Cleaning tasks (shown pre-repaired-final for every bike) */}
+          {inspection && inspection.status !== "repaired" && inspection.status !== "inspected" && (
+            <div className="rounded-md border p-3 bg-muted/30 space-y-2">
+              <p className="text-sm font-medium">Cleaning</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  { key: 'frame' as const, label: 'Clean frame', at: inspection.frame_cleaned_at, by: inspection.frame_cleaned_by_name },
+                  { key: 'drivetrain' as const, label: 'Degrease drivetrain', at: inspection.drivetrain_degreased_at, by: inspection.drivetrain_degreased_by_name },
+                ]).map((t) => {
+                  const done = !!t.at;
+                  const canToggle = isAdmin || isMechanic;
+                  return (
+                    <div key={t.key} className="flex items-center justify-between gap-2 rounded border bg-background p-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{t.label}</p>
+                        {done && (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            ✓ {t.by || 'Done'} · {new Date(t.at!).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      {canToggle ? (
+                        <Button
+                          size="sm"
+                          variant={done ? "outline" : "default"}
+                          onClick={() => cleaningMutation.mutate({ inspectionId: inspection.id, task: t.key, done: !done })}
+                          disabled={cleaningMutation.isPending}
+                          className="shrink-0"
+                        >
+                          {done ? 'Undo' : 'Mark done'}
+                        </Button>
+                      ) : (
+                        <Badge variant={done ? "secondary" : "outline"} className="shrink-0">
+                          {done ? 'Done' : 'Pending'}
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
@@ -1287,8 +1355,11 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Mark as Repaired Button (admin/mechanic for awaiting_repair status, approved issues) */}
-                  {(isAdmin || isMechanic) && isAwaitingRepair && issue.status === "approved" && (
+                  {/* Mark as Repaired Button — awaiting_repair, OR awaiting_parts once this issue's parts have arrived */}
+                  {(isAdmin || isMechanic) && issue.status === "approved" && (
+                    isAwaitingRepair ||
+                    (isAwaitingParts && issue.parts_ordered && issue.parts_arrived)
+                  ) && (
                     <div className="mt-3">
                       <Button
                         size="sm"
@@ -1666,6 +1737,9 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                Schedule
+              </TabsTrigger>
             </TabsList>
             </div>
 
@@ -1734,8 +1808,13 @@ const BicycleInspections = () => {
                 inspectedAndServiced.map(renderInspectionCard)
               )}
             </TabsContent>
+
+            <TabsContent value="schedule" className="space-y-4">
+              <WorkshopScheduleTab canManage={isAdmin} />
+            </TabsContent>
           </Tabs>
         )}
+
 
         {/* Inspection Checklist Dialog */}
         <Dialog open={inspectionChecklistOpen} onOpenChange={setInspectionChecklistOpen}>

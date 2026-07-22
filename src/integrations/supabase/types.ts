@@ -86,6 +86,12 @@ export type Database = {
         Row: {
           bike_type: string | null
           created_at: string
+          drivetrain_degreased_at: string | null
+          drivetrain_degreased_by_id: string | null
+          drivetrain_degreased_by_name: string | null
+          frame_cleaned_at: string | null
+          frame_cleaned_by_id: string | null
+          frame_cleaned_by_name: string | null
           id: string
           inspected_at: string | null
           inspected_by_id: string | null
@@ -104,6 +110,12 @@ export type Database = {
         Insert: {
           bike_type?: string | null
           created_at?: string
+          drivetrain_degreased_at?: string | null
+          drivetrain_degreased_by_id?: string | null
+          drivetrain_degreased_by_name?: string | null
+          frame_cleaned_at?: string | null
+          frame_cleaned_by_id?: string | null
+          frame_cleaned_by_name?: string | null
           id?: string
           inspected_at?: string | null
           inspected_by_id?: string | null
@@ -122,6 +134,12 @@ export type Database = {
         Update: {
           bike_type?: string | null
           created_at?: string
+          drivetrain_degreased_at?: string | null
+          drivetrain_degreased_by_id?: string | null
+          drivetrain_degreased_by_name?: string | null
+          frame_cleaned_at?: string | null
+          frame_cleaned_by_id?: string | null
+          frame_cleaned_by_name?: string | null
           id?: string
           inspected_at?: string | null
           inspected_by_id?: string | null
@@ -1282,6 +1300,7 @@ export type Database = {
           customer_id: string
           customer_name: string
           end_date: string
+          error_message: string | null
           id: string
           order_count: number
           quickbooks_invoice_id: string | null
@@ -1299,6 +1318,7 @@ export type Database = {
           customer_id: string
           customer_name: string
           end_date: string
+          error_message?: string | null
           id?: string
           order_count: number
           quickbooks_invoice_id?: string | null
@@ -1316,6 +1336,7 @@ export type Database = {
           customer_id?: string
           customer_name?: string
           end_date?: string
+          error_message?: string | null
           id?: string
           order_count?: number
           quickbooks_invoice_id?: string | null
@@ -3303,6 +3324,57 @@ export type Database = {
           },
         ]
       }
+      weekly_invoice_batch_logs: {
+        Row: {
+          created_at: string
+          eligible_count: number
+          error_message: string | null
+          failed_count: number
+          id: string
+          range_end: string | null
+          range_label: string | null
+          range_start: string | null
+          run_completed_at: string | null
+          run_started_at: string
+          skipped_count: number
+          status: string
+          successful_count: number
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          eligible_count?: number
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          range_end?: string | null
+          range_label?: string | null
+          range_start?: string | null
+          run_completed_at?: string | null
+          run_started_at?: string
+          skipped_count?: number
+          status?: string
+          successful_count?: number
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          eligible_count?: number
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          range_end?: string | null
+          range_label?: string | null
+          range_start?: string | null
+          run_completed_at?: string | null
+          run_started_at?: string
+          skipped_count?: number
+          status?: string
+          successful_count?: number
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       weekly_plans: {
         Row: {
           created_at: string | null
@@ -3344,6 +3416,7 @@ export type Database = {
       }
       workshop_settings: {
         Row: {
+          daily_capacity_minutes: number
           hourly_rate_gbp: number
           id: number
           min_charge_gbp: number
@@ -3351,6 +3424,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          daily_capacity_minutes?: number
           hourly_rate_gbp?: number
           id?: number
           min_charge_gbp?: number
@@ -3358,6 +3432,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          daily_capacity_minutes?: number
           hourly_rate_gbp?: number
           id?: number
           min_charge_gbp?: number

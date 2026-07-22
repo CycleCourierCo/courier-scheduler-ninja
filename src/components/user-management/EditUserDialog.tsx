@@ -92,7 +92,18 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
       const { data, error } = await supabase.functions.invoke('create-quickbooks-customer', {
         body: { userId: user.id },
       });
-      if (error) throw error;
+      if (error) {
+        // Extract structured `error` field from the edge function's JSON body.
+        let bodyMsg: string | undefined;
+        try {
+          const ctx: any = (error as any)?.context;
+          if (ctx && typeof ctx.json === 'function') {
+            const parsed = await ctx.json();
+            if (parsed?.error) bodyMsg = String(parsed.error);
+          }
+        } catch { /* ignore */ }
+        throw new Error(bodyMsg || error.message);
+      }
       const customerId = (data as any)?.customerId;
       if (!customerId) throw new Error('No customer ID returned');
       setFormData(prev => ({ ...prev, quickbooks_customer_id: customerId }));
