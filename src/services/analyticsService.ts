@@ -14,7 +14,7 @@ export const fetchOrdersForAnalytics = async (): Promise<Order[]> => {
     while (hasMore) {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, profiles(role, company_name, is_business)")
+        .select("*, profiles(role, company_name, name, email, is_business, customer_shopify_stores(id), api_keys(id, is_active))")
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
 
@@ -32,15 +32,35 @@ export const fetchOrdersForAnalytics = async (): Promise<Order[]> => {
       }
     }
 
-    return allOrders.map((order) => ({
-      ...mapDbOrderToOrderType(order),
-      // @ts-ignore - Add additional properties from the join
-      userRole: order.profiles?.role || "unknown",
-      // @ts-ignore
-      companyName: order.profiles?.company_name || null,
-      // @ts-ignore
-      isBusiness: order.profiles?.is_business || false,
-    }));
+    return allOrders.map((order) => {
+      const profile = order.profiles as any;
+      const hasShopify = Array.isArray(profile?.customer_shopify_stores) && profile.customer_shopify_stores.length > 0;
+      const hasActiveApiKey = Array.isArray(profile?.api_keys) && profile.api_keys.some((k: any) => k?.is_active);
+      const isBusiness =
+        profile?.is_business === true ||
+        profile?.role === "b2b_customer" ||
+        hasShopify ||
+        hasActiveApiKey;
+      // Resolve a stable display name per customer so grouping collapses all
+      // orders from the same account into one row (fixes leaderboards where
+      // sender.name varies per shipment).
+      const displayName =
+        profile?.company_name ||
+        profile?.name ||
+        profile?.email ||
+        null;
+
+      return {
+        ...mapDbOrderToOrderType(order),
+        // @ts-ignore - Add additional properties from the join
+        userRole: profile?.role || "unknown",
+        // @ts-ignore
+        companyName: displayName,
+        // @ts-ignore
+        isBusiness,
+      };
+    });
+
   } catch (error) {
     console.error("Unexpected error in fetchOrdersForAnalytics:", error);
     throw error;
