@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -1622,6 +1622,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     // Pass the fresh jobs directly instead of relying on state update timing
     calculateTimeslots(updatedJobs);
+  };
+
+  const handleFlipRoute = async () => {
+    if (selectedJobs.length < 2) return;
+    try {
+      const reversed = [...selectedJobs].reverse();
+      setSelectedJobs(reversed);
+      toast.success('Route flipped, recalculating timings...');
+      calculateTimeslots(reversed);
+    } catch (err: any) {
+      console.error('Flip route error:', err);
+      toast.error(`Failed to flip route: ${err?.message || err}`);
+    }
   };
 
   const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
@@ -3448,9 +3461,21 @@ Route Link: ${routeLink}`;
                     </Popover>
                   </div>
                   
-                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-xs">
-                    Recalculate
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={refreshAndCalculateTimeslots} size="sm" className="flex-1 h-8 text-xs">
+                      Recalculate
+                    </Button>
+                    <Button
+                      onClick={handleFlipRoute}
+                      size="sm"
+                      variant="outline"
+                      disabled={selectedJobs.length < 2}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                      Flip Route
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Route */}
@@ -3626,9 +3651,20 @@ Route Link: ${routeLink}`;
                   </Popover>
                 </div>
                 
-                <Button onClick={refreshAndCalculateTimeslots} size="sm">
-                  Recalculate
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={refreshAndCalculateTimeslots} size="sm">
+                    Recalculate
+                  </Button>
+                  <Button
+                    onClick={handleFlipRoute}
+                    size="sm"
+                    variant="outline"
+                    disabled={selectedJobs.length < 2}
+                  >
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    Flip Route
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-3">
