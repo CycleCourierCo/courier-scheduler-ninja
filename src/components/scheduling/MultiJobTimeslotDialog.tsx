@@ -185,6 +185,30 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     }
   };
 
+  const handleFlipRoute = async () => {
+    if (!selectedDate || optimizedJobs.length < 2) return;
+    setIsOptimizing(true);
+    try {
+      const sorted = [...optimizedJobs].sort(
+        (a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0)
+      );
+      const reversed = sorted.reverse();
+      const result = await computeRouteInOrder(reversed, selectedDate, "09:00");
+      setOptimizedJobs(result.jobs);
+      const newJobTimes: Record<string, string> = {};
+      result.jobs.forEach(j => {
+        newJobTimes[j.orderId] = j.estimatedArrivalTime;
+      });
+      setJobTimes(newJobTimes);
+      toast.success("Route flipped and re-timed");
+    } catch (error: any) {
+      console.error('Flip route error:', error);
+      toast.error(`Failed to flip route: ${error.message}`);
+    } finally {
+      setIsOptimizing(false);
+    }
+
+
   const handleSendTimeslots = async () => {
     if (!selectedDate) {
       toast.error("Please select a date");
