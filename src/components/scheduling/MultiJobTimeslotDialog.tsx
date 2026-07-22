@@ -207,6 +207,9 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     } finally {
       setIsOptimizing(false);
     }
+  };
+
+
 
 
   const handleSendTimeslots = async () => {
