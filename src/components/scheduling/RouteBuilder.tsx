@@ -3476,9 +3476,6 @@ Route Link: ${routeLink}`;
                       Flip Route
                     </Button>
                   </div>
-                  <Button onClick={refreshAndCalculateTimeslots} size="sm" className="w-full h-8 text-xs hidden">
-                    Recalculate
-                  </Button>
                 </div>
 
                 {/* Route */}
