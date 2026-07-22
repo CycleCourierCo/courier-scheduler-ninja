@@ -11,10 +11,20 @@ export const fetchOrdersForAnalytics = async (): Promise<Order[]> => {
     const pageSize = 1000;
     let hasMore = true;
 
+    // Fetch integration signals in parallel so we can classify B2B customers
+    // that aren't flagged on their profile (e.g. Shopify-connected accounts).
+    const [shopifyRes, apiKeyRes] = await Promise.all([
+      supabase.from("customer_shopify_stores").select("user_id"),
+      supabase.from("api_keys").select("user_id").eq("is_active", true),
+    ]);
+    const integrationUserIds = new Set<string>();
+    (shopifyRes.data ?? []).forEach((r: any) => r?.user_id && integrationUserIds.add(r.user_id));
+    (apiKeyRes.data ?? []).forEach((r: any) => r?.user_id && integrationUserIds.add(r.user_id));
+
     while (hasMore) {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, profiles(role, company_name, is_business)")
+        .select("*, profiles(role, company_name, name, email, is_business)")
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
 
@@ -32,15 +42,34 @@ export const fetchOrdersForAnalytics = async (): Promise<Order[]> => {
       }
     }
 
-    return allOrders.map((order) => ({
-      ...mapDbOrderToOrderType(order),
-      // @ts-ignore - Add additional properties from the join
-      userRole: order.profiles?.role || "unknown",
-      // @ts-ignore
-      companyName: order.profiles?.company_name || null,
-      // @ts-ignore
-      isBusiness: order.profiles?.is_business || false,
-    }));
+    return allOrders.map((order) => {
+      const profile = order.profiles as any;
+      const hasIntegration = order.user_id ? integrationUserIds.has(order.user_id) : false;
+      const isBusiness =
+        profile?.is_business === true ||
+        profile?.role === "b2b_customer" ||
+        hasIntegration;
+      // Resolve a stable display name per customer so grouping collapses all
+      // orders from the same account into one row (fixes leaderboards where
+      // sender.name varies per shipment).
+      const displayName =
+        profile?.company_name ||
+        profile?.name ||
+        profile?.email ||
+        null;
+
+      return {
+        ...mapDbOrderToOrderType(order),
+        // @ts-ignore - Add additional properties from the join
+        userRole: profile?.role || "unknown",
+        // @ts-ignore
+        companyName: displayName,
+        // @ts-ignore
+        isBusiness,
+      };
+    });
+
+
   } catch (error) {
     console.error("Unexpected error in fetchOrdersForAnalytics:", error);
     throw error;
