@@ -37,6 +37,7 @@ const AVAILABLE_EVENTS = [
   { id: 'order.box.boxed', label: 'Box My Bike Boxed' },
   { id: 'order.box.label_uploaded', label: 'Box My Bike Label Uploaded' },
   { id: 'order.box.collected_by_3p', label: 'Box My Bike Collected by 3rd Party' },
+  { id: 'order.box.delivered_by_3p', label: 'Box My Bike Delivered by 3rd Party' },
 ];
 
 export function CreateWebhookDialog({ open, onOpenChange, onSuccess }: CreateWebhookDialogProps) {
