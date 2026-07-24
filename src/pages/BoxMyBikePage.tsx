@@ -196,6 +196,7 @@ const BoxMyBikePage: React.FC = () => {
       boxed_awaiting_label: [],
       awaiting_3p_collection: [],
       collected_by_3p: [],
+      delivered_by_3p: [],
     };
     for (const o of orders) {
       const s = (o.box_my_bike_status || "awaiting_depot") as BoxMyBikeStatus;
