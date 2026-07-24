@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, CheckCircle, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
 import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
@@ -390,6 +390,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         [(order as any).boxBoxedAt, "Boxed, awaiting label", "Bike has been boxed and is awaiting a shipping label", <Box className="h-4 w-4 text-courier-600" />, null],
         [(order as any).boxLabelPrintedAt, "Awaiting 3rd-party collection", "Label printed — awaiting 3rd-party courier collection", <Clock className="h-4 w-4 text-courier-600" />, trackingUrl],
         [(order as any).boxCollectedBy3pAt, "Collected by 3rd-party courier", "Bike has been handed to the 3rd-party courier", <Truck className="h-4 w-4 text-green-600" />, trackingUrl],
+        [(order as any).boxDeliveredBy3pAt, "Delivered by 3rd-party courier", "Bike has been delivered by the 3rd-party courier", <CheckCircle className="h-4 w-4 text-green-600" />, trackingUrl],
       ];
       bmb.forEach(([date, title, description, icon, link]) => {
         if (date) {

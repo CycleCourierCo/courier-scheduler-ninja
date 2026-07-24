@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
       eventPayload.data.box_boxed_at = order.box_boxed_at ?? null;
       eventPayload.data.box_label_printed_at = order.box_label_printed_at ?? null;
       eventPayload.data.box_collected_by_3p_at = order.box_collected_by_3p_at ?? null;
+      eventPayload.data.box_delivered_by_3p_at = order.box_delivered_by_3p_at ?? null;
     }
 
     console.log(`Sending webhooks to ${webhookConfigs.length} endpoints`);

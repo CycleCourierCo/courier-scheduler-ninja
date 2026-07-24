@@ -52,6 +52,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
         return { label: "Awaiting 3rd-party collection", className: "bg-purple-500" };
       case "collected_by_3p":
         return { label: "Collected by 3rd-party courier", className: "bg-green-500" };
+      case "delivered_by_3p":
+        return { label: "Delivered by 3rd-party courier", className: "bg-green-600" };
       default:
         return { label: status, className: "bg-gray-500" };
     }
