@@ -57,6 +57,7 @@ function stageTimestampColumn(s: BoxMyBikeStatus): string | null {
     case "boxed_awaiting_label": return "box_boxed_at";
     case "awaiting_3p_collection": return "box_label_printed_at";
     case "collected_by_3p": return "box_collected_by_3p_at";
+    case "delivered_by_3p": return "box_delivered_by_3p_at";
     default: return null;
   }
 }
@@ -67,9 +68,11 @@ function stageWebhookEvent(s: BoxMyBikeStatus): string | null {
     case "boxed_awaiting_label": return "order.box.boxed";
     case "awaiting_3p_collection": return "order.box.label_uploaded";
     case "collected_by_3p": return "order.box.collected_by_3p";
+    case "delivered_by_3p": return "order.box.delivered_by_3p";
     default: return null;
   }
 }
+
 
 async function fireBoxWebhooks(orderId: string, specificEvent: string | null) {
   try {
