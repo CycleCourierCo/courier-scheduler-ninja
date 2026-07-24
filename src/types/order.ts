@@ -126,6 +126,7 @@ export type Order = {
   boxBoxedAt?: Date | null;
   boxLabelPrintedAt?: Date | null;
   boxCollectedBy3pAt?: Date | null;
+  boxDeliveredBy3pAt?: Date | null;
   collectionCode?: string;
   deliveryInstructions?: string;
   senderNotes?: string;
