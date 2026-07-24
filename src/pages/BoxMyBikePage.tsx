@@ -264,7 +264,7 @@ const BoxMyBikePage: React.FC = () => {
           )}
 
           {/* 3rd-party tracking link */}
-          {(stage === "boxed_awaiting_label" || stage === "awaiting_3p_collection" || stage === "collected_by_3p" || o.box_tracking_url) && (
+          {(stage === "boxed_awaiting_label" || stage === "awaiting_3p_collection" || stage === "collected_by_3p" || stage === "delivered_by_3p" || o.box_tracking_url) && (
             <TrackingUrlEditor
               order={o}
               canEdit={(isOwner || isStaff) && stage === "boxed_awaiting_label"}
