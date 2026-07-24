@@ -37,14 +37,16 @@ export type OrderStatus =
   | 'in_depot_awaiting_boxing'
   | 'boxed_awaiting_label'
   | 'awaiting_3p_collection'
-  | 'collected_by_3p';
+  | 'collected_by_3p'
+  | 'delivered_by_3p';
 
 export type BoxMyBikeStatus =
   | 'awaiting_depot'
   | 'in_depot_awaiting_boxing'
   | 'boxed_awaiting_label'
   | 'awaiting_3p_collection'
-  | 'collected_by_3p';
+  | 'collected_by_3p'
+  | 'delivered_by_3p';
 
 export const BOX_MY_BIKE_STATUS_ORDER: BoxMyBikeStatus[] = [
   'awaiting_depot',
@@ -52,6 +54,7 @@ export const BOX_MY_BIKE_STATUS_ORDER: BoxMyBikeStatus[] = [
   'boxed_awaiting_label',
   'awaiting_3p_collection',
   'collected_by_3p',
+  'delivered_by_3p',
 ];
 
 export const BOX_MY_BIKE_STATUS_LABELS: Record<BoxMyBikeStatus, string> = {
@@ -60,7 +63,9 @@ export const BOX_MY_BIKE_STATUS_LABELS: Record<BoxMyBikeStatus, string> = {
   boxed_awaiting_label: 'Boxed, awaiting label',
   awaiting_3p_collection: 'Awaiting 3rd-party collection',
   collected_by_3p: 'Collected by 3rd-party courier',
+  delivered_by_3p: 'Delivered by 3rd-party courier',
 };
+
 
 export type ShipdayUpdate = {
   status: string;
