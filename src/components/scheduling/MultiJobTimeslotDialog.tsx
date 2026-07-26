@@ -559,7 +559,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
             </DrawerFooter>
           </DrawerContent>
         </Drawer>
-        {bulkDialog}
       </>
     );
   }
@@ -587,7 +586,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {bulkDialog}
     </>
   );
 };
