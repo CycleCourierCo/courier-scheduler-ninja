@@ -6,6 +6,7 @@ export type InspectionStatus =
   | 'awaiting_parts'
   | 'awaiting_repair'
   | 'in_repair' // deprecated, kept for back-compat reads
+  | 'cleaning'
   | 'repaired';
 
 export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
