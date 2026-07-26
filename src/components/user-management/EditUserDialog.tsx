@@ -18,6 +18,7 @@ interface EditUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (userId: string, updates: Partial<UserProfile>) => Promise<void>;
+  roles?: UserRole[];
 }
 
 export const EditUserDialog: React.FC<EditUserDialogProps> = ({
@@ -25,6 +26,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   isOpen,
   onClose,
   onSave,
+  roles,
 }) => {
   const [formData, setFormData] = useState<Partial<UserProfile>>({});
   const [saving, setSaving] = useState(false);
