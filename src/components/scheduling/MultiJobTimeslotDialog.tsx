@@ -545,55 +545,70 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     return null;
   }
 
+  const bulkDialog = (
+    <BulkRouteMessageDialog
+      open={bulkMessageOpen}
+      onOpenChange={setBulkMessageOpen}
+      jobs={jobs as any}
+    />
+  );
+
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh] overflow-hidden">
-          <DrawerHeader className="text-left pb-2">
-            <DrawerTitle className="flex items-center gap-2 text-base">
-              <Navigation className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Route Timeslots</span>
-            </DrawerTitle>
-            <DrawerDescription className="text-xs">
-              {jobs.length} jobs ({collectionJobs.length} col, {deliveryJobs.length} del)
-            </DrawerDescription>
-          </DrawerHeader>
-          
-          <div className="overflow-y-auto overflow-x-hidden px-4 pb-2">
-            {content}
-          </div>
+      <>
+        <Drawer open={open} onOpenChange={onOpenChange}>
+          <DrawerContent className="max-h-[90vh] overflow-hidden">
+            <DrawerHeader className="text-left pb-2">
+              <DrawerTitle className="flex items-center gap-2 text-base">
+                <Navigation className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Route Timeslots</span>
+              </DrawerTitle>
+              <DrawerDescription className="text-xs">
+                {jobs.length} jobs ({collectionJobs.length} col, {deliveryJobs.length} del)
+              </DrawerDescription>
+            </DrawerHeader>
 
-          <DrawerFooter className="pt-2 px-4 pb-4">
-            {footer}
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            <div className="overflow-y-auto overflow-x-hidden px-4 pb-2">
+              {content}
+            </div>
+
+            <DrawerFooter className="pt-2 px-4 pb-4">
+              {footer}
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+        {bulkDialog}
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Navigation className="h-4 w-4" />
-            Optimized Route for {driverName}
-          </DialogTitle>
-          <DialogDescription>
-            {jobs.length} jobs ({collectionJobs.length} collections, {deliveryJobs.length} deliveries)
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="py-4">
-          {content}
-        </div>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Navigation className="h-4 w-4" />
+              Optimized Route for {driverName}
+            </DialogTitle>
+            <DialogDescription>
+              {jobs.length} jobs ({collectionJobs.length} collections, {deliveryJobs.length} deliveries)
+            </DialogDescription>
+          </DialogHeader>
 
-        <DialogFooter>
-          {footer}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <div className="py-4">
+            {content}
+          </div>
+
+          <DialogFooter>
+            {footer}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {bulkDialog}
+    </>
   );
 };
+
 
 export default MultiJobTimeslotDialog;
