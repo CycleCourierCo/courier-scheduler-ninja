@@ -3964,7 +3964,11 @@ Route Link: ${routeLink}`;
         jobs={selectedJobs}
         startTime={startTime}
         startingBikes={startingBikes}
+        existingRouteId={currentRouteId}
+        existingRouteName={currentRouteName}
         onSaved={(routeId, routeName) => {
+          setCurrentRouteId(routeId);
+          setCurrentRouteName(routeName);
           toast.success(`Route "${routeName}" saved (ID: ${routeId.substring(0, 8)}...)`);
         }}
       />
