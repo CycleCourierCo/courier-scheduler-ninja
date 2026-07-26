@@ -910,6 +910,7 @@ const BicycleInspections = () => {
                     <SelectItem value="issues_found">Issues Found</SelectItem>
                     <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
                     <SelectItem value="awaiting_repair">Awaiting Repair</SelectItem>
+                    <SelectItem value="cleaning">Cleaning</SelectItem>
                     <SelectItem value="inspected">Inspected</SelectItem>
                     <SelectItem value="repaired">Repaired</SelectItem>
                   </SelectContent>
