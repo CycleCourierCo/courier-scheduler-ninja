@@ -56,19 +56,26 @@ const triggerReceiverAvailabilityIfDeferred = async (inspectionId: string): Prom
 
     const needsInspection = (order as any).needs_inspection === true;
     const hasReceiverDates = Array.isArray((order as any).delivery_date) && (order as any).delivery_date.length > 0;
-    // Idempotency guard: only fire when we're still in the deferred state
-    // (sender confirmed but receiver flow hasn't started yet).
+    // Idempotency guard: only fire when this is an inspection order and the
+    // receiver hasn't picked dates yet. Do NOT gate on order.status — by the
+    // time inspection completes the order is usually further along (collected,
+    // at_depot, etc.) and gating here would suppress the email indefinitely.
     if (!needsInspection) return;
     if (hasReceiverDates) return;
-    if (!['sender_availability_confirmed', 'receiver_availability_pending'].includes((order as any).status)) return;
 
-    await supabase
-      .from('orders')
-      .update({
-        status: 'receiver_availability_pending',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', order.id);
+    // Only nudge status forward when we're still in the pre-receiver phase.
+    // For more-advanced statuses (collected, at_depot, ...), leave status alone
+    // so we don't move the order backwards.
+    const currentStatus = (order as any).status;
+    if (['sender_availability_confirmed', 'receiver_availability_pending'].includes(currentStatus)) {
+      await supabase
+        .from('orders')
+        .update({
+          status: 'receiver_availability_pending',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.id);
+    }
 
     const sent = await resendReceiverAvailabilityEmail(order.id);
     console.log('Post-inspection receiver availability email sent:', sent, 'for order:', order.id);
