@@ -1,49 +1,46 @@
-## Box My Bike – add "Delivered by 3rd-party courier" stage + tracking-link nudge
+## Problem
 
-### 1. New stage: `delivered_by_3p`
+For order `CCC754409051458PEEHP4`, the final repair was resolved and the inspection flipped to `repaired` on **2026-07-24 15:14**, but the receiver-availability email did not go out until **2026-07-26 12:35** (whatever nudged the order into an allowed status at that point). It should have gone at the moment of repair.
 
-Extend the Box My Bike workflow with a sixth and final stage after `collected_by_3p`.
+## Root cause
 
-**Database (single migration):**
-- `ALTER TYPE public.order_status ADD VALUE 'delivered_by_3p'` (after `collected_by_3p`). The `box_my_bike_status` column is plain `text`, so no enum change needed there.
-- Add column `orders.box_delivered_by_3p_at timestamptz`.
-- Extend `get_webhook_event_for_status(...)` to map `delivered_by_3p` → `order.box.delivered_by_3p`.
+`triggerReceiverAvailabilityIfDeferred` in `src/services/inspectionService.ts` (lines 41–78) short-circuits unless the order's status is one of:
 
-**Types & labels (`src/types/order.ts`):**
-- Add `'delivered_by_3p'` to both the box status union and `BOX_MY_BIKE_STATUS_ORDER`.
-- Label: "Delivered by 3rd-party courier".
-- Add the same value to the mirrored `order_status` union used in `orderService*`.
+```ts
+['sender_availability_confirmed', 'receiver_availability_pending']
+```
 
-**Page (`src/pages/BoxMyBikePage.tsx`):**
-- `stageTimestampColumn`: `delivered_by_3p → 'box_delivered_by_3p_at'`.
-- `stageWebhookEvent`: `delivered_by_3p → 'order.box.delivered_by_3p'`.
-- The Advance button already walks through `BOX_MY_BIKE_STATUS_ORDER`, so appending the new stage automatically enables advancing from `collected_by_3p` → `delivered_by_3p`. Staff tab list also picks it up automatically.
+By the time inspection actually completes, orders are almost always further along — the DB shows the vast majority of inspected/repaired/cleaning bikes sitting in `collected` (or `delivered`, `scheduled_dates_pending`, etc.). So every deferred handoff from `moveToRepaired` / `markAsInspected` / the cleaning auto-promote falls through the guard and no email is sent. The receiver only gets the email if some other action later happens to nudge status back through `sender_availability_confirmed` / `receiver_availability_pending`.
 
-**Public tracking timeline (`src/components/order-detail/TrackingTimeline.tsx` and `public._build_public_order_payload`):**
-- Surface a "Delivered by 3rd-party courier" milestone driven by `box_delivered_by_3p_at`, mirroring the existing box milestones.
+The other two guards in that function are already sufficient on their own:
+- `needs_inspection = true` (this handoff only exists for inspection orders)
+- `delivery_date` is empty / not-array (idempotency — receiver hasn't picked dates yet)
 
-**Peripheral references (kept in sync but no behaviour change):**
-- `src/components/StatusBadge.tsx` — add label/colour for the new status.
-- `src/components/webhooks/CreateWebhookDialog.tsx`, `docs/WEBHOOK_DOCUMENTATION.md`, `src/pages/ApiDocumentationPage.tsx` — list the new `order.box.delivered_by_3p` event.
-- `supabase/functions/trigger-webhook/index.ts` and `supabase/functions/orders/index.ts` — allow the new event/status through.
+## Fix
 
-### 2. Tracking-link nudge for the customer (not the Advance button)
+Drop the order-status allowlist in `triggerReceiverAvailabilityIfDeferred`. Keep the `needs_inspection` and "receiver hasn't picked dates" guards, which together already give correct idempotency and scope.
 
-Drop the Advance-button tooltip work. Instead, focus the reminder on the customer at the point they upload the label, so they add the tracking link at the same time.
+Also update the pre-send status write so we don't clobber a more-advanced status like `collected`:
 
-In `src/pages/BoxMyBikePage.tsx` / `TrackingUrlEditor`:
-- When `stage === 'boxed_awaiting_label'` and `box_tracking_url` is empty, show a clearly-visible required prompt above the URL input for the owner/staff: "Please paste the courier tracking link here — this must be added along with the label so your recipient can track the parcel."
-- Mark the input as required (asterisk on the "3rd-party tracking link" heading, subtle red border on the empty field).
-- No change to the Advance-button gating logic.
+- If current status is one of `sender_availability_confirmed` or `receiver_availability_pending`, set it to `receiver_availability_pending` (existing behaviour — just formalised).
+- Otherwise (`collected`, `at_depot`, etc.), leave the order status untouched and only send the email. The bike is physically further along than the availability step, so overwriting status backwards would be wrong.
 
-### Files touched
-- Migration (new).
-- `src/types/order.ts`
-- `src/pages/BoxMyBikePage.tsx`
-- `src/components/order-detail/TrackingTimeline.tsx`
-- `src/components/StatusBadge.tsx`
-- `src/components/webhooks/CreateWebhookDialog.tsx`
-- `src/services/orderService.ts`, `src/services/orderServiceUtils.ts` (union type only)
-- `supabase/functions/trigger-webhook/index.ts`
-- `supabase/functions/orders/index.ts`
-- `docs/WEBHOOK_DOCUMENTATION.md`, `src/pages/ApiDocumentationPage.tsx`
+### File to change
+
+`src/services/inspectionService.ts` — `triggerReceiverAvailabilityIfDeferred` (lines 41–78):
+
+1. Remove the `if (!['sender_availability_confirmed', 'receiver_availability_pending'].includes(order.status)) return;` line.
+2. Wrap the `orders.update({ status: 'receiver_availability_pending', ... })` call in a conditional that only runs when the current status is one of those two values; otherwise skip the status write entirely.
+3. Always call `resendReceiverAvailabilityEmail(order.id)` when `needs_inspection = true` and `delivery_date` is empty.
+
+No schema changes. No changes to `moveToRepaired`, `markAsInspected`, `setInspectionCleaningTask`, or `reconcileInspectionStatuses` — they already call the helper at the right moments; only the helper's gate is wrong.
+
+## Verification
+
+- Manually re-run the helper against a stuck order (query for `needs_inspection = true`, empty `delivery_date`, inspection.status in (`repaired`,`inspected`)) and confirm the email fires.
+- Check `email_delivery_events` afterwards for a fresh `receiver_availability` `sent` row.
+- Confirm idempotency: calling the helper twice in a row after the first send would still be gated by `hasReceiverDates` once the receiver submits, so we won't spam.
+
+## Optional follow-up (not in this change unless you want it)
+
+There are likely other orders currently stuck in the same way (repaired but no receiver email). A one-off backfill script could iterate them and call the helper. Say the word and I'll add it as a second step.
