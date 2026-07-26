@@ -534,13 +534,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     return null;
   }
 
-  const bulkDialog = (
-    <BulkRouteMessageDialog
-      open={bulkMessageOpen}
-      onOpenChange={setBulkMessageOpen}
-      jobs={jobs as any}
-    />
-  );
 
   if (isMobile) {
     return (
