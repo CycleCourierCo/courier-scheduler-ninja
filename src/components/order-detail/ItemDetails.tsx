@@ -195,9 +195,60 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
             <DialogTitle>Edit Bikes</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-1">
+              <Label htmlFor="bike-quantity">Number of Bikes</Label>
+              <Select
+                value={String(editBikes.length)}
+                onValueChange={(value) => {
+                  const target = Number(value);
+                  if (!target || target === editBikes.length) return;
+                  if (target < editBikes.length) {
+                    const trimmed = editBikes.slice(target);
+                    const hasData = trimmed.some((b) => b.brand || b.model || b.type || b.value);
+                    if (hasData && !window.confirm(`Remove ${trimmed.length} bike(s)? Their details will be lost.`)) {
+                      return;
+                    }
+                    setEditBikes(editBikes.slice(0, target));
+                  } else {
+                    const additions = Array.from({ length: target - editBikes.length }, () => ({
+                      brand: "",
+                      model: "",
+                      type: "",
+                    }));
+                    setEditBikes([...editBikes, ...additions]);
+                  }
+                }}
+              >
+                <SelectTrigger id="bike-quantity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} {n === 1 ? "bike" : "bikes"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {editBikes.map((b, idx) => (
               <div key={idx} className="border rounded-md p-3 space-y-2">
-                <div className="text-sm font-medium">Bike {idx + 1}{b.type ? ` — ${b.type}` : ""}</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Bike {idx + 1}{b.type ? ` — ${b.type}` : ""}</div>
+                  {editBikes.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const hasData = b.brand || b.model || b.type || b.value;
+                        if (hasData && !window.confirm("Remove this bike?")) return;
+                        setEditBikes(editBikes.filter((_, i) => i !== idx));
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor={`brand-${idx}`}>Brand</Label>
@@ -248,6 +299,15 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
                 </div>
               </div>
             ))}
+            {editBikes.length < 8 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditBikes([...editBikes, { brand: "", model: "", type: "" }])}
+              >
+                Add bike
+              </Button>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingBikes}>
@@ -259,6 +319,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };
