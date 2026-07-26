@@ -799,6 +799,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Save/Load route states
   const [showSaveRouteDialog, setShowSaveRouteDialog] = useState(false);
   const [showLoadRouteDialog, setShowLoadRouteDialog] = useState(false);
+  const [currentRouteId, setCurrentRouteId] = useState<string | null>(null);
+  const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
   
   // Filter states - use external state if provided, otherwise use internal state
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
