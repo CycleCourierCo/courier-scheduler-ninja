@@ -2887,6 +2887,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       } else {
         toast.error(`All ${failureCount} SendZen messages failed`);
       }
+
+      // Persist the route so it can be re-loaded later
+      if (successCount > 0) {
+        if (currentRouteId) {
+          await updateSavedRouteRow(currentRouteId);
+          toast.success(`Saved route "${currentRouteName ?? ''}" updated`);
+        } else {
+          toast.info('Name and save this route to keep it for next time');
+          setShowSaveRouteDialog(true);
+        }
+      }
     } catch (error) {
       console.error('Error in SendZen bulk send:', error);
       toast.error('Failed to send SendZen timeslots');
