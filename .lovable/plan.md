@@ -1,41 +1,57 @@
+
 ## Goal
+Add a **Bulk Message Customers** action inside the Get-Timeslots popup on the Route Builder, alongside the existing Flip Route / Send All (SendZen) controls, so admins can broadcast a custom SendZen WhatsApp message and/or email to the customers of the jobs currently in the popup — for delay/cancellation notifications.
 
-Make the Route Builder aware of whether the current route is already saved, so:
-1. Sending via SendZen persists the route (create if new, update if existing).
-2. The Save button becomes an Update button once a saved route is loaded, and actually updates instead of failing on the duplicate id.
+## Placement
+- Inside `MultiJobTimeslotDialog` (the Get-Timeslots popup), next to the **Flip Route** button.
+- Button label: **Bulk Message** (MessageSquare icon), variant `outline`.
+- Enabled whenever the popup has at least one job.
 
-## Changes
+## New component
+`src/components/scheduling/BulkRouteMessageDialog.tsx` — nested modal opened from the timeslot popup.
 
-### 1. Track the "current saved route" in `RouteBuilder.tsx`
-- Add state: `currentRouteId: string | null` and `currentRouteName: string | null`.
-- Set both in `handleLoadSavedRoute` (extend its signature to receive `id` and `name`).
-- Set both from `SaveRouteDialog`'s `onSaved` callback after a successful save.
-- Clear both in the existing "Clear route" / reset flows (whatever resets `selectedJobs` to empty — will reuse existing handlers).
+### Recipient list
+- One row per job in the popup (pickup and delivery rows shown separately), each with a checkbox.
+- **Pre-tick rule — only "active" jobs are ticked by default.** A job is treated as completed (unchecked, greyed out, small badge showing reason) when any of:
+  - `job.type === 'delivery'` and the order's `order_delivered === true`
+  - `job.type === 'pickup'` and the order's `order_collected === true`
+  - the order's Box My Bike status is `delivered_by_3p`
+- Completed jobs remain visible; the admin can re-tick them.
+- "Select all active" / "Select none" quick actions.
+- Send-time dedupe: after the user's ticks, dedupe by phone (WhatsApp) and by email (Email) independently so a customer with pickup + delivery doesn't get two identical messages. Header shows the count of unique WhatsApp and unique Email recipients.
 
-### 2. `SaveRouteDialog.tsx` — support update mode
-- New optional props: `existingRouteId?: string | null`, `existingRouteName?: string | null`.
-- When `existingRouteId` is set:
-  - Pre-fill the name field with `existingRouteName`.
-  - Show the existing id (read-only) instead of generating a new one.
-  - Title/button copy switches to "Update Saved Route" / "Update Route".
-  - `handleSave` performs `supabase.from('saved_routes').update({ name, job_data, start_time, starting_bikes }).eq('id', existingRouteId)` instead of insert.
-- Otherwise keep current insert behaviour.
-- `onSaved(routeId, routeName)` fires in both paths so RouteBuilder can update its state.
+### Channels
+- Two toggles: **Send WhatsApp** and **Send Email** (either or both; at least one required to send).
 
-### 3. `LoadRouteDialog.tsx` — pass id + name up
-- Extend `onLoadRoute` signature to `(jobs, startTime, startingBikes, routeId, routeName)` and call it accordingly in `handleLoadRoute`.
+### WhatsApp composer
+Tabs Plain Text / Template, mirroring `AnnouncementEmailsPage.tsx`:
+- Plain text: textarea with 4096-char limit.
+- Template: dropdown fed by `list-sendzen-templates`; per-parameter inputs.
+- Shared helpers extracted into `src/lib/sendzenTemplates.ts`, reused by both this dialog and the announcements page (no behaviour change to the page).
 
-### 4. SendZen "Send All" auto-save in `RouteBuilder.tsx`
-Inside `sendAllTimeslotsSendZen`, after the send loop completes successfully:
-- If `currentRouteId` exists: silently `update` the `saved_routes` row with the current `selectedJobs`, `startTime`, `startingBikes` (keeps saved copy fresh) and toast "Saved route updated".
-- If not: open the `SaveRouteDialog` (which is already wired to save). This surfaces a naming prompt rather than saving an unnamed row. Toast: "Route sent — please name and save it".
+### Email composer
+Subject + body (plain text). Server-side branded wrapper applied by `send-email`, matching the announcements page payload shape.
 
-Grouped-SendZen (`sendGroupedTimeslotsSendZen`) is per-location and doesn't represent a whole route, so it will not trigger a save — only the "Send All (SendZen)" path does. I'll confirm this matches the intent; if the user wants grouped sends to also save, we mirror the same logic there.
+### Sending
+- Reuse existing edge functions — no new ones:
+  - WhatsApp → `send-announcement-whatsapp` (already supports plain-text and template modes).
+  - Email → `send-email`.
+- Sequential loop with a small throttle to avoid SendZen rate limits.
+- Skip recipients without a phone (WhatsApp) or without an email (Email); count as "skipped".
+- Progress bars per channel; toast summary on completion: `WhatsApp: X sent / Y failed / Z skipped · Email: X sent / Y failed / Z skipped`.
+- Per-recipient errors logged to console; dialog stays open on partial failure so admin can retry.
+
+## Data source
+Uses the jobs already passed into `MultiJobTimeslotDialog`. `order_collected`, `order_delivered`, and Box My Bike status come from the same order snapshot the popup already has; missing field ⇒ treat as not completed.
+
+## Non-goals
+- No schema changes; no persisted message history.
+- No changes to the Flip Route or Send All (SendZen) behaviour.
+- No new edge functions.
+- No changes to the customer tracking page.
 
 ## Files touched
-
-- `src/components/scheduling/RouteBuilder.tsx` — state, wiring, SendZen post-send save/update.
-- `src/components/scheduling/SaveRouteDialog.tsx` — update-vs-insert mode + copy changes.
-- `src/components/scheduling/LoadRouteDialog.tsx` — pass id/name to callback.
-
-No database migrations required — `saved_routes` already has the id primary key and the update path uses it.
+- `src/components/scheduling/MultiJobTimeslotDialog.tsx` — add "Bulk Message" button next to Flip Route; wire dialog open/close.
+- `src/components/scheduling/BulkRouteMessageDialog.tsx` — new.
+- `src/lib/sendzenTemplates.ts` — new (extracted template helpers).
+- `src/pages/AnnouncementEmailsPage.tsx` — refactor to import shared helpers (behaviour unchanged).
