@@ -368,17 +368,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
               Flip Route
             </Button>
           )}
-          {jobs.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkMessageOpen(true)}
-              disabled={isLoading}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Bulk Message
-            </Button>
-          )}
         </div>
 
 
