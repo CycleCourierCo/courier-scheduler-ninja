@@ -4002,6 +4002,24 @@ Route Link: ${routeLink}`;
         orders={orderList}
         onLoadRoute={handleLoadSavedRoute}
       />
+
+      <BulkRouteMessageDialog
+        open={bulkMessageOpen}
+        onOpenChange={setBulkMessageOpen}
+        jobs={selectedJobs
+          .filter(j => j.type !== 'break')
+          .map(j => {
+            const order = orderList.find(o => o.id === j.orderId);
+            return {
+              orderId: j.orderId,
+              type: (j.type === 'pickup' ? 'collection' : 'delivery') as 'collection' | 'delivery',
+              contactName: j.contactName,
+              phoneNumber: j.phoneNumber,
+              address: j.address,
+              order,
+            };
+          })}
+      />
     </div>
   );
 };
