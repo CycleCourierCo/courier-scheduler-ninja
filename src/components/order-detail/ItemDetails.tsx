@@ -204,7 +204,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
                   if (!target || target === editBikes.length) return;
                   if (target < editBikes.length) {
                     const trimmed = editBikes.slice(target);
-                    const hasData = trimmed.some((b) => b.brand || b.model || b.type || b.value);
+                    const hasData = trimmed.some((b) => b.brand || b.model || b.type || (b as any).value);
                     if (hasData && !window.confirm(`Remove ${trimmed.length} bike(s)? Their details will be lost.`)) {
                       return;
                     }
