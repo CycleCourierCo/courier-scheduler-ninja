@@ -1,15 +1,25 @@
-# Driver tab hidden when driver is a secondary role
+# Fix timeslip driver lookup to respect multi-role users
 
 ## Root cause
-`EditUserDialog` gates the Driver tab on `user.role === 'driver'` (single primary role from `profiles.role`). Users with multiple roles in `user_roles` (e.g. loader + driver) have their primary `role` set to something else, so the check fails and the Driver tab never renders. `UserManagement` already loads the full roles set into `rolesByUser` but doesn't pass it to the dialog.
+`generate-timeslips` filters candidate drivers with `.eq('role', 'driver')` on `profiles`. Since the app moved to `user_roles`, users like Yaser whose primary `profiles.role` is `loader` (but who also have the `driver` role in `user_roles`) are filtered out and reported as "Driver not found". Yaser also has `shipday_driver_name = NULL`, so the shipday-name match can't rescue him either.
 
 ## Fix
 
-**`src/components/user-management/EditUserDialog.tsx`**
-- Add optional `roles?: UserRole[]` prop.
-- Compute `isDriver` as `(roles?.includes('driver')) || user.role === 'driver'` so it works whether the parent supplies multi-roles or not.
+**`supabase/functions/generate-timeslips/index.ts`** (driver lookup block, ~lines 161-194)
 
-**`src/pages/UserManagement.tsx`**
-- Pass `roles={editingUser ? getUserRoles(editingUser) : undefined}` to `<EditUserDialog />` so the multi-role set from `user_roles` drives the tab visibility.
+Replace both `.eq('role', 'driver')` filters with a `user_roles`-based restriction so anyone assigned the driver role qualifies, regardless of primary `profiles.role`:
 
-No schema, service, or backend changes. Only the Driver tab visibility logic is affected.
+1. Fetch the set of driver user_ids once, before the driver loop:
+   ```ts
+   const { data: driverRoleRows } = await supabaseClient
+     .from('user_roles')
+     .select('user_id')
+     .eq('role', 'driver');
+   const driverIds = (driverRoleRows ?? []).map(r => r.user_id);
+   ```
+2. Change the two profile lookups to use `.in('id', driverIds)` instead of `.eq('role', 'driver')`. Everything else (ilike on `shipday_driver_name`, ilike on `name`, fallback order) stays as-is.
+
+No schema change, no policy change, no other files affected.
+
+## Follow-up (data, not code)
+`shipday_driver_name` is NULL on Yaser's profile. After the fix he'll match by `name ILIKE '%Yas%'`, but for reliability the user should set his `shipday_driver_name` to the exact Shipday label ("Yas") in User Management. Not part of this code change.
