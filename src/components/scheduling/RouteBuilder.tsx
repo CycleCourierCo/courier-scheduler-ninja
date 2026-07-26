@@ -3526,8 +3526,19 @@ Route Link: ${routeLink}`;
                       <ArrowUpDown className="h-3 w-3 mr-1" />
                       Flip Route
                     </Button>
+                    <Button
+                      onClick={() => setBulkMessageOpen(true)}
+                      size="sm"
+                      variant="outline"
+                      disabled={selectedJobs.filter(j => j.type !== 'break').length === 0}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Bulk Message
+                    </Button>
                   </div>
                 </div>
+
 
                 {/* Route */}
                 <div className="space-y-2">
