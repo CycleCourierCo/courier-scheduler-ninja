@@ -123,7 +123,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   };
 
 
-  const isDriver = user.role === 'driver';
+  const isDriver = (roles?.includes('driver')) || user.role === 'driver';
   const isBusiness = user.is_business;
 
   return (
