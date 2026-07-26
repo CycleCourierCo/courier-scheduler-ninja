@@ -1,26 +1,26 @@
-## Problem
+# Edit bike quantity on an order
 
-The Bulk Message button was added to `MultiJobTimeslotDialog`, but the screenshots show the "Route Timeslots" drawer inside `RouteBuilder.tsx` (with Recalculate + Flip Route buttons and Send All / Send All (SendZen) at the bottom). That's a different component, so the button never appears where expected.
+Extend the existing admin "Edit Bikes" dialog on the order detail page so the number of bikes can be changed, not just each bike's brand/model/type.
 
-## Fix
+## UI changes — `src/components/order-detail/ItemDetails.tsx`
 
-Add a **Bulk Message** button in `src/components/scheduling/RouteBuilder.tsx` right next to the **Flip Route** button, in both places it renders:
-- Mobile drawer block (around line 3524)
-- Desktop block (around line 3713)
+- Add a "Number of Bikes" `Select` (1–8, matching the create-order form) at the top of the dialog body.
+- Changing quantity resizes `editBikes`:
+  - Increase: append empty rows `{ brand: "", model: "", type: "" }`.
+  - Decrease: truncate from the end (with a confirm if any trimmed rows have data, to avoid accidental loss).
+- Existing per-bike rows render from the resized array unchanged.
+- Add an "Add bike" button and per-row "Remove" button as a convenience (keeping min 1, max 8).
 
-Wire it to the existing `BulkRouteMessageDialog`, passing the current route's jobs (mapped into the shape the dialog expects: orderId, type, contactName, phoneNumber, address, order snapshot, plus the completion flags order_delivered / order_collected / box status so completed jobs render unticked).
+## Save path — `src/services/orderService.ts`
 
-Add local state `bulkMessageOpen` and render `<BulkRouteMessageDialog>` once inside the component. Button is disabled when there are no jobs in the builder.
+Update `updateOrderBikes` to also persist the new count:
 
-Leave the copy in `MultiJobTimeslotDialog` in place (harmless) or remove it — I'll remove it to avoid duplication.
+- Accept the bikes array as today (length is the new quantity).
+- In the `orders` update, also set `bike_quantity: bikes.length` alongside `bikes`, `bike_brand`, `bike_model`.
+- No signature change needed for callers — quantity is derived from array length.
 
-## Technical details
+## Out of scope
 
-- File: `src/components/scheduling/RouteBuilder.tsx`
-  - Import `BulkRouteMessageDialog` and `MessageSquare` icon.
-  - Add `const [bulkMessageOpen, setBulkMessageOpen] = useState(false);`
-  - After each Flip Route button, add a matching `<Button variant="outline" onClick={() => setBulkMessageOpen(true)}>` with `<MessageSquare />` + "Bulk Message".
-  - Render `<BulkRouteMessageDialog open={bulkMessageOpen} onOpenChange={setBulkMessageOpen} jobs={jobsForBulk} />` once at the end of the component's return.
-  - Build `jobsForBulk` from the current route stops list already used to render the drawer rows.
-- File: `src/components/scheduling/MultiJobTimeslotDialog.tsx`
-  - Remove the Bulk Message button + `BulkRouteMessageDialog` usage added earlier.
+- No changes to pricing, invoicing, Shipday, or scheduling flows. They already read `bike_quantity` / `bikes` from the order, so they will pick up the new value on next read.
+- No migration — `bike_quantity` column already exists.
+- Non-admin UI unchanged (button is admin-only today).

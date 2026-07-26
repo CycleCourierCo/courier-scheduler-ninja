@@ -294,6 +294,7 @@ export const updateOrderBikes = async (
       bikes: bikes as any,
       bike_brand: first.brand || null,
       bike_model: first.model || null,
+      bike_quantity: bikes.length,
     })
     .eq("id", id);
   if (error) {
