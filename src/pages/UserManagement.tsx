@@ -462,6 +462,7 @@ const UserManagement: React.FC = () => {
           isOpen={!!editingUser}
           onClose={() => setEditingUser(null)}
           onSave={handleEditUser}
+          roles={editingUser ? getUserRoles(editingUser) : undefined}
         />
 
         <ShipdayCarriersDialog
