@@ -799,6 +799,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Save/Load route states
   const [showSaveRouteDialog, setShowSaveRouteDialog] = useState(false);
   const [showLoadRouteDialog, setShowLoadRouteDialog] = useState(false);
+  const [currentRouteId, setCurrentRouteId] = useState<string | null>(null);
+  const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
   
   // Filter states - use external state if provided, otherwise use internal state
   const [internalFilterDate, setInternalFilterDate] = useState<Date | undefined>(undefined);
@@ -1345,11 +1347,46 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const handleLoadSavedRoute = (
     jobs: SelectedJob[], 
     loadedStartTime: string, 
-    loadedStartingBikes: number
+    loadedStartingBikes: number,
+    routeId?: string,
+    routeName?: string
   ) => {
     setSelectedJobs(jobs);
     setStartTime(loadedStartTime);
     setStartingBikes(loadedStartingBikes);
+    setCurrentRouteId(routeId ?? null);
+    setCurrentRouteName(routeName ?? null);
+  };
+
+  // Silently update saved_routes row for the currently loaded route
+  const updateSavedRouteRow = async (routeId: string) => {
+    try {
+      const jobData = selectedJobs.map(job => ({
+        orderId: job.orderId,
+        type: job.type,
+        address: job.address,
+        contactName: job.contactName,
+        phoneNumber: job.phoneNumber,
+        order: job.order,
+        estimatedTime: job.estimatedTime,
+        lat: job.lat,
+        lon: job.lon,
+        breakDuration: job.breakDuration,
+        breakType: job.breakType,
+      }));
+      const { error } = await supabase
+        .from('saved_routes')
+        .update({
+          job_data: jobData,
+          start_time: startTime,
+          starting_bikes: startingBikes,
+        })
+        .eq('id', routeId);
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Failed to update saved route:', err);
+      toast.warning(`Couldn't update saved route: ${err.message}`);
+    }
   };
 
   // Handle initial jobs from URL parameters
@@ -2850,6 +2887,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       } else {
         toast.error(`All ${failureCount} SendZen messages failed`);
       }
+
+      // Persist the route so it can be re-loaded later
+      if (successCount > 0) {
+        if (currentRouteId) {
+          await updateSavedRouteRow(currentRouteId);
+          toast.success(`Saved route "${currentRouteName ?? ''}" updated`);
+        } else {
+          toast.info('Name and save this route to keep it for next time');
+          setShowSaveRouteDialog(true);
+        }
+      }
     } catch (error) {
       console.error('Error in SendZen bulk send:', error);
       toast.error('Failed to send SendZen timeslots');
@@ -3916,7 +3964,11 @@ Route Link: ${routeLink}`;
         jobs={selectedJobs}
         startTime={startTime}
         startingBikes={startingBikes}
+        existingRouteId={currentRouteId}
+        existingRouteName={currentRouteName}
         onSaved={(routeId, routeName) => {
+          setCurrentRouteId(routeId);
+          setCurrentRouteName(routeName);
           toast.success(`Route "${routeName}" saved (ID: ${routeId.substring(0, 8)}...)`);
         }}
       />

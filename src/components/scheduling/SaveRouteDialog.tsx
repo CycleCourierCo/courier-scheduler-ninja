@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Save } from "lucide-react";
+import { Copy, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,6 +28,8 @@ interface SaveRouteDialogProps {
   jobs: SelectedJob[];
   startTime: string;
   startingBikes: number;
+  existingRouteId?: string | null;
+  existingRouteName?: string | null;
   onSaved: (routeId: string, routeName: string) => void;
 }
 
@@ -37,11 +39,22 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
   jobs,
   startTime,
   startingBikes,
+  existingRouteId,
+  existingRouteName,
   onSaved
 }) => {
-  const [routeName, setRouteName] = useState("");
+  const isUpdate = !!existingRouteId;
+  const [routeName, setRouteName] = useState(existingRouteName ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const [generatedId] = useState(() => crypto.randomUUID());
+  const [generatedId, setGeneratedId] = useState<string>(() => existingRouteId ?? crypto.randomUUID());
+
+  // Keep local state in sync when the dialog opens or the loaded route changes
+  useEffect(() => {
+    if (open) {
+      setRouteName(existingRouteName ?? "");
+      setGeneratedId(existingRouteId ?? crypto.randomUUID());
+    }
+  }, [open, existingRouteId, existingRouteName]);
 
   const handleSave = async () => {
     if (!routeName.trim()) {
@@ -51,7 +64,6 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
 
     setIsSaving(true);
     try {
-      // Prepare job data - strip out orderData to keep size small
       const jobData = jobs.map(job => ({
         orderId: job.orderId,
         type: job.type,
@@ -73,20 +85,37 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
         return;
       }
 
-      const { error } = await supabase
-        .from('saved_routes')
-        .insert({
-          id: generatedId,
-          name: routeName.trim(),
-          job_data: jobData,
-          start_time: startTime,
-          starting_bikes: startingBikes,
-          created_by: user.id
-        });
+      if (isUpdate && existingRouteId) {
+        const { error } = await supabase
+          .from('saved_routes')
+          .update({
+            name: routeName.trim(),
+            job_data: jobData,
+            start_time: startTime,
+            starting_bikes: startingBikes,
+          })
+          .eq('id', existingRouteId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      onSaved(generatedId, routeName.trim());
+        onSaved(existingRouteId, routeName.trim());
+      } else {
+        const { error } = await supabase
+          .from('saved_routes')
+          .insert({
+            id: generatedId,
+            name: routeName.trim(),
+            job_data: jobData,
+            start_time: startTime,
+            starting_bikes: startingBikes,
+            created_by: user.id
+          });
+
+        if (error) throw error;
+
+        onSaved(generatedId, routeName.trim());
+      }
+
       onOpenChange(false);
       setRouteName("");
     } catch (error: any) {
@@ -111,11 +140,13 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Save className="h-5 w-5" />
-            Save Route
+            {isUpdate ? <RefreshCw className="h-5 w-5" /> : <Save className="h-5 w-5" />}
+            {isUpdate ? "Update Saved Route" : "Save Route"}
           </DialogTitle>
           <DialogDescription>
-            Save this route configuration for later use
+            {isUpdate
+              ? "Update this saved route with the current jobs and settings"
+              : "Save this route configuration for later use"}
           </DialogDescription>
         </DialogHeader>
         
@@ -149,7 +180,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Auto-generated unique identifier
+              {isUpdate ? "Existing route identifier" : "Auto-generated unique identifier"}
             </p>
           </div>
           
@@ -171,7 +202,9 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isSaving || !routeName.trim()}>
-            {isSaving ? "Saving..." : "Save Route"}
+            {isSaving
+              ? (isUpdate ? "Updating..." : "Saving...")
+              : (isUpdate ? "Update Route" : "Save Route")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,46 +1,41 @@
-## Problem
+## Goal
 
-For order `CCC754409051458PEEHP4`, the final repair was resolved and the inspection flipped to `repaired` on **2026-07-24 15:14**, but the receiver-availability email did not go out until **2026-07-26 12:35** (whatever nudged the order into an allowed status at that point). It should have gone at the moment of repair.
+Make the Route Builder aware of whether the current route is already saved, so:
+1. Sending via SendZen persists the route (create if new, update if existing).
+2. The Save button becomes an Update button once a saved route is loaded, and actually updates instead of failing on the duplicate id.
 
-## Root cause
+## Changes
 
-`triggerReceiverAvailabilityIfDeferred` in `src/services/inspectionService.ts` (lines 41–78) short-circuits unless the order's status is one of:
+### 1. Track the "current saved route" in `RouteBuilder.tsx`
+- Add state: `currentRouteId: string | null` and `currentRouteName: string | null`.
+- Set both in `handleLoadSavedRoute` (extend its signature to receive `id` and `name`).
+- Set both from `SaveRouteDialog`'s `onSaved` callback after a successful save.
+- Clear both in the existing "Clear route" / reset flows (whatever resets `selectedJobs` to empty — will reuse existing handlers).
 
-```ts
-['sender_availability_confirmed', 'receiver_availability_pending']
-```
+### 2. `SaveRouteDialog.tsx` — support update mode
+- New optional props: `existingRouteId?: string | null`, `existingRouteName?: string | null`.
+- When `existingRouteId` is set:
+  - Pre-fill the name field with `existingRouteName`.
+  - Show the existing id (read-only) instead of generating a new one.
+  - Title/button copy switches to "Update Saved Route" / "Update Route".
+  - `handleSave` performs `supabase.from('saved_routes').update({ name, job_data, start_time, starting_bikes }).eq('id', existingRouteId)` instead of insert.
+- Otherwise keep current insert behaviour.
+- `onSaved(routeId, routeName)` fires in both paths so RouteBuilder can update its state.
 
-By the time inspection actually completes, orders are almost always further along — the DB shows the vast majority of inspected/repaired/cleaning bikes sitting in `collected` (or `delivered`, `scheduled_dates_pending`, etc.). So every deferred handoff from `moveToRepaired` / `markAsInspected` / the cleaning auto-promote falls through the guard and no email is sent. The receiver only gets the email if some other action later happens to nudge status back through `sender_availability_confirmed` / `receiver_availability_pending`.
+### 3. `LoadRouteDialog.tsx` — pass id + name up
+- Extend `onLoadRoute` signature to `(jobs, startTime, startingBikes, routeId, routeName)` and call it accordingly in `handleLoadRoute`.
 
-The other two guards in that function are already sufficient on their own:
-- `needs_inspection = true` (this handoff only exists for inspection orders)
-- `delivery_date` is empty / not-array (idempotency — receiver hasn't picked dates yet)
+### 4. SendZen "Send All" auto-save in `RouteBuilder.tsx`
+Inside `sendAllTimeslotsSendZen`, after the send loop completes successfully:
+- If `currentRouteId` exists: silently `update` the `saved_routes` row with the current `selectedJobs`, `startTime`, `startingBikes` (keeps saved copy fresh) and toast "Saved route updated".
+- If not: open the `SaveRouteDialog` (which is already wired to save). This surfaces a naming prompt rather than saving an unnamed row. Toast: "Route sent — please name and save it".
 
-## Fix
+Grouped-SendZen (`sendGroupedTimeslotsSendZen`) is per-location and doesn't represent a whole route, so it will not trigger a save — only the "Send All (SendZen)" path does. I'll confirm this matches the intent; if the user wants grouped sends to also save, we mirror the same logic there.
 
-Drop the order-status allowlist in `triggerReceiverAvailabilityIfDeferred`. Keep the `needs_inspection` and "receiver hasn't picked dates" guards, which together already give correct idempotency and scope.
+## Files touched
 
-Also update the pre-send status write so we don't clobber a more-advanced status like `collected`:
+- `src/components/scheduling/RouteBuilder.tsx` — state, wiring, SendZen post-send save/update.
+- `src/components/scheduling/SaveRouteDialog.tsx` — update-vs-insert mode + copy changes.
+- `src/components/scheduling/LoadRouteDialog.tsx` — pass id/name to callback.
 
-- If current status is one of `sender_availability_confirmed` or `receiver_availability_pending`, set it to `receiver_availability_pending` (existing behaviour — just formalised).
-- Otherwise (`collected`, `at_depot`, etc.), leave the order status untouched and only send the email. The bike is physically further along than the availability step, so overwriting status backwards would be wrong.
-
-### File to change
-
-`src/services/inspectionService.ts` — `triggerReceiverAvailabilityIfDeferred` (lines 41–78):
-
-1. Remove the `if (!['sender_availability_confirmed', 'receiver_availability_pending'].includes(order.status)) return;` line.
-2. Wrap the `orders.update({ status: 'receiver_availability_pending', ... })` call in a conditional that only runs when the current status is one of those two values; otherwise skip the status write entirely.
-3. Always call `resendReceiverAvailabilityEmail(order.id)` when `needs_inspection = true` and `delivery_date` is empty.
-
-No schema changes. No changes to `moveToRepaired`, `markAsInspected`, `setInspectionCleaningTask`, or `reconcileInspectionStatuses` — they already call the helper at the right moments; only the helper's gate is wrong.
-
-## Verification
-
-- Manually re-run the helper against a stuck order (query for `needs_inspection = true`, empty `delivery_date`, inspection.status in (`repaired`,`inspected`)) and confirm the email fires.
-- Check `email_delivery_events` afterwards for a fresh `receiver_availability` `sent` row.
-- Confirm idempotency: calling the helper twice in a row after the first send would still be gated by `hasReceiverDates` once the receiver submits, so we won't spam.
-
-## Optional follow-up (not in this change unless you want it)
-
-There are likely other orders currently stuck in the same way (repaired but no receiver email). A one-off backfill script could iterate them and call the helper. Say the word and I'll add it as a second step.
+No database migrations required — `saved_routes` already has the id primary key and the update path uses it.
