@@ -57,6 +57,7 @@ function stageTimestampColumn(s: BoxMyBikeStatus): string | null {
     case "boxed_awaiting_label": return "box_boxed_at";
     case "awaiting_3p_collection": return "box_label_printed_at";
     case "collected_by_3p": return "box_collected_by_3p_at";
+    case "delivered_by_3p": return "box_delivered_by_3p_at";
     default: return null;
   }
 }
@@ -67,9 +68,11 @@ function stageWebhookEvent(s: BoxMyBikeStatus): string | null {
     case "boxed_awaiting_label": return "order.box.boxed";
     case "awaiting_3p_collection": return "order.box.label_uploaded";
     case "collected_by_3p": return "order.box.collected_by_3p";
+    case "delivered_by_3p": return "order.box.delivered_by_3p";
     default: return null;
   }
 }
+
 
 async function fireBoxWebhooks(orderId: string, specificEvent: string | null) {
   try {
@@ -193,6 +196,7 @@ const BoxMyBikePage: React.FC = () => {
       boxed_awaiting_label: [],
       awaiting_3p_collection: [],
       collected_by_3p: [],
+      delivered_by_3p: [],
     };
     for (const o of orders) {
       const s = (o.box_my_bike_status || "awaiting_depot") as BoxMyBikeStatus;
@@ -260,7 +264,7 @@ const BoxMyBikePage: React.FC = () => {
           )}
 
           {/* 3rd-party tracking link */}
-          {(stage === "boxed_awaiting_label" || stage === "awaiting_3p_collection" || stage === "collected_by_3p" || o.box_tracking_url) && (
+          {(stage === "boxed_awaiting_label" || stage === "awaiting_3p_collection" || stage === "collected_by_3p" || stage === "delivered_by_3p" || o.box_tracking_url) && (
             <TrackingUrlEditor
               order={o}
               canEdit={(isOwner || isStaff) && stage === "boxed_awaiting_label"}
@@ -379,7 +383,15 @@ const TrackingUrlEditor: React.FC<{
 
   return (
     <div className="rounded-md border p-3 bg-muted/30 space-y-2">
-      <div className="text-sm font-medium">3rd-party tracking link</div>
+      <div className="text-sm font-medium">
+        3rd-party tracking link
+        {canEdit && !order.box_tracking_url && <span className="text-destructive"> *</span>}
+      </div>
+      {canEdit && !order.box_tracking_url && (
+        <div className="text-xs text-destructive">
+          Please paste the courier tracking link here — this must be added along with the label so your recipient can track the parcel.
+        </div>
+      )}
       {canEdit ? (
         <div className="flex items-center gap-2 flex-wrap">
           <input
@@ -388,7 +400,9 @@ const TrackingUrlEditor: React.FC<{
             placeholder="https://tracking.example.com/..."
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="flex-1 min-w-[220px] rounded-md border bg-background px-3 py-2 text-sm"
+            className={`flex-1 min-w-[220px] rounded-md border bg-background px-3 py-2 text-sm ${
+              !order.box_tracking_url ? "border-destructive" : ""
+            }`}
           />
           <Button size="sm" onClick={() => onSave(value.trim())} disabled={saving || !dirty}>
             Save

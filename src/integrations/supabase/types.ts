@@ -1655,6 +1655,7 @@ export type Database = {
           bikes: Json | null
           box_boxed_at: string | null
           box_collected_by_3p_at: string | null
+          box_delivered_by_3p_at: string | null
           box_in_depot_at: string | null
           box_label_printed_at: string | null
           box_label_uploaded_at: string | null
@@ -1719,6 +1720,7 @@ export type Database = {
           bikes?: Json | null
           box_boxed_at?: string | null
           box_collected_by_3p_at?: string | null
+          box_delivered_by_3p_at?: string | null
           box_in_depot_at?: string | null
           box_label_printed_at?: string | null
           box_label_uploaded_at?: string | null
@@ -1783,6 +1785,7 @@ export type Database = {
           bikes?: Json | null
           box_boxed_at?: string | null
           box_collected_by_3p_at?: string | null
+          box_delivered_by_3p_at?: string | null
           box_in_depot_at?: string | null
           box_label_printed_at?: string | null
           box_label_uploaded_at?: string | null
@@ -3689,6 +3692,7 @@ export type Database = {
         | "boxed_awaiting_label"
         | "awaiting_3p_collection"
         | "collected_by_3p"
+        | "delivered_by_3p"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -3896,6 +3900,7 @@ export const Constants = {
         "boxed_awaiting_label",
         "awaiting_3p_collection",
         "collected_by_3p",
+        "delivered_by_3p",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],

@@ -65,6 +65,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     boxBoxedAt: dbOrder.box_boxed_at ? parseDate(dbOrder.box_boxed_at) : null,
     boxLabelPrintedAt: dbOrder.box_label_printed_at ? parseDate(dbOrder.box_label_printed_at) : null,
     boxCollectedBy3pAt: dbOrder.box_collected_by_3p_at ? parseDate(dbOrder.box_collected_by_3p_at) : null,
+    boxDeliveredBy3pAt: dbOrder.box_delivered_by_3p_at ? parseDate(dbOrder.box_delivered_by_3p_at) : null,
   };
 
   // Add optional date fields only if they exist in the DB record
