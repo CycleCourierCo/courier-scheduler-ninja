@@ -23,6 +23,8 @@ import RouteComparisonDialog from './RouteComparisonDialog';
 import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
+import BulkRouteMessageDialog from './BulkRouteMessageDialog';
+import { MessageSquare } from 'lucide-react';
 import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -799,6 +801,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Save/Load route states
   const [showSaveRouteDialog, setShowSaveRouteDialog] = useState(false);
   const [showLoadRouteDialog, setShowLoadRouteDialog] = useState(false);
+  const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
   const [currentRouteId, setCurrentRouteId] = useState<string | null>(null);
   const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
   
@@ -3523,8 +3526,19 @@ Route Link: ${routeLink}`;
                       <ArrowUpDown className="h-3 w-3 mr-1" />
                       Flip Route
                     </Button>
+                    <Button
+                      onClick={() => setBulkMessageOpen(true)}
+                      size="sm"
+                      variant="outline"
+                      disabled={selectedJobs.filter(j => j.type !== 'break').length === 0}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Bulk Message
+                    </Button>
                   </div>
                 </div>
+
 
                 {/* Route */}
                 <div className="space-y-2">
@@ -3711,6 +3725,15 @@ Route Link: ${routeLink}`;
                   >
                     <ArrowUpDown className="h-4 w-4 mr-2" />
                     Flip Route
+                  </Button>
+                  <Button
+                    onClick={() => setBulkMessageOpen(true)}
+                    size="sm"
+                    variant="outline"
+                    disabled={selectedJobs.filter(j => j.type !== 'break').length === 0}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Bulk Message
                   </Button>
                 </div>
               </div>
@@ -3978,6 +4001,24 @@ Route Link: ${routeLink}`;
         onOpenChange={setShowLoadRouteDialog}
         orders={orderList}
         onLoadRoute={handleLoadSavedRoute}
+      />
+
+      <BulkRouteMessageDialog
+        open={bulkMessageOpen}
+        onOpenChange={setBulkMessageOpen}
+        jobs={selectedJobs
+          .filter(j => j.type !== 'break')
+          .map(j => {
+            const order = orderList.find(o => o.id === j.orderId);
+            return {
+              orderId: j.orderId,
+              type: (j.type === 'pickup' ? 'collection' : 'delivery') as 'collection' | 'delivery',
+              contactName: j.contactName,
+              phoneNumber: j.phoneNumber,
+              address: j.address,
+              order,
+            };
+          })}
       />
     </div>
   );

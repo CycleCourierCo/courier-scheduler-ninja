@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Calendar as CalendarIcon, Navigation, Package, PackageX, ArrowUpDown, MessageSquare } from "lucide-react";
-import BulkRouteMessageDialog from "./BulkRouteMessageDialog";
+import { Calendar as CalendarIcon, Navigation, Package, PackageX, ArrowUpDown } from "lucide-react";
+
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -53,7 +53,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
-  const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
+
 
 
   const getAvailabilityBadge = (
@@ -368,17 +368,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
               Flip Route
             </Button>
           )}
-          {jobs.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkMessageOpen(true)}
-              disabled={isLoading}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Bulk Message
-            </Button>
-          )}
         </div>
 
 
@@ -545,13 +534,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
     return null;
   }
 
-  const bulkDialog = (
-    <BulkRouteMessageDialog
-      open={bulkMessageOpen}
-      onOpenChange={setBulkMessageOpen}
-      jobs={jobs as any}
-    />
-  );
 
   if (isMobile) {
     return (
@@ -577,7 +559,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
             </DrawerFooter>
           </DrawerContent>
         </Drawer>
-        {bulkDialog}
       </>
     );
   }
@@ -605,7 +586,6 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {bulkDialog}
     </>
   );
 };
