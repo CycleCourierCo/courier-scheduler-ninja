@@ -240,7 +240,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        const hasData = b.brand || b.model || b.type || b.value;
+                        const hasData = b.brand || b.model || b.type || (b as any).value;
                         if (hasData && !window.confirm("Remove this bike?")) return;
                         setEditBikes(editBikes.filter((_, i) => i !== idx));
                       }}
