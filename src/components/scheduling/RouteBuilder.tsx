@@ -3726,6 +3726,15 @@ Route Link: ${routeLink}`;
                     <ArrowUpDown className="h-4 w-4 mr-2" />
                     Flip Route
                   </Button>
+                  <Button
+                    onClick={() => setBulkMessageOpen(true)}
+                    size="sm"
+                    variant="outline"
+                    disabled={selectedJobs.filter(j => j.type !== 'break').length === 0}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Bulk Message
+                  </Button>
                 </div>
               </div>
 
