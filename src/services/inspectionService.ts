@@ -825,18 +825,31 @@ export const markIssueRepaired = async (
   }
 };
 
-// Move to "Repaired" status
+// Move to "Repaired" status — or to the internal 'cleaning' stage if cleaning
+// tasks aren't done yet. Cleaning stage is invisible on customer tracking and
+// auto-promotes to 'repaired' when both cleaning tasks are ticked.
 export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspection | null> => {
   try {
+    const { data: current } = await supabase
+      .from('bicycle_inspections')
+      .select('frame_cleaned_at, drivetrain_degreased_at')
+      .eq('id', inspectionId)
+      .maybeSingle();
+    const cleaningDone =
+      !!(current as any)?.frame_cleaned_at && !!(current as any)?.drivetrain_degreased_at;
+    const nextStatus: InspectionStatus = cleaningDone ? 'repaired' : 'cleaning';
+
     const { data, error } = await supabase
       .from('bicycle_inspections')
-      .update({ status: 'repaired' as InspectionStatus })
+      .update({ status: nextStatus })
       .eq('id', inspectionId)
       .select()
       .single();
 
     if (error) throw error;
-    await triggerReceiverAvailabilityIfDeferred(inspectionId);
+    if (nextStatus === 'repaired') {
+      await triggerReceiverAvailabilityIfDeferred(inspectionId);
+    }
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error moving to repaired:', error);
