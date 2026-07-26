@@ -53,7 +53,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
-  const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
+
 
 
   const getAvailabilityBadge = (
