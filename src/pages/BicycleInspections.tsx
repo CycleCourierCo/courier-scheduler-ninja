@@ -733,6 +733,8 @@ const BicycleInspections = () => {
       case "awaiting_repair":
       case "in_repair":
         return { variant: "warning" as const, label: "Awaiting Repair" };
+      case "cleaning":
+        return { variant: "warning" as const, label: "Cleaning" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
       default:
