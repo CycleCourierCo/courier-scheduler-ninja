@@ -116,7 +116,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
       toast.warning(`${staleCount} job(s) in this route are no longer available`);
     }
 
-    onLoadRoute(loadedJobs, route.start_time, route.starting_bikes);
+    onLoadRoute(loadedJobs, route.start_time, route.starting_bikes, route.id, route.name);
     onOpenChange(false);
     toast.success(`Route "${route.name}" loaded successfully`);
   };
