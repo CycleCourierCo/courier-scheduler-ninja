@@ -1072,8 +1072,38 @@ export const setInspectionCleaningTask = async (
     .from('bicycle_inspections')
     .update(patch)
     .eq('id', inspectionId)
-    .select()
+    .select('*, inspection_issues(status)')
     .single();
   if (error) throw error;
+
+  // Auto-promote from the internal 'cleaning' stage once both cleaning tasks
+  // are done. Pick the terminal status based on whether there were any
+  // approved issues (repaired) vs the no-issues path (inspected).
+  const row: any = data;
+  const bothClean = !!row?.frame_cleaned_at && !!row?.drivetrain_degreased_at;
+  if (row?.status === 'cleaning' && bothClean) {
+    const issues: any[] = row.inspection_issues || [];
+    const hadApproved = issues.some((i) =>
+      ['approved', 'resolved', 'repaired'].includes(i.status)
+    );
+    const finalStatus: InspectionStatus = hadApproved ? 'repaired' : 'inspected';
+    const finalPatch: any = { status: finalStatus };
+    if (!hadApproved) {
+      const nowIso = new Date().toISOString();
+      finalPatch.released_to_customer_at = nowIso;
+      finalPatch.released_by_id = userId;
+      finalPatch.released_by_name = userName;
+    }
+    const { data: promoted, error: pErr } = await supabase
+      .from('bicycle_inspections')
+      .update(finalPatch)
+      .eq('id', inspectionId)
+      .select()
+      .single();
+    if (pErr) throw pErr;
+    await triggerReceiverAvailabilityIfDeferred(inspectionId);
+    return promoted as BicycleInspection;
+  }
+
   return data as BicycleInspection;
 };
