@@ -147,6 +147,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📋 Unique drivers found: ${driverJobsMap.size}`);
 
+    // Fetch all user_ids that have the 'driver' role (may be a secondary role)
+    const { data: driverRoleRows, error: driverRolesError } = await supabaseClient
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'driver');
+    if (driverRolesError) {
+      console.warn(`⚠️ Error loading driver user_roles: ${driverRolesError.message}`);
+    }
+    const driverIds = (driverRoleRows ?? []).map((r: { user_id: string }) => r.user_id);
+    console.log(`👥 Users with driver role: ${driverIds.length}`);
+
     const createdTimeslips = [];
     const warnings: string[] = [];
     const depotCoords = "52.4707965,-1.8749747"; // Depot coordinates
@@ -160,13 +171,13 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Look up driver by shipday_driver_name first, then by name
       let driver = null;
-      
-      // Try shipday_driver_name match
+
+      // Try shipday_driver_name match (restricted to users with the driver role)
       const { data: driverByShipdayName, error: shipdayNameError } = await supabaseClient
         .from('profiles')
         .select('*')
         .ilike('shipday_driver_name', `%${driverName}%`)
-        .eq('role', 'driver')
+        .in('id', driverIds)
         .limit(1);
 
       if (shipdayNameError) {
@@ -176,13 +187,13 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`  ✅ Found driver by shipday_driver_name: ${driver.name} (ID: ${driver.id.substring(0, 8)}...)`);
       }
 
-      // Fallback: try name match
+      // Fallback: try name match (restricted to users with the driver role)
       if (!driver) {
         const { data: driverByName, error: nameError } = await supabaseClient
           .from('profiles')
           .select('*')
           .ilike('name', `%${driverName}%`)
-          .eq('role', 'driver')
+          .in('id', driverIds)
           .limit(1);
 
         if (nameError) {
@@ -192,6 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.log(`  ✅ Found driver by name: ${driver.name} (ID: ${driver.id.substring(0, 8)}...)`);
         }
       }
+
 
       if (!driver) {
         const warning = `Driver not found in database: ${driverName}`;
