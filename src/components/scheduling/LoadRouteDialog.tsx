@@ -54,7 +54,7 @@ interface LoadRouteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orders: OrderData[];
-  onLoadRoute: (jobs: LoadedJob[], startTime: string, startingBikes: number) => void;
+  onLoadRoute: (jobs: LoadedJob[], startTime: string, startingBikes: number, routeId?: string, routeName?: string) => void;
 }
 
 const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
