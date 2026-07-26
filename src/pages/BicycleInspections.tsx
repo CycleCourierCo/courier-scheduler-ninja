@@ -733,6 +733,8 @@ const BicycleInspections = () => {
       case "awaiting_repair":
       case "in_repair":
         return { variant: "warning" as const, label: "Awaiting Repair" };
+      case "cleaning":
+        return { variant: "warning" as const, label: "Cleaning" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
       default:
@@ -780,7 +782,7 @@ const BicycleInspections = () => {
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
-  const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair");
+  const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
   const inspectedAndServiced = filteredInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
 
   const renderInspectionCard = (order: any) => {
@@ -796,7 +798,7 @@ const BicycleInspections = () => {
     const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
-    const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair";
+    const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
@@ -908,6 +910,7 @@ const BicycleInspections = () => {
                     <SelectItem value="issues_found">Issues Found</SelectItem>
                     <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
                     <SelectItem value="awaiting_repair">Awaiting Repair</SelectItem>
+                    <SelectItem value="cleaning">Cleaning</SelectItem>
                     <SelectItem value="inspected">Inspected</SelectItem>
                     <SelectItem value="repaired">Repaired</SelectItem>
                   </SelectContent>

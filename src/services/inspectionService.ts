@@ -353,7 +353,9 @@ export const getMyInspections = async (userId: string) => {
   }
 };
 
-// Mark bike as inspected (no issues path)
+// Mark bike as inspected (no issues path). If cleaning tasks aren't finished,
+// the row goes to the internal 'cleaning' stage instead — invisible on customer
+// tracking; auto-promotes to 'inspected' once cleaning is completed.
 export const markAsInspected = async (
   orderId: string,
   inspectorId: string,
@@ -365,28 +367,38 @@ export const markAsInspected = async (
     if (!inspection) throw new Error('Failed to get or create inspection');
 
     const now = new Date().toISOString();
-    // No issues → release straight to customer (no admin pricing step needed)
+    const cleaningDone =
+      !!(inspection as any).frame_cleaned_at && !!(inspection as any).drivetrain_degreased_at;
+
+    const patch: any = {
+      inspected_at: now,
+      inspected_by_id: inspectorId,
+      inspected_by_name: inspectorName,
+      notes: notes || null,
+    };
+    if (cleaningDone) {
+      patch.status = 'inspected' as InspectionStatus;
+      patch.released_to_customer_at = now;
+      patch.released_by_id = inspectorId;
+      patch.released_by_name = inspectorName;
+    } else {
+      patch.status = 'cleaning' as InspectionStatus;
+    }
+
     const { data, error } = await supabase
       .from('bicycle_inspections')
-      .update({
-        status: 'inspected' as InspectionStatus,
-        inspected_at: now,
-        inspected_by_id: inspectorId,
-        inspected_by_name: inspectorName,
-        released_to_customer_at: now,
-        released_by_id: inspectorId,
-        released_by_name: inspectorName,
-        notes: notes || null,
-      })
+      .update(patch)
       .eq('id', inspection.id)
       .select()
       .single();
 
     if (error) throw error;
 
-    // No-issues path completes the inspection; trigger any deferred receiver
-    // availability email now (mirrors the 'repaired' transition handler).
-    await triggerReceiverAvailabilityIfDeferred(inspection.id);
+    if (cleaningDone) {
+      // No-issues + clean path completes the inspection; trigger any deferred
+      // receiver availability email now.
+      await triggerReceiverAvailabilityIfDeferred(inspection.id);
+    }
 
     return data as BicycleInspection;
   } catch (error) {
@@ -813,18 +825,31 @@ export const markIssueRepaired = async (
   }
 };
 
-// Move to "Repaired" status
+// Move to "Repaired" status — or to the internal 'cleaning' stage if cleaning
+// tasks aren't done yet. Cleaning stage is invisible on customer tracking and
+// auto-promotes to 'repaired' when both cleaning tasks are ticked.
 export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspection | null> => {
   try {
+    const { data: current } = await supabase
+      .from('bicycle_inspections')
+      .select('frame_cleaned_at, drivetrain_degreased_at')
+      .eq('id', inspectionId)
+      .maybeSingle();
+    const cleaningDone =
+      !!(current as any)?.frame_cleaned_at && !!(current as any)?.drivetrain_degreased_at;
+    const nextStatus: InspectionStatus = cleaningDone ? 'repaired' : 'cleaning';
+
     const { data, error } = await supabase
       .from('bicycle_inspections')
-      .update({ status: 'repaired' as InspectionStatus })
+      .update({ status: nextStatus })
       .eq('id', inspectionId)
       .select()
       .single();
 
     if (error) throw error;
-    await triggerReceiverAvailabilityIfDeferred(inspectionId);
+    if (nextStatus === 'repaired') {
+      await triggerReceiverAvailabilityIfDeferred(inspectionId);
+    }
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error moving to repaired:', error);
@@ -1047,8 +1072,38 @@ export const setInspectionCleaningTask = async (
     .from('bicycle_inspections')
     .update(patch)
     .eq('id', inspectionId)
-    .select()
+    .select('*, inspection_issues(status)')
     .single();
   if (error) throw error;
+
+  // Auto-promote from the internal 'cleaning' stage once both cleaning tasks
+  // are done. Pick the terminal status based on whether there were any
+  // approved issues (repaired) vs the no-issues path (inspected).
+  const row: any = data;
+  const bothClean = !!row?.frame_cleaned_at && !!row?.drivetrain_degreased_at;
+  if (row?.status === 'cleaning' && bothClean) {
+    const issues: any[] = row.inspection_issues || [];
+    const hadApproved = issues.some((i) =>
+      ['approved', 'resolved', 'repaired'].includes(i.status)
+    );
+    const finalStatus: InspectionStatus = hadApproved ? 'repaired' : 'inspected';
+    const finalPatch: any = { status: finalStatus };
+    if (!hadApproved) {
+      const nowIso = new Date().toISOString();
+      finalPatch.released_to_customer_at = nowIso;
+      finalPatch.released_by_id = userId;
+      finalPatch.released_by_name = userName;
+    }
+    const { data: promoted, error: pErr } = await supabase
+      .from('bicycle_inspections')
+      .update(finalPatch)
+      .eq('id', inspectionId)
+      .select()
+      .single();
+    if (pErr) throw pErr;
+    await triggerReceiverAvailabilityIfDeferred(inspectionId);
+    return promoted as BicycleInspection;
+  }
+
   return data as BicycleInspection;
 };
