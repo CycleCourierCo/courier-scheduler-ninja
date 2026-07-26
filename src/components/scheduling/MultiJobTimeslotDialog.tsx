@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Calendar as CalendarIcon, Navigation, Package, PackageX, ArrowUpDown } from "lucide-react";
+import { Calendar as CalendarIcon, Navigation, Package, PackageX, ArrowUpDown, MessageSquare } from "lucide-react";
+import BulkRouteMessageDialog from "./BulkRouteMessageDialog";
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,8 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
+  const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
+
 
   const getAvailabilityBadge = (
     jobType: 'collection' | 'delivery',
@@ -351,19 +355,32 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
           </div>
         )}
 
-        {/* Flip Route */}
-        {optimizedJobs.length >= 2 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleFlipRoute}
-            disabled={isOptimizing || !selectedDate}
-            className="w-full sm:w-auto"
-          >
-            <ArrowUpDown className="h-4 w-4 mr-2" />
-            Flip Route
-          </Button>
-        )}
+        {/* Route actions */}
+        <div className="flex flex-wrap gap-2">
+          {optimizedJobs.length >= 2 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleFlipRoute}
+              disabled={isOptimizing || !selectedDate}
+            >
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              Flip Route
+            </Button>
+          )}
+          {jobs.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkMessageOpen(true)}
+              disabled={isLoading}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Bulk Message
+            </Button>
+          )}
+        </div>
+
 
 
 
