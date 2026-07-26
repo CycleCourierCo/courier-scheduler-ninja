@@ -353,7 +353,9 @@ export const getMyInspections = async (userId: string) => {
   }
 };
 
-// Mark bike as inspected (no issues path)
+// Mark bike as inspected (no issues path). If cleaning tasks aren't finished,
+// the row goes to the internal 'cleaning' stage instead — invisible on customer
+// tracking; auto-promotes to 'inspected' once cleaning is completed.
 export const markAsInspected = async (
   orderId: string,
   inspectorId: string,
@@ -365,28 +367,38 @@ export const markAsInspected = async (
     if (!inspection) throw new Error('Failed to get or create inspection');
 
     const now = new Date().toISOString();
-    // No issues → release straight to customer (no admin pricing step needed)
+    const cleaningDone =
+      !!(inspection as any).frame_cleaned_at && !!(inspection as any).drivetrain_degreased_at;
+
+    const patch: any = {
+      inspected_at: now,
+      inspected_by_id: inspectorId,
+      inspected_by_name: inspectorName,
+      notes: notes || null,
+    };
+    if (cleaningDone) {
+      patch.status = 'inspected' as InspectionStatus;
+      patch.released_to_customer_at = now;
+      patch.released_by_id = inspectorId;
+      patch.released_by_name = inspectorName;
+    } else {
+      patch.status = 'cleaning' as InspectionStatus;
+    }
+
     const { data, error } = await supabase
       .from('bicycle_inspections')
-      .update({
-        status: 'inspected' as InspectionStatus,
-        inspected_at: now,
-        inspected_by_id: inspectorId,
-        inspected_by_name: inspectorName,
-        released_to_customer_at: now,
-        released_by_id: inspectorId,
-        released_by_name: inspectorName,
-        notes: notes || null,
-      })
+      .update(patch)
       .eq('id', inspection.id)
       .select()
       .single();
 
     if (error) throw error;
 
-    // No-issues path completes the inspection; trigger any deferred receiver
-    // availability email now (mirrors the 'repaired' transition handler).
-    await triggerReceiverAvailabilityIfDeferred(inspection.id);
+    if (cleaningDone) {
+      // No-issues + clean path completes the inspection; trigger any deferred
+      // receiver availability email now.
+      await triggerReceiverAvailabilityIfDeferred(inspection.id);
+    }
 
     return data as BicycleInspection;
   } catch (error) {
