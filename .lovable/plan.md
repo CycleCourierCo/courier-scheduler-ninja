@@ -1,21 +1,25 @@
 ## Goal
-Show where each bike is stored in the depot (bay + position) on the Box My Bike and Foam My Bike boards.
+Make Northern Ireland orders created through the public API (and Shopify, which posts to the same endpoint) behave exactly like NI orders created in the web UI — detected automatically from the receiver address, with nothing extra required from the caller.
 
-## Current state
-- Depot allocations live in the `orders.storage_locations` JSONB column, an array of `{ bay, position, bikeBrand, bikeModel, customerName, allocatedAt, bikeIndex }` (written by `src/components/order-detail/StorageLocation.tsx` and `src/pages/LoadingUnloadingPage.tsx`).
-- Neither `src/pages/BoxMyBikePage.tsx` (select at line 105) nor `src/components/boxmybike/FoamMyBikeSection.tsx` (select at line 105) fetch or display it.
+## Current gap (verified)
+- `supabase/functions/orders/index.ts` — the POST insert payload (~lines 276-306) contains no `is_northern_ireland` and no `foam_status`, and the function never imports `_shared/northernIreland.ts`.
+- `src/services/orderService.ts:400,454-457` — the web UI does set `is_northern_ireland` plus `foam_status: 'pending_collection'` and `foam_pending_collection_at` at creation.
+- `supabase/functions/shopify-webhook/index.ts:368` creates orders by calling the same `orders` API function, so it inherits the gap.
+- Fallbacks that already work without the flag: `create-shipday-order/index.ts:160-171` (ferry routing) and `create-quickbooks-invoice/index.ts:580-582` (£120 surcharge) both re-detect NI from the receiver address.
+- Fallbacks that do NOT exist: `shipday-webhook/index.ts:133` and `reconcile-shipday-orders/index.ts:257` read `is_northern_ireland` directly, so an API-created NI order would be marked plain "delivered" instead of "delivered to ferry", and the Foam My Bike board (`FoamMyBikeSection.tsx:108` filters `is_northern_ireland = true`) would never show it.
 
 ## Changes
 
-1. **`src/pages/BoxMyBikePage.tsx`**
-   - Add `storage_locations` to the `select()` list and to the `BoxOrder` interface (typed as a loose array).
-   - In `renderCard`, next to the existing stage badge, render a location badge per allocation: e.g. `📍 A12` (and `A12, A13` when a multi-bike order occupies several slots). Show `📍 Not allocated` (muted/outline badge) when there are no allocations.
+1. **`supabase/functions/orders/index.ts`** — import `isNorthernIrelandAddress` from `../_shared/northernIreland.ts` and run it against the receiver address/region on every create. Add to the insert payload:
+   - `is_northern_ireland`
+   - `foam_status: 'pending_collection'` and `foam_pending_collection_at` when NI, otherwise null
 
-2. **`src/components/boxmybike/FoamMyBikeSection.tsx`**
-   - Same: add `storage_locations` to the `select()` and `FoamOrder`, render the same badge in `renderCard`'s header/detail block.
+   Detection is fully automatic from the receiver address — no new request field, nothing for API or Shopify callers to send. Same logic as the web UI so both paths produce identical rows.
 
-3. **Shared helper** — add a tiny formatter (e.g. `src/utils/storageLocation.ts`) that parses `storage_locations` (handling `null`, string-encoded JSON, and array forms) and returns a sorted list of `"A12"`-style labels, used by both cards so the display stays consistent.
+2. **`supabase/functions/shipday-webhook/index.ts`** — add the same receiver-address fallback the other functions use, so a completed delivery leg is treated as the ferry leg when either the flag is true or the address resolves to NI. Same for `reconcile-shipday-orders/index.ts`.
+
+3. **Backfill** — one-off data update setting `is_northern_ireland` and initialising `foam_status` for existing non-cancelled, non-delivered orders whose receiver postcode is NI but whose flag is false/null, so anything already booked via API/Shopify lands on the Foam board.
 
 ## Notes
-- Read-only display; no changes to how allocations are created or cleared.
-- Existing behaviour where third-party collection clears `storage_locations` stays as is, so those cards will simply show "Not allocated".
+- Detection uses the existing shared helper (BT-postcode / region match), so behaviour matches the web UI exactly.
+- No changes to pricing or Shipday routing behaviour; those already handle NI correctly via fallback.
