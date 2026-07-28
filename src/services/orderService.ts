@@ -387,6 +387,16 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
     const trackingNumber = await generateTrackingNumber(sender.name, receiver.address.zipCode);
 
+    // Classify the delivery destination (England / Scotland / Wales / Northern Ireland)
+    const receiverRegionInput = {
+      region: (receiver.address as any).region,
+      state: receiverState,
+      zipCode: receiverZipCode,
+      country: receiverCountry,
+    };
+    const destinationRegion = resolveRegion(receiverRegionInput);
+    const isNorthernIreland = isNorthernIrelandAddress(receiverRegionInput);
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
@@ -401,6 +411,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             state: senderState,
             zipCode: senderZipCode,
             country: senderCountry,
+            region: (sender.address as any).region || null,
             lat: finalSenderLat,
             lon: finalSenderLon,
           },
@@ -415,10 +426,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             state: receiverState,
             zipCode: receiverZipCode,
             country: receiverCountry,
+            region: (receiver.address as any).region || null,
             lat: finalReceiverLat,
             lon: finalReceiverLon,
           },
         },
+
         bike_brand: bikeBrand || bikes?.[0]?.brand,
         bike_model: bikeModel || bikes?.[0]?.model,
         bike_type: bikeType || bikes?.[0]?.type,
