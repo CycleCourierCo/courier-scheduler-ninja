@@ -188,7 +188,15 @@ const serve_handler = async (req: Request): Promise<Response> => {
     }
 
     // Contact + scheduled date for PRIMARY message (still based on recipientType)
-    const contact = recipientType === "sender" ? order.sender : order.receiver;
+    // Northern Ireland: the delivery leg goes to the ferry hand-off, so the
+    // timeslot must go to the hand-off contact, not the NI customer.
+    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
+    const contact = recipientType === "sender"
+      ? order.sender
+      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
+    if (primaryIsNiDelivery) {
+      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+    }
     const scheduledDateForMessage =
       recipientType === "sender"
         ? order.scheduled_pickup_date
