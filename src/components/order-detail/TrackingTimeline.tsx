@@ -94,19 +94,19 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     // Add confirmation events with their original timestamps
     if (order.senderConfirmedAt) {
       events.push({
-        title: "Collection Dates Chosen",
+        title: "Collection Availability Received",
         date: order.senderConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
-        description: "Collection dates have been confirmed"
+        description: "Thank you. You've submitted your preferred collection dates. We'll confirm your actual collection date shortly."
       });
     }
     
     if (order.receiverConfirmedAt) {
       events.push({
-        title: "Delivery Dates Chosen",
+        title: "Delivery Availability Received",
         date: order.receiverConfirmedAt,
         icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
-        description: "Delivery dates have been confirmed"
+        description: "Thank you. You've submitted your preferred delivery dates. We'll confirm your actual delivery date shortly."
       });
     }
     
