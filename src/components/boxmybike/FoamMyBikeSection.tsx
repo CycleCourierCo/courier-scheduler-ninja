@@ -264,8 +264,55 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             </div>
             <div className="text-muted-foreground text-xs mt-1">
               Ferry hand-off: {CITY_AIR_EXPRESS.name}, {CITY_AIR_EXPRESS.formatted}
-            </div>
           </div>
+
+          {showLabelSection && (
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">
+                  Shipping label {canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {o.foam_label_url ? (
+                    <Button size="sm" variant="outline" onClick={() => viewLabel(o.foam_label_url!)}>
+                      <Printer className="h-4 w-4 mr-1" /> View / print
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No label uploaded yet</span>
+                  )}
+                  {canEditLabel && (
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadLabel.mutate({ id: o.id, file: f });
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                      <Button size="sm" variant="outline" asChild>
+                        <span>
+                          <Upload className="h-4 w-4 mr-1" />
+                          {o.foam_label_url ? "Replace label" : "Upload label"}
+                        </span>
+                      </Button>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <FoamTrackingUrlEditor
+                value={o.foam_tracking_url}
+                canEdit={canEditLabel}
+                saving={saveTrackingUrl.isPending}
+                onSave={(url) => saveTrackingUrl.mutate({ id: o.id, url })}
+              />
+            </div>
+          )}
+
+
 
           {(o.foam_delivery_photos?.length || 0) > 0 && (
             <div className="flex flex-wrap gap-2">
