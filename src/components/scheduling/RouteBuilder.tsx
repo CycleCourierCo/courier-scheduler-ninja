@@ -612,19 +612,19 @@ const JobItem: React.FC<JobItemProps> = ({
             {job.type !== 'break' && (job.lat && job.lon) && (
               <>
                 {groupedJobs.length > 1 ? (
-                  // Individual send buttons for each job in the group
-                  groupedJobs.map((groupedJob) => (
+                  // Multi-job group: only show the SendZen (SZ) grouped button
+                  job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslotsSendZen && (
                     <Button
-                      key={`${groupedJob.orderId}-${groupedJob.type}`}
                       size="sm"
-                      onClick={() => onSendTimeslot(groupedJob)}
-                      disabled={isSendingTimeslots || !groupedJob.estimatedTime}
-                      className="flex items-center gap-1 text-xs h-7 px-2"
+                      variant="outline"
+                      onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
+                      disabled={isSendingTimeslots || !job.estimatedTime}
+                      className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
                     >
-                      <Send className="h-3 w-3" />
-                      {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
+                      <Zap className="h-3 w-3" />
+                      SZ
                     </Button>
-                  ))
+                  )
                 ) : (
                   // Single job send button
                   <Button
@@ -636,34 +636,6 @@ const JobItem: React.FC<JobItemProps> = ({
                     <Send className="h-3 w-3" />
                     Send
                   </Button>
-                )}
-                
-                {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
-                 allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
-                      disabled={isSendingTimeslots || !job.estimatedTime}
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
-                    >
-                      <Send className="h-3 w-3" />
-                      All
-                    </Button>
-                    {onSendGroupedTimeslotsSendZen && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
-                        disabled={isSendingTimeslots || !job.estimatedTime}
-                        className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
-                      >
-                        <Zap className="h-3 w-3" />
-                        SZ
-                      </Button>
-                    )}
-                  </>
                 )}
               </>
             )}
