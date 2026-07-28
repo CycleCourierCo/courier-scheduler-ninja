@@ -1,28 +1,16 @@
 ## Problem
 
-The review dialog groups CSV rows into stops with the key `normalized(name) + "|" + normalized(address)`. That requires the full address string to match character-for-character (after stripping punctuation).
+On desktop the job-selection dialog's list doesn't scroll independently — the fix only worked on mobile.
 
-Confirmed in the screenshots: the same customer appears twice because the CSV address strings differ.
-
-```text
-#3  Louth Cycle Centre — Unit 10-11 Station Estate, Newbridge Hill, Louth, LN11 0JT
-#4  Louth Cycle Centre — Unit 10-11 Station Estate, Newbridge Hill, Louth, Lincolnshire LN11 0JT
-```
-
-Identical location, but one row includes "Lincolnshire" — so the normalized strings differ and two separate stop cards are produced.
+Cause (verified in `src/components/ui/dialog.tsx` line 39): the base `DialogContent` already applies `grid ... max-h-[90vh] overflow-y-auto`. `CSVMatchReviewDialog` adds `flex flex-col`, but Tailwind emits `.flex` before `.grid`, so `grid` wins and `flex-col` is inert. On mobile it still worked because `h-[92dvh]` plus the parent's own `overflow-y-auto` scrolled the whole dialog; on desktop `sm:h-auto` leaves the grid box unconstrained, so `flex-1 min-h-0` on the `ScrollArea` resolves to nothing and the inner list never gets its own scroll area.
 
 ## Fix
 
-In `src/components/scheduling/CSVMatchReviewDialog.tsx`, change the stop grouping key to be tolerant of address-format variation:
+In `src/components/scheduling/CSVMatchReviewDialog.tsx` only (presentation change):
 
-1. Extract the UK postcode from the address with a regex (e.g. `[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}`), normalized to uppercase with no spaces.
-2. Extract the leading premise identifier (the first number/unit token of the address, e.g. `1011` from "Unit 10-11") so two different units sharing a postcode stay separate.
-3. Build the key as `normalized(name) | postcode | premise`.
-4. Fall back to the existing `normalized(name) | normalized(address)` key when no postcode can be found, so behaviour is unchanged for malformed addresses.
+1. On the `DialogContent`, override the base display so flex column actually applies (`!flex`), and give the dialog a bounded height on all breakpoints — e.g. `h-[92dvh] sm:h-[85vh] sm:max-h-[85vh]` — plus `overflow-hidden` so the outer box never scrolls.
+2. Keep header, stats bar, quick-action buttons and footer as `shrink-0`; keep the `ScrollArea` as `flex-1 min-h-0` so it takes the remaining height and scrolls internally.
 
-Everything downstream (sequence badges, merged-row count, candidate dedupe by `orderId|jobType`, default selection) already works off the grouped stop, so no other changes are needed — the two Louth rows will collapse into one card showing `#3 #4` and "2 CSV rows merged into this stop".
+## Verification
 
-## Notes
-
-- Different customers at the same postcode (e.g. PAUL MARTIN and CBT Coalville Ltd on Sapperton) will still remain separate cards, since the customer name stays part of the key. That is intentional and matches the earlier rule that different customers must never be bundled.
-- No backend, parser, or route-builder changes; this is presentation-layer grouping only.
+Open the CSV upload review dialog at desktop width and confirm the header/stats/footer stay pinned while the stop list scrolls, then re-check at mobile width that nothing regressed.
