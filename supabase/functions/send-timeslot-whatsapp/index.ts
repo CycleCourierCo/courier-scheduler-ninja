@@ -247,6 +247,15 @@ Please ensure the pedals have been removed from the bike and in a bag along with
 
 Thank you!
 Cycle Courier Co.`;
+    } else if (primaryIsNiDelivery) {
+      message = `Dear ${contact.name},
+
+Your ${order.bike_brand || "bike"} ${order.bike_model || ""} Delivery has been scheduled for ${formatDateForCustomer(scheduledDateForMessage)} between ${startTimeDisplay} and ${endTimeDisplay}.
+
+${formatNiReceiverBlock(order.receiver, order.tracking_number)}
+
+Thank you!
+Cycle Courier Co.`;
     } else {
       message = `Dear ${contact.name},
 
@@ -257,6 +266,7 @@ You will receive a text with a live tracking link once the driver is on his way.
 Thank you!
 Cycle Courier Co.`;
     }
+
 
     // Initialize Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
