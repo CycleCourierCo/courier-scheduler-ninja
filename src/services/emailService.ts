@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
+import { isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { CITY_AIR_EXPRESS } from "@/constants/depot";
+
 
 export const sendBusinessAccountCreationEmail = async (email: string, name: string): Promise<boolean> => {
   try {
