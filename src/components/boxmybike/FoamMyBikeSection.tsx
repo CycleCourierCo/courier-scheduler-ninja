@@ -1,11 +1,12 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Printer, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
@@ -16,6 +17,8 @@ interface FoamOrder {
   status: string;
   foam_status: FoamStatus | null;
   foam_delivery_photos: string[] | null;
+  foam_label_url: string | null;
+  foam_tracking_url: string | null;
   sender: any;
   receiver: any;
   bike_brand: string | null;
@@ -23,6 +26,48 @@ interface FoamOrder {
   user_id: string;
   created_at: string;
 }
+
+const FOAM_LABEL_BUCKET = "foam-my-bike-labels";
+
+// Inline editor for the courier tracking link on a foam order
+const FoamTrackingUrlEditor: React.FC<{
+  value: string | null;
+  canEdit: boolean;
+  onSave: (url: string) => void;
+  saving: boolean;
+}> = ({ value, canEdit, onSave, saving }) => {
+  const [draft, setDraft] = React.useState(value || "");
+  React.useEffect(() => setDraft(value || ""), [value]);
+  const dirty = (draft || "") !== (value || "");
+
+  return (
+    <div className="space-y-1">
+      <div className="text-sm font-medium">
+        Tracking link {canEdit && !value && <span className="text-destructive">*</span>}
+      </div>
+      {canEdit ? (
+        <div className="flex gap-2">
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="https://carrier.example/track/123"
+            className="h-9"
+          />
+          <Button size="sm" disabled={!dirty || saving} onClick={() => onSave(draft.trim())}>
+            Save
+          </Button>
+        </div>
+      ) : value ? (
+        <a href={value} target="_blank" rel="noreferrer" className="text-sm text-primary underline break-all">
+          {value}
+        </a>
+      ) : (
+        <div className="text-sm text-muted-foreground">No tracking link added yet</div>
+      )}
+    </div>
+  );
+};
+
 
 function foamTimestampColumn(s: FoamStatus): string | null {
   switch (s) {
@@ -57,7 +102,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, sender, receiver, bike_brand, bike_model, user_id, created_at")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at")
         .eq("is_northern_ireland", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -119,6 +164,63 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     window.open(data.signedUrl, "_blank");
   };
 
+  const uploadLabel = useMutation({
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      const path = `${id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage
+        .from(FOAM_LABEL_BUCKET)
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          foam_label_url: path,
+          foam_label_uploaded_at: new Date().toISOString(),
+          foam_label_uploaded_by: userId || null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
+      toast.success("Label uploaded");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
+  });
+
+  const saveTrackingUrl = useMutation({
+    mutationFn: async ({ id, url }: { id: string; url: string }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ foam_tracking_url: url || null, updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
+      toast.success("Tracking link saved");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save tracking link"),
+  });
+
+  const viewLabel = async (path: string) => {
+    // Open the tab synchronously so popup blockers don't kill it
+    const tab = window.open("", "_blank");
+    const { data, error } = await supabase.storage
+      .from(FOAM_LABEL_BUCKET)
+      .createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      tab?.close();
+      toast.error("Could not load label");
+      return;
+    }
+    if (tab) tab.location.href = data.signedUrl;
+    else window.open(data.signedUrl, "_blank");
+  };
+
+
+
   const grouped = React.useMemo(() => {
     const m = FOAM_STATUS_ORDER.reduce((acc, s) => {
       acc[s] = [] as FoamOrder[];
@@ -136,6 +238,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const prev = prevFoamStage(stage);
     const next = nextFoamStage(stage);
     const addr = o.receiver?.address || {};
+    const canEditLabel = isStaff && stage === "foamed_ready";
+    const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
+    // Can't hand a bike to the ferry courier without a label and tracking link
+    const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
+
     return (
       <Card key={o.id} className="mb-3">
         <CardContent className="pt-4 space-y-3">
@@ -160,6 +267,56 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             </div>
           </div>
 
+
+
+          {showLabelSection && (
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">
+                  Shipping label {canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {o.foam_label_url ? (
+                    <Button size="sm" variant="outline" onClick={() => viewLabel(o.foam_label_url!)}>
+                      <Printer className="h-4 w-4 mr-1" /> View / print
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No label uploaded yet</span>
+                  )}
+                  {canEditLabel && (
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadLabel.mutate({ id: o.id, file: f });
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                      <Button size="sm" variant="outline" asChild>
+                        <span>
+                          <Upload className="h-4 w-4 mr-1" />
+                          {o.foam_label_url ? "Replace label" : "Upload label"}
+                        </span>
+                      </Button>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <FoamTrackingUrlEditor
+                value={o.foam_tracking_url}
+                canEdit={canEditLabel}
+                saving={saveTrackingUrl.isPending}
+                onSave={(url) => saveTrackingUrl.mutate({ id: o.id, url })}
+              />
+            </div>
+          )}
+
+
+
           {(o.foam_delivery_photos?.length || 0) > 0 && (
             <div className="flex flex-wrap gap-2">
               {o.foam_delivery_photos!.map((p) => (
@@ -178,7 +335,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                 </Button>
               )}
               {next && (
-                <Button size="sm" onClick={() => updateStage.mutate({ id: o.id, newStage: next })}>
+                <Button
+                  size="sm"
+                  disabled={blockedAdvance}
+                  title={blockedAdvance ? "Upload a label and add a tracking link first" : undefined}
+                  onClick={() => updateStage.mutate({ id: o.id, newStage: next })}
+                >
                   {FOAM_STATUS_LABELS[next]} <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
