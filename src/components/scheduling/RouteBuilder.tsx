@@ -1255,7 +1255,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       .map((sel, index) => {
         const order = orderList.find(o => o.id === sel.orderId);
         if (!order) return null;
-        const contact = sel.jobType === 'pickup' ? order.sender : order.receiver;
+        const contact = getLegContact(order, sel.jobType);
 
         return {
           orderId: order.id,
@@ -1265,8 +1265,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           orderData: order,
           phoneNumber: contact.phone,
           order: index + 1,
-          lat: contact.address.lat,
-          lon: contact.address.lon
+          lat: contact.lat,
+          lon: contact.lon
         } as SelectedJob;
       })
       .filter(Boolean) as SelectedJob[];
