@@ -213,8 +213,8 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
             <div className="text-xs text-muted-foreground">Selected</div>
           </div>
           <div className="text-center">
-            <div className="text-lg md:text-2xl font-bold">{matchedRows}</div>
-            <div className="text-xs text-muted-foreground">Matched Rows</div>
+            <div className="text-lg md:text-2xl font-bold">{totalStops}</div>
+            <div className="text-xs text-muted-foreground">Stops</div>
           </div>
           <div className="text-center">
             <div className="text-lg md:text-2xl font-bold text-red-600">{unmatchedRows}</div>
@@ -238,13 +238,14 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
             variant="outline"
             onClick={() => {
               const defaults = new Set<string>();
-              matchResults.forEach((result, index) => {
-                const top = result.candidates?.[0];
-                if (top) defaults.add(candidateKey(index, top));
+              stops.forEach(stop => {
+                const top = stop.candidates[0];
+                if (top) defaults.add(candidateKey(top));
               });
               setSelectedKeys(defaults);
             }}
           >
+
             Best match only
           </Button>
         </div>
