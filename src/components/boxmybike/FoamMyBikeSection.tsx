@@ -175,24 +175,24 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   };
 
   const uploadLabel = useMutation({
-    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+    mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
       const path = await uploadToStorage({
         bucket: FOAM_LABEL_BUCKET,
-        prefix: id,
+        prefix: order.id,
         file,
         onProgress: setUploadPct,
       });
 
-      const { error } = await supabase
+      const { error: updErr } = await supabase
         .from("orders")
         .update({
           foam_label_url: path,
           foam_label_uploaded_at: new Date().toISOString(),
-          foam_label_uploaded_by: userId || null,
+          foam_label_uploaded_by: userId,
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("id", id);
-      if (error) throw error;
+        .eq("id", order.id);
+      if (updErr) throw updErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
@@ -315,7 +315,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                           const input = e.target as HTMLInputElement;
                           const f = input.files?.[0];
                           input.value = "";
-                          if (f) uploadLabel.mutate({ id: o.id, file: f });
+                          if (f) uploadLabel.mutate({ order: o, file: f });
                         }}
 
                       />
