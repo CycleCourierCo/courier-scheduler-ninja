@@ -137,12 +137,15 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
+  const [uploadPct, setUploadPct] = React.useState<number | null>(null);
+
   const uploadPhoto = useMutation({
     mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
       const path = await uploadToStorage({
         bucket: "foam-delivery-photos",
         prefix: order.id,
         file,
+        onProgress: setUploadPct,
       });
 
       const photos = [...(order.foam_delivery_photos || []), path];
@@ -157,6 +160,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       toast.success("Photo uploaded");
     },
     onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload photo"),
+    onSettled: () => setUploadPct(null),
   });
 
   const viewPhoto = async (path: string) => {
@@ -176,6 +180,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         bucket: FOAM_LABEL_BUCKET,
         prefix: id,
         file,
+        onProgress: setUploadPct,
       });
 
       const { error } = await supabase
@@ -194,7 +199,9 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       toast.success("Label uploaded");
     },
     onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload label"),
+    onSettled: () => setUploadPct(null),
   });
+
 
   const saveTrackingUrl = useMutation({
     mutationFn: async ({ id, url }: { id: string; url: string }) => {
