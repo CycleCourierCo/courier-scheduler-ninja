@@ -282,6 +282,11 @@ export const BikeSearchSection = ({
                       <p className="text-xs text-muted-foreground">
                         Tracking: <span className="font-mono">{order.trackingNumber}</span>
                       </p>
+                      {getCollectionDate(order) && (
+                        <p className="text-xs text-muted-foreground">
+                          Collected: {getCollectionDate(order)}
+                        </p>
+                      )}
                       {order.scheduledDeliveryDate && (
                         <p className="text-xs text-muted-foreground">
                           Scheduled delivery: {new Date(order.scheduledDeliveryDate).toLocaleDateString("en-GB")}
