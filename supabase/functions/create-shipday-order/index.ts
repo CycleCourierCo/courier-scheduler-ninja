@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initSentry, captureException } from "../_shared/sentry.ts";
+import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock } from "../_shared/northernIreland.ts";
+
 
 interface OrderRequest {
   orderNumber: string;
