@@ -246,9 +246,12 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [
       ...orderDetails,
+      isNI ? 'NORTHERN IRELAND — hand over to City Air Express' : '',
+      isNI ? formatNiReceiverBlock(receiver, order.tracking_number) : '',
       baseDeliveryInstructions,
       receiverNotes
     ].filter(Boolean).join(' | ');
+
 
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
