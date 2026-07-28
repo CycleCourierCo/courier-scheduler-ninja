@@ -100,7 +100,7 @@ serve(async (req) => {
       );
     }
 
-    const { orderId, jobType } = body;
+    const { orderId, jobType, forceNorthernIreland } = body;
 
     if (!orderId) {
       return new Response(
