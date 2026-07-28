@@ -303,7 +303,13 @@ const CustomerOrderDetail = () => {
                   <h3 className="font-semibold">Scheduled Delivery Date</h3>
                 </div>
                 
-                {order.scheduledDeliveryDate ? (
+                {order.isNorthernIreland ? (
+                  <div className="bg-green-50 p-2 rounded-md border border-green-200">
+                    <p className="text-sm text-muted-foreground">
+                      To be confirmed — your bike travels onward by ferry once it reaches the ferry port.
+                    </p>
+                  </div>
+                ) : order.scheduledDeliveryDate ? (
                   <div className="bg-green-50 p-2 rounded-md border border-green-200">
                     <div className="flex items-center">
                       <p className="font-medium">
