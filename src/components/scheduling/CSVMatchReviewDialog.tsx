@@ -160,24 +160,24 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         {/* Summary Stats */}
         <div className="shrink-0 grid grid-cols-4 gap-2 p-2 md:p-3 bg-muted/50 rounded-lg">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{selectedJobs.length}</div>
+            <div className="text-lg md:text-2xl font-bold text-green-600">{selectedJobs.length}</div>
             <div className="text-xs text-muted-foreground">Selected</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold">{matchedRows}</div>
+            <div className="text-lg md:text-2xl font-bold">{matchedRows}</div>
             <div className="text-xs text-muted-foreground">Matched Rows</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">{unmatchedRows}</div>
+            <div className="text-lg md:text-2xl font-bold text-red-600">{unmatchedRows}</div>
             <div className="text-xs text-muted-foreground">Unmatched</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{totalRows}</div>
+            <div className="text-lg md:text-2xl font-bold text-blue-600">{totalRows}</div>
             <div className="text-xs text-muted-foreground">Total Rows</div>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="shrink-0 flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setSelectedKeys(new Set(allCandidateKeys))}>
             Select all
           </Button>
@@ -201,7 +201,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         </div>
 
         {/* Match Details */}
-        <ScrollArea className="flex-1 min-h-[240px] max-h-[45vh] rounded-md border p-3">
+        <ScrollArea className="flex-1 min-h-0 rounded-md border p-3">
           <div className="space-y-3">
             {matchResults.map((result, index) => {
               const candidates = result.candidates || [];
@@ -290,7 +290,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="shrink-0 gap-2">
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
