@@ -1,0 +1,1 @@
+select id, name, public from storage.buckets where id in ('foam-my-bike-labels','box-my-bike-labels');
