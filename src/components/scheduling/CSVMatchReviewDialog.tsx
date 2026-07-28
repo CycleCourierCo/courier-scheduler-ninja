@@ -65,7 +65,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
   const stops: StopGroup[] = useMemo(() => {
     const map = new Map<string, StopGroup>();
     matchResults.forEach((result) => {
-      const key = `${norm(result.csvRow.name)}|${norm(result.csvRow.address)}`;
+      const key = stopKey(result.csvRow.name, result.csvRow.address);
       let stop = map.get(key);
       if (!stop) {
         stop = {
