@@ -195,6 +195,8 @@ interface UploadOptions {
   allowedTypes?: RegExp;
   maxBytes?: number;
   onProgress?: (pct: number) => void;
+  /** Prefer the server-side upload function over direct Storage. */
+  uploadViaEdge?: boolean;
 }
 
 /**
@@ -209,6 +211,7 @@ export async function uploadToStorage({
   allowedTypes = /^(application\/pdf|image\/)/,
   maxBytes = MAX_UPLOAD_BYTES,
   onProgress,
+  uploadViaEdge = false,
 }: UploadOptions): Promise<string> {
   if (!file.size) throw new Error("That file is empty.");
   if (file.size > maxBytes) {
@@ -234,6 +237,21 @@ export async function uploadToStorage({
   const path = `${prefix}/${Date.now()}-${sanitizeFileName(file.name)}`;
   const backoff = [1000, 3000, 6000];
   let lastError: any;
+
+  if (uploadViaEdge) {
+    try {
+      onProgress?.(0);
+      await edgeFallbackUpload({ bucket, path, file });
+      onProgress?.(100);
+      return path;
+    } catch (edgeError: any) {
+      lastError = edgeError;
+      if (!isTransportError(edgeError)) {
+        throw new Error(describeUploadError(edgeError, file));
+      }
+      // If the functions host itself is unreachable, still try direct Storage below.
+    }
+  }
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
