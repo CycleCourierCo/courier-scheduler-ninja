@@ -125,10 +125,11 @@ serve(async (req) => {
       text: string;
     } = {
       from,
-      to: [reqData.to],
+      to: Array.isArray(reqData.to) ? reqData.to : [reqData.to],
       subject: 'Notification from The Cycle Courier Co.',
       text: 'Default email content',
     };
+
     
     // Build email based on type
     if (reqData.emailType === 'sender' || reqData.emailType === 'receiver') {
@@ -144,6 +145,20 @@ serve(async (req) => {
       const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
+
+      // Northern Ireland deliveries: this email goes to City Air Express, so
+      // include the NI receiver's details for the onward booking.
+      const niReceiver = reqData.niReceiver;
+      const niAddr = niReceiver?.address || {};
+      const niBlock = niReceiver ? `
+          <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+            <p style="margin-top:0;"><strong>Northern Ireland receiver details</strong></p>
+            <p><strong>Name:</strong> ${niReceiver.name || ''}</p>
+            <p><strong>Address:</strong> ${[niAddr.street, niAddr.city, niAddr.state, niAddr.zipCode, niAddr.country].filter(Boolean).join(', ')}</p>
+            <p><strong>Phone:</strong> ${niReceiver.phone || ''}</p>
+            <p style="margin-bottom:0;"><strong>Email:</strong> ${niReceiver.email || ''}</p>
+          </div>
+      ` : '';
       
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -161,6 +176,8 @@ serve(async (req) => {
               </div>
             ` : ''}
           </div>
+          ${niBlock}
+
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${availabilityUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
@@ -307,6 +324,17 @@ The Cycle Courier Co. Team
               </div>
             ` : ''}
           </div>
+          ${reqData.niReceiver ? `
+          <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+            <p style="margin-top:0;"><strong>Northern Ireland receiver details</strong></p>
+            <p><strong>Name:</strong> ${reqData.niReceiver.name || ''}</p>
+            <p><strong>Address:</strong> ${[reqData.niReceiver.address?.street, reqData.niReceiver.address?.city, reqData.niReceiver.address?.state, reqData.niReceiver.address?.zipCode, reqData.niReceiver.address?.country].filter(Boolean).join(', ')}</p>
+            <p><strong>Phone:</strong> ${reqData.niReceiver.phone || ''}</p>
+            <p style="margin-bottom:0;"><strong>Email:</strong> ${reqData.niReceiver.email || ''}</p>
+          </div>
+          ` : ''}
+          
+
           
           <p><strong>This is what happens next:</strong></p>
           <ol style="line-height: 1.8; color: #333;">

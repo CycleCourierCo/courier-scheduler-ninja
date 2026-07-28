@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isNorthernIrelandAddress, NI_SURCHARGE_PER_BIKE } from "../_shared/northernIreland.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +34,8 @@ interface InvoiceRequest {
     receiver: any;
     needs_inspection?: boolean | null;
     is_box_my_bike?: boolean | null;
+    is_northern_ireland?: boolean | null;
+
   }>;
 }
 
@@ -572,6 +576,11 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
         
+        // Northern Ireland surcharge: £120 per bike, rolled into the bike line
+        const isNI = order.is_northern_ireland === true
+          || isNorthernIrelandAddress(order.receiver?.address);
+        const unitPrice = isNI ? product.price + NI_SURCHARGE_PER_BIKE : product.price;
+
         // Build description
         let description = `${order.tracking_number || order.id}`;
         if (order.customer_order_number) {
@@ -581,9 +590,12 @@ const handler = async (req: Request): Promise<Response> => {
           description += ` - ${bike.brand || ''} ${bike.model || ''}`.trim();
         }
         description += ` - ${senderName} → ${receiverName}`;
+        if (isNI) {
+          description += ` - Northern Ireland (incl. £${NI_SURCHARGE_PER_BIKE} NI surcharge)`;
+        }
         
         lineItems.push({
-          Amount: product.price,
+          Amount: unitPrice,
           DetailType: "SalesItemLineDetail",
           SalesItemLineDetail: {
             ItemRef: {
@@ -591,14 +603,15 @@ const handler = async (req: Request): Promise<Response> => {
               name: product.name
             },
             Qty: 1,
-            UnitPrice: product.price,
+            UnitPrice: unitPrice,
             ServiceDate: serviceDate,
             ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
         },
         Description: description
         });
         
-        console.log(`Added line item: ${description} @ £${product.price}`);
+        console.log(`Added line item: ${description} @ £${unitPrice}`);
+
         
         // Check if order needs inspection and add service line item
         if (order.needs_inspection) {

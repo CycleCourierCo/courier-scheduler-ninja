@@ -16,6 +16,8 @@ import {
   BOX_MY_BIKE_STATUS_ORDER,
 } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
+import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
+
 
 const STAFF_STAGES: BoxMyBikeStatus[] = BOX_MY_BIKE_STATUS_ORDER;
 
@@ -316,6 +318,8 @@ const BoxMyBikePage: React.FC = () => {
     );
   };
 
+  const [section, setSection] = React.useState<"box" | "foam">("box");
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
@@ -326,7 +330,16 @@ const BoxMyBikePage: React.FC = () => {
             : "Your bikes being boxed at our depot for international shipping."}
         </p>
 
-        {isLoading ? (
+        <Tabs value={section} onValueChange={(v) => setSection(v as "box" | "foam")} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="box">Box My Bike</TabsTrigger>
+            <TabsTrigger value="foam">Foam My Bike (NI)</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {section === "foam" ? (
+          <FoamMyBikeSection isStaff={isStaff} userId={user?.id} />
+        ) : isLoading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : isStaff ? (
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as BoxMyBikeStatus)}>
@@ -368,6 +381,7 @@ const BoxMyBikePage: React.FC = () => {
     </Layout>
   );
 };
+
 
 const TrackingUrlEditor: React.FC<{
   order: BoxOrder;

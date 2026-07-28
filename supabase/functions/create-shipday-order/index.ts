@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initSentry, captureException } from "../_shared/sentry.ts";
+import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock } from "../_shared/northernIreland.ts";
+
 
 interface OrderRequest {
   orderNumber: string;
@@ -153,7 +155,14 @@ serve(async (req) => {
 
     const senderAddress = `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`;
     
-    const receiverAddress = `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
+    // Northern Ireland: the delivery leg goes to City Air Express in Manchester,
+    // NOT to the customer's NI address. They handle the Irish Sea crossing.
+    const isNI = order.is_northern_ireland === true || isNorthernIrelandAddress(receiver?.address);
+
+    const receiverAddress = isNI
+      ? `${CITY_AIR_EXPRESS.address.street}, ${CITY_AIR_EXPRESS.address.city}, ${CITY_AIR_EXPRESS.address.state} ${CITY_AIR_EXPRESS.address.zipCode}`
+      : `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
+
 
     // Parse timeslots and create 3-hour windows (same as send-timeslot-whatsapp)
     const parseTimeSlot = (timeslot: string | null | undefined): { start: string; end: string } => {
@@ -237,9 +246,12 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [
       ...orderDetails,
+      isNI ? 'NORTHERN IRELAND — hand over to City Air Express' : '',
+      isNI ? formatNiReceiverBlock(receiver, order.tracking_number) : '',
       baseDeliveryInstructions,
       receiverNotes
     ].filter(Boolean).join(' | ');
+
 
     const orderReference = order.tracking_number || orderId.substring(0, 8);
 
@@ -263,10 +275,11 @@ serve(async (req) => {
     // Create delivery order with correct timeslot window
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderReference}-DELIVERY`,
-      customerName: receiver.name,
-      customerPhoneNumber: receiver.phone,
-      customerEmail: receiver.email || undefined,
+      customerName: isNI ? CITY_AIR_EXPRESS.name : receiver.name,
+      customerPhoneNumber: isNI ? CITY_AIR_EXPRESS.phone : receiver.phone,
+      customerEmail: (isNI ? CITY_AIR_EXPRESS.email : receiver.email) || undefined,
       customerAddress: receiverAddress,
+
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
