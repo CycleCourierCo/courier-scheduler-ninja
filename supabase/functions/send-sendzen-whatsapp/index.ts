@@ -724,6 +724,26 @@ serve(async (req: Request): Promise<Response> => {
       sendzenResponseText = err?.message || "fetch error";
     }
 
+    // For grouped stops, fetch the other delivery-leg orders so the email can
+    // list every final destination (NI ferry hand-off carries multiple bikes).
+    let relatedDeliveryOrders: any[] = [];
+    if (type === "grouped_timeslot" && relatedJobs?.length) {
+      const deliveryIds = relatedJobs
+        .filter((r) => r.jobType === "delivery" && r.orderId && r.orderId !== orderId)
+        .map((r) => r.orderId);
+      if (deliveryIds.length) {
+        const { data: relatedOrders, error: relatedErr } = await supabase
+          .from("orders")
+          .select("*")
+          .in("id", deliveryIds);
+        if (relatedErr) {
+          console.error("Failed to fetch related delivery orders for email");
+        } else {
+          relatedDeliveryOrders = relatedOrders || [];
+        }
+      }
+    }
+
     // Run Shipday + Email in the background (not user-facing)
     EdgeRuntime.waitUntil(
       Promise.allSettled([
@@ -734,7 +754,7 @@ serve(async (req: Request): Promise<Response> => {
 
         // Email via Resend (skip for review)
         type !== "review"
-          ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList)
+          ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList, relatedDeliveryOrders)
           : Promise.resolve(),
       ]).then((results) => {
         console.log("Background operations complete:", results.map(r => r.status));
