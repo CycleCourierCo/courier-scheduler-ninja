@@ -136,7 +136,7 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
-  const [uploadPct, setUploadPct] = useState<number | null>(null);
+  const [uploadPct, setUploadPct] = React.useState<number | null>(null);
 
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
