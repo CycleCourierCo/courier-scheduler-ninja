@@ -1682,9 +1682,13 @@ export type Database = {
           foam_delivered_to_ferry_at: string | null
           foam_delivery_photos: Json
           foam_foamed_at: string | null
+          foam_label_uploaded_at: string | null
+          foam_label_uploaded_by: string | null
+          foam_label_url: string | null
           foam_pending_collection_at: string | null
           foam_pending_foaming_at: string | null
           foam_status: Database["public"]["Enums"]["foam_status"] | null
+          foam_tracking_url: string | null
           id: string
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
@@ -1756,9 +1760,13 @@ export type Database = {
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
           foam_foamed_at?: string | null
+          foam_label_uploaded_at?: string | null
+          foam_label_uploaded_by?: string | null
+          foam_label_url?: string | null
           foam_pending_collection_at?: string | null
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
+          foam_tracking_url?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -1830,9 +1838,13 @@ export type Database = {
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
           foam_foamed_at?: string | null
+          foam_label_uploaded_at?: string | null
+          foam_label_uploaded_by?: string | null
+          foam_label_url?: string | null
           foam_pending_collection_at?: string | null
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
+          foam_tracking_url?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
