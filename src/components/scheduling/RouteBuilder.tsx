@@ -3466,6 +3466,21 @@ Route Link: ${routeLink}`;
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
                         <p className="text-xs text-muted-foreground">{job.address}</p>
                       </div>
+                      {(() => {
+                        const foamBadge = getFoamBadge(job.order, job.type);
+                        if (!foamBadge) return null;
+                        const r = job.order.receiver;
+                        return (
+                          <div className="space-y-1">
+                            <Badge className={`text-xs ${foamBadge.color}`}>{foamBadge.text}</Badge>
+                            {r?.address && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Final destination: {r.name} — {[r.address.street, r.address.city, r.address.zipCode].filter(Boolean).join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <p className="text-xs text-muted-foreground">
                         {job.order.bike_brand} {job.order.bike_model}
                       </p>
