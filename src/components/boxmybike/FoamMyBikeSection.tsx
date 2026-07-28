@@ -136,11 +136,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
   const uploadPhoto = useMutation({
     mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
-      const path = `${order.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from("foam-delivery-photos")
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: "foam-delivery-photos",
+        prefix: order.id,
+        file,
+      });
+
       const photos = [...(order.foam_delivery_photos || []), path];
       const { error } = await supabase
         .from("orders")
