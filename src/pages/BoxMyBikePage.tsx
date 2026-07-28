@@ -136,13 +136,17 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
+
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
       const path = await uploadToStorage({
         bucket: "box-my-bike-labels",
         prefix: id,
         file,
+        onProgress: setUploadPct,
       });
+
 
       const { error: updErr } = await supabase
         .from("orders")
