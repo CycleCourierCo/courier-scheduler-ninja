@@ -1,11 +1,12 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Printer, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
@@ -16,6 +17,8 @@ interface FoamOrder {
   status: string;
   foam_status: FoamStatus | null;
   foam_delivery_photos: string[] | null;
+  foam_label_url: string | null;
+  foam_tracking_url: string | null;
   sender: any;
   receiver: any;
   bike_brand: string | null;
@@ -23,6 +26,48 @@ interface FoamOrder {
   user_id: string;
   created_at: string;
 }
+
+const FOAM_LABEL_BUCKET = "foam-my-bike-labels";
+
+// Inline editor for the courier tracking link on a foam order
+const FoamTrackingUrlEditor: React.FC<{
+  value: string | null;
+  canEdit: boolean;
+  onSave: (url: string) => void;
+  saving: boolean;
+}> = ({ value, canEdit, onSave, saving }) => {
+  const [draft, setDraft] = React.useState(value || "");
+  React.useEffect(() => setDraft(value || ""), [value]);
+  const dirty = (draft || "") !== (value || "");
+
+  return (
+    <div className="space-y-1">
+      <div className="text-sm font-medium">
+        Tracking link {canEdit && !value && <span className="text-destructive">*</span>}
+      </div>
+      {canEdit ? (
+        <div className="flex gap-2">
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="https://carrier.example/track/123"
+            className="h-9"
+          />
+          <Button size="sm" disabled={!dirty || saving} onClick={() => onSave(draft.trim())}>
+            Save
+          </Button>
+        </div>
+      ) : value ? (
+        <a href={value} target="_blank" rel="noreferrer" className="text-sm text-primary underline break-all">
+          {value}
+        </a>
+      ) : (
+        <div className="text-sm text-muted-foreground">No tracking link added yet</div>
+      )}
+    </div>
+  );
+};
+
 
 function foamTimestampColumn(s: FoamStatus): string | null {
   switch (s) {
