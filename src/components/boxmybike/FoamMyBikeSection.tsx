@@ -172,11 +172,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
-      const path = `${id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from(FOAM_LABEL_BUCKET)
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: FOAM_LABEL_BUCKET,
+        prefix: id,
+        file,
+      });
+
       const { error } = await supabase
         .from("orders")
         .update({
