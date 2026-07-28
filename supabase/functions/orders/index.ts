@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
+import { isNorthernIrelandAddress } from '../_shared/northernIreland.ts'
 
 // Bike type numeric ID mapping
 const BIKE_TYPE_BY_ID: Record<number, string> = {
@@ -272,6 +273,11 @@ Deno.serve(async (req) => {
 
       const trackingNumber = trackingData.trackingNumber
 
+      // Northern Ireland is detected automatically from the receiver address so that
+      // API/Shopify orders enter the Foam My Bike pipeline exactly like web orders.
+      const isNorthernIreland = isNorthernIrelandAddress(body.receiver?.address || body.receiver)
+      const niTimestamp = new Date().toISOString()
+
       // Create order WITHOUT waiting for geocoding/emails/Shipday — those run in the background.
       const orderData = {
         user_id: userId,
@@ -296,6 +302,9 @@ Deno.serve(async (req) => {
         needs_inspection: body.needsInspection || body.needs_inspection || false,
         is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
         box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
+        is_northern_ireland: isNorthernIreland,
+        foam_status: isNorthernIreland ? 'pending_collection' : null,
+        foam_pending_collection_at: isNorthernIreland ? niTimestamp : null,
         status: 'created',
         tracking_number: trackingNumber,
         pickup_date: body.pickup_date || null,
