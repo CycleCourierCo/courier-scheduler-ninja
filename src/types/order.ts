@@ -11,9 +11,12 @@ export type Address = {
   state: string;
   zipCode: string;
   country: string;
+  /** UK constituent country from geocoding: England | Scotland | Wales | Northern Ireland */
+  region?: string;
   lat?: number;
   lon?: number;
 };
+
 
 // Update OrderStatus to include delivery statuses
 export type OrderStatus = 
