@@ -402,7 +402,11 @@ async function sendEmail(
         <h2>Dear ${contact.name || "Customer"},</h2>
         <p>We are due to be with you on <strong>${formattedDate}</strong> between <strong>${startTime}</strong> and <strong>${endTime}</strong>.</p>
         ${itemsHtml}
-        <p>You will receive a text with a live tracking link once the driver is on his way.</p>
+        ${
+          isNiOrder(order) && recipientType === "receiver"
+            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+            : `<p>You will receive a text with a live tracking link once the driver is on his way.</p>`
+        }
         ${collectionInstructions}
         <p style="margin-top: 30px; font-weight: bold;">Thank you!</p>
         <p><strong>Cycle Courier Co.</strong></p>
