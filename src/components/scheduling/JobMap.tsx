@@ -45,12 +45,13 @@ const extractLocations = (orders: OrderData[] = []) => {
       });
     }
     
-    // Add receiver location if coordinates exist
-    if (order.receiver.address.lat && order.receiver.address.lon) {
+    // Add delivery location (Northern Ireland orders go to City Air Express)
+    const dest = getLegContact(order, 'delivery');
+    if (dest.lat && dest.lon) {
       locations.push({
-        address: `${order.receiver.address.street}, ${order.receiver.address.city}`,
-        lat: order.receiver.address.lat,
-        lng: order.receiver.address.lon,
+        address: `${dest.address?.street}, ${dest.address?.city}`,
+        lat: dest.lat,
+        lng: dest.lon,
         type: 'delivery',
         orderNumber: order.tracking_number || 'No tracking number',
         date: order.scheduled_delivery_date ? new Date(order.scheduled_delivery_date) : undefined
