@@ -1668,8 +1668,12 @@ const OrderDetail = () => {
               <>
                 <Separator className="my-6" />
                 <AdminTrackingEditor order={order} onUpdate={handleRefreshOrder} />
+                <div className="mt-6">
+                  <NorthernIrelandEditor order={order as any} onUpdate={handleRefreshOrder} />
+                </div>
               </>
             )}
+
             
             <Separator className="my-6" />
 
