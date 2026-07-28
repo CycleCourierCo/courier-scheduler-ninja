@@ -6,12 +6,21 @@ export interface CSVRow {
   address: string;
 }
 
+export interface MatchCandidate {
+  order: OrderData;
+  jobType: 'pickup' | 'delivery';
+  matchType: 'exact' | 'fuzzy' | 'address';
+  confidence: number;
+}
+
 export interface MatchResult {
   csvRow: CSVRow;
   matchedOrder: OrderData | null;
   matchType: 'exact' | 'fuzzy' | 'address' | 'none';
   jobType: 'pickup' | 'delivery' | null;
   confidence: number;
+  /** All plausible order/leg candidates for this row, best first */
+  candidates: MatchCandidate[];
 }
 
 // Depot addresses to exclude from matching
