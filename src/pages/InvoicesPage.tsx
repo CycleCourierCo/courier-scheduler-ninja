@@ -786,7 +786,7 @@ export default function InvoicesPage() {
             </div>
           )}
           
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
             <Button
               onClick={handleCreateAllInvoices}
               disabled={
