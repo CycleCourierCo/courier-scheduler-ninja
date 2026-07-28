@@ -70,12 +70,17 @@ export const syncOrdersToShipday = async (orders: any[]) => {
   }
 };
 
-export const createShipdayOrder = async (orderId: string, jobType?: 'pickup' | 'delivery') => {
+export const createShipdayOrder = async (
+  orderId: string,
+  jobType?: 'pickup' | 'delivery',
+  forceNorthernIreland?: boolean
+) => {
   try {
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke("create-shipday-order", {
-      body: { orderId, jobType }
+      body: { orderId, jobType, forceNorthernIreland }
     });
+
 
     if (error) {
       console.error("Error creating Shipday orders:", error);

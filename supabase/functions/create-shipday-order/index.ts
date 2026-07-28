@@ -100,7 +100,7 @@ serve(async (req) => {
       );
     }
 
-    const { orderId, jobType } = body;
+    const { orderId, jobType, forceNorthernIreland } = body;
 
     if (!orderId) {
       return new Response(
@@ -157,11 +157,25 @@ serve(async (req) => {
     
     // Northern Ireland: the delivery leg goes to City Air Express in Manchester,
     // NOT to the customer's NI address. They handle the Irish Sea crossing.
-    const isNI = order.is_northern_ireland === true || isNorthernIrelandAddress(receiver?.address);
+    const niFlag = order.is_northern_ireland === true;
+    const niByPostcode = isNorthernIrelandAddress(receiver?.address);
+    const isNI = typeof forceNorthernIreland === "boolean"
+      ? forceNorthernIreland
+      : (niFlag || niByPostcode);
+
+    console.log("NI routing decision:", JSON.stringify({
+      isNI,
+      source: typeof forceNorthernIreland === "boolean" ? "request_override" : (niFlag ? "order_flag" : (niByPostcode ? "postcode" : "none")),
+      orderFlag: niFlag,
+      postcodeMatch: niByPostcode,
+    }));
 
     const receiverAddress = isNI
       ? `${CITY_AIR_EXPRESS.address.street}, ${CITY_AIR_EXPRESS.address.city}, ${CITY_AIR_EXPRESS.address.state} ${CITY_AIR_EXPRESS.address.zipCode}`
       : `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
+
+    console.log("Delivery leg target address:", receiverAddress);
+
 
 
     // Parse timeslots and create 3-hour windows (same as send-timeslot-whatsapp)
