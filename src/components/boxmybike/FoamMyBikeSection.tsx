@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { formatStorageLocations } from "@/utils/storageLocation";
+import { uploadToStorage } from "@/utils/uploadFile";
+
 
 interface FoamOrder {
   id: string;
