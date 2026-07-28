@@ -149,8 +149,8 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl h-[92dvh] max-h-[92dvh] sm:h-auto flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Choose Jobs To Load
@@ -158,7 +158,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         </DialogHeader>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 bg-muted/50 rounded-lg">
+        <div className="shrink-0 grid grid-cols-4 gap-2 p-2 md:p-3 bg-muted/50 rounded-lg">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">{selectedJobs.length}</div>
             <div className="text-xs text-muted-foreground">Selected</div>
