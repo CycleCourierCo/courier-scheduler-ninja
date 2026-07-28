@@ -1,20 +1,26 @@
 ## Problem
 
-The grouped timeslot email to the ferry hand-off contact lists all bikes in the "Deliveries:" line, but only prints **one** `NI RECEIVER` block — the one for the primary order the request was sent with.
+On narrow screens the order detail page has several header rows that force text and buttons onto the same line, so buttons overlap the title or run off the right edge:
 
-Confirmed in `supabase/functions/send-sendzen-whatsapp/index.ts`: the handler passes only the primary `order` into `sendEmail`, and the email body renders a single `formatNiReceiverBlock(order.receiver, order.tracking_number)`. The `relatedJobs` array (the other jobs in the grouped stop) is used for Shipday updates only, never for the email.
+1. **Item card header** (`src/pages/OrderDetail.tsx`, the `CardTitle` around lines 1250–1282) — the bike name, Return, Print Label and email resend buttons sit in one non-wrapping flex row, so the buttons overlap the wrapped title text.
+2. **Sender/Receiver Information header** (`src/components/order-detail/AdminContactEditor.tsx` line 168, `ContactDetails.tsx` line 51) — "Sender Information" plus Send Review and Edit Contact buttons overflow past the card edge.
+3. **Item Details header** (`src/components/order-detail/ItemDetails.tsx` line 99) — same pattern with the Edit Bikes button.
+4. **Order header** (`src/components/order-detail/OrderHeader.tsx`) — the fixed-width `w-[220px]` status select plus Cancel Order button can exceed a 360px viewport.
 
-## Fix
+## Fix (presentation only, no logic changes)
 
-In `send-sendzen-whatsapp`:
+For each header row:
+- Change `flex items-center justify-between` to a wrapping layout: `flex flex-wrap items-start justify-between gap-2`, and let the title block take `min-w-0 flex-1` so long bike names wrap instead of being overlapped.
+- Put the action buttons in their own `flex flex-wrap gap-2` container so they drop to the next line on mobile rather than overflowing.
 
-1. In the handler, when `type === "grouped_timeslot"`, fetch the orders for all `relatedJobs` entries with `jobType === "delivery"` (single `.in('id', ids)` query) and pass them, plus the primary order, into `sendEmail` as a list of NI delivery orders.
-2. In `sendEmail`, replace the single NI block with a loop: render one `formatNiReceiverBlock(o.receiver, o.tracking_number)` panel per NI delivery order (deduped by order id, skipping non-NI orders), under a heading like "Final destinations".
-3. Keep existing behaviour unchanged when there are no related jobs or the order isn't NI (single block / normal tracking-link line).
+Specifics:
+- **OrderDetail.tsx item card**: make the `CardTitle` a wrapping column on mobile (`flex-col sm:flex-row`), title with `min-w-0 break-words`, button group `flex flex-wrap gap-2 w-full sm:w-auto`.
+- **AdminContactEditor.tsx / ContactDetails.tsx**: wrap header, buttons group `flex flex-wrap gap-2`; keep button sizes as-is.
+- **ItemDetails.tsx**: wrap header row.
+- **OrderHeader.tsx**: status select becomes `w-full sm:w-[220px]`, and the select + Cancel Order row becomes `flex-wrap w-full` so Cancel Order wraps below the select on small screens. Also let the "Booked by" line wrap (`flex-wrap` + `break-all` on the email) instead of stretching the row.
 
-Optionally apply the same multi-receiver rendering to the grouped path in `send-timeslot-whatsapp/index.ts` (line ~255), which has the same single-block limitation, so both send paths stay consistent.
+No changes to data fetching, handlers, or backend behaviour.
 
-## Technical notes
+## Verification
 
-- No schema changes; no WhatsApp template changes (the WhatsApp body already uses the aggregated job list).
-- Both functions get redeployed after the edit.
+Load the order detail page in a 360px-wide viewport with Playwright and screenshot the item card, order header, and sender/receiver sections to confirm nothing overlaps or clips.
