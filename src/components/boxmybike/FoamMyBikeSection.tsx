@@ -31,7 +31,7 @@ interface FoamOrder {
   storage_locations: any;
 }
 
-const FOAM_LABEL_BUCKET = "foam-my-bike-labels";
+const BOX_LABEL_BUCKET = "box-my-bike-labels";
 
 
 // Inline editor for the courier tracking link on a foam order
@@ -177,7 +177,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   const uploadLabel = useMutation({
     mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
       const path = await uploadToStorage({
-        bucket: FOAM_LABEL_BUCKET,
+        bucket: BOX_LABEL_BUCKET,
         prefix: order.id,
         file,
         onProgress: setUploadPct,
@@ -222,7 +222,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     // Open the tab synchronously so popup blockers don't kill it
     const tab = window.open("", "_blank");
     const { data, error } = await supabase.storage
-      .from(FOAM_LABEL_BUCKET)
+      .from(BOX_LABEL_BUCKET)
       .createSignedUrl(path, 60 * 10);
     if (error || !data?.signedUrl) {
       tab?.close();
