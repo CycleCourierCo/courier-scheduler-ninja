@@ -253,12 +253,12 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         {/* Match Details */}
         <ScrollArea className="flex-1 min-h-0 rounded-md border p-3">
           <div className="space-y-3">
-            {matchResults.map((result, index) => {
-              const candidates = result.candidates || [];
+            {stops.map((stop) => {
+              const candidates = stop.candidates;
               const hasCandidates = candidates.length > 0;
               return (
                 <div
-                  key={index}
+                  key={stop.key}
                   className={`p-3 rounded-lg border ${
                     hasCandidates
                       ? 'bg-muted/30 border-border'
@@ -267,13 +267,15 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="text-xs">#{result.csvRow.sequence}</Badge>
-                        <span className="font-medium text-sm truncate">{result.csvRow.name}</span>
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        {stop.sequences.map(seq => (
+                          <Badge key={seq} variant="outline" className="text-xs">#{seq}</Badge>
+                        ))}
+                        <span className="font-medium text-sm truncate">{stop.name}</span>
                       </div>
                       <div className="flex items-start gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{result.csvRow.address}</span>
+                        <span className="line-clamp-2">{stop.address}</span>
                       </div>
                     </div>
                     {!hasCandidates && (
@@ -284,6 +286,12 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                     )}
                   </div>
 
+                  {stop.rowCount > 1 && (
+                    <div className="text-[11px] text-muted-foreground mb-1">
+                      {stop.rowCount} CSV rows merged into this stop
+                    </div>
+                  )}
+
                   {candidates.length > 1 && (
                     <div className="text-[11px] text-muted-foreground mb-1">
                       {candidates.length} possible jobs for this stop — tick the ones to add
@@ -292,7 +300,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 
                   <div className="space-y-2">
                     {candidates.map((candidate) => {
-                      const key = candidateKey(index, candidate);
+                      const key = candidateKey(candidate);
                       const checked = selectedKeys.has(key);
                       const contact = candidate.jobType === 'pickup'
                         ? candidate.order.sender
@@ -327,7 +335,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                               {candidate.order.tracking_number} • {contact?.name}
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {renderCollectionStatus(candidate, result.csvRow.sequence)}
+                              {renderCollectionStatus(candidate, stop.sequence)}
                             </div>
                           </div>
                         </label>
@@ -337,6 +345,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                 </div>
               );
             })}
+
           </div>
         </ScrollArea>
 
