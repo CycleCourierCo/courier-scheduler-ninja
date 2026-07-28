@@ -16,6 +16,59 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+function decodeBase64(base64: string): Uint8Array {
+  const cleaned = base64.includes(",") ? base64.split(",").pop() || "" : base64;
+  const binary = atob(cleaned.replace(/\s/g, ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function parseUploadRequest(req: Request): Promise<{
+  bucket: string;
+  path: string;
+  bytes: Uint8Array;
+  contentType: string;
+}> {
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const body = await req.json().catch(() => null) as {
+      bucket?: unknown;
+      path?: unknown;
+      base64?: unknown;
+      contentType?: unknown;
+    } | null;
+    const base64 = typeof body?.base64 === "string" ? body.base64 : "";
+    return {
+      bucket: typeof body?.bucket === "string" ? body.bucket : "",
+      path: typeof body?.path === "string" ? body.path : "",
+      bytes: base64 ? decodeBase64(base64) : new Uint8Array(),
+      contentType: typeof body?.contentType === "string" ? body.contentType : "application/octet-stream",
+    };
+  }
+
+  const form = await req.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) {
+    return {
+      bucket: String(form.get("bucket") || ""),
+      path: String(form.get("path") || ""),
+      bytes: new Uint8Array(),
+      contentType: "application/octet-stream",
+    };
+  }
+
+  return {
+    bucket: String(form.get("bucket") || ""),
+    path: String(form.get("path") || ""),
+    bytes: new Uint8Array(await file.arrayBuffer()),
+    contentType: file.type || "application/octet-stream",
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -33,17 +86,13 @@ serve(async (req) => {
     if (userError || !userData?.user) return json({ error: "Invalid session" }, 401);
     const userId = userData.user.id;
 
-    const form = await req.formData();
-    const bucket = String(form.get("bucket") || "");
-    const path = String(form.get("path") || "");
-    const file = form.get("file");
+    const { bucket, path, bytes, contentType } = await parseUploadRequest(req);
 
     if (!ALLOWED_BUCKETS.has(bucket)) return json({ error: "Unsupported bucket" }, 400);
     if (!path || path.includes("..") || !path.includes("/")) {
       return json({ error: "Invalid path" }, 400);
     }
-    if (!(file instanceof File)) return json({ error: "Missing file" }, 400);
-    if (file.size === 0 || file.size > 20 * 1024 * 1024) {
+    if (bytes.length === 0 || bytes.length > MAX_UPLOAD_BYTES) {
       return json({ error: "File must be between 1 byte and 20MB" }, 400);
     }
 
@@ -65,10 +114,9 @@ serve(async (req) => {
       if (!order) return json({ error: "Not allowed to upload for this order" }, 403);
     }
 
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: uploadError } = await admin.storage.from(bucket).upload(path, bytes, {
       upsert: true,
-      contentType: file.type || "application/octet-stream",
+      contentType,
     });
     if (uploadError) {
       console.error("[upload-file] storage error", uploadError.message);
