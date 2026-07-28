@@ -8,7 +8,7 @@ const ALLOWED_BUCKETS = new Set([
   "box-my-bike-labels",
 ]);
 
-const STAFF_ROLES = ["admin", "loader", "mechanic", "route_planner", "cs_agent"];
+const STAFF_ROLES = ["admin", "loader", "mechanic", "route_planner", "cs_agent", "timeslip_admin"];
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
