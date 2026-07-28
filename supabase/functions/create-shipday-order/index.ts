@@ -275,10 +275,11 @@ serve(async (req) => {
     // Create delivery order with correct timeslot window
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderReference}-DELIVERY`,
-      customerName: receiver.name,
-      customerPhoneNumber: receiver.phone,
-      customerEmail: receiver.email || undefined,
+      customerName: isNI ? CITY_AIR_EXPRESS.name : receiver.name,
+      customerPhoneNumber: isNI ? CITY_AIR_EXPRESS.phone : receiver.phone,
+      customerEmail: (isNI ? CITY_AIR_EXPRESS.email : receiver.email) || undefined,
       customerAddress: receiverAddress,
+
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "DELIVERY",
