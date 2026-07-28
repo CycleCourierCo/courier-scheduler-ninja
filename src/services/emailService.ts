@@ -249,8 +249,8 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     console.log("Using tracking number:", trackingNumber);
     console.log("Using tracking URL:", trackingUrl);
     
-    // Northern Ireland: City Air Express also receives this email and needs the
-    // NI receiver's full details so they can book the onward crossing.
+    // Northern Ireland: the ferry hand-off point also receives this email and needs
+    // the NI receiver's full details so they can book the onward transport.
     const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
     const addr = order.receiver.address || ({} as any);
     const niDetailsBlock = isNI ? `
@@ -260,7 +260,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
               <p><strong>Address:</strong> ${[addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')}</p>
               <p><strong>Phone:</strong> ${order.receiver.phone || ''}</p>
               <p><strong>Email:</strong> ${order.receiver.email || ''}</p>
-              <p style="margin-bottom:0;">This bicycle will be delivered to ${CITY_AIR_EXPRESS.name}, ${CITY_AIR_EXPRESS.formatted} for transport to Northern Ireland.</p>
+              <p style="margin-bottom:0;">This bicycle will be delivered to the ferry port for onward transport to Northern Ireland.</p>
             </div>
     ` : '';
 
@@ -554,11 +554,11 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
       price: 0
     };
     
-    // Northern Ireland: the availability/dates email goes to City Air Express,
-    // who book the crossing — not to the NI receiver.
+    // Northern Ireland: the availability/dates email goes to the ferry hand-off
+    // point, who book the onward transport — not to the NI receiver.
     const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
     const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
-    const recipientName = isNI ? CITY_AIR_EXPRESS.name : (order.receiver.name || "Receiver");
+    const recipientName = isNI ? CITY_AIR_EXPRESS.displayName : (order.receiver.name || "Receiver");
 
     console.log("Sending receiver availability email to:", recipientEmail);
     
@@ -661,10 +661,10 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
     
     const baseUrl = window.location.origin;
 
-    // Northern Ireland: the dates email goes to City Air Express, not the NI receiver.
+    // Northern Ireland: the dates email goes to the ferry hand-off point, not the NI receiver.
     const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
     const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
-    const recipientName = isNI ? CITY_AIR_EXPRESS.name : (order.receiver.name || "Customer");
+    const recipientName = isNI ? CITY_AIR_EXPRESS.displayName : (order.receiver.name || "Customer");
     
     const response = await supabase.functions.invoke("send-email", {
       body: {
