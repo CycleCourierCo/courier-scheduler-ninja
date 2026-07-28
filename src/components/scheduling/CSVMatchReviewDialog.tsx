@@ -22,8 +22,20 @@ interface CSVMatchReviewDialogProps {
   onCancel: () => void;
 }
 
-const candidateKey = (rowIndex: number, c: MatchCandidate) =>
-  `${rowIndex}|${c.order.id}|${c.jobType}`;
+const candidateKey = (c: MatchCandidate) => `${c.order.id}|${c.jobType}`;
+
+const norm = (s?: string) =>
+  (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+interface StopGroup {
+  key: string;
+  name: string;
+  address: string;
+  sequence: number;
+  sequences: number[];
+  rowCount: number;
+  candidates: MatchCandidate[];
+}
 
 const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
   open,
@@ -34,49 +46,85 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 }) => {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
-  // Default selection: the best candidate for each row
+  // Group CSV rows into unique stops (same customer + address)
+  const stops: StopGroup[] = useMemo(() => {
+    const map = new Map<string, StopGroup>();
+    matchResults.forEach((result) => {
+      const key = `${norm(result.csvRow.name)}|${norm(result.csvRow.address)}`;
+      let stop = map.get(key);
+      if (!stop) {
+        stop = {
+          key,
+          name: result.csvRow.name,
+          address: result.csvRow.address,
+          sequence: result.csvRow.sequence,
+          sequences: [],
+          rowCount: 0,
+          candidates: []
+        };
+        map.set(key, stop);
+      }
+      stop.rowCount += 1;
+      stop.sequences.push(result.csvRow.sequence);
+      stop.sequence = Math.min(stop.sequence, result.csvRow.sequence);
+      (result.candidates || []).forEach(c => {
+        if (!stop!.candidates.some(existing => candidateKey(existing) === candidateKey(c))) {
+          stop!.candidates.push(c);
+        }
+      });
+    });
+    const list = Array.from(map.values());
+    list.forEach(s => {
+      s.sequences.sort((a, b) => a - b);
+      s.candidates.sort((a, b) => b.confidence - a.confidence);
+    });
+    return list.sort((a, b) => a.sequence - b.sequence);
+  }, [matchResults]);
+
+  const defaultSelection = useMemo(() => {
+    const defaults = new Set<string>();
+    stops.forEach(stop => {
+      const take = Math.min(stop.rowCount, stop.candidates.length);
+      stop.candidates.slice(0, take).forEach(c => defaults.add(candidateKey(c)));
+    });
+    return defaults;
+  }, [stops]);
+
+  // Default selection on open
   useEffect(() => {
     if (!open) return;
-    const defaults = new Set<string>();
-    matchResults.forEach((result, index) => {
-      if (!result.matchedOrder || !result.jobType) return;
-      const top = result.candidates?.find(
-        c => c.order.id === result.matchedOrder!.id && c.jobType === result.jobType
-      );
-      if (top) defaults.add(candidateKey(index, top));
-    });
-    setSelectedKeys(defaults);
-  }, [open, matchResults]);
+    setSelectedKeys(new Set(defaultSelection));
+  }, [open, defaultSelection]);
 
   const allCandidateKeys = useMemo(() => {
     const keys: string[] = [];
-    matchResults.forEach((r, i) => (r.candidates || []).forEach(c => keys.push(candidateKey(i, c))));
+    stops.forEach(s => s.candidates.forEach(c => keys.push(candidateKey(c))));
     return keys;
-  }, [matchResults]);
+  }, [stops]);
 
   // Sequence of pickups currently selected, used for "collection on route" checks
   const pickupSequenceByOrderId = useMemo(() => {
     const map = new Map<string, number>();
-    matchResults.forEach((result, index) => {
-      (result.candidates || []).forEach(c => {
+    stops.forEach(stop => {
+      stop.candidates.forEach(c => {
         if (c.jobType !== 'pickup') return;
-        if (!selectedKeys.has(candidateKey(index, c))) return;
-        map.set(c.order.id, result.csvRow.sequence);
+        if (!selectedKeys.has(candidateKey(c))) return;
+        map.set(c.order.id, stop.sequence);
       });
     });
     return map;
-  }, [matchResults, selectedKeys]);
+  }, [stops, selectedKeys]);
 
   const selectedJobs: CSVSelectedJob[] = useMemo(() => {
     const jobs: CSVSelectedJob[] = [];
-    matchResults.forEach((result, index) => {
-      (result.candidates || []).forEach(c => {
-        if (!selectedKeys.has(candidateKey(index, c))) return;
-        jobs.push({ orderId: c.order.id, jobType: c.jobType, sequence: result.csvRow.sequence });
+    stops.forEach(stop => {
+      stop.candidates.forEach(c => {
+        if (!selectedKeys.has(candidateKey(c))) return;
+        jobs.push({ orderId: c.order.id, jobType: c.jobType, sequence: stop.sequence });
       });
     });
     return jobs.sort((a, b) => a.sequence - b.sequence);
-  }, [matchResults, selectedKeys]);
+  }, [stops, selectedKeys]);
 
   const toggle = (key: string) => {
     setSelectedKeys(prev => {
@@ -88,8 +136,9 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
   };
 
   const totalRows = matchResults.length;
-  const matchedRows = matchResults.filter(r => (r.candidates?.length || 0) > 0).length;
-  const unmatchedRows = totalRows - matchedRows;
+  const totalStops = stops.length;
+  const unmatchedRows = stops.filter(s => s.candidates.length === 0).length;
+
 
   const getMatchBadge = (matchType: string) => {
     switch (matchType) {
@@ -164,8 +213,8 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
             <div className="text-xs text-muted-foreground">Selected</div>
           </div>
           <div className="text-center">
-            <div className="text-lg md:text-2xl font-bold">{matchedRows}</div>
-            <div className="text-xs text-muted-foreground">Matched Rows</div>
+            <div className="text-lg md:text-2xl font-bold">{totalStops}</div>
+            <div className="text-xs text-muted-foreground">Stops</div>
           </div>
           <div className="text-center">
             <div className="text-lg md:text-2xl font-bold text-red-600">{unmatchedRows}</div>
@@ -189,13 +238,14 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
             variant="outline"
             onClick={() => {
               const defaults = new Set<string>();
-              matchResults.forEach((result, index) => {
-                const top = result.candidates?.[0];
-                if (top) defaults.add(candidateKey(index, top));
+              stops.forEach(stop => {
+                const top = stop.candidates[0];
+                if (top) defaults.add(candidateKey(top));
               });
               setSelectedKeys(defaults);
             }}
           >
+
             Best match only
           </Button>
         </div>
@@ -203,12 +253,12 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
         {/* Match Details */}
         <ScrollArea className="flex-1 min-h-0 rounded-md border p-3">
           <div className="space-y-3">
-            {matchResults.map((result, index) => {
-              const candidates = result.candidates || [];
+            {stops.map((stop) => {
+              const candidates = stop.candidates;
               const hasCandidates = candidates.length > 0;
               return (
                 <div
-                  key={index}
+                  key={stop.key}
                   className={`p-3 rounded-lg border ${
                     hasCandidates
                       ? 'bg-muted/30 border-border'
@@ -217,13 +267,15 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="text-xs">#{result.csvRow.sequence}</Badge>
-                        <span className="font-medium text-sm truncate">{result.csvRow.name}</span>
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        {stop.sequences.map(seq => (
+                          <Badge key={seq} variant="outline" className="text-xs">#{seq}</Badge>
+                        ))}
+                        <span className="font-medium text-sm truncate">{stop.name}</span>
                       </div>
                       <div className="flex items-start gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{result.csvRow.address}</span>
+                        <span className="line-clamp-2">{stop.address}</span>
                       </div>
                     </div>
                     {!hasCandidates && (
@@ -234,6 +286,12 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                     )}
                   </div>
 
+                  {stop.rowCount > 1 && (
+                    <div className="text-[11px] text-muted-foreground mb-1">
+                      {stop.rowCount} CSV rows merged into this stop
+                    </div>
+                  )}
+
                   {candidates.length > 1 && (
                     <div className="text-[11px] text-muted-foreground mb-1">
                       {candidates.length} possible jobs for this stop — tick the ones to add
@@ -242,7 +300,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 
                   <div className="space-y-2">
                     {candidates.map((candidate) => {
-                      const key = candidateKey(index, candidate);
+                      const key = candidateKey(candidate);
                       const checked = selectedKeys.has(key);
                       const contact = candidate.jobType === 'pickup'
                         ? candidate.order.sender
@@ -277,7 +335,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                               {candidate.order.tracking_number} • {contact?.name}
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {renderCollectionStatus(candidate, result.csvRow.sequence)}
+                              {renderCollectionStatus(candidate, stop.sequence)}
                             </div>
                           </div>
                         </label>
@@ -287,6 +345,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                 </div>
               );
             })}
+
           </div>
         </ScrollArea>
 
