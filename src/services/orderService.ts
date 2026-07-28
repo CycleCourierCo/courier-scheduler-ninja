@@ -13,6 +13,8 @@ import {
 import { generateTrackingNumber } from "@/services/trackingService";
 import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
+import { resolveRegion, isNorthernIrelandAddress } from "@/utils/northernIreland";
+
 
 const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
   if (!order.needsInspection) {
