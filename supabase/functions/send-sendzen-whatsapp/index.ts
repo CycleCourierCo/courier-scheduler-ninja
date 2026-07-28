@@ -237,7 +237,7 @@ async function updateShipday(
         ? scheduledUTCDate
         : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
 
-    const jobContact = isPickup ? orderToUpdate.sender : orderToUpdate.receiver;
+    const jobContact = resolveLegContact(orderToUpdate, isPickup);
     const jobNotes = isPickup ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
 
     // Build delivery instructions
@@ -424,7 +424,11 @@ async function sendEmail(
           <p style="margin: 0; font-size: 18px;"><strong>${formattedDate}</strong></p>
           <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
         </div>
-        <p>You will receive a text with a live tracking link once the driver is on their way.</p>
+        ${
+          !isCollection && isNiOrder(order)
+            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+            : `<p>You will receive a text with a live tracking link once the driver is on their way.</p>`
+        }
         ${isCollection ? `
           <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
             <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
@@ -540,7 +544,13 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Get contact based on recipientType
-    const contact = recipientType === "sender" ? order.sender : order.receiver;
+    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
+    if (primaryIsNiDelivery) {
+      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+    }
+    const contact = recipientType === "sender"
+      ? order.sender
+      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
     if (!contact?.phone) {
       return new Response(
         JSON.stringify({ error: `No phone number found for ${recipientType}` }),
