@@ -820,7 +820,7 @@ export default function InvoicesPage() {
                 !quickBooksConnected
               }
               size="lg"
-              className="min-w-[200px]"
+              className="w-full sm:w-auto sm:min-w-[200px]"
             >
               <Send className="mr-2 h-4 w-4" />
               {isCreatingInvoice ? "Creating Invoice..." : "Create QuickBooks Invoice"}
