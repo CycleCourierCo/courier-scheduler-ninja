@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { formatStorageLocations } from "@/utils/storageLocation";
 
 interface FoamOrder {
   id: string;
@@ -25,6 +26,7 @@ interface FoamOrder {
   bike_model: string | null;
   user_id: string;
   created_at: string;
+  storage_locations: any;
 }
 
 const FOAM_LABEL_BUCKET = "foam-my-bike-labels";
@@ -102,7 +104,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations")
         .eq("is_northern_ireland", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -253,7 +255,14 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                 {[o.bike_brand, o.bike_model].filter(Boolean).join(" ") || "Bicycle"}
               </div>
             </div>
-            <Badge variant="outline">{FOAM_STATUS_LABELS[stage]}</Badge>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {formatStorageLocations(o.storage_locations) ? (
+                <Badge variant="secondary">📍 {formatStorageLocations(o.storage_locations)}</Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">📍 Not allocated</Badge>
+              )}
+              <Badge variant="outline">{FOAM_STATUS_LABELS[stage]}</Badge>
+            </div>
           </div>
 
           <div className="text-sm">
