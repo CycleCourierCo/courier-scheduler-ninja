@@ -125,10 +125,11 @@ serve(async (req) => {
       text: string;
     } = {
       from,
-      to: [reqData.to],
+      to: Array.isArray(reqData.to) ? reqData.to : [reqData.to],
       subject: 'Notification from The Cycle Courier Co.',
       text: 'Default email content',
     };
+
     
     // Build email based on type
     if (reqData.emailType === 'sender' || reqData.emailType === 'receiver') {
