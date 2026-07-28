@@ -1465,8 +1465,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const removeJob = (jobToRemove: SelectedJob) => {
+    // Recompute grouping so we can detect if this job is bundled with others
+    const grouped = groupJobsByLocation(selectedJobs);
+    const target = grouped.find(
+      j => j.orderId === jobToRemove.orderId && j.type === jobToRemove.type
+    );
+
+    let toRemove: Array<{ orderId: string; type: SelectedJob['type'] }> = [
+      { orderId: jobToRemove.orderId, type: jobToRemove.type }
+    ];
+
+    if (target?.locationGroupId) {
+      const groupMembers = grouped.filter(
+        j => j.locationGroupId === target.locationGroupId && j.type !== 'break'
+      );
+      if (groupMembers.length > 1) {
+        toRemove = groupMembers.map(j => ({ orderId: j.orderId, type: j.type }));
+      }
+    }
+
+    const isRemoved = (job: SelectedJob) =>
+      toRemove.some(r => r.orderId === job.orderId && r.type === job.type);
+
     const updatedJobs = selectedJobs
-      .filter(job => !(job.orderId === jobToRemove.orderId && job.type === jobToRemove.type))
+      .filter(job => !isRemoved(job))
       .map((job, index) => ({
         ...job,
         order: index + 1
