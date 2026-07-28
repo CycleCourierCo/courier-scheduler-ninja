@@ -18,6 +18,19 @@ const json = (body: unknown, status = 200) =>
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
+const safePathPrefix = (path: string) => path.split("/")[0] || "unknown";
+
+const logUpload = (level: "info" | "warn" | "error", event: string, details: Record<string, unknown>) => {
+  const payload = {
+    event,
+    ...details,
+    timestamp: new Date().toISOString(),
+  };
+  if (level === "error") console.error("[upload-file]", payload);
+  else if (level === "warn") console.warn("[upload-file]", payload);
+  else console.log("[upload-file]", payload);
+};
+
 function decodeBase64(base64: string): Uint8Array {
   const cleaned = base64.includes(",") ? base64.split(",").pop() || "" : base64;
   const binary = atob(cleaned.replace(/\s/g, ""));
@@ -76,56 +89,96 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (!token) return json({ error: "Missing authorization" }, 401);
+    if (!token) {
+      logUpload("warn", "missing_authorization", { hasAuthorizationHeader: Boolean(authHeader) });
+      return json({ error: "Missing authorization" }, 401);
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceKey);
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     const { data: userData, error: userError } = await admin.auth.getUser(token);
-    if (userError || !userData?.user) return json({ error: "Invalid session" }, 401);
+    if (userError || !userData?.user) {
+      logUpload("warn", "invalid_session", { errorName: userError?.name || null });
+      return json({ error: "Invalid session" }, 401);
+    }
     const userId = userData.user.id;
 
     const { bucket, path, bytes, contentType } = await parseUploadRequest(req);
+    const orderPrefix = safePathPrefix(path);
 
-    if (!ALLOWED_BUCKETS.has(bucket)) return json({ error: "Unsupported bucket" }, 400);
+    logUpload("info", "request_received", {
+      bucket,
+      orderPrefix,
+      bytes: bytes.length,
+      contentType,
+      hasUser: Boolean(userId),
+    });
+
+    if (!ALLOWED_BUCKETS.has(bucket)) {
+      logUpload("warn", "unsupported_bucket", { bucket, orderPrefix });
+      return json({ error: "Unsupported bucket" }, 400);
+    }
     if (!path || path.includes("..") || !path.includes("/")) {
+      logUpload("warn", "invalid_path", { bucket, orderPrefix });
       return json({ error: "Invalid path" }, 400);
     }
     if (bytes.length === 0 || bytes.length > MAX_UPLOAD_BYTES) {
+      logUpload("warn", "invalid_size", { bucket, orderPrefix, bytes: bytes.length });
       return json({ error: "File must be between 1 byte and 20MB" }, 400);
     }
 
     // Authorisation mirrors the storage RLS policies: staff, or the order owner.
-    const { data: roles } = await admin
+    const { data: roles, error: rolesError } = await admin
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
+    if (rolesError) {
+      logUpload("error", "roles_lookup_failed", {
+        bucket,
+        orderPrefix,
+        errorCode: rolesError.code || null,
+      });
+      return json({ error: "Could not verify upload permissions" }, 500);
+    }
     const isStaff = (roles || []).some((r: { role: string }) => STAFF_ROLES.includes(r.role));
 
     if (!isStaff) {
-      const orderId = path.split("/")[0];
       const { data: order } = await admin
         .from("orders")
         .select("id")
-        .eq("id", orderId)
+        .eq("id", orderPrefix)
         .eq("user_id", userId)
         .maybeSingle();
-      if (!order) return json({ error: "Not allowed to upload for this order" }, 403);
+      if (!order) {
+        logUpload("warn", "permission_denied", { bucket, orderPrefix, isStaff });
+        return json({ error: "Not allowed to upload for this order" }, 403);
+      }
     }
 
     const { error: uploadError } = await admin.storage.from(bucket).upload(path, bytes, {
       upsert: true,
       contentType,
+      cacheControl: "3600",
     });
     if (uploadError) {
-      console.error("[upload-file] storage error", uploadError.message);
+      logUpload("error", "storage_rejected", {
+        bucket,
+        orderPrefix,
+        bytes: bytes.length,
+        errorName: uploadError.name || null,
+        errorMessage: uploadError.message,
+      });
       return json({ error: "Storage rejected the upload" }, 502);
     }
 
+    logUpload("info", "upload_complete", { bucket, orderPrefix, bytes: bytes.length });
     return json({ path });
   } catch (e) {
-    console.error("[upload-file] unexpected error", (e as Error)?.message);
+    logUpload("error", "unexpected_error", { errorMessage: (e as Error)?.message || "Unknown error" });
     return json({ error: "Upload failed" }, 500);
   }
 });
