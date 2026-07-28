@@ -100,6 +100,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, suggestion.properties.county || "");
     setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
     setValue(`${prefix}.country`, suggestion.properties.country || "");
+    // Geoapify returns the UK constituent country ("England", "Wales",
+    // "Scotland", "Northern Ireland") in `state` — keep it for NI routing.
+    setValue(`${prefix}.region`, suggestion.properties.state || "");
+
     
     // Store latitude and longitude
     if (suggestion.properties.lat !== undefined && suggestion.properties.lon !== undefined) {
