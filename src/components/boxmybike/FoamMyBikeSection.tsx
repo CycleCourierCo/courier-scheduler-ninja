@@ -156,7 +156,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
       toast.success("Photo uploaded");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to upload photo"),
+    onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload photo"),
   });
 
   const viewPhoto = async (path: string) => {
