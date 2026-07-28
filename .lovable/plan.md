@@ -1,42 +1,34 @@
-## Goal
+## What I found
 
-Some orders were created before Northern Ireland detection existed, or the address region wasn't picked up. Admins need a way to flag an existing order as an NI delivery so it enters the Foam My Bike pipeline, gets the £120/bike surcharge, and has its delivery job re-routed to City Air Express.
+For order `CCC754877137960COLBT4` (receiver postcode `BT48 8JP`):
 
-## What gets built
+- The database row still has `is_northern_ireland = false`, `destination_region = null`, `foam_status = null` — so the "Mark as Northern Ireland delivery" write did not persist (the Supabase update is fired without checking how many rows came back, so a silent 0-row update looks like success).
+- Because the flag is false, the Shipday job was created against the real NI address: the edge function log shows `customerName: "Brendan Whelan"`, `customerAddress: "67 Coney Road, Culmore, County Londonderry BT48 8JP"`.
+- The "NORTHERN IRELAND DELIVERY" text in that job is just the order's own `delivery_instructions` field, not the code's hand-off note — further confirmation the NI branch never ran.
+- The edge function's postcode fallback (`isNorthernIrelandAddress`) should have caught `BT48` even with the flag false, so the deployed copy of `create-shipday-order` is also suspect and needs redeploying.
 
-A new admin-only card on the order detail page (`/orders/:id`), placed next to the existing Admin Tracking Editor section.
+## Fix
 
-**When the order is NOT flagged as NI:**
-- Shows a "Mark as Northern Ireland delivery" button.
-- Clicking opens a confirmation dialog explaining exactly what will happen (foam pipeline starts, delivery diverts to City Air Express in Manchester, £120/bike surcharge applies to future invoicing).
-- If a BT postcode is detected on the receiver address but the flag is off, the card shows a hint: "This looks like a Northern Ireland address."
+**1. Make the flag write verifiable (`src/components/order-detail/NorthernIrelandEditor.tsx`)**
+- Change the update to `.update(patch).eq("id", order.id).select("id, is_northern_ireland, foam_status").maybeSingle()`.
+- If no row is returned or the returned `is_northern_ireland` doesn't match what was requested, abort with a clear error and do NOT touch Shipday.
+- Only after a confirmed write, re-route the delivery leg.
 
-**When the order IS flagged as NI:**
-- Shows a green "Northern Ireland delivery" badge, the current foam stage, and the City Air Express hand-off address.
-- Shows an "Undo / unmark" button (same confirmation pattern) that clears the flag and the foam pipeline, and restores the delivery job to the real receiver address.
+**2. Remove the read-after-write dependency (`supabase/functions/create-shipday-order/index.ts`)**
+- Accept an optional `forceNorthernIreland: boolean` in the request body.
+- Resolve `isNI` as: `forceNorthernIreland ?? (order.is_northern_ireland === true || isNorthernIrelandAddress(receiver?.address))`.
+- Log the resolved `isNI`, the source of that decision, and the final delivery address so future failures are diagnosable from the logs.
+- Pass `forceNorthernIreland` from the editor (and from `createShipdayOrder` in `src/services/shipdayService.ts` as an optional argument) when re-routing.
 
-## What the button does
+**3. Redeploy the NI-aware functions**
+- Redeploy `create-shipday-order` (and `_shared/northernIreland.ts` consumers) so the live version matches the repo.
 
-On confirm:
-1. Update the order: `is_northern_ireland = true`, `destination_region = 'Northern Ireland'`, `foam_status = 'pending_collection'`, `foam_pending_collection_at = now()`.
-2. Re-route the Shipday delivery leg:
-   - If the order has an existing `shipday_delivery_id`, delete that delivery job via the existing `delete-shipday-order` function.
-   - Re-create the delivery job via the existing `create-shipday-order` function, which already diverts NI deliveries to City Air Express and writes the NI receiver block into the delivery instructions.
-   - The collection/pickup job is left untouched.
-3. Toast the result and refresh the order.
+**4. Repair the affected order**
+- Set `is_northern_ireland = true`, `destination_region = 'Northern Ireland'`, `foam_status = 'pending_collection'` on `CCC754877137960COLBT4`.
+- Delete Shipday delivery job `50983151` and re-create the delivery leg so it lands on City Air Express, Unit 1 Ordinal Street, Trafford Park, Manchester M17 1GB, with the NI receiver block in the instructions.
 
-Unmarking reverses all of the above (clears flags/timestamps, recreates the delivery job against the real receiver address).
+**5. Post-fix check**
+- Re-read the order row and the edge function log to confirm the new job's `customerName` is `City Air Express` and the address is the Manchester one, and report the result.
 
-## Safety rails
-
-- Admin-only (uses the same `isAdmin` check already on the page).
-- The confirmation dialog warns explicitly when a delivery job is already assigned to a driver or already scheduled, since re-creating the job will drop the driver assignment and the timeslot — the planner will need to re-schedule that delivery.
-- Blocked entirely if the order is already `delivered`, `delivered_by_3p`, or `cancelled`.
-- Shipday re-routing failures do not roll back the flag; they surface as an error toast telling the admin to re-create the delivery job manually from scheduling.
-
-## Technical notes
-
-- New component `src/components/order-detail/NorthernIrelandEditor.tsx`, rendered from `src/pages/OrderDetail.tsx` inside the existing `isAdmin` block near `AdminTrackingEditor`.
-- Reuses `isNorthernIrelandAddress` from `src/utils/northernIreland.ts` for the BT-postcode hint and `CITY_AIR_EXPRESS` from `src/constants/depot.ts` for display.
-- Shipday work reuses `src/services/shipdayService.ts` (`delete-shipday-order` / `create-shipday-order`); no new edge functions and no database migration are needed — every column involved already exists on `orders`.
-- The QuickBooks £120/bike surcharge needs no change: `create-quickbooks-invoice` already reads `is_northern_ireland` at invoice time.
+### Notes
+Collection leg is untouched throughout. The £120-per-bike surcharge and the Foam My Bike pipeline both key off `is_northern_ireland`, so both start working correctly once the flag actually persists.
