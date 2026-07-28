@@ -78,6 +78,7 @@ const addressSchema = z.object({
   state: z.string().min(1, "State is required"),
   zipCode: z.string().min(1, "Zip code is required"),
   country: z.string().min(2, "Country is required"),
+  region: z.string().optional(),
   lat: z.number().optional(),
   lon: z.number().optional(),
 });
@@ -102,10 +103,12 @@ const orderSchema = z.object({
       state: z.string().optional(),
       zipCode: z.string().optional(),
       country: z.string().optional(),
+      region: z.string().optional(),
       lat: z.number().optional(),
       lon: z.number().optional(),
     }),
   }),
+
   bikeQuantity: z.number().min(1).max(8),
   bikes: z.array(z.object({
     brand: z.string().min(1, "Bike brand is required"),
