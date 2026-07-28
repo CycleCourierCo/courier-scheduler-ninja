@@ -930,27 +930,28 @@ export default function InvoicesPage() {
                 {invoiceHistory.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{invoice.customer_name}</h4>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h4 className="font-medium break-words">{invoice.customer_name}</h4>
                         {invoice.quickbooks_invoice_number && (
                           <span className="text-sm text-muted-foreground">
                             #{invoice.quickbooks_invoice_number}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-all">
                         {invoice.customer_email} • {invoice.order_count} orders • £{invoice.total_amount}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground break-words">
                         {format(new Date(invoice.start_date), "MMM d")} - {format(new Date(invoice.end_date), "MMM d, yyyy")} • 
                         Created {format(new Date(invoice.created_at), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         invoice.status === 'created' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
