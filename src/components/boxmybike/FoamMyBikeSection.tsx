@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { formatStorageLocations } from "@/utils/storageLocation";
+import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
+
 
 interface FoamOrder {
   id: string;
@@ -30,6 +32,7 @@ interface FoamOrder {
 }
 
 const FOAM_LABEL_BUCKET = "foam-my-bike-labels";
+
 
 // Inline editor for the courier tracking link on a foam order
 const FoamTrackingUrlEditor: React.FC<{
@@ -136,11 +139,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
   const uploadPhoto = useMutation({
     mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
-      const path = `${order.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from("foam-delivery-photos")
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: "foam-delivery-photos",
+        prefix: order.id,
+        file,
+      });
+
       const photos = [...(order.foam_delivery_photos || []), path];
       const { error } = await supabase
         .from("orders")
@@ -152,7 +156,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
       toast.success("Photo uploaded");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to upload photo"),
+    onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload photo"),
   });
 
   const viewPhoto = async (path: string) => {
@@ -168,11 +172,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
-      const path = `${id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from(FOAM_LABEL_BUCKET)
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: FOAM_LABEL_BUCKET,
+        prefix: id,
+        file,
+      });
+
       const { error } = await supabase
         .from("orders")
         .update({
@@ -188,7 +193,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
       toast.success("Label uploaded");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
+    onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload label"),
   });
 
   const saveTrackingUrl = useMutation({
@@ -299,10 +304,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                         accept="application/pdf,image/*"
                         className="hidden"
                         onChange={(e) => {
-                          const f = e.target.files?.[0];
+                          const input = e.target as HTMLInputElement;
+                          const f = input.files?.[0];
+                          input.value = "";
                           if (f) uploadLabel.mutate({ id: o.id, file: f });
-                          e.currentTarget.value = "";
                         }}
+
                       />
                       <Button size="sm" variant="outline" asChild>
                         <span>
@@ -359,10 +366,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
+                    const input = e.target as HTMLInputElement;
+                    const f = input.files?.[0];
+                    input.value = "";
                     if (f) uploadPhoto.mutate({ order: o, file: f });
-                    e.currentTarget.value = "";
                   }}
+
                 />
                 <Button size="sm" variant="outline" asChild>
                   <span><Camera className="h-4 w-4 mr-1" /> Add photo</span>

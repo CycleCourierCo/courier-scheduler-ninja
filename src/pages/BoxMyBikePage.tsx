@@ -17,6 +17,8 @@ import {
 } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
 import { formatStorageLocations } from "@/utils/storageLocation";
+import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
+
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
 
 
@@ -136,9 +138,12 @@ const BoxMyBikePage: React.FC = () => {
 
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
-      const path = `${id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("box-my-bike-labels").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: "box-my-bike-labels",
+        prefix: id,
+        file,
+      });
+
       const { error: updErr } = await supabase
         .from("orders")
         .update({
@@ -155,7 +160,7 @@ const BoxMyBikePage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
       toast.success("Label uploaded");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
+    onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload label"),
   });
 
   const saveTrackingUrl = useMutation({
@@ -263,10 +268,12 @@ const BoxMyBikePage: React.FC = () => {
                       className="hidden"
                       accept="application/pdf,image/*"
                       onChange={(e) => {
-                        const f = e.target.files?.[0];
+                        const input = e.target as HTMLInputElement;
+                        const f = input.files?.[0];
+                        input.value = "";
                         if (f) uploadLabel.mutate({ id: o.id, file: f });
-                        e.target.value = "";
                       }}
+
                     />
                   </label>
                 </div>
