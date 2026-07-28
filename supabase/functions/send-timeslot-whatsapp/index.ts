@@ -126,6 +126,23 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
+/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+function isNiOrder(o: any): boolean {
+  if (!o) return false;
+  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+}
+
+/** Contact the driver actually visits / we message for a delivery leg. */
+function niHandoffContact() {
+  return {
+    name: CITY_AIR_EXPRESS.name,
+    phone: CITY_AIR_EXPRESS.phone,
+    email: CITY_AIR_EXPRESS.email,
+    address: { ...CITY_AIR_EXPRESS.address },
+  };
+}
+
+
 const serve_handler = async (req: Request): Promise<Response> => {
   // CORS preflight
   if (req.method === "OPTIONS") {
