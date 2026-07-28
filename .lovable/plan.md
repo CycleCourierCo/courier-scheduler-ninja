@@ -1,67 +1,42 @@
-# Northern Ireland Orders
+## Goal
 
-## 1. Classify destination region from the address (no extra API call)
+Some orders were created before Northern Ireland detection existed, or the address region wasn't picked up. Admins need a way to flag an existing order as an NI delivery so it enters the Foam My Bike pipeline, gets the £120/bike surcharge, and has its delivery job re-routed to City Air Express.
 
-Geoapify's autocomplete response already contains `properties.state`, which for UK addresses is the constituent country — "England", "Scotland", "Wales" or "Northern Ireland". `AddressForm.tsx` currently reads `properties.county` into the County field and throws `properties.state` away.
+## What gets built
 
-- Add a hidden `region` field to the address object, populated from `properties.state` when a suggestion is picked.
-- Derive `is_northern_ireland` from `region === "Northern Ireland"`, with a `BT` postcode-prefix fallback for manually typed addresses (all NI postcodes are BT).
-- Persist `destination_region` and `is_northern_ireland` on the order at creation, in all three creation paths (Create Order page, public `orders` API edge function, Shopify webhook) via one shared helper.
-- Admin override toggle on the order detail page for edge cases.
+A new admin-only card on the order detail page (`/orders/:id`), placed next to the existing Admin Tracking Editor section.
 
-## 2. Shipday: divert the delivery leg
+**When the order is NOT flagged as NI:**
+- Shows a "Mark as Northern Ireland delivery" button.
+- Clicking opens a confirmation dialog explaining exactly what will happen (foam pipeline starts, delivery diverts to City Air Express in Manchester, £120/bike surcharge applies to future invoicing).
+- If a BT postcode is detected on the receiver address but the flag is off, the card shows a hint: "This looks like a Northern Ireland address."
 
-For NI orders, no Shipday delivery job is created to the receiver's address. The delivery leg goes to:
+**When the order IS flagged as NI:**
+- Shows a green "Northern Ireland delivery" badge, the current foam stage, and the City Air Express hand-off address.
+- Shows an "Undo / unmark" button (same confirmation pattern) that clears the flag and the foam pipeline, and restores the delivery job to the real receiver address.
 
-```text
-City Air Express
-Operations.man@cityairexpress.com
-+44 7730 145621
-Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB
-```
+## What the button does
 
-- The delivery job's instructions carry the true NI receiver name, address, phone and tracking number so City Air Express can book the onward leg.
-- Collection leg unchanged.
-- `CITY_AIR_EXPRESS` added to the depot constants, shared by the Shipday function and the emails.
+On confirm:
+1. Update the order: `is_northern_ireland = true`, `destination_region = 'Northern Ireland'`, `foam_status = 'pending_collection'`, `foam_pending_collection_at = now()`.
+2. Re-route the Shipday delivery leg:
+   - If the order has an existing `shipday_delivery_id`, delete that delivery job via the existing `delete-shipday-order` function.
+   - Re-create the delivery job via the existing `create-shipday-order` function, which already diverts NI deliveries to City Air Express and writes the NI receiver block into the delivery instructions.
+   - The collection/pickup job is left untouched.
+3. Toast the result and refresh the order.
 
-## 3. Emails
+Unmarking reverses all of the above (clears flags/timestamps, recreates the delivery job against the real receiver address).
 
-- **"Your Bicycle Delivery":** unchanged for GB. For NI it is also sent to City Air Express, with an extra block containing the full NI receiver details plus tracking number.
-- **Availability / dates email:** for NI, goes to City Air Express instead of the NI receiver.
-- The standard receiver notification still goes to the real NI receiver.
-- Applied in both `emailService.ts` and the `orders` edge function so API orders match.
+## Safety rails
 
-## 4. Pricing (+£120 per bike)
-
-- NI bike line price = normal bike-type price + £120, per bike, rolled into the single line.
-- QuickBooks: the invoice builder sets `UnitPrice = product price + 120` and the description notes "Northern Ireland"; `Amount = (price + 120) × quantity`.
-- Same uplift in the customer-facing quote at booking so it matches the invoice.
-
-## 5. Foam My Bike
-
-New "Foam My Bike" tab on the Box My Bike page, listing NI orders through their own stages:
-
-```text
-Pending collection -> Pending foaming -> Foamed, ready for delivery
--> Delivered to ferry -> Delivered in Northern Ireland
-```
-
-- New `foam_status` column plus per-stage timestamps, mirroring the box-my-bike stage pattern (forward/back buttons, webhook events).
-- Final "Delivered in Northern Ireland" stage is set manually and supports uploading proof photos, shown on the card and public tracking.
-
-## 6. Job scheduling markers
-
-- Scheduling cards and the Route Builder show "Bike foamed" (green) or "Pending foaming" (amber) for NI jobs.
-- Adding a pending-foaming job to a route triggers a confirmation warning so it isn't booked in early.
-
-## 7. Tracking
-
-- Once the Shipday delivery to City Air Express completes, public tracking shows "Delivered to ferry — awaiting transport across the Irish Sea" rather than "Delivered".
-- The manual "Delivered in Northern Ireland" stage adds the final tracking event with any uploaded photos.
+- Admin-only (uses the same `isAdmin` check already on the page).
+- The confirmation dialog warns explicitly when a delivery job is already assigned to a driver or already scheduled, since re-creating the job will drop the driver assignment and the timeslot — the planner will need to re-schedule that delivery.
+- Blocked entirely if the order is already `delivered`, `delivered_by_3p`, or `cancelled`.
+- Shipday re-routing failures do not roll back the flag; they surface as an error toast telling the admin to re-create the delivery job manually from scheduling.
 
 ## Technical notes
 
-- **No Boundaries API call.** Region comes from the existing geocode response; BT postcode is the fallback.
-- **Migration:** add `destination_region text`, `is_northern_ireland boolean default false`, `foam_status` (new enum), `foam_*_at` timestamps to `orders`; extend the order status enum with `delivered_to_ferry`; create a storage bucket for foam delivery photos with staff-write / public-read policies.
-- **QuickBooks:** no new product needed — uplift rides on the existing bike-type line.
-- Files touched: `AddressForm.tsx`, `src/types/order.ts`, `CreateOrder.tsx`, `orders`, `shopify-webhook`, `create-shipday-order`, `create-quickbooks-invoice`, `emailService.ts`, `BoxMyBikePage.tsx`, `SchedulingCard.tsx`, `RouteBuilder.tsx`, `TrackingTimeline.tsx`.
+- New component `src/components/order-detail/NorthernIrelandEditor.tsx`, rendered from `src/pages/OrderDetail.tsx` inside the existing `isAdmin` block near `AdminTrackingEditor`.
+- Reuses `isNorthernIrelandAddress` from `src/utils/northernIreland.ts` for the BT-postcode hint and `CITY_AIR_EXPRESS` from `src/constants/depot.ts` for display.
+- Shipday work reuses `src/services/shipdayService.ts` (`delete-shipday-order` / `create-shipday-order`); no new edge functions and no database migration are needed — every column involved already exists on `orders`.
+- The QuickBooks £120/bike surcharge needs no change: `create-quickbooks-invoice` already reads `is_northern_ireland` at invoice time.
