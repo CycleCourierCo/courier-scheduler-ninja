@@ -22,8 +22,8 @@ export const CITY_AIR_EXPRESS = {
     country: 'United Kingdom',
   },
   formatted: 'Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB',
-  lat: 53.4718,
-  lon: -2.2960,
+  lat: 53.4713,
+  lon: -2.3049,
 };
 
 // Proximity threshold in meters
