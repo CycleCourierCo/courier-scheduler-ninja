@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  CITY_AIR_EXPRESS,
+  isNorthernIrelandAddress,
+  formatNiReceiverBlock,
+} from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,6 +128,28 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
+/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+function isNiOrder(o: any): boolean {
+  if (!o) return false;
+  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+}
+
+/** Contact we message / send to Shipday for a delivery leg on an NI order. */
+function niHandoffContact() {
+  return {
+    name: CITY_AIR_EXPRESS.name,
+    phone: CITY_AIR_EXPRESS.phone,
+    email: CITY_AIR_EXPRESS.email,
+    address: { ...CITY_AIR_EXPRESS.address },
+  };
+}
+
+/** Resolve the contact for a leg: sender for pickups, NI-aware for deliveries. */
+function resolveLegContact(o: any, isPickup: boolean) {
+  if (isPickup) return o?.sender;
+  return isNiOrder(o) ? niHandoffContact() : o?.receiver;
+}
+
 // ---- Background: Update Shipday (exact copy of send-timeslot-whatsapp logic) ----
 async function updateShipday(
   order: any,
@@ -210,7 +237,7 @@ async function updateShipday(
         ? scheduledUTCDate
         : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
 
-    const jobContact = isPickup ? orderToUpdate.sender : orderToUpdate.receiver;
+    const jobContact = resolveLegContact(orderToUpdate, isPickup);
     const jobNotes = isPickup ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
 
     // Build delivery instructions
@@ -375,7 +402,11 @@ async function sendEmail(
         <h2>Dear ${contact.name || "Customer"},</h2>
         <p>We are due to be with you on <strong>${formattedDate}</strong> between <strong>${startTime}</strong> and <strong>${endTime}</strong>.</p>
         ${itemsHtml}
-        <p>You will receive a text with a live tracking link once the driver is on his way.</p>
+        ${
+          isNiOrder(order) && recipientType === "receiver"
+            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+            : `<p>You will receive a text with a live tracking link once the driver is on his way.</p>`
+        }
         ${collectionInstructions}
         <p style="margin-top: 30px; font-weight: bold;">Thank you!</p>
         <p><strong>Cycle Courier Co.</strong></p>
@@ -397,7 +428,11 @@ async function sendEmail(
           <p style="margin: 0; font-size: 18px;"><strong>${formattedDate}</strong></p>
           <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
         </div>
-        <p>You will receive a text with a live tracking link once the driver is on their way.</p>
+        ${
+          !isCollection && isNiOrder(order)
+            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+            : `<p>You will receive a text with a live tracking link once the driver is on their way.</p>`
+        }
         ${isCollection ? `
           <div style="border-left: 4px solid #ffa500; padding-left: 16px; margin: 20px 0; background-color: #fff8f0; padding: 16px; border-radius: 4px;">
             <p style="margin: 0 0 10px 0; font-weight: bold; color: #e67e22;">📦 Collection Instructions</p>
@@ -513,7 +548,13 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Get contact based on recipientType
-    const contact = recipientType === "sender" ? order.sender : order.receiver;
+    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
+    if (primaryIsNiDelivery) {
+      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+    }
+    const contact = recipientType === "sender"
+      ? order.sender
+      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
     if (!contact?.phone) {
       return new Response(
         JSON.stringify({ error: `No phone number found for ${recipientType}` }),

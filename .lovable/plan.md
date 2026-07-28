@@ -1,36 +1,19 @@
-## Goal
+## What's happening
 
-Multiple Northern Ireland deliveries on one route currently show as separate stops (#1, #2 …) at the ferry hand-off address. They should bundle into a single multi-job stop, and all messaging for that stop must go to the ferry hand-off contact you supplied — never the Northern Ireland receiver.
+The Route Builder's "SZ" / grouped send buttons call the **`send-sendzen-whatsapp`** edge function (RouteBuilder lines ~2704, 2816, 2867) — not `send-timeslot-whatsapp`.
 
-## Why they aren't bundling
-
-`groupJobsByLocation` in `src/components/scheduling/RouteBuilder.tsx` merges stops only when coordinates match **and** the contact key matches. The contact key is built from `orderData.receiver.email` / phone — the NI end customer, different for every order — so the merge is refused even though both stops resolve to the same ferry coordinates.
-
-## Contact details used
-
-The ferry hand-off contact is already the single source of truth in `src/constants/depot.ts` and is returned by `getLegContact(order, 'delivery')` for NI orders:
-
-- Name shown on the stop: Ferry hand-off
-- Email: the operations address stored in that constant
-- Phone: the mobile number stored in that constant
-- Address: Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB
-
-The NI receiver's name and address remain visible only as the "Final destination:" reference line on the card. `send-timeslot-whatsapp` already redirects the WhatsApp and email for NI delivery legs to this hand-off contact — the grouped send will reuse that same path, so no receiver contact is ever used.
+`send-timeslot-whatsapp` already redirects Northern Ireland delivery legs to the ferry hand-off contact. `send-sendzen-whatsapp` has no Northern Ireland logic at all: it picks `order.receiver` whenever `recipientType === "receiver"` (line 516) and emails `contact.email` (line 420), so the WhatsApp and email went to the Northern Ireland customer.
 
 ## Change
 
-1. In `RouteBuilder.tsx`, change `getContactKey` so a delivery leg on a Northern Ireland order (detected with the existing `isNiOrder` helper) returns one shared key derived from the ferry hand-off contact instead of the receiver's email/phone.
-2. With the key shared, the existing location + contact merge groups all NI delivery legs at the ferry coordinates into one stop card: one arrival time, each job listed beneath with customer name, bike count, badges and its final destination line, and one grouped SendZen button.
-3. Verify the grouped send path passes the ferry hand-off email/phone for every job in the group (it resolves per-order through the NI branch in `send-timeslot-whatsapp`), and that no NI receiver email/phone is used for the stop.
-4. Pickups and non-NI deliveries keep their current per-contact key, so nothing else regroups.
+Only `supabase/functions/send-sendzen-whatsapp/index.ts` changes — mirror what the other function already does:
 
-## Behaviour after the change
+1. Import `CITY_AIR_EXPRESS`, `isNorthernIrelandAddress`, `formatNiReceiverBlock` from `../_shared/northernIreland.ts` and add the same `isNiOrder(order)` / `niHandoffContact()` helpers.
+2. Where the primary contact is chosen: if `recipientType === "receiver"` and the order is Northern Ireland, use the hand-off contact (name, phone `+44 7730 145621`, email `operations.man@cityairexpress.com`, Manchester address) instead of `order.receiver`. WhatsApp number, template contact name and email recipient all follow from this one contact object.
+3. Related jobs in a grouped send (line ~213): each job resolves its own contact the same way — pickup legs use the sender, delivery legs on Northern Ireland orders use the hand-off contact, everything else unchanged. The Shipday update and `customerEmail` in that block use the resolved contact too.
+4. Email body for a Northern Ireland delivery includes the final-destination block (`formatNiReceiverBlock`) so the hand-off contact knows which customer the bike is for; the customer-facing "you'll get a tracking link" line is dropped for that case.
+5. Deploy the function.
 
-- One "Ferry hand-off" stop containing all NI jobs, single arrival time, travel time counted once.
-- One Send action, messaging only the hand-off operations email and mobile.
-- Removing the stop removes all jobs in the group (existing group-removal logic).
+## Behaviour after
 
-## Technical notes
-
-- Main edit: `src/components/scheduling/RouteBuilder.tsx` (`getContactKey`), importing `isNiOrder` / `getLegContact` from `@/utils/niDelivery`.
-- No database changes; saved routes and timeslip mileage already resolve NI stops via `resolveStopCoords`.
+Any timeslot sent from the Route Builder for a ferry hand-off stop — single or grouped — messages only the operations email and mobile above. Non-Northern-Ireland deliveries and all collections are untouched.
