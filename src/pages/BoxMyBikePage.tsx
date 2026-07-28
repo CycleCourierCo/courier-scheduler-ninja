@@ -16,6 +16,7 @@ import {
   BOX_MY_BIKE_STATUS_ORDER,
 } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
+import { formatStorageLocations } from "@/utils/storageLocation";
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
 
 
@@ -38,6 +39,7 @@ interface BoxOrder {
   user_id: string;
   created_at: string;
   collection_driver_name: string | null;
+  storage_locations: any;
 }
 
 function nextStage(s: BoxMyBikeStatus | null): BoxMyBikeStatus | null {
@@ -102,7 +104,7 @@ const BoxMyBikePage: React.FC = () => {
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_tracking_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name")
+        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_tracking_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name, storage_locations")
         .eq("is_box_my_bike", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -228,7 +230,14 @@ const BoxMyBikePage: React.FC = () => {
                 Order status: <StatusBadge status={o.status as any} />
               </div>
             </div>
-            <Badge variant="secondary">{BOX_MY_BIKE_STATUS_LABELS[stage]}</Badge>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {formatStorageLocations(o.storage_locations) ? (
+                <Badge variant="secondary">📍 {formatStorageLocations(o.storage_locations)}</Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">📍 Not allocated</Badge>
+              )}
+              <Badge variant="secondary">{BOX_MY_BIKE_STATUS_LABELS[stage]}</Badge>
+            </div>
           </div>
 
           {/* Label section */}

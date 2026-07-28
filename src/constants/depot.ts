@@ -7,9 +7,10 @@ export const DEPOT_LOCATION = {
   lon: -1.8757663
 };
 
-// Northern Ireland hand-off partner. NI deliveries are dropped here instead of
-// the customer address; City Air Express handles the Irish Sea crossing.
+// Northern Ireland ferry hand-off point. NI deliveries are dropped here instead
+// of the customer address for onward transport to Northern Ireland.
 export const CITY_AIR_EXPRESS = {
+  displayName: 'Ferry hand-off',
   name: 'City Air Express',
   email: 'Operations.man@cityairexpress.com',
   phone: '+44 7730 145621',

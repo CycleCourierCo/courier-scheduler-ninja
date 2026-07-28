@@ -49,7 +49,7 @@ export const getDeliveryDestination = (order: any): DeliveryDestination => {
   }
 
   return {
-    name: CITY_AIR_EXPRESS.name,
+    name: CITY_AIR_EXPRESS.displayName,
     phone: CITY_AIR_EXPRESS.phone,
     email: CITY_AIR_EXPRESS.email,
     address: {

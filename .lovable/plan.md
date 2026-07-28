@@ -1,33 +1,25 @@
-# Add label section to Foam My Bike
+## Goal
+Make Northern Ireland orders created through the public API (and Shopify, which posts to the same endpoint) behave exactly like NI orders created in the web UI — detected automatically from the receiver address, with nothing extra required from the caller.
 
-Mirror the Box My Bike "Shipping label" + tracking-link block inside the Foam My Bike (NI) pipeline, gated to the **Foamed ready** stage and editable by **staff only**.
+## Current gap (verified)
+- `supabase/functions/orders/index.ts` — the POST insert payload (~lines 276-306) contains no `is_northern_ireland` and no `foam_status`, and the function never imports `_shared/northernIreland.ts`.
+- `src/services/orderService.ts:400,454-457` — the web UI does set `is_northern_ireland` plus `foam_status: 'pending_collection'` and `foam_pending_collection_at` at creation.
+- `supabase/functions/shopify-webhook/index.ts:368` creates orders by calling the same `orders` API function, so it inherits the gap.
+- Fallbacks that already work without the flag: `create-shipday-order/index.ts:160-171` (ferry routing) and `create-quickbooks-invoice/index.ts:580-582` (£120 surcharge) both re-detect NI from the receiver address.
+- Fallbacks that do NOT exist: `shipday-webhook/index.ts:133` and `reconcile-shipday-orders/index.ts:257` read `is_northern_ireland` directly, so an API-created NI order would be marked plain "delivered" instead of "delivered to ferry", and the Foam My Bike board (`FoamMyBikeSection.tsx:108` filters `is_northern_ireland = true`) would never show it.
 
-## Behaviour
+## Changes
 
-- On each Foam My Bike order card, show a "Shipping label" block when the order is at **Foamed ready**, or whenever a label already exists (so it stays visible at Delivered to ferry / Delivered NI).
-- Staff at the Foamed ready stage can:
-  - Upload a label (PDF or image) — replaces any existing one.
-  - Paste and save a courier tracking link.
-- Anyone viewing the card can click "View / print" to open the label via a short-lived signed URL, and see the tracking link as a clickable link.
-- The **Next** button that moves an order from Foamed ready → Delivered to ferry is disabled until both the label and the tracking link exist, with a tooltip explaining why (same gate as Box My Bike's Advance button).
-- Customers (non-staff) see the label and tracking link read-only.
+1. **`supabase/functions/orders/index.ts`** — import `isNorthernIrelandAddress` from `../_shared/northernIreland.ts` and run it against the receiver address/region on every create. Add to the insert payload:
+   - `is_northern_ireland`
+   - `foam_status: 'pending_collection'` and `foam_pending_collection_at` when NI, otherwise null
 
-## Technical details
+   Detection is fully automatic from the receiver address — no new request field, nothing for API or Shopify callers to send. Same logic as the web UI so both paths produce identical rows.
 
-Database migration on `orders`:
-- `foam_label_url` (text) — storage path, not a public URL
-- `foam_tracking_url` (text)
-- `foam_label_uploaded_at` (timestamptz), `foam_label_uploaded_by` (uuid)
+2. **`supabase/functions/shipday-webhook/index.ts`** — add the same receiver-address fallback the other functions use, so a completed delivery leg is treated as the ferry leg when either the flag is true or the address resolves to NI. Same for `reconcile-shipday-orders/index.ts`.
 
-Storage:
-- New **private** bucket `foam-my-bike-labels`, path `${orderId}/${timestamp}-${filename}`.
-- RLS on `storage.objects`: staff can insert/update/select; the order owner can select their own order's files.
+3. **Backfill** — one-off data update setting `is_northern_ireland` and initialising `foam_status` for existing non-cancelled, non-delivered orders whose receiver postcode is NI but whose flag is false/null, so anything already booked via API/Shopify lands on the Foam board.
 
-`src/components/boxmybike/FoamMyBikeSection.tsx`:
-- Add the four new columns to the `FoamOrder` interface and the query `select`.
-- Add `uploadLabel` and `saveTrackingUrl` mutations plus a `viewLabel` handler, copied from the Box My Bike implementations (`BoxMyBikePage.tsx:135-192`) — including the open-blank-tab-first trick so the signed URL survives popup blockers.
-- Insert the label block in `renderCard` between the sender/receiver block and the existing photos block, reusing the same markup and icons as `BoxMyBikePage.tsx:234-276`.
-- Extract/duplicate the `TrackingUrlEditor` pattern for the foam fields.
-- Add a `blockedAdvance` check on the Foamed ready → Delivered to ferry transition.
-
-No changes to the Box My Bike page itself; the foam flow keeps its own columns and bucket so the two pipelines stay independent.
+## Notes
+- Detection uses the existing shared helper (BT-postcode / region match), so behaviour matches the web UI exactly.
+- No changes to pricing or Shipday routing behaviour; those already handle NI correctly via fallback.
