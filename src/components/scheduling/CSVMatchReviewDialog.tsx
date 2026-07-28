@@ -27,6 +27,21 @@ const candidateKey = (c: MatchCandidate) => `${c.order.id}|${c.jobType}`;
 const norm = (s?: string) =>
   (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+const UK_POSTCODE_RE = /([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})/i;
+
+// Tolerant stop key: same customer + same postcode + same premise number
+// so "…Louth, LN11 0JT" and "…Louth, Lincolnshire LN11 0JT" collapse together.
+const stopKey = (name?: string, address?: string) => {
+  const addr = address || '';
+  const m = addr.match(UK_POSTCODE_RE);
+  if (!m) return `${norm(name)}|${norm(addr)}`;
+  const postcode = `${m[1]}${m[2]}`.toUpperCase();
+  const beforePostcode = addr.slice(0, m.index ?? 0);
+  const premiseMatch = beforePostcode.match(/\d+[a-z]?(\s*[-/]\s*\d+[a-z]?)?/i);
+  const premise = premiseMatch ? premiseMatch[0].replace(/[^a-z0-9]/gi, '').toLowerCase() : '';
+  return `${norm(name)}|${postcode}|${premise}`;
+};
+
 interface StopGroup {
   key: string;
   name: string;
@@ -50,7 +65,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
   const stops: StopGroup[] = useMemo(() => {
     const map = new Map<string, StopGroup>();
     matchResults.forEach((result) => {
-      const key = `${norm(result.csvRow.name)}|${norm(result.csvRow.address)}`;
+      const key = stopKey(result.csvRow.name, result.csvRow.address);
       let stop = map.get(key);
       if (!stop) {
         stop = {
