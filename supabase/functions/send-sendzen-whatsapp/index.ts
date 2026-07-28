@@ -398,14 +398,36 @@ async function sendEmail(
       </div>
     ` : "";
 
+    // Collect every NI delivery order in this grouped stop (primary + related),
+    // deduped by id, so the ferry contact sees ALL final destinations.
+    const niOrders: any[] = [];
+    const seenNiIds = new Set<string>();
+    for (const o of [order, ...(niDeliveryOrders || [])]) {
+      if (!o || !isNiOrder(o)) continue;
+      const id = String(o.id);
+      if (seenNiIds.has(id)) continue;
+      seenNiIds.add(id);
+      niOrders.push(o);
+    }
+
+    const niBlocksHtml = niOrders.length
+      ? `<p style="font-weight: bold; margin-top: 20px;">Final destination${niOrders.length > 1 ? "s" : ""}:</p>` +
+        niOrders
+          .map(
+            (o) =>
+              `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 12px;">${formatNiReceiverBlock(o.receiver, o.tracking_number)}</pre>`,
+          )
+          .join("\n")
+      : "";
+
     emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
         <h2>Dear ${contact.name || "Customer"},</h2>
         <p>We are due to be with you on <strong>${formattedDate}</strong> between <strong>${startTime}</strong> and <strong>${endTime}</strong>.</p>
         ${itemsHtml}
         ${
-          isNiOrder(order) && recipientType === "receiver"
-            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+          niBlocksHtml && recipientType === "receiver"
+            ? niBlocksHtml
             : `<p>You will receive a text with a live tracking link once the driver is on his way.</p>`
         }
         ${collectionInstructions}
