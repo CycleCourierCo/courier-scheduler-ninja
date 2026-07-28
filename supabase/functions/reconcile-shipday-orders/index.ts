@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -201,7 +202,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status"
+          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status, receiver"
         )
         .or(
           `shipday_pickup_id.in.(${chunk.join(",")}),shipday_delivery_id.in.(${chunk.join(",")})`
@@ -254,7 +255,10 @@ serve(async (req) => {
         sStatus === "PICKED_UP"
       ) {
         event = "ORDER_COMPLETED";
-        const niFerryLeg = !isPickup && dbOrder.is_northern_ireland === true;
+        const niFerryLeg =
+          !isPickup &&
+          (dbOrder.is_northern_ireland === true ||
+            isNorthernIrelandAddress((dbOrder as any).receiver?.address || (dbOrder as any).receiver));
         newStatus = isPickup ? "collected" : niFerryLeg ? "delivered_to_ferry" : "delivered";
         description = isPickup
           ? "Driver has collected the bike"

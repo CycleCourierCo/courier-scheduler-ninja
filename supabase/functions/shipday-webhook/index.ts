@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
+import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +83,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status, receiver")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -96,7 +97,7 @@ serve(async (req) => {
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status, receiver")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
@@ -130,7 +131,9 @@ serve(async (req) => {
     // not the final customer address. Their delivery leg completes as
     // "delivered_to_ferry" and the final delivery is confirmed manually
     // from the Foam My Bike board.
-    const isNorthernIreland = (dbOrder as any).is_northern_ireland === true;
+    const isNorthernIreland =
+      (dbOrder as any).is_northern_ireland === true ||
+      isNorthernIrelandAddress((dbOrder as any).receiver?.address || (dbOrder as any).receiver);
     const niFerryLeg = isNorthernIreland && isDelivery;
 
     // Map Shipday status to application OrderStatus based on event type
