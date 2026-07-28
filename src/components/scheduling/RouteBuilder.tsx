@@ -29,7 +29,7 @@ import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
-import { getLegContact, getFoamBadge, resolveStopCoords } from "@/utils/niDelivery";
+import { getLegContact, getFoamBadge, resolveStopCoords, isNiOrder } from "@/utils/niDelivery";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
