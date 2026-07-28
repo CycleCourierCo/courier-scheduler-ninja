@@ -146,13 +146,7 @@ const matchRowToOrder = (
   const normalizedCSVName = normalizeName(row.name);
   const csvPostcode = extractPostcode(row.address);
   
-  let bestMatch: MatchResult = {
-    csvRow: row,
-    matchedOrder: null,
-    matchType: 'none',
-    jobType: null,
-    confidence: 0
-  };
+  const candidates: MatchCandidate[] = [];
   
   for (const order of orders) {
     // Skip already matched orders for this job type
