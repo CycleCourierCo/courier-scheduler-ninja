@@ -1077,15 +1077,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const deliveryVisible = deliveryDateVisible && passesCollectedOnly && passesCollectingBefore && passesInspected;
 
         if (deliveryVisible) {
+          // Northern Ireland deliveries go to City Air Express (Manchester), not the customer
+          const dest = getLegContact(order, 'delivery');
           jobs.push({
             orderId: order.id,
             type: 'delivery',
-            address: formatAddress(order.receiver.address),
-            contactName: order.receiver.name,
-            phoneNumber: order.receiver.phone,
+            address: formatAddress(dest.address),
+            contactName: dest.name,
+            phoneNumber: dest.phone,
             order,
-            lat: order.receiver.address.lat,
-            lon: order.receiver.address.lon
+            lat: dest.lat,
+            lon: dest.lon
           });
         }
       }
