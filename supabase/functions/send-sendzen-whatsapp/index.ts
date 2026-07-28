@@ -351,6 +351,7 @@ async function sendEmail(
   scheduledDate: string | undefined,
   collectionJobList: string | undefined,
   deliveryJobList: string | undefined,
+  niDeliveryOrders?: any[],
 ) {
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   if (!resendApiKey) { console.error("Resend API key not configured"); return; }
