@@ -157,6 +157,16 @@ export type Order = {
   boxLabelPrintedAt?: Date | null;
   boxCollectedBy3pAt?: Date | null;
   boxDeliveredBy3pAt?: Date | null;
+  destinationRegion?: string | null;
+  isNorthernIreland?: boolean;
+  foamStatus?: FoamStatus | null;
+  foamPendingCollectionAt?: Date | null;
+  foamPendingFoamingAt?: Date | null;
+  foamFoamedAt?: Date | null;
+  foamDeliveredToFerryAt?: Date | null;
+  foamDeliveredNiAt?: Date | null;
+  foamDeliveryPhotos?: string[] | null;
+
   collectionCode?: string;
   deliveryInstructions?: string;
   senderNotes?: string;
