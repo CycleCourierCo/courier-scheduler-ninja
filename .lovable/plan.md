@@ -1,37 +1,33 @@
-## What I checked
+## Diagnosis
 
-- The failing upload is a 44 KB PDF into the `foam-my-bike-labels` bucket — well under any limit.
-- The bucket exists, is private, has **no** file size limit and **no** MIME restrictions.
-- RLS on `storage.objects` allows admin/loader/mechanic/route_planner to insert into that bucket — so this is not a permissions rejection.
-- The browser console shows `TypeError: Failed to fetch` from `uploadToStorage`, after the built-in retry. That is a transport-level failure (request never got a HTTP response), not a server rejection — typical of a flaky mobile connection, a request aborted mid-flight, or the direct `*.supabase.co/storage` request being blocked on that network.
+Do I know what the issue is? Yes, at least for the remaining failure path:
 
-Because the request dies before reaching Supabase, no amount of client-side validation will fix it. We need a more resilient transport and a fallback path.
+- The direct Storage upload is still failing as a transport/network failure.
+- The fallback edge-function upload is also failing before it can complete, with `Failed to send a request to the Edge Function`.
+- The current frontend then throws the original direct-upload message, so the user only sees “connection dropped” even though the fallback also failed.
+- The `upload-file` edge function logs only show boot/shutdown, with no useful upload error, so the fix needs better fallback transport and better diagnostics.
 
 ## Plan
 
-**1. Swap the storage upload to XHR-based transport**
-In `src/utils/uploadFile.ts`, replace the `supabase.storage.from().upload()` fetch call with a direct `XMLHttpRequest` PUT/POST to the storage REST endpoint (with the session access token). Benefits:
-- Returns real HTTP status codes instead of an opaque `Failed to fetch`.
-- Exposes upload progress and a proper timeout, so we can distinguish "stalled" from "rejected".
-- More reliable on mobile browsers where `fetch` bodies get aborted on network handover (Wi-Fi ↔ cellular).
+1. **Replace the fallback transport**
+   - Stop using `supabase.functions.invoke("upload-file", { body: FormData })` for file fallback uploads.
+   - Call the edge function URL directly with explicit auth/API headers so browser/network errors are easier to distinguish from function errors.
+   - Keep the same storage path and bucket validation.
 
-**2. Smarter retry**
-- Retry up to 3 times with exponential backoff (1s / 3s / 6s) rather than a single immediate retry.
-- Only retry on transport failures / 5xx / 408; fail fast on 4xx with the server's actual message.
+2. **Add a JSON/base64 fallback mode**
+   - Update `upload-file` to accept either:
+     - existing `multipart/form-data`, or
+     - JSON containing bucket, path, filename, content type, and base64 file data.
+   - Use JSON/base64 as the final fallback because small PDF labels like this are well within the 20MB limit and it avoids mobile/FormData upload quirks.
 
-**3. Server-side fallback upload**
-Add an edge function `upload-label` that accepts the file (multipart) plus `orderId`, `bucket`, verifies the caller's JWT and role, and writes to storage with the service role. If the direct storage attempt fails all retries, `uploadToStorage` transparently retries through this function. The functions endpoint is a different host path than the storage endpoint, so it survives cases where the storage host specifically is being blocked/stalled.
+3. **Improve error reporting**
+   - If the fallback fails, show the fallback’s actual status/message instead of always showing the original “connection dropped” message.
+   - Keep Sentry capture, but avoid logging personal data or file contents.
 
-**4. Upload progress + clearer errors in the UI**
-- `FoamMyBikeSection.tsx` and `BoxMyBikePage.tsx`: show a progress percentage while uploading and disable the input during the upload.
-- Error toast reports the concrete cause (HTTP status, stalled, offline) instead of a generic "connection dropped".
+4. **Verify the function and CORS path**
+   - Ensure every response from `upload-file`, including validation and unexpected errors, returns CORS headers.
+   - Deploy/test the edge function after changes using a small test upload request where possible.
 
-**5. Verify**
-- Test the same 44 KB PDF end-to-end against the real bucket after the change (direct path and forced-fallback path) and confirm the object lands in `foam-my-bike-labels` and the label URL renders.
-
-## Technical notes
-
-- Storage endpoint used by XHR: `${SUPABASE_URL}/storage/v1/object/foam-my-bike-labels/<path>` with `Authorization: Bearer <access_token>`, `x-upsert: true`, and the file's content type.
-- The edge function uses `SUPABASE_SERVICE_ROLE_KEY` internally only; the client keeps sending the anon key + user JWT. Role check mirrors the existing bucket policy (admin/loader/mechanic/route_planner).
-- Standard CORS preflight headers included, per project convention.
-- No database schema changes needed; no changes to bucket config.
+5. **Keep the UI unchanged**
+   - The Foam My Bike label upload button and progress text stay where they are.
+   - This is only a reliability fix for the upload path.
