@@ -91,15 +91,12 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
                 P{polygonSegment}
               </Badge>
             )}
-            {(firstOrder as any).isNorthernIreland && (
-              (firstOrder as any).foamStatus === "foamed_ready" ||
-              (firstOrder as any).foamStatus === "delivered_to_ferry" ||
-              (firstOrder as any).foamStatus === "delivered_ni" ? (
-                <Badge className="text-xs bg-emerald-600 hover:bg-emerald-600">Bike foamed</Badge>
-              ) : (
-                <Badge variant="destructive" className="text-xs">Pending foaming</Badge>
-              )
-            )}
+            {(() => {
+              const foamBadge = getFoamBadge(firstOrder, isPickup ? 'pickup' : 'delivery');
+              return foamBadge ? (
+                <Badge className={`text-xs ${foamBadge.color}`}>{foamBadge.text}</Badge>
+              ) : null;
+            })()}
             {isScheduled && (
               <Badge variant="outline" className="text-xs">Scheduled</Badge>
             )}
