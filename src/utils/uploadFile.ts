@@ -265,7 +265,9 @@ export async function uploadToStorage({
       Sentry.captureException(fallbackError, {
         extra: { bucket, path, size: file.size, type: file.type, fallback: true },
       });
-      throw new Error(describeUploadError(fallbackError, file));
+      // Prefer whichever error carries a real HTTP status (permission/policy issues)
+      const informative = (fallbackError as any)?.status ? fallbackError : lastError;
+      throw new Error(describeUploadError(informative, file));
     }
   }
 
