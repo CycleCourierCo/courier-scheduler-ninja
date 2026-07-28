@@ -446,9 +446,13 @@ Cycle Courier Co.`;
 
         const baseDeliveryInstructions = orderToUpdate.delivery_instructions || "";
         const allInstructions = [
+          jobIsNiDelivery ? "NORTHERN IRELAND — hand over at ferry hand-off point" : "",
           ...orderDetails,
           baseDeliveryInstructions,
           jobNotes,
+          jobIsNiDelivery
+            ? formatNiReceiverBlock(orderToUpdate.receiver, orderToUpdate.tracking_number)
+            : "",
         ]
           .filter(Boolean)
           .join(" | ");
