@@ -336,6 +336,11 @@ export const PendingStorageAllocation = ({
                         <p className="text-xs text-muted-foreground">
                           Tracking: <span className="font-mono">{bike.trackingNumber}</span>
                         </p>
+                        {getCollectionDate(bike) && (
+                          <p className="text-xs text-muted-foreground">
+                            Collected: {getCollectionDate(bike)}
+                          </p>
+                        )}
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="secondary" className="text-xs">
                             {bikeQuantity} bike{bikeQuantity > 1 ? 's' : ''} total
