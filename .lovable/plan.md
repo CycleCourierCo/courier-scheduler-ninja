@@ -1,32 +1,37 @@
 ## What I checked
 
-- The `foam-my-bike-labels` bucket exists (private) and has working storage policies: staff (admin/loader/mechanic/route_planner) can do everything, customers can read their own order folder. So this is **not** a missing-bucket or missing-policy problem.
-- The upload code in `src/components/boxmybike/FoamMyBikeSection.tsx` is byte-for-byte the same pattern as the working Box My Bike upload (`{orderId}/{timestamp}-{file.name}`, `upsert: true`).
+- The failing upload is a 44 KB PDF into the `foam-my-bike-labels` bucket — well under any limit.
+- The bucket exists, is private, has **no** file size limit and **no** MIME restrictions.
+- RLS on `storage.objects` allows admin/loader/mechanic/route_planner to insert into that bucket — so this is not a permissions rejection.
+- The browser console shows `TypeError: Failed to fetch` from `uploadToStorage`, after the built-in retry. That is a transport-level failure (request never got a HTTP response), not a server rejection — typical of a flaky mobile connection, a request aborted mid-flight, or the direct `*.supabase.co/storage` request being blocked on that network.
 
-`Failed to fetch` is a browser-level network error (the request never got a response), not a Supabase permission error. On mobile the usual causes are: a large camera/PDF file hitting the storage size cap or timing out, a filename with characters that break the storage key, or an expired auth session mid-request. Right now the code surfaces the raw message with no detail, so we can't tell which.
+Because the request dies before reaching Supabase, no amount of client-side validation will fix it. We need a more resilient transport and a fallback path.
 
 ## Plan
 
-1. **Make the failure diagnosable**
-   - Wrap the label upload in a try/catch that logs the real error (name, message, file size/type, bucket, path) to the console and to Sentry via `Sentry.captureException`.
-   - Show a specific toast per failure mode instead of the generic "Failed to fetch" (network/offline, too large, permission, unknown).
+**1. Swap the storage upload to XHR-based transport**
+In `src/utils/uploadFile.ts`, replace the `supabase.storage.from().upload()` fetch call with a direct `XMLHttpRequest` PUT/POST to the storage REST endpoint (with the session access token). Benefits:
+- Returns real HTTP status codes instead of an opaque `Failed to fetch`.
+- Exposes upload progress and a proper timeout, so we can distinguish "stalled" from "rejected".
+- More reliable on mobile browsers where `fetch` bodies get aborted on network handover (Wi-Fi ↔ cellular).
 
-2. **Remove the likely causes**
-   - **Sanitise the filename** before building the storage key: strip/replace anything outside `A–Z a–z 0–9 . _ -`, collapse spaces, and cap length. iPhone uploads often carry spaces, `#`, or non-ASCII characters that produce an invalid storage key.
-   - **Guard file size client-side** (reject over ~20 MB with a clear message, suggest a PDF or smaller photo) so a huge camera image can't silently abort the request.
-   - **Validate type** against `application/pdf` and `image/*` before uploading.
+**2. Smarter retry**
+- Retry up to 3 times with exponential backoff (1s / 3s / 6s) rather than a single immediate retry.
+- Only retry on transport failures / 5xx / 408; fail fast on 4xx with the server's actual message.
 
-3. **Make it resilient**
-   - Refresh the Supabase session before uploading (`getSession`), so a stale token can't kill the request.
-   - Retry the upload once on a pure network failure before reporting an error.
+**3. Server-side fallback upload**
+Add an edge function `upload-label` that accepts the file (multipart) plus `orderId`, `bucket`, verifies the caller's JWT and role, and writes to storage with the service role. If the direct storage attempt fails all retries, `uploadToStorage` transparently retries through this function. The functions endpoint is a different host path than the storage endpoint, so it survives cases where the storage host specifically is being blocked/stalled.
 
-4. **Fix the input reset bug**
-   - `e.currentTarget.value = ""` runs after `mutate()` in the change handler; capture the input element into a local variable first so resetting it can't throw on a pooled/detached event.
+**4. Upload progress + clearer errors in the UI**
+- `FoamMyBikeSection.tsx` and `BoxMyBikePage.tsx`: show a progress percentage while uploading and disable the input during the upload.
+- Error toast reports the concrete cause (HTTP status, stalled, offline) instead of a generic "connection dropped".
 
-5. **Apply the same treatment to the sibling uploads** so this doesn't resurface elsewhere: the Foam delivery-photo upload in the same file, and the Box My Bike label upload in `src/pages/BoxMyBikePage.tsx`.
+**5. Verify**
+- Test the same 44 KB PDF end-to-end against the real bucket after the change (direct path and forced-fallback path) and confirm the object lands in `foam-my-bike-labels` and the label URL renders.
 
 ## Technical notes
 
-- Files touched: `src/components/boxmybike/FoamMyBikeSection.tsx`, `src/pages/BoxMyBikePage.tsx`, plus a small shared helper (e.g. `src/utils/uploadFile.ts`) holding the sanitise + validate + retry logic so all three call sites share it.
-- No database or storage-policy migration is needed.
-- After the change, one failed attempt will produce a precise console/Sentry entry, so if it's still failing we'll know exactly why on the next report.
+- Storage endpoint used by XHR: `${SUPABASE_URL}/storage/v1/object/foam-my-bike-labels/<path>` with `Authorization: Bearer <access_token>`, `x-upsert: true`, and the file's content type.
+- The edge function uses `SUPABASE_SERVICE_ROLE_KEY` internally only; the client keeps sending the anon key + user JWT. Role check mirrors the existing bucket policy (admin/loader/mechanic/route_planner).
+- Standard CORS preflight headers included, per project convention.
+- No database schema changes needed; no changes to bucket config.
