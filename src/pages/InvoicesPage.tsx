@@ -628,10 +628,10 @@ export default function InvoicesPage() {
   return (
     <Layout>
       <div className="container px-4 py-6 md:px-6 mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Create Invoice</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="h-8 w-8 text-primary shrink-0" />
+            <h1 className="text-2xl sm:text-3xl font-bold break-words">Create Invoice</h1>
           </div>
           
           {!quickBooksConnected && (
