@@ -450,6 +450,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         needs_inspection: needsInspection || false,
         is_box_my_bike: isBoxMyBike || false,
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
+        destination_region: destinationRegion,
+        is_northern_ireland: isNorthernIreland,
+        // NI bikes enter the Foam My Bike pipeline immediately
+        foam_status: isNorthernIreland ? 'pending_collection' : null,
+        foam_pending_collection_at: isNorthernIreland ? timestamp : null,
+
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,
