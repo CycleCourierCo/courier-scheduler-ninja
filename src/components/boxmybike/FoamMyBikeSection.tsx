@@ -238,6 +238,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const prev = prevFoamStage(stage);
     const next = nextFoamStage(stage);
     const addr = o.receiver?.address || {};
+    const canEditLabel = isStaff && stage === "foamed_ready";
+    const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
+    // Can't hand a bike to the ferry courier without a label and tracking link
+    const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
+
     return (
       <Card key={o.id} className="mb-3">
         <CardContent className="pt-4 space-y-3">
