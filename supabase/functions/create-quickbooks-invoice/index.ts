@@ -34,6 +34,8 @@ interface InvoiceRequest {
     receiver: any;
     needs_inspection?: boolean | null;
     is_box_my_bike?: boolean | null;
+    is_northern_ireland?: boolean | null;
+
   }>;
 }
 
