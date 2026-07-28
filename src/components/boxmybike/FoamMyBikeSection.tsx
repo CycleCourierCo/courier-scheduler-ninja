@@ -252,7 +252,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const prev = prevFoamStage(stage);
     const next = nextFoamStage(stage);
     const addr = o.receiver?.address || {};
-    const canEditLabel = isStaff && stage === "foamed_ready";
+    const isOwner = !isStaff && o.user_id === userId;
+    const canEditLabel = (isOwner || isStaff) && stage === "foamed_ready";
     const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
     const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
