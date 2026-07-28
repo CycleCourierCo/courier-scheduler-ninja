@@ -16,6 +16,8 @@ import {
   BOX_MY_BIKE_STATUS_ORDER,
 } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
+import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
+
 
 const STAFF_STAGES: BoxMyBikeStatus[] = BOX_MY_BIKE_STATUS_ORDER;
 
