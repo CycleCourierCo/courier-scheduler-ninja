@@ -43,7 +43,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
   const deliveryDriver =
     (order as any).deliveryDriverName || (order as any).delivery_driver_name || null;
 
-  const rerouteDelivery = async () => {
+  const rerouteDelivery = async (markAsNI: boolean) => {
     // Remove only the delivery leg; the collection job is untouched.
     const { data: row } = await supabase
       .from("orders")
@@ -63,7 +63,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
         .eq("id", order.id);
     }
 
-    await createShipdayOrder(order.id, "delivery");
+    await createShipdayOrder(order.id, "delivery", markAsNI);
   };
 
   const applyChange = async (markAsNI: boolean) => {
@@ -91,11 +91,27 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
             updated_at: now,
           };
 
-      const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
+      const { data: updated, error } = await supabase
+        .from("orders")
+        .update(patch)
+        .eq("id", order.id)
+        .select("id, is_northern_ireland, foam_status")
+        .maybeSingle();
       if (error) throw error;
+      if (!updated) {
+        throw new Error(
+          "The order could not be updated — you may not have permission to change this order."
+        );
+      }
+      if (Boolean((updated as any).is_northern_ireland) !== markAsNI) {
+        throw new Error(
+          "The Northern Ireland flag did not save correctly. Shipday was left untouched — please retry."
+        );
+      }
       flagged = true;
 
-      await rerouteDelivery();
+      await rerouteDelivery(markAsNI);
+
 
       toast.success(
         markAsNI
