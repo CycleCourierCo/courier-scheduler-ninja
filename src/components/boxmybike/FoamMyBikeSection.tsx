@@ -164,6 +164,63 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     window.open(data.signedUrl, "_blank");
   };
 
+  const uploadLabel = useMutation({
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      const path = `${id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage
+        .from(FOAM_LABEL_BUCKET)
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          foam_label_url: path,
+          foam_label_uploaded_at: new Date().toISOString(),
+          foam_label_uploaded_by: userId || null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
+      toast.success("Label uploaded");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
+  });
+
+  const saveTrackingUrl = useMutation({
+    mutationFn: async ({ id, url }: { id: string; url: string }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ foam_tracking_url: url || null, updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
+      toast.success("Tracking link saved");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save tracking link"),
+  });
+
+  const viewLabel = async (path: string) => {
+    // Open the tab synchronously so popup blockers don't kill it
+    const tab = window.open("", "_blank");
+    const { data, error } = await supabase.storage
+      .from(FOAM_LABEL_BUCKET)
+      .createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      tab?.close();
+      toast.error("Could not load label");
+      return;
+    }
+    if (tab) tab.location.href = data.signedUrl;
+    else window.open(data.signedUrl, "_blank");
+  };
+
+
+
   const grouped = React.useMemo(() => {
     const m = FOAM_STATUS_ORDER.reduce((acc, s) => {
       acc[s] = [] as FoamOrder[];
