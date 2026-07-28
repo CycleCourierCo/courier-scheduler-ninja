@@ -102,7 +102,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, sender, receiver, bike_brand, bike_model, user_id, created_at")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at")
         .eq("is_northern_ireland", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
