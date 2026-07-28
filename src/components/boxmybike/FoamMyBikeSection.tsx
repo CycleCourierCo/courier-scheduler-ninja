@@ -181,7 +181,6 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         prefix: order.id,
         file,
         onProgress: setUploadPct,
-        uploadViaEdge: true,
       });
 
       const { error: updErr } = await supabase
