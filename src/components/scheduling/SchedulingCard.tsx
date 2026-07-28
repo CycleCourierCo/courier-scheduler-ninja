@@ -39,7 +39,8 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
   const isPickup = group.type === 'pickup';
   
   // Get the contact info based on whether this is a pickup or delivery
-  const contact = isPickup ? firstOrder.sender : firstOrder.receiver;
+  // (Northern Ireland deliveries are dropped at City Air Express, Manchester)
+  const contact = getLegContact(firstOrder, isPickup ? 'pickup' : 'delivery') as any;
   const contactType = isPickup ? "Sender" : "Receiver";
   
   // Get bike information
