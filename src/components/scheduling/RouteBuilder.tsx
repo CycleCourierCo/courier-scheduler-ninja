@@ -464,7 +464,21 @@ const JobItem: React.FC<JobItemProps> = ({
                                 </Badge>
                               ) : null;
                             })()}
+                            {/* Foam Badge (Northern Ireland deliveries) */}
+                            {(() => {
+                              const foamBadge = getFoamBadge(groupedJob.orderData, groupedJob.type);
+                              return foamBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 ${foamBadge.color}`}>
+                                  {foamBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
+                          {getFoamBadge(groupedJob.orderData, groupedJob.type) && groupedJob.orderData?.receiver?.address && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Final destination: {groupedJob.orderData.receiver.name} — {[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                            </p>
+                          )}
                           {groupedJob.orderData?.delivery_instructions && (
                             <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
                           )}
