@@ -798,7 +798,7 @@ export default function InvoicesPage() {
               }
               size="lg"
               variant="secondary"
-              className="min-w-[200px]"
+              className="w-full sm:w-auto sm:min-w-[200px]"
             >
               <FileText className="mr-2 h-4 w-4" />
               {isCreatingAllInvoices 
