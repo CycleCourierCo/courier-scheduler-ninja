@@ -249,9 +249,24 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     console.log("Using tracking number:", trackingNumber);
     console.log("Using tracking URL:", trackingUrl);
     
+    // Northern Ireland: City Air Express also receives this email and needs the
+    // NI receiver's full details so they can book the onward crossing.
+    const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
+    const addr = order.receiver.address || ({} as any);
+    const niDetailsBlock = isNI ? `
+            <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+              <p style="margin-top:0;"><strong>Northern Ireland delivery — receiver details for onward booking</strong></p>
+              <p><strong>Name:</strong> ${order.receiver.name || ''}</p>
+              <p><strong>Address:</strong> ${[addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')}</p>
+              <p><strong>Phone:</strong> ${order.receiver.phone || ''}</p>
+              <p><strong>Email:</strong> ${order.receiver.email || ''}</p>
+              <p style="margin-bottom:0;">This bicycle will be delivered to ${CITY_AIR_EXPRESS.name}, ${CITY_AIR_EXPRESS.formatted} for transport to Northern Ireland.</p>
+            </div>
+    ` : '';
+
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.receiver.email,
+        to: isNI ? [order.receiver.email, CITY_AIR_EXPRESS.email] : order.receiver.email,
         subject: "Your Bicycle Delivery - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -262,9 +277,11 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
               <p><strong>Bicycle:</strong> ${item.name}</p>
               <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
             </div>
+            ${niDetailsBlock}
             <p><strong>Next Steps:</strong></p>
             <ol style="margin-bottom: 20px;">
               <li>We have contacted the sender to arrange a collection date.</li>
+
               <li>Once the sender confirms their availability, <strong>you will receive an email with a link to confirm your availability for delivery</strong>.</li>
               <li>After both confirmations, we will schedule the pickup and delivery.</li>
             </ol>
