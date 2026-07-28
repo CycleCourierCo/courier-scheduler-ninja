@@ -8,6 +8,7 @@ import { extractOutwardCode } from "@/utils/locationUtils";
 import JobSchedulingForm from "./JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { getFoamBadge } from "@/utils/niDelivery";
 
 // Create a type-safe helper function to get the correct badge variant
 const getPolygonBadgeVariant = (segment: number | undefined) => {
