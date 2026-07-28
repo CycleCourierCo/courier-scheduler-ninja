@@ -310,6 +310,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                         type="file"
                         accept="application/pdf,image/*"
                         className="hidden"
+                        disabled={uploadLabel.isPending}
                         onChange={(e) => {
                           const input = e.target as HTMLInputElement;
                           const f = input.files?.[0];
@@ -321,11 +322,16 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                       <Button size="sm" variant="outline" asChild>
                         <span>
                           <Upload className="h-4 w-4 mr-1" />
-                          {o.foam_label_url ? "Replace label" : "Upload label"}
+                          {uploadLabel.isPending
+                            ? `Uploading${uploadPct !== null ? ` ${uploadPct}%` : "…"}`
+                            : o.foam_label_url
+                              ? "Replace label"
+                              : "Upload label"}
                         </span>
                       </Button>
                     </label>
                   )}
+
                 </div>
               </div>
 
