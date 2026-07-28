@@ -31,6 +31,21 @@ const getCollectionImages = (order: Order | undefined): string[] => {
   return collectionEvent?.podUrls || [];
 };
 
+// Helper to extract collection date (pickup-leg completion) from tracking events
+const getCollectionDate = (order: Order | undefined): string | null => {
+  const updates = order?.trackingEvents?.shipday?.updates;
+  if (!updates || updates.length === 0) return null;
+  const pickupId = order?.trackingEvents?.shipday?.pickup_id?.toString();
+  const completion = updates.find(
+    (u: any) => u.event === 'ORDER_COMPLETED' && u.orderId === pickupId
+  );
+  const ts = completion?.timestamp;
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 interface PendingStorageAllocationProps {
   collectedBikes: Order[];
   bikesLoadedOntoVan: Order[];
