@@ -1465,8 +1465,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const removeJob = (jobToRemove: SelectedJob) => {
+    // Recompute grouping so we can detect if this job is bundled with others
+    const grouped = groupJobsByLocation(selectedJobs);
+    const target = grouped.find(
+      j => j.orderId === jobToRemove.orderId && j.type === jobToRemove.type
+    );
+
+    let toRemove: Array<{ orderId: string; type: SelectedJob['type'] }> = [
+      { orderId: jobToRemove.orderId, type: jobToRemove.type }
+    ];
+
+    if (target?.locationGroupId) {
+      const groupMembers = grouped.filter(
+        j => j.locationGroupId === target.locationGroupId && j.type !== 'break'
+      );
+      if (groupMembers.length > 1) {
+        toRemove = groupMembers.map(j => ({ orderId: j.orderId, type: j.type }));
+      }
+    }
+
+    const isRemoved = (job: SelectedJob) =>
+      toRemove.some(r => r.orderId === job.orderId && r.type === job.type);
+
     const updatedJobs = selectedJobs
-      .filter(job => !(job.orderId === jobToRemove.orderId && job.type === jobToRemove.type))
+      .filter(job => !isRemoved(job))
       .map((job, index) => ({
         ...job,
         order: index + 1
@@ -1526,6 +1548,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return distance <= LOCATION_GROUPING_RADIUS_METERS; // Within 750 meters
   };
 
+  // Build a stable contact key so different customers at the same address don't merge
+  const getContactKey = (job: SelectedJob): string | null => {
+    if (job.type === 'break') return null;
+    const contact: any = job.type === 'pickup'
+      ? job.orderData?.sender
+      : job.orderData?.receiver;
+    const email = (contact?.email || '').toString().toLowerCase().trim();
+    if (email) return `e:${email}`;
+    const phone = (contact?.phone || contact?.phoneNumber || '').toString().replace(/\s+/g, '').trim();
+    if (phone) return `p:${phone}`;
+    return null;
+  };
+
   // Helper function to group jobs by location
   const groupJobsByLocation = (jobs: SelectedJob[]): SelectedJob[] => {
     const routeJobs = jobs.filter(job => job.type !== 'break');
@@ -1537,21 +1572,27 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     routeJobs.forEach(job => {
       if (!job.lat || !job.lon) return;
+      const jobKey = getContactKey(job);
       
-      // Find existing group with same location
+      // Find existing group with same location AND same contact (or both missing keys)
       let groupId = null;
       for (const [existingGroupId, existingJobs] of Object.entries(locationGroups)) {
         const firstJobInGroup = existingJobs[0];
-        if (firstJobInGroup.lat && firstJobInGroup.lon && 
-            isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) {
-          groupId = existingGroupId;
-          break;
-        }
+        if (!firstJobInGroup.lat || !firstJobInGroup.lon) continue;
+        if (!isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) continue;
+
+        const existingKey = getContactKey(firstJobInGroup);
+        // Only merge when contact keys match. If either is missing, fall back to location-only merge.
+        const contactMatches = jobKey && existingKey ? jobKey === existingKey : true;
+        if (!contactMatches) continue;
+
+        groupId = existingGroupId;
+        break;
       }
       
       // Create new group if no existing group found
       if (!groupId) {
-        groupId = `location-${job.lat}-${job.lon}-${Date.now()}`;
+        groupId = `location-${job.lat}-${job.lon}-${jobKey ?? 'nokey'}-${Object.keys(locationGroups).length}`;
         locationGroups[groupId] = [];
       }
       
