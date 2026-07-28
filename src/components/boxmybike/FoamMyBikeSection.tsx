@@ -366,10 +366,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
+                    const input = e.target as HTMLInputElement;
+                    const f = input.files?.[0];
+                    input.value = "";
                     if (f) uploadPhoto.mutate({ order: o, file: f });
-                    e.currentTarget.value = "";
                   }}
+
                 />
                 <Button size="sm" variant="outline" asChild>
                   <span><Camera className="h-4 w-4 mr-1" /> Add photo</span>
