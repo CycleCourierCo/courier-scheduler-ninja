@@ -508,13 +508,13 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Hello ${order.receiver.name || "Customer"},</h2>
-        <p>Good news - your bicycle has reached the ferry port and has been handed over to our Irish Sea carrier.</p>
+        <p>Good news - your bicycle has reached the ferry port.</p>
         <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
           <p><strong>Bicycle:</strong> ${itemName}</p>
           <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
-          <p><strong>Status:</strong> Delivered to ferry - awaiting transport across the Irish Sea</p>
+          <p><strong>Status:</strong> Reached the ferry port - awaiting transport to Northern Ireland</p>
         </div>
-        <p>It is now awaiting the crossing to Northern Ireland. Once it has arrived, you will be contacted to arrange the final delivery.</p>
+        <p>It is now awaiting transport to Northern Ireland. Once it has arrived, you will be contacted to arrange the final delivery.</p>
         <div style="text-align: center; margin: 20px 0;">
           <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
             Track Your Bicycle

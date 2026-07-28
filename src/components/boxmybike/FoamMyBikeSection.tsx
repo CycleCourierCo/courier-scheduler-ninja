@@ -263,7 +263,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
               {[addr.street, addr.city, addr.zipCode].filter(Boolean).join(", ")}
             </div>
             <div className="text-muted-foreground text-xs mt-1">
-              Ferry hand-off: {CITY_AIR_EXPRESS.name}, {CITY_AIR_EXPRESS.formatted}
+              Ferry hand-off: {CITY_AIR_EXPRESS.formatted}
             </div>
           </div>
 

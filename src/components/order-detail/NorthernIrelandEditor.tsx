@@ -151,7 +151,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
               )}
             </div>
             <p className="text-muted-foreground">
-              Delivery is handed to {CITY_AIR_EXPRESS.name}, {CITY_AIR_EXPRESS.formatted}. A £120
+              Delivery is handed over at the ferry port, {CITY_AIR_EXPRESS.formatted}. A £120
               per-bike surcharge applies at invoicing.
             </p>
           </div>
@@ -194,7 +194,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
                     ) : (
                       <p>
                         The bike enters the Foam My Bike pipeline at “Pending collection”, the Shipday
-                        delivery job is re-created to {CITY_AIR_EXPRESS.name} in Manchester, and a £120
+                        delivery job is re-created to the ferry hand-off point in Manchester, and a £120
                         per-bike surcharge applies to future invoicing.
                       </p>
                     )}

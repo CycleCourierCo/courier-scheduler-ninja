@@ -1,11 +1,12 @@
 /**
- * Northern Ireland detection + City Air Express hand-off details.
+ * Northern Ireland detection + ferry hand-off details.
  * Shared by edge functions (orders API, Shopify webhook, Shipday, QuickBooks).
  */
 
 export const NI_SURCHARGE_PER_BIKE = 120;
 
 export const CITY_AIR_EXPRESS = {
+  displayName: 'Ferry hand-off',
   name: 'City Air Express',
   email: 'Operations.man@cityairexpress.com',
   phone: '+44 7730 145621',
