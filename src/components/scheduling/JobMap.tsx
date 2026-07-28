@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
 import { format } from 'date-fns';
+import { getLegContact } from '@/utils/niDelivery';
 
 // Fix Leaflet icon issues
 const fixLeafletIcon = () => {
