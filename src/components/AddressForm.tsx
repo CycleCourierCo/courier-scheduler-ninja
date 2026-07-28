@@ -134,8 +134,10 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.state`, "");
     setValue(`${prefix}.zipCode`, "");
     setValue(`${prefix}.country`, "");
+    setValue(`${prefix}.region`, "");
     setValue(`${prefix}.lat`, undefined);
     setValue(`${prefix}.lon`, undefined);
+
     
     setAddressSelected(false);
     
