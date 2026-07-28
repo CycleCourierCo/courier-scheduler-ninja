@@ -189,6 +189,8 @@ serve(async (req) => {
       order_delivered: boolean | null;
       collection_confirmation_sent_at: string | null;
       delivery_confirmation_sent_at: string | null;
+      is_northern_ireland: boolean | null;
+      foam_status: string | null;
     };
     const byPickup = new Map<string, DbOrder>();
     const byDelivery = new Map<string, DbOrder>();
@@ -199,7 +201,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at"
+          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status"
         )
         .or(
           `shipday_pickup_id.in.(${chunk.join(",")}),shipday_delivery_id.in.(${chunk.join(",")})`
@@ -252,8 +254,13 @@ serve(async (req) => {
         sStatus === "PICKED_UP"
       ) {
         event = "ORDER_COMPLETED";
-        newStatus = isPickup ? "collected" : "delivered";
-        description = isPickup ? "Driver has collected the bike" : "Driver has delivered the bike";
+        const niFerryLeg = !isPickup && dbOrder.is_northern_ireland === true;
+        newStatus = isPickup ? "collected" : niFerryLeg ? "delivered_to_ferry" : "delivered";
+        description = isPickup
+          ? "Driver has collected the bike"
+          : niFerryLeg
+          ? "Delivered to Port - awaiting transport across the Irish Sea"
+          : "Driver has delivered the bike";
       } else if (
         sStatus === "STARTED" ||
         sStatus === "ON_THE_WAY" ||
@@ -346,6 +353,10 @@ serve(async (req) => {
       if (newStatus === "delivered") {
         updateData.order_collected = true;
         updateData.order_delivered = true;
+      }
+      if (newStatus === "delivered_to_ferry") {
+        updateData.order_collected = true;
+        updateData.foam_status = "delivered_to_ferry";
       }
 
       // If suppressEmails is set, stamp sent_at so downstream triggers won't fire

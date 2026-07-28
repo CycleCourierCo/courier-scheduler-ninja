@@ -1,33 +1,30 @@
-# Add label section to Foam My Bike
+## Current behaviour (verified)
 
-Mirror the Box My Bike "Shipping label" + tracking-link block inside the Foam My Bike (NI) pipeline, gated to the **Foamed ready** stage and editable by **staff only**.
+`supabase/functions/shipday-webhook/index.ts` treats every completed delivery the same:
 
-## Behaviour
+- sets `status = "delivered"`, `order_collected = true`, `order_delivered = true`
+- fires the delivery-confirmation email
 
-- On each Foam My Bike order card, show a "Shipping label" block when the order is at **Foamed ready**, or whenever a label already exists (so it stays visible at Delivered to ferry / Delivered NI).
-- Staff at the Foamed ready stage can:
-  - Upload a label (PDF or image) — replaces any existing one.
-  - Paste and save a courier tracking link.
-- Anyone viewing the card can click "View / print" to open the label via a short-lived signed URL, and see the tracking link as a clickable link.
-- The **Next** button that moves an order from Foamed ready → Delivered to ferry is disabled until both the label and the tracking link exist, with a tooltip explaining why (same gate as Box My Bike's Advance button).
-- Customers (non-staff) see the label and tracking link read-only.
+There is no reference to `is_northern_ireland`, `foam_status` or `delivered_to_ferry` anywhere in `supabase/functions/` — those are only set manually from the Foam My Bike UI. So a completed City Air Express drop currently marks a NI order fully delivered, skipping the ferry stage.
 
-## Technical details
+## Proposed change
 
-Database migration on `orders`:
-- `foam_label_url` (text) — storage path, not a public URL
-- `foam_tracking_url` (text)
-- `foam_label_uploaded_at` (timestamptz), `foam_label_uploaded_by` (uuid)
+In the Shipday webhook, when the completed leg is the **delivery** leg and the order is flagged Northern Ireland:
 
-Storage:
-- New **private** bucket `foam-my-bike-labels`, path `${orderId}/${timestamp}-${filename}`.
-- RLS on `storage.objects`: staff can insert/update/select; the order owner can select their own order's files.
+1. Set `status = "delivered_to_ferry"` instead of `delivered`.
+2. Set `order_collected = true` but leave `order_delivered = false` — the bike hasn't reached the customer yet.
+3. Set `foam_status = "delivered_to_ferry"` so the Foam My Bike board moves the card automatically.
+4. Record the tracking event with the description "Delivered to Port — awaiting transport across the Irish Sea".
+5. Skip the standard delivery-confirmation email; the final "delivered" email stays with the manual mark-as-delivered action in the Foam My Bike section.
 
-`src/components/boxmybike/FoamMyBikeSection.tsx`:
-- Add the four new columns to the `FoamOrder` interface and the query `select`.
-- Add `uploadLabel` and `saveTrackingUrl` mutations plus a `viewLabel` handler, copied from the Box My Bike implementations (`BoxMyBikePage.tsx:135-192`) — including the open-blank-tab-first trick so the signed URL survives popup blockers.
-- Insert the label block in `renderCard` between the sender/receiver block and the existing photos block, reusing the same markup and icons as `BoxMyBikePage.tsx:234-276`.
-- Extract/duplicate the `TrackingUrlEditor` pattern for the foam fields.
-- Add a `blockedAdvance` check on the Foamed ready → Delivered to ferry transition.
+Same branch applied in `supabase/functions/reconcile-shipday-orders/index.ts` so the reconcile backfill doesn't undo it.
 
-No changes to the Box My Bike page itself; the foam flow keeps its own columns and bucket so the two pipelines stay independent.
+## Technical detail
+
+- The webhook's order lookup needs `is_northern_ireland` and `foam_status` added to its `select`.
+- Branch placed where `newStatus` is resolved for the delivery leg (both the status-mapped path and the proof-upload path around lines 223 and 260), so either route produces the ferry status.
+- Non-NI orders are untouched.
+
+## Open question
+
+If you'd rather the customer still gets an email at the ferry stage (a "your bike has reached our Irish Sea carrier" note), say so and I'll add a dedicated template instead of suppressing the email.

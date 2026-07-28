@@ -82,7 +82,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -96,7 +96,7 @@ serve(async (req) => {
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
@@ -125,6 +125,13 @@ serve(async (req) => {
     } else {
       var dbOrder = orders[0];
     }
+
+    // Northern Ireland orders are delivered to City Air Express (the ferry hub),
+    // not the final customer address. Their delivery leg completes as
+    // "delivered_to_ferry" and the final delivery is confirmed manually
+    // from the Foam My Bike board.
+    const isNorthernIreland = (dbOrder as any).is_northern_ireland === true;
+    const niFerryLeg = isNorthernIreland && isDelivery;
 
     // Map Shipday status to application OrderStatus based on event type
     let newStatus = dbOrder.status;
@@ -220,8 +227,10 @@ serve(async (req) => {
         newStatus = "collected";
         statusDescription = "Driver has collected the bike";
       } else {
-        newStatus = "delivered";
-        statusDescription = "Driver has delivered the bike";
+        newStatus = niFerryLeg ? "delivered_to_ferry" : "delivered";
+        statusDescription = niFerryLeg
+          ? "Delivered to Port - awaiting transport across the Irish Sea"
+          : "Driver has delivered the bike";
       }
     } else if (event === "ORDER_FAILED") {
       const pickupDates = (dbOrder as any).pickup_date;
@@ -257,8 +266,10 @@ serve(async (req) => {
           newStatus = "collected";
           statusDescription = "Bike collected (proof uploaded)";
         } else {
-          newStatus = "delivered";
-          statusDescription = "Bike delivered (proof uploaded)";
+          newStatus = niFerryLeg ? "delivered_to_ferry" : "delivered";
+          statusDescription = niFerryLeg
+            ? "Delivered to Port - awaiting transport across the Irish Sea (proof uploaded)"
+            : "Bike delivered (proof uploaded)";
         }
         console.log(`POD upload treated as completion for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
       } else {
@@ -337,7 +348,7 @@ serve(async (req) => {
       // If no existing COMPLETED event found, create a new event
       if (!updatedExistingEvent) {
         // If we're treating this POD upload as completion (newStatus changed), create a COMPLETED event
-        const eventType = (newStatus === "collected" || newStatus === "delivered") ? "ORDER_COMPLETED" : event;
+        const eventType = (newStatus === "collected" || newStatus === "delivered" || newStatus === "delivered_to_ferry") ? "ORDER_COMPLETED" : event;
         
         shipdayEvents.updates = [
           ...existingUpdates,
@@ -388,6 +399,11 @@ serve(async (req) => {
     if (newStatus === 'delivered') {
       updateData.order_collected = true;  // Must be collected to be delivered
       updateData.order_delivered = true;
+    }
+    if (newStatus === 'delivered_to_ferry') {
+      // Bike has reached the Irish Sea carrier but not the customer yet
+      updateData.order_collected = true;
+      updateData.foam_status = 'delivered_to_ferry';
     }
 
     // On ORDER_FAILED, clear scheduled date/timeslot and shipday id for the failed leg
