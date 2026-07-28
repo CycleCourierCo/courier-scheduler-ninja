@@ -22,8 +22,20 @@ interface CSVMatchReviewDialogProps {
   onCancel: () => void;
 }
 
-const candidateKey = (rowIndex: number, c: MatchCandidate) =>
-  `${rowIndex}|${c.order.id}|${c.jobType}`;
+const candidateKey = (c: MatchCandidate) => `${c.order.id}|${c.jobType}`;
+
+const norm = (s?: string) =>
+  (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+interface StopGroup {
+  key: string;
+  name: string;
+  address: string;
+  sequence: number;
+  sequences: number[];
+  rowCount: number;
+  candidates: MatchCandidate[];
+}
 
 const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
   open,
@@ -34,49 +46,85 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 }) => {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
-  // Default selection: the best candidate for each row
+  // Group CSV rows into unique stops (same customer + address)
+  const stops: StopGroup[] = useMemo(() => {
+    const map = new Map<string, StopGroup>();
+    matchResults.forEach((result) => {
+      const key = `${norm(result.csvRow.name)}|${norm(result.csvRow.address)}`;
+      let stop = map.get(key);
+      if (!stop) {
+        stop = {
+          key,
+          name: result.csvRow.name,
+          address: result.csvRow.address,
+          sequence: result.csvRow.sequence,
+          sequences: [],
+          rowCount: 0,
+          candidates: []
+        };
+        map.set(key, stop);
+      }
+      stop.rowCount += 1;
+      stop.sequences.push(result.csvRow.sequence);
+      stop.sequence = Math.min(stop.sequence, result.csvRow.sequence);
+      (result.candidates || []).forEach(c => {
+        if (!stop!.candidates.some(existing => candidateKey(existing) === candidateKey(c))) {
+          stop!.candidates.push(c);
+        }
+      });
+    });
+    const list = Array.from(map.values());
+    list.forEach(s => {
+      s.sequences.sort((a, b) => a - b);
+      s.candidates.sort((a, b) => b.confidence - a.confidence);
+    });
+    return list.sort((a, b) => a.sequence - b.sequence);
+  }, [matchResults]);
+
+  const defaultSelection = useMemo(() => {
+    const defaults = new Set<string>();
+    stops.forEach(stop => {
+      const take = Math.min(stop.rowCount, stop.candidates.length);
+      stop.candidates.slice(0, take).forEach(c => defaults.add(candidateKey(c)));
+    });
+    return defaults;
+  }, [stops]);
+
+  // Default selection on open
   useEffect(() => {
     if (!open) return;
-    const defaults = new Set<string>();
-    matchResults.forEach((result, index) => {
-      if (!result.matchedOrder || !result.jobType) return;
-      const top = result.candidates?.find(
-        c => c.order.id === result.matchedOrder!.id && c.jobType === result.jobType
-      );
-      if (top) defaults.add(candidateKey(index, top));
-    });
-    setSelectedKeys(defaults);
-  }, [open, matchResults]);
+    setSelectedKeys(new Set(defaultSelection));
+  }, [open, defaultSelection]);
 
   const allCandidateKeys = useMemo(() => {
     const keys: string[] = [];
-    matchResults.forEach((r, i) => (r.candidates || []).forEach(c => keys.push(candidateKey(i, c))));
+    stops.forEach(s => s.candidates.forEach(c => keys.push(candidateKey(c))));
     return keys;
-  }, [matchResults]);
+  }, [stops]);
 
   // Sequence of pickups currently selected, used for "collection on route" checks
   const pickupSequenceByOrderId = useMemo(() => {
     const map = new Map<string, number>();
-    matchResults.forEach((result, index) => {
-      (result.candidates || []).forEach(c => {
+    stops.forEach(stop => {
+      stop.candidates.forEach(c => {
         if (c.jobType !== 'pickup') return;
-        if (!selectedKeys.has(candidateKey(index, c))) return;
-        map.set(c.order.id, result.csvRow.sequence);
+        if (!selectedKeys.has(candidateKey(c))) return;
+        map.set(c.order.id, stop.sequence);
       });
     });
     return map;
-  }, [matchResults, selectedKeys]);
+  }, [stops, selectedKeys]);
 
   const selectedJobs: CSVSelectedJob[] = useMemo(() => {
     const jobs: CSVSelectedJob[] = [];
-    matchResults.forEach((result, index) => {
-      (result.candidates || []).forEach(c => {
-        if (!selectedKeys.has(candidateKey(index, c))) return;
-        jobs.push({ orderId: c.order.id, jobType: c.jobType, sequence: result.csvRow.sequence });
+    stops.forEach(stop => {
+      stop.candidates.forEach(c => {
+        if (!selectedKeys.has(candidateKey(c))) return;
+        jobs.push({ orderId: c.order.id, jobType: c.jobType, sequence: stop.sequence });
       });
     });
     return jobs.sort((a, b) => a.sequence - b.sequence);
-  }, [matchResults, selectedKeys]);
+  }, [stops, selectedKeys]);
 
   const toggle = (key: string) => {
     setSelectedKeys(prev => {
@@ -88,8 +136,9 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
   };
 
   const totalRows = matchResults.length;
-  const matchedRows = matchResults.filter(r => (r.candidates?.length || 0) > 0).length;
-  const unmatchedRows = totalRows - matchedRows;
+  const totalStops = stops.length;
+  const unmatchedRows = stops.filter(s => s.candidates.length === 0).length;
+
 
   const getMatchBadge = (matchType: string) => {
     switch (matchType) {
