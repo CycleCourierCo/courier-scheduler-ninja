@@ -1,16 +1,67 @@
-## Problem
+# Northern Ireland Orders
 
-On desktop the job-selection dialog's list doesn't scroll independently — the fix only worked on mobile.
+## 1. Classify destination region from the address (no extra API call)
 
-Cause (verified in `src/components/ui/dialog.tsx` line 39): the base `DialogContent` already applies `grid ... max-h-[90vh] overflow-y-auto`. `CSVMatchReviewDialog` adds `flex flex-col`, but Tailwind emits `.flex` before `.grid`, so `grid` wins and `flex-col` is inert. On mobile it still worked because `h-[92dvh]` plus the parent's own `overflow-y-auto` scrolled the whole dialog; on desktop `sm:h-auto` leaves the grid box unconstrained, so `flex-1 min-h-0` on the `ScrollArea` resolves to nothing and the inner list never gets its own scroll area.
+Geoapify's autocomplete response already contains `properties.state`, which for UK addresses is the constituent country — "England", "Scotland", "Wales" or "Northern Ireland". `AddressForm.tsx` currently reads `properties.county` into the County field and throws `properties.state` away.
 
-## Fix
+- Add a hidden `region` field to the address object, populated from `properties.state` when a suggestion is picked.
+- Derive `is_northern_ireland` from `region === "Northern Ireland"`, with a `BT` postcode-prefix fallback for manually typed addresses (all NI postcodes are BT).
+- Persist `destination_region` and `is_northern_ireland` on the order at creation, in all three creation paths (Create Order page, public `orders` API edge function, Shopify webhook) via one shared helper.
+- Admin override toggle on the order detail page for edge cases.
 
-In `src/components/scheduling/CSVMatchReviewDialog.tsx` only (presentation change):
+## 2. Shipday: divert the delivery leg
 
-1. On the `DialogContent`, override the base display so flex column actually applies (`!flex`), and give the dialog a bounded height on all breakpoints — e.g. `h-[92dvh] sm:h-[85vh] sm:max-h-[85vh]` — plus `overflow-hidden` so the outer box never scrolls.
-2. Keep header, stats bar, quick-action buttons and footer as `shrink-0`; keep the `ScrollArea` as `flex-1 min-h-0` so it takes the remaining height and scrolls internally.
+For NI orders, no Shipday delivery job is created to the receiver's address. The delivery leg goes to:
 
-## Verification
+```text
+City Air Express
+Operations.man@cityairexpress.com
++44 7730 145621
+Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB
+```
 
-Open the CSV upload review dialog at desktop width and confirm the header/stats/footer stay pinned while the stop list scrolls, then re-check at mobile width that nothing regressed.
+- The delivery job's instructions carry the true NI receiver name, address, phone and tracking number so City Air Express can book the onward leg.
+- Collection leg unchanged.
+- `CITY_AIR_EXPRESS` added to the depot constants, shared by the Shipday function and the emails.
+
+## 3. Emails
+
+- **"Your Bicycle Delivery":** unchanged for GB. For NI it is also sent to City Air Express, with an extra block containing the full NI receiver details plus tracking number.
+- **Availability / dates email:** for NI, goes to City Air Express instead of the NI receiver.
+- The standard receiver notification still goes to the real NI receiver.
+- Applied in both `emailService.ts` and the `orders` edge function so API orders match.
+
+## 4. Pricing (+£120 per bike)
+
+- NI bike line price = normal bike-type price + £120, per bike, rolled into the single line.
+- QuickBooks: the invoice builder sets `UnitPrice = product price + 120` and the description notes "Northern Ireland"; `Amount = (price + 120) × quantity`.
+- Same uplift in the customer-facing quote at booking so it matches the invoice.
+
+## 5. Foam My Bike
+
+New "Foam My Bike" tab on the Box My Bike page, listing NI orders through their own stages:
+
+```text
+Pending collection -> Pending foaming -> Foamed, ready for delivery
+-> Delivered to ferry -> Delivered in Northern Ireland
+```
+
+- New `foam_status` column plus per-stage timestamps, mirroring the box-my-bike stage pattern (forward/back buttons, webhook events).
+- Final "Delivered in Northern Ireland" stage is set manually and supports uploading proof photos, shown on the card and public tracking.
+
+## 6. Job scheduling markers
+
+- Scheduling cards and the Route Builder show "Bike foamed" (green) or "Pending foaming" (amber) for NI jobs.
+- Adding a pending-foaming job to a route triggers a confirmation warning so it isn't booked in early.
+
+## 7. Tracking
+
+- Once the Shipday delivery to City Air Express completes, public tracking shows "Delivered to ferry — awaiting transport across the Irish Sea" rather than "Delivered".
+- The manual "Delivered in Northern Ireland" stage adds the final tracking event with any uploaded photos.
+
+## Technical notes
+
+- **No Boundaries API call.** Region comes from the existing geocode response; BT postcode is the fallback.
+- **Migration:** add `destination_region text`, `is_northern_ireland boolean default false`, `foam_status` (new enum), `foam_*_at` timestamps to `orders`; extend the order status enum with `delivered_to_ferry`; create a storage bucket for foam delivery photos with staff-write / public-read policies.
+- **QuickBooks:** no new product needed — uplift rides on the existing bike-type line.
+- Files touched: `AddressForm.tsx`, `src/types/order.ts`, `CreateOrder.tsx`, `orders`, `shopify-webhook`, `create-shipday-order`, `create-quickbooks-invoice`, `emailService.ts`, `BoxMyBikePage.tsx`, `SchedulingCard.tsx`, `RouteBuilder.tsx`, `TrackingTimeline.tsx`.
