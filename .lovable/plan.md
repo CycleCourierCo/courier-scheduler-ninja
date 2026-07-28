@@ -1,33 +1,35 @@
-## Goal
+## Problem
 
-On the Loading page, show the **collection date** for each bike that's pending storage allocation, and in the bike search results.
+In `src/components/scheduling/RouteBuilder.tsx`, `groupJobsByLocation` bundles any jobs within 750m into one "grouped location" card, using coordinates only. This causes two issues on the route timeslots drawer:
 
-## Where the date comes from
+1. Two nearby but unrelated jobs (different customer email/phone) get merged into a single grouped card — they should stay separate.
+2. The per-row `×` button calls `removeJob` for only the clicked job, so when a card visually represents a grouped location, the other jobs in the bundle remain in the route.
 
-The collection timestamp is already available on each order at:
+## Fix
 
-```
-order.trackingEvents.shipday.updates[]
-  .find(u => u.event === 'ORDER_COMPLETED' && u.orderId === pickup_id)
-  .timestamp
-```
+### 1. Only group by location when the recipient is the same customer
 
-This is the same pickup-leg completion event the components already look at for POD images. Formatted as `DD MMM YYYY` (en-GB), consistent with the existing "Scheduled delivery" line.
+In `groupJobsByLocation` (RouteBuilder.tsx ~line 1530), extend the group-matching predicate. Two jobs share a location group only when **all** of the following match:
 
-## Changes
+- Coordinates within `LOCATION_GROUPING_RADIUS_METERS` (existing check), AND
+- Same normalized contact email (pickup uses `orderData.sender.email`, delivery uses `orderData.receiver.email`), OR when both emails are missing, same normalized phone number.
 
-### 1. `src/components/loading/PendingStorageAllocation.tsx`
-- Add a small helper `getCollectionDate(order)` next to the existing `getCollectionImages` helper.
-- Under the Tracking number line in each **pending allocation** card (≈line 316), add:
-  > `Collected: 14 Aug 2026`
-- Do the same on the **loaded onto van** card (≈line 226) so drivers can see when each bike was originally picked up.
-- Only render the line when a valid timestamp is present.
+Add a small helper `getContactKey(job)` that returns `email || phone || null` lowercased/trimmed. When either candidate has no key, fall back to the current location-only check (keeps today's behaviour for legacy rows without contact data). When both have keys and they differ, do NOT merge.
 
-### 2. `src/components/loading/BikeSearchSection.tsx`
-- Add the same `getCollectionDate` helper (or a shared util — see below).
-- Under the Tracking line in each search result card (≈line 267), add the same `Collected: ...` line.
+### 2. Make the `×` button remove the whole group when the card is grouped
 
-### 3. Optional shared helper
-If you'd like, extract `getCollectionDate` (and `getCollectionImages`, which is duplicated across both files today) into `src/utils/loadingUtils.ts` and import from both. Happy to skip and keep it inline for a lighter change — let me know.
+Update `removeJob` (~line 1467) to accept a job and, if it belongs to a `locationGroupId` and the group currently has >1 members, remove every job that shares the same `locationGroupId` (and same `type` scoping is not needed — the group card represents them all). Otherwise fall back to today's single-job filter.
 
-No database, service, or type changes. Purely presentational.
+Keep the reindexing (`order: index + 1`) after filtering.
+
+No changes to `MultiJobTimeslotDialog.tsx` — it renders individual cards, not grouped ones.
+
+### Technical notes
+
+- `SelectedJob` already carries `orderData.sender` / `orderData.receiver`; no new fetches needed.
+- `locationGroupId` is stamped in `groupJobsByLocation`; `selectedJobs` in state may or may not have it depending on when grouping last ran. To make the `×` reliable in all states, recompute the current grouping (`groupJobsByLocation(selectedJobs)`) at the top of `removeJob` and use it to look up the target's group members, then filter `selectedJobs` by those `orderId+type` pairs.
+- No DB or edge-function changes.
+
+## Out of scope
+
+- Grouped WhatsApp/SendZen send buttons already key off `locationGroupId`; the new email-aware grouping will naturally keep them from bundling different customers.
