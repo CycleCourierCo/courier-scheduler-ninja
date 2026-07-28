@@ -136,9 +136,12 @@ const BoxMyBikePage: React.FC = () => {
 
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
-      const path = `${id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("box-my-bike-labels").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: "box-my-bike-labels",
+        prefix: id,
+        file,
+      });
+
       const { error: updErr } = await supabase
         .from("orders")
         .update({
