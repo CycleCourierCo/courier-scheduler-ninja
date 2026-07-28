@@ -54,27 +54,27 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
           <StatusBadge status={status} />
         </div>
         {(customerName || customerEmail) && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <User className="h-4 w-4 mr-1.5" />
+          <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-1">
+            <User className="h-4 w-4 mr-1.5 shrink-0" />
             <span>Booked by </span>
-            <span className="font-medium text-foreground ml-1">
+            <span className="font-medium text-foreground break-words">
               {customerName || customerEmail}
             </span>
             {customerName && customerEmail && (
-              <span className="ml-1">({customerEmail})</span>
+              <span className="break-all">({customerEmail})</span>
             )}
           </div>
         )}
       </div>
 
       <div className="mt-4 md:mt-0 w-full md:w-auto flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
           <Select
             value={selectedStatus || status}
             onValueChange={(newStatus) => onStatusChange(newStatus as OrderStatus)}
             disabled={statusUpdating}
           >
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-full sm:w-[220px]">
               <SelectValue placeholder="Select Status" />
             </SelectTrigger>
             <SelectContent>
@@ -102,6 +102,7 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
           </Button>
         </div>
       </div>
+
     </div>
   );
 };
