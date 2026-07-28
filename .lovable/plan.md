@@ -1,26 +1,21 @@
 ## Problem
 
-On narrow screens the order detail page has several header rows that force text and buttons onto the same line, so buttons overlap the title or run off the right edge:
+On a 360px viewport the Invoices page (`src/pages/InvoicesPage.tsx`) scrolls sideways because several rows are locked to a single non-wrapping line:
 
-1. **Item card header** (`src/pages/OrderDetail.tsx`, the `CardTitle` around lines 1250–1282) — the bike name, Return, Print Label and email resend buttons sit in one non-wrapping flex row, so the buttons overlap the wrapped title text.
-2. **Sender/Receiver Information header** (`src/components/order-detail/AdminContactEditor.tsx` line 168, `ContactDetails.tsx` line 51) — "Sender Information" plus Send Review and Edit Contact buttons overflow past the card edge.
-3. **Item Details header** (`src/components/order-detail/ItemDetails.tsx` line 99) — same pattern with the Edit Bikes button.
-4. **Order header** (`src/components/order-detail/OrderHeader.tsx`) — the fixed-width `w-[220px]` status select plus Cancel Order button can exceed a 360px viewport.
+1. **Invoice history rows** (lines 931–983) — `flex items-center justify-between` with a status pill plus "View in QuickBooks" and "Delete" buttons pushes content past the card edge (matches the screenshot).
+2. **Page header** (line 631) — title + QuickBooks connect/status on one row.
+3. **Create Invoice action row** (line 789) — two `min-w-[200px]` `size="lg"` buttons side by side exceed 360px.
+4. **Orders to Invoice rows** (line 753) — long tracking/bike text and date on one non-shrinking row.
 
-## Fix (presentation only, no logic changes)
+## Fix (presentation only)
 
-For each header row:
-- Change `flex items-center justify-between` to a wrapping layout: `flex flex-wrap items-start justify-between gap-2`, and let the title block take `min-w-0 flex-1` so long bike names wrap instead of being overlapped.
-- Put the action buttons in their own `flex flex-wrap gap-2` container so they drop to the next line on mobile rather than overflowing.
+- **History rows**: `flex flex-col sm:flex-row sm:items-center justify-between gap-3`; text block gets `min-w-0 flex-1` with `break-words` / `break-all` on the email line; action group becomes `flex flex-wrap items-center gap-2` so the buttons wrap under the details on mobile.
+- **Page header**: `flex flex-wrap items-center justify-between gap-3`, heading `text-2xl sm:text-3xl`.
+- **Action buttons row**: `flex flex-col sm:flex-row sm:justify-end gap-3`, buttons `w-full sm:w-auto sm:min-w-[200px]`.
+- **Orders to Invoice rows**: `flex flex-wrap justify-between items-start gap-2` with `min-w-0` on the text block and `break-words` on the tracking line.
 
-Specifics:
-- **OrderDetail.tsx item card**: make the `CardTitle` a wrapping column on mobile (`flex-col sm:flex-row`), title with `min-w-0 break-words`, button group `flex flex-wrap gap-2 w-full sm:w-auto`.
-- **AdminContactEditor.tsx / ContactDetails.tsx**: wrap header, buttons group `flex flex-wrap gap-2`; keep button sizes as-is.
-- **ItemDetails.tsx**: wrap header row.
-- **OrderHeader.tsx**: status select becomes `w-full sm:w-[220px]`, and the select + Cancel Order row becomes `flex-wrap w-full` so Cancel Order wraps below the select on small screens. Also let the "Booked by" line wrap (`flex-wrap` + `break-all` on the email) instead of stretching the row.
-
-No changes to data fetching, handlers, or backend behaviour.
+No changes to data fetching, invoice creation, or QuickBooks logic.
 
 ## Verification
 
-Load the order detail page in a 360px-wide viewport with Playwright and screenshot the item card, order header, and sender/receiver sections to confirm nothing overlaps or clips.
+Load `/invoices` in a 360px-wide Playwright viewport, screenshot the header, action buttons and invoice history sections, and confirm `document.documentElement.scrollWidth <= 360`.
