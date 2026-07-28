@@ -351,6 +351,7 @@ async function sendEmail(
   scheduledDate: string | undefined,
   collectionJobList: string | undefined,
   deliveryJobList: string | undefined,
+  niDeliveryOrders?: any[],
 ) {
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   if (!resendApiKey) { console.error("Resend API key not configured"); return; }
@@ -397,14 +398,36 @@ async function sendEmail(
       </div>
     ` : "";
 
+    // Collect every NI delivery order in this grouped stop (primary + related),
+    // deduped by id, so the ferry contact sees ALL final destinations.
+    const niOrders: any[] = [];
+    const seenNiIds = new Set<string>();
+    for (const o of [order, ...(niDeliveryOrders || [])]) {
+      if (!o || !isNiOrder(o)) continue;
+      const id = String(o.id);
+      if (seenNiIds.has(id)) continue;
+      seenNiIds.add(id);
+      niOrders.push(o);
+    }
+
+    const niBlocksHtml = niOrders.length
+      ? `<p style="font-weight: bold; margin-top: 20px;">Final destination${niOrders.length > 1 ? "s" : ""}:</p>` +
+        niOrders
+          .map(
+            (o) =>
+              `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 12px;">${formatNiReceiverBlock(o.receiver, o.tracking_number)}</pre>`,
+          )
+          .join("\n")
+      : "";
+
     emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
         <h2>Dear ${contact.name || "Customer"},</h2>
         <p>We are due to be with you on <strong>${formattedDate}</strong> between <strong>${startTime}</strong> and <strong>${endTime}</strong>.</p>
         ${itemsHtml}
         ${
-          isNiOrder(order) && recipientType === "receiver"
-            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+          niBlocksHtml && recipientType === "receiver"
+            ? niBlocksHtml
             : `<p>You will receive a text with a live tracking link once the driver is on his way.</p>`
         }
         ${collectionInstructions}
@@ -701,6 +724,26 @@ serve(async (req: Request): Promise<Response> => {
       sendzenResponseText = err?.message || "fetch error";
     }
 
+    // For grouped stops, fetch the other delivery-leg orders so the email can
+    // list every final destination (NI ferry hand-off carries multiple bikes).
+    let relatedDeliveryOrders: any[] = [];
+    if (type === "grouped_timeslot" && relatedJobs?.length) {
+      const deliveryIds = relatedJobs
+        .filter((r) => r.jobType === "delivery" && r.orderId && r.orderId !== orderId)
+        .map((r) => r.orderId);
+      if (deliveryIds.length) {
+        const { data: relatedOrders, error: relatedErr } = await supabase
+          .from("orders")
+          .select("*")
+          .in("id", deliveryIds);
+        if (relatedErr) {
+          console.error("Failed to fetch related delivery orders for email");
+        } else {
+          relatedDeliveryOrders = relatedOrders || [];
+        }
+      }
+    }
+
     // Run Shipday + Email in the background (not user-facing)
     EdgeRuntime.waitUntil(
       Promise.allSettled([
@@ -711,7 +754,7 @@ serve(async (req: Request): Promise<Response> => {
 
         // Email via Resend (skip for review)
         type !== "review"
-          ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList)
+          ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList, relatedDeliveryOrders)
           : Promise.resolve(),
       ]).then((results) => {
         console.log("Background operations complete:", results.map(r => r.status));
