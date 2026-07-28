@@ -417,7 +417,10 @@ Cycle Courier Co.`;
             ? scheduledUTCDate
             : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
 
-        const jobContact = isPickup ? orderToUpdate.sender : orderToUpdate.receiver;
+        const jobIsNiDelivery = !isPickup && isNiOrder(orderToUpdate);
+        const jobContact = isPickup
+          ? orderToUpdate.sender
+          : (jobIsNiDelivery ? niHandoffContact() : orderToUpdate.receiver);
         const jobNotes = isPickup ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
 
         // Build delivery instructions
