@@ -215,7 +215,14 @@ const TrackingPage = () => {
                        </div>
                      )}
                      
-                     {order.scheduledDeliveryDate && (
+                     {order.isNorthernIreland ? (
+                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
+                         <p className="text-sm font-medium text-green-900 mb-2">Delivery Date</p>
+                         <p className="text-xs sm:text-sm text-green-700 leading-tight break-words">
+                           To be confirmed — your bike travels onward by ferry once it reaches the ferry port.
+                         </p>
+                       </div>
+                     ) : order.scheduledDeliveryDate && (
                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
                          <p className="text-sm font-medium text-green-900 mb-2">Delivery Date</p>
                          <div className="flex flex-col sm:flex-row sm:items-start text-green-700 mb-2 gap-1 sm:gap-2">
