@@ -268,10 +268,12 @@ const BoxMyBikePage: React.FC = () => {
                       className="hidden"
                       accept="application/pdf,image/*"
                       onChange={(e) => {
-                        const f = e.target.files?.[0];
+                        const input = e.target as HTMLInputElement;
+                        const f = input.files?.[0];
+                        input.value = "";
                         if (f) uploadLabel.mutate({ id: o.id, file: f });
-                        e.target.value = "";
                       }}
+
                     />
                   </label>
                 </div>
