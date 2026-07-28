@@ -1548,6 +1548,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return distance <= LOCATION_GROUPING_RADIUS_METERS; // Within 750 meters
   };
 
+  // Build a stable contact key so different customers at the same address don't merge
+  const getContactKey = (job: SelectedJob): string | null => {
+    if (job.type === 'break') return null;
+    const contact: any = job.type === 'pickup'
+      ? job.orderData?.sender
+      : job.orderData?.receiver;
+    const email = (contact?.email || '').toString().toLowerCase().trim();
+    if (email) return `e:${email}`;
+    const phone = (contact?.phone || contact?.phoneNumber || '').toString().replace(/\s+/g, '').trim();
+    if (phone) return `p:${phone}`;
+    return null;
+  };
+
   // Helper function to group jobs by location
   const groupJobsByLocation = (jobs: SelectedJob[]): SelectedJob[] => {
     const routeJobs = jobs.filter(job => job.type !== 'break');
@@ -1559,21 +1572,27 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     routeJobs.forEach(job => {
       if (!job.lat || !job.lon) return;
+      const jobKey = getContactKey(job);
       
-      // Find existing group with same location
+      // Find existing group with same location AND same contact (or both missing keys)
       let groupId = null;
       for (const [existingGroupId, existingJobs] of Object.entries(locationGroups)) {
         const firstJobInGroup = existingJobs[0];
-        if (firstJobInGroup.lat && firstJobInGroup.lon && 
-            isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) {
-          groupId = existingGroupId;
-          break;
-        }
+        if (!firstJobInGroup.lat || !firstJobInGroup.lon) continue;
+        if (!isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) continue;
+
+        const existingKey = getContactKey(firstJobInGroup);
+        // Only merge when contact keys match. If either is missing, fall back to location-only merge.
+        const contactMatches = jobKey && existingKey ? jobKey === existingKey : true;
+        if (!contactMatches) continue;
+
+        groupId = existingGroupId;
+        break;
       }
       
       // Create new group if no existing group found
       if (!groupId) {
-        groupId = `location-${job.lat}-${job.lon}-${Date.now()}`;
+        groupId = `location-${job.lat}-${job.lon}-${jobKey ?? 'nokey'}-${Object.keys(locationGroups).length}`;
         locationGroups[groupId] = [];
       }
       
