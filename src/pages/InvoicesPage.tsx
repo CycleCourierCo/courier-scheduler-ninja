@@ -750,9 +750,9 @@ export default function InvoicesPage() {
             <CardContent>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {orders.map((order) => (
-                  <div key={order.id} className="flex justify-between items-center p-2 border rounded">
-                    <div>
-                      <p className="font-medium">
+                  <div key={order.id} className="flex flex-wrap justify-between items-start gap-2 p-2 border rounded">
+                    <div className="min-w-0">
+                      <p className="font-medium break-words">
                         {order.tracking_number} - {order.bike_brand} {order.bike_model}
                       </p>
                       <p className="text-sm text-muted-foreground">
