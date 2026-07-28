@@ -136,13 +136,17 @@ const BoxMyBikePage: React.FC = () => {
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
+  const [uploadPct, setUploadPct] = React.useState<number | null>(null);
+
   const uploadLabel = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
       const path = await uploadToStorage({
         bucket: "box-my-bike-labels",
         prefix: id,
         file,
+        onProgress: setUploadPct,
       });
+
 
       const { error: updErr } = await supabase
         .from("orders")
@@ -161,6 +165,8 @@ const BoxMyBikePage: React.FC = () => {
       toast.success("Label uploaded");
     },
     onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload label"),
+    onSettled: () => setUploadPct(null),
+
   });
 
   const saveTrackingUrl = useMutation({
@@ -262,11 +268,18 @@ const BoxMyBikePage: React.FC = () => {
                 <div className="mt-2">
                   <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
                     <Upload className="h-4 w-4" />
-                    <span>{o.box_label_url ? "Replace label" : "Upload label"}</span>
+                    <span>
+                      {uploadLabel.isPending
+                        ? `Uploading${uploadPct !== null ? ` ${uploadPct}%` : "…"}`
+                        : o.box_label_url
+                          ? "Replace label"
+                          : "Upload label"}
+                    </span>
                     <input
                       type="file"
                       className="hidden"
                       accept="application/pdf,image/*"
+                      disabled={uploadLabel.isPending}
                       onChange={(e) => {
                         const input = e.target as HTMLInputElement;
                         const f = input.files?.[0];
@@ -275,6 +288,7 @@ const BoxMyBikePage: React.FC = () => {
                       }}
 
                     />
+
                   </label>
                 </div>
               )}
