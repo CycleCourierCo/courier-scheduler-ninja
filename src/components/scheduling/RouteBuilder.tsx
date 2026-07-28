@@ -1375,7 +1375,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const order = orderList.find(o => o.id === ij.orderId);
         if (!order) return;
         
-        const contact = ij.type === 'pickup' ? order.sender : order.receiver;
+        const contact = getLegContact(order, ij.type);
         
         jobs.push({
           orderId: order.id,
@@ -1385,8 +1385,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           orderData: order,
           phoneNumber: contact.phone,
           order: idx + 1,
-          lat: contact.address.lat,
-          lon: contact.address.lon
+          lat: contact.lat,
+          lon: contact.lon
         });
       });
       
