@@ -1247,18 +1247,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
-  const handleCsvConfirm = () => {
-    // Get all matched jobs and convert to SelectedJob format
-    const matchedJobs = csvMatchResults
-      .filter(result => result.matchedOrder && result.jobType)
-      .map((result, index) => {
-        const order = result.matchedOrder!;
-        const jobType = result.jobType!;
-        const contact = jobType === 'pickup' ? order.sender : order.receiver;
-        
+  const handleCsvConfirm = (selected: { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }[]) => {
+    const matchedJobs = selected
+      .map((sel, index) => {
+        const order = orderList.find(o => o.id === sel.orderId);
+        if (!order) return null;
+        const contact = sel.jobType === 'pickup' ? order.sender : order.receiver;
+
         return {
           orderId: order.id,
-          type: jobType,
+          type: sel.jobType,
           address: formatAddress(contact.address),
           contactName: contact.name,
           orderData: order,
@@ -1267,7 +1265,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           lat: contact.address.lat,
           lon: contact.address.lon
         } as SelectedJob;
-      });
+      })
+      .filter(Boolean) as SelectedJob[];
 
     if (matchedJobs.length > 0) {
       setSelectedJobs(matchedJobs);
