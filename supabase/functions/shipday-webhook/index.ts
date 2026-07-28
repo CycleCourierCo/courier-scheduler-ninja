@@ -534,6 +534,23 @@ serve(async (req) => {
       }
     }
 
+    // Northern Ireland: bike handed to the Irish Sea carrier — notify the receiver
+    if (newStatus === "delivered_to_ferry" && (event === "ORDER_COMPLETED" || event === "ORDER_POD_UPLOAD")) {
+      try {
+        console.log("Sending ferry-arrival email for order:", dbOrder.id);
+        const ferryEmail = await supabase.functions.invoke("send-email", {
+          body: { meta: { action: "ferry_confirmation", orderId: dbOrder.id } }
+        });
+        if (ferryEmail.error) {
+          console.error("Error triggering ferry confirmation email:", ferryEmail.error);
+        } else {
+          console.log("Successfully triggered ferry confirmation email");
+        }
+      } catch (emailError) {
+        console.error("Error sending ferry confirmation email:", emailError);
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       message: `Order status updated to ${newStatus}`,
