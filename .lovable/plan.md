@@ -1,30 +1,22 @@
-## Current behaviour (verified)
+## Goal
 
-`supabase/functions/shipday-webhook/index.ts` treats every completed delivery the same:
+When a Northern Ireland order is marked **Delivered to ferry** (Shipday delivery to City Air Express completed), automatically email the receiver telling them their bike has reached the ferry port and is awaiting transport across the Irish Sea.
 
-- sets `status = "delivered"`, `order_collected = true`, `order_delivered = true`
-- fires the delivery-confirmation email
+## What the customer gets
 
-There is no reference to `is_northern_ireland`, `foam_status` or `delivered_to_ferry` anywhere in `supabase/functions/` — those are only set manually from the Foam My Bike UI. So a completed City Air Express drop currently marks a NI order fully delivered, skipping the ferry stage.
+- Subject: "Your Bicycle Has Reached the Ferry Port - The Cycle Courier Co."
+- Body: greeting by name, bike details + tracking number, explanation that the bike is at the port and is awaiting the crossing, a "Track Your Bicycle" button to the tracking page, and a note that they'll be contacted for final delivery.
+- Sent to the receiver only (the real Northern Ireland customer), not City Air Express, and no review-request block (that stays on final delivery).
 
-## Proposed change
+## Technical changes
 
-In the Shipday webhook, when the completed leg is the **delivery** leg and the order is flagged Northern Ireland:
+1. **Database migration**
+  - Add `ferry_confirmation_sent_at timestamptz` to `public.orders` so the email is sent once only (same pattern as `delivery_confirmation_sent_at`).
+2. `**supabase/functions/send-email/index.ts**`
+  - Handle new action `meta.action === "ferry_confirmation"` → `handleFerryConfirmation(orderId, resend)`.
+  - The handler: loads the order, exits early if `ferry_confirmation_sent_at` is set, builds the HTML above, sends via Resend from `Ccc@notification.cyclecourierco.com` with `reply_to: Info@cyclecourierco.com`, then stamps `ferry_confirmation_sent_at`.
+  - Existing test-account skip logic already applies via `meta.orderId`.
+3. `**supabase/functions/shipday-webhook/index.ts**`
+  - In the block that already sets `newStatus = "delivered_to_ferry"`, after the order update, invoke `send-email` with `{ meta: { action: "ferry_confirmation", orderId } }` (only on `ORDER_COMPLETED` / `ORDER_POD_UPLOAD`, wrapped in try/catch and logged, mirroring the existing confirmation email calls).
 
-1. Set `status = "delivered_to_ferry"` instead of `delivered`.
-2. Set `order_collected = true` but leave `order_delivered = false` — the bike hasn't reached the customer yet.
-3. Set `foam_status = "delivered_to_ferry"` so the Foam My Bike board moves the card automatically.
-4. Record the tracking event with the description "Delivered to Port — awaiting transport across the Irish Sea".
-5. Skip the standard delivery-confirmation email; the final "delivered" email stays with the manual mark-as-delivered action in the Foam My Bike section.
-
-Same branch applied in `supabase/functions/reconcile-shipday-orders/index.ts` so the reconcile backfill doesn't undo it.
-
-## Technical detail
-
-- The webhook's order lookup needs `is_northern_ireland` and `foam_status` added to its `select`.
-- Branch placed where `newStatus` is resolved for the delivery leg (both the status-mapped path and the proof-upload path around lines 223 and 260), so either route produces the ferry status.
-- Non-NI orders are untouched.
-
-## Open question
-
-If you'd rather the customer still gets an email at the ferry stage (a "your bike has reached our Irish Sea carrier" note), say so and I'll add a dedicated template instead of suppressing the email.
+Both edge functions redeploy automatically.
