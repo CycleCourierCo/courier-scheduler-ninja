@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  CITY_AIR_EXPRESS,
+  isNorthernIrelandAddress,
+  formatNiReceiverBlock,
+} from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -121,6 +126,28 @@ function addDaysToUTCYYYYMMDD(yyyyMmDd: string, days: number) {
 
 function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType {
   return recipientType === "sender" ? "pickup" : "delivery";
+}
+
+/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+function isNiOrder(o: any): boolean {
+  if (!o) return false;
+  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+}
+
+/** Contact we message / send to Shipday for a delivery leg on an NI order. */
+function niHandoffContact() {
+  return {
+    name: CITY_AIR_EXPRESS.name,
+    phone: CITY_AIR_EXPRESS.phone,
+    email: CITY_AIR_EXPRESS.email,
+    address: { ...CITY_AIR_EXPRESS.address },
+  };
+}
+
+/** Resolve the contact for a leg: sender for pickups, NI-aware for deliveries. */
+function resolveLegContact(o: any, isPickup: boolean) {
+  if (isPickup) return o?.sender;
+  return isNiOrder(o) ? niHandoffContact() : o?.receiver;
 }
 
 // ---- Background: Update Shipday (exact copy of send-timeslot-whatsapp logic) ----
