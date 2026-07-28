@@ -1651,7 +1651,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
+      .select('id, sender, receiver, is_northern_ireland, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
@@ -1665,20 +1665,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const updatedJobs = selectedJobs.map(job => {
       if (job.type === 'break') return job;
       
-      const freshOrder = freshOrders?.find(o => o.id === job.orderId);
+      const freshOrder: any = freshOrders?.find(o => o.id === job.orderId);
       if (!freshOrder) return job;
 
-      // Parse the contact JSON properly
-      const contactJson = job.type === 'pickup' 
-        ? freshOrder.sender 
-        : freshOrder.receiver;
-
-      const contact = contactJson && typeof contactJson === 'object' && !Array.isArray(contactJson)
-        ? contactJson as { address?: { lat?: number; lon?: number } }
-        : null;
-
-      const newLat = contact?.address?.lat;
-      const newLon = contact?.address?.lon;
+      // NI deliveries must resolve to the ferry hand-off, never the customer coords
+      const leg = getLegContact(freshOrder, job.type as 'pickup' | 'delivery');
+      const { lat: newLat, lon: newLon } = resolveStopCoords(freshOrder, job.type);
 
       if (newLat !== job.lat || newLon !== job.lon) {
         console.log(`Updated coordinates for ${job.contactName}: (${job.lat}, ${job.lon}) -> (${newLat}, ${newLon})`);
@@ -1686,10 +1678,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       return {
         ...job,
-        lat: newLat,
-        lon: newLon,
+        lat: newLat ?? job.lat,
+        lon: newLon ?? job.lon,
+        address: leg.address ? formatAddress(leg.address) : job.address,
+        contactName: leg.name || job.contactName,
+        phoneNumber: leg.phone || job.phoneNumber,
         orderData: job.orderData ? {
           ...job.orderData,
+          is_northern_ireland: freshOrder.is_northern_ireland ?? (job.orderData as any).is_northern_ireland,
+          foam_status: freshOrder.foam_status ?? (job.orderData as any).foam_status,
           scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
           scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
           order_collected: freshOrder.order_collected ?? job.orderData.order_collected,
