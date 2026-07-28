@@ -2985,7 +2985,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setIsSendingTimeslip(true);
     try {
       // Group jobs by location to get unique stops
-      const groupedJobs = groupJobsByLocation(selectedJobs);
+      const ferryAwareJobs = selectedJobs.map(job => {
+        if (job.type === 'break' || !job.orderData) return job;
+        const leg = getLegContact(job.orderData, job.type as 'pickup' | 'delivery');
+        const coords = resolveStopCoords(job.orderData, job.type);
+        return {
+          ...job,
+          lat: coords.lat ?? job.lat,
+          lon: coords.lon ?? job.lon,
+          address: leg.address ? formatAddress(leg.address) : job.address,
+        };
+      });
+      const groupedJobs = groupJobsByLocation(ferryAwareJobs);
       const routeJobs = groupedJobs.filter(job => job.type !== 'break');
       
       // Get unique locations only (one per group)
