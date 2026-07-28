@@ -41,7 +41,8 @@ export type OrderStatus =
   | 'boxed_awaiting_label'
   | 'awaiting_3p_collection'
   | 'collected_by_3p'
-  | 'delivered_by_3p';
+  | 'delivered_by_3p'
+  | 'delivered_to_ferry';
 
 export type BoxMyBikeStatus =
   | 'awaiting_depot'
@@ -68,6 +69,32 @@ export const BOX_MY_BIKE_STATUS_LABELS: Record<BoxMyBikeStatus, string> = {
   collected_by_3p: 'Collected by 3rd-party courier',
   delivered_by_3p: 'Delivered by 3rd-party courier',
 };
+
+// ---- Foam My Bike (Northern Ireland) ----
+export type FoamStatus =
+  | 'pending_collection'
+  | 'pending_foaming'
+  | 'foamed_ready'
+  | 'delivered_to_ferry'
+  | 'delivered_ni';
+
+export const FOAM_STATUS_ORDER: FoamStatus[] = [
+  'pending_collection',
+  'pending_foaming',
+  'foamed_ready',
+  'delivered_to_ferry',
+  'delivered_ni',
+];
+
+export const FOAM_STATUS_LABELS: Record<FoamStatus, string> = {
+  pending_collection: 'Pending collection',
+  pending_foaming: 'Pending foaming',
+  foamed_ready: 'Foamed, ready for delivery',
+  delivered_to_ferry: 'Delivered to ferry',
+  delivered_ni: 'Delivered in Northern Ireland',
+};
+
+
 
 
 export type ShipdayUpdate = {
