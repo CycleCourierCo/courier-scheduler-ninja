@@ -165,6 +165,8 @@ const BoxMyBikePage: React.FC = () => {
       toast.success("Label uploaded");
     },
     onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload label"),
+    onSettled: () => setUploadPct(null),
+
   });
 
   const saveTrackingUrl = useMutation({
