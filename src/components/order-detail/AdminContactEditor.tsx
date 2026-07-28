@@ -165,15 +165,16 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <User className="text-courier-600" />
-          <h3 className="font-semibold text-lg">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center space-x-2 min-w-0 flex-1">
+          <User className="text-courier-600 shrink-0" />
+          <h3 className="font-semibold text-lg break-words">
             {type === "sender" ? "Sender" : "Receiver"} Information
           </h3>
         </div>
         {!isEditing ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+
             {contact.phone && (
               <Button
                 variant="outline"
